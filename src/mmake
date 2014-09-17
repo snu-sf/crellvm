@@ -1,0 +1,17 @@
+#!/bin/bash
+
+../../../installed/coq/bin/coq_makefile \
+*.v \
+-impredicative-set \
+-I ../../release/theory/metatheory_8.3/ \
+-I ../../release/vol/src3.0/Vellvm/ \
+-I ../../release/vol/src3.0/Vellvm/compcert/ \
+-I ../../release/vol/src3.0/Vellvm/monads/ \
+-I ../../release/vol/src3.0/Vellvm/ott/ \
+-I ../../release/vol/src3.0/Vellvm/Dominators/ \
+-I ../../release/vol/src3.0/Vellvm/GraphBasics/ \
+-I ../../release/vol/src3.0/Extraction/ \
+-I ../../release/vol/src3.0/SoftBound/ \
+-I ../../release/vol/src3.0/Transforms/ \
+-I ../../release/vol/src3.0/TV/ \
+> Makefile

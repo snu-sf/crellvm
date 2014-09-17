@@ -1,0 +1,47 @@
+add_assoc z y x s c1 c2 c3
+replace_rhs z x y e e'
+replace_rhs_opt z x y e e'
+replace_lhs x y e
+remove_maydiff v e
+remove_maydiff_rhs v e
+eq_generate_same x y e
+eq_generate_same_heap x y p t a
+neq_generate_gm x y
+neq_generate_mm x y
+add_signbit x sz e s
+add_zext_bool x y b sz c c'
+ptr_trans p q v t a
+pow_zero x fp v s b
+add_onebit z x y
+stash_variable z t
+add_shift y s v
+add_sub z minusy s x y
+add_commutative z s x y
+sub_add z minusy s x y
+sub_onebit z x y
+sub_mone z s x
+sub_const_not z y s x c1 c2
+add_mul_fold z y s x c1 c2
+add_const_not z y s x c1 c2
+add_select_zero z x y c s n a
+add_select_zero2 z x y c s n a
+sub_zext_bool x y b sz c c'
+sub_const_add z y sz x c1 c2 c3
+sub_remove z y sz a b
+sub_remove2 z y sz a b
+sub_sdiv z y sz x c c'
+sub_shl z x y sz mx a
+sub_mul z y sz x c c'
+sub_mul2 z y sz x c c'
+mul_mone z sz x
+mul_neg z mx my sz x y
+mul_bool z x y
+mul_commutative z sz x y
+mul_shl z y sz x a
+div_sub_srem z b a sz x y
+div_sub_urem z b a sz x y
+div_zext z x y k sz1 sz2 a b
+div_mone z sz x
+rem_zext z x y k sz1 sz2 a b
+rem_neg z my sz x y
+rem_neg2 z sz x c1 c2

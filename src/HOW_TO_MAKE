@@ -1,0 +1,8 @@
+How to make
+===========
+
+1. generate `coq/Makefile` by `./mmake`
+   (The generation is required only when the dependency of coq files
+   is changed.)
+2. `make`
+
