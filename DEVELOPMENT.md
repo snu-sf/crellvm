@@ -20,13 +20,13 @@
 - `git submodule init && git submodule update`
 
 - Build `vellvm`.
-    + See `https://github.com/snu-sf/vellvm-legacy` for more details. Command below in `lib/vellvm`.
-    + `scripts/fetch-libs.sh`
-    + `make libs`
-    + `make`
+    + See `https://github.com/snu-sf/vellvm-legacy` for more details.
+    + `script/build-vellvm.sh $JOBS`
+    + `lib/vellvm/src/` will contain `.vo` files.
+    + `lib/vellvm/` will contain extracted `.ml`, `.mli` files.
 
 - Build `llvm`.
-    + `scripts/build-llvm.sh $JOBS`
+    + `script/build-llvm.sh $JOBS`
     + `.build/llvm-obj` will contain llvm object files.
     + `.local/bin` will contain llvm installation.
 
