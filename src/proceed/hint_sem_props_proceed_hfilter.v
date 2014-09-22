@@ -35,11 +35,12 @@ Proof.
   simpl in Hec; inv Hec; clear H.
   destruct pst.
 
-  Case "1. nop".
+  { Case "1. nop".
   left; split.
   - inv Hpop0; [|done].
     destruct rcmd; done.
   - by destruct Hstep0 as [Hres _]; inv Hres.
+  }
 
   Case "2. cmd".
   inv Hpop0; [|done].
@@ -109,11 +110,12 @@ Proof.
   simpl; unfold eqs_eq_reg_sem in *; intros.
   exploit Hreg1; eauto; intro Hereg1; clear Hreg1.
   inv Hereg1.
-  - econstructor; eauto.
-  - destruct cmd1; try done; destruct_step_tac; inv Hstep;
+  { econstructor; eauto. }
+  { destruct cmd1; try done; destruct_step_tac; inv Hstep;
     exploit memory_props.MemProps.nextblock_malloc; eauto; intro Hmfact;
     eapply eq_reg_sem_old_alloca; eauto;
     rewrite <-Hmfact; omega.
+  }
 
   SSSCase "1.1.1.2. otherwise, memory does not change".
   exploit def_cmd_inl_not_malloc_implies_memory_same; eauto.
@@ -127,18 +129,20 @@ Proof.
   simpl; unfold eqs_eq_reg_sem in *; intros.
   exploit Hreg1; eauto; intro Hereg1; clear Hreg1.
   inv Hereg1.
-  - econstructor; eauto.
-  - eapply eq_reg_sem_old_alloca; eauto.
+  { econstructor; eauto. }
+  { eapply eq_reg_sem_old_alloca; eauto.
     rewrite <-Hmfact; done.
+  }
 
   SSSCase "1.1.2.2. store".
   exploit memory_props.MemProps.nextblock_mstore; eauto; intro Hmfact.
   simpl; unfold eqs_eq_reg_sem in *; intros.
   exploit Hreg1; eauto; intro Hereg1; clear Hreg1.
   inv Hereg1.
-  - econstructor; eauto.
-  - eapply eq_reg_sem_old_alloca; eauto.
+  { econstructor; eauto. }
+  { eapply eq_reg_sem_old_alloca; eauto.
     rewrite <-Hmfact; done.
+  }
   
   SCase "1.2. heap equations: involved only with heap filter".
   destruct Hlinv as [_ [Hheap1 Hnreg1]]; simpl in Hheap1.
@@ -161,7 +165,7 @@ Proof.
   exploit memory_props.MemProps.malloc_preserves_mload; eauto; intro Hres.
   rewrite Hres; done.
 
-  SSCase "1.2.2. free".
+  { SSCase "1.2.2. free".
   inv Hstep.
   unfold eqs_eq_heap_sem in *; intros.
   unfold filter_pointer_in_eqs_eq_heap in H.
@@ -186,11 +190,12 @@ Proof.
       remember (mload TD mem1 mp t a) as mv; destruct mv; [|done].
       symmetry in Heqmv.
       exploit memory_props.MemProps.free_preserves_mload; eauto.
-      * apply orb_true_iff in H0; inv H0; pose (Hnreg1 _ _ H1) as Hnoteq;
+      { apply orb_true_iff in H0; inv H0; pose (Hnreg1 _ _ H1) as Hnoteq;
         unfold neq_reg_sem in Hnoteq; simpl in Hnoteq;
         rewrite H20, <- Heqvx in Hnoteq; destruct Hnoteq;
         unfold no_alias' in H2; destruct H2 as [Hna [Hundef1 Hundef2]];
         [done|eapply memory_props.MemProps.no_alias_sym; eauto].
+      }
       intros Hres; rewrite Hres; done.
 
     (* neq_reg with const *)
@@ -206,11 +211,12 @@ Proof.
       remember (mload TD mem1 mp t a) as mv; destruct mv; [|done].
       inv Hmp.
       exploit memory_props.MemProps.free_preserves_mload; eauto.
-      * pose (Hnreg1 _ _ H0) as Hnoteq.
+      { pose (Hnreg1 _ _ H0) as Hnoteq.
         unfold neq_reg_sem in Hnoteq; simpl in Hnoteq.
         rewrite H20, <- Heqgvid1 in Hnoteq; destruct Hnoteq.
         unfold no_alias' in H2; destruct H2 as [Hna [Hundef1 Hundef2]].
         rewrite not_undef_implies_cgv2gvs_same; eauto.
+      }
       intros Hres; rewrite Hres; done.
 
   (* freed by const *)
@@ -223,22 +229,23 @@ Proof.
     simpl in Heqpv; inv Heqpv.
     destruct p; try done.
 
-    + unfold eq_heap_sem in *; simpl; simpl in Hbrd.
+    { unfold eq_heap_sem in *; simpl; simpl in Hbrd.
       remember (lookupALExt olc1 Locals1 x) as xv; destruct xv; [|done].
       destruct (getOperandValueExt TD v olc1 Locals1 gl); [|done]; intros.
       exploit Hbrd; eauto; intro Hmload1; clear Hbrd.
       remember (mload TD mem1 mp t a) as mv; destruct mv; [|done].
       inv Hmp.
       exploit memory_props.MemProps.free_preserves_mload; eauto.
-      * pose (Hnreg1 _ _ H0) as Hnoteq.
+      { pose (Hnreg1 _ _ H0) as Hnoteq.
         unfold neq_reg_sem in Hnoteq; simpl in Hnoteq.
         rewrite <- Heqxv, <- Heqgvid1 in Hnoteq; destruct Hnoteq.
         unfold no_alias' in H2; destruct H2 as [Hna [Hundef1 Hundef2]].
         eapply memory_props.MemProps.no_alias_sym; eauto.
         rewrite not_undef_implies_cgv2gvs_same; eauto.
+      }
       intros Hres; rewrite Hres; done.
-
-    + destruct c; try done.
+    }
+    { destruct c; try done.
       unfold eq_heap_sem in *; simpl; simpl in Hbrd.
       remember (@const2GV DGVs TD gl (const_gid typ0 id0)) as icgv;
         destruct icgv; [|done].
@@ -250,10 +257,13 @@ Proof.
       remember (mload TD mem1 mp t a) as mv; destruct mv; [|done].
       inv Hmp.
       exploit memory_props.MemProps.free_preserves_mload; eauto.
-      * apply negb_true_iff in H0; destruct (id_dec id1 id0); [done|].
+      { apply negb_true_iff in H0; destruct (id_dec id1 id0); [done|].
         exploit Hgna1; eauto; intros [Hna [Hundef1 Hundef2]].
         repeat rewrite not_undef_implies_cgv2gvs_same; eauto.
-    intros Hres; rewrite Hres; done.
+      }
+      intros Hres; rewrite Hres; done.
+    }
+  }
 
   SSCase "1.2.3. alloca".
   unfold eqs_eq_heap_sem in *; intros.
@@ -283,7 +293,7 @@ Proof.
     inversion H25; subst mps2; clear H25.
 
   (* stored by id "x". *)
-  - destruct x as [x nx]; unfold vars_aux.add_ntag_value in Heqpv.
+  { destruct x as [x nx]; unfold vars_aux.add_ntag_value in Heqpv.
     destruct value2; [|done]; unfold vars_aux.add_ntag in Heqpv.
     inv Heqpv; simpl in H23.
     destruct p; try done.
@@ -296,11 +306,12 @@ Proof.
       remember (mload TD mem1 mp t a) as mv; destruct mv; [|done].
       symmetry in Heqmv.
       exploit memory_props.MemProps.mstore_preserves_mload; eauto.
-      * apply orb_true_iff in H0; inv H0; pose (Hnreg1 _ _ H1) as Hnoteq;
+      { apply orb_true_iff in H0; inv H0; pose (Hnreg1 _ _ H1) as Hnoteq;
         unfold neq_reg_sem in Hnoteq; simpl in Hnoteq;
         rewrite H23, <- Heqvx in Hnoteq; destruct Hnoteq;
         unfold no_alias' in H2; destruct H2 as [Hna [Hundef1 Hundef2]];
         [done|eapply memory_props.MemProps.no_alias_sym; eauto].
+      }
       intros Hres; rewrite Hres; done.
 
     (* neq_reg with const *)
@@ -316,15 +327,16 @@ Proof.
       remember (mload TD mem1 mp t a) as mv; destruct mv; [|done].
       inv Hmp.
       exploit memory_props.MemProps.mstore_preserves_mload; eauto.
-      * pose (Hnreg1 _ _ H0) as Hnoteq.
+      { pose (Hnreg1 _ _ H0) as Hnoteq.
         unfold neq_reg_sem in Hnoteq; simpl in Hnoteq.
         rewrite H23, <- Heqgvid1 in Hnoteq; destruct Hnoteq.
         unfold no_alias' in H2; destruct H2 as [Hna [Hundef1 Hundef2]].
         rewrite not_undef_implies_cgv2gvs_same; eauto.
+      }
       intros Hres; rewrite Hres; done.
-
+  }
   (* stored by const *)
-  - destruct c; try done.
+  { destruct c; try done.
     destruct value2; [done|].
     simpl in H23. unfold const2GV in H23.
     destruct const5; try done; simpl in H23.
@@ -333,22 +345,23 @@ Proof.
     simpl in Heqpv; inv Heqpv.
     destruct p; try done.
 
-    + unfold eq_heap_sem in *; simpl; simpl in Hbrd.
+    { unfold eq_heap_sem in *; simpl; simpl in Hbrd.
       remember (lookupALExt olc1 Locals1 x) as xv; destruct xv; [|done].
       destruct (getOperandValueExt TD v olc1 Locals1 gl); [|done]; intros.
       exploit Hbrd; eauto; intro Hmload1; clear Hbrd.
       remember (mload TD mem1 mp t a) as mv; destruct mv; [|done].
       inv Hmp.
       exploit memory_props.MemProps.mstore_preserves_mload; eauto.
-      * pose (Hnreg1 _ _ H0) as Hnoteq.
+      { pose (Hnreg1 _ _ H0) as Hnoteq.
         unfold neq_reg_sem in Hnoteq; simpl in Hnoteq.
         rewrite <- Heqxv, <- Heqgvid1 in Hnoteq; destruct Hnoteq.
         eapply memory_props.MemProps.no_alias_sym; eauto.
         unfold no_alias' in H2; destruct H2 as [Hna [Hundef1 Hundef2]].
         rewrite not_undef_implies_cgv2gvs_same; eauto.
+      }
       intros Hres; rewrite Hres; done.
-
-    + destruct c; try done.
+    }
+    { destruct c; try done.
       unfold eq_heap_sem in *; simpl; simpl in Hbrd.
       remember (@const2GV DGVs TD gl (const_gid typ0 id0)) as icgv;
         destruct icgv; [|done].
@@ -360,10 +373,13 @@ Proof.
       remember (mload TD mem1 mp t a) as mv; destruct mv; [|done].
       inv Hmp.
       exploit memory_props.MemProps.mstore_preserves_mload; eauto.
-      * apply negb_true_iff in H0; destruct (id_dec id1 id0); [done|].
+      { apply negb_true_iff in H0; destruct (id_dec id1 id0); [done|].
         exploit Hgna1; eauto; intros [Hna [Hundef1 Hundef2]].
         repeat rewrite not_undef_implies_cgv2gvs_same; eauto.
-    intros Hres; rewrite Hres; done.
+      }
+      intros Hres; rewrite Hres; done.
+    }
+  }
 
   SSCase "1.2.5. call".
   by elim (Hncall1 id5).
@@ -378,8 +394,9 @@ Proof.
           eqs_eq_heap := iheap1;
           eqs_neq_reg := inreg1 |} ocmd1)) =
     eqs_neq_reg_sem cfg1 olc1 (Locals ec1') inreg1).
-  - unfold filter_heap_eqs_by_cmd.
+  { unfold filter_heap_eqs_by_cmd.
     by destruct ocmd1 as [cmd1|]; [destruct (vars_aux.def_cmd cmd1)|done].
+  }
   rewrite Hseq; done.
 Qed.
 
@@ -441,8 +458,6 @@ End HintSemEach.
 
 (* 
 *** Local Variables: ***
-***
-*** coq-prog-args: ("-emacs" "-impredicative-set") ******
-***
+*** coq-prog-args: ("-emacs" "-impredicative-set") ***
 *** End: ***
- *)
+*)

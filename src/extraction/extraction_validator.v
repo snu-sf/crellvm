@@ -67,8 +67,6 @@ Extraction Library validator.
 
 (* 
 *** Local Variables: ***
-***
-*** coq-prog-args: ("-emacs" "-impredicative-set") ******
-***
+*** coq-prog-args: ("-emacs" "-impredicative-set") ***
 *** End: ***
- *)
+*)

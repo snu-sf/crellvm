@@ -103,7 +103,7 @@ Section HintSemEach.
       try by simpl; simpl in Hmd; exists olc1; exists olc2.
       
     remember (is_same_cmd md inv1 inv2 cmd1 cmd2) as bsame; destruct bsame.
-    - exists olc1; exists olc2; split; [|done].
+    { exists olc1; exists olc2; split; [|done].
       simpl; simpl in Hmd.
       unfold maydiff_update_opt, maydiff_update.
       rewrite <- Heqbsame.
@@ -113,17 +113,18 @@ Section HintSemEach.
         unfold vars_aux.is_defined_same_id in Hndef; simpl in Hndef;
         destruct (AtomSetImpl.eq_dec (singleton id0) (singleton id0)) as [|Hcontr];
         try done; elim Hcontr; done).
-
-    - exists olc1; exists olc2; split; [|done].
+    }
+    { exists olc1; exists olc2; split; [|done].
       unfold maydiff_update_opt, maydiff_update.
       rewrite <- Heqbsame.
       destruct (vars_aux.is_defined_same_id (ret cmd1) (ret cmd2)); done.
+    }
 
     Case "2. is_defined_same_id = true".
     destruct ocmd1 as [cmd1|]; destruct ocmd2 as [cmd2|]; try done.
 
     Focus 2. (* not a mainstream proof: left-nop *)
-      unfold vars_aux.is_defined_same_id in Hdef; simpl in Hdef.
+    { unfold vars_aux.is_defined_same_id in Hdef; simpl in Hdef.
       simpl in *.
       destruct Hsem as [Hmi Hiav]; split; [|done]; clear Hiav.
       destruct Hmi as [olc1 [olc2 [Hmd Hinv]]].
@@ -137,10 +138,11 @@ Section HintSemEach.
       apply orb_false_iff in Hnmem; destruct Hnmem as [_ Hnmem].
       apply orb_false_iff in Hnmem; destruct Hnmem as [Hieq Hnmem].
       apply orb_false_iff; split; done.
+    }
     Unfocus.
 
     Focus 2. (* not a mainstream prof: right-nop *)
-      unfold vars_aux.is_defined_same_id in Hdef; simpl in Hdef.
+    { unfold vars_aux.is_defined_same_id in Hdef; simpl in Hdef.
       simpl in *.
       destruct Hsem as [Hmi Hiav]; split; [|done]; clear Hiav.
       destruct Hmi as [olc1 [olc2 [Hmd Hinv]]].
@@ -154,6 +156,7 @@ Section HintSemEach.
       apply orb_false_iff in Hnmem; destruct Hnmem as [_ Hnmem].
       apply orb_false_iff in Hnmem; destruct Hnmem as [Hieq Hnmem].
       apply orb_false_iff; split; done.
+    }
     Unfocus.
 
     simpl; simpl in Hsem.
@@ -162,7 +165,7 @@ Section HintSemEach.
     destruct bsame.
 
     Focus 2. (* not a mainstream proof: is_same_cmd = false *)
-      rewrite Hdef.
+    { rewrite Hdef.
       destruct Hsem as [Hmi Hiav]; split; [|done]; clear Hiav.
       destruct Hmi as [olc1 [olc2 [Hmd Hinv]]].
       exists olc1; exists olc2; split; [|done].
@@ -172,12 +175,13 @@ Section HintSemEach.
       destruct (vars_aux.def_cmd cmd1).
 
       - assert (Hieq: i0 = i1).
-        + clear -Hdef; unfold vgtac.is_true in Hdef.
+        { clear -Hdef; unfold vgtac.is_true in Hdef.
           destruct (AtomSetImpl.eq_dec (singleton i1) (singleton i0)) as [Heq|];
             try done.
           unfold AtomSetImpl.eq, AtomSetImpl.Equal in Heq.
           destruct (Heq i0) as [_ Hieq].
           exploit Hieq; rewrite AtomSetFacts.singleton_iff; done.
+        }
         subst.
         clear -Hmd; unfold maydiff_sem in *.
         intros x Hnmem; apply Hmd.
@@ -194,6 +198,7 @@ Section HintSemEach.
         exploit Hcontr.
         rewrite AtomSetFacts.singleton_iff; done.
         apply AtomSetFacts.empty_iff.
+    }
     Unfocus.
 
     destruct Hsem as [Hmi Hiav]; split; [|done].
@@ -207,13 +212,14 @@ Section HintSemEach.
         [|by destruct cmd1, cmd2|by destruct cmd1, cmd2|done].
     
     assert (cid1 = cid2) as Heqcid.
-    - destruct cmd1, cmd2; try done;
+    { destruct cmd1, cmd2; try done;
       try by
         simpl in Heqcmd1d, Heqcmd2d;
           inversion Heqcmd1d; inversion Heqcmd2d; subst;
             unfold is_same_cmd in Heqbsame;
               symmetry in Heqbsame; repeat rewrite andb_true_iff in Heqbsame;
                 des; destruct (id_dec id5 id0); done.
+    }
     subst.
 
     unfold maydiff_sem in *; intros x Hxnmem.
@@ -233,11 +239,13 @@ Section HintSemEach.
     destruct CurCmds1;
       [by unfold pop_one_X in Hpop2; destruct (noop_idx_zero_exists n1) in Hpop2|].
     assert (Hceq1: c = cmd1).
-    - unfold pop_one_X in Hpop1; destruct (noop_idx_zero_exists n) in Hpop1;
+    { unfold pop_one_X in Hpop1; destruct (noop_idx_zero_exists n) in Hpop1;
       inversion Hpop1; done.
+    }
     assert (Hceq2: c0 = cmd2).
-    - unfold pop_one_X in Hpop2; destruct (noop_idx_zero_exists n1) in Hpop2;
+    { unfold pop_one_X in Hpop2; destruct (noop_idx_zero_exists n1) in Hpop2;
       inversion Hpop2; done.
+    }
     subst.
 
     inversion Hvm.
@@ -470,9 +478,7 @@ End HintSemEach.
 
 (* 
 *** Local Variables: ***
-***
-*** coq-prog-args: ("-emacs" "-impredicative-set") ******
-***
+*** coq-prog-args: ("-emacs" "-impredicative-set") ***
 *** End: ***
- *)
+*)
 

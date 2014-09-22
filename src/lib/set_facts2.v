@@ -185,8 +185,6 @@ Module NeqRegSetFacts2 := WFacts2_fun NeqRegDT NeqRegSetImpl.
 
 (* 
 *** Local Variables: ***
-***
-*** coq-prog-args: ("-emacs" "-impredicative-set") ******
-***
+*** coq-prog-args: ("-emacs" "-impredicative-set") ***
 *** End: ***
- *)
+*)

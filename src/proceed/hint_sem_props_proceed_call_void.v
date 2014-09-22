@@ -111,7 +111,7 @@ Proof.
         IdExtSetImpl.remove (vars_aux.add_otag x) acc)
       (AtomSetImpl.inter (singleton i1) (singleton i1)) md)
     (IdExtSetImpl.remove (vars_aux.add_otag i1) md)).
-  - idtac.
+  { idtac.
     match goal with
       | [|- context[AtomSetImpl.fold ?f ?s ?i]] =>
         exploit (AtomSetFacts2.fold_singleton_simpl f s i)
@@ -120,10 +120,11 @@ Proof.
       reflexivity.
     + intro H; destruct H as [e' [He' H]]; subst.
       by rewrite H.
+  }
   rewrite Hseteq in Hx.
   destruct (id_ext_dec x (i1, ntag_old)).
-  - by subst; simpl; repeat rewrite lookupAL_deleteAL_eq.
-  - destruct x as [x [|]]; simpl.
+  { by subst; simpl; repeat rewrite lookupAL_deleteAL_eq. }
+  { destruct x as [x [|]]; simpl.
     + destruct (id_dec i1 x); [by subst; elim n|].
       repeat rewrite lookupAL_deleteAL_neq; eauto.
       rewrite IdExtSetFacts.remove_b in Hx.
@@ -139,6 +140,7 @@ Proof.
       * apply negb_false_iff in H.
         unfold vars_aux.add_otag, IdExtSetFacts.eqb in H.
         by destruct (IdExtSetFacts.eq_dec (i1, ntag_old) (x, ntag_new)).
+  }
 
   assert (Hstep2: maydiff_sem
     (deleteAL _ lc1 i1) (deleteAL _ lc2 i1) alpha'
@@ -167,7 +169,7 @@ Proof.
         IdExtSetImpl.add (vars_aux.add_otag i1)
         (IdExtSetImpl.remove (vars_aux.add_ntag i1) md')
       else md')).
-  - idtac.
+  { idtac.
     match goal with
       | [|- context[AtomSetImpl.fold ?f ?s ?i]] =>
         exploit (AtomSetFacts2.fold_singleton_simpl f s i)
@@ -176,10 +178,11 @@ Proof.
       reflexivity.
     + intro H; destruct H as [e' [He' H]]; subst.
       by rewrite H.
+  }
   rewrite Hseteq in Hx; clear Hseteq.
   remember (IdExtSetImpl.mem (vars_aux.add_ntag i1) md') as ni1mem; destruct ni1mem.
 
-  - destruct (id_ext_dec (i1, ntag_old) x);
+  { destruct (id_ext_dec (i1, ntag_old) x);
     [subst x; elimtype False; clear -Hx;
       rewrite IdExtSetFacts.add_b in Hx;
       apply orb_false_iff in Hx; destruct Hx as [Hx _];
@@ -220,8 +223,8 @@ Proof.
       clear n n0; simpl.
       repeat rewrite lookupAL_deleteAL_neq; eauto.
       by pose (Hstep1 _ H).
-
-  - symmetry in Heqni1mem; unfold vars_aux.add_ntag in Heqni1mem.
+  }
+  { symmetry in Heqni1mem; unfold vars_aux.add_ntag in Heqni1mem.
     remember (Hstep1 _ Heqni1mem) as Hfact; simpl in Hfact; clear HeqHfact.
     destruct (id_ext_dec (i1, ntag_old) x).
     + subst x; simpl; rewrite <- Heqcmd1id, <- Heqcmd2id.
@@ -261,24 +264,26 @@ Proof.
       * destruct (id_dec i1 x); [by subst x; elim n0|].
         repeat rewrite lookupAL_deleteAL_neq; eauto.
         by pose (Hstep1 _ Hx).
-      
+  }
   clear Hstep1.
 
   assert (Haleq1: eqAL _
     (update_olc_by_ocmd (deleteAL _ olc1 i1) lc1 (ret cmd1))
     (update_olc_by_ocmd olc1 lc1 (ret cmd1))).
-  - unfold update_olc_by_ocmd; rewrite <- Heqcmd1id.
+  { unfold update_olc_by_ocmd; rewrite <- Heqcmd1id.
     destruct (lookupAL _ lc1 i1).
     + by apply updateAddAL_deleteAL.
     + by apply deleteAL_deleteAL.
+  }
 
   assert (Haleq2: eqAL _
     (update_olc_by_ocmd (deleteAL _ olc2 i1) lc2 (ret cmd2))
     (update_olc_by_ocmd olc2 lc2 (ret cmd2))).
-  - unfold update_olc_by_ocmd; rewrite <- Heqcmd2id.
+  { unfold update_olc_by_ocmd; rewrite <- Heqcmd2id.
     destruct (lookupAL _ lc2 i1).
     + by apply updateAddAL_deleteAL.
     + by apply deleteAL_deleteAL.
+  }
 
   assert (Hstep3: maydiff_sem
     (deleteAL _ lc1 i1) (deleteAL _ lc2 i1) alpha'
@@ -292,8 +297,9 @@ Proof.
   remember (Hstep2 _ Hx) as Hbrd; clear HeqHbrd Hstep2.
   unfold variable_equivalent in *.
   destruct x as [x [|]].
-  - unfold lookupALExt in *; by repeat rewrite <- Haleq1; rewrite <- Haleq2.
-  - unfold lookupALExt in *; done.
+  { unfold lookupALExt in *; by repeat rewrite <- Haleq1; rewrite <- Haleq2. }
+  { unfold lookupALExt in *; done. }
+  
 
   clear Haleq1 Haleq2 Hstep2.
 
@@ -317,12 +323,13 @@ Proof.
   remember (deleteAL GVs lc2 i1) as ec0'.
   unfold maydiff_sem in *; intros x Hx.
   destruct (id_ext_dec (i1, ntag_new) x).
-  - subst x; elimtype False; clear -Hx.
+  { subst x; elimtype False; clear -Hx.
     rewrite IdExtSetFacts.add_b in Hx; apply orb_false_iff in Hx.
     destruct Hx as [Hcontr _].
     unfold vars_aux.add_ntag, IdExtSetFacts.eqb in Hcontr.
     by destruct (IdExtSetFacts.eq_dec (i1, ntag_new) (i1, ntag_new)).
-  - rewrite IdExtSetFacts.add_b in Hx; apply orb_false_iff in Hx; destruct Hx as [_ Hx].
+  }
+  { rewrite IdExtSetFacts.add_b in Hx; apply orb_false_iff in Hx; destruct Hx as [_ Hx].
     rewrite IdExtSetFacts.add_b in Hx; apply orb_false_iff in Hx; destruct Hx as [_ Hx].
     remember (Hstep3 _ Hx) as Hres; clear HeqHres Hstep3.
     unfold variable_equivalent in *.
@@ -330,18 +337,18 @@ Proof.
     destruct (id_dec i1 x); [by subst x; elim n|].
     unfold lookupALExt in *.
     by repeat rewrite lookupAL_updateAddAL_opt_neq; eauto.
-
+  }
   clear Hstep3.
 
   assert (Haleq1: eqAL _
     (updateAddAL_opt GVs (deleteAL GVs lc1 i1) i1 (lookupAL GVs lc1 i1))
     lc1).
-  - by apply eqAL_updateAddAL_opt_deleteAL.
+  { by apply eqAL_updateAddAL_opt_deleteAL. }
 
   assert (Haleq2: eqAL _
     (updateAddAL_opt GVs (deleteAL GVs lc2 i1) i1 (lookupAL GVs lc2 i1))
     lc2).
-  - by apply eqAL_updateAddAL_opt_deleteAL.
+  { by apply eqAL_updateAddAL_opt_deleteAL. }
 
   (* Final step! *)
   unfold maydiff_sem in *; intros x Hx.
@@ -371,7 +378,7 @@ Proof.
 
   Case "1. normal value".
   eapply eq_reg_sem_value; eauto; simpl in *.
-  - destruct y as [y [|]]; simpl in *.
+  { destruct y as [y [|]]; simpl in *.
     + destruct (id_dec i0 y); try subst; simpl in *.
       * elimtype False; clear -Hnot.
         rewrite IdExtSetFacts.add_b in Hnot.
@@ -385,8 +392,9 @@ Proof.
     + destruct (id_dec i0 y); try subst; simpl in *.
       * by rewrite Hlookup; apply lookupAL_updateAddAL_eq.
       * rewrite lookupAL_updateAddAL_opt_neq; eauto.
+  }
 
-  - destruct r; try (inv Hrhs; fail); simpl in Hnot; mem_destruct_tac.
+  { destruct r; try (inv Hrhs; fail); simpl in Hnot; mem_destruct_tac.
 
     (* BOP *)
     + inv Hrhs; econstructor.
@@ -486,6 +494,7 @@ Proof.
     (* Value *)
     + inv Hrhs; eapply rhs_ext_value__sem.
       eapply oldnew_preserves_getOperandValueExt'; eauto.
+  }
 
   Case "2. old_alloca_old".
   eapply eq_reg_sem_old_alloca; eauto.
@@ -737,14 +746,15 @@ Section HintSemEach.
     exploit Hiso1; eauto; intro Hfact; clear Hiso1.
     simpl; simpl in Hfact; clear igvs.
     destruct Hfact as [He|[igvs [Hlookup Hptr]]].
-    - rewrite He; simpl; left; eapply lookupAL_deleteAL_eq; eauto.
-    - rewrite Hlookup; simpl; right; exists igvs; split; [|done].
+    { rewrite He; simpl; left; eapply lookupAL_deleteAL_eq; eauto. }
+    { rewrite Hlookup; simpl; right; exists igvs; split; [|done].
       eapply lookupAL_updateAddAL_eq; eauto.
+    }
 
     SCase "1.2. x <> i0".
     remember (IdExtSetImpl.mem (vars_aux.add_ntag i0)
       (IdExtSetImpl.remove (vars_aux.add_otag i0) iso)) as bii; destruct bii.
-    - apply IdExtSetFacts.add_iff in Hx.
+    { apply IdExtSetFacts.add_iff in Hx.
       destruct Hx as [Hcontr|Hx]; [by inv Hcontr; elim n|].
       apply IdExtSetFacts.remove_iff in Hx; destruct Hx as [Hx _].
       apply IdExtSetFacts.remove_iff in Hx; destruct Hx as [Hx _].
@@ -758,7 +768,8 @@ Section HintSemEach.
         destruct (lookupAL GVs lc i0).
         * rewrite <-lookupAL_updateAddAL_neq; eauto.
         * rewrite lookupAL_deleteAL_neq; eauto.
-    - apply IdExtSetFacts.remove_iff in Hx; destruct Hx as [Hx _].
+    }
+    { apply IdExtSetFacts.remove_iff in Hx; destruct Hx as [Hx _].
       exploit Hiso1; eauto; intro Hfact; clear Hiso1.
       simpl; simpl in Hfact; clear igvs.
       destruct Hfact as [He|[igvs [Hlookup Hptr]]].
@@ -769,6 +780,7 @@ Section HintSemEach.
         destruct (lookupAL GVs lc i0).
         * rewrite <-lookupAL_updateAddAL_neq; eauto.
         * rewrite lookupAL_deleteAL_neq; eauto.
+    }
 
     Case "2. x has a new tag".
     destruct (id_dec x i0).
@@ -777,9 +789,10 @@ Section HintSemEach.
     subst x; elimtype False; clear -Hx.
     remember (IdExtSetImpl.mem (vars_aux.add_ntag i0)
       (IdExtSetImpl.remove (vars_aux.add_otag i0) iso)) as bii; destruct bii.
-    - apply IdExtSetFacts.add_iff in Hx; destruct Hx as [Hx|Hx]; [done|].
+    { apply IdExtSetFacts.add_iff in Hx; destruct Hx as [Hx|Hx]; [done|].
       apply IdExtSetFacts.remove_iff in Hx; destruct Hx as [_ Hx]; done.
-    - apply IdExtSetFacts.remove_iff in Hx; destruct Hx as [Hx _].
+    }
+    { apply IdExtSetFacts.remove_iff in Hx; destruct Hx as [Hx _].
       symmetry in Heqbii; rewrite IdExtSetFacts.remove_b in Heqbii.
       apply andb_false_iff in Heqbii; destruct Heqbii as [Heqbii|Heqbii].
       + apply IdExtSetFacts2.F.mem_iff in Hx.
@@ -789,11 +802,12 @@ Section HintSemEach.
         unfold IdExtSetFacts.eqb in Heqbii.
         unfold id in *.
         destruct (IdExtSetFacts.eq_dec (i0, ntag_old) (i0, ntag_new)); done.
+    }
 
     SCase "2.2. x <> i0".
     remember (IdExtSetImpl.mem (vars_aux.add_ntag i0)
       (IdExtSetImpl.remove (vars_aux.add_otag i0) iso)) as bii; destruct bii.
-    - apply IdExtSetFacts.add_iff in Hx.
+    { apply IdExtSetFacts.add_iff in Hx.
       destruct Hx as [Hcontr|Hx]; [by inv Hcontr; elim n|].
       apply IdExtSetFacts.remove_iff in Hx; destruct Hx as [Hx _].
       apply IdExtSetFacts.remove_iff in Hx; destruct Hx as [Hx _].
@@ -803,13 +817,15 @@ Section HintSemEach.
       + left; rewrite lookupAL_updateAddAL_opt_neq; eauto.
       + right; exists xgvs; split; [|done].
         rewrite lookupAL_updateAddAL_opt_neq; eauto.
-    - apply IdExtSetFacts.remove_iff in Hx; destruct Hx as [Hx _].
+    }
+    { apply IdExtSetFacts.remove_iff in Hx; destruct Hx as [Hx _].
       exploit Hiso1; eauto; intro Hfact; clear Hiso1.
       simpl; simpl in Hfact.
       destruct Hfact as [He|[xgvs [Hlookup Hptr]]].
       + left; rewrite lookupAL_updateAddAL_opt_neq; eauto.
       + right; exists xgvs; split; [|done].
         rewrite lookupAL_updateAddAL_opt_neq; eauto.
+    }
   Qed.
 End HintSemEach.
 
@@ -974,12 +990,15 @@ Proof.
   remember (vars_aux.def_cmd cmd2) as dcmd2; destruct dcmd2; [|by destruct cmd2].
   simpl in Heqbs; rewrite <-Heqdcmd1, <-Heqdcmd2 in Heqbs.
   exploit AtomSetFacts2.eq_dec_singleton_eq.
-  - instantiate (1:=i1). instantiate (1:=i0).
+  { instantiate (1:=i1). instantiate (1:=i0).
     destruct (AtomSetImpl.eq_dec (singleton i0) (singleton i1)); done.
+  }
   intro; subst.
 
   hexploit oldnew_preserves_maydiff_sem_aux'.
-  - apply Hmd. - apply Heqdcmd1. - apply Heqdcmd2.
+  { apply Hmd. }
+  { apply Heqdcmd1. }
+  { apply Heqdcmd2. }
   intro Hmdfact.
 
   destruct cmd1; try done; destruct cmd2; try done.
@@ -1071,7 +1090,7 @@ Proof.
   Case "1. return with different id".
   rewrite Hmd'.
   remember (is_same_cmd md inv1 inv2 cmd1 cmd2) as bsame; destruct bsame.
-  - simpl; simpl in Hmd.
+  { simpl; simpl in Hmd.
     unfold maydiff_update_opt, maydiff_update.
     rewrite <- Heqbsame.
     destruct cmd1, cmd2; try done.
@@ -1081,10 +1100,12 @@ Proof.
     unfold vars_aux.is_defined_same_id in Hndef; simpl in Hndef.
     destruct (AtomSetImpl.eq_dec (singleton id0) (singleton id0)) as [|Hcontr]; try done.
     elim Hcontr; done.
+  }
 
-  - unfold maydiff_update_opt, maydiff_update.
+  { unfold maydiff_update_opt, maydiff_update.
     rewrite <- Heqbsame.
     destruct (vars_aux.is_defined_same_id (ret cmd1) (ret cmd2)); done.
+  }
 
   Case "2. return with same id".
   destruct cmd1; try done; destruct cmd2; try done; simpl in *; subst.
@@ -1190,7 +1211,7 @@ Proof.
 
   SCase "2.1. readonly".
   destruct value0; try done.
-  - simpl in Heqbro; unfold only_read_memory in Heqbro.
+  { simpl in Heqbro; unfold only_read_memory in Heqbro.
     symmetry in Heqbro; rewrite orb_true_iff in Heqbro.
     destruct Heqbro as [Heqbrol|Heqbrog].
     + exploit Hro. left.
@@ -1205,7 +1226,8 @@ Proof.
       simpl in Heqbrog.
       apply orb_true_iff in Heqbrog; destruct Heqbrog; [by left|by right].
       by eapply memory_extends_prop.
-  - simpl in Heqbro.
+  }
+  { simpl in Heqbro.
     destruct const5; try done.
     unfold only_read_memory in Heqbro.
     symmetry in Heqbro; rewrite orb_true_iff in Heqbro.
@@ -1222,6 +1244,7 @@ Proof.
       simpl in Heqbrog.
       apply orb_true_iff in Heqbrog; destruct Heqbrog; [by left|by right].
       by eapply memory_extends_prop.
+  }
 
   SCase "2.2. not readonly".
   unfold eqs_eq_heap_sem; intros.
@@ -1363,27 +1386,39 @@ Proof.
 
   (* B. remove old / new to old *)
   hexploit call_oldnew_preserves_hint_sem'; try reflexivity.
-  - apply Hcall1. - apply Hcall2. - apply Heqsu1. - apply Heqsu2.
-  - apply Hmd. - apply Hinv.
+  { apply Hcall1. }
+  { apply Hcall2. }
+  { apply Heqsu1. }
+  { apply Heqsu2. }  
+  { apply Hmd. }
+  { apply Hinv. }
   clear Hmd Hinv; intros [Hmd Hinv].
 
   (* C. update maydiff *)
   hexploit call_update_md_preserves_maydiff_sem'.
-  - apply Hcall1. - apply Hcall2. - apply Heqsu1. - apply Heqsu2.
-  - apply Hinv. - reflexivity. - apply Hmd.
+  { apply Hcall1. }
+  { apply Hcall2. }
+  { apply Heqsu1. }
+  { apply Heqsu2. }
+  { apply Hinv. }
+  { reflexivity. }
+  { apply Hmd. }
   clear Hmd; intros Hmd.
 
   (* D. eliminating addneq: no neq's are added. *)
   hexploit call_addneq_preserves_invariant_sem'.
-  - apply Hcall1. - apply Hcall2. - apply Hinv.
+  { apply Hcall1. }
+  { apply Hcall2. }
+  { apply Hinv. }
   instantiate (1:=(collect_global_ids (get_products_from_module m2))).
   instantiate (1:=(collect_global_ids (get_products_from_module m1))).
   clear Hinv; intros Hinv.
 
   (* D. filter / stale *)
   hexploit call_hfilter_preserves_invariant_sem'.
-  - apply Hcall1. - apply Hcall2.
-  - instantiate (1:=pmem1). instantiate (1:=mem1').
+  { apply Hcall1. }
+  { apply Hcall2. }
+  { instantiate (1:=pmem1). instantiate (1:=mem1').
     instantiate (1:=cfg1). instantiate (1:=m1).
     destruct ocmd1 as [cmd1|]; [|done]; destruct cmd1; try done; simpl in *.
     move Hpop1 at bottom.
@@ -1393,7 +1428,8 @@ Proof.
     destruct cc1; [done|].
     inv Heqpop1; inv H0.
     destruct value0; try done.
-  - instantiate (1:=pmem2). instantiate (1:=mem2').
+  }
+  { instantiate (1:=pmem2). instantiate (1:=mem2').
     instantiate (1:=cfg2). instantiate (1:=m2).
     destruct ocmd2 as [cmd2|]; [|done]; destruct cmd2; try done; simpl in *.
     move Hpop2 at bottom.
@@ -1403,14 +1439,22 @@ Proof.
     destruct cc2; [done|].
     inv Heqpop2; inv H0.
     destruct value0; try done.
-  - apply Heqsu1. - apply Heqsu2. - apply Hvmem. - auto. - auto.
-  - reflexivity. - reflexivity.
-  - apply Hinv.
+  }
+  { apply Heqsu1. }
+  { apply Heqsu2. }
+  { apply Hvmem. }
+  { auto. }
+  { auto. }
+  { reflexivity. }
+  { reflexivity. }
+  { apply Hinv. }
   clear Hinv; intros Hinv.
 
   (* E. eliminating addcmd: call_insn's are not added. *)
   hexploit call_addcmd_preserves_invariant_sem'.
-  - apply Hcall1. - apply Hcall2. - apply Hinv.
+  { apply Hcall1. }
+  { apply Hcall2. }
+  { apply Hinv. }
   clear Hinv; intros Hinv.
   simpl in *.
 
@@ -1429,8 +1473,6 @@ Qed.
 
 (* 
 *** Local Variables: ***
-***
-*** coq-prog-args: ("-emacs" "-impredicative-set") ******
-***
+*** coq-prog-args: ("-emacs" "-impredicative-set") ***
 *** End: ***
- *)
+*)

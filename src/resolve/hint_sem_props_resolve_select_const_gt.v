@@ -35,8 +35,6 @@ Hint Resolve infrule_correct_select_const_gt: InfRuleDb.
 
 (* 
 *** Local Variables: ***
-***
-*** coq-prog-args: ("-emacs" "-impredicative-set") ******
-***
+*** coq-prog-args: ("-emacs" "-impredicative-set") ***
 *** End: ***
- *)
+*)

@@ -1060,8 +1060,6 @@ Definition infrule_sem (m1 m2:module) (inf: infrule_t) (h: insn_hint_t) : insn_h
 
 (* 
 *** Local Variables: ***
-***
-*** coq-prog-args: ("-emacs" "-impredicative-set") ******
-***
+*** coq-prog-args: ("-emacs" "-impredicative-set") ***
 *** End: ***
- *)
+*)

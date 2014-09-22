@@ -805,10 +805,11 @@ Proof.
   intros Hf Hc. unfold Mem.free in Hc.
   destruct (Mem.range_perm_dec mem2 b2 l2 h2 Freeable); [done|].
   assert (~ Mem.range_perm mem1 b2 l2 h2 Freeable).
-  - intro Hc'. contradict n.
-  unfold Mem.range_perm in *. intros.
-  exploit Hc'; eauto. intro Hp.
-  eapply Mem.perm_free_1; eauto.
+  { intro Hc'. contradict n.
+    unfold Mem.range_perm in *. intros.
+    exploit Hc'; eauto. intro Hp.
+    eapply Mem.perm_free_1; eauto.
+  }
   unfold Mem.free in Hf.
   by destruct (Mem.range_perm_dec mem1 b2 l2 h2 Freeable).
   Global Opaque Mem.free.
@@ -861,8 +862,9 @@ Proof.
 
   inv Hp2.
   exploit mem_inj__ppfree; eauto.
-  - inv Hwf. repeat intro. exploit mi_range_block; eauto. intro. subst.
+  { inv Hwf. repeat intro. exploit mi_range_block; eauto. intro. subst.
     exploit Hli2none; eauto.
+  }
   intros [Hwfmi Hinj].
 
   econs; try done; try (by rewrite Hfeq1); try (by rewrite Hfeq2).
@@ -992,8 +994,9 @@ Qed.
       + intros x y Hx Hy. apply Hdisj1'; auto. eapply sublist_In; eauto. apply discard_block_sublist.
       + intros x y Hx Hy. apply Hdisj2'; auto. eapply sublist_In; eauto. apply discard_block_sublist.
       + eapply free_preserves_valid_memories; [eauto|idtac|eauto|eauto].
-        * by eapply valid_memories_weaken'; eauto;
+        { by eapply valid_memories_weaken'; eauto;
              apply discard_block_sublist.
+        }
         rewrite Htd. eapply genericvalues_inject.gv_inject_cons; [|done].
         by econs; eauto.
   Qed.
@@ -1170,9 +1173,10 @@ Qed.
       inv Hstep0. inv H. inv Hnoop; [|done]. inv Hnnn; try done. inv H0.
       done.
     - inv Hord.
-      + inv Hns. exploit stutter_num_noop_idx_zero_exists; eauto.
+      { inv Hns. exploit stutter_num_noop_idx_zero_exists; eauto.
         intro Hnhd. rewrite Hnhd in Heqzhpn. done.
-        inv Hpop; unfold pop_one_X in Hpop0; rewrite <- Heqzhpn in Hpop0; inv Hpop0.
+      }
+      inv Hpop; unfold pop_one_X in Hpop0; rewrite <- Heqzhpn in Hpop0; inv Hpop0.
       + destruct ec0. simpl in *. destruct CurCmds0; [done|]. inv H0.
         inv Hnoop; [|done]. inv Hnnn; simpl in *; try done.
         * inv H0. destruct c; try by inv Hstep0.
@@ -1291,33 +1295,6 @@ Qed.
           exploit IHla; eauto.
   Qed.
 
-  Lemma callExternalOrIntrinsics_mem td gl mem1 fid rt targs dck gvs ores tr mem2
-    (H: callExternalOrIntrinsics td gl mem1 fid rt targs dck gvs = ret (ores, tr, mem2)) :
-    mem1 = mem2.
-  Proof.
-    Ltac destruct_add_empty_trace :=
-      repeat match goal with
-               | [H: add_empty_trace ?R = ret _ |- _] =>
-                 unfold add_empty_trace in H;
-                   remember R as Q; destruct Q as [[]|]; [|done]
-               | [H: ret _ = ret _ |- _] => inv H
-             end.
-    destruct dck; simpl in H; destruct_add_empty_trace.
-    - exploit callIntrinsics__extcall_properties; eauto.
-    intro H. by inv H.
-    destruct external_id5; destruct_add_empty_trace.
-    - exploit callMalloc__extcall_properties; eauto.
-    instantiate (1 := globals2Genv td gl).
-    intro H. by inv H.
-    - exploit callFree__extcall_properties; eauto.
-    instantiate (1 := globals2Genv td gl).
-    intro H. by inv H.
-    - exploit callIOFunction__extcall_io_sem; eauto.
-    intro H'. by inv H'.
-    - exploit callExternalFunction__extcall_other_sem; eauto.
-    intro H. by inv H.
-  Qed.
-
   Lemma global_hint_sem_F_step_hint_sem
     alpha lpi1 lpi2
     ecs1 mem1 ns1
@@ -1328,14 +1305,15 @@ Qed.
     inv Hsem. repeat intro.
     exploit valid_products_valid_fdef'; eauto. intro Hvalid_fdef.
     exploit hint_sem_F_step_hint_sem; eauto.
-    - constructor; simpl.
+    { constructor; simpl.
       + exploit lookupFdefViaIDFromProducts_ideq.
         * symmetry. apply Hfdef1.
         * done.
       + exploit lookupFdefViaIDFromProducts_ideq.
         * symmetry. apply Hfdef2.
         * done.
-    - econstructor; eauto.
+    }
+    { econstructor; eauto.
       constructor; simpl.
       + exploit lookupFdefViaIDFromProducts_ideq.
         * symmetry. apply Hfdef1.
@@ -1344,6 +1322,7 @@ Qed.
         * symmetry. apply Hfdef2.
         * intro. subst. destruct fdef2. destruct fheader5. auto.
       + eapply hint_sem_global_bot_noret_dec; eauto.
+    }
 
     (** main **)
     intro Hlocal. exploit Hlocal; eauto.
@@ -1355,7 +1334,7 @@ Qed.
     destruct Hlocal as [Hlocal|[Hlocal|Hlocal]].
 
     (* ordinary: cmd + call + return *)
-    - destruct Hlocal as [Hord1 [Hord2 Hlocal]]. exploit Hlocal; eauto.
+    { destruct Hlocal as [Hord1 [Hord2 Hlocal]]. exploit Hlocal; eauto.
       clear Hlocal. intros [pbid' [alpha' [li1' [li2' [ecs1'0 [mem1'0 [ns1'0 [na1'0 [Hlocal0 [Hlocal1 Hlocal2]]]]]]]]]].
       exists alpha'. exists (li1'::pi1). exists (li2'::pi2). exists ecs1'0. exists mem1'0. exists ns1'0. exists na1'0.
       repeat (split; [done|]).
@@ -1363,13 +1342,13 @@ Qed.
       exploit (is_ordinary_logical_semantic_step cfg1); eauto. intros [? ?]; subst.
       exploit (is_ordinary_logical_semantic_step cfg2); eauto. intros [? ?]; subst.
       econs; eauto.
-      + eapply readonly_ordinary''; eauto.
-      + eapply readonly_ordinary''; eauto.
-
+      { eapply readonly_ordinary''; eauto. }
+      { eapply readonly_ordinary''; eauto. }
       eapply inject_incr'_hint_sem_global_bot; eauto.
       + by eapply logical_semantic_step_mem_nextblock; eauto.
       + by eapply logical_semantic_step_mem_nextblock; eauto.
       + by eapply inject_incr'_weaken; eauto.
+    }
 
     (* call *)
     inv Hlocal.
@@ -1380,7 +1359,7 @@ Qed.
     destruct cmds2 as [|[]]; try done.
     inv Hpop1. inv Hpop2.
     inv Hsame_call.
-    - simpl in *.
+    { simpl in *.
       generalize H1. intro H1'. destruct H1' as [fptrs [fptr [fdef1' [Hfptrs [Hfptr [Hfdef1' Hfid]]]]]].
       unfold lookupFdefViaPtr in Hfdef1'.
       remember (lookupFdefViaGVFromFunTable (FunTable cfg1) fptr) as fn. destruct fn; [simpl in *|done].
@@ -1455,7 +1434,7 @@ Qed.
         exploit valid_phis_nil; eauto. intro Himpl.
         exploit invariant_implies_preserves_hint_sem_fdef; [idtac|eauto|eauto].
         eapply infrules_resolve_preserves_hint_sem_fdef; eauto.
-        * apply infrules_correct.
+        { apply infrules_correct. }
         econs; simpl; eauto.
         * inv Hinsn. destruct Hsem as [olc1 [olc2 [Hmd Hinv]]].
           destruct Hparams as [gvs1 [Hgvs1 [gvs2 [Hgvs2 Hinj]]]].
@@ -1521,9 +1500,10 @@ Qed.
             rewrite <- Hhints in Hhints0. inv Hhints0.
             exploit hint_lookup_uniq; [apply Hhint'|apply Hhint0|].
             intro. by subst.
+    }
 
     (* excall *)
-    - simpl in *.
+    { simpl in *.
       generalize H1. intro H1'. destruct H1' as [fptrs1 [fptr1 [Hfptrs1 [Hfptr1 Hfdec1]]]].
       generalize H2. intro H2'. destruct H2' as [fptrs2 [fptr2 [Hfptrs2 [Hfptr2 Hfdec2]]]].
       exploit lookupFdefViaIDFromProducts_ideq; eauto.
@@ -1541,9 +1521,19 @@ Qed.
       rewrite (destruct_cfg cfg1) in Hstep0. inv Hstep0; [by exploit (call'_excall cfg1); eauto|].
       rewrite (destruct_cfg cfg2) in Hstep2. inv Hstep2; [by exploit (call'_excall cfg2); eauto|].
       exploit (excall_uniq' cfg1 value0 locals1 fdec0 (fdec_intro (fheader_intro fa rt fid la va) dck)).
-      + apply Hfptrs1. eauto. eauto. apply H24. eauto. eauto.
+      { apply Hfptrs1. }
+      { eauto. }
+      { eauto. }
+      { apply H24. }
+      { eauto. }
+      { eauto. }
       exploit (excall_uniq' cfg2 value3 locals2 fdec0 (fdec_intro (fheader_intro fa0 rt0 fid0 la0 va0) dck0)).
-      + apply Hfptrs2. eauto. eauto. apply H31. eauto. eauto.
+      { apply Hfptrs2. }
+      { eauto. }
+      { eauto. }
+      { apply H31. }
+      { eauto. }
+      { eauto. }
       intros [? [? ?]] [? [? ?]]. subst. inv H6.
       exploit dos_in_list_gvs_inv; eauto. intro. subst. clear H35.
       exploit dos_in_list_gvs_inv; eauto. intro. subst. clear H28.
@@ -1552,14 +1542,14 @@ Qed.
       rewrite <- Hgvs2 in H34. inv H34.
       generalize Hinsn. intro Hinsn'. inv Hinsn'.
       exploit callExternalOrIntrinsics_prop_2; eauto.
-      + by inv Hvmem; eauto.
+      { by inv Hvmem; eauto. }
       intros [oresult2 [mem2'' [Horesult2 [Hvmem' [Halc' Horesult1]]]]]. simpl in Halc'.
       rewrite Htd, H36 in Horesult2. inv Horesult2.
       generalize (callExternalOrIntrinsics_prop_1 _ _ _ _ _ _ _ _ _ _ _ H29). intro Hmem1'.
       generalize (callExternalOrIntrinsics_prop_1 _ _ _ _ _ _ _ _ _ _ _ H36). intro Hmem2'.
       eexists. eexists. eexists. eexists. (repeat split); (try by eauto).
       exploit Hvalid_cmd; eauto.
-      * unfold pop_one_X. rewrite <- Heqzn2. eauto.
+      { unfold pop_one_X. rewrite <- Heqzn2. eauto. }
       intros [? [? [? [hint' [hint'' [Hpop [Hhint' [Hhint'' Himpl]]]]]]]].
       unfold pop_one_X in Hpop. rewrite <- Heqzn1 in Hpop. inv Hpop.
       econs; eauto.
@@ -1574,17 +1564,18 @@ Qed.
                          |by eapply logical_step_preservation; eauto
                          |idtac]; eauto.
             by apply inject_incr'_refl.
-            (* *) intro Hrd1. apply is_call_readonly_iff in Hrd1.
-                  exploit readonly_ordinary'; [idtac|idtac|idtac|idtac|apply Hstep1|idtac]; eauto.
-                  intros. by exploit call_excall; eauto.
-                  by intros [? _].
-                  simpl. rewrite Hrd1. by intros [? _].
-            (* *) intro Hrd2. apply is_call_readonly_iff in Hrd2.
-                  exploit readonly_ordinary'; [idtac|idtac|idtac|idtac|apply Hstep|idtac]; eauto.
-                  intros. by exploit call_excall; eauto.
-                  by intros [? _].
-                  simpl. rewrite Hrd2. by intros [? _].
-
+            { intro Hrd1. apply is_call_readonly_iff in Hrd1.
+              exploit readonly_ordinary'; [idtac|idtac|idtac|idtac|apply Hstep1|idtac]; eauto.
+              intros. by exploit call_excall; eauto.
+              by intros [? _].
+              simpl. rewrite Hrd1. by intros [? _].
+            }
+            { intro Hrd2. apply is_call_readonly_iff in Hrd2.
+              exploit readonly_ordinary'; [idtac|idtac|idtac|idtac|apply Hstep|idtac]; eauto.
+              intros. by exploit call_excall; eauto.
+              by intros [? _].
+              simpl. rewrite Hrd2. by intros [? _].
+            }
             intro Hsim. inv Hsim. inv Hec1. inv Hec2. simpl in *.
             rewrite <- Hblock_hint in Hblock_hint0. inv Hblock_hint0.
             rewrite <- Hhints in Hhints0. inv Hhints0.
@@ -1606,17 +1597,18 @@ Qed.
                          |by eapply logical_step_preservation; eauto
                          |idtac]; eauto.
             by apply inject_incr'_refl.
-            (* *) intro Hrd1. apply is_call_readonly_iff in Hrd1.
-                  exploit readonly_ordinary'; [idtac|idtac|idtac|idtac|apply Hstep1|idtac]; eauto.
-                  intros. by exploit call_excall; eauto.
-                  by intros [? _].
-                  simpl. rewrite Hrd1. by intros [? _].
-            (* *) intro Hrd2. apply is_call_readonly_iff in Hrd2.
-                  exploit readonly_ordinary'; [idtac|idtac|idtac|idtac|apply Hstep|idtac]; eauto.
-                  intros. by exploit call_excall; eauto.
-                  by intros [? _].
-                  simpl. rewrite Hrd2. by intros [? _].
-
+            { intro Hrd1. apply is_call_readonly_iff in Hrd1.
+              exploit readonly_ordinary'; [idtac|idtac|idtac|idtac|apply Hstep1|idtac]; eauto.
+              intros. by exploit call_excall; eauto.
+              by intros [? _].
+              simpl. rewrite Hrd1. by intros [? _].
+            }
+            { intro Hrd2. apply is_call_readonly_iff in Hrd2.
+              exploit readonly_ordinary'; [idtac|idtac|idtac|idtac|apply Hstep|idtac]; eauto.
+              intros. by exploit call_excall; eauto.
+              by intros [? _].
+              simpl. rewrite Hrd2. by intros [? _].
+            }
             intro Hsim. inv Hsim. inv Hec1. inv Hec2. simpl in *.
             rewrite <- Hblock_hint in Hblock_hint0. inv Hblock_hint0.
             rewrite <- Hhints in Hhints0. inv Hhints0.
@@ -1633,11 +1625,12 @@ Qed.
       + eapply inject_incr'_hint_sem_global_bot; eauto.
         eapply inject_incr'_weaken; eauto.
         instantiate (1 := nil). instantiate (1 := nil). done.
+    }
 
     (* return *)
     exists alpha. exists pi1. exists pi2.
     inv Hlocal.
-    - generalize Hstep1. intro Hstep1'. rewrite (destruct_cfg cfg1) in Hstep1'. inv Hstep1'. inv Hpn. inv Hec. simpl in *.
+    { generalize Hstep1. intro Hstep1'. rewrite (destruct_cfg cfg1) in Hstep1'. inv Hstep1'. inv Hpn. inv Hec. simpl in *.
       generalize Hstep. intro Hstep'. rewrite (destruct_cfg cfg2) in Hstep'. inv Hstep'. inv Hpn. inv Hec. simpl in *.
       apply negb_true_iff in Hn1. apply negb_true_iff in Hn2.
       repeat match goal with
@@ -1701,8 +1694,8 @@ Qed.
           inv Hinsn. simpl in *.
           destruct Hvals as [Halc1 [Halc2 [Halc1' Halc2']]].
           exploit free_allocas_valid_memories; [idtac|idtac|idtac|idtac|idtac|idtac|idtac|idtac|idtac|eauto|idtac]; eauto.
-            inv Hvmem. intros x y Hx Hy. apply Hlipidisj1; auto. apply in_app. by right.
-            inv Hvmem. intros x y Hx Hy. apply Hlipidisj2; auto. apply in_app. by right.
+          { inv Hvmem. intros x y Hx Hy. apply Hlipidisj1; auto. apply in_app. by right. }
+          { inv Hvmem. intros x y Hx Hy. apply Hlipidisj2; auto. apply in_app. by right. }
           intro Hvmem'.
           exploit genericvalues_inject.simulation__fit_gv; eauto; [by inv Hvmem'; eauto|].
           intros [retval2' [Hretval2' Hinj']]. rewrite Htd in Hretval2'. rewrite Hretval2' in *.
@@ -1716,33 +1709,36 @@ Qed.
                          |by eapply logical_step_preservation; eauto
                          |by eapply logical_step_preservation; eauto
                          |idtac|idtac]; eauto.
-            by apply inject_incr'_refl.
-            by eapply free_allocas_valid_allocas; eauto.
-            punfold Hreadonly1. inv Hreadonly1; [by exfalso; apply Hnret|by inv Hcall|].
+          { by apply inject_incr'_refl. }
+          { by eapply free_allocas_valid_allocas; eauto. }
+          { punfold Hreadonly1. inv Hreadonly1; [by exfalso; apply Hnret|by inv Hcall|].
             intro Hrd1. apply is_call_readonly_iff in Hrd1. rewrite Hrd1 in Hextends.
             rewrite (destruct_cfg cfg1) in Hstep0. inv Hstep0. simpl in *.
             rewrite H27 in H20. inv H20. done.
-            punfold Hreadonly2. inv Hreadonly2; [by exfalso; apply Hnret|by inv Hcall|].
+          }
+          { punfold Hreadonly2. inv Hreadonly2; [by exfalso; apply Hnret|by inv Hcall|].
             intro Hrd2. apply is_call_readonly_iff in Hrd2. rewrite Hrd2 in Hextends.
             rewrite (destruct_cfg cfg2) in Hstep0. inv Hstep0. simpl in *.
             rewrite H27 in H17. inv H17. done.
-            punfold Hreadonly1. inv Hreadonly1; [by exfalso; apply Hnret|by inv Hcall|].
-            pclearbot. rewrite (destruct_cfg cfg1) in Hstep0. inv Hstep0. simpl in *.
-            rewrite H29 in H20. inv H20.
-            rewrite H30 in H21. inv H21.
-            by eauto.
-            punfold Hreadonly2. inv Hreadonly2; [by exfalso; apply Hnret|by inv Hcall|].
-            pclearbot. rewrite (destruct_cfg cfg2) in Hstep0. inv Hstep0. simpl in *.
-            rewrite H29 in H17. inv H17.
-            rewrite H30 in H18. inv H18.
-            by eauto.
+          }
+      + punfold Hreadonly1. inv Hreadonly1; [by exfalso; apply Hnret|by inv Hcall|].
+        pclearbot. rewrite (destruct_cfg cfg1) in Hstep0. inv Hstep0. simpl in *.
+        rewrite H29 in H20. inv H20.
+        rewrite H30 in H21. inv H21.
+        by eauto.
+      + punfold Hreadonly2. inv Hreadonly2; [by exfalso; apply Hnret|by inv Hcall|].
+        pclearbot. rewrite (destruct_cfg cfg2) in Hstep0. inv Hstep0. simpl in *.
+        rewrite H29 in H17. inv H17.
+        rewrite H30 in H18. inv H18.
+        by eauto.
 
       + eapply inject_incr'_hint_sem_global_bot; eauto.
         * eapply logical_semantic_step_mem_nextblock. eauto.
         * eapply logical_semantic_step_mem_nextblock. eauto.
         * by apply inject_incr'_refl.
+    }
 
-    - generalize Hstep1. intro Hstep1'. rewrite (destruct_cfg cfg1) in Hstep1'. inv Hstep1'. inv Hpn. inv Hec. simpl in *.
+    { generalize Hstep1. intro Hstep1'. rewrite (destruct_cfg cfg1) in Hstep1'. inv Hstep1'. inv Hpn. inv Hec. simpl in *.
       generalize Hstep. intro Hstep'. rewrite (destruct_cfg cfg2) in Hstep'. inv Hstep'. inv Hpn. inv Hec. simpl in *.
       apply negb_true_iff in Hn1. apply negb_true_iff in Hn2.
       repeat match goal with
@@ -1774,41 +1770,43 @@ Qed.
         inv Hinsn. simpl in *.
         destruct Hvals as [Halc1 [Halc2 [Halc1' Halc2']]].
         exploit free_allocas_valid_memories; [idtac|idtac|idtac|idtac|idtac|idtac|idtac|idtac|idtac|eauto|idtac]; eauto.
-        * inv Hvmem. intros x y Hx Hy. apply Hlipidisj1; auto. apply in_app. by right.
-        * inv Hvmem. intros x y Hx Hy. apply Hlipidisj2; auto. apply in_app. by right.
+        { inv Hvmem. intros x y Hx Hy. apply Hlipidisj1; auto. apply in_app. by right. }
+        { inv Hvmem. intros x y Hx Hy. apply Hlipidisj2; auto. apply in_app. by right. }
         intro Hvmem'.
         assert (Hnextblock1: Mem.nextblock mem1 <= Mem.nextblock mem1');
           [by eapply logical_semantic_step_mem_nextblock; eauto|].
         assert (Hnextblock2: Mem.nextblock mem2 <= Mem.nextblock mem2');
           [by eapply logical_semantic_step_mem_nextblock; eauto|].
-          exploit Hnext; [idtac|idtac|idtac|idtac|idtac
-                         |idtac|idtac|idtac
-                         |by eapply logical_step_preservation; eauto
-                         |by eapply logical_step_preservation; eauto
-                         |idtac|idtac]; eauto.
-            by apply inject_incr'_refl.
-            by eapply free_allocas_valid_allocas; eauto.
-            punfold Hreadonly1. inv Hreadonly1; [by exfalso; apply Hnret|by inv Hcall|].
-            intro Hrd1. apply is_call_readonly_iff in Hrd1. rewrite Hrd1 in Hextends.
-            rewrite (destruct_cfg cfg1) in Hstep0. inv Hstep0. simpl in *.
-            rewrite H27 in H18. inv H18. done.
-            punfold Hreadonly2. inv Hreadonly2; [by exfalso; apply Hnret|by inv Hcall|].
-            intro Hrd2. apply is_call_readonly_iff in Hrd2. rewrite Hrd2 in Hextends.
-            rewrite (destruct_cfg cfg2) in Hstep0. inv Hstep0. simpl in *.
-            rewrite H27 in H15. inv H15. done.
-            punfold Hreadonly1. inv Hreadonly1; [by exfalso; apply Hnret|by inv Hcall|].
-            pclearbot. rewrite (destruct_cfg cfg1) in Hstep0. inv Hstep0. simpl in *.
-            rewrite H27 in H18. inv H18.
-            by eauto.
-            punfold Hreadonly2. inv Hreadonly2; [by exfalso; apply Hnret|by inv Hcall|].
-            pclearbot. rewrite (destruct_cfg cfg2) in Hstep0. inv Hstep0. simpl in *.
-            rewrite H27 in H15. inv H15.
-            by eauto.
-
+        exploit Hnext; [idtac|idtac|idtac|idtac|idtac
+                       |idtac|idtac|idtac
+                       |by eapply logical_step_preservation; eauto
+                       |by eapply logical_step_preservation; eauto
+                       |idtac|idtac]; eauto.
+        { by apply inject_incr'_refl. }
+        { by eapply free_allocas_valid_allocas; eauto. }
+        { punfold Hreadonly1. inv Hreadonly1; [by exfalso; apply Hnret|by inv Hcall|].
+          intro Hrd1. apply is_call_readonly_iff in Hrd1. rewrite Hrd1 in Hextends.
+          rewrite (destruct_cfg cfg1) in Hstep0. inv Hstep0. simpl in *.
+          rewrite H27 in H18. inv H18. done.
+        }
+        { punfold Hreadonly2. inv Hreadonly2; [by exfalso; apply Hnret|by inv Hcall|].
+          intro Hrd2. apply is_call_readonly_iff in Hrd2. rewrite Hrd2 in Hextends.
+          rewrite (destruct_cfg cfg2) in Hstep0. inv Hstep0. simpl in *.
+          rewrite H27 in H15. inv H15. done.
+        }
+      + punfold Hreadonly1. inv Hreadonly1; [by exfalso; apply Hnret|by inv Hcall|].
+        pclearbot. rewrite (destruct_cfg cfg1) in Hstep0. inv Hstep0. simpl in *.
+        rewrite H27 in H18. inv H18.
+        by eauto.
+      + punfold Hreadonly2. inv Hreadonly2; [by exfalso; apply Hnret|by inv Hcall|].
+        pclearbot. rewrite (destruct_cfg cfg2) in Hstep0. inv Hstep0. simpl in *.
+        rewrite H27 in H15. inv H15.
+        by eauto.
       + eapply inject_incr'_hint_sem_global_bot; eauto.
         * eapply logical_semantic_step_mem_nextblock. eauto.
         * eapply logical_semantic_step_mem_nextblock. eauto.
         * by apply inject_incr'_refl.
+    }
   Qed.
 
   Lemma global_hint_sem_F_progress_hint_sem
@@ -1875,8 +1873,6 @@ End Relations.
 
 (* 
 *** Local Variables: ***
-***
-*** coq-prog-args: ("-emacs" "-impredicative-set") ******
-***
+*** coq-prog-args: ("-emacs" "-impredicative-set") ***
 *** End: ***
- *)
+*)

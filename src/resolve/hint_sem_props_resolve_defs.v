@@ -108,6 +108,20 @@ Ltac arith_microtac :=
       rewrite gundef_is in H
     | [|- context[gundef ?td _]] =>
       rewrite gundef_is
+
+    | [H: context[DepElim.solution_left _ _ _ _ _ _ _] |- _] =>
+      unfold DepElim.solution_left in H
+    | [H: context[eq_rect_r _ _ _ _ _ _] |- _] =>
+      unfold eq_rect_r in H
+    | [H: context[eq_rect _ _ _ _ _ _ _ _] |- _] =>
+      rewrite <- Eqdep_dec.eq_rect_eq_dec in H; [|by apply eq_nat_dec]
+    | [|- context[DepElim.solution_left _ _ _ _ _ _ _]] =>
+      unfold DepElim.solution_left
+    | [|- context[eq_rect_r _ _ _ _ _ _]] =>
+      unfold eq_rect_r
+    | [|- context[eq_rect _ _ _ _ _ _ _ _]] =>
+      rewrite <- Eqdep_dec.eq_rect_eq_dec; [|by apply eq_nat_dec]
+
     | [H: context[DepElim.solution_left _ _ _ _ _ _] |- _] =>
       unfold DepElim.solution_left in H
     | [H: context[eq_rect_r _ _ _ _ _] |- _] =>
@@ -120,6 +134,7 @@ Ltac arith_microtac :=
       unfold eq_rect_r
     | [|- context[eq_rect _ _ _ _ _ _ _]] =>
       rewrite <- Eqdep_dec.eq_rect_eq_dec; [|by apply eq_nat_dec]
+
     | [H: ret _ = ret _ |- _] => inv H
     | [|- ret _ = ret _] => f_equal
     | [|- Vint _ _ = Vint _ _] => f_equal
@@ -211,8 +226,6 @@ Ltac arith_tac :=
 
 (* 
 *** Local Variables: ***
-***
-*** coq-prog-args: ("-emacs" "-impredicative-set") ******
-***
+*** coq-prog-args: ("-emacs" "-impredicative-set") ***
 *** End: ***
- *)
+*)

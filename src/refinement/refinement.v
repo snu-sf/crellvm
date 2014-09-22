@@ -111,7 +111,7 @@ Section SimulationRefinement.
         by erewrite stutter_num_noop_idx_zero_exists' in *; eauto.
       + exploit Hvalid_term;
           [by eapply valid_products_valid_fdef'; eauto|idtac|idtac|idtac|idtac|idtac|idtac|idtac|idtac|idtac]; eauto.
-        * unfold pop_one_X. by rewrite <- Heqh2.
+        { unfold pop_one_X. by rewrite <- Heqh2. }
         intros [Hcmds1 [Himpl Hterm]].
         unfold pop_one_X in Hcmds1.
         remember (noop_idx_zero_exists n1) as h1. destruct h1; [done|]. destruct cmds1; [|done].
@@ -139,7 +139,7 @@ Section SimulationRefinement.
         by erewrite stutter_num_noop_idx_zero_exists' in *; eauto.
       + exploit Hvalid_term;
           [by eapply valid_products_valid_fdef'; eauto|idtac|idtac|idtac|idtac|idtac|idtac|idtac|idtac|idtac]; eauto.
-        * unfold pop_one_X. by rewrite <- Heqh2.
+        { unfold pop_one_X. by rewrite <- Heqh2. }
         intros [Hcmds1 [Himpl Hterm]].
         unfold pop_one_X in Hcmds1.
         remember (noop_idx_zero_exists n1) as h1. destruct h1; [done|]. destruct cmds1; [|done].
@@ -175,7 +175,7 @@ Section SimulationRefinement.
         by erewrite stutter_num_noop_idx_zero_exists' in *; eauto.
       + exploit Hvalid_term_2;
           [by eapply valid_products_valid_fdef'; eauto|idtac|idtac|idtac|idtac|idtac|idtac|idtac|idtac|idtac]; eauto.
-        * unfold pop_one_X. by rewrite <- Heqh1.
+        { unfold pop_one_X. by rewrite <- Heqh1. }
         intros [Hcmds1 [Himpl Hterm]].
         unfold pop_one_X in Hcmds1.
         remember (noop_idx_zero_exists n2) as h2. destruct h2; [done|]. destruct cmds2; [|done].
@@ -203,7 +203,7 @@ Section SimulationRefinement.
         by erewrite stutter_num_noop_idx_zero_exists' in *; eauto.
       + exploit Hvalid_term_2;
           [by eapply valid_products_valid_fdef'; eauto|idtac|idtac|idtac|idtac|idtac|idtac|idtac|idtac|idtac]; eauto.
-        * unfold pop_one_X. by rewrite <- Heqh1.
+        { unfold pop_one_X. by rewrite <- Heqh1. }
         intros [Hcmds1 [Himpl Hterm]].
         unfold pop_one_X in Hcmds1.
         remember (noop_idx_zero_exists n2) as h2. destruct h2; [done|]. destruct cmds2; [|done].
@@ -234,16 +234,18 @@ Section SimulationRefinement.
       destruct H as [mst1 [mtr1 Hinsn1]].
       inv Hinsn1. inv Hinsn.
       exploit global_hint_sem_F_step_hint_sem; eauto.
-      - instantiate (4 := Mem (state mst1)).
+      { instantiate (4 := Mem (state mst1)).
         instantiate (4 := ECS (state mst1)).
         repeat rewrite <- destruct_State.
         eauto.
+      }
       intros [li1' [pi1 [li2' [pi2 [? [? HF]]]]]]. subst.
       exploit HF.
-      - instantiate (4 := Mem (state lst2')).
+      { instantiate (4 := Mem (state lst2')).
         instantiate (4 := ECS (state lst2')).
         repeat rewrite <- destruct_State.
         by eauto.
+      }
       intros [alpha' [li1'' [li2'' [ecs1' [mem1' [ns1' [na1' [Hstep1' [Hincr' X]]]]]]]]].
       rewrite <- destruct_State in Hstep1'.
       exploit logical_semantic_step_lsInsn; [by apply Hstep1'|].
@@ -303,22 +305,25 @@ Section SimulationRefinement.
     pcofix CIH. intros lst1 lst2 alpha li1 li2 Hsim obs Hbev2.
     punfold Hbev2. inv Hbev2.
     exploit hint_sem_global_lsop_star; eauto. intros [Hobs|[lst1' [Hlst1' [alpha' [li1' [li2' Hsim']]]]]].
-    - destruct Hobs as [lst1' [Hlst1' [Hstuck1 Hfinal1]]].
+    { destruct Hobs as [lst1' [Hlst1' [Hstuck1 Hfinal1]]].
       pfold. econs; eauto.
+    }
     inv MAT.
     + pfold. econs; [|by eauto].
       assert (lstuck_state cfg1 fn_al1 lst1').
-      * intros [lst1'' [tr1 Hstep1]]. apply STUCK.
+      { intros [lst1'' [tr1 Hstep1]]. apply STUCK.
         inv Hstep1.
         exploit global_hint_sem_F_progress_hint_sem; eauto.
-          instantiate (4 := Mem (state (lst1''))).
+        { instantiate (4 := Mem (state (lst1''))).
           instantiate (4 := ECS (state (lst1''))).
           repeat rewrite <- destruct_State.
           by eauto.
+        }
         rewrite <- destruct_State.
         intros [ecs2' [mem2' [ns2' [na2' [tr2 Hstep2]]]]].
         exploit logical_semantic_step_lsInsn; eauto.
         intros [Hmatch2' X]. eexists. eexists. eauto.
+      }
       eapply lbeh_err; eauto.
       remember (s_isFinialState cfg1 (state lst1')) as f1. destruct f1 as [f1|]; [|done].
       exploit hint_sem_global_done_2; eauto.
@@ -493,15 +498,16 @@ Section Refinement.
     FunTable cfg1 = FunTable cfg2.
   Proof.
     exploit s_genInitState__opsem_wf; [apply Hm2|idtac|].
-    - eapply ls_genInitState_s_genInitState; eauto.
+    { eapply ls_genInitState_s_genInitState; eauto. }
     intros [Hcfg2 Hst2].
 
     unfold ls_genInitState in H.
     remember (lookupFdefViaIDFromSystem [m2] main) as f2. destruct f2; [|done].
     erewrite lookupFdefViaIDFromSystem_getParentOfFdefFromSystem in H; eauto.
     exploit valid_products_valid_fdef_1'; eauto.
-    - destruct m2. simpl in *.
+    { destruct m2. simpl in *.
       rewrite monad_prop in Heqf2. eauto.
+    }
     intros [f1 [Hf1 [fh [Hfh Hv]]]].
     destruct m1, m2. simpl in *. unfold initTargetData in H.
     rewrite monad_prop in Heqf2.
@@ -553,10 +559,10 @@ Section Refinement.
     exploit (s_genInitState_prop_2 m1). eapply ls_genInitState_s_genInitState; eauto. intros Hrd1.
     exploit (s_genInitState_prop_2 m2). eapply ls_genInitState_s_genInitState; eauto. intros Hrd2.
     exploit s_genInitState__opsem_wf; [apply Hm1|idtac|].
-    - eapply ls_genInitState_s_genInitState; eauto.
+    { eapply ls_genInitState_s_genInitState; eauto. }
     intros [Hcfg1 Hst1].
     exploit s_genInitState__opsem_wf; [apply Hm2|idtac|].
-    - eapply ls_genInitState_s_genInitState; eauto.
+    { eapply ls_genInitState_s_genInitState; eauto. }
     intros [Hcfg2 Hst2].
 
     unfold ls_genInitState in *.
@@ -564,8 +570,9 @@ Section Refinement.
     remember (lookupFdefViaIDFromSystem [m2] main) as f2. destruct f2 as [f2|]; [|done].
     erewrite lookupFdefViaIDFromSystem_getParentOfFdefFromSystem in *; eauto.
     exploit valid_products_valid_fdef_1'; eauto.
-    - destruct m2. simpl in *.
+    { destruct m2. simpl in *.
       rewrite monad_prop in Heqf2. eauto.
+    }
     intros [? [X [fh [Hfh Hv]]]].
     destruct m1, m2. simpl in *. rewrite monad_prop in Heqf1, Heqf2.
     rewrite <- Heqf1 in X. inv X.
@@ -617,8 +624,8 @@ Section Refinement.
     - exploit valid_phis_nil; eauto. intro Himpl.
       eapply hint_sem_props_implies.invariant_implies_preserves_hint_sem_fdef; eauto.
       eapply hint_sem_props_resolve.infrules_resolve_preserves_hint_sem_fdef; eauto.
-      + by econs.
-      + apply hint_sem_props_resolve.infrules_correct.
+      { by econs. }
+      { apply hint_sem_props_resolve.infrules_correct. }
       econs; simpl; try by eauto.
       + exists nil. exists nil. split.
         * intros x _. unfold variable_equivalent.
@@ -676,10 +683,10 @@ Section Refinement.
     exploit ls_genInitState_prop_3; eauto.
     intros [gmax [alpha Hsem]].
     exploit s_genInitState__opsem_wf; [apply Hm1|idtac|].
-    - eapply ls_genInitState_s_genInitState; eauto.
+    { eapply ls_genInitState_s_genInitState; eauto. }
     intros [Hcfg1 Hst1].
     exploit s_genInitState__opsem_wf; [apply Hm2|idtac|].
-    - eapply ls_genInitState_s_genInitState; eauto.
+    { eapply ls_genInitState_s_genInitState; eauto. }
     intros [Hcfg2 Hst2].
     exploit (ls_genInitState_prop_1 m1); eauto. intro Hcfg1'.
     exploit (ls_genInitState_prop_1 m2); eauto. intro Hcfg2'.
@@ -706,8 +713,6 @@ End Refinement.
 
 (* 
 *** Local Variables: ***
-***
-*** coq-prog-args: ("-emacs" "-impredicative-set") ******
-***
+*** coq-prog-args: ("-emacs" "-impredicative-set") ***
 *** End: ***
- *)
+*)

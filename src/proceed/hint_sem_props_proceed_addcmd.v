@@ -75,10 +75,12 @@ Section HintSemEach.
     intro Hrstep.
     destruct ec; s in Hpop; destruct ns; [done|].
     destruct CurCmds0.
-    - unfold pop_one_X in Hpop; destruct (noop_idx_zero_exists n) in Hpop; done.
+    { unfold pop_one_X in Hpop; destruct (noop_idx_zero_exists n) in Hpop; done.
+    }
     assert (Hceq: c = cmd).
-    - unfold pop_one_X in Hpop; destruct (noop_idx_zero_exists n) in Hpop;
+    { unfold pop_one_X in Hpop; destruct (noop_idx_zero_exists n) in Hpop;
       inversion Hpop; done.
+    }
     subst.
     remember (pop_one_X (cmd::CurCmds0) n) as poX.
     destruct poX; try done.
@@ -250,7 +252,7 @@ Section HintSemEach.
     split; try done; clear Hiav.
     exists olc1; exists olc2; split; try done.
     inv Holdmwf; rr; splits; try done; simpl in *.
-    - eapply add_cmd_preserves_hint_sem_each_aux; eauto.
+    - eapply add_cmd_preserves_hint_sem_each_aux; try apply Hstep1; eauto.
     - eapply add_cmd_preserves_hint_sem_each_aux; try (right; apply Hmap2); eauto.
     - eapply register_iso_preserves_isolated_sem_1; eauto.
     - eapply register_iso_preserves_isolated_sem_2; eauto.
@@ -260,8 +262,6 @@ End HintSemEach.
 
 (* 
 *** Local Variables: ***
-***
-*** coq-prog-args: ("-emacs" "-impredicative-set") ******
-***
+*** coq-prog-args: ("-emacs" "-impredicative-set") ***
 *** End: ***
- *)
+*)

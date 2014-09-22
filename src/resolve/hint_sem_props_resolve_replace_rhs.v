@@ -38,8 +38,6 @@ Hint Resolve infrule_correct_replace_rhs: InfRuleDb.
 
 (* 
 *** Local Variables: ***
-***
-*** coq-prog-args: ("-emacs" "-impredicative-set") ******
-***
+*** coq-prog-args: ("-emacs" "-impredicative-set") ***
 *** End: ***
- *)
+*)

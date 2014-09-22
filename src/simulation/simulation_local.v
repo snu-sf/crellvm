@@ -1650,17 +1650,18 @@ Section Relation.
     remember (noop_idx_zero_exists n2) as nn2; destruct nn2; [done|].
     destruct cmds2; [|done].
     exploit Hvalid_term; eauto.
-    - unfold pop_one_X.
+    { unfold pop_one_X.
       by destruct (noop_idx_zero_exists n2); [done|].
+    }
     intros [Hpop1 [Himpl Hterm]].
     simpl. unfold pop_one_X in Hpop1.
     remember (noop_idx_zero_exists n1) as nn1; destruct nn1; [done|].
     destruct cmds1; [|done].
 
     exploit (logical_semantic_step_term_na_merror cfg1); eauto.
-    - by unfold pop_one_X; rewrite <- Heqnn1.
+    { by unfold pop_one_X; rewrite <- Heqnn1. }
     exploit (logical_semantic_step_term_tr_E0 cfg1); eauto.
-    - by unfold pop_one_X; rewrite <- Heqnn1.
+    { by unfold pop_one_X; rewrite <- Heqnn1. }
     intros; subst.
     
     remember (term' term2) as Hterm2; destruct Hterm2.
@@ -1674,7 +1675,7 @@ Section Relation.
     (* return *)
     right. right.
     destruct term2; inv HeqHterm0; destruct term1; inv Hterm; destruct_and.
-    - (* return value *)
+    { (* return value *)
       exploit invariant_implies_preserves_hint_sem_fdef; eauto.
       intro Hinsn'. inv Hinsn'. simpl in *.
       destruct Hsem as [olc1 [olc2 [Hmd Hinv]]].
@@ -1694,25 +1695,29 @@ Section Relation.
         * by rewrite <- Heqnn2.
         * by inv H4.
         * by rewrite <- hint_sem_aux.getOperandValue_equals_getOperandValueExt_new in Hgvs2.
-    - (* return void *)
+    }
+    { (* return void *)
       eapply match_return_void; eauto.
       + by rewrite <- Heqnn1.
       + by rewrite <- Heqnn2.
+    }
 
     (* branch *)
     left. splits.
-    - apply is_ordinary_cmd; auto.
+    { apply is_ordinary_cmd; auto.
       destruct term2; inv HeqHterm0; destruct term1; inv Hterm.
       by intros [_ ?].
       by intros [_ ?].
-    - apply is_ordinary_cmd; auto.
+    }
+    { apply is_ordinary_cmd; auto.
       destruct term2; inv HeqHterm0.
       by intros [_ ?].
       by intros [_ ?].
+    }
     intros. destruct ecs2'; [by inv Hstep; destruct pst; inv Hstep0; inv H|].
     destruct e. destruct CurBB0.
     assert (Hedge: valid_edge bid l0).
-    - inv Hstep. inv Hec. inv Hpn.
+    { inv Hstep. inv Hec. inv Hpn.
       inv Hpop; [by unfold pop_one_X in Hpop0; rewrite <- Heqnn2 in Hpop0|].
       inv Hctx. simpl in *.
       destruct term2; simpl in HeqHterm2; try done.
@@ -1726,6 +1731,7 @@ Section Relation.
       + inv Hstep0. subst.
         econstructor; eauto; subst; eauto.
         by left.
+    }
 
     exploit (Hvalid_edge bid l0); eauto.
     intros [nphis1 [ncmds1 [nterm1 [nphis2 [ncmds2 [nterm2 [Hnstmts1 [Hnstmts2 [nblock_hint [nhint [Hnblock_hint [Hnhint Himpl2]]]]]]]]]]]].
@@ -1737,15 +1743,16 @@ Section Relation.
     clear Hinsn. intro Hinsn.
 
     assert (tr = E0); [|subst].
-    - generalize Hstep. intro Hstep'.
+    { generalize Hstep. intro Hstep'.
       inv Hstep'. inv Hpn. inv Hec. simpl in *.
       inv Hpop; [by inv Hpop0; unfold pop_one_X in H0; rewrite <- Heqnn2 in H0|].
       by inv Hstep0.
+    }
 
     exploit (logical_semantic_step_branch_inv cfg2); eauto; progress_tac; clean.
 
     assert (term'_branch = term' term1).
-    - by destruct term1, term2.
+    { by destruct term1, term2. }
     exploit (logical_semantic_step_branch_inv cfg1); eauto; progress_tac; clean.
 
     inv H0. subst CurFunction0.
@@ -1765,7 +1772,7 @@ Section Relation.
     inv H4. rewrite H3 in *.
 
     assert (Heq : l0 = x4 /\ l0 = bid0 /\ l0 = bid1); [|destruct Heq as [? [? ?]]; repeat subst].
-    - destruct term1, term2; inv Hterm; try done.
+    { destruct term1, term2; inv Hterm; try done.
       + infrule_tac.
         destruct Hbrc1' as [cond1 [c1 [Hcond1 [Hc1 Hbid1]]]].
         destruct Hbrc2' as [cond2 [c2 [Hcond2 [Hc2 Hbid2]]]].
@@ -1788,6 +1795,7 @@ Section Relation.
         rewrite (destruct_cfg cfg1) in Hstep0. inv Hstep0.
         rewrite (destruct_cfg cfg2) in Hstep2. inv Hstep2.
         done.
+    }
 
     rewrite <- Hnstmts1 in H2. inv H2.
     rewrite <- Hnstmts2 in H. inv H.
@@ -1796,13 +1804,14 @@ Section Relation.
     split; [by eauto|].
     split; [by apply inject_incr'_refl|].
     econs; eauto.
-    - by inv Hctx.
-    - by eapply logical_step_preservation; eauto.
-    - by eapply logical_step_preservation; eauto.
-    - unfold get_noop_by_fid_bb in *.
+    { by inv Hctx. }
+    { by eapply logical_step_preservation; eauto. }
+    { by eapply logical_step_preservation; eauto. }
+    { unfold get_noop_by_fid_bb in *.
       inv Hfid. rewrite Hfid2.
       by apply Hhint''.
-    - eapply invariant_implies_preserves_hint_sem_fdef; eauto.
+    }
+    { eapply invariant_implies_preserves_hint_sem_fdef; eauto.
       eapply infrules_resolve_preserves_hint_sem_fdef; eauto; [by apply infrules_correct|].
       eapply invariant_proceed_preserves_hint_sem_fdef_branch; eauto.
       + destruct term1; inv H1; inv Hstep0; simpl in *.
@@ -1814,10 +1823,11 @@ Section Relation.
       + simpl. unfold pop_one_X. by rewrite <- Heqnn1.
       + simpl. unfold pop_one_X. by rewrite <- Heqnn2.
       + split; [done|]. simpl in *. apply H5.
+    }
 
     (* nop/cmd/call *)
     exploit Hvalid_cmd; eauto.
-    - unfold pop_one_X.
+    { unfold pop_one_X.
       instantiate (1 :=
         if noop_idx_zero_exists n2
           then (noop_idx_zero_remove n2)
@@ -1840,6 +1850,7 @@ Section Relation.
       unfold pop_one_X.
       destruct (noop_idx_zero_exists n2); [done|].
       by destruct cmds2.
+    }
     intros [cmd_opt1 [cur1' [n1' [hint' [hint'' [Hpop [Hhint' [Hlookup Himpl]]]]]]]].
     remember
     (cmd' (if noop_idx_zero_exists n2
@@ -1852,7 +1863,7 @@ Section Relation.
     (* nop/cmd *)
     left.
     splits.
-    - remember (stutter_num n1) as st1. destruct st1; [|by econs; eauto].
+    { remember (stutter_num n1) as st1. destruct st1; [|by econs; eauto].
       exploit stutter_num_noop_idx_zero_exists'; eauto. intro Hn1.
       unfold pop_one_X in Hpop. rewrite Hn1 in *.
       destruct cmds1; [done|]. inv Hpop.
@@ -1864,32 +1875,36 @@ Section Relation.
         destruct c; inv Hheap; inv HeqHiscall.
       + exploit stutter_num_noop_idx_zero_exists; eauto. intro Hn2. rewrite Hn2 in *.
         inv Hheap.
-    - remember (stutter_num n2) as st. destruct st; [|by econs; eauto].
+    }
+    { remember (stutter_num n2) as st. destruct st; [|by econs; eauto].
       exploit stutter_num_noop_idx_zero_exists'; eauto. intro Hn2. rewrite Hn2 in *.
       destruct cmds2; [done|].
       apply is_ordinary_cmd.
       + intros id Hid; destruct c; inv HeqHiscall; inv Hid.
       + intros id Hid; destruct c; inv HeqHiscall; inv Hid.
       + by intros [? ?]; destruct c; inv HeqHiscall.
+    }
     intros.
     edestruct invariant_proceed_preserves_hint_sem_insn_normal; simpl; eauto; simpl.
-    - by inv Hmatch.
-    - by inv Hmatch.
-    - by rewrite <- Hpop.
-    - unfold pop_one_X.
+    { by inv Hmatch. }
+    { by inv Hmatch. }
+    { by rewrite <- Hpop. }
+    { unfold pop_one_X.
       destruct (noop_idx_zero_exists n2); [done|].
       by destruct cmds2.
-    - destruct (noop_idx_zero_exists n2); [done|].
+    }
+    { destruct (noop_idx_zero_exists n2); [done|].
       destruct cmds2 as [|cmd2 cmds2]; [done|].
       by destruct cmd2.
+    }
     clear Hstep1 tr1.
     destruct H0 as [Hncall [alpha' [li1' [li2' [Hinj HH]]]]].
     eexists pbid. exists alpha'. exists li1'. eexists. eexists. eexists. eexists. eexists.
     repeat (split; [by eauto|]).
     exploit (logical_semantic_step_cmd_inv cfg1); eauto; progress_tac; clean.
     exploit (logical_semantic_step_cmd_inv cfg2).
-    - by eauto.
-    - instantiate (3 := if noop_idx_zero_exists n2 then _ else _).
+    { by eauto. }
+    { instantiate (3 := if noop_idx_zero_exists n2 then _ else _).
       instantiate (2 := if noop_idx_zero_exists n2 then _ else _).
       instantiate (1 := if noop_idx_zero_exists n2 then _ else _).
       unfold pop_one_X.
@@ -1901,10 +1916,12 @@ Section Relation.
       instantiate (3 := nil).
       instantiate (4 := merror).
       by destruct cmds2.
-    - destruct (noop_idx_zero_exists n2); [done|].
+    }
+    { destruct (noop_idx_zero_exists n2); [done|].
       destruct cmds2; [done|].
       generalize dependent HeqHiscall.
       by destruct c; unfold cmd'.
+    }
     progress_tac. clean.
 
     exploit infrules_resolve_preserves_hint_sem_fdef; eauto; [by apply infrules_correct|].
@@ -1912,13 +1929,15 @@ Section Relation.
     exploit invariant_implies_preserves_hint_sem_fdef; eauto.
     clear Hinsn. intro Hinsn.
     econstructor; eauto.
-    - by inv Hctx.
-    - by eapply logical_step_preservation; eauto.
-    - by eapply logical_step_preservation; eauto.
-    - eapply inject_incr__preserves__ftable_simulation; eauto.
+    { by inv Hctx. }
+    { by eapply logical_step_preservation; eauto. }
+    { by eapply logical_step_preservation; eauto. }
+    { eapply inject_incr__preserves__ftable_simulation; eauto.
       by inv Hinj.
-    - remember (noop_idx_zero_exists n2) as nn2; destruct nn2; eauto.
+    }
+    { remember (noop_idx_zero_exists n2) as nn2; destruct nn2; eauto.
       by destruct cmds2.
+    }
 
     (* call/excall *)
     right. left.
@@ -1940,12 +1959,12 @@ Section Relation.
     (* call *)
     generalize Hinsn. intro Hinsn'. inv Hinsn'. destruct Hsem as [olc1 [olc2 [Hmd Hinv]]].
     exploit_eq_check_value; eauto; progress_tac; clean.
-    + by inv Hvmem.
+    { by inv Hvmem. }
     exploit_eq_check_params; eauto; progress_tac; clean.
-    + by inv Hvmem.
+    { by inv Hvmem. }
     destruct lb; inv H31.
     econstructor; eauto; progress_tac; simpl in *.
-    - eapply is_same_call_call; eauto.
+    { eapply is_same_call_call; eauto.
       + rewrite (destruct_cfg cfg1). simpl.
         eexists. eexists. eexists.
         by split; eauto.
@@ -1958,7 +1977,8 @@ Section Relation.
         repeat (split; [by eauto|]).
         exploit lookupFdefViaIDFromProducts_ideq. symmetry. eauto. intro. subst.
         exploit lookupFdefViaIDFromProducts_ideq; eauto.
-    - destruct (noret_dec noret0 noret5); [subst|done].
+    }
+    { destruct (noret_dec noret0 noret5); [subst|done].
       intros. destruct noret5.
       + destruct Hnoret as [? ?]. subst.
         econstructor; eauto.
@@ -1987,15 +2007,16 @@ Section Relation.
             intros HH. apply HH; auto. by inv Hvmem.
               intro Hrd1. apply Heqm1. by econs.
               intro Hrd2. apply Heqm2. by econs.
+    }
 
     (* excall *)
     generalize Hinsn. intro Hinsn'. inv Hinsn'. destruct Hsem as [olc1 [olc2 [Hmd Hinv]]].
     exploit_eq_check_value; eauto; progress_tac; clean.
-    + by inv Hvmem.
+    { by inv Hvmem. }
     exploit_eq_check_params; eauto; progress_tac; clean.
-    + by inv Hvmem.
+    { by inv Hvmem. }
     econstructor; eauto; progress_tac.
-    - eapply is_same_call_excall; eauto.
+    { eapply is_same_call_excall; eauto.
       + rewrite (destruct_cfg cfg1). simpl.
         eexists. eexists.
         by split; eauto.
@@ -2009,7 +2030,8 @@ Section Relation.
           by rewrite <- H7 in H30.
         * destruct (lookupFdefViaIDFromProducts (CurProducts cfg1) i0); [done|].
           by rewrite <- Hvalid_products2, H30.
-    - destruct (noret_dec noret0 noret5); [subst|done].
+    }
+    { destruct (noret_dec noret0 noret5); [subst|done].
       intros. destruct noret5.
       + destruct Hnoret as [? ?]. subst.
         econstructor; eauto.
@@ -2038,6 +2060,7 @@ Section Relation.
             intros HH. apply HH; auto. by inv Hvmem. 
               intro Hrd1. apply Heqm1. by econs.
               intro Hrd2. apply Heqm2. by econs.
+    }
   Qed.
 
   Lemma hint_sem_F_progress_hint_sem
@@ -2050,14 +2073,14 @@ Section Relation.
     inv Hsem. repeat intro.
     inv Hstep1. inv Hec. inv Hpn. simpl in *.
     remember (noop_idx_zero_exists n2) as nn2; destruct nn2.    
-      
-    - (* nop *)
+    { (* nop *)
       eexists. eexists. eexists. eexists. eexists.
       econstructor; simpl; eauto; simpl.
       + eapply pop_one_cmd; eauto.
         by unfold pop_one_X; rewrite <- Heqnn2.
       + by repeat constructor.
       + by simpl; split; eauto.
+    }
 
     exploit @OpsemPP.progress; eauto.
     intro Hprog; destruct Hprog as [Hprog|[Hprog|Hprog]].
@@ -2066,7 +2089,7 @@ Section Relation.
     unfold s_isFinialState in Hprog.
     destruct cmds2; [|done].
     destruct term2; try done.
-    - (* return value *)
+    { (* return value *)
       destruct pecs2; [|done].
       exploit Hvalid_term; eauto.
       + by unfold pop_one_X; rewrite <- Heqnn2.
@@ -2078,8 +2101,8 @@ Section Relation.
         destruct cmds1; [|done].
         inv Hstep.
         by inv Hpecs.
-
-    - (* return void *)
+    }
+    { (* return void *)
       destruct pecs2; [|done].
       exploit Hvalid_term; eauto.
       + by unfold pop_one_X; rewrite <- Heqnn2.
@@ -2091,28 +2114,31 @@ Section Relation.
         destruct cmds1; [|done].
         inv Hstep.
         by inv Hpecs.
+    }
 
     (* progress *)
     destruct Hprog as [st2' [tr2 Hsem]].
     destruct cmds2 as [|c cmds2].
-    - (* progress, term *)
+    { (* progress, term *)
       destruct st2'.
       inv Hsem; progress_tac.
-      + eexists; eexists; eexists; eexists; eexists;
+      { eexists; eexists; eexists; eexists; eexists;
           econstructor; progress_tac.
         * instantiate (2 := nil).
           eapply logical_semantic_step_noop_stk_term; eauto.
           by apply logical_semantic_step_noop_terminator_ret.
         * by constructor; eauto.
-      + eexists; eexists; eexists; eexists; eexists;
+      }
+      { eexists; eexists; eexists; eexists; eexists;
           econstructor; progress_tac.
         * instantiate (2 := nil).
           eapply logical_semantic_step_noop_stk_term; eauto.
           by apply logical_semantic_step_noop_terminator_ret.
+      }
       remember (isGVZero TD c) as cond; destruct cond.
       + exploit @sBranch; eauto.
-        * eauto.
-        * by rewrite <- Heqcond; eauto.
+        { eauto. }
+        { by rewrite <- Heqcond; eauto. }
         intro Hinsn'.
         eexists; eexists; eexists; eexists; eexists;
           econstructor; progress_tac.
@@ -2123,8 +2149,8 @@ Section Relation.
         exists c. exists c. repeat split; auto.
         by rewrite <- Heqcond.
       + exploit @sBranch; eauto.
-        * eauto.
-        * by rewrite <- Heqcond; eauto.
+        { eauto. }
+        { by rewrite <- Heqcond; eauto. }
         intro Hinsn'.
         eexists; eexists; eexists; eexists; eexists;
           econstructor; progress_tac.
@@ -2141,7 +2167,8 @@ Section Relation.
           eapply logical_semantic_step_noop_terminator_brc; eauto.
           constructor; simpl; auto.
         * by constructor; eauto.
-    - (* progress, cmd *)
+    }
+    { (* progress, cmd *)
       destruct st2'.
       remember
       (match c with
@@ -2199,6 +2226,7 @@ Section Relation.
           eapply logical_semantic_step_noop_cmd_cmd; eauto.
           by destruct c.
         * by simpl; eauto.
+    }
 
     (* undefined state *)
     exfalso.
@@ -2220,7 +2248,7 @@ Section Relation.
       unfold returnUpdateLocals in H17. simpl in *.
       remember (getOperandValue TD value0 locals1 gl) as gv0; destruct gv0 as [gv0|]; [|done].
       exploit_eq_check_value; progress_tac.
-      + by inv Hvmem.
+      { by inv Hvmem. }
       intros [gvs2 [Hgvs2 Hinj2]].
       destruct c'; inv H17.
       generalize dependent Hprog.
@@ -2230,13 +2258,15 @@ Section Relation.
       assert (Hf1: forall b,
         (forall (Hli1: In b li1) (Hallocas1: In b allocas1),
           let (l, h) := Mem.bounds mem1 b in Mem.free mem1 b l h <> merror)).
-      + intros. inv Hvmem.
+      { intros. inv Hvmem.
         by apply Hli1free.
+      }
       assert (Hf2: forall b,
         (forall (Hli2: In b li2) (Hallocas1: In b allocas2),
           let (l, h) := Mem.bounds mem2 b in Mem.free mem2 b l h <> merror)).
-      + intros. inv Hvmem.
+      { intros. inv Hvmem.
         by apply Hli2free.
+      }
       assert (Hnd1: NoDup allocas1); [by unfold valid_allocas in *; destruct_and|].
       assert (Hnd2: NoDup allocas2); [by unfold valid_allocas in *; destruct_and|].
       generalize dependent H1.
@@ -2265,13 +2295,15 @@ Section Relation.
         assert (Hf1: forall b,
           (forall (Hli1: In b li1) (Hallocas1: In b allocas1),
             let (l, h) := Mem.bounds mem1 b in Mem.free mem1 b l h <> merror)).
-        + intros. inv Hvmem.
-        by apply Hli1free.
+        { intros. inv Hvmem.
+          by apply Hli1free.
+        }
         assert (Hf2: forall b,
           (forall (Hli2: In b li2) (Hallocas1: In b allocas2),
             let (l, h) := Mem.bounds mem2 b in Mem.free mem2 b l h <> merror)).
-        + intros. inv Hvmem.
-        by apply Hli2free.
+        { intros. inv Hvmem.
+          by apply Hli2free.
+        }
         assert (Hnd1: NoDup allocas1); [by unfold valid_allocas in *; destruct_and|].
         assert (Hnd2: NoDup allocas2); [by unfold valid_allocas in *; destruct_and|].
         generalize dependent H.
@@ -2300,7 +2332,7 @@ Section Relation.
       inv Hstep.
       inv Hinsn. destruct Hsem as [olc1 [olc2 [Hmd Hinv]]].
       exploit_eq_check_value; eauto; progress_tac.
-      + by inv Hvmem.
+      { by inv Hvmem. }
       intros [gvs2 [Hgvs2 Hinj]].
       rewrite Hgvs2 in Heqy. inv Heqy.
       
@@ -2334,7 +2366,7 @@ Section Relation.
       inv Hstep.
       inv Hinsn. destruct Hsem as [olc1 [olc2 [Hmd Hinv]]].
       exploit_eq_check_value; eauto; progress_tac.
-      + by inv Hvmem.
+      { by inv Hvmem. }
       intros [gvs2 [Hgvs2 Hinj]].
       rewrite Hgvs2 in Heqy. inv Heqy.
 
@@ -2357,11 +2389,11 @@ Section Relation.
       inv Hstep.
       inv Hinsn. destruct Hsem as [olc1 [olc2 [Hmd Hinv]]].
       exploit_eq_check_value; eauto; progress_tac.
-      + by inv Hvmem.
+      { by inv Hvmem. }
       intros [gvs2 [Hgvs2 Hinj2]].
       rewrite Hgvs2 in Heqy0. inv Heqy0.
       exploit_eq_check_value; eauto; progress_tac.
-      + by inv Hvmem.
+      { by inv Hvmem. }
       intros [gvs3 [Hgvs3 Hinj3]].
 
       inv Hvmem.
@@ -2391,7 +2423,7 @@ Section Relation.
         destruct cfg1, Hcall as [fptrs1 [fptr1 [fd1 [Hfptrs1 [Hfptr1 [Hfdef1 Hfd1]]]]]].
         inv Hinsn. destruct Hsem as [olc1 [olc2 [Hmd Hinv]]].
         exploit_eq_check_value; eauto; progress_tac.
-        * by inv Hvmem.
+        { by inv Hvmem. }
         intros [gvs2 [Hgvs2 Hinj2]].
         simpl in *. rewrite Hgvs2 in Heqy. inv Heqy.
         generalize Heqy0.
@@ -2409,7 +2441,7 @@ Section Relation.
         inv Hfptr1. simpl in *.
         inv Hinsn. destruct Hsem as [olc1 [olc2 [Hmd Hinv]]].
         exploit_eq_check_value; eauto; progress_tac.
-        * by inv Hvmem.
+        { by inv Hvmem. }
         intros [gvs2 [Hgvs2 Hinj2]]. simpl in *.
         rewrite Hgvs2 in Heqy. inv Heqy.
         unfold ftable_simulation in Hftable.
@@ -2427,14 +2459,15 @@ Section Relation.
         destruct H0 as [gvs4 [Hgvs4 H0]].
         apply dos_in_list_gvs_inv in Hgvs4; subst.
         inv Hstep.
-        * inv H28.
+        { inv H28.
           rewrite Hfptrs1 in H27. inv H27.
           unfold lookupFdefViaPtr in *.
           erewrite Hftable in H29; eauto.
           rewrite <- Heqgv2fdef in H29. simpl in H29.
           by rewrite <- Heqgv2fdef' in H29.
+        }
         exploit_eq_check_params; eauto.
-        * by inv Hvmem; eauto.
+        { by inv Hvmem; eauto. }
         intros [args2 [Hargs2 Hinj2a]]. simpl in *.
         inv H28. apply dos_in_list_gvs_inv in H31. subst.        
         rewrite <- Hargs2 in Heqparams. inv Heqparams.
@@ -2446,7 +2479,7 @@ Section Relation.
         rewrite Hvalid_products2 in H29.
         rewrite Hfdef1 in H29. inv H29.
         exploit callExternalOrIntrinsics_prop_2; eauto.
-        * by inv Hvmem; eauto.
+        { by inv Hvmem; eauto. }
         intros [result2 [b2 [Hresult2 [Hvmem' [Halc' Hinjr]]]]].
         remember (callExternalOrIntrinsics CurTargetData1 Globals0 mem2 fid0 rt (args2Typs la) dck args2) as result; destruct result as [[[result a] b]|]; [|done].
         remember (exCallUpdateLocals CurTargetData1 typ5 noret5 id5 result locals2) as result1; destruct result1 as [result1|]; [done|].
@@ -2457,7 +2490,7 @@ Section Relation.
         inv Hresult2.
         destruct (Hinjr g eq_refl) as [result2 [Hresult2 Hinjrr]]. clear Hinjr.
         exploit genericvalues_inject.simulation__fit_gv; eauto.
-        * by inv Hvmem; eauto.
+        { by inv Hvmem; eauto. }
         intros [fitgv2 [Hfitgv2 Hinjf]].
         rewrite <- Hresult2 in Heqresult. inv Heqresult.
         by rewrite Hfitgv2 in Heqresult1.
@@ -2478,8 +2511,6 @@ End Relation.
 
 (* 
 *** Local Variables: ***
-***
-*** coq-prog-args: ("-emacs" "-impredicative-set") ******
-***
+*** coq-prog-args: ("-emacs" "-impredicative-set") ***
 *** End: ***
- *)
+*)

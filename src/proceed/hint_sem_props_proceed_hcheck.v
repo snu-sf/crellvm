@@ -86,27 +86,28 @@ Proof.
 
   assert (Heqtsz: tsz = tsz0) by (rewrite H4 in H21; inv H21; done); subst.
   assert (Heqgn: gv_inject alpha gn gn0).
-  - destruct Hmi as [olc1 [olc2 [Hmd Hinv]]].
+  { destruct Hmi as [olc1 [olc2 [Hmd Hinv]]].
     eapply eq_check_value_prop; eauto.
     + by inv Hvm.
     + by simpl; inv H23; destruct value5.
     + by simpl; inv H26; destruct value0.
-
+  }
   exploit malloc_preserves_valid_memories.
-  - apply H24.
-  - apply H27.
-  - apply Heqgn.
-  - apply Hvm.
+  { apply H24. }
+  { apply H27. }
+  { apply Heqgn. }
+  { apply Hvm. }
   intros [alpha' [Hincr [Hinj Hvmem']]].
   exists alpha'; exists li1; exists li2; splits; try done.
 
   rr; split.
-  - eapply alpha_incr_preserves_hint_sem_each_md_inv; eauto.
-  - rr; splits; try done.
+  { eapply alpha_incr_preserves_hint_sem_each_md_inv; eauto. }
+  { rr; splits; try done.
     + eapply alpha_incr_preserves_allocas_equivalent; eauto.
     + eapply alpha_incr_preserves_globals_equivalent; eauto.
     + eapply malloc_preserves_valid_allocas_1; eauto.
-
+  }
+    
   SSCase "1.1.2. alloca-alloca case".
   destruct_step_tac; inv Hstep; inv Hstep0.
   simpl in Heqtd; inv Heqtd.
@@ -121,30 +122,35 @@ Proof.
 
   assert (Heqtsz: tsz = tsz0) by (rewrite H4 in H21; inv H21; done); subst.
   assert (Heqgn: gv_inject alpha gn gn0).
-  - destruct Hmi as [olc1 [olc2 [Hmd Hinv]]].
+  { destruct Hmi as [olc1 [olc2 [Hmd Hinv]]].
     eapply eq_check_value_prop; eauto.
     + by inv Hvm.
     + by simpl; inv H23; destruct value5.
     + by simpl; inv H26; destruct value0.
-
+  }
+    
   exploit malloc_preserves_valid_memories.
-  - apply H24. - apply H27. - apply Heqgn. - apply Hvm.
+  { apply H24. }
+  { apply H27. }
+  { apply Heqgn. }
+  { apply Hvm. }
   intros [alpha' [Hincr [Hinj Hvmem']]].
   exists alpha'; exists li1; exists li2; splits; try done.
 
-  rr; split.
-  - eapply alpha_incr_preserves_hint_sem_each_md_inv; eauto.
-  - rr; splits; try done.
-    + hexploit memory_props.MemProps.malloc_result; try eapply H24; intro Hmb1.
-      hexploit memory_props.MemProps.malloc_result; try eapply H27; intro Hmb2.
-      eapply allocas_equivalent_map; eauto; try by subst.
-      intro Hcontr; inv Hvmem'; pose (Hli1none _ Hcontr) as Hcontr'.
-      unfold alpha_incr_both in Hinj; rewrite Hcontr' in Hinj; done.
-      intro Hcontr; inv Hvmem'; pose (Hli2none _ Hcontr) as Hcontr'.
-      unfold alpha_incr_both in Hinj; elim (Hcontr' (Mem.nextblock mem1)); done.
-      eapply alpha_incr_preserves_allocas_equivalent; eauto.
-    + eapply alpha_incr_preserves_globals_equivalent; eauto.
-    + eapply malloc_preserves_valid_allocas_2; eauto.
+  { rr; split.
+    - eapply alpha_incr_preserves_hint_sem_each_md_inv; eauto.
+    - rr; splits; try done.
+      + hexploit memory_props.MemProps.malloc_result; try eapply H24; intro Hmb1.
+        hexploit memory_props.MemProps.malloc_result; try eapply H27; intro Hmb2.
+        eapply allocas_equivalent_map; eauto; try by subst.
+        intro Hcontr; inv Hvmem'; pose (Hli1none _ Hcontr) as Hcontr'.
+        unfold alpha_incr_both in Hinj; rewrite Hcontr' in Hinj; done.
+        intro Hcontr; inv Hvmem'; pose (Hli2none _ Hcontr) as Hcontr'.
+        unfold alpha_incr_both in Hinj; elim (Hcontr' (Mem.nextblock mem1)); done.
+        eapply alpha_incr_preserves_allocas_equivalent; eauto.
+      + eapply alpha_incr_preserves_globals_equivalent; eauto.
+      + eapply malloc_preserves_valid_allocas_2; eauto.
+  }
 
   SCase "1.2. only left allocates".
   destruct ocmd1 as [cmd1|]; try done; destruct_lstep_tac.
@@ -154,28 +160,28 @@ Proof.
   destruct Hstep0 as [Hstep0 _]; inv Hstep0.
 
   exploit malloc_left_preserves_valid_memories.
-  - apply H24.
-  - apply Hvm.
+  { apply H24. }
+  { apply Hvm. }
   intros [alpha' [Hincr Hvmem']].
   exists alpha'; exists (mb::li1); exists li2; splits;
     [done|by intros; rewrite <- Heqpop0 in Hpop1; inv Hpop1; inv H0|
       hexploit memory_props.MemProps.malloc_result; eauto; intro; subst mb; left; done|
       done|].
 
-  rr; split.
-  - eapply li1_incr_preserves_hint_sem_each_md_inv; eauto.
-    eapply alpha_incr_preserves_hint_sem_each_md_inv; eauto.
-  - rr; splits; try done.
-    + eapply allocas_equivalent_ignore_left; eauto.
-      * by left.
-      eapply li1_incr_preserves_allocas_equivalent; eauto.
-      * intros Hcontr; hexploit memory_props.MemProps.malloc_result; eauto.
-        intro Hmb1; subst; destruct Hva as [Hva _].
-        rewrite Forall_forall in Hva.
-        pose (Hva _ Hcontr); omega.
-        eapply alpha_incr_preserves_allocas_equivalent; eauto.
-    + eapply alpha_incr_preserves_globals_equivalent; eauto.
-    + eapply malloc_left_preserves_valid_allocas; eauto.
+  { rr; split.
+    - eapply li1_incr_preserves_hint_sem_each_md_inv; eauto.
+      eapply alpha_incr_preserves_hint_sem_each_md_inv; eauto.
+    - rr; splits; try done.
+      + eapply allocas_equivalent_ignore_left; eauto; [by left|].
+        eapply li1_incr_preserves_allocas_equivalent; eauto.
+        * intros Hcontr; hexploit memory_props.MemProps.malloc_result; eauto.
+          intro Hmb1; subst; destruct Hva as [Hva _].
+          rewrite Forall_forall in Hva.
+          pose (Hva _ Hcontr); omega.
+        * eapply alpha_incr_preserves_allocas_equivalent; eauto.
+      + eapply alpha_incr_preserves_globals_equivalent; eauto.
+      + eapply malloc_left_preserves_valid_allocas; eauto.
+  }
 
   Case "2. left does not allocate".
   remember (is_alloca_or_malloc ocmd2) as is_aom2; destruct is_aom2.
@@ -188,28 +194,28 @@ Proof.
   destruct Hstep0 as [Hstep0 _]; inv Hstep0.
 
   exploit malloc_right_preserves_valid_memories.
-  - apply H24.
-  - apply Hvm.
+  { apply H24. }
+  { apply Hvm. }
   intros [alpha' [Hincr Hvmem']].
   exists alpha'; exists li1; exists (mb::li2); splits;
     [done|by intros; rewrite <- Heqpop0 in Hpop1; inv Hpop1; inv H0|done|
       hexploit memory_props.MemProps.malloc_result; eauto; intro; subst mb; left; done|].
 
-  rr; split.
-  - eapply li2_incr_preserves_hint_sem_each_md_inv; eauto.
-    eapply alpha_incr_preserves_hint_sem_each_md_inv; eauto.
-  - rr; splits; try done.
-    + eapply allocas_equivalent_ignore_right; eauto.
-      * by left.
-      eapply li2_incr_preserves_allocas_equivalent; eauto.
-      * intros Hcontr; hexploit memory_props.MemProps.malloc_result; eauto.
+  { rr; split.
+    - eapply li2_incr_preserves_hint_sem_each_md_inv; eauto.
+      eapply alpha_incr_preserves_hint_sem_each_md_inv; eauto.
+    - rr; splits; try done.
+      + eapply allocas_equivalent_ignore_right; eauto; [by left|].
+        eapply li2_incr_preserves_allocas_equivalent; eauto.
+        intros Hcontr; hexploit memory_props.MemProps.malloc_result; eauto.
         intro Hmb2; subst; destruct Hva as [_ [Hva _]].
         rewrite Forall_forall in Hva.
         pose (Hva _ Hcontr); omega.
         eapply alpha_incr_preserves_allocas_equivalent; eauto.
-    + eapply alpha_incr_preserves_globals_equivalent; eauto.
-    + eapply malloc_right_preserves_valid_allocas; eauto.
-  
+      + eapply alpha_incr_preserves_globals_equivalent; eauto.
+      + eapply malloc_right_preserves_valid_allocas; eauto.
+  }
+
   SCase "2.2. both do not allocate".
   exists alpha; exists li1; exists li2.
   splits; try done.
@@ -231,18 +237,20 @@ Proof.
 
   SSCase "2.2.4. hint_sem_each".
   assert (Allocas ec1' = Allocas ec1) as Heqals1.
-  - destruct ocmd1 as [cmd1|].
+  { destruct ocmd1 as [cmd1|].
     + destruct cmd1; try done; destruct_lstep_tac; destruct_step_tac.
       by elim (Hncall1 id5).
     + by destruct_lstep_tac; destruct Hstep as [Heceq _]; inv Heceq.
+  }
 
   assert (Allocas ec2' = Allocas ec2) as Heqals2.
-  - destruct ocmd2 as [cmd2|].
+  { destruct ocmd2 as [cmd2|].
     + destruct_lstep_tac.
       destruct cmd2; try done; destruct_step_tac.
       by elim (Hncall2 id5).
     + destruct_lstep_tac.
       destruct Hstep as [Hstep _]; inv Hstep; done.
+  }
 
   rr; split; try done.
   rr; splits; try done.
@@ -254,7 +262,7 @@ Proof.
   rewrite Heqals1; rewrite Heqals2.
   remember (is_free_or_store ocmd1) as Heqis_fos1; destruct Heqis_fos1.
 
-  - destruct ocmd1 as [cmd1|]; [|done]; destruct_lstep_tac.
+  { destruct ocmd1 as [cmd1|]; [|done]; destruct_lstep_tac.
     destruct cmd1; try done; destruct_step_tac; inv Hstep.
     + destruct ocmd2 as [cmd2|]; [|done]; destruct_lstep_tac.
       destruct cmd2; try done. destruct_step_tac. inv Hstep.
@@ -272,21 +280,24 @@ Proof.
         hexploit memory_props.MemProps.nextblock_mstore; try eapply H25; eauto.
         intros Hn1.
         by unfold valid_allocas; rewrite <- Hn1.
-
-  - assert (mem1 = mem1') as Heqmem1.
-    + destruct ocmd1 as [cmd1|]; try done; destruct_lstep_tac.
+  }
+  { assert (mem1 = mem1') as Heqmem1.
+    { destruct ocmd1 as [cmd1|]; try done; destruct_lstep_tac.
       * destruct cmd1; try done; destruct_step_tac; try (by inv Hstep).
         by elim (Hncall1 id5).
       * by destruct Hstep as [Heceq _]; inv Heceq.
+    }
     rewrite <- Heqmem1 in *; clear Heqmem1.
     assert (mem2 = mem2') as Heqmem2.
-    + destruct ocmd2 as [cmd2|]; destruct_lstep_tac.
+    { destruct ocmd2 as [cmd2|]; destruct_lstep_tac.
       * destruct cmd2; destruct_step_tac; try (by inv Hstep);
         try (by destruct ocmd1 as [cmd1|]; try done; destruct cmd1).
         by elim (Hncall2 id5).
       * by destruct Hstep as [Hstep _]; inv Hstep.
+    }
     rewrite <- Heqmem2 in *; clear Heqmem2.
     done.
+  }
 
   SSSCase "2.2.2.3. valid_memories".
   remember (is_free_or_store ocmd1) as Heqis_fos1; destruct Heqis_fos1.
@@ -300,10 +311,11 @@ Proof.
       apply andb_true_iff in Hheq; destruct Hheq as [_ Hheq].
       destruct Hmi as [olc1 [olc2 [Hmdsem Hinvsem]]].
       assert (Hpinj: gv_inject alpha mptrs mptrs0).
-      * eapply eq_check_value_prop; eauto.
+      { eapply eq_check_value_prop; eauto.
           by inv Hvm.
           by unfold getOperandValueExt; destruct value5.
           by unfold getOperandValueExt; destruct value0.
+      }
       repeat match goal with | [H: _ @ _ |- _] => inv H end.
       eapply free_preserves_valid_memories; eauto.
 
@@ -320,17 +332,19 @@ Proof.
         destruct Hmi as [olc1 [olc2 [Hmdsem Hinvsem]]].
 
         assert (Hpinj: gv_inject alpha mps2 mps0).
-          eapply eq_check_value_prop; eauto.
-            by inv Hvm.
-            by unfold getOperandValueExt; destruct value2.
-            by unfold getOperandValueExt; destruct value3.
+        { eapply eq_check_value_prop; eauto.
+          by inv Hvm.
+          by unfold getOperandValueExt; destruct value2.
+          by unfold getOperandValueExt; destruct value3.
+        }
         assert (Hvinj: gv_inject alpha gvs1 gvs0).
-          eapply eq_check_value_prop.
-            apply Hmdsem. apply Hinvsem. apply Heqv. apply Heqtd.
-            by inv Hvm; apply Hwf.
-            by apply Hgl.
-            by unfold getOperandValueExt; destruct value1.
-            by unfold getOperandValueExt; destruct value0.
+        { eapply eq_check_value_prop.
+          apply Hmdsem. apply Hinvsem. apply Heqv. apply Heqtd.
+          by inv Hvm; apply Hwf.
+          by apply Hgl.
+          by unfold getOperandValueExt; destruct value1.
+          by unfold getOperandValueExt; destruct value0.
+        }
         repeat match goal with | [H: _ @ _ |- _] => inv H end.
         simpl in Heqtd; subst TD.
         eapply mstore_preserves_valid_memories.
@@ -347,25 +361,25 @@ Proof.
         eapply mstore_left_preserves_valid_memories; eauto.
 
   - assert (mem1 = mem1') as Heqmem1.
-    + destruct ocmd1 as [cmd1|]; try done; destruct_lstep_tac.
+    { destruct ocmd1 as [cmd1|]; try done; destruct_lstep_tac.
       * destruct cmd1; try done; destruct_step_tac; try (by inv Hstep).
         by elim (Hncall1 id5).
       * by destruct Hstep as [Heceq _]; inv Heceq.
+    }
     rewrite <- Heqmem1 in *; clear Heqmem1.
     assert (mem2 = mem2') as Heqmem2.
-    + destruct ocmd2 as [cmd2|]; destruct_lstep_tac.
+    { destruct ocmd2 as [cmd2|]; destruct_lstep_tac.
       * destruct cmd2; destruct_step_tac; try (by inv Hstep);
         try (by destruct ocmd1 as [cmd1|]; try done; destruct cmd1).
         by elim (Hncall2 id5).
       * by destruct Hstep as [Hstep _]; inv Hstep.
+    }
     rewrite <- Heqmem2 in *; clear Heqmem2.
     done.
 Qed.
 
 (* 
 *** Local Variables: ***
-***
-*** coq-prog-args: ("-emacs" "-impredicative-set") ******
-***
+*** coq-prog-args: ("-emacs" "-impredicative-set") ***
 *** End: ***
- *)
+*)

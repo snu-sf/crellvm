@@ -41,8 +41,6 @@ Hint Resolve infrule_correct_div_sub_urem: InfRuleDb.
 
 (* 
 *** Local Variables: ***
-***
-*** coq-prog-args: ("-emacs" "-impredicative-set") ******
-***
+*** coq-prog-args: ("-emacs" "-impredicative-set") ***
 *** End: ***
- *)
+*)

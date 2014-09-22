@@ -988,13 +988,14 @@ Proof.
   }
 
   splits; try done.
-  Case "1. alpha_incr_both".
+  { Case "1. alpha_incr_both".
   subst; unfold alpha_incr_both.
   by destruct (Z_eq_dec (Mem.nextblock mem1) (Mem.nextblock mem1)).
+  }
 
-  Case "2. valid_memories".
+  { Case "2. valid_memories".
   unfold malloc in Hmalloc1, Hmalloc2.
-  apply malloc_inv in Hmalloc1. apply malloc_inv in Hmalloc2.
+  apply malloc_inv in Hmalloc1; [|done]. apply malloc_inv in Hmalloc2; [|done].
 
   exploit simulation__eq__GV2int; eauto. intro Hzeq.
   erewrite Hzeq in Hmalloc1.
@@ -1026,10 +1027,10 @@ Proof.
   (* econstructor; try done. *)
 
   (* copied Vellvm's proof in genericvalues_inject.v *)
-  SCase "2.1. mem_inj".
+  { SCase "2.1. mem_inj".
   inversion Hmemi; econstructor.
 
-  SSCase "2.1.1. valid_access".
+  { SSCase "2.1.1. valid_access".
   intros b1 b2 d c ofs p J1 J2. 
   rewrite Heqalpha' in J1; simpl in J1.
   destruct (Z_eq_dec b1 mb1) as [Hbeq|].
@@ -1037,17 +1038,19 @@ Proof.
   - rewrite Hbeq in *; clear Hbeq; inversion J1 as [Hbeq]; rewrite <- Hbeq.
     destruct J2 as [J21 J22].
     assert (Hineq: 0 <= ofs /\ ofs + size_chunk c <= z).
-    + destruct (Z_le_dec 0 ofs).
-      * destruct (Z_le_dec (ofs + size_chunk c) z); auto.
+    { destruct (Z_le_dec 0 ofs).
+      { destruct (Z_le_dec (ofs + size_chunk c) z); auto.
         apply Mem.perm_alloc_3 with (ofs:=ofs+size_chunk c-1) (p:=p) in
           Hmalloc1; auto with zarith.
         unfold Mem.range_perm in J21.
         assert (ofs <= ofs + size_chunk c - 1 < ofs + size_chunk c) as J.
-          assert (J':=@Memdata.size_chunk_pos c).
+        { assert (J':=@Memdata.size_chunk_pos c).
           auto with zarith.
+        }
         apply J21 in J.
         contradict J; auto.
-        apply Mem.perm_alloc_3 with (ofs:=ofs) (p:=p) in Hmalloc1;
+      }
+      { apply Mem.perm_alloc_3 with (ofs:=ofs) (p:=p) in Hmalloc1;
           auto with zarith.
         unfold Mem.range_perm in J21.
         assert (ofs <= ofs < ofs + size_chunk c) as J.
@@ -1055,18 +1058,21 @@ Proof.
           auto with zarith.
         apply J21 in J.
         contradict J; auto.
-
-      * apply Mem.valid_access_alloc_same with (chunk:=c)(ofs:=ofs+0) in Hmalloc2;
+      }
+    }
+    { apply Mem.valid_access_alloc_same with (chunk:=c)(ofs:=ofs+0) in Hmalloc2;
           auto with zarith.
-        eapply Mem.valid_access_implies; eauto using perm_F_any.
+      eapply Mem.valid_access_implies; eauto using perm_F_any.
+    }
 
   - eapply Mem.valid_access_alloc_other; eauto.
     eapply mi_access; eauto.
     exploit Mem.valid_access_alloc_inv; try eapply Hmalloc1; try eapply J2.
     unfold eq_block, zeq.
     destruct (Z_eq_dec b1 mb1); done.
+  }
 
-  SSCase "2.1.2. mem_contents".
+  { SSCase "2.1.2. mem_contents".
   intros b1 ofs b2 d J1 J2.
   rewrite Heqalpha' in *.
 
@@ -1098,12 +1104,13 @@ Proof.
     clear - J2 n.
     unfold update in J2.
     by destruct (zeq b1 nextblock1).
+  } }
 
-  SCase "2.2. wf_sb_mi".
+  { SCase "2.2. wf_sb_mi".
   rewrite Heqalpha' in *.
   econstructor; intros.
 
-  SSCase "2.2.1. no_overlap".
+  { SSCase "2.2.1. no_overlap".
   clear -Hno_overlap Hmalloc2 Hmap2.
   unfold MoreMem.meminj_no_overlap in *.
   intros.
@@ -1116,6 +1123,7 @@ Proof.
     apply Mem.alloc_result in Hmalloc2; subst; intro Hcontr.
     rewrite Hcontr in H0; zauto.
   - eapply Hno_overlap; [apply H|apply H0|apply H1].
+  }
 
   SSCase "2.2.2. nullptr".
   destruct (Z_eq_dec Mem.nullptr mb1); [|done]; subst.
@@ -1139,24 +1147,24 @@ Proof.
   destruct (Z_eq_dec b1 mb1); subst; zeauto.
   inv H; zauto.
 
-  SSCase "2.2.5. freeblocks".
+  { SSCase "2.2.5. freeblocks".
   destruct (Z_eq_dec b mb1); subst.
   - apply Mem.valid_new_block in Hmalloc1.
     contradict Hmalloc1; auto.
   - apply mi_freeblocks; intro Hcontr; apply H.
     eapply Mem.valid_block_alloc; eauto.
-
-  SSCase "2.2.6. mappedblocks".
+  }
+  { SSCase "2.2.6. mappedblocks".
   destruct (Z_eq_dec b mb1); subst.
   - inv H; apply Mem.valid_new_block in Hmalloc2; auto.
   - eapply Mem.valid_block_alloc; eauto.
-
-  SSCase "2.2.7. range_block".
+  }
+  { SSCase "2.2.7. range_block".
   rr; intros; destruct (Z_eq_dec b mb1); subst.
   - inv H; done.
   - eapply mi_range_block; eauto.
-
-  SSCase "2.2.8. bounds".
+  }
+  { SSCase "2.2.8. bounds".
   erewrite Mem.bounds_alloc; eauto.
   erewrite Mem.bounds_alloc with (m2:=mem2'); eauto.
   unfold eq_block, zeq.
@@ -1166,7 +1174,7 @@ Proof.
   - destruct (Z_eq_dec b' (Mem.nextblock mem2)); subst; eauto.
     apply Hmap2 in H.
     contradict H; zauto.
-
+  }
   SSCase "2.2.9. globals".
   destruct (Z_eq_dec b mb1); subst; eauto.
   pose H as J'.
@@ -1176,59 +1184,58 @@ Proof.
     contradict Hmalloc1; auto.
   - apply mi_freeblocks in n.
     rewrite n in J'; done.
+  }
 
-  SCase "2.3. li1 constraint".
+  { SCase "2.3. li1 constraint".
   unfold inject_incr' in Hincr; destruct Hincr as [_ [Hli Hpi]].
   intros; pose (Hli1none _ H) as Hbrd.
   eapply Hli; eauto.
-
-  SCase "2.4. li2 constraint".
+  } 
+  { SCase "2.4. li2 constraint".
   unfold inject_incr' in Hincr; destruct Hincr as [_ [_ [_ [Hli _]]]].
   intros; hexploit Hli; eauto.
-
-  SCase "2.5. pi1 constraint".
+  }
+  { SCase "2.5. pi1 constraint".
   unfold inject_incr' in Hincr; destruct Hincr as [_ [Hli Hpi]].
   intros; pose (Hpi1none _ H) as Hbrd.
   eapply Hpi; eauto.
-
-  SCase "2.6. pi2 constraint".
+  }
+  { SCase "2.6. pi2 constraint".
   unfold inject_incr' in Hincr; destruct Hincr as [_ [_ [_ [_ Hpi]]]].
   intros; hexploit Hpi; eauto.
-
-  SCase "2.7. li1 constraint II".
+  }
+  { SCase "2.7. li1 constraint II".
   intros; exploit Hli1free; eauto; intro Hres.
   eapply malloc_preserves_isolated_heap_freeable; eauto.
-
-  SCase "2.8. li2 constraint II".
+  }
+  { SCase "2.8. li2 constraint II".
   intros; exploit Hli2free; eauto; intro Hres.
   eapply malloc_preserves_isolated_heap_freeable; eauto.
-
-  SCase "2.9. pi1 constraint II".
+  }
+  { SCase "2.9. pi1 constraint II".
   intros; exploit Hpi1free; eauto; intro Hres.
   eapply malloc_preserves_isolated_heap_freeable; eauto.
-
-  SCase "2.10. pi2 constraint II".
+  }
+  { SCase "2.10. pi2 constraint II".
   intros; exploit Hpi2free; eauto; intro Hres.
   eapply malloc_preserves_isolated_heap_freeable; eauto.
-
-  SCase "2.11. li1 constraint III".
+  }
+  { SCase "2.11. li1 constraint III".
   eapply Forall_impl; try eapply Hvli1; intros a Hprev.
   simpl in Hprev; rewrite <- Hn1; omega.
-
-  SCase" 2.12. pi1 constraint III".
+  }
+  { SCase" 2.12. pi1 constraint III".
   eapply Forall_impl; try eapply Hvpi1; intros a Hprev.
   simpl in Hprev; rewrite <- Hn1; omega.
-
-  SCase "2.13. li2 constraint III".
+  }
+  { SCase "2.13. li2 constraint III".
   eapply Forall_impl; try eapply Hvli0; intros a Hprev.
   simpl in Hprev; rewrite <- Hn2; omega.
-
-  SCase "2.14. pi2 constraint III".
+  }
+  { SCase "2.14. pi2 constraint III".
   eapply Forall_impl; try eapply Hvpi0; intros a Hprev.
   simpl in Hprev; rewrite <- Hn2; omega.
-
-  auto.
-  auto.
+  } }
 Qed.
 
 Lemma malloc_left_preserves_valid_memories:
@@ -1277,7 +1284,7 @@ Proof.
   instantiate (1:=Mem.nextblock mem1); zauto.
   intro Hcontr; rewrite Hmb1 in H; rewrite H in Hcontr; done.
 
-  SSCase "1.2. mem_contents".
+  { SSCase "1.2. mem_contents".
   intros.
   erewrite <- Mem.alloc_mem_contents; eauto; unfold update, zeq.
   exploit Mem.perm_alloc_inv; eauto; rewrite Hmb1; unfold zeq.
@@ -1286,6 +1293,7 @@ Proof.
     exploit Hmap1. instantiate (1:=Mem.nextblock mem1); zauto. intro Hcontr.
     rewrite H in Hcontr; done.
   - eapply mi_memval; eauto.
+  }
 
   SCase "2. wf_sb_mi".
   econstructor; try done; intros.
@@ -1309,36 +1317,35 @@ Proof.
   instantiate (1:=Mem.nextblock mem1); zauto.
   intro Hcontr; rewrite Hmb1 in H; rewrite H in Hcontr; done.
 
-  SCase "3. li1 constraint".
+  { SCase "3. li1 constraint".
   intros; inv H.
   - rewrite <- H0; apply Hmap1; zauto.
   - eapply Hli1none; eauto.
-
-  SCase "4. li1 freeable".
+  }
+  { SCase "4. li1 freeable".
   intros b Hbin; simpl in Hbin.
   destruct Hbin as [Hbeq|Hbin].
-
   - subst; rewrite Hbeq in Hmalloc1.
     eapply malloc_implies_freeable; eauto.
   - intros; exploit Hli1free; eauto; intro Hres.
     eapply malloc_preserves_isolated_heap_freeable; eauto.
-
+  }
   SCase "5. pi1 freeable".
   intros; exploit Hpi1free; eauto; intro Hres.
   eapply malloc_preserves_isolated_heap_freeable; eauto.
 
-  SCase "6. li1-pi1 disjointness".
+  { SCase "6. li1-pi1 disjointness".
   unfold list_disjoint; intros; inv H.
   - rewrite <- H1; intro Hcontr; rewrite <- Hcontr in *.
     rewrite Forall_forall in Hvpi1.
     pose (Hvpi1 _ H0); zauto.
   - eapply Hlipidisj1; eauto.
-
-  SCase "6. li1 constraint II".
+  }
+  { SCase "6. li1 constraint II".
   rewrite Forall_forall in Hvli1; apply Forall_forall; intros; inv H.
   - rewrite <- H0; rewrite <- Hn1; zauto.
   - exploit Hvli1; eauto; rewrite <- Hn1; zauto.
-
+  }
   SCase" 7. pi1 constraint II".
   rewrite Forall_forall in Hvpi1; apply Forall_forall; intros.
   exploit Hvpi1; eauto; rewrite <- Hn1; zauto.
@@ -1388,12 +1395,13 @@ Proof.
   exploit mi_memval; eauto; intro Hmi.
   assert (Hceq: Mem.mem_contents mem2 b2 (ofs + delta) =
     Mem.mem_contents mem2' b2 (ofs + delta)).
-  - exploit Mem.alloc_mem_contents; eauto; intro Hbrd.
+  { exploit Mem.alloc_mem_contents; eauto; intro Hbrd.
     rewrite <- Hbrd; unfold update, zeq.
     destruct (Z_eq_dec b2 (Mem.nextblock mem2)); [|done].
     rewrite e in H.
     exploit Hmap2; eauto; intro Hcontr.
     contradict Hcontr; zauto.
+  }
   rewrite <- Hceq; done.
 
   SCase "2. wf_sb_mi".
@@ -1419,37 +1427,37 @@ Proof.
   exploit Hmap2; eauto; intro Hcontr.
   rewrite Hmb2 in Hcontr; zauto.
 
-  SCase "3. li2 constraint".
+  { SCase "3. li2 constraint".
   intros; inv H.
   - rewrite <- H0; intro Hcontr.
     apply Hmap2 in Hcontr; zauto.
   - eapply Hli2none; eauto.
+  }
 
-  SCase "4. li2 freeable".
+  { SCase "4. li2 freeable".
   intros b Hbin; simpl in Hbin.
   destruct Hbin as [Hbeq|Hbin].
-
   - subst; rewrite Hbeq in Hmalloc2.
     eapply malloc_implies_freeable; eauto.
   - intros; exploit Hli2free; eauto; intro Hres.
     eapply malloc_preserves_isolated_heap_freeable; eauto.
-
+  }
   SCase "5. pi2 freeable".
   intros; exploit Hpi2free; eauto; intro Hres.
   eapply malloc_preserves_isolated_heap_freeable; eauto.
 
-  SCase "6. li2-pi2 disjointness".
+  { SCase "6. li2-pi2 disjointness".
   unfold list_disjoint; intros; inv H.
   - rewrite <- H1; intro Hcontr; rewrite <- Hcontr in *.
     rewrite Forall_forall in Hvpi0.
     pose (Hvpi0 _ H0); zauto.
   - eapply Hlipidisj2; eauto.
-
-  SCase "7. li2 constraint II".
+  }
+  { SCase "7. li2 constraint II".
   rewrite Forall_forall in Hvli0; apply Forall_forall; intros; inv H.
   - rewrite <- H0; rewrite <- Hn2; zauto.
   - exploit Hvli0; eauto; rewrite <- Hn2; zauto.
-
+  }
   SCase "8. pi2 constraint II".
   rewrite Forall_forall in Hvpi0; apply Forall_forall; intros.
   exploit Hvpi0; eauto; rewrite <- Hn2; zauto.
@@ -1471,19 +1479,20 @@ Proof.
   instantiate (1:=b); intro Hbound; rewrite Hbound; clear Hbound.
   destruct (Mem.bounds mem0 b).
   assert (Hneq: b1 <> b).
-  - intro Hcontr1; subst. exploit Hli; eauto; intro Hcontr.
+  { intro Hcontr1; subst. exploit Hli; eauto; intro Hcontr.
     rewrite Hcontr in Halpha; done.
+  }
   intro Hcontr; elim Hfreea; clear Hfreea.
 
   Local Transparent Mem.free.
   unfold Mem.free; unfold Mem.free in Hcontr.
   destruct (Mem.range_perm_dec mem' b z z0 Freeable); [done|].
   assert (Hperm: ~ Mem.range_perm mem0 b z z0 Freeable).
-  - intro Hcontrp; elim n; clear n.
+  { intro Hcontrp; elim n; clear n.
     unfold Mem.range_perm in *; intros.
     exploit Hcontrp; eauto; intro Hperm.
     eapply Mem.perm_free_1; eauto.
-
+  }
   destruct (Mem.range_perm_dec mem0 b z z0 Freeable); done.
   Global Opaque Mem.free.
 
@@ -1503,18 +1512,18 @@ Proof.
   instantiate (1:=b); intro Hbound; rewrite Hbound; clear Hbound.
   destruct (Mem.bounds mem0 b).
   assert (Hneq: b2 <> b).
-  - intro Hcontr1; subst; exploit Hli; eauto.
+  { intro Hcontr1; subst; exploit Hli; eauto. }
   intro Hcontr; elim Hfreea; clear Hfreea.
 
   Local Transparent Mem.free.
   unfold Mem.free; unfold Mem.free in Hcontr.
   destruct (Mem.range_perm_dec mem' b z z0 Freeable); [done|].
   assert (Hperm: ~ Mem.range_perm mem0 b z z0 Freeable).
-  - intro Hcontrp; elim n; clear n.
+  { intro Hcontrp; elim n; clear n.
     unfold Mem.range_perm in *; intros.
     exploit Hcontrp; eauto; intro Hperm.
     eapply Mem.perm_free_1; eauto.
-
+  }
   destruct (Mem.range_perm_dec mem0 b z z0 Freeable); done.
   Global Opaque Mem.free.
 
@@ -1546,12 +1555,13 @@ Proof.
   exploit mem_inj__free; eauto. intros [mem2'' [Hfree2'' [Hwfm2' Hminj2']]].
   inv Hp2.
   assert (Hmeq2: ret mem2' = ret mem2'').
-  - assert (Hdz: delta = 0) by (inv Hwf; eapply mi_range_block; eauto); subst.
+  { assert (Hdz: delta = 0) by (inv Hwf; eapply mi_range_block; eauto); subst.
     rewrite <- Hfree2', <- Hfree2''.
     inv Hwf.
     exploit mi_bounds; try apply H1; eauto; intro Hbeq.
     rewrite <- Hb1, <- Hb2 in Hbeq; inv Hbeq.
     f_equal; zauto.
+  }
   inv Hmeq2.
 
   econstructor; try done; try (by rewrite Hfeq1); try (by rewrite Hfeq2).
@@ -1577,7 +1587,7 @@ Proof.
   intros.
 
   assert (Hbound: Mem.bounds mem0 b = Mem.bounds mem' b).
-  - clear -Hstore.
+  { clear -Hstore.
     generalize dependent mem0; generalize dependent mem';
     generalize dependent gv; generalize dependent ofs.
     induction mc; intros;
@@ -1589,6 +1599,7 @@ Proof.
     remember (Mem.store m mem0 b1 ofs v) as nm; destruct nm; [|done].
     exploit IHmc; eauto; intro Hbrd; rewrite <-Hbrd.
     exploit Mem.bounds_store; eauto.
+  }
   rewrite <-Hbound.
   destruct (Mem.bounds mem0 b); clear Hbound.
   intro Hcontr; elim Hfree; clear Hfree.
@@ -1599,7 +1610,7 @@ Proof.
     destruct perm'; [done|]; clear Hcontr.
 
   assert (Hperm: ~ Mem.range_perm mem0 b z z0 Freeable).
-  - clear -n Hstore.
+  { clear -n Hstore.
     intro Hcontr; elim n; clear n.
     generalize dependent mem0; generalize dependent mem';
     generalize dependent gv; generalize dependent ofs.
@@ -1614,7 +1625,7 @@ Proof.
     unfold Mem.range_perm in *; intros.
     exploit Hcontr; eauto; intro Hperm.
     eapply Mem.perm_store_1; eauto.
-
+  }
   destruct (Mem.range_perm_dec mem0 b z z0); done.
   Global Opaque Mem.free.
 
@@ -1650,10 +1661,11 @@ Proof.
   exploit mem_inj_mstore_aux; eauto. intros [mem2'' [Hstore2''' [Hwfm2'' Hminj2']]].
   inv Hp2.
   assert (Hmeq2: ret mem2' = ret mem2'').
-  - assert (Hdz: delta = 0) by (inv Hwf; eapply mi_range_block; eauto); subst.
+  { assert (Hdz: delta = 0) by (inv Hwf; eapply mi_range_block; eauto); subst.
     rewrite <- Hstore2'', <- Hstore2'''.
     f_equal.
     rewrite Int.add_zero; zauto.
+  }
   inv Hmeq2.
 
   econstructor; try done; try (by rewrite <- Hfeq1); try (by rewrite <- Hfeq2).
@@ -1693,7 +1705,7 @@ Proof.
   Case "1. mem_inj".
   inv Hmemi; econstructor.
 
-  SCase "1.1. valid_access".
+  { SCase "1.1. valid_access".
   intros; eapply mi_access; eauto.
   clear -Hstore1'' H0.
   remember (Int.signed 31 ofs1) as o1; clear Heqo1.
@@ -1707,10 +1719,11 @@ Proof.
     remember (Mem.store c mem1 blk1 o1 v) as sstore.
     destruct sstore; [|done].
     exploit IHmc1.
-    + apply H0.
-    + apply Hstore1''.
+    { apply H0. }
+    { apply Hstore1''. }
     intro Hbrd.
     eapply Mem.store_valid_access_2; eauto.
+  }
 
   SCase "1.2. mem_contents".
   intros; unfold is_isolated in Hiso.
@@ -1731,7 +1744,7 @@ Proof.
     (intro Hcontr; subst; rewrite (Hli1none _ Hptr) in H; done).
 
   assert (Hceq: Mem.mem_contents mem1' b1 ofs = Mem.mem_contents mem1 b1 ofs).
-  - clear -Hstore1'' Hnbeq.
+  { clear -Hstore1'' Hnbeq.
     remember (Int.signed 31 ofs1) as o1; clear Heqo1.
     generalize dependent mem1; generalize dependent mem1';
     generalize dependent o1; generalize dependent gv1.
@@ -1746,10 +1759,11 @@ Proof.
     symmetry in Heqsstore.
     pose (Mem.store_getN_out _ _ _ _ _ _ Heqsstore _ ofs 1 Hnbeq) as Hres.
     by simpl in Hres; inv Hres.
+  }
   rewrite Hceq.
 
   assert (Hpeq: Mem.perm mem1 b1 ofs Nonempty).
-  - clear -Hstore1'' H0.
+  { clear -Hstore1'' H0.
     remember (Int.signed 31 ofs1) as o1; clear Heqo1.
     generalize dependent mem1; generalize dependent mem1';
     generalize dependent o1; generalize dependent gv1.
@@ -1762,7 +1776,7 @@ Proof.
     destruct sstore; [|done].
     exploit IHmc1; eauto; intro Hbrd.
     eapply Mem.perm_store_2; eauto.
-
+  }
   eapply mi_memval; eauto.
 
   Case "2. wf_sb_mi".
@@ -1813,21 +1827,33 @@ Proof.
 
   hexploit getOperandValue_eq_check_value_implies_injection;
   try eapply Hmdsem; try eapply Hinvsem; try eapply Hgequiv.
-  - apply Hniv1. - apply Hniv. - apply Heql. - apply Hvwf. - apply Htd.
-  - symmetry; eauto. - symmetry; eauto.
+  { apply Hniv1. }
+  { apply Hniv. }
+  { apply Heql. }
+  { apply Hvwf. }
+  { apply Htd. }
+  { symmetry; eauto. }
+  { symmetry; eauto. }
   intro Hgvinjl.
 
   hexploit getOperandValue_eq_check_value_implies_injection;
   try eapply Hmdsem; try eapply Hinvsem; try eapply Hgequiv.
-  - apply Hniv2. - apply Hniv0. - apply Heqr. - apply Hvwf. - apply Htd.
-  - symmetry; eauto. - symmetry; eauto.
+  { apply Hniv2. }
+  { apply Hniv0. }
+  { apply Heqr. }
+  {apply Hvwf. }
+  {apply Htd. }
+  { symmetry; eauto. }
+  { symmetry; eauto. }
   intro Hgvinjr.
 
   assert (mbop (CurTargetData cfg1) b sz0 g1 g2 = ret gvs1) as Hbop1' by apply Hbop1.
   assert (mbop (CurTargetData cfg2) b sz0 g g0 = ret gvs2) as Hbop2' by apply Hbop2.
 
   exploit simulation__mbop.
-  - apply Hgvinjl. - apply Hgvinjr. - apply Hbop1'.
+  { apply Hgvinjl. }
+  { apply Hgvinjr. }
+  { apply Hbop1'. }
   intros [gvs2' [Hbop2'' Hinj]].
   rewrite Htd in *; rewrite Hbop2' in Hbop2''.
   inversion Hbop2''; subst.
@@ -1863,14 +1889,24 @@ Proof.
 
   hexploit getOperandValue_eq_check_value_implies_injection;
   try eapply Hmdsem; try eapply Hinvsem; try eapply Hgequiv.
-  - apply Hniv1. - apply Hniv. - apply Heql. - apply Hvwf. - apply Htd.
-  - symmetry; eauto. - symmetry; eauto.
+  { apply Hniv1. }
+  { apply Hniv. }
+  { apply Heql. }
+  { apply Hvwf. }
+  { apply Htd. }
+  { symmetry; eauto. }
+  { symmetry; eauto. }
   intro Hgvinjl.
 
   hexploit getOperandValue_eq_check_value_implies_injection;
   try eapply Hmdsem; try eapply Hinvsem; try eapply Hgequiv.
-  - apply Hniv2. - apply Hniv0. - apply Heqr. - apply Hvwf. - apply Htd.
-  - symmetry; eauto. - symmetry; eauto.
+  { apply Hniv2. }
+  { apply Hniv0. }
+  { apply Heqr. }
+  { apply Hvwf. }
+  { apply Htd. }
+  { symmetry; eauto. }
+  { symmetry; eauto. }
   intro Hgvinjr.
 
   assert (mfbop (CurTargetData cfg1) fb sz0 g1 g2 = ret gvs1) as Hfbop1'
@@ -1879,7 +1915,9 @@ Proof.
     by apply Hfbop2.
 
   exploit simulation__mfbop.
-  - apply Hgvinjl. - apply Hgvinjr. - apply Hfbop1'.
+  { apply Hgvinjl. }
+  { apply Hgvinjr. }
+  { apply Hfbop1'. }
   intros [gvs2' [Hfbop2'' Hinj]].
   rewrite Htd in *; rewrite Hfbop2' in Hfbop2''.
   inversion Hfbop2''; subst.
@@ -1915,8 +1953,13 @@ Proof.
 
   hexploit getOperandValue_eq_check_value_implies_injection;
   try eapply Hmdsem; try eapply Hinvsem; try eapply Hgequiv.
-  - apply Hsu1. - apply Hsu2. - apply Heq. - apply Hvwf. - apply Htd.
-  - symmetry; eauto. - symmetry; eauto.
+  { apply Hsu1. }
+  { apply Hsu2. }
+  { apply Heq. }
+  { apply Hvwf. }
+  { apply Htd. }
+  { symmetry; eauto. }
+  { symmetry; eauto. }
   intro Hgvinj.
 
   exploit simulation__extractGenericValue; eauto.
@@ -1960,18 +2003,30 @@ Proof.
 
   hexploit getOperandValue_eq_check_value_implies_injection;
   try eapply Hmdsem; try eapply Hinvsem; try eapply Hgequiv.
-  - apply Hniv1. - apply Hniv. - apply Heql. - apply Hvwf. - apply Htd.
-  - symmetry; eauto. - symmetry; eauto.
+  { apply Hniv1. }
+  { apply Hniv. }
+  { apply Heql. }
+  { apply Hvwf. }
+  { apply Htd. }
+  { symmetry; eauto. }
+  { symmetry; eauto. }
   intro Hgvinjl.
 
   hexploit getOperandValue_eq_check_value_implies_injection;
   try eapply Hmdsem; try eapply Hinvsem; try eapply Hgequiv.
-  - apply Hniv2. - apply Hniv0. - apply Heqr. - apply Hvwf. - apply Htd.
-  - symmetry; eauto. - symmetry; eauto.
+  { apply Hniv2. }
+  { apply Hniv0. }
+  { apply Heqr. }
+  { apply Hvwf. }
+  { apply Htd. }
+  { symmetry; eauto. }
+  { symmetry; eauto. }
   intro Hgvinjr.
 
   exploit simulation__insertGenericValue.
-  - apply Hgvinjl. - apply Hgvinjr. - apply Higv1.
+  { apply Hgvinjl. }
+  { apply Hgvinjr. }
+  { apply Higv1. }
   intros [gvs2' [Higv2' Hinj]].
   rewrite Htd in *.
   assert (ret gvs2 = ret gvs2') as Hgveq
@@ -2007,8 +2062,13 @@ Proof.
 
   hexploit getOperandValue_eq_check_value_implies_injection;
   try eapply Hmdsem; try eapply Hinvsem; try eapply Hgequiv.
-  - apply Hsu1. - apply Hsu2. - apply Heq. - inv Hvmem; apply Hwf. - apply Htd.
-  - symmetry; eauto. - symmetry; eauto.
+  { apply Hsu1. }
+  { apply Hsu2. }
+  { apply Heq. }
+  { inv Hvmem; apply Hwf. }
+  { apply Htd. }
+  { symmetry; eauto. }
+  { symmetry; eauto. }
   intro Hgvinj.
 
   rewrite Htd in *.
@@ -2036,8 +2096,9 @@ Proof.
   exploit simulation_mload_aux; eauto.
   intros [gv2 [Hload2' Hinj2']].
   assert (Hgeq: ret gv2 = ret gvs2).
-  - rewrite <- Hload2, <- Hload2'; f_equal; eauto.
+  { rewrite <- Hload2, <- Hload2'; f_equal; eauto.
     rewrite Int.add_zero; omega.
+  }
   inv Hgeq; done.
 Qed.
 
@@ -2074,21 +2135,31 @@ Proof.
 
   hexploit getOperandValue_eq_check_value_implies_injection;
   try eapply Hmdsem; try eapply Hinvsem; try eapply Hgequiv.
-  - apply Hniv1. - apply Hniv. - apply Heq. - apply Hvwf. - apply Htd.
-  - eauto. - eauto.
+  { apply Hniv1. }
+  { apply Hniv. }
+  { apply Heq. }
+  { apply Hvwf. }
+  { apply Htd. }
+  { eauto. }
+  { eauto. }
   intro Hgvinj.
 
   hexploit values2GVs_eq_check_value_implies_injection;
   try eapply Hmdsem; try eapply Hinvsem; try eapply Hgequiv.
-  - apply Hniv2. - apply Hniv0. - apply Heqlsv. - apply Hvwf. - apply Htd.
-  - eauto. - eauto.
+  { apply Hniv2. }
+  { apply Hniv0. }
+  { apply Heqlsv. }
+  { apply Hvwf. }
+  { apply Htd. }
+  { eauto. }
+  { eauto. }
   intro Hgvsinj.
 
   exploit simulation__GEP; eauto.
   intros [gv2 [Hgep2' Hinj2']].
   rewrite Htd in *.
   assert (Hgeq: ret gv2 = ret gvs2).
-  - rewrite <- Hgep2, <- Hgep2'; f_equal; eauto.
+  { rewrite <- Hgep2, <- Hgep2'; f_equal; eauto. }
   inv Hgeq; done.
 Qed.
 
@@ -2120,8 +2191,13 @@ Proof.
 
   hexploit getOperandValue_eq_check_value_implies_injection;
   try eapply Hmdsem; try eapply Hinvsem; try eapply Hgequiv.
-  - apply Hsu1. - apply Hsu2. - apply Heq. - apply Hvwf. - apply Htd.
-  - symmetry; eauto. - symmetry; eauto.
+  { apply Hsu1. }
+  { apply Hsu2. }
+  { apply Heq. }
+  { apply Hvwf. }
+  { apply Htd. }
+  { symmetry; eauto. }
+  { symmetry; eauto. }
   intro Hgvinj.
 
   exploit simulation__mtrunc; eauto.
@@ -2160,8 +2236,13 @@ Proof.
 
   hexploit getOperandValue_eq_check_value_implies_injection;
   try eapply Hmdsem; try eapply Hinvsem; try eapply Hgequiv.
-  - apply Hsu1. - apply Hsu2. - apply Heq. - apply Hvwf. - apply Htd.
-  - symmetry; eauto. - symmetry; eauto.
+  { apply Hsu1. }
+  { apply Hsu2. }
+  { apply Heq. }
+  { apply Hvwf. }
+  { apply Htd. }
+  { symmetry; eauto. }
+  { symmetry; eauto. }
   intro Hgvinj.
 
   exploit simulation__mext; eauto.
@@ -2200,8 +2281,13 @@ Proof.
 
   hexploit getOperandValue_eq_check_value_implies_injection;
   try eapply Hmdsem; try eapply Hinvsem; try eapply Hgequiv.
-  - apply Hsu1. - apply Hsu2. - apply Heq. - apply Hvwf. - apply Htd.
-  - symmetry; eauto. - symmetry; eauto.
+  { apply Hsu1. }
+  { apply Hsu2. }
+  { apply Heq. }
+  { apply Hvwf. }
+  { apply Htd. }
+  { symmetry; eauto. }
+  { symmetry; eauto. }
   intro Hgvinj.
 
   exploit simulation__mcast; eauto.
@@ -2242,14 +2328,24 @@ Proof.
 
   hexploit getOperandValue_eq_check_value_implies_injection;
   try eapply Hmdsem; try eapply Hinvsem; try eapply Hgequiv.
-  - apply Hniv1. - apply Hniv. - apply Heql. - apply Hvwf. - apply Htd.
-  - symmetry; eauto. - symmetry; eauto.
+  { apply Hniv1. }
+  { apply Hniv. }
+  { apply Heql. }
+  { apply Hvwf. }
+  { apply Htd. }
+  { symmetry; eauto. }
+  { symmetry; eauto. }
   intro Hgvinjl.
 
   hexploit getOperandValue_eq_check_value_implies_injection;
   try eapply Hmdsem; try eapply Hinvsem; try eapply Hgequiv.
-  - apply Hniv2. - apply Hniv0. - apply Heqr. - apply Hvwf. - apply Htd.
-  - symmetry; eauto. - symmetry; eauto.
+  { apply Hniv2. }
+  { apply Hniv0. }
+  { apply Heqr. }
+  { apply Hvwf. }
+  { apply Htd. }
+  { symmetry; eauto. }
+  { symmetry; eauto. }
   intro Hgvinjr.
 
   exploit simulation__micmp; try eapply Hicmp1; eauto.
@@ -2291,14 +2387,24 @@ Proof.
 
   hexploit getOperandValue_eq_check_value_implies_injection;
   try eapply Hmdsem; try eapply Hinvsem; try eapply Hgequiv.
-  - apply Hniv1. - apply Hniv. - apply Heql. - apply Hvwf. - apply Htd.
-  - symmetry; eauto. - symmetry; eauto.
+  { apply Hniv1. }
+  { apply Hniv. }
+  { apply Heql. }
+  { apply Hvwf. }
+  { apply Htd. }
+  { symmetry; eauto. }
+  { symmetry; eauto. }
   intro Hgvinjl.
 
   hexploit getOperandValue_eq_check_value_implies_injection;
   try eapply Hmdsem; try eapply Hinvsem; try eapply Hgequiv.
-  - apply Hniv2. - apply Hniv0. - apply Heqr. - apply Hvwf. - apply Htd.
-  - symmetry; eauto. - symmetry; eauto.
+  { apply Hniv2. }
+  { apply Hniv0. }
+  { apply Heqr. }
+  { apply Hvwf. }
+  { apply Htd. }
+  { symmetry; eauto. }
+  { symmetry; eauto. }
   intro Hgvinjr.
 
   exploit simulation__mfcmp; try eapply Hfcmp1; eauto.
@@ -2418,9 +2524,16 @@ Proof.
     + eauto. + eauto.
 
   - hexploit getOperandValue_eq_check_value_implies_injection.
-    + apply Hnicv1. + apply Hnicv2. + apply Heqc.
-    + apply Hmdsem. + apply Hinvsem. + apply Hvwf. + apply Htd. + apply Hgequiv.
-    + eauto. + eauto.
+    { apply Hnicv1. }
+    { apply Hnicv2. }
+    { apply Heqc. }
+    { apply Hmdsem. }
+    { apply Hinvsem. }
+    { apply Hvwf. }
+    { apply Htd. }
+    { apply Hgequiv. }
+    { eauto. }
+    { eauto. }
     intro Hcinj.
     hexploit injection_implies_isGVZero_equal; eauto.
     instantiate (1:=(CurTargetData cfg1)).
@@ -2428,9 +2541,16 @@ Proof.
     rewrite <- Heqiz1, <- Heqiz2 in Hcontr; done.
 
   - hexploit getOperandValue_eq_check_value_implies_injection.
-    + apply Hnicv1. + apply Hnicv2. + apply Heqc.
-    + apply Hmdsem. + apply Hinvsem. + apply Hvwf. + apply Htd. + apply Hgequiv.
-    + eauto. + eauto.
+    { apply Hnicv1. }
+    { apply Hnicv2. }
+    { apply Heqc. }
+    { apply Hmdsem. }
+    { apply Hinvsem. }
+    { apply Hvwf. }
+    { apply Htd. }
+    { apply Hgequiv. }
+    { eauto. }
+    { eauto. }
     intro Hcinj.
     hexploit injection_implies_isGVZero_equal; eauto.
     instantiate (1:=(CurTargetData cfg1)).

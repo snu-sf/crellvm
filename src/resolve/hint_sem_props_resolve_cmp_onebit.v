@@ -47,14 +47,15 @@ Proof.
 
   - idtac.
     assert (wz0 = 0%nat); [|subst].
-    + unfold Size.to_nat, Size.One in e.
+    { unfold Size.to_nat, Size.One in e.
       omega.
+    }
     unfold Val.cmp_obligation_3, Val.cmp_obligation_2, Val.cmp_obligation_1.
     arith_tac.
     + rewrite Int_0_xor_sub.
       by rewrite Int.sub_idem.
     + destruct i0, i1.
-      unfold Int.modulus, two_power_nat, shift_nat, iter_nat in intrange, intrange0; simpl in *.
+      unfold Int.modulus, two_power_nat, shift_nat in intrange, intrange0; simpl in *.
       assert (intval = 0 \/ intval = 1); [omega|].
       assert (intval0 = 0 \/ intval0 = 1); [omega|].
       destruct H, H0; subst; try done.
@@ -77,8 +78,6 @@ Hint Resolve infrule_correct_cmp_onebit: InfRuleDb.
 
 (* 
 *** Local Variables: ***
-***
-*** coq-prog-args: ("-emacs" "-impredicative-set") ******
-***
+*** coq-prog-args: ("-emacs" "-impredicative-set") ***
 *** End: ***
- *)
+*)

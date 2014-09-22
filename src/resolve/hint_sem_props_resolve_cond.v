@@ -428,7 +428,7 @@ Proof.
         by rewrite lookupAL_updateAddAL_eq.
         by rewrite <- lookupAL_updateAddAL_neq.
       * done.
-      * infrule_tac.
+    + infrule_tac.
   - unfold cond_fresh_eq_reg in Ht.
     generalize (Hsem lhs rhs H); clear Hsem; intro Hsem.
     apply EqRegSetFacts.for_all_iff in Ht; [|by repeat intro; subst].
@@ -541,8 +541,6 @@ Qed.
 
 (* 
 *** Local Variables: ***
-***
-*** coq-prog-args: ("-emacs" "-impredicative-set") ******
-***
+*** coq-prog-args: ("-emacs" "-impredicative-set") ***
 *** End: ***
- *)
+*)

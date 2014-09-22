@@ -98,7 +98,7 @@ Lemma Int_0_and_mul i0 i1:
   Int.and 0 i0 i1 = Int.mul 0 i0 i1.
 Proof.
   destruct i0, i1.
-  unfold Int.modulus, two_power_nat, shift_nat, iter_nat in intrange, intrange0; simpl in *.
+  unfold Int.modulus, two_power_nat, shift_nat in intrange, intrange0; simpl in *.
   assert (intval = 0 \/ intval = 1); [omega|].
   assert (intval0 = 0 \/ intval0 = 1); [omega|].
   unfold Int.xor, Int.sub.
@@ -110,7 +110,7 @@ Lemma Int_0_xor_sub i0 i1:
   Int.xor 0 i0 i1 = Int.sub 0 i0 i1.
 Proof.
   destruct i0, i1.
-  unfold Int.modulus, two_power_nat, shift_nat, iter_nat in intrange, intrange0; simpl in *.
+  unfold Int.modulus, two_power_nat, shift_nat in intrange, intrange0; simpl in *.
   assert (intval = 0 \/ intval = 1); [omega|].
   assert (intval0 = 0 \/ intval0 = 1); [omega|].
   unfold Int.xor, Int.sub.
@@ -125,7 +125,7 @@ Lemma Int_0_xor_add i0 i1:
   Int.xor 0 i0 i1 = Int.add 0 i0 i1.
 Proof.
   destruct i0, i1.
-  unfold Int.modulus, two_power_nat, shift_nat, iter_nat in intrange, intrange0; simpl in *.
+  unfold Int.modulus, two_power_nat, shift_nat in intrange, intrange0; simpl in *.
   assert (intval = 0 \/ intval = 1); [omega|].
   assert (intval0 = 0 \/ intval0 = 1); [omega|].
   unfold Int.xor, Int.add.
@@ -138,8 +138,6 @@ Qed.
 
 (* 
 *** Local Variables: ***
-***
-*** coq-prog-args: ("-emacs" "-impredicative-set") ******
-***
+*** coq-prog-args: ("-emacs" "-impredicative-set") ***
 *** End: ***
- *)
+*)

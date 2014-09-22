@@ -56,7 +56,7 @@ Proof.
     destruct wz; arith_tac.
     unfold Val.of_bool.
     destruct i0, i1.
-    unfold Int.modulus, two_power_nat, shift_nat, iter_nat in intrange, intrange0; simpl in *.
+    unfold Int.modulus, two_power_nat, shift_nat in intrange, intrange0; simpl in *.
     assert (intval = 0 \/ intval = 1); [omega|].
     assert (intval0 = 0 \/ intval0 = 1); [omega|].
     unfold Int.xor, Int.sub.
@@ -81,8 +81,6 @@ Hint Resolve infrule_correct_cmp_ult: InfRuleDb.
 
 (* 
 *** Local Variables: ***
-***
-*** coq-prog-args: ("-emacs" "-impredicative-set") ******
-***
+*** coq-prog-args: ("-emacs" "-impredicative-set") ***
 *** End: ***
- *)
+*)

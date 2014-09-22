@@ -48,11 +48,12 @@ Proof.
     inv Hnoop; [|done].
     inv Hnnn; [done|idtac|idtac|].
     + assert (CurCmds ec <> nil).
-      * intro Hcontr; rewrite Hcontr in Hpop1.
+      { intro Hcontr; rewrite Hcontr in Hpop1.
         unfold pop_one_X in Hpop1.
         by destruct (noop_idx_zero_exists hpn).
-        inv Hstep0; try done; try (eexists; reflexivity).
-      * by simpl in Hncall.
+      }
+      inv Hstep0; try done; try (eexists; reflexivity).
+      by simpl in Hncall.
     + unfold is_call in Hcall.
       unfold is_general_call_state in Hncall.
       by destruct cfg, ec; destruct CurCmds0 as [|[]].
@@ -133,7 +134,7 @@ Lemma hint_sem_insn_implies_same_step:
 Proof.
   intros.
   assert (Htrnil: tr = E0).
-  - inv Hstep2. simpl in Hec; inv Hec; clear H.
+  { inv Hstep2. simpl in Hec; inv Hec; clear H.
     destruct pst;
       [by destruct Hstep| |
         by inv Hpop; [destruct rcmd|
@@ -146,10 +147,11 @@ Proof.
     destruct (noop_idx_zero_exists hpn); [done|].
     subst ocmd2; simpl in Hncall2.
     by elim (Hncall2 rid).
+  }
   subst tr.
 
   assert (tr1 = E0).
-  - inv Hstep1.
+  { inv Hstep1.
     simpl in Hec; inv Hec; clear H.
     destruct pst.
     + by destruct Hstep.
@@ -166,6 +168,7 @@ Proof.
     + inv Hpop; [by destruct rcmd|]; clear Hist.
       unfold pop_state_ocmd in Hpop1.
       by rewrite Hpop0 in Hpop1.
+  }
   by subst tr1.
 Qed.
 
@@ -209,13 +212,17 @@ Proof.
     intro Hncall1.
 
   exploit hint_sem_insn_implies_same_step.
-  - apply Hncall1. - apply Hncall2. - apply Hpop1. - apply Hpop2.
-  - apply Hestep1. - apply Hstep2.
+  { apply Hncall1. }
+  { apply Hncall2. }
+  { apply Hpop1. }
+  { apply Hpop2. }
+  { apply Hestep1. }
+  { apply Hstep2. }
   intros Hstep1.
 
   assert (Hncall1': ocmd1 = merror \/
     (is_general_call_state {| ECS := pst1; Mem := pmem1 |} -> False)).
-  - destruct ocmd1 as [cmd1|]; [right|left]; [|done].
+  { destruct ocmd1 as [cmd1|]; [right|left]; [|done].
     destruct pst1; [done|]. inv Hstep1. inv Hec.
     destruct ec. simpl in *.
     destruct CurCmds0; try done.
@@ -226,10 +233,11 @@ Proof.
     destruct (noop_idx_zero_exists hpn); subst; [done|].
     inv Hpop0. inv Hpop1.
     by elim (Hncall1 id5).
+  }
 
   assert (Hncall2': ocmd2 = merror \/
     (is_general_call_state {| ECS := pst2; Mem := pmem2 |} -> False)).
-  - destruct ocmd2 as [cmd2|]; [right|left]; [|done].
+  { destruct ocmd2 as [cmd2|]; [right|left]; [|done].
     destruct pst2; [done|]. inv Hstep2. inv Hec.
     destruct ec. simpl in *.
     destruct CurCmds0; try done.
@@ -240,22 +248,31 @@ Proof.
     destruct (noop_idx_zero_exists hpn); subst; [done|].
     inv Hpop0. inv Hpop2.
     by elim (Hncall2 id5).
+  }
 
   inversion Hsim; subst.
   exploit logical_semantic_step_implies_same_ECStack_tail.
-  - apply Hpop1. - apply Hstep1. - auto.
+  { apply Hpop1. }
+  { apply Hstep1. }
+  { auto. }
 
   intros [nec1 Hnst1]; subst.
   exploit logical_semantic_step_implies_same_ECStack_tail.
-  - apply Hpop2. - apply Hstep2. - auto.
+  { apply Hpop2. }
+  { apply Hstep2. }
+  { auto. }
 
   intros [nec2 Hnst2]; subst.
   exploit logical_semantic_step_implies_same_noop_stack_tail.
-  - apply Hpop1. - apply Hstep1. - auto.
+  { apply Hpop1. }
+  { apply Hstep1. }
+  { auto. }
 
   intros [nhns1 Hnns1]; subst.
   exploit logical_semantic_step_implies_same_noop_stack_tail.
-  - apply Hpop2. - apply Hstep2. - auto.
+  { apply Hpop2. }
+  { apply Hstep2. }
+  { auto. }
 
   intros [nhns2 Hnns2]; subst.
 
@@ -277,8 +294,12 @@ Proof.
 
   (* A. heap_eq_check *)
   exploit heap_eq_check_preserves_hint_sem_each.
-  - apply Hstep1. - apply Hstep2. - apply Hpop1. - apply Hpop2.
-  - apply Hncall1. - apply Hncall2.
+  { apply Hstep1. }
+  { apply Hstep2. }
+  { apply Hpop1. }
+  { apply Hpop2. }
+  { apply Hncall1. }
+  { apply Hncall2. }
   intro Hhcheck.
   exploit Hhcheck; eauto;
     intros [alpha' [li1' [li2' [Hincr [Hiboth [Hli1 [Hli2 Heach2]]]]]]].
@@ -288,39 +309,59 @@ Proof.
 
   (* B. remove_old / new_to_old *)
   exploit oldnew_preserves_hint_sem_each.
-  - apply Hstep1. - apply Hstep2. - apply Hpop1. - apply Hpop2.
-  - apply Hncall1. - apply Hncall2.
+  { apply Hstep1. }
+  { apply Hstep2. }
+  { apply Hpop1. }
+  { apply Hpop2. }
+  { apply Hncall1. }
+  { apply Hncall2. }
   intro Holdnew.
   exploit Holdnew; eauto; intros Heach3; clear Holdnew Heach2.
 
   (* C. maydiff_update *)
   exploit maydiff_update_preserves_hint_sem_each.
-  - apply Hstep1. - apply Hstep2. - apply Hpop1. - apply Hpop2.
-  - apply Hncall1. - apply Hncall2.
+  { apply Hstep1. }
+  { apply Hstep2. }
+  { apply Hpop1. }
+  { apply Hpop2. }
+  { apply Hncall1. }
+  { apply Hncall2. }
   intro Hmaydiff.
   exploit Hmaydiff; eauto; intro Heach4; clear Hmaydiff Heach3.
 
   (* F. add_neq *)
   exploit add_neq_preserves_hint_sem_each.
-  - apply Hstep1. - apply Hstep2. - apply Hpop1. - apply Hpop2.
-  - apply Hncall1. - apply Hncall2.
+  { apply Hstep1. }
+  { apply Hstep2. }
+  { apply Hpop1. }
+  { apply Hpop2. }
+  { apply Hncall1. }
+  { apply Hncall2. }
   intro Haddneq.
   exploit Haddneq; eauto; intro Heach5; clear Haddneq Heach4.
 
   (* D. filter_eq *)
   exploit filter_eq_heap_preserves_hint_sem_each.
-  - apply Hstep1. - apply Hstep2. - apply Hpop1. - apply Hpop2.
-  - apply Hncall1. - apply Hncall2.
+  { apply Hstep1. }
+  { apply Hstep2. }
+  { apply Hpop1. }
+  { apply Hpop2. }
+  { apply Hncall1. }
+  { apply Hncall2. }
   intro Hhfilter.
   exploit Hhfilter; eauto; intro Heach6; clear Hhfilter Heach5.
 
   (* E. add_cmd *)
   exploit add_cmd_preserves_hint_sem_each.
-  - apply Hstep1. - apply Hstep2. - apply Hpop1. - apply Hpop2.
-  - apply Hncall1. - apply Hncall2.
+  { apply Hstep1. }
+  { apply Hstep2. }
+  { apply Hpop1. }
+  { apply Hpop2. }
+  { apply Hncall1. }
+  { apply Hncall2. }
   intro Haddcmd.
   exploit Haddcmd; eauto.
-  - inv Hvmem; apply Hwf.
+  { inv Hvmem; apply Hwf. }
   intro HeachF; clear Haddcmd Heach6.
 
   (* Done! *)
@@ -329,8 +370,6 @@ Qed.
 
 (* 
 *** Local Variables: ***
-***
-*** coq-prog-args: ("-emacs" "-impredicative-set") ******
-***
+*** coq-prog-args: ("-emacs" "-impredicative-set") ***
 *** End: ***
- *)
+*)

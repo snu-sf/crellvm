@@ -145,7 +145,7 @@ Proof.
   exists olc1; exists olc2; infrule_tac.
   intros lhs rhs Hmem; infrule_tac.
   destruct Hmem as [Heq|?]; [|by auto]; infrule_tac; arith_tac.
-  - inv Hrhs.
+  { inv Hrhs. }
   unfold neq_reg_sem. rewrite Hlookup.
   unfold cond_is_global in H0.
   apply existsb_exists in H0.
@@ -180,8 +180,6 @@ Hint Resolve infrule_correct_neq_generate_gm: InfRuleDb.
 
 (* 
 *** Local Variables: ***
-***
-*** coq-prog-args: ("-emacs" "-impredicative-set") ******
-***
+*** coq-prog-args: ("-emacs" "-impredicative-set") ***
 *** End: ***
- *)
+*)

@@ -351,8 +351,6 @@ Definition mem_md (x:id_ext) (h:insn_hint_t) : bool :=
 
 (* 
 *** Local Variables: ***
-***
-*** coq-prog-args: ("-emacs" "-impredicative-set") ******
-***
+*** coq-prog-args: ("-emacs" "-impredicative-set") ***
 *** End: ***
- *)
+*)

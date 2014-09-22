@@ -57,7 +57,7 @@ Proof.
       unfold Int.eqm, Int.eqmod. unfold Int.modulus, two_power_nat, shift_nat; simpl.
       exists 1. omega.
     + destruct i0, i1.
-      unfold Int.modulus, two_power_nat, shift_nat, iter_nat in intrange, intrange0; simpl in *.
+      unfold Int.modulus, two_power_nat, shift_nat in intrange, intrange0; simpl in *.
       assert (intval = 0 \/ intval = 1); [omega|].
       assert (intval0 = 0 \/ intval0 = 1); [omega|].
       unfold Int.xor, Int.sub.
@@ -73,10 +73,10 @@ Proof.
     unfold Val.cmp_obligation_2.
     unfold Val.cmp_obligation_1.
     arith_tac.
-    + unfold gundef. unfold flatten_typ.
-      by destruct cfg2; destruct CurTargetData0.
-    + unfold gundef. unfold flatten_typ.
-      by destruct cfg2; destruct CurTargetData0.
+  - unfold gundef. unfold flatten_typ.
+    by destruct cfg2; destruct CurTargetData0.
+  - unfold gundef. unfold flatten_typ.
+    by destruct cfg2; destruct CurTargetData0.
   - unfold gundef. unfold flatten_typ.
     by destruct cfg2; destruct CurTargetData0.
   - unfold gundef. unfold flatten_typ.
@@ -99,8 +99,6 @@ Hint Resolve infrule_correct_cmp_eq: InfRuleDb.
 
 (* 
 *** Local Variables: ***
-***
-*** coq-prog-args: ("-emacs" "-impredicative-set") ******
-***
+*** coq-prog-args: ("-emacs" "-impredicative-set") ***
 *** End: ***
- *)
+*)

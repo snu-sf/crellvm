@@ -26,5 +26,5 @@
     + `make`
 
 ## Build ##
-- Command below in `/src`.
-    + 
+- Move `.coqrc` to `$HOME`. Here, replace $SIMPLBERRY_HOME to your simplberry directory.
+- `make` in `/src`

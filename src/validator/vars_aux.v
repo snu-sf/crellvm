@@ -372,8 +372,6 @@ Definition add_tag_value (nd_by_phi:list atom) (v:value) : value_ext :=
 
 (* 
 *** Local Variables: ***
-***
-*** coq-prog-args: ("-emacs" "-impredicative-set") ******
-***
+*** coq-prog-args: ("-emacs" "-impredicative-set") ***
 *** End: ***
- *)
+*)

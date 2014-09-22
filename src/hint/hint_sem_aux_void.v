@@ -177,7 +177,7 @@ Proof.
   intros.
   inv Hsem; simpl in *.
 
-  Case "1. normal value".
+  { Case "1. normal value".
   eapply eq_reg_sem_value; eauto; simpl in *.
   - destruct y as [y [|]]; simpl in *.
     + destruct (id_dec i0 y); try subst; simpl in *.
@@ -294,8 +294,9 @@ Proof.
     (* Value *)
     + inv Hrhs; eapply rhs_ext_value__sem.
       eapply oldnew_preserves_getOperandValueExt'; eauto.
+  }
 
-  Case "2. old_alloca_old".
+  { Case "2. old_alloca_old".
   eapply eq_reg_sem_old_alloca; eauto.
   rewrite negb_true_iff in Hnot.
   rewrite IdExtSetFacts.add_b in Hnot; apply orb_false_iff in Hnot.
@@ -314,7 +315,7 @@ Proof.
   - simpl; destruct (id_dec i0 y); simpl; simpl in Hlookup.
     + by subst; rewrite Hlookup; rewrite lookupAL_updateAddAL_eq.
     + by rewrite lookupAL_updateAddAL_opt_neq; eauto.
-
+  }
 Qed.
 
 Lemma oldnew_preserves_eq_heap_sem':
@@ -370,8 +371,6 @@ Qed.
 
 (* 
 *** Local Variables: ***
-***
-*** coq-prog-args: ("-emacs" "-impredicative-set") ******
-***
+*** coq-prog-args: ("-emacs" "-impredicative-set") ***
 *** End: ***
- *)
+*)

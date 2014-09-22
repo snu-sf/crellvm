@@ -63,18 +63,20 @@ Section HintSemEach.
           FunTable := fs |} olc
         (updateAddAL GVs Locals0 id5
           ($ blk2GV TD mb # typ_pointer typ5 $)) mem0 gmax x r).
-    - intros.
+    { intros.
       rewrite <-AtomSetFacts2.existsb_rev in H.
       rewrite <-EqRegSetFacts.elements_b in H.
       exploit Hireg; eauto.
+    }
     clear Hireg.
     remember (rev (EqRegSetImpl.elements ireg)) as iregl; clear Heqiregl.
     induction iregl; [done|].
 
     intros; simpl.
     hexploit IHiregl.
-    - intros; eapply Hireg_e; eauto.
+    { intros; eapply Hireg_e; eauto.
       by simpl; apply orb_true_iff; right.
+    }
     intro Hbrd; clear IHiregl.
     remember (fold_right
       (fun (y : id_ext * rhs_ext) (x : NeqRegSetImpl.t) =>
@@ -88,16 +90,17 @@ Section HintSemEach.
     rewrite NeqRegSetFacts.add_b in H; apply orb_true_iff in H.
     destruct H as [Hneq|H].
 
-    - clear Hbrd; unfold NeqRegSetFacts.eqb in Hneq.
+    { clear Hbrd; unfold NeqRegSetFacts.eqb in Hneq.
       destruct (NeqRegSetFacts.eq_dec (vars_aux.add_ntag id5, inl i0) (x, y)); [|done].
       inv e; clear Hneq.
 
       exploit Hireg_e.
-      + instantiate (1:=rhs_ext_old_alloca); instantiate (1:=i0).
+      { instantiate (1:=rhs_ext_old_alloca); instantiate (1:=i0).
         simpl; apply orb_true_iff; left.
         unfold EqRegSetFacts.eqb.
         destruct (EqRegSetFacts.eq_dec
           (i0, rhs_ext_old_alloca) (i0, rhs_ext_old_alloca)); done.
+      }
       intro Hfact; inv Hfact; [by inv Hrhs|].
       simpl in Hptr.
 
@@ -118,20 +121,22 @@ Section HintSemEach.
       + rr; splits; [|done|done].
         simpl; splits; try done.
         intro Hcontr; subst; omega.
+    }
 
     rewrite NeqRegSetFacts.add_b in H; apply orb_true_iff in H.
     destruct H as [Hneq|H].
 
-    - clear Hbrd; unfold NeqRegSetFacts.eqb in Hneq.
+    { clear Hbrd; unfold NeqRegSetFacts.eqb in Hneq.
       destruct (NeqRegSetFacts.eq_dec (i0, inl (vars_aux.add_ntag id5)) (x, y)); [|done].
       inv e; clear Hneq.
 
       exploit Hireg_e.
-      + instantiate (1:=rhs_ext_old_alloca); instantiate (1:=x).
+      { instantiate (1:=rhs_ext_old_alloca); instantiate (1:=x).
         simpl; apply orb_true_iff; left.
         unfold EqRegSetFacts.eqb.
         destruct (EqRegSetFacts.eq_dec
           (x, rhs_ext_old_alloca) (x, rhs_ext_old_alloca)); done.
+      }
       intro Hfact; inv Hfact; [by inv Hrhs|].
       simpl in Hptr.
 
@@ -152,6 +157,7 @@ Section HintSemEach.
       + rr; splits; [|done|done].
         simpl; splits; try done.
         intro Hcontr; subst; omega.
+    }
 
     eapply Hbrd; eauto.
 
@@ -216,8 +222,6 @@ End HintSemEach.
 
 (* 
 *** Local Variables: ***
-***
-*** coq-prog-args: ("-emacs" "-impredicative-set") ******
-***
+*** coq-prog-args: ("-emacs" "-impredicative-set") ***
 *** End: ***
- *)
+*)

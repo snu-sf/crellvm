@@ -131,11 +131,13 @@ Proof.
   destruct Hbid1 as [_ Hbid1].
   destruct Hbid2 as [_ Hbid2].
   inv Hnnn; simpl in *.
-  - destruct Hret as [_ Hret].
+  { destruct Hret as [_ Hret].
     by destruct Terminator1.
+  }
   inv Hnnn0; simpl in *.
-  - destruct Hret as [_ Hret].
+  { destruct Hret as [_ Hret].
     by destruct Terminator2.
+  }
   destruct Hbrc as [_ Hbrc].
   destruct Hbrc0 as [_ Hbrc0].
   destruct Hsem as [olc1 [olc2 [Hmd Hinv]]].
@@ -146,9 +148,9 @@ Proof.
 
   - inv H21; inv H25.
     exploit eq_check_value_prop; eauto; simpl.
-    + by inv Hvmem.
-    + by rewrite <- getOperandValue_equals_getOperandValueExt_new; eauto.
-    + by rewrite <- getOperandValue_equals_getOperandValueExt_new; eauto.
+    { by inv Hvmem. }
+    { by rewrite <- getOperandValue_equals_getOperandValueExt_new; eauto. }
+    { by rewrite <- getOperandValue_equals_getOperandValueExt_new; eauto. }
     intro Hinj.
 
     inv H20; inv H24.
@@ -217,8 +219,6 @@ Qed.
 
 (* 
 *** Local Variables: ***
-***
-*** coq-prog-args: ("-emacs" "-impredicative-set") ******
-***
+*** coq-prog-args: ("-emacs" "-impredicative-set") ***
 *** End: ***
- *)
+*)

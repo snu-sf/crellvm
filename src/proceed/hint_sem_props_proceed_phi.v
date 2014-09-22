@@ -92,10 +92,11 @@ Section HintSemEach.
     intros; destruct v; [|done].
     simpl; destruct x as [x [|]]; simpl; [done|]; simpl in Hmem.
     assert (Hnix: i0 <> x).
-    - intro Hcontr; subst x.
+    { intro Hcontr; subst x.
       rewrite IdExtSetFacts2.F.singleton_b in Hmem.
       unfold IdExtSetFacts2.F.eqb in Hmem.
       destruct (IdExtSetFacts.eq_dec (i0, ntag_new) (i0, ntag_new)); done.
+    }
     apply lookupAL_updateAddAL_neq; eauto.
   Qed.
 
@@ -403,8 +404,9 @@ Section HintSemEach.
 
     simpl.
     assert (Hnii: id5 <> id0).
-    - intro Hcontr; subst id5.
+    { intro Hcontr; subst id5.
       simpl in Hnmem; elim Hnmem; left; done.
+    }
     rewrite <- lookupAL_updateAddAL_neq; eauto.
 
     eapply IHphis; eauto.
@@ -463,7 +465,7 @@ Section HintSemEach.
 
     (* To use induction, we weaken one of hypotheses. *)
     assert (Hsub: list_sub (def_phinodes phis) nd).
-    - rewrite Hnd; eapply list_sub_refl; eauto.
+    { rewrite Hnd; eapply list_sub_refl; eauto. }
     clear Hnd.
 
     generalize dependent inv'.
@@ -485,17 +487,19 @@ Section HintSemEach.
 
     (* Drawing an induction hypothesis. *)
     exploit IHphis.
-    - reflexivity.
-    - unfold oldnew_prop in Honp; destruct Honp as [_ Hnuse].
+    { reflexivity. }
+    { unfold oldnew_prop in Honp; destruct Honp as [_ Hnuse].
       unfold nd_not_used_in_eqs in Hnuse.
       exploit (Hnuse id5).
-      + unfold vgtac.is_true.
+      { unfold vgtac.is_true.
         destruct (in_dec id_dec id5 nd); [done|]; elim n.
         eapply list_sub_in_l; eauto.
+      }
       intros Hidnuse; eapply id_not_used_preserves_eqs_sem; eauto.
-    - eapply Honp.
-    - eapply list_sub_in_r; eauto.
-    - reflexivity.
+    }
+    { eapply Honp. }
+    { eapply list_sub_in_r; eauto. }
+    { reflexivity. }
     intros Hindfact.
 
     unfold add_ntag_phis_to_eqs in Hinv'.
@@ -517,8 +521,8 @@ Section HintSemEach.
       (add_ntag id5, rhs_ext_value (add_tag_value nd v)) (x, r)); [|done];
     clear Hsingle; inversion e; subst x r; clear e.
     eapply eq_reg_sem_value with (gvs':=g).
-    - simpl; rewrite lookupAL_updateAddAL_eq; reflexivity.
-    - eapply rhs_ext_value__sem; eauto.
+    { simpl; rewrite lookupAL_updateAddAL_eq; reflexivity. }
+    { eapply rhs_ext_value__sem; eauto.
       destruct v; simpl.
       + unfold add_tag.
         remember (in_dec id_dec id0 nd) as mind; destruct mind.
@@ -535,7 +539,8 @@ Section HintSemEach.
             by eapply Hsub; right.
           eapply id_notin_nd_preserves_lookup; eauto.
       + by simpl in Heqvov.
-    - eapply eq_gvs_refl; eauto.
+    }
+    { eapply eq_gvs_refl; eauto. }
 
     SCase "1.2. filtered others; must use induction hypothesis".
     unfold filter_local_in_eqs_eq_reg in Hfind.
@@ -809,8 +814,8 @@ Section HintSemEach.
 
     SSCase "1.1. eq_reg_sem_value".
     eapply eq_reg_sem_value; eauto.
-    - erewrite remove_olc_prop_lookup; eauto.
-    - eapply remove_olc_prop_rhs_inv; eauto. 
+    { erewrite remove_olc_prop_lookup; eauto. }
+    { eapply remove_olc_prop_rhs_inv; eauto. }
 
     SSCase "1.2. eq_reg_sem_old_alloca".
     eapply eq_reg_sem_old_alloca; eauto.
@@ -889,8 +894,8 @@ Section HintSemEach.
 
     SSCase "1.1. eq_reg_sem_value".
     eapply eq_reg_sem_value; eauto.
-    - rewrite <- remove_olc_prop_lookup; eauto.
-    - eapply remove_olc_prop_rhs; eauto. 
+    { rewrite <- remove_olc_prop_lookup; eauto. }
+    { eapply remove_olc_prop_rhs; eauto. }
 
     SSCase "1.2. eq_reg_sem_old_alloca".
     eapply eq_reg_sem_old_alloca; eauto.
@@ -963,37 +968,39 @@ Section HintSemEach.
 
     SSCase "2.1. regs".
     destruct (id_dec a y).
-    - subst a; clear; unfold id_not_used_in_eqs; simpl; splits;
+    { subst a; clear; unfold id_not_used_in_eqs; simpl; splits;
       unfold id_not_used_in_eqs_eq_reg; intros;
       unfold filter_local_in_eqs_eq_reg  in He;
       rewrite EqRegSetFacts.filter_b in He;
         [|by unfold compat_bool, Proper, "==>"; intros; subst];
       unfold vgtac.is_true in *;
       apply andb_true_iff in He; destruct He as [Hmem Hnmem]; done.
-    - eapply filter_preserves_id_not_used_in_eqs_eq_reg; eauto.
+    }
+    { eapply filter_preserves_id_not_used_in_eqs_eq_reg; eauto. }
 
     SSCase "2.2. heap".
     destruct (id_dec a y).
-    - subst a; clear; unfold id_not_used_in_eqs; simpl; splits;
+    { subst a; clear; unfold id_not_used_in_eqs; simpl; splits;
       unfold id_not_used_in_eqs_eq_heap; intros;
       unfold filter_local_in_eqs_eq_heap  in He;
       rewrite EqHeapSetFacts.filter_b in He;
         [|by unfold compat_bool, Proper, "==>"; intros; subst];
       unfold vgtac.is_true in *;
       apply andb_true_iff in He; destruct He as [Hmem Hnmem]; done.
-    - eapply filter_preserves_id_not_used_in_eqs_eq_heap; eauto.
+    }
+    { eapply filter_preserves_id_not_used_in_eqs_eq_heap; eauto. }
 
     SSCase "2.3. nregs".
     destruct (id_dec a y).
-    - subst a; clear; unfold id_not_used_in_eqs; simpl; splits;
+    { subst a; clear; unfold id_not_used_in_eqs; simpl; splits;
       unfold id_not_used_in_eqs_neq_reg; intros;
       unfold filter_local_in_eqs_neq_reg  in He;
       rewrite NeqRegSetFacts.filter_b in He;
         [|by unfold compat_bool, Proper, "==>"; intros; subst];
       unfold vgtac.is_true in *;
       apply andb_true_iff in He; destruct He as [Hmem Hnmem]; done.
-    - eapply filter_preserves_id_not_used_in_eqs_neq_reg; eauto.
-
+    }
+    { eapply filter_preserves_id_not_used_in_eqs_neq_reg; eauto. }
   Qed.
 
   Lemma new_to_old_uniqueness_preserves_id:
@@ -1066,7 +1073,7 @@ Section HintSemEach.
     destruct (in_dec id_dec i0 (def_phinodes phis)); [done|]; clear Huniq.
     generalize dependent ninv; induction phis; intros; [by simpl in *; subst|].
     assert (Hindin: ~ In i0 (def_phinodes phis)).
-    - by intro Hcontr; elim n; right.
+    { by intro Hcontr; elim n; right. }
 
     simpl in Hninv.
     remember (fold_right
@@ -1102,7 +1109,7 @@ Section HintSemEach.
     destruct (in_dec id_dec i0 (def_phinodes phis)); [done|]; clear Huniq.
     generalize dependent ninv; induction phis; intros; [by simpl in *; subst|].
     assert (Hindin: ~ In i0 (def_phinodes phis)).
-    - by intro Hcontr; elim n; right.
+    { by intro Hcontr; elim n; right. }
 
     simpl in Hninv.
     remember (fold_right
@@ -1136,7 +1143,7 @@ Section HintSemEach.
     destruct (in_dec id_dec i0 (def_phinodes phis)); [done|]; clear Huniq.
     generalize dependent ninv; induction phis; intros; [by simpl in *; subst|].
     assert (Hindin: ~ In i0 (def_phinodes phis)).
-    - by intro Hcontr; elim n; right.
+    { by intro Hcontr; elim n; right. }
 
     simpl in Hninv.
     remember (fold_right
@@ -1179,8 +1186,8 @@ Section HintSemEach.
     Case "1. xo is old".
     destruct (id_dec i0 x); [by subst; elim n|]; simpl.
     remember (lookupAL GVs lc i0) as iv; destruct iv.
-    - rewrite <- lookupAL_updateAddAL_neq; eauto.
-    - rewrite lookupAL_deleteAL_neq; eauto.
+    { rewrite <- lookupAL_updateAddAL_neq; eauto. }
+    { rewrite lookupAL_deleteAL_neq; eauto. }
 
     Case "2. xo is new".
     destruct (id_dec i0 x); simpl in *.
@@ -1282,8 +1289,8 @@ Section HintSemEach.
 
     Case "1. values".
     eapply eq_reg_sem_value; eauto.
-    - rewrite <- old_id_not_used_preserves_lookup; eauto.
-    - eapply old_id_not_used_preserves_rhs; eauto.
+    { rewrite <- old_id_not_used_preserves_lookup; eauto. }
+    { eapply old_id_not_used_preserves_rhs; eauto. }
 
     Case "2. old_alloca".
     eapply eq_reg_sem_old_alloca; eauto.
@@ -1356,7 +1363,7 @@ Section HintSemEach.
     intros.
     destruct (in_dec id_dec i0 (def_phinodes phis)); [done|]; clear Hnin.
     assert (Hnix: i0 <> x).
-    - intro Hcontr; subst i0; elim n; done.
+    { intro Hcontr; subst i0; elim n; done. }
     simpl.
     remember (update_olc_by_vs olc lc vs) as plc;
       destruct plc as [plc polc]; simpl in *.
@@ -1455,7 +1462,7 @@ Section HintSemEach.
 
     - destruct (in_dec id_dec id5 (def_phinodes phis)); [done|]; clear Hninid.
       assert (Hnii: id5 <> i0).
-      + by intro Hcontr; subst; elim n.
+      { by intro Hcontr; subst; elim n. }
       exploit IHphis; eauto; intro Hbrd.
       remember (lookupAL GVs indlc id5) as indiv; destruct indiv.
       + rewrite <-lookupAL_updateAddAL_neq; eauto.
@@ -1484,12 +1491,14 @@ Section HintSemEach.
     destruct inv as [ireg iheap inreg].
     apply andb_true_iff in Huniq; destruct Huniq as [Huniqi Huniqp].
     exploit IHphis; eauto.
-    - move Hnu at bottom; simpl in Hnu.
+    { move Hnu at bottom; simpl in Hnu.
       unfold od_not_used_in_eqs in *; intros.
       by eapply Hnu; eauto; right.
-    - simpl in Hnu; unfold od_not_used_in_eqs in Hnu.
+    }
+    { simpl in Hnu; unfold od_not_used_in_eqs in Hnu.
       exploit Hnu. left; reflexivity. intro Hinu.
       eapply old_id_not_used_preserves_eqs_sem; eauto.
+    }
     intro Hind; clear IHphis; simpl in *.
 
     unfold eqs_sem in Hind; destruct Hind as [Hrind [Hhind Hnrind]].
@@ -1499,7 +1508,7 @@ Section HintSemEach.
     remember (update_olc_by_vs olc lc l1) as folc; destruct folc as [flc folc].
     simpl in *.
     assert (Hflc: flc = updateValuesForNewBlock l1 lc).
-    - clear -Heqfolc.
+    { clear -Heqfolc.
       generalize dependent flc; generalize dependent folc.
       induction l1; intros; [by simpl in *; inv Heqfolc|].
       destruct a; unfold update_olc_by_vs in Heqfolc; simpl in Heqfolc.
@@ -1510,6 +1519,7 @@ Section HintSemEach.
       unfold update_olc_by_vs in Heqplo.
       rewrite <- Heqplo in Heqfolc.
       inv Heqfolc; done.
+    }
     rewrite <- Hflc in *; clear Hflc.
     unfold new_to_old_by_newdefs_list, eqs_sem; simpl in *; splits.
 
@@ -1558,8 +1568,9 @@ Section HintSemEach.
   Proof.
     intros.
     exploit phi_remove_old_preserves_invariant_sem; eauto.
-    - instantiate (1:=pb); instantiate (1:=lc').
+    { instantiate (1:=pb); instantiate (1:=lc').
       by unfold switchToNewBasicBlock; rewrite <-Hphis, <-Hvs, <-Hlc'.
+    }
     intros [Hstep Hnu].
     eapply phi_new_to_old_preserves_invariant_sem; eauto.
   Qed.
@@ -1764,19 +1775,19 @@ Section HintSemEach.
       (Globals cfg) lc) as indvs; destruct indvs; [|done]; inv Hvs.
     simpl in Huniq; apply andb_true_iff in Huniq; destruct Huniq as [Hnin Hinduniq].
     simpl in Hx; destruct Hx as [Hl|Hinind].
-
-    - subst x; simpl.
+    { subst x; simpl.
       remember (update_olc_by_vs olc lc l1) as dcvs; destruct dcvs; simpl.
       exploit update_olc_by_vs_uniqueness_prop_2; eauto.
       intro Hres; rewrite Hres.
       destruct (lookupAL GVs a id5).
       + rewrite lookupAL_updateAddAL_eq; eauto.
       + rewrite lookupAL_deleteAL_eq; eauto.
-
-    - exploit IHphis; eauto.
-      + by rewrite app_nil_r.
+    }
+    { exploit IHphis; eauto.
+      { by rewrite app_nil_r. }
       intro Hbrd; rewrite Hbrd.
       eapply update_olc_by_vs_uniqueness_prop_1; eauto.
+    }
 
     Case "2. nd_not_used_in_eqs".
     unfold nd_not_used_in_eqs; intros.
@@ -1848,8 +1859,8 @@ Section HintSemEach.
     simpl in Hxmem.
     destruct (id_dec id5 x); [by subst id5; elim Hxmem; left|].
     exploit IHp.
-    - by intro Hcontr; elim Hxmem; right.
-    - reflexivity.
+    { by intro Hcontr; elim Hxmem; right. }
+    { reflexivity. }
     intro Hindres.
 
     inversion Heqpvalues1; subst l0; clear Heqpvalues1; simpl.
@@ -1883,8 +1894,8 @@ Section HintSemEach.
     simpl in Hxmem.
     destruct (id_dec id5 x); [by subst id5; elim Hxmem; left|].
     exploit IHp.
-    - by intro Hcontr; elim Hxmem; right.
-    - reflexivity.
+    { by intro Hcontr; elim Hxmem; right. }
+    { reflexivity. }
     intro Hindres.
 
     inversion Heqpvalues2; subst l0; clear Heqpvalues2; simpl.
@@ -1939,8 +1950,13 @@ Section HintSemEach.
     simpl in Huniq1; apply andb_true_iff in Huniq1; destruct Huniq1 as [Hnain Huniql].
 
     hexploit IHl0.
-    - apply Heqindmd. - reflexivity. - reflexivity.
-    - apply Hnd2. - apply Huniq2. - apply H1. - apply Huniql.
+    { apply Heqindmd. }
+    { reflexivity. }
+    { reflexivity. }
+    { apply Hnd2. }
+    { apply Huniq2. }
+    { apply H1. }
+    { apply Huniql. }
     intros Hind; clear IHl0.
     rewrite <-H0 in *; clear H0; rewrite <-H1 in *; clear H1; rewrite Hmd'.
     clear -Hind. (* simplified by induction hypothesis. *)
@@ -1948,17 +1964,19 @@ Section HintSemEach.
     unfold maydiff_sem in *; intros x Hx.
     rewrite IdExtSetFacts.remove_b in Hx; apply andb_false_iff in Hx.
     destruct Hx as [Hnmem|Hneq]; simpl in *.
-    - exploit Hind; eauto; intro Hres; destruct x as [x [|]]; [|done].
+    { exploit Hind; eauto; intro Hres; destruct x as [x [|]]; [|done].
       destruct (id_dec a x).
       + subst x.
         unfold variable_equivalent in *; simpl.
         repeat rewrite lookupAL_deleteAL_eq; eauto.
       + unfold variable_equivalent in *; simpl.
         repeat rewrite lookupAL_deleteAL_neq; eauto.
-    - unfold IdExtSetFacts.eqb in Hneq.
+    }
+    { unfold IdExtSetFacts.eqb in Hneq.
       destruct (IdExtSetFacts.eq_dec (add_otag a) x); [|done]; subst x.
       unfold variable_equivalent; simpl.
       repeat rewrite lookupAL_deleteAL_eq; eauto.
+    }
 
     Case "2. a \notin nd2".
     destruct phis1 as [|aphi lphis]; [done|].
@@ -2016,7 +2034,7 @@ Section HintSemEach.
   Proof.
     clear; intros.
     assert (Hnnd: In x nd -> False).
-    - intro Hcontr; elim Hnin; eapply Hndu; eauto.
+    { intro Hcontr; elim Hnin; eapply Hndu; eauto. }
     clear Hnin Hndu; subst.
     generalize dependent vs; induction phis; intros; [by inv Hvs|].
     simpl in Hvs.
@@ -2049,7 +2067,7 @@ Section HintSemEach.
     unfold maydiff_sem in *; intros.
     destruct (in_dec id_dec (fst x) ndu).
 
-    Case "1. x is related with phinodes".
+    { Case "1. x is related with phinodes".
     unfold phi_update_maydiff in Hmd'.
     clear -H Hmd' Hsem Hndi i0 Hvs1 Hvs2 Hnd1 Hnd2 Huniq1 Huniq2.
     generalize dependent md'; induction ndu; intros; [by elim i0|].
@@ -2089,22 +2107,24 @@ Section HintSemEach.
         remember (update_olc_by_vs olc2 lc2 vs2) as ov2; destruct ov2 as [vslc2 vsolc2].
         simpl.
         exploit update_olc_by_vs_uniqueness_prop_4.
-        * apply Huniq1.
-        * instantiate (1:=x).
+        { apply Huniq1. }
+        { instantiate (1:=x).
           destruct (in_dec id_dec x ndi); [|done]; clear Handi; rewrite Hndi in i0.
           rewrite <-Hnd1.
           eapply list_sub_atom_inter_l; eauto.
-        * apply Hvs1.
-        * apply Heqov1.
+        }
+        { apply Hvs1. }
+        { apply Heqov1. }
         intro Heq; rewrite Heq; clear Heq.
         exploit update_olc_by_vs_uniqueness_prop_4.
-        * apply Huniq2.
-        * instantiate (1:=x).
+        { apply Huniq2. }
+        { instantiate (1:=x).
           destruct (in_dec id_dec x ndi); [|done]; clear Handi; rewrite Hndi in i0.
           rewrite <-Hnd2.
           eapply list_sub_atom_inter_r; eauto.
-        * apply Hvs2.
-        * apply Heqov2.
+        }
+        { apply Hvs2. }
+        { apply Heqov2. }
         intro Heq; rewrite Heq; clear Heq.
         done.
 
@@ -2150,22 +2170,24 @@ Section HintSemEach.
         remember (update_olc_by_vs olc2 lc2 vs2) as ov2; destruct ov2 as [vslc2 vsolc2].
         simpl.
         exploit update_olc_by_vs_uniqueness_prop_4.
-        * apply Huniq1.
-        * instantiate (1:=a).
+        { apply Huniq1. }
+        { instantiate (1:=a).
           destruct (in_dec id_dec a ndi); [|done]; clear Handi; rewrite Hndi in i0.
           rewrite <-Hnd1.
           eapply list_sub_atom_inter_l; eauto.
-        * apply Hvs1.
-        * apply Heqov1.
+        }
+        { apply Hvs1. }
+        { apply Heqov1. }
         intro Heq; rewrite Heq; clear Heq.
         exploit update_olc_by_vs_uniqueness_prop_4.
-        * apply Huniq2.
-        * instantiate (1:=a).
+        { apply Huniq2. }
+        { instantiate (1:=a).
           destruct (in_dec id_dec a ndi); [|done]; clear Handi; rewrite Hndi in i0.
           rewrite <-Hnd2.
           eapply list_sub_atom_inter_r; eauto.
-        * apply Hvs2.
-        * apply Heqov2.
+        }
+        { apply Hvs2. }
+        { apply Heqov2. }
         intro Heq; rewrite Heq; clear Heq.
         done.
 
@@ -2175,6 +2197,7 @@ Section HintSemEach.
         rewrite IdExtSetFacts.add_b in H; apply orb_false_iff in H.
         destruct H as [_ H].
         eapply IHl0; eauto.
+    }
 
     Case "2. x is not related with phinodes".
     exploit phi_maydiff_not_related_prop; eauto; intro Hninmd.
@@ -2182,43 +2205,51 @@ Section HintSemEach.
     unfold variable_equivalent in *.
     destruct x as [x [|]]; simpl in *.
 
-    SCase "2.1. when x is old".
+    { SCase "2.1. when x is old".
     remember (update_olc_by_vs olc1 lc1 vs1) as ov1; destruct ov1 as [olcvs1 lcvs1].
     remember (update_olc_by_vs olc2 lc2 vs2) as ov2; destruct ov2 as [olcvs2 lcvs2].
     simpl.
     exploit update_olc_by_vs_uniqueness_prop_3.
-    - instantiate (1:=phis1); instantiate (1:=x).
+    { instantiate (1:=phis1); instantiate (1:=x).
       rewrite <-Hnd1; intro Hcontr; elim n; rewrite Hndu.
       eapply list_sub_app_l; eauto.
-    - apply Hvs1. - apply Heqov1.
+    }
+    { apply Hvs1. }
+    { apply Heqov1. }
     intro Heq; rewrite <-Heq; clear Heq.
     exploit update_olc_by_vs_uniqueness_prop_3.
-    - instantiate (1:=phis2); instantiate (1:=x).
+    { instantiate (1:=phis2); instantiate (1:=x).
       rewrite <-Hnd2; intro Hcontr; elim n; rewrite Hndu.
       eapply list_sub_app_r; eauto.
-    - apply Hvs2. - apply Heqov2.
+    }
+    { apply Hvs2. }
+    { apply Heqov2. }
     intro Heq; rewrite <-Heq; clear Heq.
     assert (Hnini: ~ In x ndi).
-    - intro Hcontr; elim n; rewrite Hndi in Hcontr; rewrite Hndu.
+    { intro Hcontr; elim n; rewrite Hndi in Hcontr; rewrite Hndu.
       unfold atom_inter, atom_union in *.
       rewrite filter_In in Hcontr; destruct Hcontr as [Hres _].
       rewrite in_app; left; done.
+    }
     rewrite <- remove_olc_by_nd_others_prop in Hbrd; eauto.
     rewrite <- remove_olc_by_nd_others_prop in Hbrd; eauto.
+    }
 
-    SCase "2.2. when x is new".
+    { SCase "2.2. when x is new".
     assert (Hxeq1: lookupAL GVs lc1 x = lookupAL GVs lc1' x).
-    - unfold switchToNewBasicBlock in Hlc1'.
+    { unfold switchToNewBasicBlock in Hlc1'.
       rewrite <-Hphis1, <-Hvs1 in Hlc1'; inversion Hlc1'; subst lc1'; clear Hlc1'.
       eapply phi_maydiff_not_related_preserves_lookup; eauto.
       rewrite Hndu; apply list_sub_app_l.
+    }
     assert (Hxeq2: lookupAL GVs lc2 x = lookupAL GVs lc2' x).
-    - unfold switchToNewBasicBlock in Hlc2'.
+    { unfold switchToNewBasicBlock in Hlc2'.
       rewrite <-Hphis2, <-Hvs2 in Hlc2'; inversion Hlc2'; subst lc2'; clear Hlc2'.
       eapply phi_maydiff_not_related_preserves_lookup; eauto.
       rewrite Hndu; apply list_sub_app_r.
+    }
     rewrite <-Hxeq1, <-Hxeq2; done.
-
+    }
   Qed.
 
   Lemma phi_oldnew_preserves_maydiff_sem:
@@ -2257,13 +2288,14 @@ Section HintSemEach.
     exploit Hiso; eauto; intro Hfact; clear Hiso.
 
     assert (~ List.In (fst x) (def_phinodes phis)) as Hnin.
-    - intro Hcontr.
+    { intro Hcontr.
       symmetry in Hicheck; apply negb_false_iff in Hicheck.
       apply IdExtSetImpl.for_all_2 in Hicheck;
         [|unfold compat_bool, Proper, "==>"; intros; subst; done].
       exploit Hicheck; eauto; intro Hcontr'.
       simpl in Hcontr'; apply negb_true_iff in Hcontr'.
       destruct (in_dec id_dec (fst x) (def_phinodes phis)); done.
+    }
     
     destruct Hfact as [He|[xv [Hl Hptr]]].
 
@@ -2413,8 +2445,6 @@ End HintSemEach.
 
 (* 
 *** Local Variables: ***
-***
-*** coq-prog-args: ("-emacs" "-impredicative-set") ******
-***
+*** coq-prog-args: ("-emacs" "-impredicative-set") ***
 *** End: ***
- *)
+*)

@@ -223,12 +223,15 @@ Proof.
   remember (vars_aux.def_cmd cmd2) as dcmd2; destruct dcmd2; [|by destruct cmd2].
   simpl in Heqbs; rewrite <-Heqdcmd1, <-Heqdcmd2 in Heqbs.
   exploit AtomSetFacts2.eq_dec_singleton_eq.
-  - instantiate (1:=i1). instantiate (1:=i0).
+  { instantiate (1:=i1). instantiate (1:=i0).
     destruct (AtomSetImpl.eq_dec (singleton i0) (singleton i1)); done.
+  }
   intro; subst.
 
   hexploit oldnew_preserves_maydiff_sem_aux.
-  - apply Hmd. - apply Heqdcmd1. - apply Heqdcmd2.
+  { apply Hmd. }
+  { apply Heqdcmd1. }
+  { apply Heqdcmd2. }
   instantiate (1:=rv2). instantiate (1:=rv1).
   intro Hmdfact.
 
@@ -317,7 +320,7 @@ Proof.
   Case "1. return with different id".
   rewrite Hmd'.
   remember (is_same_cmd md inv1 inv2 cmd1 cmd2) as bsame; destruct bsame.
-  - simpl; simpl in Hmd.
+  { simpl; simpl in Hmd.
     unfold maydiff_update_opt, maydiff_update.
     rewrite <- Heqbsame.
     destruct cmd1, cmd2; try done.
@@ -327,10 +330,12 @@ Proof.
     unfold vars_aux.is_defined_same_id in Hndef; simpl in Hndef.
     destruct (AtomSetImpl.eq_dec (singleton id0) (singleton id0)) as [|Hcontr]; try done.
     elim Hcontr; done.
+  }
 
-  - unfold maydiff_update_opt, maydiff_update.
+  { unfold maydiff_update_opt, maydiff_update.
     rewrite <- Heqbsame.
     destruct (vars_aux.is_defined_same_id (ret cmd1) (ret cmd2)); done.
+  }
 
   Case "2. return with same id".
   destruct cmd1; try done; destruct cmd2; try done; simpl in *; subst.
@@ -425,7 +430,7 @@ Proof.
   destruct Hinv as [_ [Hheap Hnreg]]; simpl in *.
   remember (only_read_memory_value m value0) as bro; destruct bro.
 
-  SCase "2.1. readonly".
+  { SCase "2.1. readonly".
   destruct value0; try done.
   - simpl in Heqbro; unfold only_read_memory in Heqbro.
     symmetry in Heqbro; rewrite orb_true_iff in Heqbro.
@@ -459,6 +464,7 @@ Proof.
       simpl in Heqbrog.
       apply orb_true_iff in Heqbrog; destruct Heqbrog; [by left|by right].
       by eapply memory_extends_prop.
+  }
 
   SCase "2.2. not readonly".
   unfold eqs_eq_heap_sem; intros.
@@ -601,28 +607,41 @@ Proof.
 
   (* B. remove old / new to old *)
   hexploit call_oldnew_preserves_hint_sem; try reflexivity.
-  - apply Hcall1. - apply Hcall2. - apply Heqsu1. - apply Heqsu2.
-  - apply Hmd. - apply Hinv.
+  { apply Hcall1. }
+  { apply Hcall2. }
+  { apply Heqsu1. }
+  { apply Heqsu2. }
+  { apply Hmd. }
+  { apply Hinv. }
   instantiate (1:=rv2). instantiate (1:=rv1).
   clear Hmd Hinv; intros [Hmd Hinv].
 
   (* C. update maydiff *)
   hexploit call_update_md_preserves_maydiff_sem.
-  - apply Hcall1. - apply Hcall2. - apply Heqsu1. - apply Heqsu2.
-  - apply Hinv. - apply Hrv. - reflexivity. - apply Hmd.
+  { apply Hcall1. }
+  { apply Hcall2. }
+  { apply Heqsu1. }
+  { apply Heqsu2. }
+  { apply Hinv. }
+  { apply Hrv. }
+  { reflexivity. }
+  { apply Hmd. }
   clear Hmd; intros Hmd.
 
   (* D. eliminating addneq: no neq's are added. *)
   hexploit call_addneq_preserves_invariant_sem.
-  - apply Hcall1. - apply Hcall2. - apply Hinv.
+  { apply Hcall1. }
+  { apply Hcall2. }
+  { apply Hinv. }
   instantiate (1:=(collect_global_ids (get_products_from_module m2))).
   instantiate (1:=(collect_global_ids (get_products_from_module m1))).
   clear Hinv; intros Hinv.
 
   (* D. filter / stale *)
   hexploit call_hfilter_preserves_invariant_sem.
-  - apply Hcall1. - apply Hcall2.
-  - instantiate (1:=pmem1). instantiate (1:=mem1').
+  { apply Hcall1. }
+  { apply Hcall2. }
+  { instantiate (1:=pmem1). instantiate (1:=mem1').
     instantiate (1:=cfg1). instantiate (1:=m1).
     destruct ocmd1 as [cmd1|]; [|done]; destruct cmd1; try done; simpl in *.
     move Hpop1 at bottom.
@@ -632,7 +651,8 @@ Proof.
     destruct cc1; [done|].
     inv Heqpop1; inv H0.
     destruct value0; try done.
-  - instantiate (1:=pmem2). instantiate (1:=mem2').
+  }
+  { instantiate (1:=pmem2). instantiate (1:=mem2').
     instantiate (1:=cfg2). instantiate (1:=m2).
     destruct ocmd2 as [cmd2|]; [|done]; destruct cmd2; try done; simpl in *.
     move Hpop2 at bottom.
@@ -642,14 +662,22 @@ Proof.
     destruct cc2; [done|].
     inv Heqpop2; inv H0.
     destruct value0; try done.
-  - apply Heqsu1. - apply Heqsu2. - apply Hvmem. - auto. - auto.
-  - reflexivity. - reflexivity.
-  - apply Hinv.
+  }
+  { apply Heqsu1. }
+  { apply Heqsu2. }
+  { apply Hvmem. }
+  { auto. }
+  { auto. }
+  { reflexivity. }
+  { reflexivity. }
+  { apply Hinv. }
   clear Hinv; intros Hinv.
 
   (* E. eliminating addcmd: call_insn's are not added. *)
   hexploit call_addcmd_preserves_invariant_sem.
-  - apply Hcall1. - apply Hcall2. - apply Hinv.
+  { apply Hcall1. }
+  { apply Hcall2. }
+  { apply Hinv. }
   clear Hinv; intros Hinv.
 
   (* Done! *)
@@ -667,8 +695,6 @@ Qed.
 
 (* 
 *** Local Variables: ***
-***
-*** coq-prog-args: ("-emacs" "-impredicative-set") ******
-***
+*** coq-prog-args: ("-emacs" "-impredicative-set") ***
 *** End: ***
- *)
+*)

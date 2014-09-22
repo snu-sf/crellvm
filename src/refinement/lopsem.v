@@ -525,9 +525,9 @@ Lemma stuttering_lsInsn_uniq cfg pnoops lst
   lsInsn_uniq cfg pnoops lst.
 Proof.
   destruct lst. destruct state0. destruct ns0.
-  - exfalso. apply Hstut. by econs.
+  { exfalso. apply Hstut. by econs. }
   remember (stutter_num n) as x. destruct x.
-  - exfalso. apply Hstut. eapply no_stuttering_cons; simpl; eauto.
+  { exfalso. apply Hstut. eapply no_stuttering_cons; simpl; eauto. }
   exploit stutter_num_noop_idx_zero_exists; eauto. clear. intro Hz.
   repeat intro. inv Hlst2. inv Hlst2'. simpl in *.
   inv H. inv Hec. inv Hpn.
@@ -557,9 +557,9 @@ Proof.
   generalize dependent ns0.
   generalize dependent n.
   induction x; intros n1 ns1 Hmatch Hl Hx.
-  - eexists. splits; try by econs. by eapply no_stuttering_cons.
+  { eexists. splits; try by econs. by eapply no_stuttering_cons. }
   exploit (logical_semantic_step_lsInsn cfg pnoops (mkLState state0 (n1::ns1) Hmatch) state0 (noop_idx_zero_remove n1 :: ns1) merror E0).
-  - econs; simpl; eauto.
+  { econs; simpl; eauto.
     + econs; eauto.
       * unfold pop_one_X.
         erewrite stutter_num_noop_idx_zero_exists; eauto.
@@ -567,9 +567,10 @@ Proof.
     + simpl. rewrite <- ocons_inv_merror. econs.
       by econs.
     + done.
+  }
   intros [Hmatch2 HlsInsn].
   exploit (IHx (noop_idx_zero_remove n1) ns1 Hmatch2); eauto.
-  - by apply stutter_num_noop_idx_zero_remove.
+  { by apply stutter_num_noop_idx_zero_remove. }
   intros [lst2 [Hlst2 Hstut]].
   exists lst2. split; auto.
   econs; eauto.
@@ -600,7 +601,7 @@ Proof.
   exploit stutter_num_noop_idx_zero_exists'; eauto. intro Hzn.
   exploit is_call_or_not; [by eexists; eexists; eauto|].
   intros [[fid Hfid]|Hfid]; simpl in *.
-  - destruct st1. destruct ECS0; [by inv Hsem|]. destruct e.
+  { destruct st1. destruct ECS0; [by inv Hsem|]. destruct e.
     destruct CurCmds0; [done|]. destruct c; try done.
     generalize Hsem. intro Hsem'.
     rewrite (destruct_cfg cfg) in Hsem'.
@@ -614,8 +615,9 @@ Proof.
       exploit lookupFdefViaIDFromProducts_ideq; eauto. intro. subst.
       done.
     + done.
+  }
   destruct (is_return_or_not st1) as [Hret|Hret].
-  - destruct st1. destruct ECS0; [by inv Hsem|]. destruct e.
+  { destruct st1. destruct ECS0; [by inv Hsem|]. destruct e.
     simpl in Hret. destruct Hret as [? Hret]. subst.
     destruct Terminator0; try done.
     + generalize Hsem. intro Hsem'.
@@ -632,6 +634,7 @@ Proof.
       * simpl. rewrite <- (ocons_inv_merror noop_t).
         eapply logical_semantic_step_noop_stk_term; eauto. econs; simpl; eauto.
       * done.
+  }
   (* cmd *)
   destruct st1. destruct ECS0; [by inv Hsem|]. destruct e.
   simpl in Hfid, Hret. generalize Hsem. intro Hsem'.
@@ -647,7 +650,6 @@ Proof.
       simpl. eexists. eexists. splits; eauto.
       instantiate (1 := if isGVZero (CurTargetData cfg) c then l2 else l1).
       by destruct (isGVZero (CurTargetData cfg) c).
-      simpl.
     + done.
   - eexists. eexists. econs; simpl in *; eauto; simpl.
     + instantiate (2 := nil). eapply pop_one_terminator; eauto. unfold pop_one_X. erewrite stutter_num_noop_idx_zero_exists'; eauto.
@@ -690,7 +692,8 @@ Lemma sInsn_lsop_plus
 Proof.
   generalize (stutter_lState cfg pnoops lst1). intros [mst [Hmst Hstut]].
   exploit sInsn_no_stuttering; eauto.
-  - erewrite <- lstutter_star_state; eauto. instantiate (1 := pnoops).
+  { erewrite <- lstutter_star_state; eauto. }
+  instantiate (1 := pnoops).
   intros [lst2 [Hlinsn ?]]. subst.
   exists lst2. split; [|done].
   rewrite <- E0_left. eapply lsop_plus_snoc; eauto.
@@ -706,10 +709,11 @@ Lemma sop_star_lsop_star
     no_stuttering lst2.
 Proof.
   dependent induction Hsem.
-  - generalize (stutter_lState cfg pnoops lst1). intros [est [Hest Hstut]].
+  { generalize (stutter_lState cfg pnoops lst1). intros [est [Hest Hstut]].
     exists est. splits; [idtac|idtac|done].
-    + by apply lstutter_star_lsop_star.
-    + by erewrite lstutter_star_state; eauto.
+    { by apply lstutter_star_lsop_star. }
+    { by erewrite lstutter_star_state; eauto. }
+  }
   exploit sInsn_lsop_plus; eauto. instantiate (1 := pnoops). intros [mst [Hmst ?]]. subst.
   exploit IHHsem; eauto. intros [est [Hest [? Hstut]]]. subst.
   eexists. split; [|done].
@@ -719,8 +723,6 @@ Qed.
 
 (* 
 *** Local Variables: ***
-***
-*** coq-prog-args: ("-emacs" "-impredicative-set") ******
-***
+*** coq-prog-args: ("-emacs" "-impredicative-set") ***
 *** End: ***
- *)
+*)

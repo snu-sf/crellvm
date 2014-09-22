@@ -90,7 +90,7 @@ Proof.
         IdExtSetImpl.remove (vars_aux.add_otag x) acc)
       (AtomSetImpl.inter (singleton i1) (singleton i1)) md)
     (IdExtSetImpl.remove (vars_aux.add_otag i1) md)).
-  - idtac.
+  { idtac.
     match goal with
       | [|- context[AtomSetImpl.fold ?f ?s ?i]] =>
         exploit (AtomSetFacts2.fold_singleton_simpl f s i)
@@ -99,10 +99,11 @@ Proof.
       reflexivity.
     + intro H; destruct H as [e' [He' H]]; subst.
       by rewrite H.
+  }
   rewrite Hseteq in Hx.
   destruct (id_ext_dec x (i1, ntag_old)).
-  - by subst; simpl; repeat rewrite lookupAL_deleteAL_eq.
-  - destruct x as [x [|]]; simpl.
+  { by subst; simpl; repeat rewrite lookupAL_deleteAL_eq. }
+  { destruct x as [x [|]]; simpl.
     + destruct (id_dec i1 x); [by subst; elim n|].
       repeat rewrite lookupAL_deleteAL_neq; eauto.
       rewrite IdExtSetFacts.remove_b in Hx.
@@ -118,6 +119,7 @@ Proof.
       * apply negb_false_iff in H.
         unfold vars_aux.add_otag, IdExtSetFacts.eqb in H.
         by destruct (IdExtSetFacts.eq_dec (i1, ntag_old) (x, ntag_new)).
+  }
 
   assert (Hstep2: maydiff_sem
     (deleteAL _ lc1 i1) (deleteAL _ lc2 i1) alpha'
@@ -126,7 +128,7 @@ Proof.
     (new_to_old_md_by_newdefs
       (remove_old_md_by_newdefs md (AtomSetImpl.inter (singleton i1) (singleton i1)))
       (AtomSetImpl.inter (singleton i1) (singleton i1)))).
-  Case "Step 2: wrapping new_to_old_md_by_newdefs".
+  { Case "Step 2: wrapping new_to_old_md_by_newdefs".
   remember (deleteAL GVs olc1 i1) as dolc1.
   remember (deleteAL GVs olc2 i1) as dolc2.
   remember (remove_old_md_by_newdefs md
@@ -146,7 +148,7 @@ Proof.
         IdExtSetImpl.add (vars_aux.add_otag i1)
         (IdExtSetImpl.remove (vars_aux.add_ntag i1) md')
       else md')).
-  - idtac.
+  { idtac.
     match goal with
       | [|- context[AtomSetImpl.fold ?f ?s ?i]] =>
         exploit (AtomSetFacts2.fold_singleton_simpl f s i)
@@ -155,10 +157,11 @@ Proof.
       reflexivity.
     + intro H; destruct H as [e' [He' H]]; subst.
       by rewrite H.
+  }
   rewrite Hseteq in Hx; clear Hseteq.
   remember (IdExtSetImpl.mem (vars_aux.add_ntag i1) md') as ni1mem; destruct ni1mem.
 
-  - destruct (id_ext_dec (i1, ntag_old) x);
+  { destruct (id_ext_dec (i1, ntag_old) x);
     [subst x; elimtype False; clear -Hx;
       rewrite IdExtSetFacts.add_b in Hx;
       apply orb_false_iff in Hx; destruct Hx as [Hx _];
@@ -199,8 +202,9 @@ Proof.
       clear n n0; simpl.
       repeat rewrite lookupAL_deleteAL_neq; eauto.
       by pose (Hstep1 _ H).
+  }
 
-  - symmetry in Heqni1mem; unfold vars_aux.add_ntag in Heqni1mem.
+  { symmetry in Heqni1mem; unfold vars_aux.add_ntag in Heqni1mem.
     remember (Hstep1 _ Heqni1mem) as Hfact; simpl in Hfact; clear HeqHfact.
     destruct (id_ext_dec (i1, ntag_old) x).
     + subst x; simpl; rewrite <- Heqcmd1id, <- Heqcmd2id.
@@ -240,24 +244,27 @@ Proof.
       * destruct (id_dec i1 x); [by subst x; elim n0|].
         repeat rewrite lookupAL_deleteAL_neq; eauto.
         by pose (Hstep1 _ Hx).
-      
+  } }
+
   clear Hstep1.
 
   assert (Haleq1: eqAL _
     (update_olc_by_ocmd (deleteAL _ olc1 i1) lc1 (ret cmd1))
     (update_olc_by_ocmd olc1 lc1 (ret cmd1))).
-  - unfold update_olc_by_ocmd; rewrite <- Heqcmd1id.
+  { unfold update_olc_by_ocmd; rewrite <- Heqcmd1id.
     destruct (lookupAL _ lc1 i1).
     + by apply updateAddAL_deleteAL.
     + by apply deleteAL_deleteAL.
+  }
 
   assert (Haleq2: eqAL _
     (update_olc_by_ocmd (deleteAL _ olc2 i1) lc2 (ret cmd2))
     (update_olc_by_ocmd olc2 lc2 (ret cmd2))).
-  - unfold update_olc_by_ocmd; rewrite <- Heqcmd2id.
+  { unfold update_olc_by_ocmd; rewrite <- Heqcmd2id.
     destruct (lookupAL _ lc2 i1).
     + by apply updateAddAL_deleteAL.
     + by apply deleteAL_deleteAL.
+  }
 
   assert (Hstep3: maydiff_sem
     (deleteAL _ lc1 i1) (deleteAL _ lc2 i1) alpha'
@@ -266,13 +273,15 @@ Proof.
     (new_to_old_md_by_newdefs
       (remove_old_md_by_newdefs md (AtomSetImpl.inter (singleton i1) (singleton i1)))
       (AtomSetImpl.inter (singleton i1) (singleton i1)))).
-  Case "Step 3: polishing, using Haleq1 and Haleq2".
+
+  { Case "Step 3: polishing, using Haleq1 and Haleq2".
   unfold maydiff_sem in *; intros x Hx.
   remember (Hstep2 _ Hx) as Hbrd; clear HeqHbrd Hstep2.
   unfold variable_equivalent in *.
   destruct x as [x [|]].
   - unfold lookupALExt in *; by repeat rewrite <- Haleq1; rewrite <- Haleq2.
   - unfold lookupALExt in *; done.
+  }
 
   clear Haleq1 Haleq2 Hstep2.
 
@@ -287,7 +296,7 @@ Proof.
           (remove_old_md_by_newdefs md
             (AtomSetImpl.inter (singleton i1) (singleton i1)))
           (AtomSetImpl.inter (singleton i1) (singleton i1)))))).
-  Case "Step 4: wrapping newtag adds".
+  { Case "Step 4: wrapping newtag adds".
   remember (new_to_old_md_by_newdefs
     (remove_old_md_by_newdefs md
       (AtomSetImpl.inter (singleton i1) (singleton i1)))
@@ -309,18 +318,19 @@ Proof.
     destruct (id_dec i1 x); [by subst x; elim n|].
     unfold lookupALExt in *.
     by repeat rewrite <- lookupAL_updateAddAL_neq; eauto.
+  }
 
   clear Hstep3.
 
   assert (Haleq1: eqAL _
     (updateAddAL GVs (deleteAL GVs lc1 i1) i1 igv1)
     (updateAddAL GVs lc1 i1 igv1)).
-  - by apply updateAddAL_deleteAL.
+  { by apply updateAddAL_deleteAL. }
 
   assert (Haleq2: eqAL _
     (updateAddAL GVs (deleteAL GVs lc2 i1) i1 igv2)
     (updateAddAL GVs lc2 i1 igv2)).
-  - by apply updateAddAL_deleteAL.
+  { by apply updateAddAL_deleteAL. }
 
   (* Final step! *)
   unfold maydiff_sem in *; intros x Hx.
@@ -495,7 +505,7 @@ Section HintSemEach.
     Case "1. x has an old tag".
     destruct (id_dec x i0).
 
-    SCase "1.1. x = i0".
+    { SCase "1.1. x = i0".
     subst x.
     remember (IdExtSetImpl.mem (vars_aux.add_ntag i0)
       (IdExtSetImpl.remove (vars_aux.add_otag i0) iso)) as bii; destruct bii;
@@ -510,8 +520,9 @@ Section HintSemEach.
     - rewrite He; simpl; left; eapply lookupAL_deleteAL_eq; eauto.
     - rewrite Hlookup; simpl; right; exists igvs; split; [|done].
       eapply lookupAL_updateAddAL_eq; eauto.
+    }
 
-    SCase "1.2. x <> i0".
+    { SCase "1.2. x <> i0".
     remember (IdExtSetImpl.mem (vars_aux.add_ntag i0)
       (IdExtSetImpl.remove (vars_aux.add_otag i0) iso)) as bii; destruct bii.
     - apply IdExtSetFacts.add_iff in Hx.
@@ -539,11 +550,12 @@ Section HintSemEach.
         destruct (lookupAL GVs lc i0).
         * rewrite <-lookupAL_updateAddAL_neq; eauto.
         * rewrite lookupAL_deleteAL_neq; eauto.
+    }
 
     Case "2. x has a new tag".
     destruct (id_dec x i0).
 
-    SCase "2.1. x = i0; contradiction".
+    { SCase "2.1. x = i0; contradiction".
     subst x; elimtype False; clear -Hx.
     remember (IdExtSetImpl.mem (vars_aux.add_ntag i0)
       (IdExtSetImpl.remove (vars_aux.add_otag i0) iso)) as bii; destruct bii.
@@ -559,6 +571,7 @@ Section HintSemEach.
         unfold IdExtSetFacts.eqb in Heqbii.
         unfold id in *.
         destruct (IdExtSetFacts.eq_dec (i0, ntag_old) (i0, ntag_new)); done.
+    }
 
     SCase "2.2. x <> i0".
     remember (IdExtSetImpl.mem (vars_aux.add_ntag i0)
@@ -663,7 +676,7 @@ Section HintSemEach.
     exists (update_olc_by_ocmd olc2 (Locals ec2) ocmd2).
     split.
 
-    SCase "1.1. maydiff_sem".
+    { SCase "1.1. maydiff_sem".
     clear Hinv; unfold r1, r2, r1', r2' in *.
 
     destruct ocmd1 as [cmd1|]; destruct_lstep_tac.
@@ -725,14 +738,16 @@ Section HintSemEach.
         * by destruct cmd2; try done; destruct_step_tac.
 
       + by simpl; destruct Hstep as [Heceq _]; inv Heceq.
+    }
 
-    SCase "1.2. invariant_sem".
+    { SCase "1.2. invariant_sem".
     unfold r1, r2, r1', r2' in *; destruct Hinv as [Heqs1 [Heqs2 [Hiso1 Hiso2]]].
     rr; splits; simpl in *; subst.
     - eapply oldnew_preserves_eqs_sem; eauto.
     - eapply oldnew_preserves_eqs_sem; eauto.
     - eapply oldnew_preserves_iso_sem; eauto.
     - eapply oldnew_preserves_iso_sem; eauto.
+    }
 
     Case "2. not is_defined_same_id".
     left; split; [done|].
@@ -752,7 +767,7 @@ Section HintSemEach.
     exists (update_olc_by_ocmd olc2 (Locals ec2) ocmd2).
     split.
 
-    SCase "2.1. maydiff_sem".
+    { SCase "2.1. maydiff_sem".
     clear Hinv; unfold r1, r2, r1', r2' in *.
 
     assert (Hbridge:
@@ -802,6 +817,7 @@ Section HintSemEach.
           destruct_step_tac.
 
       + by destruct Hstep as [Heceq _]; inv Heceq.
+    }
 
     SCase "2.2. invariant_sem".
     unfold r1, r2, r1', r2' in *; destruct Hinv as [Heqs1 [Heqs2 [Hiso1 Hiso2]]].
@@ -816,9 +832,7 @@ End HintSemEach.
 
 (* 
 *** Local Variables: ***
-***
-*** coq-prog-args: ("-emacs" "-impredicative-set") ******
-***
+*** coq-prog-args: ("-emacs" "-impredicative-set") ***
 *** End: ***
- *)
+*)
 

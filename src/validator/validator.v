@@ -245,8 +245,6 @@ Definition valid_system (lsys rsys:system) (lnoop rnoop:system_noop_t)
 
 (* 
 *** Local Variables: ***
-***
-*** coq-prog-args: ("-emacs" "-impredicative-set") ******
-***
+*** coq-prog-args: ("-emacs" "-impredicative-set") ***
 *** End: ***
- *)
+*)

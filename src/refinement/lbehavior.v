@@ -169,6 +169,10 @@ Inductive lbehave_prog m pnoops main args obs : Prop :=
     (Hobs: lbehave cfg pnoops ist obs),
     lbehave_prog m pnoops main args obs.
 
+Lemma Eapp_E0_inv tr1 tr2 (H: tr1 ** tr2 = E0) :
+  tr1 = E0 /\ tr2 = E0.
+Proof. by destruct tr1, tr2. Qed.
+
 Lemma stutter_lbehave cfg pnoops lst1 lst2 obs
   (Hbeh: lbehave cfg pnoops lst1 obs)
   (Hsem: lsInsn cfg pnoops lst1 lst2 E0)
@@ -380,8 +384,6 @@ Qed.
 
 (* 
 *** Local Variables: ***
-***
-*** coq-prog-args: ("-emacs" "-impredicative-set") ******
-***
+*** coq-prog-args: ("-emacs" "-impredicative-set") ***
 *** End: ***
- *)
+*)
