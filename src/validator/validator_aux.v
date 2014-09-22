@@ -1,6 +1,5 @@
 Require Import vellvm.
 Require Import alist.
-Require Import extraction_defs.
 Require Import decs.
 Require Import syntax_ext.
 Require Import hints.
@@ -1009,8 +1008,8 @@ Definition invariant_implies (from_h to_h:insn_hint_t) : bool :=
 
 (* 
 *** Local Variables: ***
-*** coq-prog-name: "coqtop"  ***
-*** coq-prog-args: ("-emacs-U" "-impredicative-set") ***
-*** coq-load-path: ("../../release/theory/metatheory_8.3/" "../../release/vol/src3.0/Vellvm/" "../../release/vol/src3.0/Vellvm/compcert/" "../../release/vol/src3.0/Vellvm/monads/" "../../release/vol/src3.0/Vellvm/ott/" "../../release/vol/src3.0/Vellvm/Dominators/" "../../release/vol/src3.0/Vellvm/GraphBasics/" "../../release/vol/src3.0/Transforms/")  ***
+***
+*** coq-prog-args: ("-emacs" "-impredicative-set") ******
+***
 *** End: ***
  *)

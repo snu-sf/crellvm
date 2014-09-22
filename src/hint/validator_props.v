@@ -742,7 +742,7 @@ Proof.
   try eapply Hmdsem; try eapply Hinvsem; try eapply Hgequiv.
   - apply Hnv1. - apply Hnv2. - apply Hev. - apply Hvwf. - apply Htd.
   - symmetry; eauto. - symmetry; eauto.
-  intros Hvinj.
+  - intros Hvinj.
 
   remember (values2GVs (CurTargetData cfg1) lsv1 lc1 (Globals cfg1)) as olsv1.
   destruct olsv1; [|done].
@@ -892,9 +892,9 @@ Proof.
   intros.
   exploit Mem.alloc_result; eauto; intro Hmb; subst mb.
   assert (Hneq: b <> Mem.nextblock mem0).
-  - rewrite Forall_forall in Hiifact; exploit Hiifact; eauto; intro Hres.
+  { rewrite Forall_forall in Hiifact; exploit Hiifact; eauto; intro Hres.
     intro Hcontr; subst; omega.
-
+  }
   exploit Mem.bounds_alloc_other; eauto.
   intro Hbounds; rewrite Hbounds; clear Hbounds.
 
@@ -906,11 +906,12 @@ Proof.
     destruct perm'; [done|]; clear Hcontr.
 
   assert (Hperm: ~ Mem.range_perm mem0 b z z0 Freeable).
-  - clear Heqperm'.
+  { clear Heqperm'.
     intro Hcontr; elim n; clear n.
     unfold Mem.range_perm in *; intros.
     exploit Hcontr; eauto; intro Hperm.
     eapply Mem.perm_alloc_1; eauto.
+  }
 
   destruct (Mem.range_perm_dec mem0 b z z0); done.
   Global Opaque Mem.free.
@@ -928,9 +929,9 @@ Proof.
   unfold Mem.free in *.
 
   assert (Hperm: Mem.range_perm mem' mb 0 sz0 Freeable).
-  + unfold Mem.range_perm; intros.
+  { unfold Mem.range_perm; intros.
     eapply Mem.perm_alloc_2; eauto.
-  
+  }
   destruct (Mem.range_perm_dec mem' mb 0 sz0 Freeable); done.
   Global Opaque Mem.free.
 Qed.
@@ -957,7 +958,7 @@ Proof.
   as alpha'.
   exists alpha'.
   assert (Hincr: inject_incr' alpha alpha' li1 pi1 li2 pi2).
-  - rewrite Heqalpha' in *; unfold inject_incr'; splits.
+  { rewrite Heqalpha' in *; unfold inject_incr'; splits.
     + unfold inject_incr; intros b b' dt Hab.
       rewrite <- Hab.
       destruct (Z_eq_dec b mb1); [|done].
@@ -978,12 +979,13 @@ Proof.
       destruct (Z_eq_dec sb mb1); [|by eapply Hli2none].
       intro Hcontr; inv Hcontr.
       rewrite Forall_forall in Hvli0.
-      pose (Hvli0 _ H); rewrite H2 in z; omega.
+      pose (Hvli0 _ H); rewrite H2 in *; omega.
     + intros.
       destruct (Z_eq_dec sb mb1); [|by eapply Hpi2none].
       intro Hcontr; inv Hcontr.
       rewrite Forall_forall in Hvpi0.
-      pose (Hvpi0 _ H); rewrite H2 in z; omega.
+      pose (Hvpi0 _ H); rewrite H2 in *; omega.
+  }
 
   splits; try done.
   Case "1. alpha_incr_both".
@@ -2487,11 +2489,3 @@ Proof.
   simpl in Hnd; rewrite <- Hnd in Hempty.
   apply AtomSetProperties.empty_is_empty_1; done.
 Qed.
-
-(* 
-*** Local Variables: ***
-*** coq-prog-name: "coqtop"  ***
-*** coq-prog-args: ("-emacs-U" "-impredicative-set") ***
-*** coq-load-path: ("../../release/theory/metatheory_8.3/" "../../release/vol/src3.0/Vellvm/" "../../release/vol/src3.0/Vellvm/compcert/" "../../release/vol/src3.0/Vellvm/monads/" "../../release/vol/src3.0/Vellvm/ott/" "../../release/vol/src3.0/Vellvm/Dominators/" "../../release/vol/src3.0/Vellvm/GraphBasics/" "../../release/vol/src3.0/Transforms/")  ***
-*** End: ***
- *)

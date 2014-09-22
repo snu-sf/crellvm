@@ -278,11 +278,3 @@ Definition get_products_from_module (m: module) :=
   match m with
     | module_intro _ _ ps => ps
   end.
-
-(* 
-*** Local Variables: ***
-*** coq-prog-name: "coqtop"  ***
-*** coq-prog-args: ("-emacs-U" "-impredicative-set") ***
-*** coq-load-path: ("../../release/theory/metatheory_8.3/" "../../release/vol/src3.0/Vellvm/" "../../release/vol/src3.0/Vellvm/compcert/" "../../release/vol/src3.0/Vellvm/monads/" "../../release/vol/src3.0/Vellvm/ott/" "../../release/vol/src3.0/Vellvm/Dominators/" "../../release/vol/src3.0/Vellvm/GraphBasics/" "../../release/vol/src3.0/Transforms/")  ***
-*** End: ***
- *)

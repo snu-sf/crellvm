@@ -72,9 +72,9 @@ Hint Resolve sz_dec: EqDecDb.
 Ltac dec_destruct x y :=
   match eval compute in (x = y) with
     | (?n = ?n) => fail 1
-    | _ => let H := fresh in
+    | _ => let H := fresh in let X := fresh in
       assert (H:{x = y}+{x <> y});
-      [auto with EqDecDb|destruct H;[subst|right;congruence]]
+      [auto with EqDecDb|destruct H as [H|H];[subst|right; intro X; inv X; apply H; auto]]
   end.
 
 Ltac dec_auto :=
@@ -305,8 +305,8 @@ Definition same_function_call (l r: option cmd): bool :=
 
 (* 
 *** Local Variables: ***
-*** coq-prog-name: "coqtop"  ***
-*** coq-prog-args: ("-emacs-U" "-impredicative-set") ***
-*** coq-load-path: ("../../release/theory/metatheory_8.3/" "../../release/vol/src3.0/Vellvm/" "../../release/vol/src3.0/Vellvm/compcert/" "../../release/vol/src3.0/Vellvm/monads/" "../../release/vol/src3.0/Vellvm/ott/" "../../release/vol/src3.0/Vellvm/Dominators/" "../../release/vol/src3.0/Vellvm/GraphBasics/" "../../release/vol/src3.0/Transforms/")  ***
+***
+*** coq-prog-args: ("-emacs" "-impredicative-set") ******
+***
 *** End: ***
  *)

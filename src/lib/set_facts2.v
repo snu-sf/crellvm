@@ -185,8 +185,8 @@ Module NeqRegSetFacts2 := WFacts2_fun NeqRegDT NeqRegSetImpl.
 
 (* 
 *** Local Variables: ***
-*** coq-prog-name: "coqtop"  ***
-*** coq-prog-args: ("-emacs-U" "-impredicative-set") ***
-*** coq-load-path: ("../../release/theory/metatheory_8.3/" "../../release/vol/src3.0/Vellvm/" "../../release/vol/src3.0/Vellvm/compcert/" "../../release/vol/src3.0/Vellvm/monads/" "../../release/vol/src3.0/Vellvm/ott/" "../../release/vol/src3.0/Vellvm/Dominators/" "../../release/vol/src3.0/Vellvm/GraphBasics/" "../../release/vol/src3.0/Transforms/")  ***
+***
+*** coq-prog-args: ("-emacs" "-impredicative-set") ******
+***
 *** End: ***
  *)

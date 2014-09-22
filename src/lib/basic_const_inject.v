@@ -220,7 +220,7 @@ Lemma zeroconst2GV_for_namedts_refl: forall TD l
   gv_inject mi gv gv.
 Proof.
   intros until n; induction n; ss.
-  i; destruct a; ss; destruct eq_dec; subst; eauto.
+  i; destruct a; ss. destruct (eq_dec id0 i0); subst; eauto.
   inv LU; inv_mbind; symmetry_ctx.
   destruct g; inv H1; [by econs; eauto|].
   eapply zeroconsts2GV_aux_refl; eauto.
@@ -284,19 +284,13 @@ Lemma const2GV_refl: forall maxb mi Mem Mem' TD gl c gv
 Proof.
   i; revert gv Hgv; induction c using const_ind_gen
   ; [M|M|M|M|M| |M|M|M|M|M|M|M|M|M|M|M|M|M]; Mdo unfold const2GV; s; i; inv_mbind.
-Case "zero".
-  inv H0; apply symmetry in HeqR0.
+* inv H0; apply symmetry in HeqR0.
   eauto using zeroconst2GV_refl, cgv2gv_refl.
-Case "int".
-  inv Hgv; econs; eauto.
-Case "floatingpoint".
-  inv H0; destruct floating_point5; inv HeqR; s; econs; eauto.
-Case "undef".
-  inv H0; symmetry_ctx; eauto using cgv2gv_refl, gv_inject_gundef.
-Case "null".
-  inv Hgv; inv Hwf; econs; eauto.
-Case "array".
-  i; revert l0 IH gv Hgv; induction l0.
+* inv Hgv; econs; eauto.
+* inv H0; destruct floating_point5; inv HeqR; s; econs; eauto.
+* inv H0; symmetry_ctx; eauto using cgv2gv_refl, gv_inject_gundef.
+* inv Hgv; inv Hwf; econs; eauto.
+* i; revert l0 IH gv Hgv; induction l0.
   - i; inv Hgv; eauto using uninits_refl.
   - i; inv IH; unfold const2GV in Hgv; s in Hgv; inv_mbind.
     destruct typ_dec; subst; [|done].
@@ -307,36 +301,30 @@ Case "array".
       eapply H1; unfold const2GV; rewrite <- HeqR0; eauto.
     + eapply gv_inject_app; eauto using uninits_refl.
       specialize (IHl0 H2).
-      unfold const2GV in IHl0; s in IHl0.         
+      unfold const2GV in IHl0; s in IHl0.
       rewrite <- HeqR in IHl0.
       destruct l0; [by inv HeqR; eauto|].
       s in IHl0; eapply cgv2gv_refl_rev; eauto.
-Case "struct".
-  inv H0; eapply cgv2gv_refl; eauto.
+* inv H0; eapply cgv2gv_refl; eauto.
   destruct typ_eq_list_typ; [|by inv H1].
   destruct g; inv H1; eauto using uninits_refl.
   revert HeqR0; generalize (p::g) as gg; clear p g; i.
   eauto using const2GV_list_refl.
-Case "gid".
-  inv H0; eapply cgv2gv_refl; eauto.
+* inv H0; eapply cgv2gv_refl; eauto.
   symmetry_ctx; eauto using global_gv_inject_refl.
-Case "trunc_int".
-  inv H0; eapply cgv2gv_refl; eauto.
+* inv H0; eapply cgv2gv_refl; eauto.
   symmetry_ctx; eapply simulation__mtrunc_refl, HeqR.
   unfold const2GV in IHc; rewrite HeqR0 in IHc.
   eauto using cgv2gv_refl_rev.
-Case "mext".
-  inv H0; eapply cgv2gv_refl; eauto.
+* inv H0; eapply cgv2gv_refl; eauto.
   symmetry_ctx; eapply simulation__mext_refl, HeqR.
   unfold const2GV in IHc; rewrite HeqR0 in IHc.
   eauto using cgv2gv_refl_rev.
-Case "mcast".
-  inv H0; eapply cgv2gv_refl; eauto.
+* inv H0; eapply cgv2gv_refl; eauto.
   symmetry_ctx; eapply simulation__mcast_refl, HeqR.
   unfold const2GV in IHc; rewrite HeqR0 in IHc.
   eauto using cgv2gv_refl_rev.
-Case "gep".
-  apply symmetry in H1; inv H0; eapply cgv2gv_refl; eauto.
+* apply symmetry in H1; inv H0; eapply cgv2gv_refl; eauto.
   destruct t; tinv H1.
   remember (getConstGEPTyp l0 (typ_pointer t)) as R2.
   destruct R2; tinv H1.
@@ -357,39 +345,33 @@ Case "gep".
       eauto using gv_inject_gundef.
     inv_mbind. symmetry_ctx.
     eauto using gv_inject_gundef.
-Case "select".
-  inv H0; unfold const2GV in IHc2, IHc3; destruct p0, p1.
+* inv H0; unfold const2GV in IHc2, IHc3; destruct p0, p1.
   rewrite <- HeqR in IHc2; rewrite <- HeqR1 in IHc3.
   destruct isGVZero; inv H1; eauto.
-Case "icmp".
-  inv H0; eapply cgv2gv_refl; eauto.
+* inv H0; eapply cgv2gv_refl; eauto.
   unfold const2GV in IHc1, IHc2.
   rewrite <- HeqR0 in IHc1; rewrite <- HeqR in IHc2.
   apply symmetry in HeqR1.
   eapply simulation__micmp_refl, HeqR1; eauto using cgv2gv_refl_rev.
-Case "fcmp".
-  inv H0; eapply cgv2gv_refl; eauto.
+* inv H0; eapply cgv2gv_refl; eauto.
   destruct t; try by inv H1.
   inv_mbind; unfold const2GV in IHc1, IHc2.
   rewrite <- HeqR0 in IHc1; rewrite <- HeqR in IHc2.
   apply symmetry in HeqR1.
   eapply simulation__mfcmp_refl, HeqR1; eauto using cgv2gv_refl_rev.
 
-Case "extractvalue".
-  inv H0; eapply cgv2gv_refl; eauto. 
+* inv H0; eapply cgv2gv_refl; eauto. 
   unfold const2GV in IHc; rewrite <-HeqR0 in IHc.
   specialize (IHc _ eq_refl); eapply cgv2gv_refl_rev in IHc; eauto.
   eapply simulation__extractGenericValue_refl; eauto.  
 
-Case "insertvalue".
-  inv H0; eapply cgv2gv_refl; eauto. 
+* inv H0; eapply cgv2gv_refl; eauto. 
   unfold const2GV in IHc1, IHc2; rewrite <-HeqR0 in IHc1; rewrite <-HeqR in IHc2.
   specialize (IHc1 _ eq_refl); eapply cgv2gv_refl_rev in IHc1; eauto.
   specialize (IHc2 _ eq_refl); eapply cgv2gv_refl_rev in IHc2; eauto.
   symmetry_ctx; eapply simulation__insertGenericValue_refl in HeqR1; eauto.
 
-Case "bop".
-  inv H0; eapply cgv2gv_refl; eauto. 
+* inv H0; eapply cgv2gv_refl; eauto. 
   destruct t; try by inv H1.
   inv_mbind.
   unfold const2GV in IHc1, IHc2; rewrite <-HeqR0 in IHc1; rewrite <-HeqR in IHc2.
@@ -397,8 +379,7 @@ Case "bop".
   specialize (IHc2 _ eq_refl); eapply cgv2gv_refl_rev in IHc2; eauto.
   symmetry_ctx; eapply simulation__mbop_refl in HeqR1; eauto.
 
-Case "fbop".
-  inv H0; eapply cgv2gv_refl; eauto. 
+* inv H0; eapply cgv2gv_refl; eauto. 
   destruct t; try by inv H1.
   inv_mbind.
   unfold const2GV in IHc1, IHc2; rewrite <-HeqR0 in IHc1; rewrite <-HeqR in IHc2.
@@ -408,11 +389,3 @@ Case "fbop".
 Qed.
 
 End LLVMtyping_rules.
-
-(* 
-*** Local Variables: ***
-*** coq-prog-name: "coqtop"  ***
-*** coq-prog-args: ("-emacs-U" "-impredicative-set") ***
-*** coq-load-path: ("../../release/theory/metatheory_8.3/" "../../release/vol/src3.0/Vellvm/" "../../release/vol/src3.0/Vellvm/compcert/" "../../release/vol/src3.0/Vellvm/monads/" "../../release/vol/src3.0/Vellvm/ott/" "../../release/vol/src3.0/Vellvm/Dominators/" "../../release/vol/src3.0/Vellvm/GraphBasics/" "../../release/vol/src3.0/Transforms/")  ***
-*** End: ***
- *)
