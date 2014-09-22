@@ -6,3 +6,5 @@
 /src/extraction/*.ml
 /src/extraction/*.mli
 
+/.build
+/.local

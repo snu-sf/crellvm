@@ -25,6 +25,11 @@
     + `make libs`
     + `make`
 
+- Build `llvm`.
+    + `scripts/build-llvm.sh $JOBS`
+    + `.build/llvm-obj` will contain llvm object files.
+    + `.local/bin` will contain llvm installation.
+
 ## Build ##
 - Move `.coqrc` to `$HOME`. Here, replace $SIMPLBERRY_HOME to your simplberry directory.
 - `make` in `/src`

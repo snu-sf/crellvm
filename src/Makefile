@@ -1,7 +1,6 @@
 VS_VALIDATOR := $(wildcard validator/*.v)
 VS_PROOFS    := $(filter-out $(wildcard extraction/*.v), $(filter-out $(wildcard validator/*.v), $(wildcard */*.v)))
-VS_EXTRACTOR := # TODO: This is temporary; we have to wait for vellvm support for extraction.
-# VS_EXTRACTOR := $(wildcard extraction/*.v)
+VS_EXTRACTOR := $(wildcard extraction/*.v)
 VS           := $(VS_VALIDATOR) $(VS_PROOFS) $(VS_EXTRACTOR)
 IS           := $(sort $(subst /, , $(dir $(VS))))
 COQLIBS      := -I ../lib/vellvm/src/Vellvm \
