@@ -26,7 +26,7 @@ Lemma logical_step_implies_mem_nextblock_incr_or_not:
     (Hncall: forall rid, ~ is_general_call ocmd rid)
     (Hpop: pop_state_ocmd ec ns ocmd)
     (Hstep: logical_semantic_step cfg fn_al
-      {| ECS := ec; Mem := mem |}
+      {| EC := ec; Mem := mem |}
       {| ECS := ec'; Mem := mem' |} ns ns' na' tr),
       (na' = merror /\ Mem.nextblock mem = Mem.nextblock mem') \/
       (exists aid, na' = ret aid /\ Mem.nextblock mem + 1 = Mem.nextblock mem').
