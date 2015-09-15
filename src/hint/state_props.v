@@ -329,8 +329,10 @@ Proof.
   destruct ec; simpl in Hst; subst.
   destruct Terminator; destruct ps; simpl in Hecs.
 
-  - left.
-    destruct ECS. simpl. admit. admit. 
+  - left. unfold is_return.
+    destruct ECS. 
+    + inv Hecs.
+    + inv Hecs. split. admit. admit. 
  
   - left.
   unfold is_return; subst; simpl; split; auto. admit. admit.
