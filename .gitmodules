@@ -1,6 +1,9 @@
 [submodule "lib/vellvm"]
 	path = lib/vellvm
-	url = git@github.com:snu-sf/vellvm-legacy.git
+	url = https://github.com/snu-sf/vellvm-legacy.git
 [submodule "lib/llvm"]
 	path = lib/llvm
-	url = git@github.com:snu-sf/llvm-simplberry.git
+	url = https://github.com/snu-sf/llvm-simplberry.git
+[submodule "lib/paco"]
+	path = lib/paco
+	url = https://github.com/snu-sf/paco.git
