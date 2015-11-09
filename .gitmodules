@@ -5,5 +5,5 @@
 	path = lib/llvm
 	url = https://github.com/snu-sf/llvm-simplberry.git
 [submodule "lib/paco"]
-  path = lib/paco
-  url = https://github.com/snu-sf/paco.git
+	path = lib/paco
+	url = https://github.com/snu-sf/paco.git
