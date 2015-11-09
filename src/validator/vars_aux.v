@@ -1,6 +1,12 @@
-Require Import vellvm.
+Require Import syntax.
 Require Import syntax_ext.
 Require Import hints.
+
+Import LLVMsyntax.
+Require Import Coqlib.
+Require Import Metatheory.
+Require Import infrastructure.
+Import LLVMinfra.
 
 Set Implicit Arguments.
 
@@ -372,6 +378,8 @@ Definition add_tag_value (nd_by_phi:list atom) (v:value) : value_ext :=
 
 (* 
 *** Local Variables: ***
-*** coq-prog-args: ("-emacs" "-impredicative-set") ***
+*** coq-prog-name: "coqtop"  ***
+*** coq-prog-args: ("-emacs-U" "-impredicative-set") ***
+*** coq-load-path: ("../../release/theory/metatheory_8.3/" "../../release/vol/src3.0/Vellvm/" "../../release/vol/src3.0/Vellvm/compcert/" "../../release/vol/src3.0/Vellvm/monads/" "../../release/vol/src3.0/Vellvm/ott/" "../../release/vol/src3.0/Vellvm/Dominators/" "../../release/vol/src3.0/Vellvm/GraphBasics/" "../../release/vol/src3.0/Transforms/")  ***
 *** End: ***
-*)
+ *)

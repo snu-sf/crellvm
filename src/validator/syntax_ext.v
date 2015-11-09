@@ -1,6 +1,9 @@
-Require Import vellvm.
+Require Import syntax.
 Require Import alist.
 Require Import decs.
+
+Require Import Metatheory.
+Import LLVMsyntax.
 
 (** * Extended instructions : variable + {old,new} mark
 
@@ -95,11 +98,7 @@ Hint Resolve params_ext_dec: EqDecDb.
 
 Definition rhs_ext_dec : forall x y:rhs_ext, {x = y} + {~ x = y}.
 Proof.
-  intros x y.
-  repeat (match goal with
-            | [x: rhs_ext |- _] => destruct x
-            | [x: (_ * _)%type |- _] => destruct x
-          end; try (right; discriminate); dec_auto).
+  intros x y; destruct x, y; try (right; discriminate); dec_auto.
 Defined.
 Hint Resolve rhs_ext_dec: EqDecDb.
 
@@ -278,3 +277,11 @@ Definition get_products_from_module (m: module) :=
   match m with
     | module_intro _ _ ps => ps
   end.
+
+(* 
+*** Local Variables: ***
+*** coq-prog-name: "coqtop"  ***
+*** coq-prog-args: ("-emacs-U" "-impredicative-set") ***
+*** coq-load-path: ("../../release/theory/metatheory_8.3/" "../../release/vol/src3.0/Vellvm/" "../../release/vol/src3.0/Vellvm/compcert/" "../../release/vol/src3.0/Vellvm/monads/" "../../release/vol/src3.0/Vellvm/ott/" "../../release/vol/src3.0/Vellvm/Dominators/" "../../release/vol/src3.0/Vellvm/GraphBasics/" "../../release/vol/src3.0/Transforms/")  ***
+*** End: ***
+ *)

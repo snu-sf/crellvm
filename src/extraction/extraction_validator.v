@@ -1,4 +1,4 @@
-Require Import vellvm.
+Require Import syntax.
 Require Import extraction_defs.
 Require Import validator.
 Require Import infrules.
@@ -28,13 +28,13 @@ Extract Constant signbit_of => "(fun x ->
     else Coq_xI (positive_of_int (x/2))
   in
   let coq_Z_of_int = fun x ->
-    if x = 0 then BinInt.Z0 
-    else if x > 0 then BinInt.Zpos (positive_of_int x)
-    else BinInt.Zneg (positive_of_int (-x))
+    if x = 0 then Z0
+    else if x > 0 then Zpos (positive_of_int x)
+    else Zneg (positive_of_int (-x))
   in
   if x = 0
   then None
-  else Some (Camlcoq.z2llapint (coq_Z_of_int x) (BinInt.Zneg (power_sz (x-1))) true))".
+  else Some (Camlcoq.z2llapint (coq_Z_of_int x) (Zneg (power_sz (x-1))) true))".
 
 Extract Constant my_Zsucc => "(fun x -> Llvm.APInt.inc x)".
 
@@ -50,7 +50,7 @@ match coq_fp with
 | LLVMsyntax.Coq_fp_x86_fp80 -> Llvm.x86fp80_type llc
 | LLVMsyntax.Coq_fp_ppc_fp128 -> Llvm.ppc_fp128_type llc
 in
-Coq_rhs_ext_value (Coq_value_ext_const (LLVMsyntax.Coq_const_floatpoint (coq_fp, (Llvm.APFloat.const_float_get_value (Llvm.const_float fp (Floats.Float.floatofint (Int.one (S (S (S (S (S (S (S (S (S (S (S (S (S (S (S (S (S (S (S (S (S (S (S (S (S (S (S (S (S (S (S O)))))))))))))))))))))))))))))))))))))) 
+Coq_rhs_ext_value (Coq_value_ext_const (LLVMsyntax.Coq_const_floatpoint (coq_fp, (Llvm.APFloat.const_float_get_value (Llvm.const_float fp (Floats.Float.of_int (Int.one (S (S (S (S (S (S (S (S (S (S (S (S (S (S (S (S (S (S (S (S (S (S (S (S (S (S (S (S (S (S (S O)))))))))))))))))))))))))))))))))))))) 
 )".
 
 Extraction Library FMapWeakList.
@@ -65,8 +65,3 @@ Extraction Library my_gvar_dec.
 Extraction Library validator_aux.
 Extraction Library validator.
 
-(* 
-*** Local Variables: ***
-*** coq-prog-args: ("-emacs" "-impredicative-set") ***
-*** End: ***
-*)
