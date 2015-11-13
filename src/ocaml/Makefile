@@ -1,9 +1,10 @@
-LLVM_OCAML_LIB = /home/yongho.yoon/upgrade_simpleberry/simplberry/.local/lib/ocaml
-LLVM_LIB = ../../.local/lib
-VELLVM_LIB = ../../lib/vellvm/src/Extraction
-YOJSON_LIB = $(VALLVM_HOME)/src/validator/lib/yojson-1.1.5
-BINIOU_LIB = $(VALLVM_HOME)/src/validator/lib/biniou-1.0.5
-EASY_FORMAT_LIB = $(VALLVM_HOME)/src/validator/lib/easy-format-1.0.1
+SIMPLBERRY_HOME = `pwd`/../..
+LLVM_OCAML_LIB = $(SIMPLBERRY_HOME)/.local/lib/ocaml
+LLVM_LIB = $(SIMPLBERRY_HOME)/.local/lib
+VELLVM_LIB = $(SIMPLBERRY_HOME)/lib/vellvm/src/Extraction
+#YOJSON_LIB = $(VALLVM_HOME)/src/validator/lib/yojson-1.1.5
+#BINIOU_LIB = $(VALLVM_HOME)/src/validator/lib/biniou-1.0.5
+#EASY_FORMAT_LIB = $(VALLVM_HOME)/src/validator/lib/easy-format-1.0.1
 
 LIB_FILES = llvm.cmxa,llvm_analysis.cmxa,llvm_executionengine.cmxa,llvm_target.cmxa,llvm_bitreader.cmxa,llvm_bitwriter.cmxa,llvm_scalar_opts.cmxa
 
