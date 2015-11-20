@@ -17,8 +17,6 @@ OCAMLBUILD_OPT = -r \
 	-cflags -g\
 	-lflags -I,$(LLVM_OCAML_LIB) \
 	-lflags -cc,g++\
-	-lflags -cclib,-lLLVMlib_json\
-	-lflags -cclib,-lLLVMWriter\
 	-lflags -cclib,-lLLVMSupport\
 	-lflags -cclib,-lLLVMBitReader\
 	-lflags -cclib,-lLLVMBitWriter\
@@ -31,7 +29,7 @@ MLS = extraction/FMapWeakList.ml extraction/FMapWeakList.mli\
 	extraction/syntax_ext.ml extraction/syntax_ext.mli\
 	extraction/validator_aux.ml extraction/validator_aux.mli\
 	extraction/validator.ml extraction/validator.mli\
-	coq2ml.ml parseHints.ml printHints.ml translateHints.ml\
+	parseHints.ml printHints.ml translateHints.ml\
 	main.ml utility.ml propagateHints.ml addInferenceHints.ml microHints.ml tt.ml
 
 main.native: $(MLS)

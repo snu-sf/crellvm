@@ -1659,25 +1659,6 @@ let translate_deckind st f =
     else LLVMsyntax.Coq_deckind_external LLVMsyntax.Coq_eid_other
 
 let translate_function debug m st f ps =
-  (if not (is_declaration f) then 
-   begin
-     (if !Globalstates.gen_llvm_dtree then
-       let dt = Llvm_analysis.create_dtree f in
-       (if !Globalstates.print_dtree then 
-         prerr_string "fname: "; 
-         prerr_string (llvm_name st f);
-         prerr_newline (); 
-         Llvm_analysis.dump_dtree dt);
-       Llvm_analysis.dispose_dtree dt);
-     (if !Globalstates.gen_llvm_df then
-       let df = Llvm_analysis.create_df f in
-       (if !Globalstates.print_dtree then 
-         prerr_string "fname: "; 
-         prerr_string (llvm_name st f);
-         prerr_newline (); 
-         Llvm_analysis.dump_df df);
-       Llvm_analysis.dispose_df df)
-   end);
 
   SlotTracker.incorporate_function st f;
   init_fake_name ();  
