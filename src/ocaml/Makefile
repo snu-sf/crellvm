@@ -29,7 +29,7 @@ MLS = extraction/FMapWeakList.ml extraction/FMapWeakList.mli\
 	extraction/syntax_ext.ml extraction/syntax_ext.mli\
 	extraction/validator_aux.ml extraction/validator_aux.mli\
 	extraction/validator.ml extraction/validator.mli\
-	parseHints.ml printHints.ml translateHints.ml\
+	coq2ml.ml parseHints.ml printHints.ml translateHints.ml\
 	main.ml utility.ml propagateHints.ml addInferenceHints.ml microHints.ml tt.ml
 
 main.native: $(MLS)
