@@ -1,5 +1,13 @@
-Require Import vellvm.
+Require Import syntax.
 Require Import alist.
+
+Require Import infrastructure.
+
+Require Export Coqlib.
+Export LLVMsyntax.
+Export LLVMinfra.
+
+Ltac inv H := inversion H; subst; clear H.
 
 (** * Utilities *)
 
@@ -72,71 +80,30 @@ Hint Resolve sz_dec: EqDecDb.
 Ltac dec_destruct x y :=
   match eval compute in (x = y) with
     | (?n = ?n) => fail 1
-    | _ => let H := fresh in let X := fresh in
+    | _ => let H := fresh in
       assert (H:{x = y}+{x <> y});
-      [auto with EqDecDb|destruct H as [H|H];[subst|right; intro X; inv X; apply H; auto]]
+      [auto with EqDecDb|destruct H;[subst|right;congruence]]
   end.
 
 Ltac dec_auto :=
-  repeat match goal with
-  | [|- {_ ?x=_ ?y}+{_ ?x<>_ ?y}] =>
+repeat (
+match goal with
+  | [|- {_ ?x _ _ _ _ _ _ = _ ?y _ _ _ _ _ _ }+{_ ?x _ _ _ _ _ _ <>_ ?y _ _ _ _ _ _}] =>
     dec_destruct x y
-  | [|- {_ ?x _=_ ?y _}+{_ ?x _<>_ ?y _}] =>
+  | [|- {_ ?x _ _ _ _ _ = _ ?y _ _ _ _ _ }+{_ ?x _ _ _ _ _ <>_ ?y _ _ _ _ _}] =>
     dec_destruct x y
-  | [|- {_ _ ?x=_ _ ?y}+{_ _ ?x<>_ _ ?y}] =>
+  | [|- {_ ?x _ _ _ _ = _ ?y _ _ _ _ }+{_ ?x _ _ _ _ <>_ ?y _ _ _ _}] =>
     dec_destruct x y
-  | [|- {_ ?x _ _=_ ?y _ _}+{_ ?x _ _<>_ ?y _ _}] =>
+  | [|- {_ ?x _ _ _ = _ ?y _ _ _ }+{_ ?x _ _ _ <>_ ?y _ _ _}] =>
     dec_destruct x y
-  | [|- {_ _ ?x _=_ _ ?y _}+{_ _ ?x _<>_ _ ?y _}] =>
+  | [|- {_ ?x _ _ = _ ?y _ _ }+{_ ?x _ _ <>_ ?y _ _}] =>
     dec_destruct x y
-  | [|- {_ _ _ ?x=_ _ _ ?y}+{_ _ _ ?x<>_ _ _ ?y}] =>
+  | [|- {_ ?x _ = _ ?y _ }+{_ ?x _ <>_ ?y _}] =>
     dec_destruct x y
-  | [|- {_ ?x _ _ _=_ ?y _ _ _}+{_ ?x _ _ _<>_ ?y _ _ _}] =>
+  | [|- {_ ?x = _ ?y }+{_ ?x <>_ ?y}] =>
     dec_destruct x y
-  | [|- {_ _ ?x _ _=_ _ ?y _ _}+{_ _ ?x _ _<>_ _ ?y _ _}] =>
-    dec_destruct x y
-  | [|- {_ _ _ ?x _=_ _ _ ?y _}+{_ _ _ ?x _<>_ _ _ ?y _}] =>
-    dec_destruct x y
-  | [|- {_ _ _ _ ?x=_ _ _ _ ?y}+{_ _ _ _ ?x<>_ _ _ _ ?y}] =>
-    dec_destruct x y
-  | [|- {_ ?x _ _ _ _=_ ?y _ _ _ _}+{_ ?x _ _ _ _<>_ ?y _ _ _ _}] =>
-    dec_destruct x y
-  | [|- {_ _ ?x _ _ _=_ _ ?y _ _ _}+{_ _ ?x _ _ _<>_ _ ?y _ _ _}] =>
-    dec_destruct x y
-  | [|- {_ _ _ ?x _ _=_ _ _ ?y _ _}+{_ _ _ ?x _ _<>_ _ _ ?y _ _}] =>
-    dec_destruct x y
-  | [|- {_ _ _ _ ?x _=_ _ _ _ ?y _}+{_ _ _ _ ?x _<>_ _ _ _ ?y _}] =>
-    dec_destruct x y
-  | [|- {_ _ _ _ _ ?x=_ _ _ _ _ ?y}+{_ _ _ _ _ ?x<>_ _ _ _ _ ?y}] =>
-    dec_destruct x y
-  | [|- {_ ?x _ _ _ _ _=_ ?y _ _ _ _ _}+{_ ?x _ _ _ _ _<>_ ?y _ _ _ _ _}] =>
-    dec_destruct x y
-  | [|- {_ _ ?x _ _ _ _=_ _ ?y _ _ _ _}+{_ _ ?x _ _ _ _<>_ _ ?y _ _ _ _}] =>
-    dec_destruct x y
-  | [|- {_ _ _ ?x _ _ _=_ _ _ ?y _ _ _}+{_ _ _ ?x _ _ _<>_ _ _ ?y _ _ _}] =>
-    dec_destruct x y
-  | [|- {_ _ _ _ ?x _ _=_ _ _ _ ?y _ _}+{_ _ _ _ ?x _ _<>_ _ _ _ ?y _ _}] =>
-    dec_destruct x y
-  | [|- {_ _ _ _ _ ?x _=_ _ _ _ _ ?y _}+{_ _ _ _ _ ?x _<>_ _ _ _ _ ?y _}] =>
-    dec_destruct x y
-  | [|- {_ _ _ _ _ _ ?x=_ _ _ _ _ _ ?y}+{_ _ _ _ _ _ ?x<>_ _ _ _ _ _ ?y}] =>
-    dec_destruct x y
-  | [|- {_ ?x _ _ _ _ _ _=_ ?y _ _ _ _ _ _}+{_ ?x _ _ _ _ _ _<>_ ?y _ _ _ _ _ _}] =>
-    dec_destruct x y
-  | [|- {_ _ ?x _ _ _ _ _=_ _ ?y _ _ _ _ _}+{_ _ ?x _ _ _ _ _<>_ _ ?y _ _ _ _ _}] =>
-    dec_destruct x y
-  | [|- {_ _ _ ?x _ _ _ _=_ _ _ ?y _ _ _ _}+{_ _ _ ?x _ _ _ _<>_ _ _ ?y _ _ _ _}] =>
-    dec_destruct x y
-  | [|- {_ _ _ _ ?x _ _ _=_ _ _ _ ?y _ _ _}+{_ _ _ _ ?x _ _ _<>_ _ _ _ ?y _ _ _}] =>
-    dec_destruct x y
-  | [|- {_ _ _ _ _ ?x _ _=_ _ _ _ _ ?y _ _}+{_ _ _ _ _ ?x _ _<>_ _ _ _ _ ?y _ _}] =>
-    dec_destruct x y
-  | [|- {_ _ _ _ _ _ ?x _=_ _ _ _ _ _ ?y _}+{_ _ _ _ _ _ ?x _<>_ _ _ _ _ _ ?y _}] =>
-    dec_destruct x y
-  | [|- {_ _ _ _ _ _ _ ?x=_ _ _ _ _ _ _ ?y}+{_ _ _ _ _ _ _ ?x<>_ _ _ _ _ _ _ ?y}] =>
-    dec_destruct x y
-  | _ => left;reflexivity
-  end.
+end);
+auto.
 
 (** reflection of decs **)
 
@@ -305,6 +272,8 @@ Definition same_function_call (l r: option cmd): bool :=
 
 (* 
 *** Local Variables: ***
-*** coq-prog-args: ("-emacs" "-impredicative-set") ***
+*** coq-prog-name: "coqtop"  ***
+*** coq-prog-args: ("-emacs-U" "-impredicative-set") ***
+*** coq-load-path: ("../../release/theory/metatheory_8.3/" "../../release/vol/src3.0/Vellvm/" "../../release/vol/src3.0/Vellvm/compcert/" "../../release/vol/src3.0/Vellvm/monads/" "../../release/vol/src3.0/Vellvm/ott/" "../../release/vol/src3.0/Vellvm/Dominators/" "../../release/vol/src3.0/Vellvm/GraphBasics/" "../../release/vol/src3.0/Transforms/")  ***
 *** End: ***
-*)
+ *)

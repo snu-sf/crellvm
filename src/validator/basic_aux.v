@@ -1,4 +1,4 @@
-Require Import vellvm.
+Require Import syntax.
 Require Import decs.
 
 Set Implicit Arguments.

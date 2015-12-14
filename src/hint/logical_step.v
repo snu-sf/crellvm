@@ -135,13 +135,13 @@ Section LogicalStep.
       logical_semantic_step ps ns pn nn na tr.
 
   Lemma pop_state_ocmd_some_implies_logical_step_real_step:
-    forall pecs necs pns nns pm nm na tr ccmd
+    forall pec pecs necs pns nns pm nm na tr ccmd
       (Hpopst: pop_state_ocmd pecs pns (ret ccmd))
       (Hstep: logical_semantic_step
-        {| Opsem.ECS := pecs; Opsem.Mem := pm |}
-        {| Opsem.ECS := necs; Opsem.Mem := nm |} pns nns na tr),
-      Opsem.sInsn cfg {| Opsem.ECS := pecs; Opsem.Mem := pm |}
-      {| Opsem.ECS := necs; Opsem.Mem := nm |} tr.
+        {| Opsem.EC := pec; Opsem.ECS := pecs; Opsem.Mem := pm |}
+        {| Opsem.EC := pec; Opsem.ECS := necs; Opsem.Mem := nm |} pns nns na tr),
+      Opsem.sInsn cfg {| Opsem.EC := pec; Opsem.ECS := pecs; Opsem.Mem := pm |}
+      {| Opsem.EC := pec; Opsem.ECS := necs; Opsem.Mem := nm |} tr.
   Proof.
     intros; inv Hstep.
     destruct pst; try done.

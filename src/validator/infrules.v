@@ -1,5 +1,6 @@
-Require Import vellvm.
+Require Import syntax.
 Require Import alist.
+Require Import extraction_defs.
 Require Import decs.
 Require Import syntax_ext.
 Require Import hints.
@@ -7,6 +8,8 @@ Require Import basic_aux.
 Require Import vars_aux.
 Require Import datatype_base.
 Require Import Floats.
+
+Require Import Integers.
 
 Set Implicit Arguments.
 
@@ -247,7 +250,7 @@ Definition cond_fresh (t:id) (h:insn_hint_t) : bool :=
   cond_fresh_inv t (hint_invariant h).
 
 Definition float_zero_rhs (fp:floating_point) : rhs_ext := 
-  rhs_ext_value (value_ext_const (const_floatpoint fp (Float.floatofint (Int.one 31)))).
+  rhs_ext_value (value_ext_const (const_floatpoint fp (Float.of_int (Int.one 31)))).
 
 Definition cond_not_alloca (h:rhs_ext) : bool :=
   match h with
@@ -1060,6 +1063,8 @@ Definition infrule_sem (m1 m2:module) (inf: infrule_t) (h: insn_hint_t) : insn_h
 
 (* 
 *** Local Variables: ***
-*** coq-prog-args: ("-emacs" "-impredicative-set") ***
+*** coq-prog-name: "coqtop"  ***
+*** coq-prog-args: ("-emacs-U" "-impredicative-set") ***
+*** coq-load-path: ("../../release/theory/metatheory_8.3/" "../../release/vol/src3.0/Vellvm/" "../../release/vol/src3.0/Vellvm/compcert/" "../../release/vol/src3.0/Vellvm/monads/" "../../release/vol/src3.0/Vellvm/ott/" "../../release/vol/src3.0/Vellvm/Dominators/" "../../release/vol/src3.0/Vellvm/GraphBasics/" "../../release/vol/src3.0/Transforms/")  ***
 *** End: ***
-*)
+ *)

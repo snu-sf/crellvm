@@ -1,7 +1,13 @@
-Require Import vellvm.
+Require Import syntax.
 Require Import alist.
 Require Import FMapWeakList.
 Require Import syntax_ext.
+
+Require Import Coqlib.
+Require Import infrastructure.
+Require Import Metatheory.
+Import LLVMsyntax.
+Import LLVMinfra.
 
 (** There are four hints components: maydiff, newly defined variables,
 equations, and inference rules. *)
@@ -351,6 +357,8 @@ Definition mem_md (x:id_ext) (h:insn_hint_t) : bool :=
 
 (* 
 *** Local Variables: ***
-*** coq-prog-args: ("-emacs" "-impredicative-set") ***
+*** coq-prog-name: "coqtop"  ***
+*** coq-prog-args: ("-emacs-U" "-impredicative-set") ***
+*** coq-load-path: ("../../release/theory/metatheory_8.3/" "../../release/vol/src3.0/Vellvm/" "../../release/vol/src3.0/Vellvm/compcert/" "../../release/vol/src3.0/Vellvm/monads/" "../../release/vol/src3.0/Vellvm/ott/" "../../release/vol/src3.0/Vellvm/Dominators/" "../../release/vol/src3.0/Vellvm/GraphBasics/" "../../release/vol/src3.0/Transforms/")  ***
 *** End: ***
-*)
+ *)

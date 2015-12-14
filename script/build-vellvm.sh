@@ -15,7 +15,7 @@ fi
 
 cd $VELLVMDIR
 
-if [ ! -d $VELLVMDIR/lib ]; then
+if [ ! -d $VELLVMDIR/lib/metalib-20090714 ]; then
   ./scripts/fetch-libs.sh; check_exit "vellvm/fetch-libs libs"
 fi
 

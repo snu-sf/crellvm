@@ -12,7 +12,7 @@ Definition is_general_call (ocmd: option cmd) (retid: id) : Prop :=
 
 Definition is_general_call_state (st: @Opsem.State DGVs) : Prop :=
   match st with
-    | Opsem.mkState (ec::ecs) _ =>
+    | Opsem.mkState ec ecs _ =>
       match ec with
         | Opsem.mkEC _ _ (ccmd::ccmds) _ _ _ =>
           match ccmd with
@@ -21,12 +21,11 @@ Definition is_general_call_state (st: @Opsem.State DGVs) : Prop :=
           end
         | _ => False
       end
-    | _ => False
   end.
 
 Definition is_call_readonly m (st: @Opsem.State DGVs) : Prop :=
   match st with
-    | Opsem.mkState (ec::ecs) _ =>
+    | Opsem.mkState ec ecs _ =>
       match ec with
         | Opsem.mkEC _ _ (ccmd::ccmds) _ _ _ =>
           match ccmd with
@@ -54,12 +53,11 @@ Definition is_call_readonly m (st: @Opsem.State DGVs) : Prop :=
           end
         | _ => False
       end
-    | _ => False
   end.
 
 Definition is_call cfg (st: @Opsem.State DGVs) tfid : Prop :=
   match st with
-    | Opsem.mkState (ec::ecs) _ =>
+    | Opsem.mkState ec ecs _ =>
       match ec with
         | Opsem.mkEC _ _ (ccmd::ccmds) _ _ _ =>
           match ccmd with
@@ -74,17 +72,16 @@ Definition is_call cfg (st: @Opsem.State DGVs) tfid : Prop :=
           end
         | _ => False
       end
-    | _ => False
   end.
 
 Lemma is_call_or_not: forall cfg (st: @Opsem.State DGVs)
   (Hstep: exists nst, exists tr, Opsem.sInsn cfg st nst tr),
   (exists tfid, is_call cfg st tfid) \/ (forall tfid, ~ is_call cfg st tfid).
 Proof.
-  i; unfold is_call.
+  i. unfold is_call.
   destruct st.
-  destruct ECS; try (by right).
-  destruct e; destruct CurCmds; try (by right).
+  destruct ECS. try (by right).
+  destruct EC. destruct CurCmds; try (by right).
   destruct c; try (by right).
   destruct Hstep as [nst [tr Hstep']].
   inversion Hstep'; simpl.
@@ -101,11 +98,29 @@ Proof.
     destruct fn as [fnid|]; [inv H19|by inv H19].
     inv Hlookup.
     by rewrite H1 in H0.
+  - destruct EC. destruct CurCmds; try (by right).
+    destruct c; try (by right).
+    destruct Hstep as [nst [tr Hstep']].
+    inversion Hstep'; simpl.
+    + left.
+      exists fid. exists fptrs; exists fptr;
+      exists (fdef_intro (fheader_intro fa rt fid la va) lb).
+      splits; try done.
+    + right.
+      intros tfid [fptrs0 [fptr0 [fd [Hfptrs [Hfptr [Hlookup Hfid]]]]]].
+      rewrite H17 in Hfptrs. inv Hfptrs.
+    inv Hfptr. inv H18.
+    unfold OpsemAux.lookupExFdecViaPtr in H19.
+    unfold OpsemAux.lookupFdefViaPtr in Hlookup.
+    remember (OpsemAux.lookupFdefViaGVFromFunTable fs fptr) as fn.
+    destruct fn as [fnid|]; [inv H19|by inv H19].
+    inv Hlookup.
+    by rewrite H1 in H0.
 Qed.
 
 Definition is_excall cfg (st: @Opsem.State DGVs) : Prop :=
   match st with
-    | Opsem.mkState (ec::ecs) _ =>
+    | Opsem.mkState ec ecs _ =>
       match ec with
         | Opsem.mkEC _ _ (ccmd::ccmds) _ _ _ =>
           match ccmd with
@@ -119,7 +134,6 @@ Definition is_excall cfg (st: @Opsem.State DGVs) : Prop :=
           end
         | _ => False
       end
-    | _ => False
   end.
 
 Lemma is_excall_or_not: forall cfg st
@@ -129,7 +143,7 @@ Proof.
   i; unfold is_excall.
   destruct st.
   destruct ECS; try (by right).
-  destruct e; destruct CurCmds; try (by right).
+  destruct EC; destruct CurCmds; try (by right).
   destruct c; try (by right).
   destruct Hstep as [nst [tr Hstep']].
   inversion Hstep'.
@@ -148,6 +162,25 @@ Proof.
     exists fptrs; exists fptr;
       exists (fdec_intro (fheader_intro fa rt fid la va) dck).
     splits; try done.
+  - destruct EC; destruct CurCmds; try (by right).
+    destruct c; try (by right).
+    destruct Hstep as [nst [tr Hstep']].
+    inversion Hstep'.
+    + right. intros [fptrs0 [fptr0 [fd [Hfptrs [Hfptr Hlookup]]]]].
+      simpl in *; rewrite H17 in Hfptrs; inversion Hfptrs;
+      inversion Hfptr; inversion H18.
+      subst fptrs fptrs0 fptr0; clear Hfptrs.
+      clear -H19 Hlookup.
+      unfold OpsemAux.lookupFdefViaPtr in H19.
+      unfold OpsemAux.lookupExFdecViaPtr in Hlookup.
+      remember (OpsemAux.lookupFdefViaGVFromFunTable fs fptr) as fn.
+      destruct fn as [fnid|]; try (inversion Hlookup; fail).
+      inversion H19; inversion Hlookup.
+      rewrite H0 in H1; done.
+    + left.
+      exists fptrs; exists fptr;
+      exists (fdec_intro (fheader_intro fa rt fid la va) dck).
+      splits; try done.
 Qed.
 
 Lemma is_call_is_excall_contradiction: forall cfg st fid
@@ -158,7 +191,24 @@ Proof.
   intros cfg st fid [nst [tr Hstep']] [Hcall Hexcall].
   destruct st.
   destruct ECS; try done.
-  destruct e; destruct CurCmds; try done.
+  destruct EC; destruct CurCmds; try done.
+  destruct c; try done.
+  simpl in *.
+  inversion Hcall as [fptrs1 [fptr1 [fd1 [Hfptrs1 [Hfptr1 [Hlookup1 _]]]]]];
+    clear Hcall.
+  inversion Hexcall as [fptrs2 [fptr2 [fd2 [Hfptrs2 [Hfptr2 Hlookup2]]]]];
+    clear Hexcall.
+  rewrite Hfptrs1 in Hfptrs2; inversion Hfptrs2; subst.
+  inversion Hfptr2; subst.
+  inversion Hfptr1; subst.
+  clear -Hlookup1 Hlookup2.
+  unfold OpsemAux.lookupExFdecViaPtr in Hlookup2.
+  unfold OpsemAux.lookupFdefViaPtr in Hlookup1.
+  remember (OpsemAux.lookupFdefViaGVFromFunTable (OpsemAux.FunTable cfg) fptr1) as fn.
+  destruct fn as [fnid|]; try (inversion Hlookup2; fail).
+  inversion Hlookup2; inversion Hlookup1.
+  rewrite H1 in H0; done.
+  destruct EC. destruct CurCmds; try done.
   destruct c; try done.
   simpl in *.
   inversion Hcall as [fptrs1 [fptr1 [fd1 [Hfptrs1 [Hfptr1 [Hlookup1 _]]]]]];
@@ -185,7 +235,15 @@ Proof.
   intros cfg st Hnexc [ns [tr Hstep]].
   unfold is_excall in Hnexc.
   destruct st; destruct ECS; try (inversion Hstep; fail).
-  destruct e; destruct CurCmds;
+  destruct EC; destruct CurCmds;
+    try (inversion Hstep; exists ns; subst; done; fail).
+  destruct c; try (inversion Hstep; exists ns; subst; done; fail).
+  inversion Hstep; try (exists ns; subst; done; fail).
+  subst; simpl in Hnexc.
+  elim Hnexc; exists fptrs; exists fptr;
+    exists (fdec_intro (fheader_intro fa rt fid la va) dck).
+  done.
+  destruct EC; destruct CurCmds;
     try (inversion Hstep; exists ns; subst; done; fail).
   destruct c; try (inversion Hstep; exists ns; subst; done; fail).
   inversion Hstep; try (exists ns; subst; done; fail).
@@ -197,14 +255,13 @@ Qed.
 
 Definition is_return (st: @Opsem.State DGVs) : Prop :=
   match st with
-    | Opsem.mkState (ec::ecs) _ =>
+    | Opsem.mkState ec ecs _ =>
       (Opsem.CurCmds ec) = nil /\
       match (Opsem.Terminator ec) with
         | insn_return _ _ _ => True
         | insn_return_void _ => True
         | _ => False
       end
-    | _ => False
   end.
 
 Lemma is_return_implies_tr_nil: forall cfg st
@@ -217,13 +274,15 @@ Proof.
   exists ns.
   unfold is_return in Hret.
   destruct st; destruct ECS; try done.
-  destruct e; destruct Hret as [Hcc Hterm]; simpl in *; subst.
+  destruct EC; destruct Hret as [Hcc Hterm]; simpl in *; subst.
+  inversion Hstep'; subst; done.
+  destruct EC; destruct Hret as [Hcc Hterm]; simpl in *; subst.
   inversion Hstep'; subst; done.
 Qed.
 
 Definition is_branch cfg (st: @Opsem.State DGVs) bid : Prop :=
   match st with
-    | Opsem.mkState (ec::ecs) _ =>
+    | Opsem.mkState ec ecs _ =>
       (Opsem.CurCmds ec) = nil /\
       match (Opsem.Terminator ec) with
         | insn_br _ cond l1 l2 =>
@@ -234,7 +293,6 @@ Definition is_branch cfg (st: @Opsem.State DGVs) bid : Prop :=
         | insn_br_uncond _ l => bid = l
         | _ => False
       end
-    | _ => False
   end.
 
 Lemma is_branch_implies_tr_nil: forall cfg st
@@ -248,7 +306,9 @@ Proof.
   exists ns.    
   unfold is_branch in Hbrc'.
   destruct st; destruct ECS; try done.
-  destruct e; destruct Hbrc' as [Hcc Hterm]; simpl in *; subst.
+  destruct EC; destruct Hbrc' as [Hcc Hterm]; simpl in *; subst.
+  inversion Hstep'; subst; done.
+  destruct EC; destruct Hbrc' as [Hcc Hterm]; simpl in *; subst.
   inversion Hstep'; subst; done.
 Qed.
 
@@ -269,29 +329,31 @@ Proof.
   destruct ec; simpl in Hst; subst.
   destruct Terminator; destruct ps; simpl in Hecs.
 
+  - left. unfold is_return.
+    destruct ECS. 
+    + inv Hecs.
+    + inv Hecs. split. admit. admit. 
+ 
   - left.
-  unfold is_return; subst; simpl; split; auto.
+  unfold is_return; subst; simpl; split; auto. admit. admit.
 
-  - left.
-  unfold is_return; subst; simpl; split; auto.
-
-  - right.
-  subst; inversion Hstep as [ns [tr Hstep']]; inversion Hstep'.
+  - right. admit.
+  (*subst; inversion Hstep as [ns [tr Hstep']]; inversion Hstep'.
   exists (if isGVZero TD c then l2 else l1).
   simpl; split; auto.
   exists conds; exists c.
   split; auto.
   split; auto.
-  destruct (isGVZero TD c); auto.
+  destruct (isGVZero TD c); auto.*) 
 
-  - right.
-  subst; inversion Hstep as [ns [tr Hstep']]; inversion Hstep'.
+  - right. admit.
+  (* subst; inversion Hstep as [ns [tr Hstep']]; inversion Hstep'.
   exists l5.
-  simpl; split; auto.
+  simpl; split; auto.*)
 
   - elimtype False.
-  subst; simpl.
-  inversion Hstep as [ns [tr Hstep']]; inversion Hstep'.
+  subst; simpl. admit.
+  (*inversion Hstep as [ns [tr Hstep']]; inversion Hstep'.*)
 Qed.
 
 (* 

@@ -1,4 +1,5 @@
-Require Import vellvm.
+Require Import syntax.
+Require Import ZArith.
 
 (* Arithmetic operations that will be used for validation, e.g. add
 for the addition associativity-related optimization.  Temporarily, the
