@@ -15,21 +15,23 @@ open Vars_aux
 open Validator_aux
 open Extraction_defs
 open Utility
+open HintParser_t
+open Printexc
 
 type atom = AtomImpl.atom
+
+let _choose_hint_invariant_by_scope (lr : HintParser_t.scope) (hint : invariant_t) : eqs_t= 
+  match lr with
+  | HintParser_t.Source(*ParseHints.Original*) -> hint.invariant_original
+  | HintParser_t.Target(*ParseHints.Optimized*) -> hint.invariant_optimized
 
 let get_rhs_from_fdef v fdef : LLVMsyntax.insn =
   match LLVMinfra.lookupInsnViaIDFromFdef fdef v with
   | None -> failwith "get_rhs_from_fdef"
   | Some insn -> insn
 
-let get_rhses_from_insn_hint lr var hint : (id_ext * rhs_ext) list =
-  let hint = hint.hint_invariant in
-  let hint =
-    match lr with
-    | ParseHints.Original -> hint.invariant_original
-    | ParseHints.Optimized -> hint.invariant_optimized
-  in
+let get_rhses_from_insn_hint (lr : HintParser_t.scope) (var:string) (hint:insn_hint_t) : (id_ext * rhs_ext) list =
+  let hint = _choose_hint_invariant_by_scope lr hint.hint_invariant in
   let hints =
     EqRegSetImpl.filter
       (fun (id_ext, rhs_ext) -> var = fst id_ext)
@@ -37,13 +39,8 @@ let get_rhses_from_insn_hint lr var hint : (id_ext * rhs_ext) list =
   in
   EqRegSetImpl.elements hints
 
-let get_rhs_from_insn_hint lr var hint : id_ext * rhs_ext =
-  let hint = hint.hint_invariant in
-  let hint =
-    match lr with
-    | ParseHints.Original -> hint.invariant_original
-    | ParseHints.Optimized -> hint.invariant_optimized
-  in
+let get_rhs_from_insn_hint (lr : HintParser_t.scope) (var:string) (hint:insn_hint_t) : id_ext * rhs_ext =
+  let hint = _choose_hint_invariant_by_scope lr hint.hint_invariant in
   let hints =
     EqRegSetImpl.filter
       (fun (id_ext, rhs_ext) -> var = fst id_ext)
@@ -51,15 +48,12 @@ let get_rhs_from_insn_hint lr var hint : id_ext * rhs_ext =
   in
   match EqRegSetImpl.choose hints with
   | Some r -> r
-  | None -> failwith "get_rhs_from_insn_hint: no such hint"
+  | None ->  
+    Printf.printf "%s" ((Printexc.get_callstack 100 |> Printexc.raw_backtrace_to_string));
+    failwith ("get_rhs_from_insn_hint: no such hint : var name = " ^ var)
 
-let get_dereference_from_insn_hint lr ptr hint : LLVMsyntax.typ * LLVMsyntax.align * value_ext =
-  let hint = hint.hint_invariant in
-  let hint =
-    match lr with
-    | ParseHints.Original -> hint.invariant_original
-    | ParseHints.Optimized -> hint.invariant_optimized
-  in
+let get_dereference_from_insn_hint (lr:HintParser_t.scope) ptr hint : LLVMsyntax.typ * LLVMsyntax.align * value_ext =
+  let hint = _choose_hint_invariant_by_scope lr hint.hint_invariant in
   let hints =
     EqHeapSetImpl.filter
       (fun (((lhs_ext, _), _), rhs_ext) -> value_ext_dec ptr lhs_ext)
@@ -69,13 +63,8 @@ let get_dereference_from_insn_hint lr ptr hint : LLVMsyntax.typ * LLVMsyntax.ali
   | None -> failwith "get_dereference_from_insn_hint: no such hint"
   | Some (((_, typ), align), r) -> (typ, align, r)
 
-let get_dereference_from_insn_hint_wo_var lr (var:atom) ptr hint : LLVMsyntax.typ * LLVMsyntax.align * value_ext =
-  let hint = hint.hint_invariant in
-  let hint =
-    match lr with
-    | ParseHints.Original -> hint.invariant_original
-    | ParseHints.Optimized -> hint.invariant_optimized
-  in
+let get_dereference_from_insn_hint_wo_var (lr:HintParser_t.scope) (var:atom) ptr hint : LLVMsyntax.typ * LLVMsyntax.align * value_ext =
+  let hint = _choose_hint_invariant_by_scope lr hint.hint_invariant in
   let hints =
     EqHeapSetImpl.filter
       (fun (((lhs_ext, _), _), rhs_ext) -> 
@@ -97,12 +86,7 @@ let get_dereference_from_insn_hint_wo_var lr (var:atom) ptr hint : LLVMsyntax.ty
   | Some (((_, typ), align), r) -> (typ, align, r)
 
 let get_reference_from_insn_hint lr (var:atom) hint : value_ext * LLVMsyntax.typ * LLVMsyntax.align * id_ext =
-  let hint = hint.hint_invariant in
-  let hint =
-    match lr with
-    | ParseHints.Original -> hint.invariant_original
-    | ParseHints.Optimized -> hint.invariant_optimized
-  in
+  let hint = _choose_hint_invariant_by_scope lr hint.hint_invariant in
   let hints =
     EqHeapSetImpl.filter
       (fun (lhs_ext, rhs_ext) ->
@@ -116,16 +100,12 @@ let get_reference_from_insn_hint lr (var:atom) hint : value_ext * LLVMsyntax.typ
   | None -> failwith "get_reference_from_insn_hint: no such hint"
 
 let update_cmd lr cmd insn_hint =
-  let eqs =
-    match lr with
-    | ParseHints.Original -> insn_hint.hint_invariant.invariant_original
-    | ParseHints.Optimized -> insn_hint.hint_invariant.invariant_optimized
-  in
+  let eqs = _choose_hint_invariant_by_scope lr insn_hint.hint_invariant in
   let eqs = add_ntag_option_cmd_to_eqs eqs (Some cmd) in
   let invariant =
     match lr with
-    | ParseHints.Original -> {insn_hint.hint_invariant with invariant_original = eqs}
-    | ParseHints.Optimized -> {insn_hint.hint_invariant with invariant_optimized = eqs}
+    | HintParser_t.Source -> {insn_hint.hint_invariant with invariant_original = eqs}
+    | HintParser_t.Target -> {insn_hint.hint_invariant with invariant_optimized = eqs}
   in
   let insn_hint = {insn_hint with hint_invariant = invariant} in
   insn_hint
@@ -141,13 +121,14 @@ let rec get_nth_cmd n cmds noop =
 
 (* add an inference rule at the "at" in the hint.
  *)
-let add_inference (at_block, at_nth) (block_prev_opt:atom option)
+let add_inference (pos : HintParser_t.position)(*(at_block, at_nth)*) (block_prev_opt:atom option)
                   (make_infrules:insn_hint_t -> infrule_t list)
                   (lfd:LLVMsyntax.fdef) (lnoop:noop_t)
                   (rfd:LLVMsyntax.fdef) (rnoop:noop_t)
                   (left_m:Syntax.LLVMsyntax.coq_module)
                   (right_m:Syntax.LLVMsyntax.coq_module)
                   (hint:fdef_hint_t) : fdef_hint_t =
+  let (at_block, at_nth) = (pos.block_index, pos.instr_type) in
   let block_hints = hint(*.block_hints*) in
   match LLVMinfra.lookupBlockViaLabelFromFdef lfd at_block,
         LLVMinfra.lookupBlockViaLabelFromFdef rfd at_block,
@@ -165,7 +146,7 @@ let add_inference (at_block, at_nth) (block_prev_opt:atom option)
      let rnoop = get_noop_by_bb at_block rnoop in
      let phi_hint =
        match at_nth with
-       | ParseHints.PhinodePos ->
+       | (*ParseHints.PhinodePos*) HintParser_t.Phinode ->
           List.map
             (fun (phiid, phi_hint) ->
              if not (is_applicable_phiid phiid)
@@ -187,7 +168,7 @@ let add_inference (at_block, at_nth) (block_prev_opt:atom option)
      in
      let cmds_hint =
        match at_nth with
-       | ParseHints.CommandPos at_nth ->
+       | (*ParseHints.CommandPos at_nth*) HintParser_t.Command at_nth ->
           List.map
             (fun (phiid, cmds_hint) ->
              if not (is_applicable_phiid phiid)
@@ -223,7 +204,7 @@ let add_inference (at_block, at_nth) (block_prev_opt:atom option)
      in
      let term_hint =
        match at_nth with
-       | ParseHints.TerminatorPos ->
+       | (*ParseHints.TerminatorPos*) HintParser_t.Terminator ->
           let term_hint = block_hint.term_hint in
           let term_hint = 
             List.fold_left (fun h inf -> infrule_resolve left_m right_m h inf) 

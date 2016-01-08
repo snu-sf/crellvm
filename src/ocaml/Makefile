@@ -11,8 +11,9 @@ LIB_FILES = llvm.cmxa,llvm_analysis.cmxa,llvm_executionengine.cmxa,llvm_target.c
 OCAMLBUILD = ocamlbuild
 OCAMLBUILD_OPT = -r \
 	-I extraction \
+	-I hintparser \
 	-I vellvm/src/Extraction \
-	-use-ocamlfind -pkg yojson \
+	-use-ocamlfind -pkg atdgen \
 	-cflags -I,$(LLVM_OCAML_LIB) \
 	-cflags -g\
 	-lflags -I,$(LLVM_OCAML_LIB) \
@@ -29,7 +30,9 @@ MLS = extraction/FMapWeakList.ml extraction/FMapWeakList.mli\
 	extraction/syntax_ext.ml extraction/syntax_ext.mli\
 	extraction/validator_aux.ml extraction/validator_aux.mli\
 	extraction/validator.ml extraction/validator.mli\
-	coq2ml.ml parseHints.ml printHints.ml translateHints.ml\
+	hintparser/hintParser_j.ml hintparser/hintParser_j.mli\
+	hintparser/hintParser_t.ml hintparser/hintParser_t.mli\
+	coq2ml.ml printHints.ml translateHints.ml\
 	main.ml utility.ml propagateHints.ml addInferenceHints.ml microHints.ml tt.ml
 
 main.native: $(MLS)

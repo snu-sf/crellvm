@@ -82,16 +82,14 @@ let main original_filename optimized_filename hint_filename =
   let _ = Coq_pretty_printer.travel_module coqim2 in*)
 
   (* read hint *)
-  let _ = debug_print "yojson read hint" in
-  let raw_hint_json = Yojson.Basic.from_file hint_filename in
+  let _ = debug_print "atdgen read hint" in
+  let raw_hint = Ag_util.Json.from_file HintParser_j.read_hints hint_filename in
+  (*let raw_hint_json = Yojson.Safe.prettify ~std:true (HintParser_j.string_of_hints raw_hint) in
+  print_endline raw_hint_json; *)
+
   (* let _ = print_endline "printing json hint" in *)
   (* let _ = Yojson.Basic.pretty_to_channel stdout raw_hint_json in *)
   (* let _ = print_endline "" in *)
-
-  let _ = debug_print "parse hint" in
-  let raw_hint = ParseHints.parse_hints raw_hint_json in
-  (* let _ = print_endline "printing parsed hint" in *)
-  (* let _ = print_endline (ParseHints.string_of_rhints raw_hint) in *)
 
   (* translate hint *)
   let _ = debug_print "translate hint" in

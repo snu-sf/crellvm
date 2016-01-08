@@ -10,6 +10,7 @@ open MetatheoryAtom
 open ParseHints
 open Coq_pretty_printer
 open Datatype_base
+open HintParser_t
 
 let string_of_atom ?(indent=0) x = (String.make indent ' ') ^ x
 
@@ -18,6 +19,7 @@ let string_of_atom_opt ?(indent=0) x =
   ^ (match x with
      | Some x -> x
      | None -> "None")
+
 
 let rec string_of_module_hint ?(indent=0) hint =
   string_of_alist_endline ~indent:(indent) string_of_product_hint hint
@@ -415,9 +417,12 @@ and string_of_params_ext ps =
   | ((t, _), v)::ps' -> 
      "("^(string_of_typ t)^","^(string_of_value_ext v)^")"^(string_of_params_ext ps')
 
-and string_of_rhint_block_pos pos =
+and string_of_instr_type (pos : HintParser_t.instr_type) =
   match pos with
-  | PhinodePos -> "phi"
-  | CommandPos n -> string_of_int n
-  | TerminatorPos -> "term"
-  | UnspecifiedPos -> "block"
+  | HintParser_t.Phinode -> "phi"
+  | HintParser_t.Command n -> string_of_int n
+  | HintParser_t.Terminator -> "term"
+
+
+let string_of_pos (pos : HintParser_t.position) =
+  "blockid=" ^ pos.block_index ^ ",instr_typer=" ^ (string_of_instr_type pos.instr_type)

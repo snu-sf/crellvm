@@ -13,6 +13,7 @@ open Validator_aux
 open Dom_list
 open Dom_tree
 open Maps
+open HintParser_t
 
 type atom = AtomSetImpl.t
 
@@ -161,9 +162,12 @@ and empty_hint_insn : insn_hint_t =
 (* main *)
 (********)
 
-let translate_product_noop fid raw_hint : products_noop_t * products_noop_t =
+
+let translate_product_noop (fid : string) raw_hint : products_noop_t * products_noop_t =
+  ([], [])
+(*
   List.fold_left
-    (fun (lpnoop,rpnoop) add_rm ->
+    (fun (lpnoop,rpnoop) (add_rm ->
      let bb = add_rm.ParseHints.rhint_bb_index in
 
      let new_lnoop = 
@@ -184,8 +188,9 @@ let translate_product_noop fid raw_hint : products_noop_t * products_noop_t =
     )
     ([],[])
     raw_hint.ParseHints.rhint_instr_add_removes
-
-let normalize_micro raw_hint =
+*)
+(*
+let normalize_micro (raw_hint:HintParser_t.command) =
   match raw_hint.ParseHints.rhint_type with
   | ParseHints.InstrPropagate ->
      (match raw_hint.ParseHints.rhint_args with
@@ -194,7 +199,7 @@ let normalize_micro raw_hint =
          let arg0 = List.hd hd in
          {ParseHints.rhint_type = ParseHints.Instr2Propagate;
           ParseHints.rhint_args = (arg0::hd)::tl})
-  | _ -> raw_hint
+  | _ -> raw_hint *)
 
 (* Returns micro hints list that should be added by the noret
    attribute. *)
@@ -242,13 +247,14 @@ let noret_maydiff (m:LLVMsyntax.coq_module) (f:string) : string list =
 
 let translate_hint_module
       (lm:LLVMsyntax.coq_module) (rm:LLVMsyntax.coq_module)
-      raw_hint
+      (raw_hint:HintParser_t.hints)
     : products_hint_t * products_noop_t * products_noop_t =
-  let fid = raw_hint.ParseHints.rhint_fid in
-  let (lpnoop, rpnoop) = translate_product_noop raw_hint.ParseHints.rhint_fid raw_hint in
+  let fid = raw_hint.function_id in
+  let (lpnoop, rpnoop) = translate_product_noop raw_hint.function_id raw_hint in
   let lnoop = get_noop_by_fname fid lpnoop in
   let rnoop = get_noop_by_fname fid rpnoop in
   let module_hint = empty_hint_module lm lpnoop in
+  (*let _ = Printf.printf "translate_hint_module : initial module to string = \n%s\n" (PrintHints.string_of_module_hint module_hint) in*)
   (* add maydiff globals by noret call *)
   let module_hint = 
     List.map 
@@ -272,7 +278,10 @@ let translate_hint_module
           LLVMinfra.lookupFdefViaIDFromModule rm fid
     with
     | Some fdef_hint, Some lfdef, Some rfdef -> (fdef_hint, lfdef, rfdef)
-    | _, _, _ -> failwith "translate_hint_module"
+    | p1, p2, p3 -> 
+    Printf.printf "translate_hint_module : fid : %s %d %d %d\n%!" fid
+      (match p1 with | None -> 0 | _ -> 1) (match p2 with | None -> 0 | _ -> 1) (match p3 with | None -> 0 | _ -> 1);
+    failwith ("translate_hint_module : fid : " ^ fid)
   in
 
   let dom_tree =
@@ -281,16 +290,17 @@ let translate_hint_module
     | Some dom_tree -> dom_tree
   in
 
-  let apply_micro raw_hint fdef_hint =
-    let raw_hint = normalize_micro raw_hint in
+  let apply_micro (raw_hint:HintParser_t.command) fdef_hint =
+    (*let raw_hint:HintParser_t.command = normalize_micro raw_hint in*)
     let fdef_hint = propagate_micro raw_hint lfdef lnoop rfdef rnoop lm rm fdef_hint dom_tree in
     (* let _ = prerr_endline (ParseHints.string_of_micro raw_hint) in *)
     (* let _ = prerr_endline (PrintHints.string_of_product_hint fdef_hint) in *)
+    (*Printf.printf "translate_hint_module : after translate one : hints : \n%s\n" (PrintHints.string_of_product_hint fdef_hint) ;*)
     fdef_hint
   in
 
-  let (propagating_micros, infrule_micros) =
-    List.partition is_propagating raw_hint.ParseHints.rhint_micros
+  let (propagating_micros, infrule_micros):HintParser_t.command list * HintParser_t.command list =
+    List.partition is_propagating raw_hint.commands
   in
   let fdef_hint =
     List.fold_left
@@ -303,10 +313,8 @@ let translate_hint_module
   (* let _ = print_endline (PrintHints.string_of_product_hint fdef_hint) in *)
   let fdef_hint = 
     List.fold_left
-      (fun hint raw_hint ->
-       (* let _ = print_endline (ParseHints.string_of_micro raw_hint) in *)
+      (fun hint (raw_hint:HintParser_t.command) ->
        let result = apply_micro raw_hint hint in
-       (* let _ = print_endline (PrintHints.string_of_product_hint result) in *)
        result)
       fdef_hint
       infrule_micros

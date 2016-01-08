@@ -5,200 +5,43 @@ open Arg
 
 open Yojson.Basic.Util
 open Syntax.LLVMsyntax
+open HintParser_t
 
-type rhints_t = {
-  rhint_fid: string;
-  rhint_mid: string;
-  rhint_block_separations: string list;
-  rhint_instr_add_removes: rhint_indices_t list;
-  rhint_micros: rhint_micro_t list;
-}
 
- and rhint_indices_t = {
-   rhint_bb_index: string;
-   rhint_indices: int list;
-   }
-
- and rhint_micro_t = {
-   rhint_type: rhint_type_t;
-   rhint_args: rhint_atom_t list list;
- }
- and rhint_type_t =
-   | InstrPropagate
-   | Instr2Propagate
-   | EqPropagate
-   | NeqPropagate
-   | StoreEqPropagate
-   | AllocaPropagate
-   | MaydiffPropagate
-   | MaydiffGlobal
-   | IsoPropagate1
-   | IsoPropagate2
-
-   | AddAssoc
-   | ReplaceRhs
-   | ReplaceRhsOpt
-   | ReplaceLhs
-   | RemoveMaydiff
-   | EqGenerateSame
-   | EqGenerateSameHeap
-   | EqGenerateSameHeapValue
-   | NeqGenerateGM
-   | AddSignbit
-   | AddZextBool
-   | PtrTrans
-   | AddOnebit
-   | StashVariable
-   | AddShift
-   | AddSub
-   | AddCommutative
-   | SubAdd
-   | SubOnebit
-   | SubMone
-   | SubConstNot
-   | AddMulFold
-   | AddConstNot
-   | AddSelectZero
-   | AddSelectZero2
-   | SubZextBool
-   | SubConstAdd
-   | SubRemove
-   | SubRemove2
-   | SubSdiv
-   | SubShl
-   | SubMul
-   | SubMul2
-   | MulMone
-   | MulNeg
-   | MulBool
-   | MulCommutative
-   | MulShl
-   | DivSubSrem
-   | DivSubUrem
-   | DivZext
-   | DivMone
-   | RemZext
-   | RemNeg
-   | RemNeg2
-   | InboundRemove
-   | InboundRemove2
-   | SelectTrunc
-   | SelectAdd
-   | SelectConstGt
-   | OrXor
-   | OrCommutative
-   | TruncOnebit
-   | CmpOnebit
-   | CmpEq
-   | CmpUlt
-   | ShiftUndef
-   | AndSame
-   | AndZero
-   | AndMone
-   | AddMask
-   | AndUndef
-   | AndNot
-   | AndCommutative
-   | AndOr
-   | AndDemorgan
-   | AndNotOr
-   | OrUndef
-   | OrSame
-   | OrZero
-   | OrMone
-   | OrNot
-   | OrAnd
-   | XorZero
-   | XorSame
-   | XorCommutative
-   | XorNot
-   | ZextTruncAnd
-   | ZextTruncAndXor
-   | ZextXor
-   | SextTrunc
-   | TruncTrunc
-   | TruncZext1
-   | TruncZext2
-   | TruncZext3
-   | TruncSext1
-   | TruncSext2
-   | TruncSext3
-   | ZextZext
-   | SextZext
-   | SextSext
-   | FptouiFpext
-   | FptosiFpext
-   | UitofpZext
-   | SitofpSext
-   | FptruncFptrunc
-   | FptruncFpext
-   | FpextFpext
-   | CmpSwapUlt
-   | CmpSwapUgt
-   | CmpSwapUle
-   | CmpSwapUge
-   | CmpSwapSlt
-   | CmpSwapSgt
-   | CmpSwapSle
-   | CmpSwapSge
-   | CmpSwapEq
-   | CmpSwapNe
-   | CmpSltOnebit
-   | CmpSgtOnebit
-   | CmpUgtOnebit
-   | CmpUleOnebit
-   | CmpUgeOnebit
-   | CmpSleOnebit
-   | CmpSgeOnebit
-   | CmpEqSub
-   | CmpNeSub
-   | CmpEqSrem
-   | CmpEqSrem2
-   | CmpNeSrem
-   | CmpNeSrem2
-   | CmpEqXor
-   | CmpNeXor
-(* NOTE: Add here to add a new rule *)
-
- and rhint_instrtype_t =
-   | Phinode
-   | Command
-   | Terminator
-
- and rhint_block_pos_t =
-   | PhinodePos
-   | CommandPos of int
-   | TerminatorPos
-   | UnspecifiedPos
-
- and rhint_pos_t = string * rhint_block_pos_t
-
- and rhint_which_prog_t =
-   | Original
-   | Optimized
-                              
- and rhint_atom_t =
-   | AtomVar of rhint_pos_t * rhint_which_prog_t * string * typ
-   | AtomFpConst of rhint_pos_t * float * typ
-   | AtomIntConst of rhint_pos_t * int * typ
-   | AtomPos of rhint_pos_t
-
-exception ParseError of string
-
-let rhint_block_pos_prev pos =
-  match pos with
+let rhint_block_pos_prev (pos : HintParser_t.position) : HintParser_t.position =
+  match pos.instr_type with
+    HintParser_t.Command 0 -> {block_index = pos.block_index; instr_type = HintParser_t.Phinode}
+  | HintParser_t.Command i -> {block_index = pos.block_index; instr_type = HintParser_t.Command (i-1)}
+  | _ -> failwith "rhint_block_pos_prev : juneyoung lee : ill-defined case.."
+(*  match pos with
   | CommandPos 0 -> PhinodePos
   | CommandPos i -> CommandPos (i-1)
   | _ -> pos
+*)
 
-let rhint_block_pos_next pos =
+let rhint_block_pos_next (pos : HintParser_t.position) : HintParser_t.position =
+  match pos.instr_type with
+    HintParser_t.Phinode -> {block_index = pos.block_index; instr_type = HintParser_t.Command 0}
+  | HintParser_t.Command i -> {block_index = pos.block_index ; instr_type = HintParser_t.Command (i+1)}
+  | HintParser_t.Terminator -> {block_index = pos.block_index ; instr_type = HintParser_t.Terminator}
+(*
   match pos with
   | PhinodePos -> CommandPos 0
   | CommandPos i -> CommandPos (i+1)
   | TerminatorPos -> TerminatorPos
   | _ -> failwith "rhint_block_pos_next: no match"
+*)
 
-let rhint_block_pos_lt lhs rhs =
+let rhint_block_pos_lt (lhs : HintParser_t.instr_type) (rhs : HintParser_t.instr_type) =
+  match lhs, rhs with
+    | HintParser_t.Phinode, HintParser_t.Phinode -> false
+    | HintParser_t.Phinode, _ -> true
+    | _, HintParser_t.Phinode -> false
+    | HintParser_t.Command i, HintParser_t.Command j -> i < j
+    | HintParser_t.Command _, _ -> true
+    | _, HintParser_t.Command _ -> false
+    | HintParser_t.Terminator, HintParser_t.Terminator -> false
+  (*
   match lhs, rhs with
   | UnspecifiedPos, _ -> false
   | _, UnspecifiedPos -> false
@@ -212,6 +55,7 @@ let rhint_block_pos_lt lhs rhs =
   | _, CommandPos _ -> false
 
   | TerminatorPos, TerminatorPos -> false
+  *)
 
 let rec string_of_list_endline ?(indent=0) s l =
   let rec r l =
@@ -250,6 +94,7 @@ let rec string_of_alist s l =
   in
   "(" ^ (r l)
 
+(*
 let rec string_of_rhints hint =
   "mid: " ^ hint.rhint_mid ^ "\n"
   ^ "fid: " ^ hint.rhint_fid ^ "\n"
@@ -410,8 +255,9 @@ let rec string_of_rhints hint =
     | CmpNeSrem2 -> "cmp_ne_srem2"
     | CmpEqXor -> "cmp_eq_xor"
     | CmpNeXor -> "cmp_ne_xor"
+*)
 (* NOTE: Add here to add a new rule *)
-
+(*
   and string_of_rhint_which_prog hint =
     match hint with
     | Original -> "orig"
@@ -430,7 +276,9 @@ let rec string_of_rhints hint =
     | CommandPos i -> bbidx ^ ".cmd." ^ (string_of_int i)
     | TerminatorPos -> bbidx ^ ".term"
     | UnspecifiedPos -> bbidx
+*)
 
+(*
 let parse_list f json =
   match json |> (to_option to_list) with
   | Some l -> List.map f l
@@ -696,3 +544,4 @@ let rec parse_hints json =
     if hint = "left" then Original
     else if hint = "right" then Optimized
     else failwith "parse_variable_pos"
+*)
