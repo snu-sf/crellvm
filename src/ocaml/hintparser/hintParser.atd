@@ -57,6 +57,7 @@ type infrule_base = {
   position: position;
 }
 
+
 type add_assoc = {
   inherit infrule_base;
   lhs: variable;

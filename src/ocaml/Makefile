@@ -13,6 +13,7 @@ OCAMLBUILD = ocamlbuild
 OCAMLBUILD_OPT = -r \
 	-I extraction \
 	-I hintparser \
+	-I appliers \
 	-I vellvm/src/Extraction \
 	-use-ocamlfind -pkg atdgen \
 	-cflags -I,$(LLVM_OCAML_LIB) \
@@ -34,7 +35,9 @@ MLS = extraction/FMapWeakList.ml extraction/FMapWeakList.mli\
 	hintparser/hintParser_j.ml hintparser/hintParser_j.mli\
 	hintparser/hintParser_t.ml hintparser/hintParser_t.mli\
 	coq2ml.ml printHints.ml translateHints.ml\
-	main.ml utility.ml propagateHints.ml addInferenceHints.ml microHints.ml tt.ml
+	main.ml utility.ml propagateHints.ml addInferenceHints.ml microHints.ml tt.ml \
+	appliers/cmdPropagateApplier.ml \
+	appliers/addAssocApplier.ml
 
 main.native: $(MLS)
 	$(OCAMLBUILD) $(OCAMLBUILD_OPT) main.native
