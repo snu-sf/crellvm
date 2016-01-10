@@ -3,7 +3,6 @@
 (*********************************)
 
 open Infrastructure
-(* open Interpreter *)
 open Printf
 open Llvm
 open Arg
@@ -22,8 +21,8 @@ type atom = AtomImpl.atom
 
 let _choose_hint_invariant_by_scope (lr : HintParser_t.scope) (hint : invariant_t) : eqs_t= 
   match lr with
-  | HintParser_t.Source(*ParseHints.Original*) -> hint.invariant_original
-  | HintParser_t.Target(*ParseHints.Optimized*) -> hint.invariant_optimized
+  | HintParser_t.Source -> hint.invariant_original
+  | HintParser_t.Target -> hint.invariant_optimized
 
 let get_rhs_from_fdef v fdef : LLVMsyntax.insn =
   match LLVMinfra.lookupInsnViaIDFromFdef fdef v with
@@ -49,7 +48,6 @@ let get_rhs_from_insn_hint (lr : HintParser_t.scope) (var:string) (hint:insn_hin
   match EqRegSetImpl.choose hints with
   | Some r -> r
   | None ->  
-    Printf.printf "%s" ((Printexc.get_callstack 100 |> Printexc.raw_backtrace_to_string));
     failwith ("get_rhs_from_insn_hint: no such hint : var name = " ^ var)
 
 let get_dereference_from_insn_hint (lr:HintParser_t.scope) ptr hint : LLVMsyntax.typ * LLVMsyntax.align * value_ext =
@@ -121,18 +119,17 @@ let rec get_nth_cmd n cmds noop =
 
 (* add an inference rule at the "at" in the hint.
  *)
-let add_inference (pos : HintParser_t.position)(*(at_block, at_nth)*) (block_prev_opt:atom option)
+let add_inference (pos : HintParser_t.position) (block_prev_opt:atom option)
                   (make_infrules:insn_hint_t -> infrule_t list)
                   (lfd:LLVMsyntax.fdef) (lnoop:noop_t)
                   (rfd:LLVMsyntax.fdef) (rnoop:noop_t)
                   (left_m:Syntax.LLVMsyntax.coq_module)
                   (right_m:Syntax.LLVMsyntax.coq_module)
                   (hint:fdef_hint_t) : fdef_hint_t =
-  let (at_block, at_nth) = (pos.block_index, pos.instr_type) in
-  let block_hints = hint(*.block_hints*) in
-  match LLVMinfra.lookupBlockViaLabelFromFdef lfd at_block,
-        LLVMinfra.lookupBlockViaLabelFromFdef rfd at_block,
-        Alist.lookupAL block_hints at_block with
+  let block_hints = hint in
+  match LLVMinfra.lookupBlockViaLabelFromFdef lfd (pos.block_index),
+        LLVMinfra.lookupBlockViaLabelFromFdef rfd (pos.block_index),
+        Alist.lookupAL block_hints (pos.block_index) with
   | None, _, _ -> failwith "add_inference: no such block in left"
   | _, None, _ -> failwith "add_inference: no such block in right"
   | _, _, None -> failwith "add_inference: no such block hint"
@@ -142,11 +139,11 @@ let add_inference (pos : HintParser_t.position)(*(at_block, at_nth)*) (block_pre
      let is_applicable_phiid phiid =
        (block_prev_opt = None || block_prev_opt = Some phiid)
      in
-     let lnoop = get_noop_by_bb at_block lnoop in
-     let rnoop = get_noop_by_bb at_block rnoop in
+     let lnoop = get_noop_by_bb (pos.block_index) lnoop in
+     let rnoop = get_noop_by_bb (pos.block_index) rnoop in
      let phi_hint =
-       match at_nth with
-       | (*ParseHints.PhinodePos*) HintParser_t.Phinode ->
+       match (pos.instr_type) with
+       | HintParser_t.Phinode ->
           List.map
             (fun (phiid, phi_hint) ->
              if not (is_applicable_phiid phiid)
@@ -167,8 +164,8 @@ let add_inference (pos : HintParser_t.position)(*(at_block, at_nth)*) (block_pre
        | _ -> block_hint.phi_hint
      in
      let cmds_hint =
-       match at_nth with
-       | (*ParseHints.CommandPos at_nth*) HintParser_t.Command at_nth ->
+       match (pos.instr_type) with
+       | HintParser_t.Command at_nth ->
           List.map
             (fun (phiid, cmds_hint) ->
              if not (is_applicable_phiid phiid)
@@ -203,8 +200,8 @@ let add_inference (pos : HintParser_t.position)(*(at_block, at_nth)*) (block_pre
        | _ -> block_hint.cmds_hint
      in
      let term_hint =
-       match at_nth with
-       | (*ParseHints.TerminatorPos*) HintParser_t.Terminator ->
+       match (pos.instr_type) with
+       | HintParser_t.Terminator ->
           let term_hint = block_hint.term_hint in
           let term_hint = 
             List.fold_left (fun h inf -> infrule_resolve left_m right_m h inf) 
@@ -220,5 +217,5 @@ let add_inference (pos : HintParser_t.position)(*(at_block, at_nth)*) (block_pre
         cmds_hint = cmds_hint;
         term_hint = term_hint}
      in
-     let block_hints = Alist.updateAL block_hints at_block block_hint in
-     (*{hint with block_hints =*) block_hints(*}*)
+     let block_hints = Alist.updateAL block_hints (pos.block_index) block_hint in
+     block_hints

@@ -36,8 +36,21 @@ MLS = extraction/FMapWeakList.ml extraction/FMapWeakList.mli\
 	appliers/cmdPropagateApplier.ml \
 	appliers/addAssocApplier.ml
 
+
 main.native: $(MLS)
 	$(OCAMLBUILD) $(OCAMLBUILD_OPT) main.native
 
+hintparser/hintParser_t.ml: hintparser/hintParser.atd
+	atdgen -t ./hintparser/hintParser.atd
+	atdgen -j ./hintparser/hintParser.atd
+        
+hintparser/hintParser_j.ml: hintparser/hintParser.atd
+	atdgen -t ./hintparser/hintParser.atd
+	atdgen -j ./hintparser/hintParser.atd
+
 clean:
+	rm ./hintparser/hintParser_j.mli
+	rm ./hintparser/hintParser_t.mli
+	rm ./hintparser/hintParser_j.ml
+	rm ./hintparser/hintParser_t.ml
 	$(OCAMLBUILD) -clean
