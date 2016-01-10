@@ -36,6 +36,7 @@ let main original_filename optimized_filename hint_filename =
     (if !Globalstates.debug then dump_module im1);
     (if !Globalstates.debug then Llvm_pretty_printer.travel_module ist1 im1);
     (if !Globalstates.debug then Coq_pretty_printer.travel_module coqim1);
+    (* SlotTracker.dispose ist1;*) (* removed because of memory leakage..? *)
     () in
   
   (* main2.native: let _ = read_line () in *)

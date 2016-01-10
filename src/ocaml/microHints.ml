@@ -27,39 +27,12 @@ let is_propagating (raw_hint:HintParser_t.command) =
   match raw_hint with 
   | HintParser_t.Propagate _ -> true
   | _ -> false
-(*  match raw_hint.ParseHints.rhint_type with
-  | ParseHints.InstrPropagate
-  | ParseHints.Instr2Propagate
-  | ParseHints.EqPropagate
-  | ParseHints.NeqPropagate
-  | ParseHints.StoreEqPropagate
-  | ParseHints.AllocaPropagate
-  | ParseHints.MaydiffPropagate
-  | ParseHints.MaydiffGlobal
-  | ParseHints.StashVariable 
-  | ParseHints.IsoPropagate1
-  | ParseHints.IsoPropagate2
-    ->
-     true
-  | _ ->
-     false
-*)
-(* NOTE: Check here to add a new rule *)
 
 let new_temp_var_count = ref 0
 let new_temp_var () =
   let result = "#stash" ^ (string_of_int !new_temp_var_count) in
   let _ = new_temp_var_count := !new_temp_var_count + 1 in
   result
-
-(*
-let rec get_orig_idx (n:noop_t) (idx:int) : int =
-  if noop_idx_zero_exists n
-  then 1+(get_orig_idx (noop_idx_zero_remove n) idx)
-  else if idx=0
-  then 0
-  else 1+(get_orig_idx n (idx-1))
-*)
 
 let propagate_micro 
      (raw_hint : HintParser_t.command) 
