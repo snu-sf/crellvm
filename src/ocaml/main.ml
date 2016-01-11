@@ -68,6 +68,9 @@ let main original_filename optimized_filename hint_filename =
     (if !Globalstates.debug then Llvm_pretty_printer.travel_module ist2 im2);
     (if !Globalstates.debug then Coq_pretty_printer.travel_module coqim2);
 
+    (* we commented out 6 freeing instructions below *)
+    (* in order to prevent segfaults. *)
+
     (* SlotTracker.dispose ist1; *)
     (* dispose_module im1; *)
     (* dispose_context ic1; *)
