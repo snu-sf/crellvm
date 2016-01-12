@@ -20,6 +20,8 @@
 - Clone the repository.
 
 - `git submodule init && git submodule update`
++ If above commands do not work, check format of `url` in `.gitmodules` are start with `https://github.com`
++ If you meet `permission denied (publickey)` error when perform `git submodule update`, do `git submodule sync` && `git submodule update`
 
 - Build `vellvm`.
     + See `https://github.com/snu-sf/vellvm-legacy` for more details.
