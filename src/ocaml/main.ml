@@ -86,8 +86,8 @@ let main original_filename optimized_filename hint_filename =
 
   (* read hint *)
   let _ = debug_print "atdgen read hint" in
-  let raw_hint = Ag_util.Json.from_file HintParser_j.read_hints hint_filename in
-  (*let raw_hint_json = Yojson.Safe.prettify ~std:true (HintParser_j.string_of_hints raw_hint) in
+  let raw_hint = Ag_util.Json.from_file CoreHint_j.read_hints hint_filename in
+  (*let raw_hint_json = Yojson.Safe.prettify ~std:true (CoreHint_j.string_of_hints raw_hint) in
   print_endline raw_hint_json; *)
 
   (* let _ = print_endline "printing json hint" in *)
@@ -96,7 +96,7 @@ let main original_filename optimized_filename hint_filename =
 
   (* translate hint *)
   let _ = debug_print "translate hint" in
-  let (hint,noop1,noop2) = TranslateHints.translate_hint_module coqim1 coqim2 raw_hint in
+  let (hint,noop1,noop2) = TranslateCoreHint.translate_corehint_to_hint coqim1 coqim2 raw_hint in
   (*let _ = print_endline "hint translated" in
   let _ = print_endline (PrintHints.string_of_module_hint hint) in
   let _ = print_endline "noop1" in 

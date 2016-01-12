@@ -14,22 +14,22 @@ open Vars_aux
 open Validator_aux
 open Extraction_defs
 open Utility
-open HintParser_t
+open CoreHint_t
 open Printexc
 
 type atom = AtomImpl.atom
 
-let _choose_hint_invariant_by_scope (lr : HintParser_t.scope) (hint : invariant_t) : eqs_t= 
+let _choose_hint_invariant_by_scope (lr : CoreHint_t.scope) (hint : invariant_t) : eqs_t= 
   match lr with
-  | HintParser_t.Source -> hint.invariant_original
-  | HintParser_t.Target -> hint.invariant_optimized
+  | CoreHint_t.Source -> hint.invariant_original
+  | CoreHint_t.Target -> hint.invariant_optimized
 
 let get_rhs_from_fdef v fdef : LLVMsyntax.insn =
   match LLVMinfra.lookupInsnViaIDFromFdef fdef v with
   | None -> failwith "get_rhs_from_fdef"
   | Some insn -> insn
 
-let get_rhses_from_insn_hint (lr : HintParser_t.scope) (var:string) (hint:insn_hint_t) : (id_ext * rhs_ext) list =
+let get_rhses_from_insn_hint (lr : CoreHint_t.scope) (var:string) (hint:insn_hint_t) : (id_ext * rhs_ext) list =
   let hint = _choose_hint_invariant_by_scope lr hint.hint_invariant in
   let hints =
     EqRegSetImpl.filter
@@ -38,7 +38,7 @@ let get_rhses_from_insn_hint (lr : HintParser_t.scope) (var:string) (hint:insn_h
   in
   EqRegSetImpl.elements hints
 
-let get_rhs_from_insn_hint (lr : HintParser_t.scope) (var:string) (hint:insn_hint_t) : id_ext * rhs_ext =
+let get_rhs_from_insn_hint (lr : CoreHint_t.scope) (var:string) (hint:insn_hint_t) : id_ext * rhs_ext =
   let hint = _choose_hint_invariant_by_scope lr hint.hint_invariant in
   let hints =
     EqRegSetImpl.filter
@@ -50,7 +50,7 @@ let get_rhs_from_insn_hint (lr : HintParser_t.scope) (var:string) (hint:insn_hin
   | None ->  
     failwith ("get_rhs_from_insn_hint: no such hint : var name = " ^ var)
 
-let get_dereference_from_insn_hint (lr:HintParser_t.scope) ptr hint : LLVMsyntax.typ * LLVMsyntax.align * value_ext =
+let get_dereference_from_insn_hint (lr:CoreHint_t.scope) ptr hint : LLVMsyntax.typ * LLVMsyntax.align * value_ext =
   let hint = _choose_hint_invariant_by_scope lr hint.hint_invariant in
   let hints =
     EqHeapSetImpl.filter
@@ -61,7 +61,7 @@ let get_dereference_from_insn_hint (lr:HintParser_t.scope) ptr hint : LLVMsyntax
   | None -> failwith "get_dereference_from_insn_hint: no such hint"
   | Some (((_, typ), align), r) -> (typ, align, r)
 
-let get_dereference_from_insn_hint_wo_var (lr:HintParser_t.scope) (var:atom) ptr hint : LLVMsyntax.typ * LLVMsyntax.align * value_ext =
+let get_dereference_from_insn_hint_wo_var (lr:CoreHint_t.scope) (var:atom) ptr hint : LLVMsyntax.typ * LLVMsyntax.align * value_ext =
   let hint = _choose_hint_invariant_by_scope lr hint.hint_invariant in
   let hints =
     EqHeapSetImpl.filter
@@ -102,8 +102,8 @@ let update_cmd lr cmd insn_hint =
   let eqs = add_ntag_option_cmd_to_eqs eqs (Some cmd) in
   let invariant =
     match lr with
-    | HintParser_t.Source -> {insn_hint.hint_invariant with invariant_original = eqs}
-    | HintParser_t.Target -> {insn_hint.hint_invariant with invariant_optimized = eqs}
+    | CoreHint_t.Source -> {insn_hint.hint_invariant with invariant_original = eqs}
+    | CoreHint_t.Target -> {insn_hint.hint_invariant with invariant_optimized = eqs}
   in
   let insn_hint = {insn_hint with hint_invariant = invariant} in
   insn_hint
@@ -119,7 +119,7 @@ let rec get_nth_cmd n cmds noop =
 
 (* add an inference rule at the "at" in the hint.
  *)
-let add_inference (pos : HintParser_t.position) (block_prev_opt:atom option)
+let add_inference (pos : CoreHint_t.position) (block_prev_opt:atom option)
                   (make_infrules:insn_hint_t -> infrule_t list)
                   (lfd:LLVMsyntax.fdef) (lnoop:noop_t)
                   (rfd:LLVMsyntax.fdef) (rnoop:noop_t)
@@ -127,9 +127,9 @@ let add_inference (pos : HintParser_t.position) (block_prev_opt:atom option)
                   (right_m:Syntax.LLVMsyntax.coq_module)
                   (hint:fdef_hint_t) : fdef_hint_t =
   let block_hints = hint in
-  match LLVMinfra.lookupBlockViaLabelFromFdef lfd (pos.block_index),
-        LLVMinfra.lookupBlockViaLabelFromFdef rfd (pos.block_index),
-        Alist.lookupAL block_hints (pos.block_index) with
+  match LLVMinfra.lookupBlockViaLabelFromFdef lfd (pos.block_name),
+        LLVMinfra.lookupBlockViaLabelFromFdef rfd (pos.block_name),
+        Alist.lookupAL block_hints (pos.block_name) with
   | None, _, _ -> failwith "add_inference: no such block in left"
   | _, None, _ -> failwith "add_inference: no such block in right"
   | _, _, None -> failwith "add_inference: no such block hint"
@@ -139,11 +139,11 @@ let add_inference (pos : HintParser_t.position) (block_prev_opt:atom option)
      let is_applicable_phiid phiid =
        (block_prev_opt = None || block_prev_opt = Some phiid)
      in
-     let lnoop = get_noop_by_bb (pos.block_index) lnoop in
-     let rnoop = get_noop_by_bb (pos.block_index) rnoop in
+     let lnoop = get_noop_by_bb (pos.block_name) lnoop in
+     let rnoop = get_noop_by_bb (pos.block_name) rnoop in
      let phi_hint =
-       match (pos.instr_type) with
-       | HintParser_t.Phinode ->
+       match (pos.instr_index) with
+       | CoreHint_t.Phinode ->
           List.map
             (fun (phiid, phi_hint) ->
              if not (is_applicable_phiid phiid)
@@ -164,8 +164,8 @@ let add_inference (pos : HintParser_t.position) (block_prev_opt:atom option)
        | _ -> block_hint.phi_hint
      in
      let cmds_hint =
-       match (pos.instr_type) with
-       | HintParser_t.Command at_nth ->
+       match (pos.instr_index) with
+       | CoreHint_t.Command at_nth ->
           List.map
             (fun (phiid, cmds_hint) ->
              if not (is_applicable_phiid phiid)
@@ -200,8 +200,8 @@ let add_inference (pos : HintParser_t.position) (block_prev_opt:atom option)
        | _ -> block_hint.cmds_hint
      in
      let term_hint =
-       match (pos.instr_type) with
-       | HintParser_t.Terminator ->
+       match (pos.instr_index) with
+       | CoreHint_t.Terminator ->
           let term_hint = block_hint.term_hint in
           let term_hint = 
             List.fold_left (fun h inf -> infrule_resolve left_m right_m h inf) 
@@ -217,5 +217,5 @@ let add_inference (pos : HintParser_t.position) (block_prev_opt:atom option)
         cmds_hint = cmds_hint;
         term_hint = term_hint}
      in
-     let block_hints = Alist.updateAL block_hints (pos.block_index) block_hint in
+     let block_hints = Alist.updateAL block_hints (pos.block_name) block_hint in
      block_hints

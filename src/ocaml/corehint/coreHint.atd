@@ -1,11 +1,11 @@
 type scope = [ Source | Target ] <ocaml repr="classic">
 
-type instr_type = [ Command of int | Phinode | Terminator ]<ocaml repr="classic">
+type instr_index = [ Command of int | Phinode | Terminator ]<ocaml repr="classic">
 
 (* Position of an instruction *)
 type position = {
-  block_index: string;    (* block index as a string. ex : "bb0" *)
-  instr_type: instr_type; (* instruction type ; a block consists of PhiNode, Commands and Terminator. *)
+  block_name: string;    (* block index as a string. ex : "bb0" *)
+  instr_index: instr_index; (* instruction type ; a block consists of PhiNode, Commands and Terminator. *)
 }
 
 (* If age of a variable is Old, then it is a logical variable. *)

@@ -16,8 +16,8 @@ open Extraction_defs
 open Utility
 open Dom_list
 open Dom_tree
-open HintParser_t
-open PrintHints
+open CoreHint_t
+open CoreHintUtil
 
 type atom = AtomImpl.atom
 
@@ -293,19 +293,19 @@ let propagate_in_insn_hint
         {insn_hint.hint_invariant with
           iso_optimized = IdExtSetImpl.add p insn_hint.hint_invariant.iso_optimized}}
 
-let propagate_in_cmds_hint (nth_f:HintParser_t.instr_type) (nth_t:HintParser_t.instr_type) hint_elt hints =
+let propagate_in_cmds_hint (nth_f:CoreHint_t.instr_index) (nth_t:CoreHint_t.instr_index) hint_elt hints =
   mapi
     (fun i hint ->
      let hint =
        if (match nth_f with
-           | HintParser_t.Phinode -> true
-	   | HintParser_t.Command nth_f -> nth_f <= i
-	   | HintParser_t.Terminator -> false
+           | CoreHint_t.Phinode -> true
+	   | CoreHint_t.Command nth_f -> nth_f <= i
+	   | CoreHint_t.Terminator -> false
 	   )
           && (match nth_t with
-	      | HintParser_t.Phinode -> false
-	      | HintParser_t.Command nth_t -> i <= nth_t
-	      | HintParser_t.Terminator -> true
+	      | CoreHint_t.Phinode -> false
+	      | CoreHint_t.Command nth_t -> i <= nth_t
+	      | CoreHint_t.Terminator -> true
 	      )
        then propagate_in_insn_hint hint_elt hint
        else hint
@@ -319,11 +319,11 @@ let propagate_in_cmds_hint (nth_f:HintParser_t.instr_type) (nth_t:HintParser_t.i
  *)
 let propagate_in_block_hint
       ?(phiid_opt:atom option=None)
-      (nth_f : HintParser_t.instr_type) (nth_t : HintParser_t.instr_type)
+      (nth_f : CoreHint_t.instr_index) (nth_t : CoreHint_t.instr_index)
       (hint_elt:hint_elt_t)
       (block_hint:block_hint_t) : block_hint_t =
   let block_hint =
-    if nth_f <> HintParser_t.Phinode
+    if nth_f <> CoreHint_t.Phinode
     then block_hint
     else
       let phi_hint =
@@ -384,7 +384,7 @@ let propagate_in_block_hint
   in
 
   let block_hint =
-    if nth_t <> HintParser_t.Terminator
+    if nth_t <> CoreHint_t.Terminator
     then block_hint
     else
       let term_hint =
@@ -409,16 +409,16 @@ let oldify_hint_elt (ids:atom list) (elt:hint_elt_t) : hint_elt_t =
 
 let next_pos pos =
   match pos with
-  | HintParser_t.Phinode ->  HintParser_t.Command 0
-  | HintParser_t.Command i -> HintParser_t.Command (i + 1)
-  | _ -> failwith "PropagateHints.next_pos : (juneyoung lee) we cannot define next position of HintParser_t.Terminator"
+  | CoreHint_t.Phinode ->  CoreHint_t.Command 0
+  | CoreHint_t.Command i -> CoreHint_t.Command (i + 1)
+  | _ -> failwith "PropagateHints.next_pos : (juneyoung lee) we cannot define next position of CoreHint_t.Terminator"
 
 let propagate_iso 
-      (pos_from : HintParser_t.position)
+      (pos_from : CoreHint_t.position)
       (hint_elt:hint_elt_t)
       (fd:LLVMsyntax.fdef) (hint:fdef_hint_t) (dom_tree:atom coq_DTree)
     : fdef_hint_t =
-  let (block_f, nth_f) = (pos_from.block_index, pos_from.instr_type) in
+  let (block_f, nth_f) = (pos_from.block_name, pos_from.instr_index) in
   (* get all reachable blocks *)
   let reachable_to_t = reachable_from block_f fd in
   
@@ -433,10 +433,10 @@ let propagate_iso
         in
         let nth_f =
           if bid = block_f && AtomSetImpl.mem block_f reachable_to_t
-          then HintParser_t.Phinode
+          then CoreHint_t.Phinode
           else next_pos nth_f
         in
-        let nth_t = HintParser_t.Terminator in
+        let nth_t = CoreHint_t.Terminator in
         let block_hint =
           propagate_in_block_hint
             nth_f nth_t
@@ -454,26 +454,26 @@ let propagate_iso
  *)
 let propagate
       ?(block_prev_opt:string option = None)
-      (position_f : HintParser_t.position) (position_t : HintParser_t.position)
+      (position_f : CoreHint_t.position) (position_t : CoreHint_t.position)
       (hint_elt:hint_elt_t)
       (fd:LLVMsyntax.fdef) (hint:fdef_hint_t) (dom_tree:atom coq_DTree)
     : fdef_hint_t =
   
-  let ((block_f : string), (nth_f:HintParser_t.instr_type)) = 
-        (position_f.block_index, position_f.instr_type) 
+  let ((block_f : string), (nth_f:CoreHint_t.instr_index)) = 
+        (position_f.block_name, position_f.instr_index) 
   in
-  let ((block_t' : string), (nth_t':HintParser_t.instr_type)) = 
-        (position_t.block_index, position_t.instr_type)
+  let ((block_t' : string), (nth_t':CoreHint_t.instr_index)) = 
+        (position_t.block_name, position_t.instr_index)
   in
-  let ((block_t : string), (nth_t:HintParser_t.instr_type)) =
+  let ((block_t : string), (nth_t:CoreHint_t.instr_index)) =
     match block_prev_opt with
-    | Some block_prev -> (block_prev, HintParser_t.Terminator)
+    | Some block_prev -> (block_prev, CoreHint_t.Terminator)
     | None -> (block_t', nth_t')
   in
   let ((pass_through_t : bool), reachable_to_t) =
-    if block_f = block_t && ParseHints.rhint_block_pos_lt nth_f nth_t
+    if block_f = block_t && CoreHintUtil.corehint_block_pos_lt nth_f nth_t
     then (false, AtomSetImpl.singleton block_f)
-    else if block_f = block_t' && ParseHints.rhint_block_pos_lt nth_f nth_t'
+    else if block_f = block_t' && CoreHintUtil.corehint_block_pos_lt nth_f nth_t'
     then (false, AtomSetImpl.empty)
     else
       let dom_by_f = dom_by block_f dom_tree in
@@ -491,12 +491,12 @@ let propagate
        let nth_f =
          if bid = block_f
          then next_pos nth_f
-         else HintParser_t.Phinode
+         else CoreHint_t.Phinode
        in
        let nth_t =
          if bid = block_t && (not pass_through_t)
          then nth_t
-         else HintParser_t.Terminator
+         else CoreHint_t.Terminator
        in
        let block_hint =
          propagate_in_block_hint
@@ -519,17 +519,17 @@ let propagate
          | Some block_hint -> block_hint
        in
        let (block_hint, nth_f) =
-         if block_f = block_t' && ParseHints.rhint_block_pos_lt nth_f nth_t'
+         if block_f = block_t' && CoreHintUtil.corehint_block_pos_lt nth_f nth_t'
          then (block_hint, next_pos nth_f)
          else
            let block_hint =
              propagate_in_block_hint
                ~phiid_opt:block_prev_opt
-               HintParser_t.Phinode HintParser_t.Phinode
+               CoreHint_t.Phinode CoreHint_t.Phinode
                hint_elt
                block_hint
            in
-           let nth_f = HintParser_t.Command 0 in
+           let nth_f = CoreHint_t.Command 0 in
            (block_hint, nth_f)
        in
        (* 2. command/terminator pos *)
@@ -557,11 +557,11 @@ let propagate
 (* is_global checks whether a variable is global or not by its name, 
    so it may be incorrect. *)
 
-let is_global (v:HintParser_t.variable) : bool = try v.name.[0] = '@' with _ -> false
+let is_global (v:CoreHint_t.variable) : bool = try v.name.[0] = '@' with _ -> false
 
 
 (* Get type definition of a variable v from function fdefinition fdef. *)
-let lookup_LLVMtype_of_var (v : HintParser_t.variable) (fdef:LLVMsyntax.fdef) =
+let lookup_LLVMtype_of_var (v : CoreHint_t.variable) (fdef:LLVMsyntax.fdef) =
   if is_global v then 
     failwith "propagateHints.ml : lookup_LLVMtype_of_var (juneyoung lee) : This version of code doesn't support finding a type of a global variable."
   else 
@@ -569,34 +569,34 @@ let lookup_LLVMtype_of_var (v : HintParser_t.variable) (fdef:LLVMsyntax.fdef) =
     | Some typ -> typ
     | None -> failwith "propagateHints.ml : lookup_LLVMtype_of_var : Cannot find type of a variable"
 
-let convert_var_to_LLVMvalue (v : HintParser_t.variable) (fdef : LLVMsyntax.fdef) : LLVMsyntax.value = 
+let convert_var_to_LLVMvalue (v : CoreHint_t.variable) (fdef : LLVMsyntax.fdef) : LLVMsyntax.value = 
   if is_global v then 
       LLVMsyntax.Coq_value_const (LLVMsyntax.Coq_const_gid ((lookup_LLVMtype_of_var v fdef), v.name))
   else
       LLVMsyntax.Coq_value_id (v.name)
 
-let convert_to_LLVMvalue (arg:HintParser_t.value) (fdef:LLVMsyntax.fdef) : LLVMsyntax.value =
+let convert_to_LLVMvalue (arg:CoreHint_t.value) (fdef:LLVMsyntax.fdef) : LLVMsyntax.value =
   match arg with
-  | HintParser_t.VarValue (variable : HintParser_t.variable) ->
+  | CoreHint_t.VarValue (variable : CoreHint_t.variable) ->
       convert_var_to_LLVMvalue variable fdef
-  | HintParser_t.ConstValue (cv : HintParser_t.const_value) ->
+  | CoreHint_t.ConstValue (cv : CoreHint_t.const_value) ->
       match cv with
-      | HintParser_t.IntVal (iv : HintParser_t.int_value) ->
+      | CoreHint_t.IntVal (iv : CoreHint_t.int_value) ->
         let (issigned : bool), (bitsize : int) =
         match iv.mytype with
-	| HintParser_t.IntType (issigned, bitsize) ->
+	| CoreHint_t.IntType (issigned, bitsize) ->
 	  issigned, bitsize
 	in
 	let api = Llvm.APInt.of_int64 bitsize (Int64.of_int iv.myvalue) issigned in
 	LLVMsyntax.Coq_value_const (LLVMsyntax.Coq_const_int (bitsize, api))
       
-      | HintParser_t.FloatVal (fv : HintParser_t.float_value) ->
+      | CoreHint_t.FloatVal (fv : CoreHint_t.float_value) ->
         let (fptype : LLVMsyntax.floating_point) = 
 	  (match fv.mytype with
-	    | HintParser_t.FloatType -> LLVMsyntax.Coq_fp_float
-	    | HintParser_t.DoubleType -> LLVMsyntax.Coq_fp_double
-	    | HintParser_t.FP128Type -> LLVMsyntax.Coq_fp_fp128
-	    | HintParser_t.X86_FP80Type -> LLVMsyntax.Coq_fp_ppc_fp128)
+	    | CoreHint_t.FloatType -> LLVMsyntax.Coq_fp_float
+	    | CoreHint_t.DoubleType -> LLVMsyntax.Coq_fp_double
+	    | CoreHint_t.FP128Type -> LLVMsyntax.Coq_fp_fp128
+	    | CoreHint_t.X86_FP80Type -> LLVMsyntax.Coq_fp_ppc_fp128)
 	in
 	let ctx = Llvm.global_context () in
 	let llvalue = Llvm.const_float (Coq2llvm.translate_floating_point ctx fptype) fv.myvalue in
@@ -605,10 +605,10 @@ let convert_to_LLVMvalue (arg:HintParser_t.value) (fdef:LLVMsyntax.fdef) : LLVMs
 
 let alist_map f m = List.map (fun (id, x) -> (id, f x)) m
     
-let tag_lr (lr:HintParser_t.scope) elt =
+let tag_lr (lr:CoreHint_t.scope) elt =
   match lr with
-  | HintParser_t.Source -> Hint_original elt
-  | HintParser_t.Target -> Hint_optimized elt
+  | CoreHint_t.Source -> Hint_original elt
+  | CoreHint_t.Target -> Hint_optimized elt
 
 let propagate_maydiff_in_maydiff id_ext hint =
   let hint = IdExtSetImpl.add id_ext hint in

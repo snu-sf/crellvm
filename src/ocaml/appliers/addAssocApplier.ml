@@ -21,11 +21,11 @@ open Extraction_defs
 open AddInferenceHints
 open PropagateHints
 open Utility
-open HintParser_t
+open CoreHint_t
 
 
 let apply
-     (options : HintParser_t.add_assoc) 
+     (options : CoreHint_t.add_assoc) 
      (lfdef : LLVMsyntax.fdef) 
      (lnoop : noop_t)
      (rfdef : LLVMsyntax.fdef) 
@@ -43,15 +43,15 @@ let apply
      "rhs" = y
      *)
      let pos = options.position in
-     let lhsvar : HintParser_t.variable = options.lhs (*getVar 1 args*) in
-     let rhsvar : HintParser_t.variable = options.rhs (*getVar 2 args*) in
+     let lhsvar : CoreHint_t.variable = options.lhs (*getVar 1 args*) in
+     let rhsvar : CoreHint_t.variable = options.rhs (*getVar 2 args*) in
      let z = lhsvar.name in
      let y = rhsvar.name in
      let block_prev_opt : string option = None(*getBlock 3 args*) in
 
      let make_infrules insn_hint =
-       let (z_ext, z_rhs) = get_rhs_from_insn_hint HintParser_t.Source z insn_hint in
-       let (y_ext, y_rhs) = get_rhs_from_insn_hint HintParser_t.Source y insn_hint in
+       let (z_ext, z_rhs) = get_rhs_from_insn_hint CoreHint_t.Source z insn_hint in
+       let (y_ext, y_rhs) = get_rhs_from_insn_hint CoreHint_t.Source y insn_hint in
        let (y_ext, x_ext, sz, c1, c2) =
          match z_rhs, y_rhs with
          | Coq_rhs_ext_bop (LLVMsyntax.Coq_bop_add, sz,

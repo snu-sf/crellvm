@@ -9,7 +9,7 @@ LIB_FILES = llvm.cmxa,llvm_analysis.cmxa,llvm_target.cmxa,llvm_bitreader.cmxa,ll
 OCAMLBUILD = ocamlbuild
 OCAMLBUILD_OPT = -r \
 	-I extraction \
-	-I hintparser \
+	-I corehint \
 	-I appliers \
 	-I vellvm/src/Extraction \
 	-use-ocamlfind -pkg atdgen \
@@ -29,28 +29,28 @@ MLS = extraction/FMapWeakList.ml extraction/FMapWeakList.mli\
 	extraction/syntax_ext.ml extraction/syntax_ext.mli\
 	extraction/validator_aux.ml extraction/validator_aux.mli\
 	extraction/validator.ml extraction/validator.mli\
-	hintparser/hintParser_j.ml hintparser/hintParser_j.mli\
-	hintparser/hintParser_t.ml hintparser/hintParser_t.mli\
-	coq2ml.ml printHints.ml translateHints.ml\
+	corehint/coreHint_j.ml corehint/coreHint_j.mli\
+	corehint/coreHint_t.ml corehint/coreHint_t.mli\
+	coq2ml.ml coreHintUtil.ml translateCoreHint.ml\
 	main.ml utility.ml propagateHints.ml addInferenceHints.ml microHints.ml tt.ml \
-	appliers/cmdPropagateApplier.ml \
+	appliers/removeMaydiffApplier.ml \
 	appliers/addAssocApplier.ml
 
 
 main.native: $(MLS)
 	$(OCAMLBUILD) $(OCAMLBUILD_OPT) main.native
 
-hintparser/hintParser_t.ml: hintparser/hintParser.atd
-	atdgen -t ./hintparser/hintParser.atd
-	atdgen -j ./hintparser/hintParser.atd
+corehint/coreHint_t.ml: corehint/coreHint.atd
+	atdgen -t ./corehint/coreHint.atd
+	atdgen -j ./corehint/coreHint.atd
         
-hintparser/hintParser_j.ml: hintparser/hintParser.atd
-	atdgen -t ./hintparser/hintParser.atd
-	atdgen -j ./hintparser/hintParser.atd
+corehint/coreHint_j.ml: corehint/coreHint.atd
+	atdgen -t ./corehint/coreHint.atd
+	atdgen -j ./corehint/coreHint.atd
 
 clean:
-	rm ./hintparser/hintParser_j.mli
-	rm ./hintparser/hintParser_t.mli
-	rm ./hintparser/hintParser_j.ml
-	rm ./hintparser/hintParser_t.ml
+	rm ./corehint/coreHint_j.mli
+	rm ./corehint/coreHint_t.mli
+	rm ./corehint/coreHint_j.ml
+	rm ./corehint/coreHint_t.ml
 	$(OCAMLBUILD) -clean
