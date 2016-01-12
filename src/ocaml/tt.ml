@@ -40,6 +40,7 @@ let rec translate_floating_point ty =
   | TypeKind.X86fp80 -> LLVMsyntax.Coq_fp_x86_fp80
   | TypeKind.Double -> LLVMsyntax.Coq_fp_double
   | TypeKind.Float -> LLVMsyntax.Coq_fp_float
+  | TypeKind.Half -> failwith "fp_half is not supported for now." (* LLVMsyntax.Coq_fp_half *)
   | _ -> failwith "This is not a floating point" 
 
 let translate_var_arg (ftyp:lltype) : LLVMsyntax.varg =
@@ -89,7 +90,13 @@ let rec translate_typ ty =
   | TypeKind.Float -> 
       LLVMsyntax.Coq_typ_floatpoint (translate_floating_point ty)
   | TypeKind.Void -> LLVMsyntax.Coq_typ_void
-  | TypeKind.Metadata -> LLVMsyntax.Coq_typ_metadata 
+  | TypeKind.Metadata -> LLVMsyntax.Coq_typ_metadata
+  (* added TypeKind *)
+  | TypeKind.Half ->
+     failwith "fp-half is not supported now(2)."
+     (* LLVMsyntax.Coq_typ_floatpoint (translate_floating_point ty) *)
+  | TypeKind.X86_mmx -> (* LLVMsyntax.Coq_typ_x86_mmx *)
+     failwith "x86_mmx is not supported now."
 
 let translate_icmp op =
   match op with
@@ -143,8 +150,8 @@ let translate_intrinsic_id id =
   | IntrinsicID.Pcmarker -> LLVMsyntax.Coq_iid_pcmarker
   | IntrinsicID.ReadCycleCounter -> LLVMsyntax.Coq_iid_readcyclecounter
   | IntrinsicID.DbgDeclare -> LLVMsyntax.Coq_iid_dbg_declare
-  | IntrinsicID.EhException -> LLVMsyntax.Coq_iid_eh_exception
-  | IntrinsicID.EhSelector -> LLVMsyntax.Coq_iid_eh_selector
+  (* | IntrinsicID.EhException -> LLVMsyntax.Coq_iid_eh_exception *)
+  (* | IntrinsicID.EhSelector -> LLVMsyntax.Coq_iid_eh_selector *)
   | IntrinsicID.EhTypeidFor -> LLVMsyntax.Coq_iid_eh_typeidfor
   | IntrinsicID.VarAnnotation -> LLVMsyntax.Coq_iid_var_annotation
   | IntrinsicID.Memcpy -> LLVMsyntax.Coq_iid_memcpy
@@ -203,6 +210,17 @@ let rec translate_constant m st c =
   | ValueKind.Function ->   (*FunctionVal*)
       (LLVMsyntax.Coq_const_gid 
         (translate_typ (element_type (type_of c)), llvm_name st c))
+  | ValueKind.ConstantDataArray ->
+     LLVMsyntax.Coq_const_arr
+       (translate_typ (element_type (type_of c)),
+        let num_elmts = array_length_of_dataarr c in
+        let rec make_array c n l =
+          if n = 0 then l
+          else
+            let e = translate_constant m st (const_element c (n - 1)) in
+            make_array c (n - 1) (e::l)
+        in
+        make_array c num_elmts [])
   | _ -> failwith (string_of_valuekd (classify_value c) ^ " isnt Constant")
 and translate_constant_expr m st c =
   let oc = constexpr_opcode c in
@@ -215,8 +233,8 @@ and translate_constant_expr m st c =
       failwith "Switch isnt a const expr"
   | Opcode.Invoke ->      
       failwith "Invoke isnt a const expr"
-  | Opcode.Unwind ->
-      failwith "Unwind isnt a const expr"
+  (* | Opcode.Unwind -> *)
+  (*     failwith "Unwind isnt a const expr" *)
   | Opcode.Unreachable ->
       failwith "Unreachable isnt a const expr"
   | Opcode.Add ->
@@ -694,6 +712,9 @@ let translate_operand_to_value m st v =
   | ValueKind.MDNode -> failwith "MDNodeVal: Not_Supported."
   | ValueKind.MDString -> failwith "MDStringVal: Not_Supported."
   | ValueKind.InlineAsm -> failwith "InlineAsmVal: Not_Supported."
+  (* added valuekind in 3.6.2 *)
+  | ValueKind.ConstantDataArray ->
+     LLVMsyntax.Coq_value_const (translate_constant m st v)
   | _ -> LLVMsyntax.Coq_value_id (llvm_name st v)   (*Instruction*)
 
 let translate_callsite_param_attrs ci nth =
@@ -809,8 +830,8 @@ let translate_instr debug m st i  =
       failwith "Switch: Not_Supported"
   | Opcode.Invoke ->      
       failwith "Invoke: Not_Supported"
-  | Opcode.Unwind ->
-      failwith "Unwind: Not_Supported"
+  (* | Opcode.Unwind -> *)
+  (*     failwith "Unwind: Not_Supported" *)
   | Opcode.Unreachable ->
       LLVMsyntax.Coq_insn_terminator (LLVMsyntax.Coq_insn_unreachable 
         (llvm_name st i))
@@ -1539,6 +1560,8 @@ match linkage g with
   | Linkage.External_weak -> LLVMsyntax.Coq_linkage_external_weak
   | Linkage.Ghost -> LLVMsyntax.Coq_linkage_ghost
   | Linkage.Common -> LLVMsyntax.Coq_linkage_common
+  | Linkage.Link_once_odr_auto_hide -> LLVMsyntax.Coq_linkage_link_once_odr_auto_hide
+  | Linkage.Linker_private_weak -> LLVMsyntax.Coq_linkage_linker_private_weak
 
 let translate_visibility g =
 match visibility g with
@@ -1636,25 +1659,6 @@ let translate_deckind st f =
     else LLVMsyntax.Coq_deckind_external LLVMsyntax.Coq_eid_other
 
 let translate_function debug m st f ps =
-  (if not (is_declaration f) then 
-   begin
-     (if !Globalstates.gen_llvm_dtree then
-       let dt = Llvm_analysis.create_dtree f in
-       (if !Globalstates.print_dtree then 
-         prerr_string "fname: "; 
-         prerr_string (llvm_name st f);
-         prerr_newline (); 
-         Llvm_analysis.dump_dtree dt);
-       Llvm_analysis.dispose_dtree dt);
-     (if !Globalstates.gen_llvm_df then
-       let df = Llvm_analysis.create_df f in
-       (if !Globalstates.print_dtree then 
-         prerr_string "fname: "; 
-         prerr_string (llvm_name st f);
-         prerr_newline (); 
-         Llvm_analysis.dump_df df);
-       Llvm_analysis.dispose_df df)
-   end);
 
   SlotTracker.incorporate_function st f;
   init_fake_name ();  
@@ -1792,70 +1796,106 @@ let translate_global debug m st g ps  =
   | _ -> failwith "Not_Global"
 
 let translate_layout debug dlt  =
-  let tg = Llvm_target.TargetData.create dlt in
-  let n = Llvm_target.get_num_alignment tg in
+  let tg = Llvm_target.DataLayout.of_string dlt in
+  let n = Llvm_target.DataLayout.get_num_alignment tg in
   (* debugging output *)
-  (if debug then (
-    prerr_string "layouts: ";
-    prerr_endline dlt;
-    eprintf "byteorde=%s\n"
-      (string_of_endian (Llvm_target.byte_order tg));
-    eprintf "p size=%s abi=%s pref=%s\n"
-      (string_of_int ((Llvm_target.pointer_size_in_bits tg) * 8))
-      (string_of_int ((Llvm_target.pointer_abi_alignment tg) * 8))
-      (string_of_int ((Llvm_target.pointer_pref_alignment tg) * 8));
-    for i = 0 to n - 1 do
-      eprintf "typ=%s bitwidth=%s abi=%s pref=%s\n"
-        (string_of_aligntype (Llvm_target.get_align_type_enum tg i))
-        (string_of_int (Llvm_target.get_type_bitwidth tg i))
-        (string_of_int ((Llvm_target.get_abi_align tg i) * 8))
-        (string_of_int ((Llvm_target.get_pref_align tg i) * 8));
-      flush_all()
-    done;
-    prerr_endline "Translate ignores Vector_align and Float_align")
-  );
+  (* ys - implement later *)
+  (* (if debug then ( *)
+  (*   prerr_string "layouts: "; *)
+  (*   prerr_endline dlt; *)
+  (*   eprintf "byteorde=%s\n" *)
+  (*     (string_of_endian (Llvm_target.byte_order tg)); *)
+  (*   eprintf "p size=%s abi=%s pref=%s\n" *)
+  (*     (string_of_int ((Llvm_target.pointer_size_in_bits tg) * 8)) *)
+  (*     (string_of_int ((Llvm_target.pointer_abi_alignment tg) * 8)) *)
+  (*     (string_of_int ((Llvm_target.pointer_pref_alignment tg) * 8)); *)
+  (*   for i = 0 to n - 1 do *)
+  (*     eprintf "typ=%s bitwidth=%s abi=%s pref=%s\n" *)
+  (*       (string_of_aligntype (Llvm_target.get_align_type_enum tg i)) *)
+  (*       (string_of_int (Llvm_target.get_type_bitwidth tg i)) *)
+  (*       (string_of_int ((Llvm_target.get_abi_align tg i) * 8)) *)
+  (*       (string_of_int ((Llvm_target.get_pref_align tg i) * 8)); *)
+  (*     flush_all() *)
+  (*   done; *)
+  (*   prerr_endline "Translate ignores Vector_align and Float_align") *)
+  (* ); *)
   
   (* translation *)
   let rec range b e tg =
     if b < e
     then
-      match (Llvm_target.get_align_type_enum tg b) with
+      match (Llvm_target.DataLayout.get_align_type_enum tg b) with
+      | Llvm_target.AlignType.Invalid_align ->
+         failwith "invalid data layout!"
+         (* LLVMsyntax.Coq_layout_invalid::(range (b + 1) e tg) *)
       | Llvm_target.AlignType.Integer_align -> 
-          LLVMsyntax.Coq_layout_int (Llvm_target.get_type_bitwidth tg b,
-                                     (Llvm_target.get_abi_align tg b) * 8,
-                                     (Llvm_target.get_pref_align tg b) * 8)::
-                                     (range (b + 1) e tg)
+         LLVMsyntax.Coq_layout_int (Llvm_target.DataLayout.get_type_bitwidth tg b,
+                                    (Llvm_target.DataLayout.get_abi_align tg b) * 8,
+                                    (Llvm_target.DataLayout.get_pref_align tg b) * 8)::
+           (range (b + 1) e tg)
       | Llvm_target.AlignType.Vector_align ->
-          LLVMsyntax.Coq_layout_vector (Llvm_target.get_type_bitwidth tg b,
-                                     (Llvm_target.get_abi_align tg b) * 8,
-                                     (Llvm_target.get_pref_align tg b) * 8)::
-                                     (range (b + 1) e tg)
+         LLVMsyntax.Coq_layout_vector (Llvm_target.DataLayout.get_type_bitwidth tg b,
+                                       (Llvm_target.DataLayout.get_abi_align tg b) * 8,
+                                       (Llvm_target.DataLayout.get_pref_align tg b) * 8)::
+           (range (b + 1) e tg)
       | Llvm_target.AlignType.Float_align -> 
-          LLVMsyntax.Coq_layout_float (Llvm_target.get_type_bitwidth tg b,
-                                     (Llvm_target.get_abi_align tg b) * 8,
-                                     (Llvm_target.get_pref_align tg b) * 8)::
-                                     (range (b + 1) e tg)
+         LLVMsyntax.Coq_layout_float (Llvm_target.DataLayout.get_type_bitwidth tg b,
+                                      (Llvm_target.DataLayout.get_abi_align tg b) * 8,
+                                      (Llvm_target.DataLayout.get_pref_align tg b) * 8)::
+           (range (b + 1) e tg)
       | Llvm_target.AlignType.Aggregate_align ->  
-          LLVMsyntax.Coq_layout_aggr (Llvm_target.get_type_bitwidth tg b,
-                                     (Llvm_target.get_abi_align tg b) * 8,
-                                     (Llvm_target.get_pref_align tg b) * 8)::
-                                     (range (b + 1) e tg)
-      | Llvm_target.AlignType.Stack_align ->  
-          LLVMsyntax.Coq_layout_stack (Llvm_target.get_type_bitwidth tg b,
-                                     (Llvm_target.get_abi_align tg b) * 8,
-                                     (Llvm_target.get_pref_align tg b) * 8)::
-                                     (range (b + 1) e tg)
+         LLVMsyntax.Coq_layout_aggr (Llvm_target.DataLayout.get_type_bitwidth tg b,
+                                     (Llvm_target.DataLayout.get_abi_align tg b) * 8,
+                                     (Llvm_target.DataLayout.get_pref_align tg b) * 8)::
+           (range (b + 1) e tg)
+             
+  (* let rec range b e tg = *)
+  (*   if b < e *)
+  (*   then *)
+  (*     match (Llvm_target.get_align_type_enum tg b) with *)
+  (*     | Llvm_target.AlignType.Integer_align ->  *)
+  (*         LLVMsyntax.Coq_layout_int (Llvm_target.get_type_bitwidth tg b, *)
+  (*                                    (Llvm_target.get_abi_align tg b) * 8, *)
+  (*                                    (Llvm_target.get_pref_align tg b) * 8):: *)
+  (*                                    (range (b + 1) e tg) *)
+  (*     | Llvm_target.AlignType.Vector_align -> *)
+  (*         LLVMsyntax.Coq_layout_vector (Llvm_target.get_type_bitwidth tg b, *)
+  (*                                    (Llvm_target.get_abi_align tg b) * 8, *)
+  (*                                    (Llvm_target.get_pref_align tg b) * 8):: *)
+  (*                                    (range (b + 1) e tg) *)
+  (*     | Llvm_target.AlignType.Float_align ->  *)
+  (*         LLVMsyntax.Coq_layout_float (Llvm_target.get_type_bitwidth tg b, *)
+  (*                                    (Llvm_target.get_abi_align tg b) * 8, *)
+  (*                                    (Llvm_target.get_pref_align tg b) * 8):: *)
+  (*                                    (range (b + 1) e tg) *)
+  (*     | Llvm_target.AlignType.Aggregate_align ->   *)
+  (*         LLVMsyntax.Coq_layout_aggr (Llvm_target.get_type_bitwidth tg b, *)
+  (*                                    (Llvm_target.get_abi_align tg b) * 8, *)
+  (*                                    (Llvm_target.get_pref_align tg b) * 8):: *)
+  (*                                    (range (b + 1) e tg) *)
+  (*     | Llvm_target.AlignType.Stack_align ->   *)
+  (*         LLVMsyntax.Coq_layout_stack (Llvm_target.get_type_bitwidth tg b, *)
+  (*                                    (Llvm_target.get_abi_align tg b) * 8, *)
+  (*                                    (Llvm_target.get_pref_align tg b) * 8):: *)
+  (*                                    (range (b + 1) e (* TODO:  *)g) *)
      else
        [] in
-  let dl = (match (Llvm_target.byte_order tg) with
+    let dl = (match (Llvm_target.DataLayout.byte_order tg) with
            | Llvm_target.Endian.Big -> LLVMsyntax.Coq_layout_be 
            | Llvm_target.Endian.Little -> LLVMsyntax.Coq_layout_le)::
-           LLVMsyntax.Coq_layout_ptr (Llvm_target.pointer_size_in_bits tg,
-                                      (Llvm_target.pointer_abi_alignment tg) * 8,
-                                       (Llvm_target.pointer_pref_alignment tg) *
+           LLVMsyntax.Coq_layout_ptr (Llvm_target.DataLayout.pointer_size_in_bits tg,
+                                      (Llvm_target.DataLayout.pointer_abi_alignment tg) * 8,
+                                       (Llvm_target.DataLayout.pointer_pref_alignment tg) *
                                        8)::range 0 n tg in
-  Llvm_target.TargetData.dispose tg;
-  dl
+  (* let dl = (match (Llvm_target.byte_order tg) with *)
+  (*          | Llvm_target.Endian.Big -> LLVMsyntax.Coq_layout_be  *)
+  (*          | Llvm_target.Endian.Little -> LLVMsyntax.Coq_layout_le):: *)
+  (*          LLVMsyntax.Coq_layout_ptr (Llvm_target.pointer_size_in_bits tg, *)
+  (*                                     (Llvm_target.pointer_abi_alignment tg) * 8, *)
+  (*                                      (Llvm_target.pointer_pref_alignment tg) * *)
+  (*                                      8)::range 0 n tg in *)
+  (* Llvm_target.TargetData.dispose tg; *)
+    dl
 
 let translate_named_typ m ty = 
   match classify_type ty with

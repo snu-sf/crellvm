@@ -1,5 +1,4 @@
 open Infrastructure
-open Interpreter
 open Printf
 open Llvm
 open Arg
@@ -13,6 +12,7 @@ open Validator_aux
 open Dom_list
 open Dom_tree
 open Maps
+open CoreHint_t
 
 type atom = AtomSetImpl.t
 
@@ -46,9 +46,9 @@ let string_of_one_noop noop =
   "bb=" ^ noop.bb_noop
   ^ "|idx=" ^ (string_of_int noop.idx_noop)
 
-let string_of_noop noop = ParseHints.string_of_list_endline string_of_one_noop noop
+let string_of_noop noop = CoreHintUtil.string_of_list_endline string_of_one_noop noop
 
-let string_of_product_noop noop = ParseHints.string_of_alist_endline string_of_noop noop
+let string_of_product_noop noop = CoreHintUtil.string_of_alist_endline string_of_noop noop
 
 let rec empty_hint_system (s:LLVMsyntax.system) (noop:products_noop_t)
         : modules_hint_t =
@@ -90,7 +90,7 @@ and empty_hint_fdef (fdef:LLVMsyntax.fdef) (noop:products_noop_t)
 			     []
 			     blks
 	     in
-		   (atom, (*{block_hints =*) blks_hint(*}*)))
+		   (atom, blks_hint))
 
 and empty_hint_block (blk:LLVMsyntax.block) (noop:noop_t) (parent_bbs:LLVMsyntax.l list)
     : block_hint_t =
@@ -161,40 +161,33 @@ and empty_hint_insn : insn_hint_t =
 (* main *)
 (********)
 
-let translate_product_noop fid raw_hint : products_noop_t * products_noop_t =
+
+let generate_noop_from_corehint (fid : string) raw_hint : products_noop_t * products_noop_t =
+  ([], [])
+(*
   List.fold_left
-    (fun (lpnoop,rpnoop) add_rm ->
-     let bb = add_rm.ParseHints.rhint_bb_index in
+    (fun (lpnoop,rpnoop) (add_rm ->
+     let bb = add_rm.CoreHintUtil.rhint_bb_index in
 
      let new_lnoop = 
        (get_noop_by_fname fid lpnoop)@
          (List.map (fun n -> {bb_noop=bb; idx_noop=n-1}) 
-            (List.filter (fun n -> n > 0) add_rm.ParseHints.rhint_indices))
+            (List.filter (fun n -> n > 0) add_rm.CoreHintUtil.rhint_indices))
      in
      let new_lpnoop = Alist.updateAddAL lpnoop fid new_lnoop in
 
      let new_rnoop = 
        (get_noop_by_fname fid rpnoop)@
          (List.map (fun n -> {bb_noop=bb; idx_noop=(-n)-1}) 
-            (List.filter (fun n -> n < 0) add_rm.ParseHints.rhint_indices))
+            (List.filter (fun n -> n < 0) add_rm.CoreHintUtil.rhint_indices))
      in
      let new_rpnoop = Alist.updateAddAL rpnoop fid new_rnoop in
      (new_lpnoop,new_rpnoop)
 
     )
     ([],[])
-    raw_hint.ParseHints.rhint_instr_add_removes
-
-let normalize_micro raw_hint =
-  match raw_hint.ParseHints.rhint_type with
-  | ParseHints.InstrPropagate ->
-     (match raw_hint.ParseHints.rhint_args with
-      | [] -> failwith "normalize_micro instr_propagate"
-      | hd::tl ->
-         let arg0 = List.hd hd in
-         {ParseHints.rhint_type = ParseHints.Instr2Propagate;
-          ParseHints.rhint_args = (arg0::hd)::tl})
-  | _ -> raw_hint
+    raw_hint.CoreHintUtil.rhint_instr_add_removes
+*)
 
 (* Returns micro hints list that should be added by the noret
    attribute. *)
@@ -240,12 +233,12 @@ let noret_maydiff (m:LLVMsyntax.coq_module) (f:string) : string list =
   match m with 
   | LLVMsyntax.Coq_module_intro (_,_,ps) -> noret_maydiff_products ps f
 
-let translate_hint_module
+let translate_corehint_to_hint
       (lm:LLVMsyntax.coq_module) (rm:LLVMsyntax.coq_module)
-      raw_hint
+      (raw_hint:CoreHint_t.hints)
     : products_hint_t * products_noop_t * products_noop_t =
-  let fid = raw_hint.ParseHints.rhint_fid in
-  let (lpnoop, rpnoop) = translate_product_noop raw_hint.ParseHints.rhint_fid raw_hint in
+  let fid = raw_hint.function_id in
+  let (lpnoop, rpnoop) = generate_noop_from_corehint raw_hint.function_id raw_hint in
   let lnoop = get_noop_by_fname fid lpnoop in
   let rnoop = get_noop_by_fname fid rpnoop in
   let module_hint = empty_hint_module lm lpnoop in
@@ -272,7 +265,10 @@ let translate_hint_module
           LLVMinfra.lookupFdefViaIDFromModule rm fid
     with
     | Some fdef_hint, Some lfdef, Some rfdef -> (fdef_hint, lfdef, rfdef)
-    | _, _, _ -> failwith "translate_hint_module"
+    | p1, p2, p3 -> 
+    Printf.printf "translate_corehint_to_hint : fid : %s %d %d %d\n%!" fid
+      (match p1 with | None -> 0 | _ -> 1) (match p2 with | None -> 0 | _ -> 1) (match p3 with | None -> 0 | _ -> 1);
+    failwith ("translate_corehint_to_hint : fid : " ^ fid)
   in
 
   let dom_tree =
@@ -281,32 +277,25 @@ let translate_hint_module
     | Some dom_tree -> dom_tree
   in
 
-  let apply_micro raw_hint fdef_hint =
-    let raw_hint = normalize_micro raw_hint in
+  let apply_micro (raw_hint:CoreHint_t.command) fdef_hint =
     let fdef_hint = propagate_micro raw_hint lfdef lnoop rfdef rnoop lm rm fdef_hint dom_tree in
-    (* let _ = prerr_endline (ParseHints.string_of_micro raw_hint) in *)
-    (* let _ = prerr_endline (PrintHints.string_of_product_hint fdef_hint) in *)
     fdef_hint
   in
 
-  let (propagating_micros, infrule_micros) =
-    List.partition is_propagating raw_hint.ParseHints.rhint_micros
+  let (propagating_micros, infrule_micros):CoreHint_t.command list * CoreHint_t.command list =
+    List.partition is_propagating raw_hint.commands
   in
   let fdef_hint =
     List.fold_left
       (fun hint raw_hint ->
-       (* let _ = print_endline (ParseHints.string_of_micro raw_hint) in *)
        apply_micro raw_hint hint)
       fdef_hint
       propagating_micros
   in
-  (* let _ = print_endline (PrintHints.string_of_product_hint fdef_hint) in *)
   let fdef_hint = 
     List.fold_left
-      (fun hint raw_hint ->
-       (* let _ = print_endline (ParseHints.string_of_micro raw_hint) in *)
+      (fun hint (raw_hint:CoreHint_t.command) ->
        let result = apply_micro raw_hint hint in
-       (* let _ = print_endline (PrintHints.string_of_product_hint result) in *)
        result)
       fdef_hint
       infrule_micros

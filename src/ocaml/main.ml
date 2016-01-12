@@ -1,4 +1,4 @@
-open Interpreter
+(* open Interpreter *)
 open Printf
 open Llvm
 open Llvm_executionengine
@@ -36,9 +36,6 @@ let main original_filename optimized_filename hint_filename =
     (if !Globalstates.debug then dump_module im1);
     (if !Globalstates.debug then Llvm_pretty_printer.travel_module ist1 im1);
     (if !Globalstates.debug then Coq_pretty_printer.travel_module coqim1);
-    SlotTracker.dispose ist1;
-    dispose_module im1;
-    dispose_context ic1;
     () in
   
   (* main2.native: let _ = read_line () in *)
@@ -69,9 +66,17 @@ let main original_filename optimized_filename hint_filename =
     (if !Globalstates.debug then dump_module im2);
     (if !Globalstates.debug then Llvm_pretty_printer.travel_module ist2 im2);
     (if !Globalstates.debug then Coq_pretty_printer.travel_module coqim2);
-    SlotTracker.dispose ist2;
-    dispose_module im2;
-    dispose_context ic2;
+
+    (* TODO: we commented out 6 freeing instructions below *)
+    (* in order to prevent segfaults. *)
+
+    (* SlotTracker.dispose ist1; *)
+    (* dispose_module im1; *)
+    (* dispose_context ic1; *)
+
+    (* SlotTracker.dispose ist2; *)
+    (* dispose_module im2; *)
+    (* dispose_context ic2; *)
     () in
 
   (*let _ = print_endline "lm" in
@@ -80,20 +85,18 @@ let main original_filename optimized_filename hint_filename =
   let _ = Coq_pretty_printer.travel_module coqim2 in*)
 
   (* read hint *)
-  let _ = debug_print "yojson read hint" in
-  let raw_hint_json = Yojson.Basic.from_file hint_filename in
+  let _ = debug_print "atdgen read hint" in
+  let raw_hint = Ag_util.Json.from_file CoreHint_j.read_hints hint_filename in
+  (*let raw_hint_json = Yojson.Safe.prettify ~std:true (CoreHint_j.string_of_hints raw_hint) in
+  print_endline raw_hint_json; *)
+
   (* let _ = print_endline "printing json hint" in *)
   (* let _ = Yojson.Basic.pretty_to_channel stdout raw_hint_json in *)
   (* let _ = print_endline "" in *)
 
-  let _ = debug_print "parse hint" in
-  let raw_hint = ParseHints.parse_hints raw_hint_json in
-  (* let _ = print_endline "printing parsed hint" in *)
-  (* let _ = print_endline (ParseHints.string_of_rhints raw_hint) in *)
-
   (* translate hint *)
   let _ = debug_print "translate hint" in
-  let (hint,noop1,noop2) = TranslateHints.translate_hint_module coqim1 coqim2 raw_hint in
+  let (hint,noop1,noop2) = TranslateCoreHint.translate_corehint_to_hint coqim1 coqim2 raw_hint in
   (*let _ = print_endline "hint translated" in
   let _ = print_endline (PrintHints.string_of_module_hint hint) in
   let _ = print_endline "noop1" in 

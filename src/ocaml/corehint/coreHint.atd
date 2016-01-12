@@ -1,0 +1,85 @@
+type scope = [ Source | Target ] <ocaml repr="classic">
+
+type instr_index = [ Command of int | Phinode | Terminator ]<ocaml repr="classic">
+
+(* Position of an instruction *)
+type position = {
+  block_name: string;    (* block index as a string. ex : "bb0" *)
+  instr_index: instr_index; (* instruction type ; a block consists of PhiNode, Commands and Terminator. *)
+}
+
+(* If age of a variable is Old, then it is a logical variable. *)
+type age = [ Old | New ] <ocaml repr="classic">
+
+type variable = {
+  name: string; (* identifier of a variable *)
+  age: age;     (* is this variable logical (Old) or physical (New)? *)
+}
+
+
+type int_type = [ IntType of (bool * int) (*signed , bitsize*) ] <ocaml repr="classic">
+type float_type = [ FloatType | DoubleType | FP128Type | X86_FP80Type ] <ocaml repr="classic">
+
+type int_value = {
+  myvalue : int;
+  mytype : int_type;
+}
+type float_value = {
+  myvalue : float;
+  mytype : float_type;
+}
+
+type const_value = [ IntVal of int_value | FloatVal of float_value ] <ocaml repr="classic">
+
+type value = [VarValue of variable | ConstValue of const_value] <ocaml repr="classic">
+
+
+type propagate_instr = {
+  lhs : variable;
+  rhs : position;
+}
+type propagate_eq = {
+  lhs : value;
+  rhs : value;
+}
+
+type propagate_object = [ Instr of propagate_instr | Eq of propagate_eq ] <ocaml repr="classic">
+
+type propagate = {
+  propagate : propagate_object;
+  propagate_from: position;
+  propagate_to: position;
+  scope: scope;
+}
+
+
+type infrule_base = {
+  position: position;
+}
+
+
+type add_assoc = {
+  inherit infrule_base;
+  lhs: variable;
+  rhs: variable;
+}
+
+type remove_maydiff = {
+  inherit infrule_base;
+  variable : variable;
+}
+
+type command = [
+  | Propagate of propagate
+  | AddAssoc of add_assoc
+  | RemoveMaydiff of remove_maydiff
+  ] <ocaml repr="classic">
+
+
+type hints = {
+  module_id: string;
+  function_id: string;
+  opt_name: string;
+  
+  commands: command list;
+}

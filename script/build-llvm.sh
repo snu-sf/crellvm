@@ -21,9 +21,10 @@ mkdir -p $LOCALDIR
 cd $OBJDIR
 
 if [ ! -f $OBJDIR/Makefile ]; then
-  $SRCDIR/configure --prefix=$LOCALDIR --enable-optimized; check_exit "llvm/configure"
+  $SRCDIR/configure --prefix=$LOCALDIR --enable-optimized --enable-bindings=ocaml; check_exit "llvm/configure"
 fi
 
-PROJ_INSTALL_ROOT=$LOCALDIR make -j$JOBS; check_exit "llvm/make"
-cp bindings/ocaml/llvm/META.llvm bindings/ocaml/llvm/Release/META.llvm
+#PROJ_INSTALL_ROOT=$LOCALDIR make -j$JOBS; check_exit "llvm/make"
+make -j$JOBS; check_exit "llvm/make"
+#cp bindings/ocaml/llvm/META.llvm bindings/ocaml/llvm/Release/META.llvm
 make install; check_exit "llvm/make install"
