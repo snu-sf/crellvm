@@ -36,6 +36,10 @@
 - Move `.coqrc` to `$HOME`. Here, replace $SIMPLBERRY_HOME to your simplberry directory.
 - `make` in `/src`
 
+### Debugging ###
+- For those who participate in this project, there are some useful techniques to track a program flow of validator or identify cause of a bug.
+    + `export OCAMLRUNPARAM='b'` lets validator show call stack when it aborts
+
 ### TODO ###
 `src/main.ml`
 - line 70: Currently we don't free memory spaces.
