@@ -7,3 +7,6 @@
 [submodule "lib/paco"]
 	path = lib/paco
 	url = https://github.com/snu-sf/paco.git
+[submodule "simplberry-tests"]
+	path = simplberry-tests
+	url = https://github.com/snu-sf/simplberry-tests.git

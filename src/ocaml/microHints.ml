@@ -3,7 +3,6 @@
 (*********************************)
 
 open Infrastructure
-(* open Interpreter *)
 open Printf
 open Llvm
 open Arg
@@ -22,11 +21,8 @@ open AddInferenceHints
 open PropagateHints
 open Utility
 open CoreHint_t
+open MicroHintsArg
 
-let is_propagating (raw_hint:CoreHint_t.command) =
-  match raw_hint with 
-  | CoreHint_t.Propagate _ -> true
-  | _ -> false
 
 let new_temp_var_count = ref 0
 let new_temp_var () =
@@ -34,16 +30,10 @@ let new_temp_var () =
   let _ = new_temp_var_count := !new_temp_var_count + 1 in
   result
 
+
 let propagate_micro 
      (raw_hint : CoreHint_t.command) 
-     (lfdef : LLVMsyntax.fdef) 
-     (lnoop : noop_t)
-     (rfdef : LLVMsyntax.fdef) 
-     (rnoop : noop_t) 
-     (left_m : LLVMsyntax.coq_module)
-     (right_m : LLVMsyntax.coq_module)
-     (fdef_hint : fdef_hint_t)
-     dom_tree 
+     (args : MicroHintsArg.microhint_args)
      : fdef_hint_t =
   match raw_hint with
   | CoreHint_t.Propagate (options:CoreHint_t.propagate) ->
@@ -54,20 +44,20 @@ let propagate_micro
 	   let lhsvar : CoreHint_t.variable = instr_args.lhs in
 	   let (lhs) = (lhsvar.name) in
 	   (*let (rhspos, rhslr, rhs, rhstyp) = getVar 1 args in*)
-	   let rhspos : CoreHint_t.position = instr_args.rhs in
+	   let rhspos : CoreHint_t.position = instr_args.rhs_at in
 	       
 	   (*let tpos = getPos 2 args in*)
 	   (*let block_prev_opt = getBlock 3 args in*)
 	   let block_prev_opt : string option = None in
 
 	   let (lhsfdef, lhsnoop) =
-	     (lfdef, lnoop)
+	     (args.lfdef, args.lnoop)
 	     (*match lhslr with 
 	     | ParseHints.Original -> (lfdef, lnoop)
 	     | ParseHints.Optimized -> (rfdef, rnoop)*)
 	   in
 	   let (rhsfdef, rhsnoop) =
-	     (lfdef, lnoop)
+	     (args.lfdef, args.lnoop)
 	     (*match rhslr with
 	     | ParseHints.Original -> (lfdef, lnoop)
 	     | ParseHints.Optimized -> (rfdef, rnoop)*)
@@ -109,15 +99,15 @@ let propagate_micro
 	     let LLVMsyntax.Coq_stmts_intro (phinodes, _, _) = rhs_block in
 	     List.map (fun (LLVMsyntax.Coq_insn_phi (phivar, _, _)) -> phivar) phinodes
 	   in
-	   (make_eq_insn lhs rhs_insn rhs_phivars block_prev_opt), lfdef, block_prev_opt
+	   (make_eq_insn lhs rhs_insn rhs_phivars block_prev_opt), args.lfdef, block_prev_opt
 	 
 	 | CoreHint_t.Eq eq_args ->
 	   let v1 : CoreHint_t.value = eq_args.lhs in
 	   let v2 : CoreHint_t.value = eq_args.rhs in
-	   let llvm_v1 = PropagateHints.convert_to_LLVMvalue v1 lfdef in
-	   let llvm_v2 = PropagateHints.convert_to_LLVMvalue v2 lfdef in
+	   let llvm_v1 = PropagateHints.convert_to_LLVMvalue v1 args.lfdef in
+	   let llvm_v2 = PropagateHints.convert_to_LLVMvalue v2 args.lfdef in
 	   let block_prev_opt : string option = None (*getBlock 4 args *) in
-	   (make_eq_reg llvm_v1 llvm_v2), lfdef, block_prev_opt
+	   (make_eq_reg llvm_v1 llvm_v2), args.lfdef, block_prev_opt
        in
        let propagate_from : CoreHint_t.position = options.propagate_from in
        let propagate_to : CoreHint_t.position = options.propagate_to in
@@ -126,13 +116,17 @@ let propagate_micro
 	   ~block_prev_opt:block_prev_opt
 	   propagate_from propagate_to
 	   (tag_lr (*lhslr // juneyoung lee : we assume that all propagate commands are applied to Source*) CoreHint_t.Source elt)
-	   fdef fdef_hint dom_tree
+	   fdef args.fdef_hint args.dom_tree
        in
        fdef_hint
 
   | CoreHint_t.AddAssoc (options:CoreHint_t.add_assoc) ->
-     AddAssocApplier.apply options lfdef lnoop rfdef rnoop left_m right_m fdef_hint dom_tree
+     AddAssocApplier.apply options args
   | CoreHint_t.RemoveMaydiff (options : CoreHint_t.remove_maydiff) ->
-     RemoveMaydiffApplier.apply options lfdef lnoop rfdef rnoop left_m right_m fdef_hint dom_tree
+     RemoveMaydiffApplier.apply options args
+  | CoreHint_t.AddSub (options:CoreHint_t.add_sub) ->
+     AddSubApplier.apply options args
+  | CoreHint_t.AddComm (options:CoreHint_t.add_comm) ->
+     AddCommApplier.apply options args
 
 (* NOTE: Add here to add a new rule *)

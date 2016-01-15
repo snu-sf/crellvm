@@ -7,6 +7,7 @@ open Syntax
 open Syntax_ext
 open MetatheoryAtom
 open MicroHints
+open MicroHintsArg
 open Vars_aux
 open Validator_aux
 open Dom_list
@@ -278,12 +279,26 @@ let translate_corehint_to_hint
   in
 
   let apply_micro (raw_hint:CoreHint_t.command) fdef_hint =
-    let fdef_hint = propagate_micro raw_hint lfdef lnoop rfdef rnoop lm rm fdef_hint dom_tree in
+    let options : MicroHintsArg.microhint_args = {
+      lfdef = lfdef;
+      lnoop = lnoop;
+      rfdef = rfdef;
+      rnoop = rnoop;
+      left_m = lm;
+      right_m = rm;
+      fdef_hint = fdef_hint;
+      dom_tree = dom_tree
+    } in
+    let fdef_hint = propagate_micro raw_hint options (*lfdef lnoop rfdef rnoop lm rm fdef_hint dom_tree*) in
     fdef_hint
   in
 
   let (propagating_micros, infrule_micros):CoreHint_t.command list * CoreHint_t.command list =
-    List.partition is_propagating raw_hint.commands
+    List.partition 
+      (fun (x:CoreHint_t.command) -> 
+      match x with 
+      | CoreHint_t.Propagate _ -> true 
+      | _ -> false) raw_hint.commands
   in
   let fdef_hint =
     List.fold_left
