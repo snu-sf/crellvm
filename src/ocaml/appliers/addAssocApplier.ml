@@ -22,18 +22,12 @@ open AddInferenceHints
 open PropagateHints
 open Utility
 open CoreHint_t
+open CommandArg
 
 
 let apply
      (options : CoreHint_t.add_assoc) 
-     (lfdef : LLVMsyntax.fdef) 
-     (lnoop : noop_t)
-     (rfdef : LLVMsyntax.fdef) 
-     (rnoop : noop_t) 
-     (left_m : LLVMsyntax.coq_module)
-     (right_m : LLVMsyntax.coq_module)
-     (fdef_hint : fdef_hint_t)
-     dom_tree 
+     (args : CommandArg.microhint_args)
      : fdef_hint_t = 
 
      (*
@@ -70,8 +64,8 @@ let apply
      in
      let fdef_hint = add_inference pos block_prev_opt
                                    make_infrules
-                                   lfdef lnoop rfdef rnoop left_m right_m
-                                   fdef_hint
+                                   args.lfdef args.lnoop args.rfdef args.rnoop args.left_m args.right_m
+                                   args.fdef_hint
      in
      fdef_hint
 

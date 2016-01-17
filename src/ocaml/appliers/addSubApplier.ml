@@ -26,20 +26,29 @@ open CommandArg
 
 
 let apply
-     (options : CoreHint_t.remove_maydiff) 
+     (options : CoreHint_t.add_sub) 
      (args : CommandArg.microhint_args)
      : fdef_hint_t = 
 
      let pos = options.position in
-     let targetvar = options.variable in
-     let id = targetvar.name in
-     let block_prev_opt : string option = None (*getBlock 2 args*) in
+     let z = options.z in
+     let my = options.minusy in
+     let block_prev_opt:string option = None in
+
      let make_infrules insn_hint =
-       let lefts = get_rhses_from_insn_hint CoreHint_t.Source (*ParseHints.Original*) id insn_hint in
-       let rights = get_rhses_from_insn_hint CoreHint_t.Target (*ParseHints.Optimized*) id insn_hint in
-       let matches = List.append lefts rights in
-       let infrules = List.map (fun (id_ext, id_rhs) -> Coq_rule_remove_maydiff (id_ext, id_rhs)) matches in
-       infrules
+       let (minusy_ext, minusy_rhs) = get_rhs_from_insn_hint CoreHint_t.Source (my.name) insn_hint in
+       let rights = get_rhses_from_insn_hint CoreHint_t.Source (z.name) insn_hint in
+       let get_one_infrule (z_ext,z_rhs) =
+         match minusy_rhs, z_rhs with
+         | Coq_rhs_ext_bop (LLVMsyntax.Coq_bop_sub, sz, _, y_ext),
+       Coq_rhs_ext_bop (LLVMsyntax.Coq_bop_add, sz_0, x_ext, (Coq_value_ext_id minusy_ext_0))
+         when sz = sz_0 && minusy_ext = minusy_ext_0 ->
+           [Coq_rule_add_sub (z_ext, minusy_ext, sz, x_ext, y_ext)]
+         | _ -> []
+       in
+       List.fold_left
+         (fun acc (z_ext,z_rhs) -> acc @ get_one_infrule (z_ext,z_rhs))
+         [] rights
      in
      let fdef_hint = add_inference pos block_prev_opt
                                    make_infrules

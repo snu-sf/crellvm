@@ -36,7 +36,7 @@ type value = [VarValue of variable | ConstValue of const_value] <ocaml repr="cla
 
 type propagate_instr = {
   lhs : variable;
-  rhs : position;
+  rhs_at : position;
 }
 type propagate_eq = {
   lhs : value;
@@ -64,6 +64,17 @@ type add_assoc = {
   rhs: variable;
 }
 
+type add_sub = {
+  inherit infrule_base;
+  minusy : variable;
+  z : variable;
+}
+
+type add_comm = {
+  inherit infrule_base;
+  z : variable;
+}
+
 type remove_maydiff = {
   inherit infrule_base;
   variable : variable;
@@ -72,6 +83,8 @@ type remove_maydiff = {
 type command = [
   | Propagate of propagate
   | AddAssoc of add_assoc
+  | AddSub of add_sub
+  | AddComm of add_comm
   | RemoveMaydiff of remove_maydiff
   ] <ocaml repr="classic">
 
