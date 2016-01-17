@@ -22,12 +22,12 @@ open AddInferenceHints
 open PropagateHints
 open Utility
 open CoreHint_t
-open MicroHintsArg
+open CommandArg
 
 
 let apply
      (options : CoreHint_t.add_assoc) 
-     (args : MicroHintsArg.microhint_args)
+     (args : CommandArg.microhint_args)
      : fdef_hint_t = 
 
      (*

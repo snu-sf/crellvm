@@ -7,7 +7,7 @@ open Syntax
 open Syntax_ext
 open MetatheoryAtom
 open MicroHints
-open MicroHintsArg
+open CommandArg
 open Vars_aux
 open Validator_aux
 open Dom_list
@@ -279,7 +279,7 @@ let translate_corehint_to_hint
   in
 
   let apply_micro (raw_hint:CoreHint_t.command) fdef_hint =
-    let options : MicroHintsArg.microhint_args = {
+    let options : CommandArg.microhint_args = {
       lfdef = lfdef;
       lnoop = lnoop;
       rfdef = rfdef;
