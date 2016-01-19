@@ -31,8 +31,8 @@ let new_temp_var () =
   result
 
 
-let propagate_micro 
-     (raw_hint : CoreHint_t.command) 
+let propagate_micro
+     (raw_hint : CoreHint_t.command)
      (args : CommandArg.microhint_args)
      : fdef_hint_t =
   match raw_hint with
@@ -45,22 +45,22 @@ let propagate_micro
       fdef_hint
 
     | _ ->
-      let (elt : PropagateHints.invariant_elt_t), (fdef : LLVMsyntax.fdef), (block_prev_opt : string option) = 
-	   match options.propagate with 
+      let (elt : PropagateHints.invariant_elt_t), (fdef : LLVMsyntax.fdef), (block_prev_opt : string option) =
+	   match options.propagate with
 	   | CoreHint_t.Instr instr_args ->
 	     (*let (lhspos, lhslr, lhs, lhstyp) = getVar 0 args in*)
 	     let lhsvar : CoreHint_t.variable = instr_args.lhs in
 	     let (lhs) = (lhsvar.name) in
 	     (*let (rhspos, rhslr, rhs, rhstyp) = getVar 1 args in*)
 	     let rhspos : CoreHint_t.position = instr_args.rhs_at in
-		 
+
 	     (*let tpos = getPos 2 args in*)
 	     (*let block_prev_opt = getBlock 3 args in*)
 	     let block_prev_opt : string option = None in
 
 	     let (lhsfdef, lhsnoop) =
 	       (args.lfdef, args.lnoop)
-	       (*match lhslr with 
+	       (*match lhslr with
 	       | ParseHints.Original -> (lfdef, lnoop)
 	       | ParseHints.Optimized -> (rfdef, rnoop)*)
 	     in
@@ -74,16 +74,16 @@ let propagate_micro
 	     let rhs_block =
 	       match LLVMinfra.lookupBlockViaLabelFromFdef rhsfdef rhs_bb with
 	       | Some block -> block
-	       | None -> 
+	       | None ->
 		 (*(match LLVMinfra.lookupBlockViaIDFromFdef rhsfdef rhs with
 		 | Some block -> snd block
 		 | None -> *)
-		   try 
+		   try
 		     (match rhsfdef with
-		       Syntax_base.LLVMsyntax_base.Coq_fdef_intro (_,blks) -> 
+		       Syntax_base.LLVMsyntax_base.Coq_fdef_intro (_,blks) ->
 			 snd (List.nth blks (int_of_string rhs_bb))
 		     )
-		   with Failure "int_of_string" -> 
+		   with Failure "int_of_string" ->
 		     failwith "propagate_micro instr_propagate rhs_block (juneyoung lee)"
 		 (*)*)
 	     in
@@ -98,17 +98,17 @@ let propagate_micro
 		 (*
 		 (match LLVMinfra.lookupInsnViaIDFromFdef rhsfdef rhs with
 		 | Some insn -> insn
-		 | None -> 
+		 | None ->
 		 *)
 		 failwith "propagate_micro instr2_propagate rhs_insn (juneyoung lee)"
 		 (*)*)
-	     in         
+	     in
 	     let rhs_phivars =
 	       let LLVMsyntax.Coq_stmts_intro (phinodes, _, _) = rhs_block in
 	       List.map (fun (LLVMsyntax.Coq_insn_phi (phivar, _, _)) -> phivar) phinodes
 	     in
 	     (make_eq_insn lhs rhs_insn rhs_phivars block_prev_opt), args.lfdef, block_prev_opt
-	   
+
 	   | CoreHint_t.Eq eq_args ->
 	     let v1 : CoreHint_t.value = eq_args.lhs in
 	     let v2 : CoreHint_t.value = eq_args.rhs in
@@ -136,5 +136,7 @@ let propagate_micro
      AddSubApplier.apply options args
   | CoreHint_t.AddComm (options:CoreHint_t.add_comm) ->
      AddCommApplier.apply options args
+  | CoreHint_t.AddShift (options:CoreHint_t.add_shift) ->
+     AddShiftApplier.apply options args
 
 (* NOTE: Add here to add a new rule *)
