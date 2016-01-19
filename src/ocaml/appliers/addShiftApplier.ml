@@ -35,8 +35,7 @@ let apply
      let block_prev_opt:string option = None in
 
      let make_infrules insn_hint =
-       let (y_ext, y_rhs) = get_rhs_from_insn_hint CoreHint_t.Source y.name
-       args.insn_hint in
+       let (y_ext, y_rhs) = get_rhs_from_insn_hint CoreHint_t.Source y.name insn_hint in
        let (sz, x_ext) =
          match y_rhs with
          | Coq_rhs_ext_bop (LLVMsyntax.Coq_bop_add, sz, x_ext, x_ext_0)
