@@ -75,6 +75,12 @@ type add_comm = {
   z : variable;
 }
 
+type add_shift = {
+  inherit infrule_base;
+  y : variable;
+}
+
+
 type remove_maydiff = {
   inherit infrule_base;
   variable : variable;
@@ -85,6 +91,7 @@ type command = [
   | AddAssoc of add_assoc
   | AddSub of add_sub
   | AddComm of add_comm
+  | AddShift of add_shift
   | RemoveMaydiff of remove_maydiff
   ] <ocaml repr="classic">
 
@@ -93,6 +100,6 @@ type hints = {
   module_id: string;
   function_id: string;
   opt_name: string;
-  
+
   commands: command list;
 }

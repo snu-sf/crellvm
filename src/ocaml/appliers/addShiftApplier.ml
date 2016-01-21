@@ -26,23 +26,24 @@ open CommandArg
 
 
 let apply
-     (options : CoreHint_t.add_comm)
+     (options : CoreHint_t.add_shift)
      (args : CommandArg.microhint_args)
      : fdef_hint_t =
 
      let pos = options.position in
-     let z = options.z in
+     let y = options.y in
      let block_prev_opt:string option = None in
 
      let make_infrules insn_hint =
-       let (z_ext, z_rhs) = get_rhs_from_insn_hint CoreHint_t.Source (z.name) insn_hint in
-       let (sz, x_ext, y_ext) =
-         match z_rhs with
-           Coq_rhs_ext_bop (LLVMsyntax.Coq_bop_add, sz, x_ext, y_ext) ->
-             (sz, x_ext, y_ext)
-         | _ -> failwith "add_commutative: pattern matching failed"
+       let (y_ext, y_rhs) = get_rhs_from_insn_hint CoreHint_t.Source y.name insn_hint in
+       let (sz, x_ext) =
+         match y_rhs with
+         | Coq_rhs_ext_bop (LLVMsyntax.Coq_bop_add, sz, x_ext, x_ext_0)
+             when x_ext = x_ext_0 ->
+            (sz, x_ext)
+         | _ -> failwith "add_shift: pattern matching failed"
        in
-       let infrule = Coq_rule_add_commutative (z_ext, sz, x_ext, y_ext) in
+       let infrule = Coq_rule_add_shift (y_ext, sz, x_ext) in
        [infrule]
      in
      let fdef_hint = add_inference pos block_prev_opt
