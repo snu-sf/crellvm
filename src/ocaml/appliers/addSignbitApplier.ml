@@ -26,7 +26,7 @@ open CommandArg
 
 
 let apply
-     (options : CoreHint_t.add_shift)
+     (options : CoreHint_t.add_signbit)
      (args : CommandArg.microhint_args)
      : fdef_hint_t =
 
@@ -35,7 +35,7 @@ let apply
      let block_prev_opt:string option = None in
 
      let make_infrules insn_hint =
-       let (x_ext, x_rhs) = get_rhs_from_insn_hint ParseHints.Original x insn_hint in
+       let (x_ext, x_rhs) = get_rhs_from_insn_hint CoreHint_t.Source x.name insn_hint in
        let (sz, lhs, rhs) =
          match x_rhs with
          | Coq_rhs_ext_bop (LLVMsyntax.Coq_bop_add, sz, lhs, rhs) ->
