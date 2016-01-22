@@ -134,5 +134,7 @@ let propagate_micro
             AddSignbitApplier.apply options args
         | CoreHint_t.AddOnebit (options:CoreHint_t.add_onebit) ->
             AddOnebitApplier.apply options args
+        | CoreHint_t.AddZextBool (options:CoreHint_t.add_zext_bool) ->
+            AddZextBoolApplier.apply options args
 
         (* NOTE: Add here to add a new rule *)

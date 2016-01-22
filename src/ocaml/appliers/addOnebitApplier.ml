@@ -32,7 +32,7 @@ let apply
 
   let pos = options.position in
   let z = options.z in
-  let block_prev_opti:string option = None in
+  let block_prev_opt:string option = None in
 
   let make_infrules insn_hint =
     let (z_ext, z_rhs) = get_rhs_from_insn_hint CoreHint_t.Source z.name insn_hint in
@@ -46,9 +46,9 @@ let apply
     [infrule]
     in
     let fdef_hint = add_inference pos block_prev_opt
-    make_infrules
-    args.lfdef args.lnoop args.rfdef args.rnoop
-    args.left_m args.right_m
-    args.fdef_hint
-  in
-  fdef_hint
+                                  make_infrules
+                                  args.lfdef args.lnoop args.ef args.rnoop
+                                  args.left_m args.right_m
+                                  args.fdef_hint
+    in
+    fdef_hint
