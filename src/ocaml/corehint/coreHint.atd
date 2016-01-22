@@ -85,6 +85,10 @@ type add_signbit = {
   x : variable;
 }
 
+type add_onebit = {
+  inherit infrule_base;
+  z : variable;
+}
 
 type remove_maydiff = {
   inherit infrule_base;
@@ -98,6 +102,7 @@ type command = [
   | AddComm of add_comm
   | AddShift of add_shift
   | AddSignbit of add_signbit
+  | AddOnebit of add_onebit
   | RemoveMaydiff of remove_maydiff
   ] <ocaml repr="classic">
 
