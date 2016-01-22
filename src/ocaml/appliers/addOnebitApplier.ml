@@ -47,7 +47,7 @@ let apply
     in
     let fdef_hint = add_inference pos block_prev_opt
                                   make_infrules
-                                  args.lfdef args.lnoop args.ef args.rnoop
+                                  args.lfdef args.lnoop args.rfdef args.rnoop
                                   args.left_m args.right_m
                                   args.fdef_hint
     in

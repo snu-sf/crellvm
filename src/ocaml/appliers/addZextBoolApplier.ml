@@ -36,7 +36,7 @@ let apply
   let block_prev_opt:string option = None in
 
   let make_infrules insn_hint =
-    let x_insn = get_rhs_from_fdef x lfdef in
+    let x_insn = get_rhs_from_fdef x.name args.lfdef in
     let (y_ext, y_rhs) = get_rhs_from_insn_hint CoreHint_t.Source y.name insn_hint in
     let (x_ext, b, sz, c) =
       match x_insn, y_rhs with
