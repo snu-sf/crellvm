@@ -17,6 +17,10 @@
     + `make`
     + `sudo make install`
 
+- Get [Boost](http://www.boost.org/users/history/version_1_59_0.html) C++ library.
+    + Unzip somewhere.
+    + Add `export BOOST_ROOT=$BOOST_LOCATION` (or `export BOOST_INCLUDEDIR=$BOOST_LOCATION`) in `.bashrc` or `.zshrc`.   
+
 - Clone the repository.
 
 - `git submodule init && git submodule update`
