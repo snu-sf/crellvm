@@ -14,8 +14,10 @@ OCAMLBUILD_OPT = -r \
 	-I vellvm/src/Extraction \
 	-use-ocamlfind -pkg atdgen \
 	-cflags -I,$(LLVM_OCAML_LIB) \
+	-cflags -I,$(LLVM_LIB) \
 	-cflags -g\
 	-lflags -I,$(LLVM_OCAML_LIB) \
+	-lflags -I,$(LLVM_LIB) \
 	-lflags -cc,g++\
 	-lflags -cclib,-lLLVMSupport\
 	-lflags -cclib,-lLLVMBitReader\
