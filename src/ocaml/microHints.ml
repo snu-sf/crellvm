@@ -130,5 +130,7 @@ let propagate_micro
             AddCommApplier.apply options args
         | CoreHint_t.AddShift (options:CoreHint_t.add_shift) ->
             AddShiftApplier.apply options args
+        | CoreHint_t.AddSignbit (options:CoreHint_t.add_signbit) ->
+            AddSignbitApplier.apply options args
 
         (* NOTE: Add here to add a new rule *)
