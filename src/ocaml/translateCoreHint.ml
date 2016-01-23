@@ -17,13 +17,13 @@ open CoreHint_t
 
 type atom = AtomSetImpl.t
 
-let is_parent_terminator (t:LLVMsyntax.terminator) (bb:LLVMsyntax.l) : bool = 
+let is_parent_terminator (t:LLVMsyntax.terminator) (bb:LLVMsyntax.l) : bool =
   match t with
   | LLVMsyntax.Coq_insn_br (_,_,l1,l2) -> l1=bb || l2=bb
   | LLVMsyntax.Coq_insn_br_uncond (_,l1) -> l1=bb
   | _ -> false
 
-let is_parent (blk:LLVMsyntax.block) (bb:LLVMsyntax.l) : bool = 
+let is_parent (blk:LLVMsyntax.block) (bb:LLVMsyntax.l) : bool =
   let LLVMsyntax.Coq_stmts_intro (_,_,t) = snd blk in
   is_parent_terminator t bb
 
@@ -59,7 +59,7 @@ let rec empty_hint_system (s:LLVMsyntax.system) (noop:products_noop_t)
     s
 
 
-and empty_hint_module (m:LLVMsyntax.coq_module) (noop:products_noop_t) 
+and empty_hint_module (m:LLVMsyntax.coq_module) (noop:products_noop_t)
     : products_hint_t =
   match m with
   | LLVMsyntax.Coq_module_intro (_, _, products) -> (
@@ -74,16 +74,16 @@ and empty_hint_module (m:LLVMsyntax.coq_module) (noop:products_noop_t)
 	    products
   )
 
-and empty_hint_fdef (fdef:LLVMsyntax.fdef) (noop:products_noop_t) 
+and empty_hint_fdef (fdef:LLVMsyntax.fdef) (noop:products_noop_t)
     : (MetatheoryAtom.AtomImpl.atom * fdef_hint_t) =
   match fdef with
   | LLVMsyntax.Coq_fdef_intro (fhead, blks) -> (
 	  match fhead with
 	  | LLVMsyntax.Coq_fheader_intro (_, _, atom, _, _) ->
        let noop_f = get_noop_by_fname atom noop in
-	     let blks_hint = 
+	     let blks_hint =
 		     List.fold_left
-			     (fun bhints blk -> 
+			     (fun bhints blk ->
             let bb = fst blk in
             let parent_bbs = get_parent_bbs fdef bb in
             (bb,(empty_hint_block blk noop_f parent_bbs))::bhints
@@ -186,16 +186,16 @@ let generate_noop_from_corehint (fid : string) (hint:CoreHint_t.hints) : product
     (fun (lpnoop,rpnoop) add_rm ->
      let bb = add_rm.CoreHintUtil.rhint_bb_index in
 
-     let new_lnoop = 
+     let new_lnoop =
        (get_noop_by_fname fid lpnoop)@
-         (List.map (fun n -> {bb_noop=bb; idx_noop=n-1}) 
+         (List.map (fun n -> {bb_noop=bb; idx_noop=n-1})
             (List.filter (fun n -> n > 0) add_rm.CoreHintUtil.rhint_indices))
      in
      let new_lpnoop = Alist.updateAddAL lpnoop fid new_lnoop in
 
-     let new_rnoop = 
+     let new_rnoop =
        (get_noop_by_fname fid rpnoop)@
-         (List.map (fun n -> {bb_noop=bb; idx_noop=(-n)-1}) 
+         (List.map (fun n -> {bb_noop=bb; idx_noop=(-n)-1})
             (List.filter (fun n -> n < 0) add_rm.CoreHintUtil.rhint_indices))
      in
      let new_rpnoop = Alist.updateAddAL rpnoop fid new_rnoop in
@@ -215,7 +215,7 @@ let noret_maydiff_cmd (c: LLVMsyntax.cmd) : string option =
 
 let noret_maydiff_cmds (cs: LLVMsyntax.cmds) : string list =
   List.fold_left
-    (fun acc c -> 
+    (fun acc c ->
       match noret_maydiff_cmd c with
       | Some x -> x :: acc
       | None -> acc
@@ -236,18 +236,18 @@ let noret_maydiff_products (ps: LLVMsyntax.products) (f:string) : string list =
   let rec get_blks (ps: LLVMsyntax.products) (f:string) : LLVMsyntax.blocks option =
     match ps with
     | [] -> None
-    | LLVMsyntax.Coq_product_fdef 
+    | LLVMsyntax.Coq_product_fdef
         (LLVMsyntax.Coq_fdef_intro
            (LLVMsyntax.Coq_fheader_intro (_,_,g,_,_),blks))::_
         when f = g -> Some blks
     | _::tl -> get_blks tl f
   in
   match get_blks ps f with
-  | Some blks -> noret_maydiff_blocks blks 
+  | Some blks -> noret_maydiff_blocks blks
   | None -> []
 
 let noret_maydiff (m:LLVMsyntax.coq_module) (f:string) : string list =
-  match m with 
+  match m with
   | LLVMsyntax.Coq_module_intro (_,_,ps) -> noret_maydiff_products ps f
 
 let translate_corehint_to_hint
@@ -260,12 +260,12 @@ let translate_corehint_to_hint
   let rnoop = get_noop_by_fname fid rpnoop in
   let module_hint = empty_hint_module lm lpnoop in
   (* add maydiff globals by noret call *)
-  let module_hint = 
-    List.map 
+  let module_hint =
+    List.map
       (fun (f,fdef_hint) ->
-        let fdef_hint = 
+        let fdef_hint =
           List.fold_left
-            (fun fdef_hint x -> 
+            (fun fdef_hint x ->
               let fdef_hint = PropagateHints.propagate_maydiff_in_fdef_hint (x, Coq_ntag_old) fdef_hint in
               let fdef_hint = PropagateHints.propagate_maydiff_in_fdef_hint (x, Coq_ntag_new) fdef_hint in
               fdef_hint)
@@ -282,7 +282,7 @@ let translate_corehint_to_hint
           LLVMinfra.lookupFdefViaIDFromModule rm fid
     with
     | Some fdef_hint, Some lfdef, Some rfdef -> (fdef_hint, lfdef, rfdef)
-    | p1, p2, p3 -> 
+    | p1, p2, p3 ->
     Printf.printf "translate_corehint_to_hint : fid : %s %d %d %d\n%!" fid
       (match p1 with | None -> 0 | _ -> 1) (match p2 with | None -> 0 | _ -> 1) (match p3 with | None -> 0 | _ -> 1);
     failwith ("translate_corehint_to_hint : fid : " ^ fid)
@@ -309,11 +309,11 @@ let translate_corehint_to_hint
     fdef_hint
   in
 
-  let (propagating_micros, infrule_micros):CoreHint_t.command list * CoreHint_t.command list =
-    List.partition 
-      (fun (x:CoreHint_t.command) -> 
-      match x with 
-      | CoreHint_t.Propagate _ -> true 
+  let (propagating_micros, infrule_micros)(*:CoreHint_t.command list * CoreHint_t.command list*) =
+    List.partition
+      (fun (x:CoreHint_t.command) ->
+      match x with
+      | CoreHint_t.Propagate _ -> true
       | _ -> false) raw_hint.commands
   in
   let fdef_hint =
@@ -323,7 +323,7 @@ let translate_corehint_to_hint
       fdef_hint
       propagating_micros
   in
-  let fdef_hint = 
+  let fdef_hint =
     List.fold_left
       (fun hint (raw_hint:CoreHint_t.command) ->
        let result = apply_micro raw_hint hint in

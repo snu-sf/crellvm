@@ -26,29 +26,29 @@ open CommandArg
 
 
 let apply
-     (options : CoreHint_t.add_comm)
+     (options : CoreHint_t.add_signbit)
      (args : CommandArg.microhint_args)
      : fdef_hint_t =
 
      let pos = options.position in
-     let z = options.z in
+     let x = options.x in
      let block_prev_opt:string option = None in
 
      let make_infrules insn_hint =
-       let (z_ext, z_rhs) = get_rhs_from_insn_hint CoreHint_t.Source (z.name) insn_hint in
-       let (sz, x_ext, y_ext) =
-         match z_rhs with
-           Coq_rhs_ext_bop (LLVMsyntax.Coq_bop_add, sz, x_ext, y_ext) ->
-             (sz, x_ext, y_ext)
-         | _ -> failwith "add_commutative: pattern matching failed"
+       let (x_ext, x_rhs) = get_rhs_from_insn_hint CoreHint_t.Source x.name insn_hint in
+       let (sz, lhs, rhs) =
+         match x_rhs with
+         | Coq_rhs_ext_bop (LLVMsyntax.Coq_bop_add, sz, lhs, rhs) ->
+            (sz, lhs, rhs)
+         | _ -> failwith "add_signbit: pattern matching failed"
        in
-       let infrule = Coq_rule_add_commutative (z_ext, sz, x_ext, y_ext) in
+       let infrule = Coq_rule_add_signbit (x_ext, sz, lhs, rhs) in
        [infrule]
      in
      let fdef_hint = add_inference pos block_prev_opt
                                    make_infrules
-                                   args.lfdef args.lnoop args.rfdef args.rnoop args.left_m args.right_m
+                                   args.lfdef args.lnoop args.rfdef args.rnoop
+                                   args.left_m args.right_m
                                    args.fdef_hint
      in
      fdef_hint
-
