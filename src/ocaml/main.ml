@@ -97,8 +97,8 @@ let main original_filename optimized_filename hint_filename =
 
   (* translate hint *)
   let _ = debug_print "translate hint" in
-  (*let (hint,noop1,noop2) = TranslateCoreHint.translate_corehint_to_hint coqim1 coqim2 raw_hint in
-  let _ = print_endline "hint translated" in
+  let (hint,noop1,noop2) = TranslateCoreHint.translate_corehint_to_hint coqim1 coqim2 raw_hint in
+  (*let _ = print_endline "hint translated" in
   let _ = print_endline (PrintHints.string_of_module_hint hint) in
   let _ = print_endline "noop1" in 
   let _ = print_endline (TranslateCoreHint.string_of_product_noop noop1) in

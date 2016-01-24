@@ -34,7 +34,7 @@ MLS = extraction/FMapWeakList.ml extraction/FMapWeakList.mli\
 	corehint/coreHint_j.ml corehint/coreHint_j.mli\
 	corehint/coreHint_t.ml corehint/coreHint_t.mli\
 	coq2ml.ml coreHintUtil.ml translateCoreHint.ml\
-	main.ml utility.ml propagateHints.ml addInferenceHints.ml microHints.ml commandArg.ml tt.ml \
+	main.ml utility.ml propagateHints.ml addInferenceHints.ml microHints.ml commandArg.ml tt.ml printHints.ml \
 	appliers/removeMaydiffApplier.ml \
 	appliers/addSubApplier.ml \
 	appliers/addAssocApplier.ml
