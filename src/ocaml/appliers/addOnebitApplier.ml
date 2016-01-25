@@ -26,9 +26,9 @@ open CommandArg
 
 
 let apply
-(options : CoreHint_t.add_onebit)
-(args : CommandArg.microhint_args)
-: fdef_hint_t =
+    (options : CoreHint_t.add_onebit)
+    (args : CommandArg.microhint_args)
+    : fdef_hint_t =
 
   let pos = options.position in
   let z = options.z in
@@ -47,8 +47,8 @@ let apply
     in
     let fdef_hint = add_inference pos block_prev_opt
                                   make_infrules
-                                  args.lfdef args.lnoop args.rfdef args.rnoop
-                                  args.left_m args.right_m
+                                  args.lfdef args.lnoop args.rfdef
+                                  args.rnoop args.left_m args.right_m
                                   args.fdef_hint
-    in
-    fdef_hint
+  in
+  fdef_hint

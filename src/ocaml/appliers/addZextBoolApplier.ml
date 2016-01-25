@@ -41,11 +41,11 @@ let apply
     let (x_ext, b, sz, c) =
       match x_insn, y_rhs with
       | LLVMsyntax.Coq_insn_cmd
-      (LLVMsyntax.Coq_insn_ext
-      (_, LLVMsyntax.Coq_extop_z, LLVMsyntax.Coq_typ_int _, b, LLVMsyntax.Coq_typ_int sz)),
-      Coq_rhs_ext_bop (LLVMsyntax.Coq_bop_add, sz_0,
-      Coq_value_ext_id x_ext,
-      Coq_value_ext_const (LLVMsyntax.Coq_const_int (sz_1, c)))
+        (LLVMsyntax.Coq_insn_ext
+        (_, LLVMsyntax.Coq_extop_z, LLVMsyntax.Coq_typ_int _, b, LLVMsyntax.Coq_typ_int sz)),
+        Coq_rhs_ext_bop (LLVMsyntax.Coq_bop_add, sz_0,
+        Coq_value_ext_id x_ext,
+        Coq_value_ext_const (LLVMsyntax.Coq_const_int (sz_1, c)))
       when sz = sz_0 && sz = sz_1 ->
         (x_ext, b, sz, c)
          | _ -> failwith "add_zext_bool: pattern matching failed"
@@ -55,9 +55,9 @@ let apply
     [infrule]
     in
     let fdef_hint = add_inference pos block_prev_opt
-                                  make_infrules
-                                  args.lfdef args.lnoop args.rfdef args.rnoop
-                                  args.left_m args.right_m
-                                  args.fdef_hint
-    in
-    fdef_hint
+    make_infrules
+    args.lfdef args.lnoop args.rfdef args.rnoop
+    args.left_m args.right_m
+    args.fdef_hint
+  in
+  fdef_hint
