@@ -96,6 +96,26 @@ type add_zext_bool = {
   y : variable;
 }
 
+type add_const_not = {
+  inherit infrule_base;
+  z : variable;
+  y : variable;
+}
+
+type add_mask = {
+  inherit infrule_base;
+  z : variable;
+  y : variable;
+  yp : variable;
+}
+
+type add_select_zero = {
+  inherit infrule_base;
+  z : variable;
+  x : variable;
+  y : variable;
+}
+
 type remove_maydiff = {
   inherit infrule_base;
   variable : variable;
@@ -110,6 +130,9 @@ type command = [
   | AddSignbit of add_signbit
   | AddOnebit of add_onebit
   | AddZextBool of add_zext_bool
+  | AddConstNot of add_const_not
+  | AddMask of add_mask
+  | AddSelectZero of add_select_zero
   | RemoveMaydiff of remove_maydiff
   ] <ocaml repr="classic">
 
