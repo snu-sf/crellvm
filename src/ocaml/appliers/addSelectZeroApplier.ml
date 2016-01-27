@@ -26,7 +26,7 @@ open CommandArg
 
 
 let apply
-    (options : CoreHint_t.add_shift)
+    (options : CoreHint_t.add_select_zero)
     (args : CommandArg.microhint_args)
     : fdef_hint_t =
 

@@ -116,7 +116,7 @@ let propagate_micro
             let llvm_v2 = PropagateHints.convert_to_LLVMvalue v2 args.lfdef in
             let block_prev_opt : string option = None (*getBlock 4 args *) in
             (make_eq_reg llvm_v1 llvm_v2), args.lfdef, block_prev_opt
-        
+
         | CoreHint_t.Neq neq_args ->
             let lhs : CoreHint_t.variable = neq_args.lhs in
             let rhs : CoreHint_t.variable = neq_args.rhs in
@@ -133,7 +133,7 @@ let propagate_micro
         fdef args.fdef_hint args.dom_tree
       in
       fdef_hint
-     
+
   | CoreHint_t.AddAssoc (options:CoreHint_t.add_assoc) ->
       AddAssocApplier.apply options args
   | CoreHint_t.RemoveMaydiff (options : CoreHint_t.remove_maydiff) ->
@@ -150,5 +150,11 @@ let propagate_micro
       AddOnebitApplier.apply options args
   | CoreHint_t.AddZextBool (options:CoreHint_t.add_zext_bool) ->
       AddZextBoolApplier.apply options args
+  | CoreHint_t.AddConstNot (options:CoreHint_t.add_const_not) ->
+      AddConstNotApplier.apply options args
+  | CoreHint_t.AddMask (options:CoreHint_t.add_mask) ->
+      AddMaskApplier.apply options args
+  | CoreHint_t.AddSelectZero (options:CoreHint_t.add_select_zero) ->
+      AddSelectZeroApplier.apply options args
 
   (* NOTE: Add here to add a new rule *)

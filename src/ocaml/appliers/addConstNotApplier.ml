@@ -54,6 +54,6 @@ let apply
                                       make_infrules
                                       args.lfdef args.lnoop args.rfdef
                                       args.rnoop args.left_m args.right_m
-                                      fdef_hint
+                                      args.fdef_hint
   in
   fdef_hint
