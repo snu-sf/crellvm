@@ -50,7 +50,11 @@ type propagate_neq = {
   lhs : variable;
   rhs : variable;
 }
-type propagate_object = [ Instr of propagate_instr | Eq of propagate_eq | Neq of propagate_neq ] <ocaml repr="classic">
+type propagate_object = [ 
+  | Instr of propagate_instr
+  | Eq of propagate_eq
+  | Neq of propagate_neq
+  ] <ocaml repr="classic">
 
 type propagate = {
   propagate : propagate_object;
