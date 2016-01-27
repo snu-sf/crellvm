@@ -26,7 +26,7 @@ open CommandArg
 
 
 let apply
-    (options : CoreHint_t.maydiffglobal_args) 
+    (maydiffglobal_args : CoreHint_t.maydiff_global) 
     (args : CommandArg.microhint_args)
     : fdef_hint_t = 
     
