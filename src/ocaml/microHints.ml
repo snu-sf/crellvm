@@ -136,6 +136,10 @@ let propagate_micro
             AddOnebitApplier.apply options args
         | CoreHint_t.AddZextBool (options:CoreHint_t.add_zext_bool) ->
             AddZextBoolApplier.apply options args
+        | CoreHint_t.SubAdd (options:CoreHint_t.sub_add) ->
+            SubAddApplier.apply options args
         | CoreHint_t.SubMone (options:CoreHint_t.sub_mone) ->
             SubMoneApplier.apply options args
+
+
         (* NOTE: Add here to add a new rule *)

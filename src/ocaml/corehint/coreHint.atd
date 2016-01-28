@@ -95,10 +95,18 @@ type add_zext_bool = {
   x : variable;
   y : variable;
 }
-type sub_mone = {
-    inherit infrule_base;
-    y : variable;
+
+type sub_add = {
+  inherit infrule_base;
+  minusy : variable;
+  z : variable;
 }
+
+type sub_mone = {
+  inherit infrule_base;
+  y : variable;
+}
+
 type remove_maydiff = {
   inherit infrule_base;
   variable : variable;
@@ -113,7 +121,11 @@ type command = [
   | AddSignbit of add_signbit
   | AddOnebit of add_onebit
   | AddZextBool of add_zext_bool
+<<<<<<< HEAD
   | SubMone of sub_mone
+=======
+  | SubAdd of sub_add
+>>>>>>> aecfac5674e739f2aeba66137333ed35e771badf
   | RemoveMaydiff of remove_maydiff
   ] <ocaml repr="classic">
 
