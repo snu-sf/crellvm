@@ -138,5 +138,8 @@ let propagate_micro
             AddZextBoolApplier.apply options args
         | CoreHint_t.SubAdd (options:CoreHint_t.sub_add) ->
             SubAddApplier.apply options args
+        | CoreHint_t.SubMone (options:CoreHint_t.sub_mone) ->
+            SubMoneApplier.apply options args
+
 
         (* NOTE: Add here to add a new rule *)
