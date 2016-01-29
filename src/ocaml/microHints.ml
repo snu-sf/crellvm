@@ -156,5 +156,7 @@ let propagate_micro
       AddMaskApplier.apply options args
   | CoreHint_t.AddSelectZero (options:CoreHint_t.add_select_zero) ->
       AddSelectZeroApplier.apply options args
+  | CoreHint_t.AddSelectZero2 (options:CoreHint_t.add_select_zero2) ->
+      AddSelectZero2Applier.apply options args
 
   (* NOTE: Add here to add a new rule *)

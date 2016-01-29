@@ -50,7 +50,7 @@ type propagate_neq = {
   lhs : variable;
   rhs : variable;
 }
-type propagate_object = [ 
+type propagate_object = [
   | Instr of propagate_instr
   | Eq of propagate_eq
   | Neq of propagate_neq
@@ -141,6 +141,12 @@ type add_select_zero = {
   x : variable;
   y : variable;
 }
+type add_select_zero2 = {
+  inherit infrule_base;
+  z : variable;
+  x : variable;
+  y : variable;
+}
 
 type remove_maydiff = {
   inherit infrule_base;
@@ -160,6 +166,7 @@ type command = [
   | AddConstNot of add_const_not
   | AddMask of add_mask
   | AddSelectZero of add_select_zero
+  | AddSelectZero2 of add_select_zero2
   | RemoveMaydiff of remove_maydiff
   ] <ocaml repr="classic">
 
