@@ -1,6 +1,6 @@
 SIMPLBERRY_HOME = `pwd`/../..
-LLVM_OCAML_LIB = $(SIMPLBERRY_HOME)/.local/lib/ocaml
-LLVM_LIB = $(SIMPLBERRY_HOME)/.local/lib
+LLVM_OCAML_LIB = $(SIMPLBERRY_HOME)/build/lib/ocaml
+LLVM_LIB = $(SIMPLBERRY_HOME)/build/lib
 VELLVM_LIB = $(SIMPLBERRY_HOME)/lib/vellvm/src/Extraction
 
 
