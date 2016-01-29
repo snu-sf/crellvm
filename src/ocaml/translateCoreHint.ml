@@ -163,32 +163,25 @@ and empty_hint_insn : insn_hint_t =
 (********)
 
 
-let generate_noop_from_corehint (fid : string) raw_hint : products_noop_t * products_noop_t =
-  ([], [])
-(*
-  List.fold_left
-    (fun (lpnoop,rpnoop) (add_rm ->
-     let bb = add_rm.CoreHintUtil.rhint_bb_index in
-
-     let new_lnoop =
-       (get_noop_by_fname fid lpnoop)@
-         (List.map (fun n -> {bb_noop=bb; idx_noop=n-1})
-            (List.filter (fun n -> n > 0) add_rm.CoreHintUtil.rhint_indices))
-     in
-     let new_lpnoop = Alist.updateAddAL lpnoop fid new_lnoop in
-
-     let new_rnoop =
-       (get_noop_by_fname fid rpnoop)@
-         (List.map (fun n -> {bb_noop=bb; idx_noop=(-n)-1})
-            (List.filter (fun n -> n < 0) add_rm.CoreHintUtil.rhint_indices))
-     in
-     let new_rpnoop = Alist.updateAddAL rpnoop fid new_rnoop in
-     (new_lpnoop,new_rpnoop)
-
-    )
-    ([],[])
-    raw_hint.CoreHintUtil.rhint_instr_add_removes
-*)
+let generate_noop_from_corehint (fid : string) (hint:CoreHint_t.hints) : products_noop_t * products_noop_t =
+  let _convert_to_one_noop_t (itm:CoreHint_t.position) : Syntax_ext.one_noop_t =
+    let bb = itm.block_name in
+    let idx = (match itm.instr_index with
+      | CoreHint_t.Phinode -> failwith "_convert_to_products_noop_t : Unexpected case : Erasing phinode.."
+      | CoreHint_t.Terminator -> failwith "_convert_to_products_noop_t : Unexpected case : Erasing terminator.."
+      | CoreHint_t.Command idx -> idx) in
+    let new_noop = {bb_noop = bb; idx_noop = idx} in
+    new_noop
+  in
+  let _accumulate_products_noop_t (itms:products_noop_t) (newitm_pos:CoreHint_t.position) : products_noop_t = 
+    let newitm = _convert_to_one_noop_t newitm_pos in
+    let bb = newitm.bb_noop in
+    let new_noop = (get_noop_by_fname fid itms) @ [newitm] in
+    let new_pnoop = Alist.updateAddAL itms fid new_noop in
+    new_pnoop
+  in
+  ((List.fold_left _accumulate_products_noop_t [] hint.added_instr_positions),
+  (List.fold_left _accumulate_products_noop_t [] hint.removed_instr_positions))
 
 (* Returns micro hints list that should be added by the noret
    attribute. *)

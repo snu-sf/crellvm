@@ -34,6 +34,10 @@ type const_value = [ IntVal of int_value | FloatVal of float_value ] <ocaml repr
 type value = [VarValue of variable | ConstValue of const_value] <ocaml repr="classic">
 
 
+(*****************************************)
+(*              Propagates               *)
+(*****************************************)
+
 type propagate_instr = {
   lhs : variable;
   rhs_at : position;
@@ -42,8 +46,15 @@ type propagate_eq = {
   lhs : value;
   rhs : value;
 }
-
-type propagate_object = [ Instr of propagate_instr | Eq of propagate_eq ] <ocaml repr="classic">
+type propagate_neq = {
+  lhs : variable;
+  rhs : variable;
+}
+type propagate_object = [ 
+  | Instr of propagate_instr
+  | Eq of propagate_eq
+  | Neq of propagate_neq
+  ] <ocaml repr="classic">
 
 type propagate = {
   propagate : propagate_object;
@@ -53,10 +64,25 @@ type propagate = {
 }
 
 
+type maydiff_global = {
+  variable : variable;
+}
+
+type propagate_global_object = [ MaydiffGlobal of maydiff_global ] <ocaml repr="classic">
+
+type propagate_global = {
+  propagate : propagate_global_object;
+  scope: scope;
+}
+
+
+(*****************************************)
+(*             Inference rules           *)
+(*****************************************)
+
 type infrule_base = {
   position: position;
 }
-
 
 type add_assoc = {
   inherit infrule_base;
@@ -114,6 +140,7 @@ type remove_maydiff = {
 
 type command = [
   | Propagate of propagate
+  | PropagateGlobal of propagate_global
   | AddAssoc of add_assoc
   | AddSub of add_sub
   | AddComm of add_comm
@@ -131,6 +158,7 @@ type hints = {
   module_id: string;
   function_id: string;
   opt_name: string;
-
+  removed_instr_positions: position list;
+  added_instr_positions: position list;
   commands: command list;
 }
