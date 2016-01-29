@@ -182,29 +182,6 @@ let generate_noop_from_corehint (fid : string) (hint:CoreHint_t.hints) : product
   in
   ((List.fold_left _accumulate_products_noop_t [] hint.added_instr_positions),
   (List.fold_left _accumulate_products_noop_t [] hint.removed_instr_positions))
-(*  List.fold_left
-    (fun (lpnoop,rpnoop) add_rm ->
-     let bb = add_rm.CoreHintUtil.rhint_bb_index in
-
-     let new_lnoop =
-       (get_noop_by_fname fid lpnoop)@
-         (List.map (fun n -> {bb_noop=bb; idx_noop=n-1})
-            (List.filter (fun n -> n > 0) add_rm.CoreHintUtil.rhint_indices))
-     in
-     let new_lpnoop = Alist.updateAddAL lpnoop fid new_lnoop in
-
-     let new_rnoop =
-       (get_noop_by_fname fid rpnoop)@
-         (List.map (fun n -> {bb_noop=bb; idx_noop=(-n)-1})
-            (List.filter (fun n -> n < 0) add_rm.CoreHintUtil.rhint_indices))
-     in
-     let new_rpnoop = Alist.updateAddAL rpnoop fid new_rnoop in
-     (new_lpnoop,new_rpnoop)
-
-    )
-    ([],[])
-    raw_hint.CoreHintUtil.rhint_instr_add_removes
-*)
 
 (* Returns micro hints list that should be added by the noret
    attribute. *)

@@ -148,6 +148,17 @@ type add_select_zero2 = {
   y : variable;
 }
 
+type sub_add = {
+  inherit infrule_base;
+  minusy : variable;
+  z : variable;
+}
+
+type sub_mone = {
+  inherit infrule_base;
+  y : variable;
+}
+
 type remove_maydiff = {
   inherit infrule_base;
   variable : variable;
@@ -167,6 +178,8 @@ type command = [
   | AddMask of add_mask
   | AddSelectZero of add_select_zero
   | AddSelectZero2 of add_select_zero2
+  | SubMone of sub_mone
+  | SubAdd of sub_add
   | RemoveMaydiff of remove_maydiff
   ] <ocaml repr="classic">
 

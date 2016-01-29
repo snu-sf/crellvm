@@ -3,7 +3,8 @@
 	url = https://github.com/snu-sf/vellvm-legacy.git
 [submodule "lib/llvm"]
 	path = lib/llvm
-	url = https://github.com/snu-sf/llvm-simplberry.git
+	url = https://github.com/snu-sf/llvm.git
+        branch = release_37_vellvm
 [submodule "lib/paco"]
 	path = lib/paco
 	url = https://github.com/snu-sf/paco.git
