@@ -26,7 +26,7 @@ open CommandArg
 
 
 let apply
-    (options : CoreHint_t.add_sub)
+    (options : CoreHint_t.sub_add)
     (args : CommandArg.microhint_args)
     : fdef_hint_t =
 
@@ -41,9 +41,9 @@ let apply
     let get_one_infrule (z_ext,z_rhs) =
       match minusy_rhs, z_rhs with
       | Coq_rhs_ext_bop (LLVMsyntax.Coq_bop_sub, sz, _, y_ext),
-        Coq_rhs_ext_bop (LLVMsyntax.Coq_bop_add, sz_0, x_ext, (Coq_value_ext_id minusy_ext_0))
+        Coq_rhs_ext_bop (LLVMsyntax.Coq_bop_sub, sz_0, x_ext, (Coq_value_ext_id minusy_ext_0))
       when sz = sz_0 && minusy_ext = minusy_ext_0 ->
-        [Coq_rule_add_sub (z_ext, minusy_ext, sz, x_ext, y_ext)]
+        [Coq_rule_sub_add (z_ext, minusy_ext, sz, x_ext, y_ext)]
          | _ -> []
     in
     List.fold_left

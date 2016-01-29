@@ -39,17 +39,17 @@ let propagate_micro
   | CoreHint_t.PropagateGlobal (options:CoreHint_t.propagate_global) ->
       (match options.propagate with
       | CoreHint_t.MaydiffGlobal maydiffglobal_args ->
-          PropagateMaydiffGlobal.apply maydiffglobal_args args
+          PropagateMaydiffGlobalApplier.apply maydiffglobal_args args
       )
   | CoreHint_t.Propagate (options:CoreHint_t.propagate) ->
       let (elt : PropagateHints.invariant_elt_t), (fdef : LLVMsyntax.fdef), (block_prev_opt : string option) =
         match options.propagate with
         | CoreHint_t.Instr instr_args ->
-            PropagateInstr.getInvariant instr_args args
+            PropagateInstrApplier.apply instr_args args
         | CoreHint_t.Eq eq_args ->
-            PropagateEq.getInvariant eq_args args       
+            PropagateEqApplier.apply eq_args args       
         | CoreHint_t.Neq neq_args ->
-            PropagateNeq.getInvariant neq_args args
+            PropagateNeqApplier.apply neq_args args
       in
       let propagate_from : CoreHint_t.position = options.propagate_from in
       let propagate_to : CoreHint_t.position = options.propagate_to in
@@ -78,5 +78,9 @@ let propagate_micro
       AddOnebitApplier.apply options args
   | CoreHint_t.AddZextBool (options:CoreHint_t.add_zext_bool) ->
       AddZextBoolApplier.apply options args
+  | CoreHint_t.SubAdd (options:CoreHint_t.sub_add) ->
+      SubAddApplier.apply options args
+  | CoreHint_t.SubMone (options:CoreHint_t.sub_mone) ->
+      SubMoneApplier.apply options args
 
   (* NOTE: Add here to add a new rule *)

@@ -25,7 +25,7 @@ open CoreHint_t
 open CommandArg
 
 
-let getInvariant
+let apply
     (instr_args : CoreHint_t.propagate_instr)
     (args : CommandArg.microhint_args)
     : (PropagateHints.invariant_elt_t * LLVMsyntax.fdef * string option) =
