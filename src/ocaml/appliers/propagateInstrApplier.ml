@@ -28,6 +28,7 @@ open CommandArg
 let apply
     (instr_args : CoreHint_t.propagate_instr)
     (args : CommandArg.microhint_args)
+    (scope : CoreHint_t.scope)
     : (PropagateHints.invariant_elt_t * LLVMsyntax.fdef * string option) =
 
   (*let (lhspos, lhslr, lhs, lhstyp) = getVar 0 args in*)
@@ -41,13 +42,19 @@ let apply
   let block_prev_opt : string option = None in
 
   let (lhsfdef, lhsnoop) =
-    (args.lfdef, args.lnoop)
+    match scope with
+    | CoreHint_t.Source -> (args.lfdef, args.lnoop)
+    | CoreHint_t.Target -> (args.rfdef, args.rnoop)
+    (*(args.lfdef, args.lnoop)*)
     (*match lhslr with
     | ParseHints.Original -> (lfdef, lnoop)
            | ParseHints.Optimized -> (rfdef, rnoop)*)
   in
   let (rhsfdef, rhsnoop) =
-    (args.lfdef, args.lnoop)
+    match scope with
+    | CoreHint_t.Source -> (args.lfdef, args.lnoop)
+    | CoreHint_t.Target -> (args.rfdef, args.rnoop)
+    (*(args.lfdef, args.lnoop)*)
     (*match rhslr with
     | ParseHints.Original -> (lfdef, lnoop)
           | ParseHints.Optimized -> (rfdef, rnoop)*)
@@ -89,6 +96,11 @@ let apply
     let LLVMsyntax.Coq_stmts_intro (phinodes, _, _) = rhs_block in
     List.map (fun (LLVMsyntax.Coq_insn_phi (phivar, _, _)) -> phivar) phinodes
   in
-  (make_eq_insn lhs rhs_insn rhs_phivars block_prev_opt), args.lfdef, block_prev_opt
+  let fdef =
+    match scope with
+    | CoreHint_t.Source -> args.lfdef
+    | CoreHint_t.Target -> args.rfdef
+  in
+  (make_eq_insn lhs rhs_insn rhs_phivars block_prev_opt), fdef, block_prev_opt
 
 
