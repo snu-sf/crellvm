@@ -45,9 +45,9 @@ let propagate_micro
       let (elt : PropagateHints.invariant_elt_t), (fdef : LLVMsyntax.fdef), (block_prev_opt : string option) =
         match options.propagate with
         | CoreHint_t.Instr instr_args ->
-            PropagateInstrApplier.apply instr_args args
+            PropagateInstrApplier.apply instr_args args options.scope
         | CoreHint_t.Eq eq_args ->
-            PropagateEqApplier.apply eq_args args       
+            PropagateEqApplier.apply eq_args args
         | CoreHint_t.Neq neq_args ->
             PropagateNeqApplier.apply neq_args args
       in
@@ -57,11 +57,11 @@ let propagate_micro
         propagate
         ~block_prev_opt:block_prev_opt
         propagate_from propagate_to
-        (tag_lr (*lhslr // juneyoung lee : we assume that all propagate commands are applied to Source*) CoreHint_t.Source elt)
+        (tag_lr options.scope elt)
         fdef args.fdef_hint args.dom_tree
       in
       fdef_hint
-     
+
   | CoreHint_t.AddAssoc (options:CoreHint_t.add_assoc) ->
       AddAssocApplier.apply options args
   | CoreHint_t.RemoveMaydiff (options : CoreHint_t.remove_maydiff) ->
@@ -78,6 +78,14 @@ let propagate_micro
       AddOnebitApplier.apply options args
   | CoreHint_t.AddZextBool (options:CoreHint_t.add_zext_bool) ->
       AddZextBoolApplier.apply options args
+  | CoreHint_t.AddConstNot (options:CoreHint_t.add_const_not) ->
+      AddConstNotApplier.apply options args
+  | CoreHint_t.AddMask (options:CoreHint_t.add_mask) ->
+      AddMaskApplier.apply options args
+  | CoreHint_t.AddSelectZero (options:CoreHint_t.add_select_zero) ->
+      AddSelectZeroApplier.apply options args
+  | CoreHint_t.AddSelectZero2 (options:CoreHint_t.add_select_zero2) ->
+      AddSelectZero2Applier.apply options args
   | CoreHint_t.SubAdd (options:CoreHint_t.sub_add) ->
       SubAddApplier.apply options args
   | CoreHint_t.SubMone (options:CoreHint_t.sub_mone) ->
