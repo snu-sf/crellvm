@@ -31,18 +31,18 @@ let apply
     : fdef_hint_t =
 
   let pos = options.position in
-  let y = options.y in
+  let z = options.z in
   let block_prev_opt:string option = None in
 
   let make_infrules insn_hint =
-    let (y_ext, y_rhs) = get_rhs_from_insn_hint CoreHint_t.Source y.name insn_hint in
+    let (z_ext, z_rhs) = get_rhs_from_insn_hint CoreHint_t.Source z.name insn_hint in
     let (sz, x_ext) =
-      match y_rhs with
+      match z_rhs with
       | Coq_rhs_ext_bop (LLVMsyntax.Coq_bop_sub, sz, _, x_ext)
       -> (sz, x_ext)
       | _ -> failwith "sub_mone: pattern matching failed"
     in
-    let infrule = Coq_rule_sub_mone (y_ext, sz, x_ext) in
+    let infrule = Coq_rule_sub_mone (z_ext, sz, x_ext) in
     [infrule]
     in
     let fdef_hint = add_inference pos block_prev_opt
