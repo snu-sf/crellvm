@@ -34,6 +34,7 @@
     + `lib/vellvm/` will contain extracted `.ml`, `.mli` files.
 
 - Build `llvm`.
+    + `git submodule init && git submodule update` to install Cereal.
     + `script/build-llvm.sh $JOBS`
     + `.build/llvm-obj` will contain llvm object files.
     + `.local/bin` will contain llvm installation.
