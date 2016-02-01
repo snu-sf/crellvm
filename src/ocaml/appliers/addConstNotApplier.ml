@@ -41,7 +41,8 @@ let apply
     let (sz, x, c1, c2) =
       match y_rhs, z_rhs with
       | Coq_rhs_ext_bop (LLVMsyntax.Coq_bop_xor, sz, x, _),
-      Coq_rhs_ext_bop (LLVMsyntax.Coq_bop_add, sz_0, y, Coq_value_ext_const (LLVMsyntax.Coq_const_int (sz_1, c1)))
+        Coq_rhs_ext_bop (LLVMsyntax.Coq_bop_add, sz_0, y,
+                        Coq_value_ext_const (LLVMsyntax.Coq_const_int (sz_1, c1)))
       when sz = sz_0 && sz = sz_1 ->
         let c2 = INTEGER_OPERATION.sub c1 (INTEGER.of_Z (Size.to_Z sz) (Zpos Coq_xH) true) in
         (sz, x, c1, c2)

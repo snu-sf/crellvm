@@ -44,8 +44,8 @@ let apply
     (fun acc (z_ext,z_rhs) ->
       match x_rhs, y_rhs, z_rhs with
       | Coq_rhs_ext_bop (LLVMsyntax.Coq_bop_sub, sz, n, a),
-      Coq_rhs_ext_select (c, _, x, _),
-      Coq_rhs_ext_bop (LLVMsyntax.Coq_bop_add, sz_0, y, a_0)
+        Coq_rhs_ext_select (c, _, x, _),
+        Coq_rhs_ext_bop (LLVMsyntax.Coq_bop_add, sz_0, y, a_0)
       when sz = sz_0 && a = a_0 ->
         acc @ [Coq_rule_add_select_zero2 (z_ext, x_ext, y_ext, c, sz, n, a)]
          | _ -> acc)

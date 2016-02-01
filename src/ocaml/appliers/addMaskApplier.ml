@@ -42,15 +42,15 @@ let apply
     let (sz1, x, c1, c2) =
       match y_rhs, yp_rhs, z_rhs with
       | Coq_rhs_ext_bop (LLVMsyntax.Coq_bop_and, sz1, x,
-      Coq_value_ext_const
-      (LLVMsyntax.Coq_const_int (sz1_0, c2))),
-      Coq_rhs_ext_bop (LLVMsyntax.Coq_bop_add, sz1_1, _,
-      Coq_value_ext_const
-      (LLVMsyntax.Coq_const_int (sz1_2, c1))),
-      Coq_rhs_ext_bop (LLVMsyntax.Coq_bop_and, sz1_3,
-      Coq_value_ext_id yp_ext_0,
-      Coq_value_ext_const
-      (LLVMsyntax.Coq_const_int (sz1_4, c2_0)))
+                        Coq_value_ext_const
+                            (LLVMsyntax.Coq_const_int (sz1_0, c2))),
+        Coq_rhs_ext_bop (LLVMsyntax.Coq_bop_add, sz1_1, _,
+                        Coq_value_ext_const
+                            (LLVMsyntax.Coq_const_int (sz1_2, c1))),
+        Coq_rhs_ext_bop (LLVMsyntax.Coq_bop_and, sz1_3,
+                        Coq_value_ext_id yp_ext_0,
+                        Coq_value_ext_const
+                            (LLVMsyntax.Coq_const_int (sz1_4, c2_0)))
       when sz1 = sz1_0 && sz1 = sz1_1 && sz1 = sz1_2 && sz1 = sz1_3 &&
       sz1 = sz1_4 && yp_ext = yp_ext_0 ->
         (sz1, x, c1, c2)
