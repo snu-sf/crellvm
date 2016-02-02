@@ -90,5 +90,7 @@ let propagate_micro
       SubAddApplier.apply options args
   | CoreHint_t.SubMone (options:CoreHint_t.sub_mone) ->
       SubMoneApplier.apply options args
+  | CoreHint_t.SubConstNot (options:CoreHint_t.sub_const_not) ->
+      SubConstNotApplier.apply options args
 
   (* NOTE: Add here to add a new rule *)
