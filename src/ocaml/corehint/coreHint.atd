@@ -165,6 +165,11 @@ type sub_const_not = {
   z : variable;
 }
 
+type sub_onebit = {
+  inherit infrule_base;
+  z : variable;
+}
+
 type remove_maydiff = {
   inherit infrule_base;
   variable : variable;
@@ -187,6 +192,7 @@ type command = [
   | SubMone of sub_mone
   | SubAdd of sub_add
   | SubConstNot of sub_const_not
+  | SubOnebit of sub_onebit
   | RemoveMaydiff of remove_maydiff
   ] <ocaml repr="classic">
 
