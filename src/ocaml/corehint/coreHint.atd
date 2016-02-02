@@ -159,6 +159,11 @@ type sub_mone = {
   z : variable;
 }
 
+type sub_onebit = {
+  inherit infrule_base;
+  z : variable;
+}
+
 type remove_maydiff = {
   inherit infrule_base;
   variable : variable;
@@ -180,6 +185,7 @@ type command = [
   | AddSelectZero2 of add_select_zero2
   | SubMone of sub_mone
   | SubAdd of sub_add
+  | SubOnebit of sub_onebit
   | RemoveMaydiff of remove_maydiff
   ] <ocaml repr="classic">
 
