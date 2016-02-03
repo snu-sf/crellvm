@@ -44,10 +44,10 @@ let apply
         Coq_rhs_ext_bop (LLVMsyntax.Coq_bop_sub, sz_0, a_0, Coq_value_ext_id y_ext_0)
         when sz = sz_0 && a = a_0 && y_ext = y_ext_0 ->
         (sz, a, b)
-      | Coq_rhs_ext_bop (LLVMsyntax.Coq_bop_add, sz, a, b),
+      | Coq_rhs_ext_bop (LLVMsyntax.Coq_bop_add, sz, b, a),
         Coq_rhs_ext_bop (LLVMsyntax.Coq_bop_sub, sz_0, a_0, Coq_value_ext_id y_ext_0)
-        when sz = sz_0 && b = a_0 && y_ext = y_ext_0 ->
-        (sz, b, a)
+        when sz = sz_0 && a = a_0 && y_ext = y_ext_0 ->
+        (sz, a, b)
       | _ -> failwith "sub_remove: pattern matching failed"
     in
     let infrule = Coq_rule_sub_remove (z_ext, y_ext, sz, a, b) in
