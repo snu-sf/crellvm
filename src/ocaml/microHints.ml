@@ -94,5 +94,10 @@ let propagate_micro
       SubConstNotApplier.apply options args
   | CoreHint_t.SubOnebit (options:CoreHint_t.sub_onebit) ->
       SubOnebitApplier.apply options args
+  | CoreHint_t.SubConstAdd (options:CoreHint_t.sub_const_add) ->
+      SubConstAddApplier.apply options args
+  | CoreHint_t.SubSdiv (options:CoreHint_t.sub_sdiv) ->
+      SubSdivApplier.apply options args
+
 
   (* NOTE: Add here to add a new rule *)
