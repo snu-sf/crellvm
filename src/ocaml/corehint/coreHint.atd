@@ -141,11 +141,20 @@ type add_select_zero = {
   x : variable;
   y : variable;
 }
+
 type add_select_zero2 = {
   inherit infrule_base;
   z : variable;
   x : variable;
   y : variable;
+}
+
+type add_dist_sub = {
+  inherit infrule_base;
+  z : variable;
+  minusx : variable;
+  minusy : variable;
+  w : variable;
 }
 
 type sub_add = {
@@ -189,6 +198,7 @@ type command = [
   | AddMask of add_mask
   | AddSelectZero of add_select_zero
   | AddSelectZero2 of add_select_zero2
+  | AddDistSub of add_dist_sub
   | SubMone of sub_mone
   | SubAdd of sub_add
   | SubConstNot of sub_const_not

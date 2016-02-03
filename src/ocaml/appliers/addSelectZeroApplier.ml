@@ -50,12 +50,13 @@ let apply
         acc @ [Coq_rule_add_select_zero (z_ext, x_ext, y_ext, c, sz, n, a)]
          | _ -> acc)
     [] rights
-    in
-    let fdef_hint = add_inference pos block_prev_opt
-                                  make_infrules
-                                  args.lfdef args.lnoop args.rfdef
-                                  args.rnoop args.left_m args.right_m
-                                  args.fdef_hint
   in
-  fdef_hint
+  let fdef_hint = add_inference pos block_prev_opt
+                                make_infrules
+                                args.lfdef args.lnoop args.rfdef
+                                args.rnoop args.left_m args.right_m
+                                args.fdef_hint
+  in
+fdef_hint
+
 
