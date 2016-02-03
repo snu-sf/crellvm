@@ -44,11 +44,11 @@ let apply
     let (w_ext, w_rhs) = get_rhs_from_insn_hint CoreHint_t.Target (w.name) insn_hint in
     let (sz1, x_ext, y_ext) =
       match minusx_rhs, minusy_rhs, w_rhs, z_rhs with
-      | Coq_rhs_ext_bop (LLVMSyntax.Coq_bop_sub, sz1_1, _, x_ext),
-        Coq_rhs_ext_bop (LLVMSyntax.Coq_bop_sub, sz1_2, _, y_ext),
-        Coq_rhs_ext_bop (LLVMSyntax.Coq_bop_add, sz1_3, x_ext', y_ext'),
-        Coq_rhs_ext_bop (LLVMSyntax.Coq_bop_sub, sz1_4, _, w_ext')
-      when sz1 = sz1_1 && sz1 = sz1_2 && sz1 = sz1_3 && sz1 = sz1_4 &&
+      | Coq_rhs_ext_bop (LLVMSyntax.Coq_bop_sub, sz1, _, x_ext),
+        Coq_rhs_ext_bop (LLVMSyntax.Coq_bop_sub, sz1_0, _, y_ext),
+        Coq_rhs_ext_bop (LLVMSyntax.Coq_bop_add, sz1_1, x_ext', y_ext'),
+        Coq_rhs_ext_bop (LLVMSyntax.Coq_bop_sub, sz1_2, _, Coq_value_ext_id w_ext')
+      when sz1 = sz1_0 && sz1 = sz1_1 && sz1 = sz1_2 &&
       x_ext = x_ext' && y_ext = y_ext' && w_ext = w_ext' ->
         (sz1, x_ext, y_ext)
       | _ -> failwith "add_dist_sub: pattern matching failed"

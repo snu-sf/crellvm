@@ -1062,8 +1062,8 @@ Definition infrule_sem (m1 m2:module) (inf: infrule_t) (h: insn_hint_t) : insn_h
       if $$ h |- minusx =r2 (rhs_ext_bop bop_sub s (value_ext_const (const_int s (INTEGER.of_Z (Size.to_Z s) 0%Z true))) x) $$ &&
          $$ h |- minusy =r2 (rhs_ext_bop bop_sub s (value_ext_const (const_int s (INTEGER.of_Z (Size.to_Z s) 0%Z true))) y) $$ &&
          $$ h |- w =r2 (rhs_ext_bop bop_add s x y) $$ &&
-         $$ h |- z =r2 (rhs_ext_bop bop_sub s (value_ext_const (const_int s (INTEGER.of_Z (Size.to_Z s) 0%Z true))) w) $$
-      then {{ h +++ z =r2 (rhs_ext_bop bop_add s minusx minusy)}}
+         $$ h |- z =r2 (rhs_ext_bop bop_sub s (value_ext_const (const_int s (INTEGER.of_Z (Size.to_Z s) 0%Z true))) (value_ext_id w)) $$
+      then {{ h +++ z =r2 (rhs_ext_bop bop_add s (value_ext_id minusx) (value_ext_id minusy))}}
       else h
 
   end.
