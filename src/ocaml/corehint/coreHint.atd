@@ -199,6 +199,13 @@ type mul_mone = {
   z : variable;
 }
 
+type mul_neg = {
+  inherit infrule_base;
+  z : variable;
+  mx : variable;
+  my : variable;
+}
+
 type remove_maydiff = {
   inherit infrule_base;
   variable : variable;
@@ -227,6 +234,7 @@ type command = [
   | SubConstAdd of sub_const_add
   | SubSdiv of sub_sdiv
   | MulMone of mul_mone
+  | MulNeg of mul_neg
   | RemoveMaydiff of remove_maydiff
   ] <ocaml repr="classic">
 
