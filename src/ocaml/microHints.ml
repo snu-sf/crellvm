@@ -102,6 +102,8 @@ let propagate_micro
       SubConstAddApplier.apply options args
   | CoreHint_t.SubSdiv (options:CoreHint_t.sub_sdiv) ->
       SubSdivApplier.apply options args
+  | CoreHint_t.MulMone (options:CoreHint_t.mul_mone) ->
+      MulMoneApplier.apply options args
 
 
   (* NOTE: Add here to add a new rule *)
