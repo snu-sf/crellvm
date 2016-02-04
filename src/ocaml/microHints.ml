@@ -86,6 +86,8 @@ let propagate_micro
       AddSelectZeroApplier.apply options args
   | CoreHint_t.AddSelectZero2 (options:CoreHint_t.add_select_zero2) ->
       AddSelectZero2Applier.apply options args
+  | CoreHint_t.AddDistSub (options:CoreHint_t.add_dist_sub) ->
+      AddDistSubApplier.apply options args
   | CoreHint_t.SubAdd (options:CoreHint_t.sub_add) ->
       SubAddApplier.apply options args
   | CoreHint_t.SubMone (options:CoreHint_t.sub_mone) ->

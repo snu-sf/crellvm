@@ -44,7 +44,7 @@ let c2 := (Int.repr ws (INTEGER.to_Z c2i)) in
 let c1up := (Int.not ws (Int.sub ws (Int.and ws c1 mc1) (Int.one ws))) in
   (Int.eq_dec ws) (Int.and ws c1up c2) c1up.
 
-Definition cond_same_value (md:maydiff_t) (v: value_ext) : bool := 
+Definition cond_same_value (md:maydiff_t) (v: value_ext) : bool :=
   match v with
   | value_ext_id x => negb (IdExtSetImpl.mem x md)
   | _ => true
@@ -56,7 +56,7 @@ Fixpoint cond_same_lsv (md:maydiff_t) (lsv:list (sz * value_ext)) : bool :=
   | (_,v)::t => cond_same_value md v && cond_same_lsv md t
   end.
 
-Fixpoint cond_same_params (md:maydiff_t) (ps:params_ext) : bool := 
+Fixpoint cond_same_params (md:maydiff_t) (ps:params_ext) : bool :=
   match ps with
   | nil => true
   | (_,v)::t => cond_same_value md v && cond_same_params md t
@@ -64,28 +64,28 @@ Fixpoint cond_same_params (md:maydiff_t) (ps:params_ext) : bool :=
 
 Definition cond_same (md:maydiff_t) (e: rhs_ext) : bool :=
   match e with
-  | rhs_ext_extractvalue _ ve1 _ _ 
+  | rhs_ext_extractvalue _ ve1 _ _
   | rhs_ext_trunc _ _ ve1 _
   | rhs_ext_ext _ _ ve1 _
   | rhs_ext_cast _ _ ve1 _
   | rhs_ext_value ve1
     => cond_same_value md ve1
-  | rhs_ext_bop _ _ ve1 ve2 
-  | rhs_ext_fbop _ _ ve1 ve2 
+  | rhs_ext_bop _ _ ve1 ve2
+  | rhs_ext_fbop _ _ ve1 ve2
   | rhs_ext_insertvalue _ ve1 _ ve2 _
   | rhs_ext_icmp _ _ ve1 ve2
   | rhs_ext_fcmp _ _ ve1 ve2
     => cond_same_value md ve1 && cond_same_value md ve2
-  | rhs_ext_select ve1 _ ve2 ve3 
+  | rhs_ext_select ve1 _ ve2 ve3
     => cond_same_value md ve1 && cond_same_value md ve2 && cond_same_value md ve3
-  | rhs_ext_gep _ _ ve1 lsv1 _ 
+  | rhs_ext_gep _ _ ve1 lsv1 _
     => cond_same_value md ve1 && cond_same_lsv md lsv1
   | rhs_ext_old_alloca => false
   end.
 
-Definition cond_replace_value (x:id_ext) (y:value_ext) (v1 v2:value_ext) : bool := 
+Definition cond_replace_value (x:id_ext) (y:value_ext) (v1 v2:value_ext) : bool :=
   match v1, v2 with
-  | value_ext_id a, _ => 
+  | value_ext_id a, _ =>
     (id_ext_dec a x && value_ext_dec v2 y) || (value_ext_dec v1 v2)
   | value_ext_const c1, value_ext_const c2 => const_dec c1 c2
   | _,_ => false
@@ -94,7 +94,7 @@ Definition cond_replace_value (x:id_ext) (y:value_ext) (v1 v2:value_ext) : bool 
 Fixpoint cond_replace_lsv (x:id_ext) (y:value_ext) (lsv1 lsv2:list (sz * value_ext)) : bool :=
   match lsv1,lsv2 with
   | nil, nil => true
-  | (_,h1)::t1,(_,h2)::t2 => 
+  | (_,h1)::t1,(_,h2)::t2 =>
     cond_replace_value x y h1 h2 && cond_replace_lsv x y t1 t2
   | _,_ => false
   end.
@@ -121,7 +121,7 @@ Definition cond_replace (x:id_ext) (y:value_ext) (e e':rhs_ext) : bool :=
     cond_replace_value x y v1 v2 &&
     typ_dec u1 u2 &&
     cond_replace_value x y w1 w2 &&
-    list_const_dec lc1 lc2 
+    list_const_dec lc1 lc2
   | rhs_ext_gep ib1 t1 v1 lsv1 u1, rhs_ext_gep ib2 t2 v2 lsv2 u2 =>
     inbounds_dec ib1 ib2 &&
     typ_dec t1 t2 &&
@@ -164,10 +164,10 @@ Definition cond_replace (x:id_ext) (y:value_ext) (e e':rhs_ext) : bool :=
   | _, _ => false
   end.
 
-Definition cond_signbit (sz:sz) (s:value_ext) : bool := 
+Definition cond_signbit (sz:sz) (s:value_ext) : bool :=
   match signbit_of sz, s with
   | None, _ => false
-  | Some n, value_ext_const (const_int sz' n') => 
+  | Some n, value_ext_const (const_int sz' n') =>
     sz_dec sz sz' &&
     INTEGER.dec n n'
   | _, _ => false
@@ -194,35 +194,35 @@ Fixpoint cond_fresh_lsv (t:id) (lsv:list (sz * value_ext)) : bool :=
 
 Definition cond_fresh_rhs_ext (t:id) (r:rhs_ext) : bool :=
   match r with
-  | rhs_ext_extractvalue _ ve1 _ _ 
+  | rhs_ext_extractvalue _ ve1 _ _
   | rhs_ext_trunc _ _ ve1 _
   | rhs_ext_ext _ _ ve1 _
   | rhs_ext_cast _ _ ve1 _
   | rhs_ext_value ve1
     => cond_fresh_value_ext t ve1
-  | rhs_ext_bop _ _ ve1 ve2 
-  | rhs_ext_fbop _ _ ve1 ve2 
+  | rhs_ext_bop _ _ ve1 ve2
+  | rhs_ext_fbop _ _ ve1 ve2
   | rhs_ext_insertvalue _ ve1 _ ve2 _
   | rhs_ext_icmp _ _ ve1 ve2
   | rhs_ext_fcmp _ _ ve1 ve2
     => cond_fresh_value_ext t ve1 && cond_fresh_value_ext t ve2
-  | rhs_ext_select ve1 _ ve2 ve3 
+  | rhs_ext_select ve1 _ ve2 ve3
     => cond_fresh_value_ext t ve1 && cond_fresh_value_ext t ve2 && cond_fresh_value_ext t ve3
-  | rhs_ext_gep _ _ ve1 lsv1 _ 
+  | rhs_ext_gep _ _ ve1 lsv1 _
     => cond_fresh_value_ext t ve1 && cond_fresh_lsv t lsv1
   | rhs_ext_old_alloca => true
   end.
 
 Definition cond_fresh_eq_reg (t:id) (e:EqRegSetImpl.t) : bool :=
-  EqRegSetImpl.for_all 
-  (fun xr => cond_fresh_id_ext t (fst xr) && cond_fresh_rhs_ext t (snd xr)) 
+  EqRegSetImpl.for_all
+  (fun xr => cond_fresh_id_ext t (fst xr) && cond_fresh_rhs_ext t (snd xr))
   e.
 
 Definition cond_fresh_eq_heap (t:id) (e:EqHeapSetImpl.t) : bool :=
-  EqHeapSetImpl.for_all 
+  EqHeapSetImpl.for_all
   (fun xy =>
     let '(x,_,_,y) := xy in
-    cond_fresh_value_ext t x && cond_fresh_value_ext t y) 
+    cond_fresh_value_ext t x && cond_fresh_value_ext t y)
   e.
 
 Definition cond_fresh_localglobal (t:id) (lg:localglobal_t) : bool :=
@@ -233,7 +233,7 @@ Definition cond_fresh_localglobal (t:id) (lg:localglobal_t) : bool :=
 
 Definition cond_fresh_neq_reg (t:id) (e:NeqRegSetImpl.t) : bool :=
   NeqRegSetImpl.for_all
-  (fun xlg => cond_fresh_id_ext t (fst xlg) && cond_fresh_localglobal t (snd xlg)) 
+  (fun xlg => cond_fresh_id_ext t (fst xlg) && cond_fresh_localglobal t (snd xlg))
   e.
 
 Definition cond_fresh_eqs (t:id) (e:eqs_t) : bool :=
@@ -249,7 +249,7 @@ Definition cond_fresh (t:id) (h:insn_hint_t) : bool :=
   cond_fresh_md t (hint_maydiff h) &&
   cond_fresh_inv t (hint_invariant h).
 
-Definition float_zero_rhs (fp:floating_point) : rhs_ext := 
+Definition float_zero_rhs (fp:floating_point) : rhs_ext :=
   rhs_ext_value (value_ext_const (const_floatpoint fp (Float.of_int (Int.one 31)))).
 
 Definition cond_not_alloca (h:rhs_ext) : bool :=
@@ -302,7 +302,7 @@ Definition infrule_sem (m1 m2:module) (inf: infrule_t) (h: insn_hint_t) : insn_h
       then {{h +++ z =r2 e'}}
       else h
 
-    | rule_replace_lhs x y e => 
+    | rule_replace_lhs x y e =>
       if ($$ h |- x =r1 (rhs_ext_value (value_ext_id y)) $$ ||
           $$ h |- y =r1 (rhs_ext_value (value_ext_id x)) $$) &&
           $$ h |- x =r1 e $$ &&
@@ -355,14 +355,14 @@ Definition infrule_sem (m1 m2:module) (inf: infrule_t) (h: insn_hint_t) : insn_h
          cond_plus sz c (INTEGER.of_Z (Size.to_Z sz) 1%Z true) c'
       then {{ h +++ y =r1 (rhs_ext_select b (typ_int sz) (value_ext_const (const_int sz c')) (value_ext_const (const_int sz c))) }}
       else h
-        
+
     | rule_ptr_trans p q v t a =>
       if $$ h |- p =r1 (rhs_ext_value q) $$ &&
          $$ h |- (value_ext_id p, t, a) =h1 v $$
       then {{ h +++ (q, t, a) =h1 v }}
       else h
 
-    | rule_add_onebit z x y => 
+    | rule_add_onebit z x y =>
       if $$ h |- z =r1 (rhs_ext_bop bop_add Size.One x y) $$
       then {{h +++ z =r1 (rhs_ext_bop bop_xor Size.One x y)}}
       else h
@@ -399,45 +399,45 @@ Definition infrule_sem (m1 m2:module) (inf: infrule_t) (h: insn_hint_t) : insn_h
       then {{h +++ z =r1 (rhs_ext_bop bop_add s x y)}}
       else h
 
-    | rule_sub_onebit z x y => 
+    | rule_sub_onebit z x y =>
       if $$ h |- z =r1 (rhs_ext_bop bop_sub Size.One x y) $$
       then {{h +++ z =r1 (rhs_ext_bop bop_xor Size.One x y)}}
       else h
 
-    | rule_sub_mone z s x => 
+    | rule_sub_mone z s x =>
       if $$ h |- z =r1 (rhs_ext_bop bop_sub s (value_ext_const (const_int s (INTEGER.of_Z (Size.to_Z s) (-1)%Z true))) x) $$
       then {{h +++ z =r1 (rhs_ext_bop bop_xor s x (value_ext_const (const_int s (INTEGER.of_Z (Size.to_Z s) (-1)%Z true))))}}
       else h
 
-    | rule_sub_const_not z y s x c1 c2 => 
+    | rule_sub_const_not z y s x c1 c2 =>
       if $$ h |- y =r1 (rhs_ext_bop bop_xor s x (value_ext_const (const_int s (INTEGER.of_Z (Size.to_Z s) (-1)%Z true)))) $$ &&
          $$ h |- z =r1 (rhs_ext_bop bop_sub s (value_ext_const (const_int s c1)) (value_ext_id y)) $$ &&
          cond_plus s c1 (INTEGER.of_Z (Size.to_Z s) 1%Z true) c2
       then {{h +++ z =r1 (rhs_ext_bop bop_add s x (value_ext_const (const_int s c2)))}}
       else h
 
-    | rule_add_const_not z y s x c1 c2 => 
+    | rule_add_const_not z y s x c1 c2 =>
       if $$ h |- y =r1 (rhs_ext_bop bop_xor s x (value_ext_const (const_int s (INTEGER.of_Z (Size.to_Z s) (-1)%Z true)))) $$ &&
          $$ h |- z =r1 (rhs_ext_bop bop_add s (value_ext_id y) (value_ext_const (const_int s c1))) $$ &&
          cond_minus s c1 (INTEGER.of_Z (Size.to_Z s) 1%Z true) c2
       then {{h +++ z =r1 (rhs_ext_bop bop_sub s (value_ext_const (const_int s c2)) x)}}
       else h
-        
-    | rule_add_mul_fold z y s x c1 c2 => 
+
+    | rule_add_mul_fold z y s x c1 c2 =>
       if $$ h |- y =r1 (rhs_ext_bop bop_mul s x (value_ext_const (const_int s c1))) $$ &&
          $$ h |- z =r1 (rhs_ext_bop bop_add s (value_ext_id y) x) $$ &&
          cond_plus s c1 (INTEGER.of_Z (Size.to_Z s) 1%Z true) c2
       then {{h +++ z =r1 (rhs_ext_bop bop_mul s x (value_ext_const (const_int s c2)))}}
       else h
 
-    | rule_add_select_zero z x y c s n a => 
+    | rule_add_select_zero z x y c s n a =>
       if $$ h |- x =r1 (rhs_ext_bop bop_sub s n a) $$ &&
          $$ h |- y =r1 (rhs_ext_select c (typ_int s) (value_ext_id x) (value_ext_const (const_int s (INTEGER.of_Z (Size.to_Z s) 0%Z true)))) $$ &&
          $$ h |- z =r1 (rhs_ext_bop bop_add s (value_ext_id y) a) $$
       then {{ h +++ z =r1 (rhs_ext_select c (typ_int s) n a) }}
       else h
 
-    | rule_add_select_zero2 z x y c s n a => 
+    | rule_add_select_zero2 z x y c s n a =>
       if $$ h |- x =r1 (rhs_ext_bop bop_sub s n a) $$ &&
          $$ h |- y =r1 (rhs_ext_select c (typ_int s) (value_ext_const (const_int s (INTEGER.of_Z (Size.to_Z s) 0%Z true))) (value_ext_id x)) $$ &&
          $$ h |- z =r1 (rhs_ext_bop bop_add s (value_ext_id y) a) $$
@@ -450,7 +450,7 @@ Definition infrule_sem (m1 m2:module) (inf: infrule_t) (h: insn_hint_t) : insn_h
          cond_minus sz c (INTEGER.of_Z (Size.to_Z sz) 1%Z true) c'
       then {{ h +++ y =r1 (rhs_ext_select b (typ_int sz) (value_ext_const (const_int sz c')) (value_ext_const (const_int sz c))) }}
       else h
-        
+
     | rule_sub_const_add z y s x c1 c2 c3 =>
       if $$ h |- y =r1 (rhs_ext_bop bop_add s x (value_ext_const (const_int s c1))) $$ &&
          $$ h |- z =r1 (rhs_ext_bop bop_sub s (value_ext_const (const_int s c2)) (value_ext_id y)) $$ &&
@@ -562,7 +562,7 @@ Definition infrule_sem (m1 m2:module) (inf: infrule_t) (h: insn_hint_t) : insn_h
       else h
 
     | rule_rem_neg z my s x y =>
-      if $$ h |- my =r1 (rhs_ext_bop bop_sub s (value_ext_const (const_int s (INTEGER.of_Z (Size.to_Z s) 0%Z true))) y) $$ && 
+      if $$ h |- my =r1 (rhs_ext_bop bop_sub s (value_ext_const (const_int s (INTEGER.of_Z (Size.to_Z s) 0%Z true))) y) $$ &&
          $$ h |- z =r1 (rhs_ext_bop bop_srem s x (value_ext_id my)) $$
       then {{ h +++ z =r1 (rhs_ext_bop bop_srem s x y) }}
       else h
@@ -704,7 +704,7 @@ Definition infrule_sem (m1 m2:module) (inf: infrule_t) (h: insn_hint_t) : insn_h
       if $$ h |- z =r1 (rhs_ext_bop bop_and s x y) $$
       then {{ h +++ z =r1 (rhs_ext_bop bop_and s y x) }}
       else h
-      
+
     | rule_and_or z y s x a =>
       if $$ h |- z =r1 (rhs_ext_bop bop_and s (value_ext_id y) x) $$ &&
          $$ h |- y =r1 (rhs_ext_bop bop_or s x a) $$
@@ -782,7 +782,7 @@ Definition infrule_sem (m1 m2:module) (inf: infrule_t) (h: insn_hint_t) : insn_h
     | rule_zext_trunc_and z y x a s1 s2 c =>
       if $$ h |- x =r1 (rhs_ext_trunc truncop_int (typ_int s1) a (typ_int s2)) $$  &&
         $$ h |- y =r1 (rhs_ext_bop bop_and s2 (value_ext_id x) (value_ext_const (const_int s2 c))) $$ &&
-        $$ h |- z =r1 (rhs_ext_ext extop_z (typ_int s2) (value_ext_id y) (typ_int s1)) $$ 
+        $$ h |- z =r1 (rhs_ext_ext extop_z (typ_int s2) (value_ext_id y) (typ_int s1)) $$
       then {{ h +++ z =r1 (rhs_ext_bop bop_and s1 a (value_ext_const (const_int s1 (INTEGER.of_Z (Size.to_Z s1) (INTEGER.to_Z c) true)))) }}
       else h
 
@@ -791,7 +791,7 @@ Definition infrule_sem (m1 m2:module) (inf: infrule_t) (h: insn_hint_t) : insn_h
         $$ h |- y =r2 (rhs_ext_bop bop_and s2 (value_ext_id x) (value_ext_const (const_int s2 c))) $$ &&
         $$ h |- w =r2 (rhs_ext_bop bop_xor s2 (value_ext_id y) (value_ext_const (const_int s2 c))) $$ &&
         $$ h |- w' =r2 (rhs_ext_bop bop_and s1 a (value_ext_const (const_int s1 (INTEGER.of_Z (Size.to_Z s1) (INTEGER.to_Z c) true)))) $$ &&
-        $$ h |- z =r2 (rhs_ext_bop bop_xor s1 (value_ext_id w') (value_ext_const (const_int s1 (INTEGER.of_Z (Size.to_Z s1) (INTEGER.to_Z c) true)))) $$ 
+        $$ h |- z =r2 (rhs_ext_bop bop_xor s1 (value_ext_id w') (value_ext_const (const_int s1 (INTEGER.of_Z (Size.to_Z s1) (INTEGER.to_Z c) true)))) $$
       then {{ h +++ z =r2 (rhs_ext_ext extop_z (typ_int s2) (value_ext_id w) (typ_int s1)) }}
       else h
 
@@ -1058,10 +1058,18 @@ Definition infrule_sem (m1 m2:module) (inf: infrule_t) (h: insn_hint_t) : insn_h
       then {{ h +++ z =r1 (rhs_ext_icmp cond_ne (typ_int s) a b) }}
       else h
 
+    | rule_add_dist_sub z minusx minusy w s x y =>
+      if $$ h |- minusx =r2 (rhs_ext_bop bop_sub s (value_ext_const (const_int s (INTEGER.of_Z (Size.to_Z s) 0%Z true))) x) $$ &&
+         $$ h |- minusy =r2 (rhs_ext_bop bop_sub s (value_ext_const (const_int s (INTEGER.of_Z (Size.to_Z s) 0%Z true))) y) $$ &&
+         $$ h |- w =r2 (rhs_ext_bop bop_add s x y) $$ &&
+         $$ h |- z =r2 (rhs_ext_bop bop_sub s (value_ext_const (const_int s (INTEGER.of_Z (Size.to_Z s) 0%Z true))) (value_ext_id w)) $$
+      then {{ h +++ z =r2 (rhs_ext_bop bop_add s (value_ext_id minusx) (value_ext_id minusy))}}
+      else h
+
   end.
 
 
-(* 
+(*
 *** Local Variables: ***
 *** coq-prog-name: "coqtop"  ***
 *** coq-prog-args: ("-emacs-U" "-impredicative-set") ***
