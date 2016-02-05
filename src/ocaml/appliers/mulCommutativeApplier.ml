@@ -26,7 +26,7 @@ open CommandArg
 
 
 let apply
-    (options : CoreHint_t.mul_comm)
+    (options : CoreHint_t.mul_commutative)
     (args : CommandArg.microhint_args)
     : fdef_hint_t =
 

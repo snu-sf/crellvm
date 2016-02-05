@@ -62,10 +62,10 @@ let propagate_micro
       in
       fdef_hint
 
-  | CoreHint_t.AddAssociative (options:CoreHint_t.add_associative) ->
-      AddAssociativeApplier.apply options args
   | CoreHint_t.RemoveMaydiff (options : CoreHint_t.remove_maydiff) ->
       RemoveMaydiffApplier.apply options args
+  | CoreHint_t.AddAssociative (options:CoreHint_t.add_associative) ->
+      AddAssociativeApplier.apply options args
   | CoreHint_t.AddSub (options:CoreHint_t.add_sub) ->
       AddSubApplier.apply options args
   | CoreHint_t.AddCommutative (options:CoreHint_t.add_commutative) ->
@@ -114,8 +114,8 @@ let propagate_micro
       MulMoneApplier.apply options args
   | CoreHint_t.MulNeg (options:CoreHint_t.mul_neg) ->
       MulNegApplier.apply options args
-  | CoreHint_t.MulComm (options:CoreHint_t.mul_comm) ->
-      MulCommApplier.apply options args
+  | CoreHint_t.MulCommutative (options:CoreHint_t.mul_commutative) ->
+      MulCommutativeApplier.apply options args
   | CoreHint_t.MulShl (options:CoreHint_t.mul_shl) ->
       MulShlApplier.apply options args
 

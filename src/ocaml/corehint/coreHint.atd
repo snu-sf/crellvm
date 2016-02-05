@@ -235,7 +235,7 @@ type mul_neg = {
   my : variable;
 }
 
-type mul_comm = {
+type mul_commutative = {
   inherit infrule_base;
   z : variable;
 }
@@ -276,10 +276,10 @@ type command = [
   | SubConstAdd of sub_const_add
   | SubSdiv of sub_sdiv
   | SubShl of sub_shl
-  | MulBool of mul_bool  
+  | MulBool of mul_bool
   | MulMone of mul_mone
   | MulNeg of mul_neg
-  | MulComm of mul_comm
+  | MulCommutative of mul_commutative
   | MulShl of mul_shl
   | RemoveMaydiff of remove_maydiff
   ] <ocaml repr="classic">
