@@ -203,6 +203,18 @@ type sub_sdiv = {
   z : variable;
 }
 
+type sub_shl = {
+  inherit infrule_base;
+  x : variable;
+  y : variable;
+  z : variable;
+}
+
+type mul_bool = {
+  inherit infrule_base;
+  z :variable;
+}
+
 type mul_mone = {
   inherit infrule_base;
   z : variable;
@@ -265,6 +277,8 @@ type command = [
   | SubOnebit of sub_onebit
   | SubConstAdd of sub_const_add
   | SubSdiv of sub_sdiv
+  | SubShl of sub_shl
+  | MulBool of mul_bool  
   | MulMone of mul_mone
   | MulNeg of mul_neg
   | MulComm of mul_comm
