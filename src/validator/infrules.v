@@ -281,7 +281,7 @@ Notation "{{ h --- md }}" := (remove_md md h) (at level 41).
 Definition infrule_sem (m1 m2:module) (inf: infrule_t) (h: insn_hint_t) : insn_hint_t :=
   match inf with
 
-    | rule_add_assoc z y x s c1 c2 c3 =>
+    | rule_add_associative z y x s c1 c2 c3 =>
       if $$ h |- y =r1 (rhs_ext_bop bop_add s x (value_ext_const (const_int s c1))) $$ &&
          $$ h |- z =r1 (rhs_ext_bop bop_add s (value_ext_id y) (value_ext_const (const_int s c2))) $$ &&
          cond_plus s c1 c2 c3
@@ -442,6 +442,22 @@ Definition infrule_sem (m1 m2:module) (inf: infrule_t) (h: insn_hint_t) : insn_h
          $$ h |- y =r1 (rhs_ext_select c (typ_int s) (value_ext_const (const_int s (INTEGER.of_Z (Size.to_Z s) 0%Z true))) (value_ext_id x)) $$ &&
          $$ h |- z =r1 (rhs_ext_bop bop_add s (value_ext_id y) a) $$
       then {{ h +++ z =r1 (rhs_ext_select c (typ_int s) a n) }}
+      else h
+
+    | rule_add_dist_sub z minusx minusy w s x y =>
+      if $$ h |- minusx =r2 (rhs_ext_bop bop_sub s (value_ext_const (const_int s (INTEGER.of_Z (Size.to_Z s) 0%Z true))) x) $$ &&
+         $$ h |- minusy =r2 (rhs_ext_bop bop_sub s (value_ext_const (const_int s (INTEGER.of_Z (Size.to_Z s) 0%Z true))) y) $$ &&
+         $$ h |- w =r2 (rhs_ext_bop bop_add s x y) $$ &&
+         $$ h |- z =r2 (rhs_ext_bop bop_sub s (value_ext_const (const_int s (INTEGER.of_Z (Size.to_Z s) 0%Z true))) (value_ext_id w)) $$
+      then {{ h +++ z =r2 (rhs_ext_bop bop_add s (value_ext_id minusx) (value_ext_id minusy)) }}
+      else h
+
+    | rule_add_distributive z x y w s a b c =>
+      if $$ h |- x =r2 (rhs_ext_bop bop_mul s a b) $$ &&
+         $$ h |- y =r2 (rhs_ext_bop bop_mul s a c) $$ &&
+         $$ h |- w =r2 (rhs_ext_bop bop_add s b c) $$ &&
+         $$ h |- z =r2 (rhs_ext_bop bop_mul s a (value_ext_id w)) $$
+      then {{ h +++ z =r2 (rhs_ext_bop bop_add s (value_ext_id x) (value_ext_id y)) }}
       else h
 
     | rule_sub_zext_bool x y b sz c c' =>
@@ -1056,14 +1072,6 @@ Definition infrule_sem (m1 m2:module) (inf: infrule_t) (h: insn_hint_t) : insn_h
          $$ h |- y =r1 (rhs_ext_bop bop_xor s b c) $$ &&
          $$ h |- z =r1 (rhs_ext_icmp cond_ne (typ_int s) (value_ext_id x) (value_ext_id y)) $$
       then {{ h +++ z =r1 (rhs_ext_icmp cond_ne (typ_int s) a b) }}
-      else h
-
-    | rule_add_dist_sub z minusx minusy w s x y =>
-      if $$ h |- minusx =r2 (rhs_ext_bop bop_sub s (value_ext_const (const_int s (INTEGER.of_Z (Size.to_Z s) 0%Z true))) x) $$ &&
-         $$ h |- minusy =r2 (rhs_ext_bop bop_sub s (value_ext_const (const_int s (INTEGER.of_Z (Size.to_Z s) 0%Z true))) y) $$ &&
-         $$ h |- w =r2 (rhs_ext_bop bop_add s x y) $$ &&
-         $$ h |- z =r2 (rhs_ext_bop bop_sub s (value_ext_const (const_int s (INTEGER.of_Z (Size.to_Z s) 0%Z true))) (value_ext_id w)) $$
-      then {{ h +++ z =r2 (rhs_ext_bop bop_add s (value_ext_id minusx) (value_ext_id minusy))}}
       else h
 
   end.
