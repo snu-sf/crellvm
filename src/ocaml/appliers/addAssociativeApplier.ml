@@ -26,7 +26,7 @@ open CommandArg
 
 
 let apply
-    (options : CoreHint_t.add_assoc)
+    (options : CoreHint_t.add_associative)
     (args : CommandArg.microhint_args)
     : fdef_hint_t =
 
@@ -56,10 +56,10 @@ let apply
         Coq_value_ext_const (LLVMsyntax.Coq_const_int (sz_2, c1)))
       when (sz = sz_0 && sz = sz_1 && sz = sz_2 && y_ext = y_ext_0) ->
         (y_ext, x_ext, sz, c1, c2)
-         | _, _ -> failwith "add_assoc: pattern matching failed"
+         | _, _ -> failwith "add_associative: pattern matching failed"
     in
     let c3 = INTEGER_OPERATION.add c1 c2 in
-    let infrule = Coq_rule_add_assoc (z_ext, y_ext, x_ext, sz, c1, c2, c3) in
+    let infrule = Coq_rule_add_associative (z_ext, y_ext, x_ext, sz, c1, c2, c3) in
     [infrule]
     in
     let fdef_hint = add_inference pos block_prev_opt

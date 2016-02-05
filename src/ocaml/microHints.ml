@@ -62,14 +62,14 @@ let propagate_micro
       in
       fdef_hint
 
-  | CoreHint_t.AddAssoc (options:CoreHint_t.add_assoc) ->
-      AddAssocApplier.apply options args
+  | CoreHint_t.AddAssociative (options:CoreHint_t.add_associative) ->
+      AddAssociativeApplier.apply options args
   | CoreHint_t.RemoveMaydiff (options : CoreHint_t.remove_maydiff) ->
       RemoveMaydiffApplier.apply options args
   | CoreHint_t.AddSub (options:CoreHint_t.add_sub) ->
       AddSubApplier.apply options args
-  | CoreHint_t.AddComm (options:CoreHint_t.add_comm) ->
-      AddCommApplier.apply options args
+  | CoreHint_t.AddCommutative (options:CoreHint_t.add_commutative) ->
+      AddCommutativeApplier.apply options args
   | CoreHint_t.AddShift (options:CoreHint_t.add_shift) ->
       AddShiftApplier.apply options args
   | CoreHint_t.AddSignbit (options:CoreHint_t.add_signbit) ->
@@ -88,8 +88,8 @@ let propagate_micro
       AddSelectZero2Applier.apply options args
   | CoreHint_t.AddDistSub (options:CoreHint_t.add_dist_sub) ->
       AddDistSubApplier.apply options args
-  | CoreHint_t.AddDist (options:CoreHint_t.add_dist) ->
-      AddDistApplier.apply options args
+  | CoreHint_t.AddDistributive (options:CoreHint_t.add_distributive) ->
+      AddDistributiveApplier.apply options args
   | CoreHint_t.SubAdd (options:CoreHint_t.sub_add) ->
       SubAddApplier.apply options args
   | CoreHint_t.SubMone (options:CoreHint_t.sub_mone) ->

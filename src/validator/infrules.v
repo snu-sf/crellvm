@@ -281,7 +281,7 @@ Notation "{{ h --- md }}" := (remove_md md h) (at level 41).
 Definition infrule_sem (m1 m2:module) (inf: infrule_t) (h: insn_hint_t) : insn_hint_t :=
   match inf with
 
-    | rule_add_assoc z y x s c1 c2 c3 =>
+    | rule_add_associative z y x s c1 c2 c3 =>
       if $$ h |- y =r1 (rhs_ext_bop bop_add s x (value_ext_const (const_int s c1))) $$ &&
          $$ h |- z =r1 (rhs_ext_bop bop_add s (value_ext_id y) (value_ext_const (const_int s c2))) $$ &&
          cond_plus s c1 c2 c3

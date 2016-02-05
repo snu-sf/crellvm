@@ -28,7 +28,7 @@ Record eqs_t :=
 (* See doc/hint for details. *)
 
 Inductive infrule_t : Type :=
-| rule_add_assoc (z:id_ext) (y:id_ext) (x:value_ext) (s:sz) (c1:INTEGER.t) (c2:INTEGER.t) (c3:INTEGER.t)
+| rule_add_associative (z:id_ext) (y:id_ext) (x:value_ext) (s:sz) (c1:INTEGER.t) (c2:INTEGER.t) (c3:INTEGER.t)
 | rule_replace_rhs (z:id_ext) (x:id_ext) (y:value_ext) (e:rhs_ext) (e':rhs_ext)
 | rule_replace_rhs_opt (z:id_ext) (x:id_ext) (y:value_ext) (e:rhs_ext) (e':rhs_ext)
 | rule_replace_lhs (x:id_ext) (y:id_ext) (e:rhs_ext)

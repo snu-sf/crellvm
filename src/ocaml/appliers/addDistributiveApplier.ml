@@ -26,7 +26,7 @@ open CommandArg
 
 
 let apply
-    (options : CoreHint_t.add_dist)
+    (options : CoreHint_t.add_distributive)
     (args : CommandArg.microhint_args)
     : fdef_hint_t =
 
@@ -52,7 +52,7 @@ let apply
       a_ext = a_ext' && a_ext = a_ext'' && b_ext = b_ext' &&
       c_ext = c_ext' &&w_ext = w_ext'->
         (sz1, a_ext, b_ext, c_ext)
-      | _ -> failwith "add_dist: pattern matching failed"
+      | _ -> failwith "add_distributive: pattern matching failed"
     in
     let infrule = Coq_rule_add_distributive (z_ext, x_ext, y_ext, w_ext,
     sz1, a_ext, b_ext, c_ext) in

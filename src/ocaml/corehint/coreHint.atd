@@ -84,7 +84,7 @@ type infrule_base = {
   position: position;
 }
 
-type add_assoc = {
+type add_associative = {
   inherit infrule_base;
   lhs: variable;
   rhs: variable;
@@ -96,7 +96,7 @@ type add_sub = {
   z : variable;
 }
 
-type add_comm = {
+type add_commutative = {
   inherit infrule_base;
   z : variable;
 }
@@ -157,7 +157,7 @@ type add_dist_sub = {
   w : variable;
 }
 
-type add_dist = {
+type add_distributive = {
   inherit infrule_base;
   z : variable;
   x : variable;
@@ -231,9 +231,9 @@ type remove_maydiff = {
 type command = [
   | Propagate of propagate
   | PropagateGlobal of propagate_global
-  | AddAssoc of add_assoc
+  | AddAssociative of add_associative
   | AddSub of add_sub
-  | AddComm of add_comm
+  | AddCommutative of add_commutative
   | AddShift of add_shift
   | AddSignbit of add_signbit
   | AddOnebit of add_onebit
@@ -243,7 +243,7 @@ type command = [
   | AddSelectZero of add_select_zero
   | AddSelectZero2 of add_select_zero2
   | AddDistSub of add_dist_sub
-  | AddDist of add_dist
+  | AddDistributive of add_distributive
   | SubMone of sub_mone
   | SubAdd of sub_add
   | SubConstNot of sub_const_not
