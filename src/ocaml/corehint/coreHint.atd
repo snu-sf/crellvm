@@ -238,6 +238,17 @@ type mul_shl = {
   y : variable;
 }
 
+type div_mone = {
+  inherit infrule_base;
+  z : variable;
+}
+
+type rem_neg = {
+  inherit infrule_base;
+  z : variable;
+  my : variable;
+}
+
 type remove_maydiff = {
   inherit infrule_base;
   variable : variable;
@@ -272,6 +283,8 @@ type command = [
   | MulNeg of mul_neg
   | MulComm of mul_comm
   | MulShl of mul_shl
+  | DivMone of div_mone
+  | RemNeg of rem_neg
   | RemoveMaydiff of remove_maydiff
   ] <ocaml repr="classic">
 
