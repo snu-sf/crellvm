@@ -104,6 +104,10 @@ let propagate_micro
       SubConstAddApplier.apply options args
   | CoreHint_t.SubSdiv (options:CoreHint_t.sub_sdiv) ->
       SubSdivApplier.apply options args
+  | CoreHint_t.SubShl (options:CoreHint_t.sub_shl) ->
+      SubShlApplier.apply options args
+  | CoreHint_t.MulBool (options:CoreHint_t.mul_bool) ->
+      MulBoolApplier.apply options args
   | CoreHint_t.MulMone (options:CoreHint_t.mul_mone) ->
       MulMoneApplier.apply options args
   | CoreHint_t.MulNeg (options:CoreHint_t.mul_neg) ->
@@ -112,6 +116,5 @@ let propagate_micro
       MulCommApplier.apply options args
   | CoreHint_t.MulShl (options:CoreHint_t.mul_shl) ->
       MulShlApplier.apply options args
-
 
   (* NOTE: Add here to add a new rule *)
