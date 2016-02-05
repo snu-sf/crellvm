@@ -57,10 +57,10 @@ and string_of_block_hint ?(indent=0) hint =
   ^ (String.make indent ' ') ^ "tmns:\n"
   ^ (string_of_insn_hint ~indent:(indent+1) hint.term_hint)
 
-and string_of_AL_insn_hint ?(indent=0) hint = 
+and string_of_AL_insn_hint ?(indent=0) hint =
   string_of_alist_endline ~indent:(indent+1) (fun i -> (string_of_insn_list_hint ~indent:(indent+2) i) ^ "\n") hint
 
-and string_of_AL_phi_insn_hint ?(indent=0) hint = 
+and string_of_AL_phi_insn_hint ?(indent=0) hint =
   string_of_alist_endline ~indent:(indent+1) (string_of_insn_hint ~indent:(indent+2)) hint
 
 and string_of_insn_list_hint ?(indent=0) hint =
@@ -76,10 +76,10 @@ and string_of_insn_hint ?(indent=0) hint =
 
 and string_of_maydiff ?(indent=0) hint =
   (String.make indent ' ') ^ (string_of_atom_exts hint) ^ "\n"
-    
+
 and string_of_invariant ?(indent=0) hint =
   (String.make indent ' ') ^ "left:\n" ^ (string_of_equations ~indent:(indent+1) hint.invariant_original)
-  ^ (String.make indent ' ') ^ "right:\n" ^ (string_of_equations ~indent:(indent+1) hint.invariant_optimized) 
+  ^ (String.make indent ' ') ^ "right:\n" ^ (string_of_equations ~indent:(indent+1) hint.invariant_optimized)
   ^ (String.make indent ' ') ^ "isolated_orig: " ^ (string_of_atom_exts hint.iso_original) ^ "\n"
   ^ (String.make indent ' ') ^ "isolated_opt: " ^ (string_of_atom_exts hint.iso_optimized) ^ "\n"
 
@@ -88,7 +88,7 @@ and string_of_APInt i =
 
 and string_of_infrule hint =
   match hint with
-  | Coq_rule_add_assoc (z, y, x, s, c1, c2, c3) -> sprintf "add_assoc(%s, %s, %s, %s, %s, %s, %s)" (string_of_id_ext z) (string_of_id_ext y) (string_of_value_ext x) (string_of_int s) (string_of_APInt c1) (string_of_APInt c2) (string_of_APInt c3)
+  | Coq_rule_add_associative (z, y, x, s, c1, c2, c3) -> sprintf "add_associative(%s, %s, %s, %s, %s, %s, %s)" (string_of_id_ext z) (string_of_id_ext y) (string_of_value_ext x) (string_of_int s) (string_of_APInt c1) (string_of_APInt c2) (string_of_APInt c3)
   | Coq_rule_replace_rhs (z, x, y, e, e') -> sprintf "replace_rhs(%s, %s, %s, %s, %s)" (string_of_id_ext z) (string_of_id_ext x) (string_of_value_ext y) (string_of_rhs_ext e) (string_of_rhs_ext e')
   | Coq_rule_replace_rhs_opt (z, x, y, e, e') -> sprintf "replace_rhs_opt(%s, %s, %s, %s, %s)" (string_of_id_ext z) (string_of_id_ext x) (string_of_value_ext y) (string_of_rhs_ext e) (string_of_rhs_ext e')
   | Coq_rule_replace_lhs (x, y, e) -> sprintf "replace_lhs(%s, %s, %s)" (string_of_id_ext x) (string_of_id_ext y) (string_of_rhs_ext e)
@@ -260,7 +260,7 @@ and string_of_eq_heaps (eqs:EqHeapSetImpl.t) =
 
 and string_of_eq_heap (((lhs, t), a), rhs) =
   sprintf "*(%s:%s(%s)) = %s" (string_of_value_ext lhs) (string_of_typ t) (string_of_int a) (string_of_value_ext rhs)
-    
+
 and string_of_neq_regs (neqs:NeqRegSetImpl.t) =
   "(" ^
     (NeqRegSetImpl.fold
@@ -290,16 +290,16 @@ and string_of_value = Coq_pretty_printer.string_of_value
 and string_of_const = Coq_pretty_printer.string_of_constant
 
 and string_of_terminator i =
-  match i with 
-  | LLVMsyntax.Coq_insn_br (id, v, l1, l2) -> 
+  match i with
+  | LLVMsyntax.Coq_insn_br (id, v, l1, l2) ->
     sprintf "  %s = br %s %s %s" id (string_of_value v) l1 l2
-  | LLVMsyntax.Coq_insn_br_uncond (id, l) -> 
+  | LLVMsyntax.Coq_insn_br_uncond (id, l) ->
     sprintf "  %s = br %s " id l
   | LLVMsyntax.Coq_insn_return (id, t, v) ->
     sprintf "  %s = ret %s %s" id (string_of_typ t) (string_of_value v)
   | LLVMsyntax.Coq_insn_return_void id ->
     sprintf "  %s = ret void" id
-  | LLVMsyntax.Coq_insn_unreachable id -> 
+  | LLVMsyntax.Coq_insn_unreachable id ->
     sprintf "  %s = unreachable" id
 
 and string_of_cmd_opt i =
@@ -310,17 +310,17 @@ and string_of_cmd_opt i =
 and string_of_cmd i =
   match i with
   | LLVMsyntax.Coq_insn_bop (id, bop, sz, v1, v2) ->
-    sprintf "%s = %s i%d %s %s" id (string_of_bop bop) sz 
+    sprintf "%s = %s i%d %s %s" id (string_of_bop bop) sz
       (string_of_value v1) (string_of_value v2)
   | LLVMsyntax.Coq_insn_fbop (id, fbop, fp, v1, v2) ->
-    sprintf "%s = %s %s %s %s" id (string_of_fbop fbop) 
+    sprintf "%s = %s %s %s %s" id (string_of_fbop fbop)
       (string_of_floating_point fp) (string_of_value v1) (string_of_value v2)
   | LLVMsyntax.Coq_insn_extractvalue (id, t, v, cs, t') ->
-    sprintf "%s = extractvalue %s %s %s %s" id (string_of_typ t) 
-      (string_of_value v) (string_of_list_constant cs) (string_of_typ t') 
+    sprintf "%s = extractvalue %s %s %s %s" id (string_of_typ t)
+      (string_of_value v) (string_of_list_constant cs) (string_of_typ t')
   | LLVMsyntax.Coq_insn_insertvalue (id, t1, v1, t2, v2, cs) ->
-    sprintf "%s = insertvalue %s %s %s %s %s" id (string_of_typ t1) 
-      (string_of_value v1) (string_of_typ t2) (string_of_value v2) 
+    sprintf "%s = insertvalue %s %s %s %s %s" id (string_of_typ t1)
+      (string_of_value v1) (string_of_typ t2) (string_of_value v2)
       (string_of_list_constant cs)
   | LLVMsyntax.Coq_insn_malloc (id, t, v, align) ->
     sprintf "%s = malloc %s %s %d" id (string_of_typ t) (string_of_value v)
@@ -331,75 +331,75 @@ and string_of_cmd i =
   | LLVMsyntax.Coq_insn_free (id, t, v) ->
     sprintf "%s = free %s %s" id (string_of_typ t) (string_of_value v)
   | LLVMsyntax.Coq_insn_load (id, t, v, a) ->
-    sprintf "%s = load %s* %s %d" id (string_of_typ t) (string_of_value v) 
+    sprintf "%s = load %s* %s %d" id (string_of_typ t) (string_of_value v)
       a
   | LLVMsyntax.Coq_insn_store (id, t, v1, v2, a) ->
-    sprintf "%s = store %s %s %s %d" id (string_of_typ t) 
+    sprintf "%s = store %s %s %s %d" id (string_of_typ t)
       (string_of_value v1) (string_of_value v2) a
   | LLVMsyntax.Coq_insn_gep (id, inbounds, t, v, vs, t') ->
-    sprintf "%s = gep %s %s %s %s %s" id (string_of_bool inbounds) 
+    sprintf "%s = gep %s %s %s %s %s" id (string_of_bool inbounds)
       (string_of_typ t) (string_of_value v) (string_of_list_value vs)
-      (string_of_typ t') 
+      (string_of_typ t')
   | LLVMsyntax.Coq_insn_trunc (id, truncop, t1, v, t2) ->
-    sprintf "%s = %s %s %s %s" id (string_of_truncop truncop) 
+    sprintf "%s = %s %s %s %s" id (string_of_truncop truncop)
       (string_of_typ t1) (string_of_value v) (string_of_typ t2)
   | LLVMsyntax.Coq_insn_ext (id, extop, t1, v, t2) ->
-    sprintf "%s = %s %s %s %s" id (string_of_extop extop) 
+    sprintf "%s = %s %s %s %s" id (string_of_extop extop)
       (string_of_typ t1) (string_of_value v) (string_of_typ t2)
   | LLVMsyntax.Coq_insn_cast (id, castop, t1, v, t2) ->
-    sprintf "%s = %s %s %s %s" id (string_of_castop castop) 
+    sprintf "%s = %s %s %s %s" id (string_of_castop castop)
       (string_of_typ t1) (string_of_value v) (string_of_typ t2)
   | LLVMsyntax.Coq_insn_icmp (id, cond, t, v1, v2) ->
-    sprintf "%s = icmp %s %s %s %s" id (string_of_cond cond) 
+    sprintf "%s = icmp %s %s %s %s" id (string_of_cond cond)
       (string_of_typ t) (string_of_value v1) (string_of_value v2)
   | LLVMsyntax.Coq_insn_fcmp (id, fcond, fp, v1, v2) ->
-    sprintf "%s = fcmp %s %s %s %s" id (string_of_fcond fcond) 
+    sprintf "%s = fcmp %s %s %s %s" id (string_of_fcond fcond)
       (string_of_floating_point fp) (string_of_value v1) (string_of_value v2)
   | LLVMsyntax.Coq_insn_select (id, v, t, v1, v2) ->
-    sprintf "%s = select %s %s %s %s" id (string_of_value v) 
+    sprintf "%s = select %s %s %s %s" id (string_of_value v)
       (string_of_typ t) (string_of_value v1) (string_of_value v2)
-  | LLVMsyntax.Coq_insn_call (id, noret, 
+  | LLVMsyntax.Coq_insn_call (id, noret,
                               LLVMsyntax.Coq_clattrs_intro (tailc, cc, ra, ca), t, va, fv, ps) ->
-    sprintf "%s = call %s %s %s %s %s %s" id (string_of_bool noret) 
+    sprintf "%s = call %s %s %s %s %s %s" id (string_of_bool noret)
       (string_of_bool tailc) (string_of_typ t) (string_of_varg va)
       (string_of_value fv) (string_of_params ps)
-      
+
 and string_of_rhs_ext i =
   match i with
   | Coq_rhs_ext_bop (bop, sz, v1, v2) ->
-    sprintf "%s i%d %s %s" (string_of_bop bop) sz 
+    sprintf "%s i%d %s %s" (string_of_bop bop) sz
       (string_of_value_ext v1) (string_of_value_ext v2)
   | Coq_rhs_ext_fbop (fbop, fp, v1, v2) ->
-    sprintf "%s %s %s %s" (string_of_fbop fbop) 
+    sprintf "%s %s %s %s" (string_of_fbop fbop)
       (string_of_floating_point fp) (string_of_value_ext v1) (string_of_value_ext v2)
   | Coq_rhs_ext_extractvalue (t, v, cs, t') ->
-    sprintf "extractvalue %s %s %s %s" (string_of_typ t) 
-      (string_of_value_ext v) (string_of_list_constant cs) (string_of_typ t') 
+    sprintf "extractvalue %s %s %s %s" (string_of_typ t)
+      (string_of_value_ext v) (string_of_list_constant cs) (string_of_typ t')
   | Coq_rhs_ext_insertvalue (t1, v1, t2, v2, cs) ->
-    sprintf "insertvalue %s %s %s %s %s" (string_of_typ t1) 
-      (string_of_value_ext v1) (string_of_typ t2) (string_of_value_ext v2) 
+    sprintf "insertvalue %s %s %s %s %s" (string_of_typ t1)
+      (string_of_value_ext v1) (string_of_typ t2) (string_of_value_ext v2)
       (string_of_list_constant cs)
   | Coq_rhs_ext_gep (inbounds, t, v, vs, t') ->
-    sprintf "gep %s %s %s %s %s" (string_of_bool inbounds) 
+    sprintf "gep %s %s %s %s %s" (string_of_bool inbounds)
       (string_of_typ t) (string_of_value_ext v) (string_of_list_value_ext vs)
-      (string_of_typ t') 
+      (string_of_typ t')
   | Coq_rhs_ext_trunc (truncop, t1, v, t2) ->
-    sprintf "%s %s %s %s" (string_of_truncop truncop) 
+    sprintf "%s %s %s %s" (string_of_truncop truncop)
       (string_of_typ t1) (string_of_value_ext v) (string_of_typ t2)
   | Coq_rhs_ext_ext (extop, t1, v, t2) ->
-    sprintf "%s %s %s %s" (string_of_extop extop) 
+    sprintf "%s %s %s %s" (string_of_extop extop)
       (string_of_typ t1) (string_of_value_ext v) (string_of_typ t2)
   | Coq_rhs_ext_cast (castop, t1, v, t2) ->
-    sprintf "%s %s %s %s" (string_of_castop castop) 
+    sprintf "%s %s %s %s" (string_of_castop castop)
       (string_of_typ t1) (string_of_value_ext v) (string_of_typ t2)
   | Coq_rhs_ext_icmp (cond, t, v1, v2) ->
-    sprintf "icmp %s %s %s %s" (string_of_cond cond) 
+    sprintf "icmp %s %s %s %s" (string_of_cond cond)
       (string_of_typ t) (string_of_value_ext v1) (string_of_value_ext v2)
   | Coq_rhs_ext_fcmp (fcond, fp, v1, v2) ->
-    sprintf "fcmp %s %s %s %s" (string_of_fcond fcond) 
+    sprintf "fcmp %s %s %s %s" (string_of_fcond fcond)
       (string_of_floating_point fp) (string_of_value_ext v1) (string_of_value_ext v2)
   | Coq_rhs_ext_select (v, t, v1, v2) ->
-    sprintf "select %s %s %s %s" (string_of_value_ext v) 
+    sprintf "select %s %s %s %s" (string_of_value_ext v)
       (string_of_typ t) (string_of_value_ext v1) (string_of_value_ext v2)
   | Coq_rhs_ext_value v ->
     sprintf "value %s" (string_of_value_ext v)
@@ -416,14 +416,14 @@ and string_of_value_ext v =
 and string_of_list_value_ext vs =
   match vs with
   | [] -> ""
-  | (sz0, v)::vs' -> 
+  | (sz0, v)::vs' ->
      "i"^(string_of_int sz0)^" "^(string_of_value_ext v)^", "^
        (string_of_list_value_ext vs')
 
 and string_of_phi i =
   match i with
-  | LLVMsyntax.Coq_insn_phi (id, t, list_v_l) -> 
-     sprintf "%s = phi %s %s" id (string_of_typ t) 
+  | LLVMsyntax.Coq_insn_phi (id, t, list_v_l) ->
+     sprintf "%s = phi %s %s" id (string_of_typ t)
              (string_of_list_value_l list_v_l)
 
 and string_of_id_ext (var, n) =
@@ -435,6 +435,6 @@ and string_of_id_ext (var, n) =
 and string_of_params_ext ps =
   match ps with
   | [] -> ""
-  | ((t, _), v)::ps' -> 
+  | ((t, _), v)::ps' ->
      "("^(string_of_typ t)^","^(string_of_value_ext v)^")"^(string_of_params_ext ps')
 
