@@ -42,5 +42,5 @@ proof:
 # test : calls simplberry-test/run.py
 test:
 	rm -rf simplberry-tests
-	git clone https://github.com/aqjune/simplberry-tests.git
+	git clone https://github.com/snu-sf/simplberry-tests.git
 	python ./simplberry-tests/test.py -e ./build/bin/opt -v ./src/ocaml/main.native -r "-instcombine" -o -f -i "./simplberry-tests/inputs_full"
