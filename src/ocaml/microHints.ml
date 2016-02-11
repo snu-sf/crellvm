@@ -120,5 +120,11 @@ let propagate_micro
       MulShlApplier.apply options args
   | CoreHint_t.DivMone (options:CoreHint_t.div_mone) ->
       DivMoneApplier.apply options args
+  | CoreHint_t.DivSubSrem (options:CoreHint_t.div_sub_srem) ->
+      DivSubSremApplier.apply options args
+  | CoreHint_t.DivSubUrem (options:CoreHint_t.div_sub_urem) ->
+      DivSubUremApplier.apply options args
 
   (* NOTE: Add here to add a new rule *)
+
+
