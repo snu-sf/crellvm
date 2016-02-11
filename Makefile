@@ -13,6 +13,8 @@ submodules :
 	rm -rf lib/llvm
 	rm -rf lib/paco
 	rm -rf lib/vellvm
+	rm -rf .build
+	rm -rf build
 	./script/load-submodules.sh
 
 # llvm : compiles llvm
