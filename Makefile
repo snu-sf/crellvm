@@ -10,6 +10,7 @@ all : submodules llvm llvm-install vellvm validator validator-ocaml test
 
 submodules :
 	opam install menhir ott batteries biniou atdgen cppo easy-format ctypes
+	rm -rf simplberry-tests
 	rm -rf lib/llvm
 	rm -rf lib/paco
 	rm -rf lib/vellvm
@@ -41,6 +42,4 @@ proof:
 
 # test : calls simplberry-test/run.py
 test:
-	rm -rf simplberry-tests
-	git clone https://github.com/snu-sf/simplberry-tests.git
 	python ./simplberry-tests/test.py -e ./build/bin/opt -v ./src/ocaml/main.native -r "-instcombine" -o -f -i "./simplberry-tests/inputs_full"
