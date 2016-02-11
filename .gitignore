@@ -8,3 +8,8 @@
 
 /.build
 /.local
+/src/Makefile.exec.coq
+/src/ocaml/_build/
+/src/ocaml/corehint/
+!/src/ocaml/corehint/*.atd
+/src/ocaml/main.native
