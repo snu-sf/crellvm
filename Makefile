@@ -6,7 +6,7 @@ LLVM_OBJDIR=$ROOT/.build/llvm-obj
 LLVM_LOCALDIR=${ROOT}/build
 
 # all : builds all target, but no testing
-all : submodules llvm llvm-install vellvm validator validator-ocaml
+all : submodules llvm llvm-install vellvm validator validator-ocaml test
 
 submodules :
 	opam install menhir ott batteries biniou atdgen cppo easy-format ctypes
