@@ -28,7 +28,7 @@ Record eqs_t :=
 (* See doc/hint for details. *)
 
 Inductive infrule_t : Type :=
-| rule_add_assoc (z:id_ext) (y:id_ext) (x:value_ext) (s:sz) (c1:INTEGER.t) (c2:INTEGER.t) (c3:INTEGER.t)
+| rule_add_associative (z:id_ext) (y:id_ext) (x:value_ext) (s:sz) (c1:INTEGER.t) (c2:INTEGER.t) (c3:INTEGER.t)
 | rule_replace_rhs (z:id_ext) (x:id_ext) (y:value_ext) (e:rhs_ext) (e':rhs_ext)
 | rule_replace_rhs_opt (z:id_ext) (x:id_ext) (y:value_ext) (e:rhs_ext) (e':rhs_ext)
 | rule_replace_lhs (x:id_ext) (y:id_ext) (e:rhs_ext)
@@ -53,6 +53,8 @@ Inductive infrule_t : Type :=
 | rule_add_const_not (z:id_ext) (y:id_ext) (s:sz) (x:value_ext) (c1:INTEGER.t) (c2:INTEGER.t)
 | rule_add_select_zero (z:id_ext) (x:id_ext) (y:id_ext) (c:value_ext) (s:sz) (n:value_ext) (a:value_ext)
 | rule_add_select_zero2 (z:id_ext) (x:id_ext) (y:id_ext) (c:value_ext) (s:sz) (n:value_ext) (a:value_ext)
+| rule_add_dist_sub (z:id_ext) (minusx:id_ext) (minusy:id_ext) (w:id_ext) (s:sz) (x:value_ext) (y:value_ext)
+| rule_add_distributive (z:id_ext) (x:id_ext) (y:id_ext) (w:id_ext) (s:sz) (a:value_ext) (b:value_ext) (c:value_ext)
 | rule_sub_zext_bool (x:id_ext) (y:id_ext) (b:value_ext) (sz:sz) (c:INTEGER.t) (c':INTEGER.t)
 | rule_sub_const_add (z:id_ext) (y:id_ext) (sz:sz) (x:value_ext) (c1:INTEGER.t) (c2:INTEGER.t) (c3:INTEGER.t)
 | rule_sub_remove (z:id_ext) (y:id_ext) (sz:sz) (a:value_ext) (b:value_ext)
@@ -161,7 +163,7 @@ Definition infrules_t := list infrule_t.
 Definition isolated_t := IdExtSetImpl.t.
 
 
-(** * Invariants 
+(** * Invariants
 
 An invariant for a command consists of the following 2 items:
 - equations_original: conditions satisfiable at certain program state
@@ -355,7 +357,7 @@ Definition mem_md (x:id_ext) (h:insn_hint_t) : bool :=
   IdExtSetImpl.mem x (hint_maydiff h).
 
 
-(* 
+(*
 *** Local Variables: ***
 *** coq-prog-name: "coqtop"  ***
 *** coq-prog-args: ("-emacs-U" "-impredicative-set") ***

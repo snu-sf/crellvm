@@ -26,23 +26,28 @@ open CommandArg
 
 
 let apply
-    (options : CoreHint_t.sub_mone)
+    (options : CoreHint_t.sub_const_not)
     (args : CommandArg.microhint_args)
     : fdef_hint_t =
 
   let pos = options.position in
   let z = options.z in
+  let y = options.y in
   let block_prev_opt:string option = None in
 
   let make_infrules insn_hint =
-    let (z_ext, z_rhs) = get_rhs_from_insn_hint CoreHint_t.Source z.name insn_hint in
-    let (sz, x_ext) =
-      match z_rhs with
-      | Coq_rhs_ext_bop (LLVMsyntax.Coq_bop_sub, sz, _, x_ext)
-      -> (sz, x_ext)
-      | _ -> failwith "sub_mone: pattern matching failed"
+    let (y_ext, y_rhs) = get_rhs_from_insn_hint CoreHint_t.Source (y.name) insn_hint in
+    let (z_ext, z_rhs) = get_rhs_from_insn_hint CoreHint_t.Source (z.name) insn_hint in
+    let (sz, x, c1, c2) =
+      match y_rhs, z_rhs with
+      | Coq_rhs_ext_bop (LLVMsyntax.Coq_bop_xor, sz, x, _),
+        Coq_rhs_ext_bop (LLVMsyntax.Coq_bop_sub, sz_0, Coq_value_ext_const (LLVMsyntax.Coq_const_int (sz_1, c1)), y)
+        when sz = sz_0 && sz = sz_1 ->
+        let c2 = INTEGER_OPERATION.add c1 (INTEGER.of_Z(Size.to_Z sz) (Zpos Coq_xH) true) in
+        (sz, x, c1, c2)
+      | _ -> failwith "sub_const_not: pattern matching failed"
     in
-    let infrule = Coq_rule_sub_mone (z_ext, sz, x_ext) in
+    let infrule = Coq_rule_sub_const_not (z_ext, y_ext, sz, x, c1, c2) in
     [infrule]
     in
     let fdef_hint = add_inference pos block_prev_opt
@@ -52,4 +57,3 @@ let apply
                                   args.fdef_hint
   in
   fdef_hint
-

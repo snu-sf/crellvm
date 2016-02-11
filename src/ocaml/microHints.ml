@@ -36,110 +36,89 @@ let propagate_micro
 (args : CommandArg.microhint_args)
 : fdef_hint_t =
   match raw_hint with
+  | CoreHint_t.PropagateGlobal (options:CoreHint_t.propagate_global) ->
+      (match options.propagate with
+      | CoreHint_t.MaydiffGlobal maydiffglobal_args ->
+          PropagateMaydiffGlobalApplier.apply maydiffglobal_args args
+      )
   | CoreHint_t.Propagate (options:CoreHint_t.propagate) ->
       let (elt : PropagateHints.invariant_elt_t), (fdef : LLVMsyntax.fdef), (block_prev_opt : string option) =
         match options.propagate with
         | CoreHint_t.Instr instr_args ->
-            (*let (lhspos, lhslr, lhs, lhstyp) = getVar 0 args in*)
-            let lhsvar : CoreHint_t.variable = instr_args.lhs in
-            let (lhs) = (lhsvar.name) in
-            (*let (rhspos, rhslr, rhs, rhstyp) = getVar 1 args in*)
-      let rhspos : CoreHint_t.position = instr_args.rhs_at in
-
-      (*let tpos = getPos 2 args in*)
-      (*let block_prev_opt = getBlock 3 args in*)
-      let block_prev_opt : string option = None in
-
-      let (lhsfdef, lhsnoop) =
-        (args.lfdef, args.lnoop)
-        (*match lhslr with
-        | ParseHints.Original -> (lfdef, lnoop)
-               | ParseHints.Optimized -> (rfdef, rnoop)*)
-      in
-      let (rhsfdef, rhsnoop) =
-        (args.lfdef, args.lnoop)
-        (*match rhslr with
-        | ParseHints.Original -> (lfdef, lnoop)
-              | ParseHints.Optimized -> (rfdef, rnoop)*)
-      in
-      let rhs_bb : string = rhspos.block_name in
-      let rhs_block =
-        match LLVMinfra.lookupBlockViaLabelFromFdef rhsfdef rhs_bb with
-        | Some block -> block
-        | None ->
-            (*(match LLVMinfra.lookupBlockViaIDFromFdef rhsfdef rhs with
-            | Some block -> snd block
-            | None -> *)
-            try
-              (match rhsfdef with
-              Syntax_base.LLVMsyntax_base.Coq_fdef_intro (_,blks) ->
-                snd (List.nth blks (int_of_string rhs_bb))
-                )
-              with Failure "int_of_string" ->
-                failwith "propagate_micro instr_propagate rhs_block (juneyoung lee)"
-          (* ) *)
-      in
-      let rhs_insn =
-        match rhspos.instr_index with
-        | CoreHint_t.Command idx ->
-            let rhsnoop = get_noop_by_bb rhs_bb rhsnoop in
-            let orig_idx = Utility.get_orig_idx rhsnoop idx in
-            let cmds = match rhs_block with Syntax_base.LLVMsyntax_base.Coq_stmts_intro (_,cmds,_) -> cmds in
-            Syntax_base.LLVMsyntax_base.Coq_insn_cmd (List.nth cmds orig_idx)
-        | _ ->
-            (*
-            (match LLVMinfra.lookupInsnViaIDFromFdef rhsfdef rhs with
-            | Some insn -> insn
-            | None ->
-                *)
-            failwith "propagate_micro instr2_propagate rhs_insn (juneyoung lee)"
-            (* ) *)
-            in
-            let rhs_phivars =
-              let LLVMsyntax.Coq_stmts_intro (phinodes, _, _) = rhs_block in
-              List.map (fun (LLVMsyntax.Coq_insn_phi (phivar, _, _)) -> phivar) phinodes
-              in
-              (make_eq_insn lhs rhs_insn rhs_phivars block_prev_opt), args.lfdef, block_prev_opt
-
+            PropagateInstrApplier.apply instr_args args options.scope
         | CoreHint_t.Eq eq_args ->
-            let v1 : CoreHint_t.value = eq_args.lhs in
-            let v2 : CoreHint_t.value = eq_args.rhs in
-            let llvm_v1 = PropagateHints.convert_to_LLVMvalue v1 args.lfdef in
-            let llvm_v2 = PropagateHints.convert_to_LLVMvalue v2 args.lfdef in
-            let block_prev_opt : string option = None (*getBlock 4 args *) in
-            (make_eq_reg llvm_v1 llvm_v2), args.lfdef, block_prev_opt
-            in
-            let propagate_from : CoreHint_t.position = options.propagate_from in
-            let propagate_to : CoreHint_t.position = options.propagate_to in
-            let fdef_hint =
-              propagate
-              ~block_prev_opt:block_prev_opt
-              propagate_from propagate_to
-              (tag_lr (*lhslr // juneyoung lee : we assume that all propagate commands are applied to Source*) CoreHint_t.Source elt)
-              fdef args.fdef_hint args.dom_tree
-            in
-            fdef_hint
+            PropagateEqApplier.apply eq_args args
+        | CoreHint_t.Neq neq_args ->
+            PropagateNeqApplier.apply neq_args args
+      in
+      let propagate_from : CoreHint_t.position = options.propagate_from in
+      let propagate_to : CoreHint_t.position = options.propagate_to in
+      let fdef_hint =
+        propagate
+        ~block_prev_opt:block_prev_opt
+        propagate_from propagate_to
+        (tag_lr options.scope elt)
+        fdef args.fdef_hint args.dom_tree
+      in
+      fdef_hint
 
-        | CoreHint_t.AddAssoc (options:CoreHint_t.add_assoc) ->
-            AddAssocApplier.apply options args
-        | CoreHint_t.RemoveMaydiff (options : CoreHint_t.remove_maydiff) ->
-            RemoveMaydiffApplier.apply options args
-        | CoreHint_t.AddSub (options:CoreHint_t.add_sub) ->
-            AddSubApplier.apply options args
-        | CoreHint_t.AddComm (options:CoreHint_t.add_comm) ->
-            AddCommApplier.apply options args
-        | CoreHint_t.AddShift (options:CoreHint_t.add_shift) ->
-            AddShiftApplier.apply options args
-        | CoreHint_t.AddSignbit (options:CoreHint_t.add_signbit) ->
-            AddSignbitApplier.apply options args
-        | CoreHint_t.AddOnebit (options:CoreHint_t.add_onebit) ->
-            AddOnebitApplier.apply options args
-        | CoreHint_t.AddZextBool (options:CoreHint_t.add_zext_bool) ->
-            AddZextBoolApplier.apply options args
-        | CoreHint_t.SubAdd (options:CoreHint_t.sub_add) ->
-            SubAddApplier.apply options args
-        | CoreHint_t.SubMone (options:CoreHint_t.sub_mone) ->
-            SubMoneApplier.apply options args
+  | CoreHint_t.RemoveMaydiff (options : CoreHint_t.remove_maydiff) ->
+      RemoveMaydiffApplier.apply options args
+  | CoreHint_t.AddAssociative (options:CoreHint_t.add_associative) ->
+      AddAssociativeApplier.apply options args
+  | CoreHint_t.AddSub (options:CoreHint_t.add_sub) ->
+      AddSubApplier.apply options args
+  | CoreHint_t.AddCommutative (options:CoreHint_t.add_commutative) ->
+      AddCommutativeApplier.apply options args
+  | CoreHint_t.AddShift (options:CoreHint_t.add_shift) ->
+      AddShiftApplier.apply options args
+  | CoreHint_t.AddSignbit (options:CoreHint_t.add_signbit) ->
+      AddSignbitApplier.apply options args
+  | CoreHint_t.AddOnebit (options:CoreHint_t.add_onebit) ->
+      AddOnebitApplier.apply options args
+  | CoreHint_t.AddZextBool (options:CoreHint_t.add_zext_bool) ->
+      AddZextBoolApplier.apply options args
+  | CoreHint_t.AddConstNot (options:CoreHint_t.add_const_not) ->
+      AddConstNotApplier.apply options args
+  | CoreHint_t.AddMask (options:CoreHint_t.add_mask) ->
+      AddMaskApplier.apply options args
+  | CoreHint_t.AddSelectZero (options:CoreHint_t.add_select_zero) ->
+      AddSelectZeroApplier.apply options args
+  | CoreHint_t.AddSelectZero2 (options:CoreHint_t.add_select_zero2) ->
+      AddSelectZero2Applier.apply options args
+  | CoreHint_t.AddDistSub (options:CoreHint_t.add_dist_sub) ->
+      AddDistSubApplier.apply options args
+  | CoreHint_t.AddDistributive (options:CoreHint_t.add_distributive) ->
+      AddDistributiveApplier.apply options args
+  | CoreHint_t.SubAdd (options:CoreHint_t.sub_add) ->
+      SubAddApplier.apply options args
+  | CoreHint_t.SubMone (options:CoreHint_t.sub_mone) ->
+      SubMoneApplier.apply options args
+  | CoreHint_t.SubConstNot (options:CoreHint_t.sub_const_not) ->
+      SubConstNotApplier.apply options args
+  | CoreHint_t.SubRemove (options:CoreHint_t.sub_remove) ->
+      SubRemoveApplier.apply options args
+  | CoreHint_t.SubRemove2 (options:CoreHint_t.sub_remove2) ->
+      SubRemove2Applier.apply options args
+  | CoreHint_t.SubOnebit (options:CoreHint_t.sub_onebit) ->
+      SubOnebitApplier.apply options args
+  | CoreHint_t.SubConstAdd (options:CoreHint_t.sub_const_add) ->
+      SubConstAddApplier.apply options args
+  | CoreHint_t.SubSdiv (options:CoreHint_t.sub_sdiv) ->
+      SubSdivApplier.apply options args
+  | CoreHint_t.SubShl (options:CoreHint_t.sub_shl) ->
+      SubShlApplier.apply options args
+  | CoreHint_t.MulBool (options:CoreHint_t.mul_bool) ->
+      MulBoolApplier.apply options args
+  | CoreHint_t.MulMone (options:CoreHint_t.mul_mone) ->
+      MulMoneApplier.apply options args
+  | CoreHint_t.MulNeg (options:CoreHint_t.mul_neg) ->
+      MulNegApplier.apply options args
+  | CoreHint_t.MulCommutative (options:CoreHint_t.mul_commutative) ->
+      MulCommutativeApplier.apply options args
+  | CoreHint_t.MulShl (options:CoreHint_t.mul_shl) ->
+      MulShlApplier.apply options args
+  | CoreHint_t.DivMone (options:CoreHint_t.div_mone) ->
+      DivMoneApplier.apply options args
 
-
-        (* NOTE: Add here to add a new rule *)
+  (* NOTE: Add here to add a new rule *)

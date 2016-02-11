@@ -26,7 +26,7 @@ open CommandArg
 
 
 let apply
-    (options : CoreHint_t.sub_mone)
+    (options : CoreHint_t.add_commutative)
     (args : CommandArg.microhint_args)
     : fdef_hint_t =
 
@@ -35,14 +35,14 @@ let apply
   let block_prev_opt:string option = None in
 
   let make_infrules insn_hint =
-    let (z_ext, z_rhs) = get_rhs_from_insn_hint CoreHint_t.Source z.name insn_hint in
-    let (sz, x_ext) =
+    let (z_ext, z_rhs) = get_rhs_from_insn_hint CoreHint_t.Source (z.name) insn_hint in
+    let (sz, x_ext, y_ext) =
       match z_rhs with
-      | Coq_rhs_ext_bop (LLVMsyntax.Coq_bop_sub, sz, _, x_ext)
-      -> (sz, x_ext)
-      | _ -> failwith "sub_mone: pattern matching failed"
+      Coq_rhs_ext_bop (LLVMsyntax.Coq_bop_add, sz, x_ext, y_ext) ->
+        (sz, x_ext, y_ext)
+         | _ -> failwith "add_commutative: pattern matching failed"
     in
-    let infrule = Coq_rule_sub_mone (z_ext, sz, x_ext) in
+    let infrule = Coq_rule_add_commutative (z_ext, sz, x_ext, y_ext) in
     [infrule]
     in
     let fdef_hint = add_inference pos block_prev_opt
@@ -52,4 +52,3 @@ let apply
                                   args.fdef_hint
   in
   fdef_hint
-

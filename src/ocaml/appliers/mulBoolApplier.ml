@@ -26,7 +26,7 @@ open CommandArg
 
 
 let apply
-    (options : CoreHint_t.sub_mone)
+    (options : CoreHint_t.mul_bool)
     (args : CommandArg.microhint_args)
     : fdef_hint_t =
 
@@ -36,13 +36,12 @@ let apply
 
   let make_infrules insn_hint =
     let (z_ext, z_rhs) = get_rhs_from_insn_hint CoreHint_t.Source z.name insn_hint in
-    let (sz, x_ext) =
+    let (x, y) =
       match z_rhs with
-      | Coq_rhs_ext_bop (LLVMsyntax.Coq_bop_sub, sz, _, x_ext)
-      -> (sz, x_ext)
-      | _ -> failwith "sub_mone: pattern matching failed"
+      | Coq_rhs_ext_bop (LLVMsyntax.Coq_bop_mul, _, x, y) -> (x, y)
+      | _ -> failwith "mul_bool: pattern matching failed"
     in
-    let infrule = Coq_rule_sub_mone (z_ext, sz, x_ext) in
+    let infrule = Coq_rule_mul_bool (z_ext, x, y) in
     [infrule]
     in
     let fdef_hint = add_inference pos block_prev_opt
