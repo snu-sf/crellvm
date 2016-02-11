@@ -251,6 +251,14 @@ type div_mone = {
   z : variable;
 }
 
+type and_de_morgan = {
+  inherit infrule_base;
+  z : variable;
+  x : variable;
+  y : variable;
+  z2 : variable;
+}
+
 type rem_neg = {
   inherit infrule_base;
   z : variable;
@@ -295,6 +303,7 @@ type command = [
   | DivMone of div_mone
   | RemNeg of rem_neg
   | RemoveMaydiff of remove_maydiff
+		| AndDeMorgan of and_de_morgan
   ] <ocaml repr="classic">
 
 
