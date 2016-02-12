@@ -26,7 +26,7 @@ llvm-install:
 	./script/install-llvm.sh
 
 vellvm:
-	./script/build-vellvm.sh
+	./script/build-vellvm.sh 4
 
 # validator : compiles validators (in src/ and src/ocaml, without proof). This is the default target.
 validator:
