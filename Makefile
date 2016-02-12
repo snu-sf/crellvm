@@ -20,7 +20,7 @@ submodules :
 
 # llvm : compiles llvm
 llvm:
-	./script/build-llvm.sh
+	./script/build-llvm.sh 4
 
 llvm-install:
 	./script/install-llvm.sh
