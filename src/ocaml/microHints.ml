@@ -124,6 +124,8 @@ let propagate_micro
       DivSubSremApplier.apply options args
   | CoreHint_t.DivSubUrem (options:CoreHint_t.div_sub_urem) ->
       DivSubUremApplier.apply options args
+  | CoreHint_t.AndDeMorgan (options:CoreHint_t.and_de_morgan) ->
+      AndDeMorganApplier.apply options args
 
   (* NOTE: Add here to add a new rule *)
 
