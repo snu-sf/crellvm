@@ -265,6 +265,20 @@ type rem_neg = {
   my : variable;
 }
 
+type div_sub_srem = {
+  inherit infrule_base;
+  z : variable;
+  b : variable;
+  a : variable;
+}
+
+type div_sub_urem = {
+  inherit infrule_base;
+  z : variable;
+  b : variable;
+  a : variable;
+}
+
 type remove_maydiff = {
   inherit infrule_base;
   variable : variable;
@@ -302,6 +316,8 @@ type command = [
   | MulShl of mul_shl
   | DivMone of div_mone
   | RemNeg of rem_neg
+  | DivSubSrem of div_sub_srem
+  | DivSubUrem of div_sub_urem
   | RemoveMaydiff of remove_maydiff
   | AndDeMorgan of and_de_morgan
   ] <ocaml repr="classic">
