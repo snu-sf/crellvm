@@ -39,10 +39,8 @@ Makefile.coq: Makefile $(COQTHEORIES)
    echo $(COQTHEORIES)) > _CoqProject
 	coq_makefile -f _CoqProject -o Makefile.coq
 
-llvm:
-	./script/llvm-build.sh 8
-
-llvm-install: llvm
+llvm: lib/llvm
+	./script/llvm-build.sh
 	./script/llvm-install.sh
 
 lib: lib/sflib lib/paco/src lib/vellvm

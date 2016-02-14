@@ -4,13 +4,15 @@
 
 ### Requirements ###
 
-- Install OCaml.
+- [OCaml](http://ocaml.org/)
     + Install [opam](http://opam.ocamlpro.com/), the right way to install OCaml.
     + `opam switch 4.02.3 && opam update && opam upgrade`
 
-- Get [Boost](http://www.boost.org/users/history/version_1_59_0.html) C++ library.
-    + Unzip somewhere.
-    + Add `export BOOST_ROOT=$BOOST_LOCATION` (or `export BOOST_INCLUDEDIR=$BOOST_LOCATION`) in `.bashrc` or `.zshrc`.   
+- [Boost](http://www.boost.org/users/history/version_1_59_0.html)
+    + `sudo yum install boost-devel`
+
+- [CMake](https://cmake.org/) 3.3.2+
+    + `sudo yum install cmake`
 
 ### Build ###
 
@@ -25,10 +27,10 @@
     + `lib/vellvm/src/` will contain `.vo` files.
     + `lib/vellvm/src/Extraction` will contain extracted `.ml`, `.mli` files.
 
-- Build `llvm`.
-    + `script/llvm-build.sh $JOBS`
+- `make llvm`
+    + `script/llvm-build.sh`
     + `.build/llvm-obj` will contain llvm object files.
-    + `.local/bin` will contain llvm installation.
+    + `build/bin` will contain llvm installation.
 
 - `make exec`
 
