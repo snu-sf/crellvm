@@ -6,12 +6,12 @@
 _CoqProject
 Makefile.coq
 
-/src/extraction/*.ml
-/src/extraction/*.mli
+/coq/extraction/*.ml
+/coq/extraction/*.mli
 
 /.build
 /.local
-/src/ocaml/_build/
-/src/ocaml/corehint/
-!/src/ocaml/corehint/*.atd
-/src/ocaml/main.native
+/ocaml/_build/
+/ocaml/corehint/
+!/ocaml/corehint/*.atd
+/ocaml/main.native

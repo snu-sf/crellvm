@@ -4,13 +4,10 @@
 
 ### Requirements ###
 
-- Install OCaml.
+- Install OCaml, Coq & Libraries.
     + Install [opam](http://opam.ocamlpro.com/), the right way to install OCaml.
     + `opam switch 4.02.3 && opam update && opam upgrade`
-    + `opam install menhir ott batteries biniou cppo easy-format yojson ctypes`
-
-- Install [Coq](http://coq.inria.fr/download) from OPAM.
-    + `opam install coq.8.5.0~camlp4`
+    + `opam install menhir ott batteries biniou cppo easy-format yojson atdgen ctypes coq.8.5.0~camlp4`
 
 - Get [Boost](http://www.boost.org/users/history/version_1_59_0.html) C++ library.
     + Unzip somewhere.
@@ -33,7 +30,9 @@
     + `.build/llvm-obj` will contain llvm object files.
     + `.local/bin` will contain llvm installation.
 
-- `make`
+- `make exec`
+
+- `make proof`
 
 ### Debugging ###
 

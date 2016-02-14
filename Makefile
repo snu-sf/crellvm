@@ -1,12 +1,12 @@
 COQMODULE     := LLVMBerry
-COQDEFINITION := $(wildcard src/validator/*.v)
-COQEXTRACT    := $(wildcard src/extraction/*.v)
-COQPROOF      := $(filter-out $(COQEXTRACT), $(filter-out $(COQDEFINITION), $(wildcard src/*/*.v)))
+COQDEFINITION := $(wildcard coq/validator/*.v)
+COQEXTRACT    := $(wildcard coq/extraction/*.v)
+COQPROOF      := $(filter-out $(COQEXTRACT), $(filter-out $(COQDEFINITION), $(wildcard coq/*/*.v)))
 COQTHEORIES   := $(COQDEFINITION) $(COQEXTRACT) $(COQPROOF)
 
-.PHONY: all vellvm
+.PHONY: all init Makefile.coq lib definition extract exec proof clean
 
-all: proof
+all: exec proof
 
 init:
 	git submodule init
@@ -15,7 +15,7 @@ init:
 	cd lib/llvm; git submodule init; git submodule update
 
 Makefile.coq: Makefile $(COQTHEORIES)
-	(echo "-R src $(COQMODULE)"; \
+	(echo "-R coq $(COQMODULE)"; \
    echo "-R lib/sflib sflib"; \
    echo "-R lib/paco/src Paco"; \
    echo "-R lib/vellvm/src Vellvm"; \
@@ -33,13 +33,15 @@ lib: lib/sflib lib/paco/src lib/vellvm
 definition: Makefile.coq lib $(COQDEFINITION)
 	$(MAKE) -f Makefile.coq $(patsubst %.v,%.vo,$(COQDEFINITION))
 
-proof: definition $(COQPROOF)
-	$(MAKE) -f Makefile.coq $(patsubst %.v,%.vo,$(COQPROOF))
-
 extract: definition $(COQEXTRACT)
 	$(MAKE) -C lib/vellvm extract
-	$(MAKE) -C src/extraction clean
-	$(MAKE) -C src/extraction
+	$(MAKE) -C coq/extraction
+
+exec: extract
+	$(MAKE) -C ocaml
+
+proof: definition $(COQPROOF)
+	$(MAKE) -f Makefile.coq $(patsubst %.v,%.vo,$(COQPROOF))
 
 %.vo: Makefile.coq
 	$(MAKE) -f Makefile.coq "$@"
