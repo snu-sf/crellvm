@@ -10,8 +10,10 @@ Makefile.coq
 /coq/extraction/*.mli
 
 /.build
-/.local
+/build
 /ocaml/_build/
 /ocaml/corehint/
 !/ocaml/corehint/*.atd
 /ocaml/main.native
+
+/results-opt

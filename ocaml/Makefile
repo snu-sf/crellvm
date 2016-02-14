@@ -1,6 +1,6 @@
-SIMPLBERRY_HOME = `pwd`/../..
-LLVM_OCAML_LIB = $(SIMPLBERRY_HOME)/.local/lib/ocaml
-LLVM_LIB = $(SIMPLBERRY_HOME)/.local/lib
+ROOT = `pwd`/..
+LLVM_OCAML_LIB = $(ROOT)/build/lib/ocaml
+LLVM_LIB = $(ROOT)/build/lib
 
 LIB_FILES = llvm.cmxa,llvm_analysis.cmxa,llvm_target.cmxa,llvm_bitreader.cmxa,llvm_bitwriter.cmxa,llvm_scalar_opts.cmxa
 
@@ -13,13 +13,13 @@ OCAMLBUILD_OPT = -r \
 	-use-ocamlfind -pkg atdgen \
 	-cflags -I,$(LLVM_OCAML_LIB) \
 	-cflags -I,$(LLVM_LIB) \
-	-cflags -g\
+	-cflags -g \
 	-lflags -I,$(LLVM_OCAML_LIB) \
 	-lflags -I,$(LLVM_LIB) \
-	-lflags -cc,g++\
-	-lflags -cclib,-lLLVMSupport\
-	-lflags -cclib,-lLLVMBitReader\
-	-lflags -cclib,-lLLVMBitWriter\
+	-lflags -cc,g++ \
+	-lflags -cclib,-lLLVMSupport \
+	-lflags -cclib,-lLLVMBitReader \
+	-lflags -cclib,-lLLVMBitWriter \
 	-lflags $(LIB_FILES)
 
 MLS = extraction/FMapWeakList.ml extraction/FMapWeakList.mli\
@@ -34,6 +34,8 @@ MLS = extraction/FMapWeakList.ml extraction/FMapWeakList.mli\
 	coq2ml.ml coreHintUtil.ml translateCoreHint.ml\
 	main.ml utility.ml propagateHints.ml addInferenceHints.ml microHints.ml commandArg.ml tt.ml printHints.ml \
 	appliers/*
+
+all: main.native
 
 main.native: $(MLS)
 	$(OCAMLBUILD) $(OCAMLBUILD_OPT) main.native

@@ -4,10 +4,9 @@
 
 ### Requirements ###
 
-- Install OCaml, Coq & Libraries.
+- Install OCaml.
     + Install [opam](http://opam.ocamlpro.com/), the right way to install OCaml.
     + `opam switch 4.02.3 && opam update && opam upgrade`
-    + `opam install menhir ott batteries biniou cppo easy-format yojson atdgen ctypes coq.8.5.0~camlp4`
 
 - Get [Boost](http://www.boost.org/users/history/version_1_59_0.html) C++ library.
     + Unzip somewhere.
@@ -16,6 +15,7 @@
 ### Build ###
 
 - `make init`
+    + It installs Coq & OCaml libraries.
     + It (recursively) downloads submodules.
     + If above commands do not work, check format of `url` in `.gitmodules` starts with `git@github.com:snu-sf/`.
     + If you meet `permission denied (publickey)` error when perform `git submodule update`, do `git submodule sync` && `git submodule update`
