@@ -1,4 +1,4 @@
-Require Import vgtac.
+Require Import sflib.
 
 Require Import vellvm.
 Require Import genericvalues_inject.
@@ -30,19 +30,19 @@ Lemma eq_gvs_refl : forall gvs, eq_gvs gvs gvs.
 Proof. done. Qed.
 
 Lemma lift_op1_prop f a t :
-  lift_op1 DGVs f a t = f a.
+  GenericValueHelper.lift_op1 f a t = f a.
 Proof.
-  by transitivity (MDGVs.lift_op1 f a t).
+  by transitivity (GenericValueHelper.lift_op1 f a t).
 Qed.
 
 Lemma lift_op2_prop f a b t :
-  lift_op2 DGVs f a b t = f a b.
+  GenericValueHelper.lift_op2 f a b t = f a b.
 Proof.
-  by transitivity (MDGVs.lift_op2 f a b t).
+  by transitivity (GenericValueHelper.lift_op2 f a b t).
 Qed.
 
 Ltac infrule_microtac :=
-  unfold vgtac.is_true in *;
+  unfold sflib.is_true in *;
   match goal with
     | [H: true = true |- _] => clear H
     | [H: true = _ |- _] => symmetry in H
@@ -64,13 +64,13 @@ Ltac infrule_microtac :=
     let y := fresh "y" in
       remember x as y;
       destruct y; [|done]
-    | [H: context[lift_op1 _ _ _ _] |- _] =>
+    | [H: context[GenericValueHelper.lift_op1 _ _ _ _] |- _] =>
       rewrite lift_op1_prop in H
-    | [|- context[lift_op1 _ _ _ _]] =>
+    | [|- context[GenericValueHelper.lift_op1 _ _ _ _]] =>
       rewrite lift_op1_prop
-    | [H: context[lift_op2 _ _ _ _ _] |- _] =>
+    | [H: context[GenericValueHelper.lift_op2 _ _ _ _ _] |- _] =>
       rewrite lift_op2_prop in H
-    | [|- context[lift_op2 _ _ _ _ _]] =>
+    | [|- context[GenericValueHelper.lift_op2 _ _ _ _ _]] =>
       rewrite lift_op2_prop
 
     | [H: proj_sumbool (id_ext_dec _ _) = true |- _] =>

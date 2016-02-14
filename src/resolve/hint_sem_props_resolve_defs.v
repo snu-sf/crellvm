@@ -1,4 +1,4 @@
-Require Import vgtac.
+Require Import sflib.
 Require Import vellvm.
 
 Require Import decs.
@@ -31,7 +31,7 @@ Inductive matched_module_cfg (m1 m2:module) (cfg1 cfg2:OpsemAux.Config) : Prop :
 Definition infrule_prop (m1 m2:module) (i: infrule_t) : Prop :=
   forall
     (cfg1 cfg2: OpsemAux.Config) (Hmatch: matched_module_cfg m1 m2 cfg1 cfg2)
-    (lc1 lc2: @GVsMap DGVs)
+    (lc1 lc2: GVsMap)
     (maxb:Z) (alpha: meminj) (mem1 mem2: mem)
     (Hwf: genericvalues_inject.wf_sb_mi maxb alpha mem1 mem2)
     (Hgl1: genericvalues_inject.wf_globals maxb (Globals cfg1))

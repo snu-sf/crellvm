@@ -1,4 +1,4 @@
-Require Import vgtac.
+Require Import sflib.
 
 Require Import vellvm.
 Require Import hint_sem.
@@ -10,8 +10,6 @@ Require Import FSets.
 Require Import FSets.FSetInterface.
 
 Import Opsem.
-
-Notation GVs := DGVs.(GVsT).
 
 Ltac destruct_step_tac :=
   repeat match goal with
@@ -45,11 +43,11 @@ Definition is_free_or_store ocmd :=
   end.
 
 Lemma not_undef_implies_cgv2gvs_same:
-  forall gvs t (Hn: not_undef gvs), (@cgv2gvs DGVs gvs t) = gvs.
+  forall gvs t (Hn: not_undef gvs), (GenericValueHelper.cgv2gvs gvs t) = gvs.
 Proof.
   intros; unfold not_undef in Hn.
-  Local Transparent cgv2gvs.
-  unfold cgv2gvs; simpl; unfold MDGVs.cgv2gvs, cgv2gv.
+  Local Transparent GenericValueHelper.cgv2gvs.
+  unfold GenericValueHelper.cgv2gvs; simpl; unfold GenericValueHelper.cgv2gvs, cgv2gv.
   destruct gvs; [done|].
   destruct p; destruct v; try done.
   destruct gvs; done.
@@ -59,7 +57,7 @@ Lemma def_cmd_inl_implies_locals_update:
   forall cmd l n ec ec' ecs ecs' hpn cfg mem mem' tr i
     (Heqpop: ret_pop_cmd (ret cmd) l n = pop_one_X (CurCmds ec) hpn)
     (Hncall: forall rid : id, state_props.is_general_call (ret cmd) rid -> False)
-    (Hstep: @sInsn DGVs cfg {| EC := ec; ECS := ecs; Mem := mem |}
+    (Hstep: sInsn cfg {| EC := ec; ECS := ecs; Mem := mem |}
       {| EC := ec'; ECS := ecs'; Mem := mem' |} tr)
     (Heqcmdid: inl i = vars_aux.def_cmd cmd),
     exists igv, Locals ec' = updateAddAL _ (Locals ec) i igv.
@@ -74,14 +72,14 @@ Proof. admit.
 
   Case "call".
   by elim (Hncall id5).*)
-Qed.
+Admitted.
 
 Lemma def_cmd_inl_not_malloc_implies_memory_same:
   forall cmd l n ec ec' ecs ecs' hpn cfg mem mem' tr i
     (Heqpop: ret_pop_cmd (ret cmd) l n = pop_one_X (CurCmds ec) hpn)
     (Hnalloc: false = is_alloca_or_malloc (ret cmd))
     (Hncall: forall rid : id, state_props.is_general_call (ret cmd) rid -> False)
-    (Hstep: @sInsn DGVs cfg {| EC := ec; ECS := ecs; Mem := mem |}
+    (Hstep: sInsn cfg {| EC := ec; ECS := ecs; Mem := mem |}
       {| EC := ec'; ECS := ecs'; Mem := mem' |} tr)
     (Heqcmdid: inl i = vars_aux.def_cmd cmd),
     mem' = mem.
@@ -89,7 +87,7 @@ Proof. admit.
   (*intros.
   destruct cmd0; destruct_step_tac.
   by elim (Hncall id5).*)
-Qed.
+Admitted.
 
 Lemma getOperandValue_implies_getOperandValueExt_new:
   forall td v olc lc gl rv

@@ -1,7 +1,7 @@
 Require Import vellvm.
 Require Import decs.
 Require Import basic_const_inject.
-Require Import vgtac.
+Require Import sflib.
 
 Fixpoint my_const_dec (c1 c2:const) : bool :=
   match c1,c2 with

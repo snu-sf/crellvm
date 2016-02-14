@@ -1,4 +1,4 @@
-Require Import vgtac.
+Require Import sflib.
 Require Import syntax.
 Require Import infrastructure.
 Require Import Memory.

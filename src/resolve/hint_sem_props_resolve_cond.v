@@ -1,4 +1,4 @@
-Require Import vgtac.
+Require Import sflib.
 Require Import vellvm.
 
 Require Import decs.
@@ -538,9 +538,3 @@ Proof.
   - by repeat rewrite lookupAL_deleteAL_eq.
   - by repeat rewrite lookupAL_deleteAL_neq.
 Qed.
-
-(* 
-*** Local Variables: ***
-*** coq-prog-args: ("-emacs" "-impredicative-set") ***
-*** End: ***
-*)

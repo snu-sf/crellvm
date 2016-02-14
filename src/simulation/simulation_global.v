@@ -1,4 +1,4 @@
-Require Import vgtac.
+Require Import sflib.
 
 Require Import vellvm.
 Require Import program_sim.
@@ -32,15 +32,15 @@ Import Opsem.
 
 Section Sems.
   Variable (cfg1 cfg2: Config).
-  Variable (lc1 lc2: @GVsMap DGVs).
+  Variable (lc1 lc2: GVsMap).
   Variable (Mem1 Mem2: mem).
 
-  Definition eqs_sem_nomem (cfg: Config) (olc: @GVsMap DGVs) (lc: @GVsMap DGVs)
+  Definition eqs_sem_nomem (cfg: Config) (olc: GVsMap) (lc: GVsMap)
     (Mem:mem) (gmax: Z) (e:eqs_t) : Prop :=
     eqs_eq_reg_sem cfg olc lc Mem gmax (eqs_eq_reg e) /\
     eqs_neq_reg_sem cfg olc lc (eqs_neq_reg e).
   
-  Definition invariant_sem_nomem (olc1 olc2: @GVsMap DGVs)
+  Definition invariant_sem_nomem (olc1 olc2: GVsMap)
     (gmax: Z) (li1 li2: list mblock)
     (inv: hints.invariant_t) : Prop := 
     eqs_sem_nomem cfg1 olc1 lc1 Mem1 gmax (invariant_original inv) /\

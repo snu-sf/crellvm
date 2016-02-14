@@ -1,4 +1,4 @@
-Require Import vgtac.
+Require Import sflib.
 
 Require Import vellvm.
 Require Import program_sim.
@@ -54,14 +54,14 @@ Proof.
 Qed.
 
 Section SameContext.
-  Inductive same_context (ec1 ec2: @Opsem.ExecutionContext DGVs) fid : Prop :=
+  Inductive same_context (ec1 ec2: Opsem.ExecutionContext) fid : Prop :=
   | same_context_intro :
     forall
       (Hfid1: fid = getFheaderID (fheaderOfFdef (Opsem.CurFunction ec1)))
       (Hfid2: fid = getFheaderID (fheaderOfFdef (Opsem.CurFunction ec2))),
       same_context ec1 ec2 fid.
 
-  Inductive same_context_bid (ec1 ec2: @Opsem.ExecutionContext DGVs) fid bid : Prop :=
+  Inductive same_context_bid (ec1 ec2: Opsem.ExecutionContext) fid bid : Prop :=
   | same_context_bid_intro :
     forall
       (Hsc: same_context ec1 ec2 fid)
@@ -405,7 +405,7 @@ Section Relation.
        lookupFdecViaIDFromProducts (CurProducts cfg1) id =
        lookupFdecViaIDFromProducts (CurProducts cfg2) id).
 
-  Definition is_excall cfg (st: @Opsem.State DGVs) (fd:fdec) : Prop :=
+  Definition is_excall cfg (st: Opsem.State) (fd:fdec) : Prop :=
     match st with
       | Opsem.mkState ec ecs _ =>
         match ec with
@@ -439,7 +439,7 @@ Section Relation.
   Inductive is_call_readonly' m st : Prop :=
   | _is_call_readonly' : is_call_readonly m st -> is_call_readonly' m st.
 
-  Definition is_call_readonly'' m (st: @Opsem.State DGVs) : bool :=
+  Definition is_call_readonly'' m (st: Opsem.State) : bool :=
     match st with
       | Opsem.mkState ec ecs _ =>
         match ec with

@@ -1,4 +1,4 @@
-Require Import vgtac.
+Require Import sflib.
 Require Import vellvm.
 Require Import memory_sim.
 Require Import genericvalues_inject.
@@ -21,7 +21,7 @@ Import Opsem.
 Import syntax_ext.
 Import hints.
 
-Definition update_olc_by_ocmd olc lc ocmd : @GVsMap DGVs :=
+Definition update_olc_by_ocmd olc lc ocmd : GVsMap :=
   match ocmd with
     | ret cmd =>
       match (vars_aux.def_cmd cmd) with

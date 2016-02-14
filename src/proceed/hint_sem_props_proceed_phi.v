@@ -1,4 +1,4 @@
-Require Import vgtac.
+Require Import sflib.
 Require Import vellvm.
 Require Import memory_sim.
 Require Import genericvalues_inject.
@@ -620,7 +620,7 @@ Section HintSemEach.
     eapply Hnreg; eauto.
   Qed.
 
-  Definition remove_olc_by_nd olc nd : @GVsMap DGVs :=
+  Definition remove_olc_by_nd olc nd : GVsMap :=
     List.fold_right
       (fun x o => deleteAL _ o x)
       olc nd.
@@ -1820,7 +1820,7 @@ Section HintSemEach.
     (cfg1 cfg2: Config)
     (b1 b2 pb1 pb2: block) (lb lpb: l)
     (mem1 mem2: mem)
-    (lc1 lc2 lc1' lc2': @GVsMap DGVs)
+    (lc1 lc2 lc1' lc2': GVsMap)
     (phis1 phis2: phinodes).
   Hypothesis
     (Hlb1: lb = fst b1) (Hlb2: lb = fst b2)

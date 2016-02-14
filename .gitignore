@@ -1,14 +1,16 @@
 *.vo
 *.v.d
 *.glob
+*.aux
 
-/src/Makefile.coq
+_CoqProject
+Makefile.coq
+
 /src/extraction/*.ml
 /src/extraction/*.mli
 
 /.build
 /.local
-/src/Makefile.exec.coq
 /src/ocaml/_build/
 /src/ocaml/corehint/
 !/src/ocaml/corehint/*.atd

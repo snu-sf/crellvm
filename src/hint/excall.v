@@ -1,4 +1,4 @@
-Require Import vgtac.
+Require Import sflib.
 
 Require Import vellvm.
 Require Import hint_sem.
@@ -7,7 +7,7 @@ Import Opsem.
 Axiom callExternalOrIntrinsics_prop_1 :
   forall td gl mem fid rt la dck gvs oresult tr mem'
     (H: callExternalOrIntrinsics td gl mem fid rt la dck gvs = ret (oresult, tr, mem')),
-    Mem.nextblock mem <= Mem.nextblock mem'.  
+    (Mem.nextblock mem <= Mem.nextblock mem')%positive.
 
 Axiom callExternalOrIntrinsics_prop_2 :
   forall

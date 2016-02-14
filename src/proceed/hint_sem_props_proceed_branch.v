@@ -1,4 +1,4 @@
-Require Import vgtac.
+Require Import sflib.
 Require Import vellvm.
 Require Import memory_sim.
 Require Import genericvalues_inject.
@@ -39,7 +39,7 @@ Proof.
   by inv Hpop0.
 Qed.
 
-Definition get_phinodes_from_previous_block (ec: @Opsem.ExecutionContext DGVs) td gl :=
+Definition get_phinodes_from_previous_block (ec: Opsem.ExecutionContext) td gl :=
   match ec with
     | mkEC F _ _ (insn_br _ cond l1 l2) lc _ =>
       match (getOperandValue td cond lc gl) with

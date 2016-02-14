@@ -1,4 +1,4 @@
-Require Import vgtac.
+Require Import sflib.
 
 Require Import vellvm.
 Require Import program_sim.
@@ -16,8 +16,7 @@ Definition lookupALOpt X (m:AssocList (list X)) (i:atom) :=
     | None => nil
   end.
 
-Notation GVs := DGVs.(GVsT).
-Definition lookupALExt (lc_old lc_new:@Opsem.GVsMap DGVs) (x:id_ext) : option GVs :=
+Definition lookupALExt (lc_old lc_new:Opsem.GVsMap) (x:id_ext) : option GenericValue :=
   match x with
     | (i,ntag_old) => lookupAL _ lc_old i
     | (i,ntag_new) => lookupAL _ lc_new i
@@ -35,7 +34,7 @@ Section LogicalStep.
   Definition get_noop_by_fid_bb fid bid : noop_t :=
     get_noop_by_bb bid (lookupALOpt _ fn_al fid).
   
-  Definition pop_state_ocmd (st: @Opsem.ECStack DGVs) ns ocmd : Prop :=
+  Definition pop_state_ocmd (st: Opsem.ECStack) ns ocmd : Prop :=
     match st, ns with
       | ec::_, hn::_ =>
         match (pop_one_X (Opsem.CurCmds ec) hn) with
@@ -45,7 +44,7 @@ Section LogicalStep.
       | _, _ => False
     end.
 
-  Definition pop_state_terminator (st: @Opsem.ECStack DGVs) ns : Prop :=
+  Definition pop_state_terminator (st: Opsem.ECStack) ns : Prop :=
     match st, ns with
       | ec::_, hn::_ =>
         match (pop_one_X (Opsem.CurCmds ec) hn) with
@@ -79,7 +78,7 @@ Section LogicalStep.
       pop_one ccmds hpn pst hnn na.
 
   Inductive logical_semantic_step_noop_cmd
-    (ps: @Opsem.State DGVs) (pst: pop_state) (nnn: option noop_t) : Prop :=
+    (ps: Opsem.State) (pst: pop_state) (nnn: option noop_t) : Prop :=
   | logical_semantic_step_noop_cmd_noop
     (Hrcmd: pst = pop_noop)
     (Hnnn: nnn = None)
@@ -99,7 +98,7 @@ Section LogicalStep.
     (Hnnn: nnn = None).
 
   Inductive logical_semantic_step_noop_terminator 
-    (ps: @Opsem.State DGVs) (ec: @Opsem.ExecutionContext DGVs) 
+    (ps: Opsem.State) (ec: Opsem.ExecutionContext) 
     (nnn: option noop_t) : Prop :=
   | logical_semantic_step_noop_terminator_ret
     (Hret: is_return ps)
@@ -109,7 +108,7 @@ Section LogicalStep.
     (Hnnn: nnn = Some (get_noop_by_fid_bb (getFdefID (Opsem.CurFunction ec)) bid)).
 
   Inductive logical_semantic_step_noop_stk
-    (ps: @Opsem.State DGVs) tn ec pst hnn : noop_stack_t -> Prop :=
+    (ps: Opsem.State) tn ec pst hnn : noop_stack_t -> Prop :=
   | logical_semantic_step_noop_stk_cmd: 
     forall nnn
       (Hnnn: logical_semantic_step_noop_cmd ps pst nnn),

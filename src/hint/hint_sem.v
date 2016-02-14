@@ -1,4 +1,4 @@
-Require Import vgtac.
+Require Import sflib.
 
 Require Import vellvm.
 Require Import memory_sim.
@@ -12,25 +12,23 @@ Import Opsem.
 
 Section HintSem.
   Variable (cfg1 cfg2: Config).
-  Variable (lc1 lc2: @GVsMap DGVs).
+  Variable (lc1 lc2: GVMap).
   Variable (Mem1 Mem2: mem).
 
-  Notation GVs := DGVs.(GVsT).
-
-  Definition eq_gvs (gvs1 gvs2:GVs) : Prop :=
+  Definition eq_gvs (gvs1 gvs2:GenericValue) : Prop :=
     forall gv, (gv @ gvs1 -> gv @ gvs2) /\ (gv @ gvs2 -> gv @ gvs1).
 
-  Definition neq_gvs (gvs1 gvs2:GVs) : Prop :=
+  Definition neq_gvs (gvs1 gvs2:GenericValue) : Prop :=
     forall gv, (gv @ gvs1 -> ~ gv @ gvs2) /\ (gv @ gvs2 -> ~ gv @ gvs1).
 
   Definition getOperandValueExt (TD:TargetData) (v:value_ext) 
-    (lc_old lc_new:@GVsMap DGVs) (globals:GVMap) : option GVs :=
+    (lc_old lc_new:GVMap) (globals:GVMap) : option GenericValue :=
   match v with
     | value_ext_id x => lookupALExt lc_old lc_new x
     | value_ext_const c => const2GV TD globals c
   end.
 
-  Definition variable_equivalent (alpha: meminj) (olc1 olc2: @GVsMap DGVs)
+  Definition variable_equivalent (alpha: meminj) (olc1 olc2: GVMap)
     (x: id_ext) : Prop :=
     match lookupALExt olc1 lc1 x, lookupALExt olc2 lc2 x with
       | None, None => True
@@ -38,84 +36,84 @@ Section HintSem.
       | _, _ => False
     end.
 
-  Definition maydiff_sem (alpha: meminj) (olc1 olc2: @GVsMap DGVs)
+  Definition maydiff_sem (alpha: meminj) (olc1 olc2: GVMap)
     (md: IdExtSetImpl.t) : Prop :=
     forall x, IdExtSetImpl.mem x md = false -> variable_equivalent alpha olc1 olc2 x.
 
-  Definition BOPEXT (TD:TargetData) (olc lc:@GVsMap DGVs) (gl:GVMap) (op:bop) 
-    (bsz:sz) (v1 v2:value_ext) : option GVs :=
+  Definition BOPEXT (TD:TargetData) (olc lc:GVMap) (gl:GVMap) (op:bop) 
+    (bsz:sz) (v1 v2:value_ext) : option GenericValue :=
     match (getOperandValueExt TD v1 olc lc gl, 
            getOperandValueExt TD v2 olc lc gl) with
       | (Some gvs1, Some gvs2) =>
-        DGVs.(lift_op2) (mbop TD op bsz) gvs1 gvs2 (typ_int bsz)
+        GenericValueHelper.lift_op2 (mbop TD op bsz) gvs1 gvs2 (typ_int bsz)
       | _ => None
     end.
 
-  Definition FBOPEXT (TD:TargetData) (olc lc:@GVsMap DGVs) (gl:GVMap) (op:fbop) 
-    (fp:floating_point) (v1 v2:value_ext) : option GVs :=
+  Definition FBOPEXT (TD:TargetData) (olc lc:GVMap) (gl:GVMap) (op:fbop) 
+    (fp:floating_point) (v1 v2:value_ext) : option GenericValue :=
     match (getOperandValueExt TD v1 olc lc gl, 
            getOperandValueExt TD v2 olc lc gl) with
       | (Some gvs1, Some gvs2) =>
-        DGVs.(lift_op2) (mfbop TD op fp) gvs1 gvs2 (typ_floatpoint fp)
+        GenericValueHelper.lift_op2 (mfbop TD op fp) gvs1 gvs2 (typ_floatpoint fp)
       | _ => None
     end.
 
-  Definition TRUNCEXT (TD:TargetData) (olc lc:@GVsMap DGVs) (gl:GVMap) (op:truncop)
-    (t1:typ) (v1:value_ext) (t2:typ) : option GVs :=
+  Definition TRUNCEXT (TD:TargetData) (olc lc:GVMap) (gl:GVMap) (op:truncop)
+    (t1:typ) (v1:value_ext) (t2:typ) : option GenericValue :=
     match (getOperandValueExt TD v1 olc lc gl) with
-      | (Some gvs1) => DGVs.(lift_op1) (mtrunc TD op t1 t2) gvs1 t2
+      | (Some gvs1) => GenericValueHelper.lift_op1 (mtrunc TD op t1 t2) gvs1 t2
       | _ => None
     end.
 
-  Definition EXTEXT (TD:TargetData) (olc lc:@GVsMap DGVs) (gl:GVMap) (op:extop)
-    (t1:typ) (v1:value_ext) (t2:typ) : option GVs :=
+  Definition EXTEXT (TD:TargetData) (olc lc:GVMap) (gl:GVMap) (op:extop)
+    (t1:typ) (v1:value_ext) (t2:typ) : option GenericValue :=
     match (getOperandValueExt TD v1 olc lc gl) with
-      | (Some gvs1) => DGVs.(lift_op1) (mext TD op t1 t2) gvs1 t2
+      | (Some gvs1) => GenericValueHelper.lift_op1 (mext TD op t1 t2) gvs1 t2
       | _ => None
     end.
 
-  Definition CASTEXT (TD:TargetData) (olc lc:@GVsMap DGVs) (gl:GVMap) (op:castop)
-    (t1:typ) (v1:value_ext) (t2:typ) : option GVs :=
+  Definition CASTEXT (TD:TargetData) (olc lc:GVMap) (gl:GVMap) (op:castop)
+    (t1:typ) (v1:value_ext) (t2:typ) : option GenericValue :=
     match (getOperandValueExt TD v1 olc lc gl) with
-      | (Some gvs1) => DGVs.(lift_op1) (mcast TD op t1 t2) gvs1 t2
+      | (Some gvs1) => GenericValueHelper.lift_op1 (mcast TD op t1 t2) gvs1 t2
       | _ => None
     end.
 
-  Definition ICMPEXT (TD:TargetData) (olc lc:@GVsMap DGVs) (gl:GVMap) (c:cond) 
-    (t:typ) (v1 v2:value_ext) : option GVs :=
+  Definition ICMPEXT (TD:TargetData) (olc lc:GVMap) (gl:GVMap) (c:cond) 
+    (t:typ) (v1 v2:value_ext) : option GenericValue :=
     match (getOperandValueExt TD v1 olc lc gl, 
            getOperandValueExt TD v2 olc lc gl) with
       | (Some gvs1, Some gvs2) =>
-        DGVs.(lift_op2) (micmp TD c t) gvs1 gvs2 (typ_int Size.One)
+        GenericValueHelper.lift_op2 (micmp TD c t) gvs1 gvs2 (typ_int Size.One)
       | _ => None
     end.
 
-  Definition FCMPEXT (TD:TargetData) (olc lc:@GVsMap DGVs) (gl:GVMap) (c:fcond) 
-    (fp:floating_point) (v1 v2:value_ext) : option GVs :=
+  Definition FCMPEXT (TD:TargetData) (olc lc:GVMap) (gl:GVMap) (c:fcond) 
+    (fp:floating_point) (v1 v2:value_ext) : option GenericValue :=
     match (getOperandValueExt TD v1 olc lc gl, 
            getOperandValueExt TD v2 olc lc gl) with
       | (Some gvs1, Some gvs2) =>
-        DGVs.(lift_op2) (mfcmp TD c fp) gvs1 gvs2 (typ_int Size.One)
+        GenericValueHelper.lift_op2 (mfcmp TD c fp) gvs1 gvs2 (typ_int Size.One)
       | _ => None
     end.
 
-  Fixpoint values2GVsExt (TD:TargetData) (lv:list (sz * value_ext))
-    (olocals locals:GVsMap) (globals:GVMap) : option (list GVs):=
+  Fixpoint values2GenericValueExt (TD:TargetData) (lv:list (sz * value_ext))
+    (olocals locals:GVMap) (globals:GVMap) : option (list GenericValue):=
     match lv with
       | nil => Some nil
       | (_, v) :: lv' =>
         match (getOperandValueExt TD v olocals locals globals) with
           | Some GV =>
-            match (values2GVsExt TD lv' olocals locals globals) with
-              | Some GVs => Some (GV::GVs)
+            match (values2GenericValueExt TD lv' olocals locals globals) with
+              | Some GenericValue => Some (GV::GenericValue)
               | None => None
             end
           | None => None
         end
     end.
 
-  Inductive rhs_ext_value_sem (cfg:Config) (olc lc:@GVsMap DGVs) :
-    rhs_ext -> GVsT DGVs -> Prop :=
+  Inductive rhs_ext_value_sem (cfg:Config) (olc lc:GVMap) :
+    rhs_ext -> GenericValue -> Prop :=
   | rhs_ext_bop_sem : forall bop sz v1 v2 gvs3,
     BOPEXT (CurTargetData cfg) olc lc (Globals cfg) bop sz v1 v2 = Some gvs3 ->
     rhs_ext_value_sem cfg olc lc (rhs_ext_bop bop sz v1 v2) gvs3
@@ -133,7 +131,7 @@ Section HintSem.
     rhs_ext_value_sem cfg olc lc (rhs_ext_insertvalue t v t' v' idxs) gvs''
   | rhs_ext_gep_sem : forall inbounds t t' v idxs mp mp' vidxs vidxss,
     getOperandValueExt (CurTargetData cfg) v olc lc (Globals cfg) = Some mp ->
-    values2GVsExt (CurTargetData cfg) idxs olc lc (Globals cfg) = Some vidxss ->
+    values2GenericValueExt (CurTargetData cfg) idxs olc lc (Globals cfg) = Some vidxss ->
     vidxs @@ vidxss ->
     GEP (CurTargetData cfg) t mp vidxs inbounds t' = Some mp' ->
     rhs_ext_value_sem cfg olc lc (rhs_ext_gep inbounds t v idxs t') mp'
@@ -170,8 +168,8 @@ Section HintSem.
 
   Hint Constructors rhs_ext_value_sem.
 
-  Inductive eq_reg_sem (cfg: Config) (olc: @GVsMap DGVs)
-    (lc: @GVsMap DGVs) (Mem:mem) (gmax: Z) (x: id_ext) : forall (rhs:rhs_ext), Prop :=
+  Inductive eq_reg_sem (cfg: Config) (olc: GVMap)
+    (lc: GVMap) (Mem:mem) (gmax: positive) (x: id_ext) : forall (rhs:rhs_ext), Prop :=
   | eq_reg_sem_value :
     forall gvs gvs' r
       (Hlookup: lookupALExt olc lc x = Some gvs)
@@ -183,12 +181,12 @@ Section HintSem.
       (Hlookup: lookupALExt olc lc x = Some gvs)
       (Hptr: GV2ptr (CurTargetData cfg) (getPointerSize (CurTargetData cfg)) gvs =
         ret Vptr xblk xofs)
-      (Hvalid: xblk < (Mem.nextblock Mem))
-      (Hgvalid: gmax < xblk),
+      (Hvalid: (xblk < (Mem.nextblock Mem))%positive)
+      (Hgvalid: (gmax < xblk)%positive),
       eq_reg_sem cfg olc lc Mem gmax x rhs_ext_old_alloca.
   Hint Constructors eq_reg_sem.
 
-  Definition eq_heap_sem (cfg: Config) (olc lc: @GVsMap DGVs)
+  Definition eq_heap_sem (cfg: Config) (olc lc: GVMap)
     (Mem: mem) (p:value_ext) (t:typ) (a:align) (v:value_ext) : Prop :=
     match getOperandValueExt (CurTargetData cfg) p olc lc (Globals cfg),
       getOperandValueExt (CurTargetData cfg) v olc lc (Globals cfg) with
@@ -210,7 +208,7 @@ Section HintSem.
   Definition no_alias' (gvs1 gvs2: GenericValue) : Prop :=
     memory_props.MemProps.no_alias gvs1 gvs2 /\ not_undef gvs1 /\ not_undef gvs2.
 
-  Definition neq_reg_sem (cfg: Config) (olc lc: @GVsMap DGVs)
+  Definition neq_reg_sem (cfg: Config) (olc lc: GVMap)
     (i: id_ext) (lg: localglobal_t) : Prop :=
     match lookupALExt olc lc i with
       | Some gvs1 => 
@@ -229,28 +227,28 @@ Section HintSem.
       | None => False
     end.
 
-  Definition eqs_eq_reg_sem (cfg: Config) (olc: @GVsMap DGVs)
-    (lc: @GVsMap DGVs) (Mem:mem) (gmax: Z) (e:EqRegSetImpl.t) : Prop :=
+  Definition eqs_eq_reg_sem (cfg: Config) (olc: GVMap)
+    (lc: GVMap) (Mem:mem) (gmax: positive) (e:EqRegSetImpl.t) : Prop :=
     forall x r, EqRegSetImpl.mem (x,r) e -> 
       eq_reg_sem cfg olc lc Mem gmax x r.
 
-  Definition eqs_eq_heap_sem (cfg: Config) (olc: @GVsMap DGVs)
-    (lc: @GVsMap DGVs) (Mem:mem) (e:EqHeapSetImpl.t) : Prop :=
+  Definition eqs_eq_heap_sem (cfg: Config) (olc: GVMap)
+    (lc: GVMap) (Mem:mem) (e:EqHeapSetImpl.t) : Prop :=
     forall p t a v, EqHeapSetImpl.mem (p,t,a,v) e ->
       eq_heap_sem cfg olc lc Mem p t a v.
 
-  Definition eqs_neq_reg_sem (cfg: Config) (olc: @GVsMap DGVs)
-    (lc: @GVsMap DGVs) (e:NeqRegSetImpl.t) : Prop :=
+  Definition eqs_neq_reg_sem (cfg: Config) (olc: GVMap)
+    (lc: GVMap) (e:NeqRegSetImpl.t) : Prop :=
     forall x y, NeqRegSetImpl.mem (x,y) e -> 
       neq_reg_sem cfg olc lc x y.
 
-  Definition eqs_sem (cfg: Config) (olc: @GVsMap DGVs) (lc: @GVsMap DGVs)
-    (Mem:mem) (gmax: Z) (e:eqs_t) : Prop :=
+  Definition eqs_sem (cfg: Config) (olc: GVMap) (lc: GVMap)
+    (Mem:mem) (gmax: positive) (e:eqs_t) : Prop :=
     eqs_eq_reg_sem cfg olc lc Mem gmax (eqs_eq_reg e) /\
     eqs_eq_heap_sem cfg olc lc Mem (eqs_eq_heap e) /\
     eqs_neq_reg_sem cfg olc lc (eqs_neq_reg e).
 
-  Definition isolated_sem (TD:TargetData) (olc lc: @GVsMap DGVs)
+  Definition isolated_sem (TD:TargetData) (olc lc: GVMap)
     (li: list mblock) (iso: IdExtSetImpl.t) : Prop :=
     IdExtSetImpl.For_all
     (fun x =>
@@ -263,15 +261,15 @@ Section HintSem.
         end))
     iso.
 
-  Definition invariant_sem (olc1 olc2: @GVsMap DGVs)
-    (gmax: Z) (li1 li2: list mblock)
+  Definition invariant_sem (olc1 olc2: GVMap)
+    (gmax: positive) (li1 li2: list mblock)
     (inv: hints.invariant_t) : Prop := 
     eqs_sem cfg1 olc1 lc1 Mem1 gmax (invariant_original inv) /\
     eqs_sem cfg2 olc2 lc2 Mem2 gmax (invariant_optimized inv) /\
     isolated_sem (CurTargetData cfg1) olc1 lc1 li1 (iso_original inv) /\
     isolated_sem (CurTargetData cfg2) olc2 lc2 li2 (iso_optimized inv).
 
-  Definition hint_sem (alpha: meminj) (gmax: Z) (li1 li2: list mblock)
+  Definition hint_sem (alpha: meminj) (gmax: positive) (li1 li2: list mblock)
     (h: hints.insn_hint_t) : Prop :=
     exists olc1, exists olc2,
       maydiff_sem alpha olc1 olc2 (hint_maydiff h) /\
@@ -332,11 +330,11 @@ Section AlphaRelated.
       allocas_equivalent alpha li1 li2 (b1::als1') (b2::als2').
 
   Definition valid_allocas mem1 mem2 als1 als2 : Prop :=
-    Forall (fun blk => blk < Mem.nextblock mem1) als1 /\
-    Forall (fun blk => blk < Mem.nextblock mem2) als2 /\
+    Forall (fun blk => (blk < Mem.nextblock mem1)%positive) als1 /\
+    Forall (fun blk => (blk < Mem.nextblock mem2)%positive) als2 /\
     NoDup als1 /\ NoDup als2.
 
-  Inductive globals_equivalent (alpha: meminj) (gmax: Z) (gl1 gl2: GVMap) : Prop :=
+  Inductive globals_equivalent (alpha: meminj) (gmax: positive) (gl1 gl2: GVMap) : Prop :=
   | globals_equivalent_intro :
     forall gl
       (Hgl1: gl = gl1) (Hgl2: gl = gl2)
@@ -366,10 +364,10 @@ Section AlphaRelated.
       (Hlipidisj1: list_disjoint li1 pi1)
       (Hlipidisj2: list_disjoint li2 pi2)
 
-      (Hvli1: Forall (fun b => b < (Mem.nextblock mem1)) li1)
-      (Hvpi1: Forall (fun b => b < (Mem.nextblock mem1)) pi1)
-      (Hvli1: Forall (fun b => b < (Mem.nextblock mem2)) li2)
-      (Hvpi1: Forall (fun b => b < (Mem.nextblock mem2)) pi2),
+      (Hvli1: Forall (fun b => (b < (Mem.nextblock mem1))%positive) li1)
+      (Hvpi1: Forall (fun b => (b < (Mem.nextblock mem1))%positive) pi1)
+      (Hvli1: Forall (fun b => (b < (Mem.nextblock mem2))%positive) li2)
+      (Hvpi1: Forall (fun b => (b < (Mem.nextblock mem2))%positive) pi2),
       valid_memories alpha gmax mem1 mem2 li1 pi1 li2 pi2.
 
 End AlphaRelated.
@@ -385,11 +383,11 @@ Definition is_global_ids gids (gl: GVMap) : Prop :=
 
 Inductive hint_sem_insn
   (hint: insn_hint_t)
-  (pecs1 pecs2: @ECStack DGVs) (pns1 pns2: noop_stack_t)
+  (pecs1 pecs2: ECStack) (pns1 pns2: noop_stack_t)
   (pi1 pi2: list mblock) (li1 li2: list mblock) :
-  meminj -> Z ->
-  OpsemAux.Config -> (@ECStack DGVs) -> mem -> noop_stack_t -> 
-  OpsemAux.Config -> (@ECStack DGVs) -> mem -> noop_stack_t ->
+  meminj -> positive ->
+  OpsemAux.Config -> (ECStack) -> mem -> noop_stack_t -> 
+  OpsemAux.Config -> (ECStack) -> mem -> noop_stack_t ->
   Prop :=
 
 | hint_sem_insn_intro :

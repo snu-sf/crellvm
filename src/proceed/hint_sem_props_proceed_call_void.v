@@ -1,4 +1,4 @@
-Require Import vgtac.
+Require Import sflib.
 Require Import vellvm.
 Require Import memory_sim.
 Require Import genericvalues_inject.
@@ -24,7 +24,7 @@ Import Opsem.
 Import syntax_ext.
 Import hints.
 
-Definition retval_update_void st : (@Opsem.ECStack DGVs) :=
+Definition retval_update_void st : (Opsem.ECStack) :=
   match st with
     | nil => st
     | ec::ecs => 

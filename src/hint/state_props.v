@@ -1,4 +1,4 @@
-Require Import vgtac.
+Require Import sflib.
 
 Require Import vellvm.
 
@@ -10,7 +10,7 @@ Definition is_general_call (ocmd: option cmd) (retid: id) : Prop :=
     | _ => False
   end.
 
-Definition is_general_call_state (st: @Opsem.State DGVs) : Prop :=
+Definition is_general_call_state (st: Opsem.State) : Prop :=
   match st with
     | Opsem.mkState ec ecs _ =>
       match ec with
@@ -23,7 +23,7 @@ Definition is_general_call_state (st: @Opsem.State DGVs) : Prop :=
       end
   end.
 
-Definition is_call_readonly m (st: @Opsem.State DGVs) : Prop :=
+Definition is_call_readonly m (st: Opsem.State) : Prop :=
   match st with
     | Opsem.mkState ec ecs _ =>
       match ec with
@@ -55,7 +55,7 @@ Definition is_call_readonly m (st: @Opsem.State DGVs) : Prop :=
       end
   end.
 
-Definition is_call cfg (st: @Opsem.State DGVs) tfid : Prop :=
+Definition is_call cfg (st: Opsem.State) tfid : Prop :=
   match st with
     | Opsem.mkState ec ecs _ =>
       match ec with
@@ -74,7 +74,7 @@ Definition is_call cfg (st: @Opsem.State DGVs) tfid : Prop :=
       end
   end.
 
-Lemma is_call_or_not: forall cfg (st: @Opsem.State DGVs)
+Lemma is_call_or_not: forall cfg (st: Opsem.State)
   (Hstep: exists nst, exists tr, Opsem.sInsn cfg st nst tr),
   (exists tfid, is_call cfg st tfid) \/ (forall tfid, ~ is_call cfg st tfid).
 Proof.
@@ -94,7 +94,7 @@ Proof.
     inv Hfptr. inv H18.
     unfold OpsemAux.lookupExFdecViaPtr in H19.
     unfold OpsemAux.lookupFdefViaPtr in Hlookup.
-    remember (OpsemAux.lookupFdefViaGVFromFunTable fs fptr) as fn.
+    remember (OpsemAux.lookupFdefViaGVFromFunTable fs fptrs0) as fn.
     destruct fn as [fnid|]; [inv H19|by inv H19].
     inv Hlookup.
     by rewrite H1 in H0.
@@ -112,13 +112,13 @@ Proof.
     inv Hfptr. inv H18.
     unfold OpsemAux.lookupExFdecViaPtr in H19.
     unfold OpsemAux.lookupFdefViaPtr in Hlookup.
-    remember (OpsemAux.lookupFdefViaGVFromFunTable fs fptr) as fn.
+    remember (OpsemAux.lookupFdefViaGVFromFunTable fs fptrs0) as fn.
     destruct fn as [fnid|]; [inv H19|by inv H19].
     inv Hlookup.
     by rewrite H1 in H0.
 Qed.
 
-Definition is_excall cfg (st: @Opsem.State DGVs) : Prop :=
+Definition is_excall cfg (st: Opsem.State) : Prop :=
   match st with
     | Opsem.mkState ec ecs _ =>
       match ec with
@@ -204,7 +204,7 @@ Proof.
   clear -Hlookup1 Hlookup2.
   unfold OpsemAux.lookupExFdecViaPtr in Hlookup2.
   unfold OpsemAux.lookupFdefViaPtr in Hlookup1.
-  remember (OpsemAux.lookupFdefViaGVFromFunTable (OpsemAux.FunTable cfg) fptr1) as fn.
+  remember (OpsemAux.lookupFdefViaGVFromFunTable (OpsemAux.FunTable cfg) fptrs2) as fn.
   destruct fn as [fnid|]; try (inversion Hlookup2; fail).
   inversion Hlookup2; inversion Hlookup1.
   rewrite H1 in H0; done.
@@ -221,7 +221,7 @@ Proof.
   clear -Hlookup1 Hlookup2.
   unfold OpsemAux.lookupExFdecViaPtr in Hlookup2.
   unfold OpsemAux.lookupFdefViaPtr in Hlookup1.
-  remember (OpsemAux.lookupFdefViaGVFromFunTable (OpsemAux.FunTable cfg) fptr1) as fn.
+  remember (OpsemAux.lookupFdefViaGVFromFunTable (OpsemAux.FunTable cfg) fptrs2) as fn.
   destruct fn as [fnid|]; try (inversion Hlookup2; fail).
   inversion Hlookup2; inversion Hlookup1.
   rewrite H1 in H0; done.
@@ -253,7 +253,7 @@ Proof.
   done.
 Qed.
 
-Definition is_return (st: @Opsem.State DGVs) : Prop :=
+Definition is_return (st: Opsem.State) : Prop :=
   match st with
     | Opsem.mkState ec ecs _ =>
       (Opsem.CurCmds ec) = nil /\
@@ -280,7 +280,7 @@ Proof.
   inversion Hstep'; subst; done.
 Qed.
 
-Definition is_branch cfg (st: @Opsem.State DGVs) bid : Prop :=
+Definition is_branch cfg (st: Opsem.State) bid : Prop :=
   match st with
     | Opsem.mkState ec ecs _ =>
       (Opsem.CurCmds ec) = nil /\
@@ -354,7 +354,7 @@ Proof.
   - elimtype False.
   subst; simpl. admit.
   (*inversion Hstep as [ns [tr Hstep']]; inversion Hstep'.*)
-Qed.
+Admitted.
 
 (* 
 *** Local Variables: ***

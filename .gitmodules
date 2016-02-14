@@ -11,3 +11,6 @@
 [submodule "simplberry-tests"]
 	path = simplberry-tests
 	url = git@github.com:snu-sf/simplberry-tests.git
+[submodule "lib/sflib"]
+	path = lib/sflib
+	url = git@github.com:snu-sf/sflib.git
