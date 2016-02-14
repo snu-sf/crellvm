@@ -26,7 +26,7 @@
     + `lib/vellvm/src/Extraction` will contain extracted `.ml`, `.mli` files.
 
 - Build `llvm`.
-    + `script/llvm-build.sh $JOBS`
+    + `script/build-llvm.sh $JOBS`
     + `.build/llvm-obj` will contain llvm object files.
     + `.local/bin` will contain llvm installation.
 
