@@ -157,7 +157,7 @@ type add_dist_sub = {
   w : variable;
 }
 
-type add_distributive = {
+type mul_add_distributive = {
   inherit infrule_base;
   z : variable;
   x : variable;
@@ -277,7 +277,7 @@ type command = [
   | AddSelectZero of add_select_zero
   | AddSelectZero2 of add_select_zero2
   | AddDistSub of add_dist_sub
-  | AddDistributive of add_distributive
+  | MulAddDistributive of mul_add_distributive
   | SubMone of sub_mone
   | SubAdd of sub_add
   | SubConstNot of sub_const_not
