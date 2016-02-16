@@ -1,5 +1,5 @@
 COQMODULE     := LLVMBerry
-COQDEFINITION := $(wildcard coq/validator/*.v)
+COQDEFINITION := $(wildcard coq/exec/*.v coq/validator/*.v)
 COQEXTRACT    := $(wildcard coq/extraction/*.v)
 COQPROOF      := $(filter-out $(COQEXTRACT), $(filter-out $(COQDEFINITION), $(wildcard coq/*/*.v)))
 COQTHEORIES   := $(COQDEFINITION) $(COQEXTRACT) $(COQPROOF)
