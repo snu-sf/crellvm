@@ -26,7 +26,7 @@ open CommandArg
 
 
 let apply
-    (options : CoreHint_t.add_distributive)
+    (options : CoreHint_t.mul_add_distributive)
     (args : CommandArg.microhint_args)
     : fdef_hint_t =
 
@@ -44,17 +44,17 @@ let apply
     let (w_ext, w_rhs) = get_rhs_from_insn_hint CoreHint_t.Target (w.name) insn_hint in
     let (sz1, a_ext, b_ext, c_ext) =
       match x_rhs, y_rhs, w_rhs, z_rhs with
-      | Coq_rhs_ext_bop (LLVMsyntax.Coq_bop_add, sz1, a_ext, b_ext),
-        Coq_rhs_ext_bop (LLVMsyntax.Coq_bop_add, sz1_0, a_ext', c_ext),
+      | Coq_rhs_ext_bop (LLVMsyntax.Coq_bop_mul, sz1, a_ext, b_ext),
+        Coq_rhs_ext_bop (LLVMsyntax.Coq_bop_mul, sz1_0, a_ext', c_ext),
         Coq_rhs_ext_bop (LLVMsyntax.Coq_bop_add, sz1_1, b_ext', c_ext'),
         Coq_rhs_ext_bop (LLVMsyntax.Coq_bop_mul, sz1_2, a_ext'', Coq_value_ext_id w_ext')
       when sz1 = sz1_0 && sz1 = sz1_1 && sz1 = sz1_2 &&
       a_ext = a_ext' && a_ext = a_ext'' && b_ext = b_ext' &&
       c_ext = c_ext' &&w_ext = w_ext'->
         (sz1, a_ext, b_ext, c_ext)
-      | _ -> failwith "add_distributive: pattern matching failed"
+      | _ -> failwith "mul_add_distributive: pattern matching failed"
     in
-    let infrule = Coq_rule_add_distributive (z_ext, x_ext, y_ext, w_ext,
+    let infrule = Coq_rule_mul_add_distributive (z_ext, x_ext, y_ext, w_ext,
     sz1, a_ext, b_ext, c_ext) in
     [infrule]
   in
