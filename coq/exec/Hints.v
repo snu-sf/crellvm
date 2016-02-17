@@ -16,8 +16,8 @@ Module Invariant.
   Structure unary := mk_unary {
     lessdef: ExprPairSet.t;
     noalias: ExprPairSet.t;
-    private: IdTSet.t;
     allocas: IdTSet.t;
+    private: IdTSet.t;
   }.
 
   Structure t := mk {
@@ -30,29 +30,29 @@ Module Invariant.
     mk_unary
       (f invariant.(lessdef))
       invariant.(noalias)
-      invariant.(private)
-      invariant.(allocas).
+      invariant.(allocas)
+      invariant.(private).
 
   Definition update_noalias (f:ExprPairSet.t -> ExprPairSet.t) (invariant:unary): unary :=
     mk_unary
       invariant.(lessdef)
       (f invariant.(noalias))
-      invariant.(private)
-      invariant.(allocas).
-
-  Definition update_private (f:IdTSet.t -> IdTSet.t) (invariant:unary): unary :=
-    mk_unary
-      invariant.(lessdef)
-      invariant.(noalias)
-      (f invariant.(private))
-      invariant.(allocas).
+      invariant.(allocas)
+      invariant.(private).
 
   Definition update_allocas (f:IdTSet.t -> IdTSet.t) (invariant:unary): unary :=
     mk_unary
       invariant.(lessdef)
       invariant.(noalias)
-      invariant.(private)
-      (f invariant.(allocas)).
+      (f invariant.(allocas))
+      invariant.(private).
+
+  Definition update_private (f:IdTSet.t -> IdTSet.t) (invariant:unary): unary :=
+    mk_unary
+      invariant.(lessdef)
+      invariant.(noalias)
+      invariant.(allocas)
+      (f invariant.(private)).
 
   Definition update_src (f:unary -> unary) (invariant:t): t :=
     mk
@@ -99,6 +99,52 @@ Module Invariant.
     (ValueT.eq_dec value_src value_tgt && not_in_maydiff inv value_src) ||
     (ExprPairSet.mem (Expr.value value_src, Expr.value value_tgt) inv.(tgt).(lessdef) && not_in_maydiff inv value_src) ||
     (ExprPairSet.mem (Expr.value value_src, Expr.value value_tgt) inv.(src).(lessdef) && not_in_maydiff inv value_tgt).
+
+  (* TODO *)
+  Definition ghostify_unary (inv0:unary): unary :=
+    let inv1 := update_lessdef (ExprPairSet.filter (fun elt => true)) inv0 in
+    let inv2 := update_noalias (ExprPairSet.filter (fun elt => true)) inv1 in
+    let inv3 := update_allocas (IdTSet.filter (fun elt => true)) inv2 in
+    let inv4 := update_private (IdTSet.filter (fun elt => true)) inv3 in
+    inv4.
+
+  (* TODO *)
+  Definition ghostify_maydiff (inv0:IdTSet.t): IdTSet.t :=
+    inv0.
+
+  Definition ghostify (inv0:t): t :=
+    let inv1 := update_src ghostify_unary inv0 in
+    let inv2 := update_tgt ghostify_unary inv1 in
+    let inv3 := update_maydiff ghostify_maydiff inv2 in
+    inv3.
+
+  (* TODO *)
+  Definition forget
+             (l_src l_tgt:list IdT.t)
+             (inv0:t): t :=
+    inv0.
+
+  (* TODO *)
+  Definition forget_memory
+             (l_src l_tgt:list IdT.t)
+             (inv0:t): t :=
+    inv0.
+
+  (* TODO *)
+  Definition reduce_maydiff
+             (inv0:t): t :=
+    inv0.
+
+  Definition is_empty_unary (inv:unary): bool :=
+    ExprPairSet.is_empty inv.(lessdef) &&
+    ExprPairSet.is_empty inv.(noalias) &&
+    IdTSet.is_empty inv.(allocas) &&
+    IdTSet.is_empty inv.(private).
+
+  Definition is_empty (inv:t): bool :=
+    is_empty_unary inv.(src) &&
+    is_empty_unary inv.(tgt) &&
+    IdTSet.is_empty inv.(maydiff).
 End Invariant.
 
 Module Infrule.

@@ -17,17 +17,17 @@ Require Import Infrules.
 Set Implicit Arguments.
 
 Fixpoint valid_cmds
-         (inv0:Invariant.t)
+         (src tgt:list cmd)
          (hint:list (list Infrule.t * Invariant.t))
-         (src tgt:list cmd): option Invariant.t :=
+         (inv0:Invariant.t): option Invariant.t :=
   match hint, src, tgt with
   | (infrules, inv)::hint, cmd_src::src, cmd_tgt::tgt =>
-    match postcond_cmd inv0 cmd_src cmd_tgt with
+    match postcond_cmd cmd_src cmd_tgt inv0 with
     | None => None
     | Some inv1 =>
       let inv2 := apply_infrules infrules inv1 in
       if Invariant.implies inv2 inv
-      then valid_cmds inv hint src tgt
+      then valid_cmds src tgt hint inv
       else None
     end
   | nil, nil, nil => Some inv0
@@ -44,7 +44,7 @@ Definition valid_phinodes
     match lookupAL _ hint_stmts.(Hints.phinodes) l_from with
     | None => false
     | Some infrules =>
-      match postcond_phinodes inv0 l_from phinodes_src phinodes_tgt with
+      match postcond_phinodes l_from phinodes_src phinodes_tgt inv0 with
       | None => false
       | Some inv1 =>
         let inv2 := apply_infrules infrules inv1 in
@@ -66,13 +66,13 @@ Definition valid_terminator
     typ_dec ty_src ty_tgt &&
     Invariant.inject_value
       inv0
-      (ValueT.from_value val_src Tag.physical)
-      (ValueT.from_value val_tgt Tag.physical)
+      (ValueT.lift Tag.physical val_src)
+      (ValueT.lift Tag.physical val_tgt)
   | insn_br _ val_src l1_src l2_src, insn_br _ val_tgt l1_tgt l2_tgt =>
     Invariant.inject_value
       inv0
-      (ValueT.from_value val_src Tag.physical)
-      (ValueT.from_value val_tgt Tag.physical) &&
+      (ValueT.lift Tag.physical val_src)
+      (ValueT.lift Tag.physical val_tgt) &&
     l_dec l1_src l1_tgt &&
     l_dec l2_src l2_tgt &&
     valid_phinodes hint_fdef inv0 blocks_src blocks_tgt bid l1_src &&
@@ -91,7 +91,7 @@ Definition valid_stmts
            (bid:l) (src tgt:stmts): bool :=
   let '(stmts_intro phinodes_src cmds_src terminator_src) := src in
   let '(stmts_intro phinodes_tgt cmds_tgt terminator_tgt) := tgt in
-  match valid_cmds hint.(Hints.invariant_after_phinodes) hint.(Hints.cmds) cmds_src cmds_tgt with
+  match valid_cmds cmds_src cmds_tgt hint.(Hints.cmds) hint.(Hints.invariant_after_phinodes) with
   | None => false
   | Some inv => valid_terminator hint_fdef inv blocks_src blocks_tgt bid terminator_src terminator_tgt
   end.
@@ -109,7 +109,17 @@ Definition valid_fdef
   let '(fdef_intro fheader_src blocks_src) := src in
   let '(fdef_intro fheader_tgt blocks_tgt) := tgt in
   fheader_dec fheader_src fheader_tgt &&
-  lift2_option valid_entry_block (getEntryBlock src) (getEntryBlock tgt) &&
+  match blocks_src, blocks_tgt with
+  | (bid_src, stmts_intro phinodes_src _ _)::_, (bid_tgt, stmts_intro phinodes_tgt _ _)::_ =>
+    id_dec bid_src bid_tgt &&
+    is_empty phinodes_src &&
+    is_empty phinodes_tgt &&
+    match lookupAL _ hint bid_src with
+    | None => false
+    | Some hint_stmts => Invariant.is_empty hint_stmts.(Hints.invariant_after_phinodes)
+    end
+  | _, _ => false
+  end &&
   forallb2AL
     (fun bid stmts_src stmts_tgt =>
        match lookupAL _ hint bid with
