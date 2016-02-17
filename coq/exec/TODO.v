@@ -39,6 +39,12 @@ Definition lift_option A B (pred:A -> B)
   | None => None
   end.
 
+Definition option_to_list A (oa:option A): list A :=
+  match oa with
+  | Some a => a::nil
+  | None => nil
+  end.
+
 Fixpoint filter_map A B (pred:A -> option B) (l:list A): list B :=
   match l with
   | nil => nil
