@@ -76,6 +76,16 @@ Proof.
       * right. apply IHl0. auto.
 Qed.
 
+Module Value.
+  Definition t := value.
+
+  Definition get_uses (v:t): list id :=
+    match v with
+    | value_id id => [id]
+    | value_const _ => []
+    end.
+End Value.
+
 Module ValueT <: UsualDecidableType.
   Inductive t_: Set :=
   | id (x:IdT.t)
