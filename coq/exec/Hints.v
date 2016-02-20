@@ -101,7 +101,7 @@ Module Invariant.
     (ExprPairSet.mem (Expr.value value_src, Expr.value value_tgt) inv.(src).(lessdef) && not_in_maydiff inv value_tgt).
 
   (* TODO *)
-  Definition ghostify_unary (inv0:unary): unary :=
+  Definition snapshot_unary (inv0:unary): unary :=
     let inv1 := update_lessdef (ExprPairSet.filter (fun elt => true)) inv0 in
     let inv2 := update_noalias (ExprPairSet.filter (fun elt => true)) inv1 in
     let inv3 := update_allocas (IdTSet.filter (fun elt => true)) inv2 in
@@ -109,13 +109,13 @@ Module Invariant.
     inv4.
 
   (* TODO *)
-  Definition ghostify_maydiff (inv0:IdTSet.t): IdTSet.t :=
+  Definition snapshot_maydiff (inv0:IdTSet.t): IdTSet.t :=
     inv0.
 
-  Definition ghostify (inv0:t): t :=
-    let inv1 := update_src ghostify_unary inv0 in
-    let inv2 := update_tgt ghostify_unary inv1 in
-    let inv3 := update_maydiff ghostify_maydiff inv2 in
+  Definition snapshot (inv0:t): t :=
+    let inv1 := update_src snapshot_unary inv0 in
+    let inv2 := update_tgt snapshot_unary inv1 in
+    let inv3 := update_maydiff snapshot_maydiff inv2 in
     inv3.
 
   (* TODO *)
