@@ -42,7 +42,6 @@ Module LiftPred.
       | Expr.select v1 ty v2 v3 => ValueT v1 || ValueT v2 || ValueT v3
       | Expr.value v => ValueT v
       | Expr.load v ty al => ValueT v
-      | Expr.global i => false
       end.
 
     Definition ExprPair (ep:ExprPair.t): bool := Expr (fst ep) || Expr (snd ep).
@@ -81,7 +80,6 @@ Module Previousify.
     | Expr.select v1 ty v2 v3 => Expr.select (ValueT v1) ty (ValueT v2) (ValueT v3)
     | Expr.value v => Expr.value (ValueT v)
     | Expr.load v ty al => Expr.load (ValueT v) ty al
-    | Expr.global i => Expr.global i
     end.
 
   Definition ExprPair (ep:ExprPair.t): ExprPair.t := (Expr (fst ep), Expr (snd ep)).
@@ -158,20 +156,8 @@ Module ForgetMemory.
 
   Definition is_noalias_Expr (inv:Invariant.unary) (ids:IdTSet.t) (e:Expr.t): bool :=
     match e with
-      | Expr.bop op s v1 v2 => is_noalias_ValueT inv ids v1 && is_noalias_ValueT inv ids v2
-      | Expr.fbop op fp v1 v2 => is_noalias_ValueT inv ids v1 && is_noalias_ValueT inv ids v2
-      | Expr.extractvalue ty1 v lc ty2 => is_noalias_ValueT inv ids v
-      | Expr.insertvalue ty1 v1 ty2 v2 lc => is_noalias_ValueT inv ids v1 && is_noalias_ValueT inv ids v2
-      | Expr.gep ib ty1 v1 lsv ty2 => is_noalias_ValueT inv ids v1 && List.forallb (compose (is_noalias_ValueT inv ids) snd) lsv
-      | Expr.trunc top ty1 v ty2 => is_noalias_ValueT inv ids v
-      | Expr.ext eop ty1 v ty2 => is_noalias_ValueT inv ids v
-      | Expr.cast cop ty1 v ty2 => is_noalias_ValueT inv ids v
-      | Expr.icmp c ty v1 v2 => is_noalias_ValueT inv ids v1 && is_noalias_ValueT inv ids v2
-      | Expr.fcmp fc fp v1 v2 => is_noalias_ValueT inv ids v1 && is_noalias_ValueT inv ids v2
-      | Expr.select v1 ty v2 v3 => is_noalias_ValueT inv ids v1 && is_noalias_ValueT inv ids v2 && is_noalias_ValueT inv ids v3
-      | Expr.value v => is_noalias_ValueT inv ids v
       | Expr.load v ty al => is_noalias_ValueT inv ids v
-      | Expr.global i => true
+      | _ => true
     end.
 
   Definition is_noalias_ExprPair (inv:Invariant.unary) (ids:IdTSet.t) (ep:ExprPair.t): bool :=
