@@ -15,7 +15,7 @@ Set Implicit Arguments.
 Module Invariant.
   Structure unary := mk_unary {
     lessdef: ExprPairSet.t;
-    noalias: ExprPairSet.t;
+    noalias: ValueTPairSet.t;
     allocas: IdTSet.t;
     private: IdTSet.t;
   }.
@@ -33,7 +33,7 @@ Module Invariant.
       invariant.(allocas)
       invariant.(private).
 
-  Definition update_noalias (f:ExprPairSet.t -> ExprPairSet.t) (invariant:unary): unary :=
+  Definition update_noalias (f:ValueTPairSet.t -> ValueTPairSet.t) (invariant:unary): unary :=
     mk_unary
       invariant.(lessdef)
       (f invariant.(noalias))
@@ -80,7 +80,8 @@ Module Invariant.
 
   Definition implies_unary (inv0 inv:unary): bool :=
     ExprPairSet.subset (inv.(lessdef)) (inv0.(lessdef)) &&
-    ExprPairSet.subset (inv.(noalias)) (inv0.(noalias)) &&
+    ValueTPairSet.subset (inv.(noalias)) (inv0.(noalias)) &&
+    IdTSet.subset (inv.(allocas)) (inv0.(allocas)) &&
     IdTSet.subset (inv.(private)) (inv0.(private)).
 
   Definition implies (inv0 inv:t): bool :=
@@ -89,9 +90,9 @@ Module Invariant.
     IdTSet.subset (inv0.(maydiff)) (inv.(maydiff)).
 
   Definition is_noalias (inv:unary) (i1:IdT.t) (i2:IdT.t) :=
-    let e1 := Expr.value (ValueT.id i1) in
-    let e2 := Expr.value (ValueT.id i2) in
-    ExprPairSet.mem (e1, e2) inv.(noalias) || ExprPairSet.mem (e2, e1) inv.(noalias).
+    let e1 := ValueT.id i1 in
+    let e2 := ValueT.id i2 in
+    ValueTPairSet.mem (e1, e2) inv.(noalias) || ValueTPairSet.mem (e2, e1) inv.(noalias).
 
   Definition not_in_maydiff (inv:t) (value:ValueT.t): bool :=
     match value with
@@ -107,7 +108,7 @@ Module Invariant.
 
   Definition is_empty_unary (inv:unary): bool :=
     ExprPairSet.is_empty inv.(lessdef) &&
-    ExprPairSet.is_empty inv.(noalias) &&
+    ValueTPairSet.is_empty inv.(noalias) &&
     IdTSet.is_empty inv.(allocas) &&
     IdTSet.is_empty inv.(private).
 

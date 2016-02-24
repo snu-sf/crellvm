@@ -96,12 +96,12 @@ Definition valid_stmts
   | Some inv => valid_terminator hint_fdef inv blocks_src blocks_tgt bid terminator_src terminator_tgt
   end.
 
-Definition valid_entry_block (src tgt:block): bool :=
-  let '(bid_src, stmts_intro phinodes_src _ _) := src in
-  let '(bid_tgt, stmts_intro phinodes_tgt _ _) := tgt in
-  id_dec bid_src bid_tgt &&
+Definition valid_entry_stmts (src tgt:stmts) (hint:Hints.stmts): bool :=
+  let '(stmts_intro phinodes_src _ _) := src in
+  let '(stmts_intro phinodes_tgt _ _) := tgt in
   is_empty phinodes_src &&
-  is_empty phinodes_tgt.
+  is_empty phinodes_tgt &&
+  Invariant.is_empty hint.(Hints.invariant_after_phinodes).
 
 Definition valid_fdef
            (src tgt:fdef)
@@ -110,13 +110,11 @@ Definition valid_fdef
   let '(fdef_intro fheader_tgt blocks_tgt) := tgt in
   fheader_dec fheader_src fheader_tgt &&
   match blocks_src, blocks_tgt with
-  | (bid_src, stmts_intro phinodes_src _ _)::_, (bid_tgt, stmts_intro phinodes_tgt _ _)::_ =>
+  | (bid_src, block_src)::_, (bid_tgt, block_tgt)::_ =>
     id_dec bid_src bid_tgt &&
-    is_empty phinodes_src &&
-    is_empty phinodes_tgt &&
     match lookupAL _ hint bid_src with
+    | Some hint_stmts => valid_entry_stmts block_src block_tgt hint_stmts
     | None => false
-    | Some hint_stmts => Invariant.is_empty hint_stmts.(Hints.invariant_after_phinodes)
     end
   | _, _ => false
   end &&
