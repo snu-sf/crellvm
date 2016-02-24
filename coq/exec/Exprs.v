@@ -116,6 +116,24 @@ Coercion ValueT.const: const >-> ValueT.t_.
 Module ValueTSet : FSetExtra.WSfun ValueT := FSetExtra.Make ValueT.
 Module ValueTSetFacts := WFacts_fun ValueT ValueTSet.
 
+(* TODO: universal construction? *)
+Module ValueTPair <: UsualDecidableType.
+  Definition t := (ValueT.t * ValueT.t)%type.
+  Definition eq := @eq t.
+  Definition eq_refl := @refl_equal t.
+  Definition eq_sym := @sym_eq t.
+  Definition eq_trans := @trans_eq t.
+  Definition eq_dec (x y:t): {x = y} + {x <> y}.
+  Proof.
+    apply ott_list_eq_dec.pair_eq_dec;
+      apply ValueT.eq_dec.
+  Defined.
+End ValueTPair.
+Hint Resolve ValueTPair.eq_dec: EqDecDb.
+
+Module ValueTPairSet : FSetExtra.WSfun ValueTPair := FSetExtra.Make ValueTPair.
+Module ValueTPairSetFacts := WFacts_fun ValueTPair ValueTPairSet.
+
 Module Expr <: UsualDecidableType.
   Inductive t_: Set :=
   | bop (b:bop) (s:sz) (v:ValueT.t) (w:ValueT.t)

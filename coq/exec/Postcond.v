@@ -27,6 +27,8 @@ Module LiftPred.
       | _ => false
       end.
 
+    Definition ValueTPair (ep:ValueTPair.t): bool := ValueT (fst ep) || ValueT (snd ep).
+
     Definition Expr (e:Expr.t): bool :=
       match e with
       | Expr.bop op s v1 v2 => ValueT v1 || ValueT v2
@@ -63,6 +65,8 @@ Module Previousify.
     | ValueT.const c => v
     end.
 
+  Definition ValueTPair (ep:ValueTPair.t): ValueTPair.t := (ValueT (fst ep), ValueT (snd ep)).
+
   Definition Expr (e:Expr.t): Expr.t :=
     match e with
     | Expr.bop op s v1 v2 => Expr.bop op s (ValueT v1) (ValueT v2)
@@ -86,6 +90,13 @@ Module Previousify.
 End Previousify.
 
 (* TODO: move *)
+Definition ValueTPairSet_map f s :=
+  ValueTPairSet.fold
+    (compose ValueTPairSet.add f)
+    s
+    ValueTPairSet.empty.
+
+(* TODO: move *)
 Definition ExprPairSet_map f s :=
   ExprPairSet.fold
     (compose ExprPairSet.add f)
@@ -105,6 +116,11 @@ Module Snapshot.
     then true
     else false.
 
+  Definition ValueTPairSet (inv0:ValueTPairSet.t): ValueTPairSet.t :=
+    let inv1 := ValueTPairSet.filter (compose negb (LiftPred.ValueTPair IdT)) inv0 in
+    let inv2 := ValueTPairSet.union inv1 (ValueTPairSet_map Previousify.ValueTPair inv1) in
+    inv2.
+
   Definition ExprPairSet (inv0:ExprPairSet.t): ExprPairSet.t :=
     let inv1 := ExprPairSet.filter (compose negb (LiftPred.ExprPair IdT)) inv0 in
     let inv2 := ExprPairSet.union inv1 (ExprPairSet_map Previousify.ExprPair inv1) in
@@ -117,7 +133,7 @@ Module Snapshot.
 
   Definition unary (inv0:Invariant.unary): Invariant.unary :=
     let inv1 := Invariant.update_lessdef ExprPairSet inv0 in
-    let inv2 := Invariant.update_noalias ExprPairSet inv1 in
+    let inv2 := Invariant.update_noalias ValueTPairSet inv1 in
     let inv3 := Invariant.update_allocas IdTSet inv2 in
     let inv4 := Invariant.update_private IdTSet inv3 in
     inv4.
@@ -131,8 +147,8 @@ End Snapshot.
 
 Module Forget.
   Definition unary (ids:IdTSet.t) (inv0:Invariant.unary): Invariant.unary :=
-    let inv1 := Invariant.update_lessdef (ExprPairSet.filter (LiftPred.ExprPair (compose negb (flip IdTSet.mem ids)))) inv0 in
-    let inv2 := Invariant.update_noalias (ExprPairSet.filter (LiftPred.ExprPair (compose negb (flip IdTSet.mem ids)))) inv1 in
+    let inv1 := Invariant.update_lessdef (ExprPairSet.filter (compose negb (LiftPred.ExprPair (flip IdTSet.mem ids)))) inv0 in
+    let inv2 := Invariant.update_noalias (ValueTPairSet.filter (compose negb (LiftPred.ValueTPair (flip IdTSet.mem ids)))) inv1 in
     let inv3 := Invariant.update_allocas (IdTSet.filter (compose negb (flip IdTSet.mem ids))) inv2 in
     let inv4 := Invariant.update_private (IdTSet.filter (compose negb (flip IdTSet.mem ids))) inv3 in
     inv4.
@@ -154,6 +170,9 @@ Module ForgetMemory.
       | ValueT.const _ => true
     end.
 
+  Definition is_noalias_ValueTPair (inv:Invariant.unary) (ids:IdTSet.t) (ep:ValueTPair.t): bool :=
+    is_noalias_ValueT inv ids (fst ep) && is_noalias_ValueT inv ids (snd ep).
+
   Definition is_noalias_Expr (inv:Invariant.unary) (ids:IdTSet.t) (e:Expr.t): bool :=
     match e with
       | Expr.load v ty al => is_noalias_ValueT inv ids v
@@ -165,7 +184,7 @@ Module ForgetMemory.
 
   Definition unary (ids:IdTSet.t) (inv0:Invariant.unary): Invariant.unary :=
     let inv1 := Invariant.update_lessdef (ExprPairSet.filter (is_noalias_ExprPair inv0 ids)) inv0 in
-    let inv2 := Invariant.update_noalias (ExprPairSet.filter (is_noalias_ExprPair inv0 ids)) inv1 in
+    let inv2 := Invariant.update_noalias (ValueTPairSet.filter (is_noalias_ValueTPair inv0 ids)) inv1 in
     inv2.
 
   Definition t (s_src s_tgt:IdTSet.t) (inv0:Invariant.t): Invariant.t :=
@@ -423,13 +442,13 @@ Definition postcond_cmd_add_lessdef
 Definition postcond_cmd_add_noalias
            (c:cmd)
            (allocas:IdTSet.t)
-           (inv0:ExprPairSet.t): ExprPairSet.t :=
+           (inv0:ValueTPairSet.t): ValueTPairSet.t :=
   match c with
   | insn_alloca x ty v a =>
     IdTSet.fold
       (fun alloca result0 =>
-         let result1 := ExprPairSet.add (Expr.value (ValueT.id alloca), Expr.value (IdT.lift Tag.physical x)) result0 in
-         let result2 := ExprPairSet.add (Expr.value (IdT.lift Tag.physical x), Expr.value (ValueT.id alloca)) result1 in
+         let result1 := ValueTPairSet.add (ValueT.id alloca, ValueT.id (IdT.lift Tag.physical x)) result0 in
+         let result2 := ValueTPairSet.add (ValueT.id (IdT.lift Tag.physical x), ValueT.id alloca) result1 in
          result2)
       allocas
       inv0

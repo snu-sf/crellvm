@@ -14,11 +14,13 @@ Require Import TODO.
 
 Set Implicit Arguments.
 
+(* TODO *)
 Definition apply_infrule
            (infrule:Infrule.t)
            (inv0:Invariant.t): Invariant.t :=
   inv0.
 
+(* TODO *)
 Definition apply_infrules
            (infrules:list Infrule.t)
            (inv0:Invariant.t): Invariant.t :=
