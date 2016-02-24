@@ -101,16 +101,138 @@ Module Invariant.
     (ExprPairSet.mem (Expr.value value_src, Expr.value value_tgt) inv.(src).(lessdef) && not_in_maydiff inv value_tgt).
 
   (* TODO *)
-  Definition snapshot_unary (inv0:unary): unary :=
-    let inv1 := update_lessdef (ExprPairSet.filter (fun elt => true)) inv0 in
-    let inv2 := update_noalias (ExprPairSet.filter (fun elt => true)) inv1 in
-    let inv3 := update_allocas (IdTSet.filter (fun elt => true)) inv2 in
-    let inv4 := update_private (IdTSet.filter (fun elt => true)) inv3 in
-    inv4.
 
-  (* TODO *)
+  Definition physical_to_previous_idt (idt:IdT.t): IdT.t :=
+    match idt with
+      | (Tag.physical, id) => (Tag.previous, id)
+      | _ => idt
+    end.
+
+  Definition physical_to_previous_value (v:ValueT.t): ValueT.t :=
+    match v with
+      | ValueT.id i => ValueT.id (physical_to_previous_idt i)
+      | ValueT.const c => v
+    end.
+
+  Definition physical_to_previous_expr (e:Expr.t): Expr.t :=
+    match e with
+      | Expr.bop op s v1 v2 =>
+        Expr.bop op s (physical_to_previous_value v1) (physical_to_previous_value v2)
+      | Expr.fbop op fp v1 v2 =>
+        Expr.fbop op fp (physical_to_previous_value v1) (physical_to_previous_value v2)
+      | Expr.extractvalue ty1 v lc ty2 =>
+        Expr.extractvalue ty1 (physical_to_previous_value v) lc ty2
+      | Expr.insertvalue ty1 v1 ty2 v2 lc =>
+        Expr.insertvalue ty1 (physical_to_previous_value v1) ty2 (physical_to_previous_value v2) lc
+      | Expr.gep ib ty1 v1 lsv ty2 =>
+        let lsv' := List.map (fun sv => match sv with
+                              | (sz, v) => (sz, physical_to_previous_value v)
+                            end) lsv in
+        Expr.gep ib ty1 (physical_to_previous_value v1) lsv' ty2
+      | Expr.trunc top ty1 v ty2 =>
+        Expr.trunc top ty1 (physical_to_previous_value v) ty2
+      | Expr.ext eop ty1 v ty2 =>
+        Expr.ext eop ty1 (physical_to_previous_value v) ty2
+      | Expr.cast cop ty1 v ty2 =>
+        Expr.cast cop ty1 (physical_to_previous_value v) ty2
+      | Expr.icmp c ty v1 v2 =>
+        Expr.icmp c ty (physical_to_previous_value v1) (physical_to_previous_value v2)
+      | Expr.fcmp fc fp v1 v2 =>
+        Expr.fcmp fc fp (physical_to_previous_value v1) (physical_to_previous_value v2)
+      | Expr.select v1 ty v2 v3 =>
+        Expr.select (physical_to_previous_value v1) ty (physical_to_previous_value v2) (physical_to_previous_value v3)
+      | Expr.value v =>
+        Expr.value (physical_to_previous_value v)
+      | Expr.load v ty al =>
+        Expr.load (physical_to_previous_value v) ty al
+      | Expr.global i => Expr.global i
+    end.
+
+  Definition physical_to_previous_exprpair (ep:ExprPair.t): ExprPair.t :=
+    match ep with
+      | (e1, e2) => (physical_to_previous_expr e1, physical_to_previous_expr e2)
+    end.
+
+  Definition no_previous_idt (idt:IdT.t): bool :=
+    match idt with
+      | (Tag.previous, i) => false
+      | _ => true
+    end.
+
+  Definition has_no_previous_in_value (v:ValueT.t): bool :=
+    match v with
+      | ValueT.id idt => no_previous_idt idt
+      | ValueT.const _ => true
+    end.
+
+  Definition has_no_previous_in_expr (e:Expr.t): bool :=
+    match e with
+      | Expr.bop op s v1 v2 =>
+        has_no_previous_in_value v1 && has_no_previous_in_value v2
+      | Expr.fbop op fp v1 v2 =>
+        has_no_previous_in_value v1 && has_no_previous_in_value v2
+      | Expr.extractvalue ty1 v lc ty2 =>
+        has_no_previous_in_value v
+      | Expr.insertvalue ty1 v1 ty2 v2 lc =>
+        has_no_previous_in_value v1 && has_no_previous_in_value v2
+      | Expr.gep ib ty1 v1 lsv ty2 =>
+        has_no_previous_in_value v1 &&
+        List.forallb (fun sv => match sv with
+                                  | (sz, v) => has_no_previous_in_value v
+                                end) lsv
+      | Expr.trunc top ty1 v ty2 =>
+        has_no_previous_in_value v
+      | Expr.ext eop ty1 v ty2 =>
+        has_no_previous_in_value v
+      | Expr.cast cop ty1 v ty2 =>
+        has_no_previous_in_value v
+      | Expr.icmp c ty v1 v2 =>
+        has_no_previous_in_value v1 && has_no_previous_in_value v2
+      | Expr.fcmp fc fp v1 v2 =>
+        has_no_previous_in_value v1 && has_no_previous_in_value v2
+      | Expr.select v1 ty v2 v3 =>
+        has_no_previous_in_value v1 && has_no_previous_in_value v2
+      | Expr.value v =>
+        has_no_previous_in_value v
+      | Expr.load v ty al =>
+        has_no_previous_in_value v
+      | Expr.global i => true (* global?? *)
+    end.
+
+  Definition has_no_previous_in_exprpair (ep:ExprPair.t): bool :=
+    match ep with
+      | (e1, e2) => has_no_previous_in_expr e1 && has_no_previous_in_expr e2
+    end.
+
+  Definition snapshot_exprpairset (eps0:ExprPairSet.t): ExprPairSet.t :=
+    let eps1 := ExprPairSet.filter has_no_previous_in_exprpair eps0 in
+    let eps2 := ExprPairSet.fold
+                  (fun ep eps =>
+                     ExprPairSet.add (physical_to_previous_exprpair ep) eps)
+                  eps1 eps1 in
+    eps2.
+
+  Definition snapshot_idtset (is0:IdTSet.t): IdTSet.t :=
+    let is1 := IdTSet.filter no_previous_idt is0 in
+    let is2 := IdTSet.fold
+                 (fun idt is =>
+                    IdTSet.add (physical_to_previous_idt idt) is)
+                 is1 is1 in
+    is2.
+
+  Definition snapshot_unary (inv0:unary): unary :=
+    let inv1 := update_lessdef snapshot_exprpairset inv0 in
+    let inv2 := update_noalias snapshot_exprpairset inv1 in
+    let inv3 := update_allocas snapshot_idtset inv2 in
+    let inv4 := update_private snapshot_idtset inv3 in
+    inv4.
+  
   Definition snapshot_maydiff (inv0:IdTSet.t): IdTSet.t :=
-    inv0.
+    let inv1 := IdTSet.filter no_previous_idt inv0 in
+    let inv2 := IdTSet.fold
+                  (fun idt s =>
+                     IdTSet.add (physical_to_previous_idt idt) s) inv1 inv1 in
+    inv2.
 
   Definition snapshot (inv0:t): t :=
     let inv1 := update_src snapshot_unary inv0 in
@@ -119,21 +241,189 @@ Module Invariant.
     inv3.
 
   (* TODO *)
+
+  Definition ids_not_in_id (ids:IdTSet.t) (i:IdT.t): bool :=
+    IdTSet.mem i ids.
+
+  Definition ids_not_in_value (ids:IdTSet.t) (v:ValueT.t): bool :=
+    match v with
+      | ValueT.id idt => ids_not_in_id ids idt
+      | ValueT.const _ => true
+    end.
+    
+  Definition ids_not_in_expr (ids:IdTSet.t) (e:Expr.t): bool :=
+    match e with
+      | Expr.bop op s v1 v2 =>
+        ids_not_in_value ids v1 && ids_not_in_value ids v2
+      | Expr.fbop op fp v1 v2 =>
+        ids_not_in_value ids v1 && ids_not_in_value ids v2
+      | Expr.extractvalue ty1 v lc ty2 =>
+        ids_not_in_value ids v
+      | Expr.insertvalue ty1 v1 ty2 v2 lc =>
+        ids_not_in_value ids v1 && ids_not_in_value ids v2
+      | Expr.gep ib ty1 v1 lsv ty2 =>
+        ids_not_in_value ids v1 &&
+        List.forallb (fun sv => match sv with
+                                  | (sz, v) => ids_not_in_value ids v
+                                end) lsv
+      | Expr.trunc top ty1 v ty2 =>
+        ids_not_in_value ids v
+      | Expr.ext eop ty1 v ty2 =>
+        ids_not_in_value ids v
+      | Expr.cast cop ty1 v ty2 =>
+        ids_not_in_value ids v
+      | Expr.icmp c ty v1 v2 =>
+        ids_not_in_value ids v1 && ids_not_in_value ids v2
+      | Expr.fcmp fc fp v1 v2 =>
+        ids_not_in_value ids v1 && ids_not_in_value ids v2
+      | Expr.select v1 ty v2 v3 =>
+        ids_not_in_value ids v1 && ids_not_in_value ids v2
+      | Expr.value v =>
+        ids_not_in_value ids v
+      | Expr.load v ty al =>
+        ids_not_in_value ids v
+      | Expr.global i => true
+    end.
+
+  Definition ids_not_in_exprpair (ids:IdTSet.t) (ep:ExprPair.t): bool :=
+    match ep with
+      | (e1, e2) => ids_not_in_expr ids e1 && ids_not_in_expr ids e2
+    end.
+  
+  Definition forget_unary (ids:IdTSet.t) (inv0:unary): unary :=
+    let inv1 := update_lessdef
+                  (ExprPairSet.filter (ids_not_in_exprpair ids)) inv0 in
+    let inv2 := update_noalias
+                  (ExprPairSet.filter
+                     (ids_not_in_exprpair ids)) inv1 in
+    let inv3 := update_allocas
+                  (IdTSet.filter (ids_not_in_id ids)) inv2 in
+    let inv4 := update_private
+                  (IdTSet.filter (ids_not_in_id ids)) inv3 in
+    inv4.
+    
   Definition forget
-             (l_src l_tgt:list IdT.t)
+             (s_src s_tgt:IdTSet.t)
              (inv0:t): t :=
-    inv0.
-
+    let inv1 := update_src (forget_unary s_src) inv0 in
+    let inv2 := update_tgt (forget_unary s_tgt) inv1 in
+    let inv3 := update_maydiff (IdTSet.union (IdTSet.union s_src s_tgt)) inv2 in
+    inv3.
+ 
   (* TODO *)
+
+  Definition ptr_ids_not_in_expr (ids:IdTSet.t) (e:Expr.t): bool :=
+    match e with
+      | Expr.load v ty al =>
+        ids_not_in_value ids v
+      | _ => true
+    end.
+
+  Definition ptr_ids_not_in_exprpair (ids:IdTSet.t) (ep:ExprPair.t): bool :=
+    match ep with
+      | (e1, e2) => ptr_ids_not_in_expr ids e1 && ptr_ids_not_in_expr ids e2
+    end.
+
+  Definition noalias_id_id (na:ExprPairSet.t) (idt1:IdT.t) (idt2:IdT.t) :=
+    let e1 := (Expr.value (ValueT.id idt1), Expr.value (ValueT.id idt2)) in
+    let e2 := (Expr.value (ValueT.id idt2), Expr.value (ValueT.id idt1)) in
+    ExprPairSet.mem e1 na || ExprPairSet.mem e2 na.
+    
+
+  Definition noalias_id (na:ExprPairSet.t) (ids:IdTSet.t) (idt:IdT.t): bool :=
+    IdTSet.for_all (noalias_id_id na idt) ids.
+  
+  Definition noalias_value (na:ExprPairSet.t) (ids:IdTSet.t) (v:ValueT.t): bool :=
+    match v with
+      | ValueT.id idt => noalias_id na ids idt
+      | ValueT.const _ => true
+    end.
+
+  Definition noalias_expr (na:ExprPairSet.t) (ids:IdTSet.t) (e:Expr.t): bool :=
+    match e with
+      | Expr.bop op s v1 v2 =>
+        noalias_value na ids v1 && noalias_value na ids v2
+      | Expr.fbop op fp v1 v2 =>
+        noalias_value na ids v1 && noalias_value na ids v2
+      | Expr.extractvalue ty1 v lc ty2 =>
+        noalias_value na ids v
+      | Expr.insertvalue ty1 v1 ty2 v2 lc =>
+        noalias_value na ids v1 && noalias_value na ids v2
+      | Expr.gep ib ty1 v1 lsv ty2 =>
+        noalias_value na ids v1 &&
+        List.forallb (fun sv => match sv with
+                                  | (sz, v) => noalias_value na ids v
+                                end) lsv
+      | Expr.trunc top ty1 v ty2 =>
+        noalias_value na ids v
+      | Expr.ext eop ty1 v ty2 =>
+        noalias_value na ids v
+      | Expr.cast cop ty1 v ty2 =>
+        noalias_value na ids v
+      | Expr.icmp c ty v1 v2 =>
+        noalias_value na ids v1 && noalias_value na ids v2
+      | Expr.fcmp fc fp v1 v2 =>
+        noalias_value na ids v1 && noalias_value na ids v2
+      | Expr.select v1 ty v2 v3 =>
+        noalias_value na ids v1 && noalias_value na ids v2
+      | Expr.value v =>
+        noalias_value na ids v
+      | Expr.load v ty al =>
+        noalias_value na ids v
+      | Expr.global i => true
+    end.
+    
+  
+  Definition noalias_exprpair (na:ExprPairSet.t) (ids:IdTSet.t) (ep:ExprPair.t): bool :=
+    match ep with
+      | (e1, e2) => noalias_expr na ids e1 && noalias_expr na ids e2
+    end.
+  
+  Definition forget_memory_unary (ids:IdTSet.t) (inv0:unary): unary :=
+    let inv1 := update_lessdef
+                  (ExprPairSet.filter (noalias_exprpair (noalias inv0) ids)) inv0 in
+    let inv2 := update_noalias
+                  (ExprPairSet.filter (noalias_exprpair (noalias inv0) ids)) inv1 in
+    inv2.
+  
   Definition forget_memory
-             (l_src l_tgt:list IdT.t)
+             (s_src s_tgt:IdTSet.t)
              (inv0:t): t :=
-    inv0.
+    let inv1 := update_src (forget_memory_unary s_src) inv0 in
+    let inv2 := update_tgt (forget_memory_unary s_tgt) inv1 in
+    inv2.
 
   (* TODO *)
+
+  Definition reducible_maydiff (s_ld t_ld:ExprPairSet.t) (md:IdTSet.t) (v:IdT.t): bool :=
+    let s_ld_vre := ExprPairSet.filter
+                    (fun ld => match ld with
+                                 | (Expr.value (ValueT.id v), _) => true
+                                 | _ => false
+                               end) s_ld in
+    let t_ld_vle := ExprPairSet.filter
+                    (fun ld => match ld with
+                                 | (_, Expr.value (ValueT.id v)) => true
+                                 | _ => false
+                               end) s_ld in
+    ExprPairSet.exists_ (fun ld =>
+                           match ld with
+                             | (e1, e2) =>
+                               ids_not_in_expr md e2 &&
+                               ExprPairSet.mem (e2, e1) t_ld_vle
+                           end) s_ld_vre.
+  
   Definition reduce_maydiff
              (inv0:t): t :=
-    inv0.
+    update_maydiff
+      (fun md => 
+         let to_remove := IdTSet.filter (reducible_maydiff (lessdef (src inv0))
+                                                        (lessdef (tgt inv0))
+                                                        md)
+                                     md in
+         IdTSet.diff md to_remove)
+      inv0.
+    
 
   Definition is_empty_unary (inv:unary): bool :=
     ExprPairSet.is_empty inv.(lessdef) &&
