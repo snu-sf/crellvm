@@ -17,6 +17,184 @@ Require Import TODO.
 Import ListNotations.
 Set Implicit Arguments.
 
+Module LiftPred.
+  Section LiftPred.
+    Variable IdT: IdT.t -> bool.
+
+    Definition ValueT (v:ValueT.t): bool :=
+      match v with
+      | ValueT.id i => IdT i
+      | _ => false
+      end.
+
+    Definition Expr (e:Expr.t): bool :=
+      match e with
+      | Expr.bop op s v1 v2 => ValueT v1 || ValueT v2
+      | Expr.fbop op fp v1 v2 => ValueT v1 || ValueT v2
+      | Expr.extractvalue ty1 v lc ty2 => ValueT v
+      | Expr.insertvalue ty1 v1 ty2 v2 lc => ValueT v1 || ValueT v2
+      | Expr.gep ib ty1 v1 lsv ty2 => ValueT v1 || List.existsb (compose ValueT snd) lsv
+      | Expr.trunc top ty1 v ty2 => ValueT v
+      | Expr.ext eop ty1 v ty2 => ValueT v
+      | Expr.cast cop ty1 v ty2 => ValueT v
+      | Expr.icmp c ty v1 v2 => ValueT v1 || ValueT v2
+      | Expr.fcmp fc fp v1 v2 => ValueT v1 || ValueT v2
+      | Expr.select v1 ty v2 v3 => ValueT v1 || ValueT v2 || ValueT v3
+      | Expr.value v => ValueT v
+      | Expr.load v ty al => ValueT v
+      | Expr.global i => false
+      end.
+
+    Definition ExprPair (ep:ExprPair.t): bool := Expr (fst ep) || Expr (snd ep).
+  End LiftPred.
+End LiftPred.
+
+Module Previousify.
+  Definition Tag (t:Tag.t): Tag.t :=
+    match t with
+    | Tag.physical => Tag.previous
+    | _ => t
+    end.
+
+  Definition IdT (i:IdT.t): IdT.t := (Tag (fst i), snd i).
+
+  Definition ValueT (v:ValueT.t): ValueT.t :=
+    match v with
+    | ValueT.id i => ValueT.id (IdT i)
+    | ValueT.const c => v
+    end.
+
+  Definition Expr (e:Expr.t): Expr.t :=
+    match e with
+    | Expr.bop op s v1 v2 => Expr.bop op s (ValueT v1) (ValueT v2)
+    | Expr.fbop op fp v1 v2 => Expr.fbop op fp (ValueT v1) (ValueT v2)
+    | Expr.extractvalue ty1 v lc ty2 => Expr.extractvalue ty1 (ValueT v) lc ty2
+    | Expr.insertvalue ty1 v1 ty2 v2 lc => Expr.insertvalue ty1 (ValueT v1) ty2 (ValueT v2) lc
+    | Expr.gep ib ty1 v1 lsv ty2 =>
+      let lsvT := List.map (fun elt => (fst elt, ValueT (snd elt))) lsv in
+      Expr.gep ib ty1 (ValueT v1) lsvT ty2
+    | Expr.trunc top ty1 v ty2 => Expr.trunc top ty1 (ValueT v) ty2
+    | Expr.ext eop ty1 v ty2 => Expr.ext eop ty1 (ValueT v) ty2
+    | Expr.cast cop ty1 v ty2 => Expr.cast cop ty1 (ValueT v) ty2
+    | Expr.icmp c ty v1 v2 => Expr.icmp c ty (ValueT v1) (ValueT v2)
+    | Expr.fcmp fc fp v1 v2 => Expr.fcmp fc fp (ValueT v1) (ValueT v2)
+    | Expr.select v1 ty v2 v3 => Expr.select (ValueT v1) ty (ValueT v2) (ValueT v3)
+    | Expr.value v => Expr.value (ValueT v)
+    | Expr.load v ty al => Expr.load (ValueT v) ty al
+    | Expr.global i => Expr.global i
+    end.
+
+  Definition ExprPair (ep:ExprPair.t): ExprPair.t := (Expr (fst ep), Expr (snd ep)).
+End Previousify.
+
+(* TODO: move *)
+Definition ExprPairSet_map f s :=
+  ExprPairSet.fold
+    (compose ExprPairSet.add f)
+    s
+    ExprPairSet.empty.
+
+(* TODO: move *)
+Definition IdTSet_map f s :=
+  IdTSet.fold
+    (compose IdTSet.add f)
+    s
+    IdTSet.empty.
+
+Module Snapshot.
+  Definition IdT (i:IdT.t): bool :=
+    if Tag.eq_dec (fst i) Tag.previous
+    then true
+    else false.
+
+  Definition ExprPairSet (inv0:ExprPairSet.t): ExprPairSet.t :=
+    let inv1 := ExprPairSet.filter (compose negb (LiftPred.ExprPair IdT)) inv0 in
+    let inv2 := ExprPairSet.union inv1 (ExprPairSet_map Previousify.ExprPair inv1) in
+    inv2.
+
+  Definition IdTSet (inv0:IdTSet.t): IdTSet.t :=
+    let inv1 := IdTSet.filter (compose negb IdT) inv0 in
+    let inv2 := IdTSet.union inv1 (IdTSet_map Previousify.IdT inv1) in
+    inv2.
+
+  Definition unary (inv0:Invariant.unary): Invariant.unary :=
+    let inv1 := Invariant.update_lessdef ExprPairSet inv0 in
+    let inv2 := Invariant.update_noalias ExprPairSet inv1 in
+    let inv3 := Invariant.update_allocas IdTSet inv2 in
+    let inv4 := Invariant.update_private IdTSet inv3 in
+    inv4.
+
+  Definition t (inv0:Invariant.t): Invariant.t :=
+    let inv1 := Invariant.update_src unary inv0 in
+    let inv2 := Invariant.update_tgt unary inv1 in
+    let inv3 := Invariant.update_maydiff IdTSet inv2 in
+    inv3.
+End Snapshot.
+
+Module Forget.
+  Definition unary (ids:IdTSet.t) (inv0:Invariant.unary): Invariant.unary :=
+    let inv1 := Invariant.update_lessdef (ExprPairSet.filter (LiftPred.ExprPair (compose negb (flip IdTSet.mem ids)))) inv0 in
+    let inv2 := Invariant.update_noalias (ExprPairSet.filter (LiftPred.ExprPair (compose negb (flip IdTSet.mem ids)))) inv1 in
+    let inv3 := Invariant.update_allocas (IdTSet.filter (compose negb (flip IdTSet.mem ids))) inv2 in
+    let inv4 := Invariant.update_private (IdTSet.filter (compose negb (flip IdTSet.mem ids))) inv3 in
+    inv4.
+
+  Definition t (s_src s_tgt:IdTSet.t) (inv0:Invariant.t): Invariant.t :=
+    let inv1 := Invariant.update_src (unary s_src) inv0 in
+    let inv2 := Invariant.update_tgt (unary s_tgt) inv1 in
+    let inv3 := Invariant.update_maydiff (IdTSet.union (IdTSet.union s_src s_tgt)) inv2 in
+    inv3.
+End Forget.
+
+Module ForgetMemory.
+  Definition is_noalias_IdT (inv:Invariant.unary) (ids:IdTSet.t) (idt:IdT.t): bool :=
+    IdTSet.for_all (Invariant.is_noalias inv idt) ids.
+
+  Definition is_noalias_ValueT (inv:Invariant.unary) (ids:IdTSet.t) (v:ValueT.t): bool :=
+    match v with
+      | ValueT.id idt => is_noalias_IdT inv ids idt
+      | ValueT.const _ => true
+    end.
+
+  Definition is_noalias_Expr (inv:Invariant.unary) (ids:IdTSet.t) (e:Expr.t): bool :=
+    match e with
+      | Expr.bop op s v1 v2 => is_noalias_ValueT inv ids v1 && is_noalias_ValueT inv ids v2
+      | Expr.fbop op fp v1 v2 => is_noalias_ValueT inv ids v1 && is_noalias_ValueT inv ids v2
+      | Expr.extractvalue ty1 v lc ty2 => is_noalias_ValueT inv ids v
+      | Expr.insertvalue ty1 v1 ty2 v2 lc => is_noalias_ValueT inv ids v1 && is_noalias_ValueT inv ids v2
+      | Expr.gep ib ty1 v1 lsv ty2 => is_noalias_ValueT inv ids v1 && List.forallb (compose (is_noalias_ValueT inv ids) snd) lsv
+      | Expr.trunc top ty1 v ty2 => is_noalias_ValueT inv ids v
+      | Expr.ext eop ty1 v ty2 => is_noalias_ValueT inv ids v
+      | Expr.cast cop ty1 v ty2 => is_noalias_ValueT inv ids v
+      | Expr.icmp c ty v1 v2 => is_noalias_ValueT inv ids v1 && is_noalias_ValueT inv ids v2
+      | Expr.fcmp fc fp v1 v2 => is_noalias_ValueT inv ids v1 && is_noalias_ValueT inv ids v2
+      | Expr.select v1 ty v2 v3 => is_noalias_ValueT inv ids v1 && is_noalias_ValueT inv ids v2 && is_noalias_ValueT inv ids v3
+      | Expr.value v => is_noalias_ValueT inv ids v
+      | Expr.load v ty al => is_noalias_ValueT inv ids v
+      | Expr.global i => true
+    end.
+
+  Definition is_noalias_ExprPair (inv:Invariant.unary) (ids:IdTSet.t) (ep:ExprPair.t): bool :=
+    is_noalias_Expr inv ids (fst ep) && is_noalias_Expr inv ids (snd ep).
+
+  Definition unary (ids:IdTSet.t) (inv0:Invariant.unary): Invariant.unary :=
+    let inv1 := Invariant.update_lessdef (ExprPairSet.filter (is_noalias_ExprPair inv0 ids)) inv0 in
+    let inv2 := Invariant.update_noalias (ExprPairSet.filter (is_noalias_ExprPair inv0 ids)) inv1 in
+    inv2.
+
+  Definition t (s_src s_tgt:IdTSet.t) (inv0:Invariant.t): Invariant.t :=
+    let inv1 := Invariant.update_src (unary s_src) inv0 in
+    let inv2 := Invariant.update_tgt (unary s_tgt) inv1 in
+    inv2.
+End ForgetMemory.
+
+Definition reduce_maydiff (inv0:Invariant.t): Invariant.t :=
+  let lessdef_src := inv0.(Invariant.src).(Invariant.lessdef) in
+  let lessdef_tgt := inv0.(Invariant.tgt).(Invariant.lessdef) in
+  let equations := ExprPairSet.filter (fun elt => ExprPairSet.mem (snd elt, fst elt) lessdef_tgt) lessdef_src in
+  let inv1 := Invariant.update_maydiff (IdTSet.filter (fun id => ExprPairSet.for_all (fun ep => negb (Expr.eq_dec (fst ep) (Expr.value (ValueT.id id)))) equations)) inv0 in
+  inv1.
+
 Module Cmd.
   Definition t := cmd.
 
@@ -126,20 +304,18 @@ Definition postcond_phinodes_assigns
   let uses_src' := filter_map Phinode.get_use assigns_src in
   let uses_tgt' := filter_map Phinode.get_use assigns_tgt in
 
-  let defs_src := List.map (IdT.lift Tag.physical) defs_src' in
-  let defs_tgt := List.map (IdT.lift Tag.physical) defs_tgt' in
-  let uses_src := List.map (IdT.lift Tag.previous) uses_src' in
-  let uses_tgt := List.map (IdT.lift Tag.previous) uses_tgt' in
+  let defs_src := IdTSet_from_list (List.map (IdT.lift Tag.physical) defs_src') in
+  let defs_tgt := IdTSet_from_list (List.map (IdT.lift Tag.physical) defs_tgt') in
 
   if negb (unique id_dec defs_src' && unique id_dec defs_tgt')
   then None
   else
 
-  let inv1 := Invariant.snapshot inv0 in
-  let inv2 := Invariant.forget defs_src defs_tgt inv1 in
+  let inv1 := Snapshot.t inv0 in
+  let inv2 := Forget.t defs_src defs_tgt inv1 in
   let inv3 := Invariant.update_src (Invariant.update_lessdef (postcond_phinodes_add_lessdef assigns_src)) inv2 in
   let inv4 := Invariant.update_tgt (Invariant.update_lessdef (postcond_phinodes_add_lessdef assigns_tgt)) inv3 in
-  let inv5 := Invariant.reduce_maydiff inv4 in
+  let inv5 := reduce_maydiff inv4 in
   Some inv5.
 
 Definition postcond_phinodes
@@ -281,10 +457,10 @@ Definition postcond_cmd
   let def_tgt' := option_to_list (Cmd.get_def tgt) in
   let def_memory_src' := option_to_list (Cmd.get_def_memory src) in
   let def_memory_tgt' := option_to_list (Cmd.get_def_memory tgt) in
-  let def_src := List.map (IdT.lift Tag.physical) def_src' in
-  let def_tgt := List.map (IdT.lift Tag.physical) def_tgt' in
-  let def_memory_src := List.map (IdT.lift Tag.physical) def_memory_src' in
-  let def_memory_tgt := List.map (IdT.lift Tag.physical) def_memory_tgt' in
+  let def_src := IdTSet_from_list (List.map (IdT.lift Tag.physical) def_src') in
+  let def_tgt := IdTSet_from_list (List.map (IdT.lift Tag.physical) def_tgt') in
+  let def_memory_src := IdTSet_from_list (List.map (IdT.lift Tag.physical) def_memory_src') in
+  let def_memory_tgt := IdTSet_from_list (List.map (IdT.lift Tag.physical) def_memory_tgt') in
   let uses_src := AtomSetImpl_from_list (Cmd.get_uses src) in
   let uses_tgt := AtomSetImpl_from_list (Cmd.get_uses tgt) in
 
@@ -296,12 +472,12 @@ Definition postcond_cmd
   then None
   else
 
-  let inv1 := Invariant.forget def_src def_tgt inv0 in
-  let inv2 := Invariant.forget_memory def_memory_src def_memory_tgt inv1 in
+  let inv1 := Forget.t def_src def_tgt inv0 in
+  let inv2 := ForgetMemory.t def_memory_src def_memory_tgt inv1 in
   let inv3 := Invariant.update_src (Invariant.update_lessdef (postcond_cmd_add_lessdef src)) inv2 in
   let inv4 := Invariant.update_tgt (Invariant.update_lessdef (postcond_cmd_add_lessdef tgt)) inv3 in
   let inv5 := Invariant.update_src (Invariant.update_noalias (postcond_cmd_add_noalias src inv4.(Invariant.src).(Invariant.allocas))) inv4 in
   let inv6 := Invariant.update_tgt (Invariant.update_noalias (postcond_cmd_add_noalias tgt inv5.(Invariant.tgt).(Invariant.allocas))) inv5 in
   let inv7 := postcond_cmd_add_private_allocas src tgt inv6 in
-  let inv8 := Invariant.reduce_maydiff inv7 in
+  let inv8 := reduce_maydiff inv7 in
   Some inv8.
