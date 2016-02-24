@@ -131,7 +131,6 @@ Module Expr <: UsualDecidableType.
   | select (v:ValueT.t) (t:typ) (w:ValueT.t) (z:ValueT.t)
   | value (v:ValueT.t)
   | load (v:ValueT.t) (t:typ) (a:align)
-  | global (gid:IdT.t)
   .
   Definition t := t_.
   Definition eq := @eq t.
