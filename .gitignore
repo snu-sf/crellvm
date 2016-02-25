@@ -12,7 +12,7 @@ Makefile.coq
 /.build
 /build
 /ocaml/_build/
-/ocaml/corehint/
+/ocaml/corehint/*
 !/ocaml/corehint/*.atd
 /ocaml/main.native
 
