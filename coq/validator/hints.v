@@ -54,7 +54,7 @@ Inductive infrule_t : Type :=
 | rule_add_select_zero (z:id_ext) (x:id_ext) (y:id_ext) (c:value_ext) (s:sz) (n:value_ext) (a:value_ext)
 | rule_add_select_zero2 (z:id_ext) (x:id_ext) (y:id_ext) (c:value_ext) (s:sz) (n:value_ext) (a:value_ext)
 | rule_add_dist_sub (z:id_ext) (minusx:id_ext) (minusy:id_ext) (w:id_ext) (s:sz) (x:value_ext) (y:value_ext)
-| rule_add_distributive (z:id_ext) (x:id_ext) (y:id_ext) (w:id_ext) (s:sz) (a:value_ext) (b:value_ext) (c:value_ext)
+| rule_mul_add_distributive (z:id_ext) (x:id_ext) (y:id_ext) (w:id_ext) (s:sz) (a:value_ext) (b:value_ext) (c:value_ext)
 | rule_sub_zext_bool (x:id_ext) (y:id_ext) (b:value_ext) (sz:sz) (c:INTEGER.t) (c':INTEGER.t)
 | rule_sub_const_add (z:id_ext) (y:id_ext) (sz:sz) (x:value_ext) (c1:INTEGER.t) (c2:INTEGER.t) (c3:INTEGER.t)
 | rule_sub_remove (z:id_ext) (y:id_ext) (sz:sz) (a:value_ext) (b:value_ext)

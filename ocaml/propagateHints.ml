@@ -434,7 +434,7 @@ let propagate_iso
         let nth_f =
           if bid = block_f && (not (AtomSetImpl.mem block_f reachable_to_t))
           then next_pos nth_f
-          else ParseHints.PhinodePos
+          else CoreHint_t.Phinode
         in
         let nth_t = CoreHint_t.Terminator in
         let block_hint =

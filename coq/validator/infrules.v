@@ -452,7 +452,7 @@ Definition infrule_sem (m1 m2:module) (inf: infrule_t) (h: insn_hint_t) : insn_h
       then {{ h +++ z =r2 (rhs_ext_bop bop_add s (value_ext_id minusx) (value_ext_id minusy)) }}
       else h
 
-    | rule_add_distributive z x y w s a b c =>
+    | rule_mul_add_distributive z x y w s a b c =>
       if $$ h |- x =r2 (rhs_ext_bop bop_mul s a b) $$ &&
          $$ h |- y =r2 (rhs_ext_bop bop_mul s a c) $$ &&
          $$ h |- w =r2 (rhs_ext_bop bop_add s b c) $$ &&
