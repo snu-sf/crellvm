@@ -1,39 +1,20 @@
 type scope = [ Source | Target ] <ocaml repr="classic">
 
-type instr_index = [ Phinode of string | Command of int | Terminator ] <ocaml repr="classic">
-
-(* Position of an instruction *)
-type position = {
-  block_name : string;    (* block index as a string. ex : "bb0" *)
-  instr_index : instr_index; (* instruction type ; a block consists of PhiNode, Commands and Terminator. *)
+type phinode = {
+  block_name : string;
+  prev_block_name : string;
 }
+
+(* Position of an instruction is phinode or variable *)
+type position = [ Phinode of phinode | Command of string ] <ocaml repr="classic">
 
 (* If tag of variable is one of Physical, Previous, and Ghost *)
 type tag = [ Physical | Previous | Ghost ] <ocaml repr="classic">
 
 type variable = {
   name : string; (* identifier of a variable *)
-  tag : tag;     (* indicates this variable is physical or previous or ghost *)
+  tag : tag;     (* indicates whether this variable is physical or previous or ghost *)
 }
-
-
-type int_type = [ IntType of (bool * int) (*signed , bitsize*) ] <ocaml repr="classic">
-
-type float_type = [ FloatType | DoubleType | FP128Type | X86_FP80Type ] <ocaml repr="classic">
-
-type int_value = {
-  myvalue : int;
-  mytype : int_type;
-}
-
-type float_value = {
-  myvalue : float;
-  mytype : float_type;
-}
-
-type const_value = [ IntVal of int_value | FloatVal of float_value ] <ocaml repr="classic">
-
-type value = [VarValue of variable | ConstValue of const_value] <ocaml repr="classic">
 
 
 (*****************************************)
@@ -46,17 +27,12 @@ type propagate_instr = {
   lhs : propagate_value;
   rhs : propagate_value;
 }
-type propagate_eq = {
-  lhs : propagate_value;
-  rhs : propagate_value;
-}
 type propagate_neq = {
-  lhs : propagate_value;
-  rhs : propagate_value;
+  lhs : variable;
+  rhs : variable;
 }
 type propagate_object = [
   | Instr of propagate_instr
-  | Eq of propagate_eq
   | Neq of propagate_neq
   ] <ocaml repr="classic">
 
