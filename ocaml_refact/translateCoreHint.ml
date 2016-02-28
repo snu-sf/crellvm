@@ -17,9 +17,10 @@ open CoreHint_t
 
 type atom = AtomSetImpl.t
 
-let generate_nop (core_hint:CoreHint_t.hints) : *
+let generate_nop (core_hint:CoreHint_t.hints) : int list = [] (* TODO *)
 
-let insert_nop = 0 (* should be defined in Coq *)
+let insert_nop (m:LLVMsyntax.coq_module) (nops:int list) : LLVMsyntax.coq_module
+  = m (* should be defined in Coq *)
 
 let empty_unary : Invariant.unary =
   Invariant.mk_unary (empty_set, empty_set, empty_set, empty_set)
@@ -62,15 +63,67 @@ let create_empty_hints_module (m:LLVMsyntax.coq_module) : Hints.module =
          | _ -> empty_hints_prods)
        [] prods
 
-let noret = 0 (* don't know yet *)
+let noret (hints_m:Hints.module) : Hints.module = hints_m (* don't know yet *)
+
+(* Convert CoreHint objs to coq-defined objs *)
+
+(* Get type definition of a variable v from function fdefinition fdef. *)
+let lookup_LLVMtype_of_var (v : CoreHint_t.variable) (fdef:LLVMsyntax.fdef) =
+  if is_global v then 
+    failwith "propagateHints.ml : lookup_LLVMtype_of_var (juneyoung lee) : This version of code doesn't support finding a type of a global variable."
+  else 
+    match LLVMinfra.lookupTypViaIDFromFdef fdef (v.name) with
+    | Some typ -> typ
+    | None -> failwith "propagateHints.ml : lookup_LLVMtype_of_var : Cannot find type of a variable"
+
+let convert_variable_to_IdT (var : CoreHint_t.variable) : IdT.t =
+  let tag =
+    match var.tag with
+    | CoreHint_t.Physical -> Tag.physical
+    | CoreHint_t.Previous -> Tag.previous
+    | CoreHint_t.Ghost -> Tag.ghost
+  in
+  (tag,var. name)
+
+let convert_to_ValueT (core_value:CoreHint_t.value) (fdef:LLVMsyntax.fdef) : ValueT.t =
+  match core_value with
+  | CoreHint_t.VarValue (var : CoreHint_t.variable) ->
+      ValueT.id (convert_variable_to_IdT var)
+  | CoreHint_t.ConstValue (cv : CoreHint_t.const_value) ->
+      match cv with
+      | CoreHint_t.IntVal (iv : CoreHint_t.int_value) ->
+        let (issigned : bool), (bitsize : int) =
+        match iv.mytype with
+	| CoreHint_t.IntType (issigned, bitsize) ->
+	  issigned, bitsize
+	in
+	let api = Llvm.APInt.of_int64 bitsize (Int64.of_int iv.myvalue) issigned in
+	ValueT.const (LLVMsyntax.Coq_const_int (bitsize, api))
+      
+      | CoreHint_t.FloatVal (fv : CoreHint_t.float_value) ->
+        let (fptype : LLVMsyntax.floating_point) = 
+	  (match fv.mytype with
+	    | CoreHint_t.FloatType -> LLVMsyntax.Coq_fp_float
+	    | CoreHint_t.DoubleType -> LLVMsyntax.Coq_fp_double
+	    | CoreHint_t.FP128Type -> LLVMsyntax.Coq_fp_fp128
+	    | CoreHint_t.X86_FP80Type -> LLVMsyntax.Coq_fp_ppc_fp128)
+	in
+	let ctx = Llvm.global_context () in
+	let llvalue = Llvm.const_float (Coq2llvm.translate_floating_point ctx fptype) fv.myvalue in
+	let apfloat = Llvm.APFloat.const_float_get_value llvalue in
+	ValueT.const (LLVMsyntax.Coq_const_floatpoint (fptype, apfloat))
+
+
+(* execute corehint commands *)
 
 let execute_corehint_cmd
       (hints_fdef:Hints.fdef) (lfdef:LLVMsyntax.fdef) (rfdef:LLVMsyntax.fdef)
       (cmd:CoreHint_t.command) (dom_tree:LLVMsyntax.l coq_DTree)
     : Hints.fdef =
   match cmd with
-  | CoreHint_t.Propagate prop ->
-
+  | CoreHint_t.Propagate prop -> hints_fdef
+  | _ -> hints_fdef
+  (* TODO: like propagate_micro *)
 
 let execute_corehint_cmds
       (hints_fdef:Hints.fdef) (lfdef:LLVMsyntax.fdef) (rfdef:LLVMsyntax.fdef)
