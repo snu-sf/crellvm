@@ -6,18 +6,17 @@ open Infrastructure
 open Printf
 open Llvm
 open Arg
-open Hints
 open Syntax
-open Syntax_ext
 open MetatheoryAtom
-open Vars_aux
-open Validator_aux
 open Extraction_defs
 open Utility
 open Dom_list
 open Dom_tree
 open CoreHint_t
 open CoreHintUtil
+
+open Hints
+open Exprs
 
 type atom = AtomImpl.atom
 
@@ -111,7 +110,7 @@ let reachable (f:atom) (succs:LLVMsyntax.ls Maps_ext.ATree.t) : AtomSetImpl.t =
        let (worklist, reached) =
          match Maps_ext.ATree.get work succs with
          | None -> (worklist, reached)
-         | Some succs -> 
+         | Some succs ->
            List.fold_left
              (fun (worklist,reached) succ ->
                if AtomSetImpl.mem succ reached
@@ -136,6 +135,82 @@ let reachable_to (t:atom) (ids:AtomSetImpl.t) (fd:LLVMsyntax.fdef) : bool * Atom
 (* the set of nodes that is reachable from "f". *)
 let reachable_from (f:atom) (fd:LLVMsyntax.fdef) : AtomSetImpl.t =
   reachable f (Cfg.successors fd)
+
+(* object for propagation *)
+
+type invariant_object =
+  | Lessdef_obj of ExprPair.t
+  | Noalias_obj of ValueTPair.t
+  | Allocas_obj of IdT.t
+  | Private_obj of IdT.t
+
+(** Convert propagate object to coq-defined objs **)
+
+(* TODO: fix convert_propagate_*, current code is wrong *)
+let convert_propagate_value_to_Expr
+      (pv:CoreHint_t.propagate_value) (fdef:LLVMsyntax.fdef)
+    : Expr.t =
+  match pv with
+  | CoreHint_t.Var (var:CoreHint_t.variable) ->
+     Expr.value (ValueT.id (convert_variable_to_IdT var))
+  | CoreHint_t.Rhs (var:CoreHint_t.variable) ->
+     let instr = find_instr_from_fdef var.name fdef in
+     let rhs_exp = get_rhs instr in
+     rhs_exp
+
+let convert_propagate_object_to_invariant
+      (c_prop_obj:CoreHint_t.propagate_object)
+      (lfdef:LLVMsyntax.fdef) (rfdef:LLVMsyntax.fdef)
+    : invariant_object =
+  match c_prop_obj with
+  | CoreHint_t.Lessdef prop_ld
+     Lessdef_obj (convert_propagate_value_to_Expr prop_ld.lhs fdef,
+                  convert_propagate_value_to_Expr prop_ld.rhs fdef)
+  | CoreHint_t.Neq na ->
+     Noalias_obj (convert_value_to_ValueT na.lhs,
+                  convert_value_to_ValueT na.rhs
+)
+
+let position_lt (p1:position) (p2:position): bool =
+  let (bid1, pib1) = p1 in
+  let (bid2, pib2) = p2 in
+  if bid1 = bid2 then
+    match pib2 with
+    | Phinode _ -> false
+    | Command n2 ->
+       (match pib1 with
+        | Phinode _ -> true
+        | Command n1 -> n1 < n2)
+  else false
+
+let propagate_hint
+      (prop_obj:CoreHint_t.propagate_object)
+      (prop_range:CoreHint_t.propagate_range)
+      (lfdef:LLVMsyntax.fdef)
+      (rfdef:LLVMsyntax.fdef)
+      (dom_tree:atom coq_DTree)
+      (vhint_fdef:ValidationHint.fdef)
+    : ValidationHint.fdef =
+  let inv_obj =
+    convert_propagate_object_to_invariant prop_obj lfdef rfdef in
+  match prop_range with
+  | CoreHint_t.Bounds (pos_from, pos_to) ->
+     let bids_to_prop =
+(* TODO: find bids 
+     propagate_invariant inv_obj (pos_from=pos_from) (pos_to=pos_to)
+                         lfdef rfdef bids
+  | CoreHint_t.Global ->
+       (* TODO: all labels *)
+  in
+  propagate_invariant
+    inv_obj (
+         
+
+
+
+
+(* old functions *)
+
 
 (* @arg var: variable
    @arg fd: function definition
@@ -235,37 +310,6 @@ let newlify_alloca hint_elt =
   | _ -> hint_elt
 *)
 
-(* scope and object for propagation *)
-type scope =
-  | Left_scope
-  | Right_scope
-
-type propagate_obj =
-  | Lessdef_obj of ExprPair.t
-  | Noalias_obj of ValueTPair.t
-  | Allocas_obj of IdT.t
-  | Private_obj of IdT.t
-
-type position_stmt =
-  | Phinode of atom
-  | After_phinodes
-  | Command of int
-  | End_pos
-
-type position = atom * position_stmt
-
-let position_lt (p1:position) (p2:position): bool =
-  let (bid1, pib1) = p1 in
-  let (bid2, pib2) = p2 in
-  if bid1 = bid2 then
-    match pib2 with
-    | Phinode _ -> false
-    | Command n2 ->
-       (match pib1 with
-        | Phinode _ -> true
-        | Command n1 -> n1 < n2)
-  else false
-
 let propagate_in_eqs
       (inv:invariant_elt_t) (eqs:eqs_t) : eqs_t =
   match inv with
@@ -303,7 +347,7 @@ let propagate_in_insn_hint
          {insn_hint.hint_invariant with
            invariant_original =
              propagate_in_eqs
-               inv 
+               inv
                insn_hint.hint_invariant.invariant_original}}
   | Hint_optimized inv ->
      {insn_hint with
@@ -311,16 +355,16 @@ let propagate_in_insn_hint
          {insn_hint.hint_invariant with
            invariant_optimized =
              propagate_in_eqs
-               inv 
+               inv
                insn_hint.hint_invariant.invariant_optimized}}
   | Hint_iso_original p ->
     {insn_hint with
-      hint_invariant = 
+      hint_invariant =
         {insn_hint.hint_invariant with
           iso_original = IdExtSetImpl.add p insn_hint.hint_invariant.iso_original}}
   | Hint_iso_optimized p ->
     {insn_hint with
-      hint_invariant = 
+      hint_invariant =
         {insn_hint.hint_invariant with
           iso_optimized = IdExtSetImpl.add p insn_hint.hint_invariant.iso_optimized}}
 
@@ -368,7 +412,7 @@ let propagate_in_hints_stmts
            let split_phi_hint =
              propagate_in_insn_hint hint_elt split_phi_hint
            in
-           let phi_hint = 
+           let phi_hint =
              Alist.updateAddAL
                block_hint.phi_hint
                phiid
@@ -415,7 +459,7 @@ let oldify_invariant_elt (ids:atom list) (elt:invariant_elt_t) : invariant_elt_t
 (*   | CoreHint_t.Command i -> CoreHint_t.Command (i + 1) *)
 (*   | _ -> failwith "PropagateHints.next_pos : (juneyoung lee) we cannot define next position of CoreHint_t.Terminator" *)
 
-let propagate_iso 
+let propagate_iso
       (pos_from : CoreHint_t.position)
       (hint_elt:hint_elt_t)
       (fd:LLVMsyntax.fdef) (hint:fdef_hint_t) (dom_tree:atom coq_DTree)
@@ -423,7 +467,7 @@ let propagate_iso
   let (block_f, nth_f) = (pos_from.block_name, pos_from.instr_index) in
   (* get all reachable blocks *)
   let reachable_to_t = reachable_from block_f fd in
-  
+
   (* propagate to all the reachable blocks *)
   let block_hints =
     AtomSetImpl.fold
@@ -470,7 +514,7 @@ let propagate
       let dom_by_f = dom_by bid_from dom_tree in
       reachable_to bid_to dom_by_f fdef
   in
-  
+
   let hints_f =
     AtomSetImpl.fold
       (fun bid hints_f ->
@@ -502,7 +546,7 @@ let propagate
   hints_f
 
 let alist_map f m = List.map (fun (id, x) -> (id, f x)) m
-                             
+
 let add_variable_to_invariant (idt:IdT.t) (inv:Invariant.t) =
   Invariant.update_maydiff
     (fun idtset -> (IdTSet.add idt idtset))

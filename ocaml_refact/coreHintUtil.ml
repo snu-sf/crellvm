@@ -32,8 +32,8 @@ let get_pos_from_command (pos_cmd:CoreHint_t.pos_command)
   match (LLVMinfra.lookupBlockViaIDFromFdef fdef var_id) with
   | Some (l, Coq_stmts_intro (_, cmds, _)) ->
      (l, get_pos_in_cmds var_id cmds 0)
-  | None -> failwith "translateCoreHint: position_of_var"  
-  
+  | None -> failwith "translateCoreHint: position_of_var"
+
 
 let convert_value_to_ValueT (v:LLVMsyntax.value): ValueT.t =
   0 (* TODO *)
@@ -76,7 +76,7 @@ let convert_variable_to_IdT (var:CoreHint_t.variable) : IdT.t =
 (* 	in *)
 (* 	let api = Llvm.APInt.of_int64 bitsize (Int64.of_int iv.myvalue) issigned in *)
 (* 	ValueT.const (LLVMsyntax.Coq_const_int (bitsize, api)) *)
-      
+
 (*       | CoreHint_t.FloatVal (fv : CoreHint_t.float_value) -> *)
 (*         let (fptype : LLVMsyntax.floating_point) =  *)
 (* 	  (match fv.mytype with *)
@@ -151,5 +151,3 @@ let rec string_of_alist s l =
     | (label,hd)::tl -> label ^ "=>" ^ (s hd) ^ ", " ^ (r tl)
   in
   "(" ^ (r l)
-
-
