@@ -249,7 +249,7 @@ Module Infrule.
   .
 End Infrule.
 
-Module Hints.
+Module ValidationHint.
   Structure stmts := mk_stmts {
     phinodes: AssocList (list Infrule.t);
     invariant_after_phinodes: Invariant.t;
@@ -261,4 +261,4 @@ Module Hints.
   Definition module := products.
   Definition modules := list module.
   Definition system := modules.
-End Hints.
+End ValidationHint.

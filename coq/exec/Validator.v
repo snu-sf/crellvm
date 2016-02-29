@@ -35,27 +35,27 @@ Fixpoint valid_cmds
   end.
 
 Definition valid_phinodes
-           (hint_fdef:Hints.fdef)
+           (hint_fdef:ValidationHint.fdef)
            (inv0:Invariant.t)
            (blocks_src blocks_tgt:blocks)
            (l_from l_to:l): bool :=
   match lookupAL _ hint_fdef l_to, lookupAL _ blocks_src l_to, lookupAL _ blocks_tgt l_to with
   | Some hint_stmts, Some (stmts_intro phinodes_src _ _), Some (stmts_intro phinodes_tgt _ _) =>
-    match lookupAL _ hint_stmts.(Hints.phinodes) l_from with
+    match lookupAL _ hint_stmts.(ValidationHint.phinodes) l_from with
     | None => false
     | Some infrules =>
       match postcond_phinodes l_from phinodes_src phinodes_tgt inv0 with
       | None => false
       | Some inv1 =>
         let inv2 := apply_infrules infrules inv1 in
-        Invariant.implies inv2 hint_stmts.(Hints.invariant_after_phinodes)
+        Invariant.implies inv2 hint_stmts.(ValidationHint.invariant_after_phinodes)
       end
     end
   | _, _, _ => false
   end.
 
 Definition valid_terminator
-           (hint_fdef:Hints.fdef)
+           (hint_fdef:ValidationHint.fdef)
            (inv0:Invariant.t)
            (blocks_src blocks_tgt:blocks)
            (bid:l)
@@ -85,27 +85,27 @@ Definition valid_terminator
   end.
 
 Definition valid_stmts
-           (hint_fdef:Hints.fdef)
-           (hint:Hints.stmts)
+           (hint_fdef:ValidationHint.fdef)
+           (hint:ValidationHint.stmts)
            (blocks_src blocks_tgt:blocks)
            (bid:l) (src tgt:stmts): bool :=
   let '(stmts_intro phinodes_src cmds_src terminator_src) := src in
   let '(stmts_intro phinodes_tgt cmds_tgt terminator_tgt) := tgt in
-  match valid_cmds cmds_src cmds_tgt hint.(Hints.cmds) hint.(Hints.invariant_after_phinodes) with
+  match valid_cmds cmds_src cmds_tgt hint.(ValidationHint.cmds) hint.(ValidationHint.invariant_after_phinodes) with
   | None => false
   | Some inv => valid_terminator hint_fdef inv blocks_src blocks_tgt bid terminator_src terminator_tgt
   end.
 
-Definition valid_entry_stmts (src tgt:stmts) (hint:Hints.stmts): bool :=
+Definition valid_entry_stmts (src tgt:stmts) (hint:ValidationHint.stmts): bool :=
   let '(stmts_intro phinodes_src _ _) := src in
   let '(stmts_intro phinodes_tgt _ _) := tgt in
   is_empty phinodes_src &&
   is_empty phinodes_tgt &&
-  Invariant.is_empty hint.(Hints.invariant_after_phinodes).
+  Invariant.is_empty hint.(ValidationHint.invariant_after_phinodes).
 
 Definition valid_fdef
            (src tgt:fdef)
-           (hint:Hints.fdef): bool :=
+           (hint:ValidationHint.fdef): bool :=
   let '(fdef_intro fheader_src blocks_src) := src in
   let '(fdef_intro fheader_tgt blocks_tgt) := tgt in
   fheader_dec fheader_src fheader_tgt &&
@@ -126,7 +126,7 @@ Definition valid_fdef
        end)
     blocks_src blocks_tgt.
 
-Definition valid_product (hint:Hints.products) (src tgt:product): bool :=
+Definition valid_product (hint:ValidationHint.products) (src tgt:product): bool :=
   match src, tgt with
   | product_gvar gvar_src, product_gvar gvar_tgt =>
     gvar_dec gvar_src gvar_tgt
@@ -144,18 +144,18 @@ Definition valid_product (hint:Hints.products) (src tgt:product): bool :=
     false
   end.
 
-Definition valid_products (hint:Hints.products) (src tgt:products): bool :=
+Definition valid_products (hint:ValidationHint.products) (src tgt:products): bool :=
   list_forallb2 (valid_product hint) src tgt.
 
-Definition valid_module (hint:Hints.module) (src tgt:module): bool :=
+Definition valid_module (hint:ValidationHint.module) (src tgt:module): bool :=
   let '(module_intro layouts_src namedts_src products_src) := src in
   let '(module_intro layouts_tgt namedts_tgt products_tgt) := tgt in
   layouts_dec layouts_src layouts_tgt &&
   namedts_dec namedts_src namedts_tgt &&
   valid_products hint products_src products_tgt.
 
-Definition valid_modules (hint:Hints.modules) (src tgt:modules): bool :=
+Definition valid_modules (hint:ValidationHint.modules) (src tgt:modules): bool :=
   list_forallb3 valid_module hint src tgt.
 
-Definition valid_system (hint:Hints.system) (src tgt:system): bool :=
+Definition valid_system (hint:ValidationHint.system) (src tgt:system): bool :=
   valid_modules hint src tgt.
