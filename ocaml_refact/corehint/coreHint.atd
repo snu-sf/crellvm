@@ -37,7 +37,7 @@ type propagate_lessdef = {
   scope : scope;
 }
 (* TODO: noat variable, but value *)
-type propagate_noalias = { 
+type propagate_noalias = {
   lhs : variable;
   rhs : variable;
   scope : scope;

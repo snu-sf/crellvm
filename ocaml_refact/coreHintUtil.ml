@@ -34,10 +34,6 @@ let get_pos_from_command (pos_cmd:CoreHint_t.pos_command)
      (l, get_pos_in_cmds var_id cmds 0)
   | None -> failwith "translateCoreHint: position_of_var"
 
-
-let convert_value_to_ValueT (v:LLVMsyntax.value): ValueT.t =
-  0 (* TODO *)
-
 let get_rhs_from_var (var_id:string) (fdef:LLVMsyntax.fdef) : Expr.t =
   match LLVMinfra.lookupInsnViaIDFromFdef fdef var_id with
   | Some insn ->
@@ -60,6 +56,12 @@ let convert_variable_to_IdT (var:CoreHint_t.variable) : IdT.t =
     | CoreHint_t.Ghost -> Tag.ghost
   in
   (tag,var. name)
+
+let convert_value_to_ValueT (v:CoreHint_t.value): ValueT.t =
+  0 (* TODO *)
+
+let convert_size_to_sz (sz:CoreHint_t.size): LLVMsyntax.sz =
+  0 (* TODO *)
 
 (* currently not used *)
 (* let convert_value_to_ValueT (core_value:CoreHint_t.value) : ValueT.t = *)
