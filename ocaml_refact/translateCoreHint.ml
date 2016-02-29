@@ -4,16 +4,17 @@ open Llvm
 open Arg
 open Hints
 open Syntax
-open Syntax_ext
 open MetatheoryAtom
 open MicroHints
 open CommandArg
-open Vars_aux
-open Validator_aux
 open Dom_list
 open Dom_tree
 open Maps
 open CoreHint_t
+open PropagateHints
+
+open Hints
+open Exprs
 
 type atom = AtomSetImpl.t
 
@@ -22,20 +23,34 @@ let generate_nop (core_hint:CoreHint_t.hints) : int list = [] (* TODO *)
 let insert_nop (m:LLVMsyntax.coq_module) (nops:int list) : LLVMsyntax.coq_module
   = m (* should be defined in Coq *)
 
+(** generating empty hint structure **)
+
 let empty_unary : Invariant.unary =
-  Invariant.mk_unary (empty_set, empty_set, empty_set, empty_set)
+  { lessdef = ExprPairSet.empty;
+    noalias = ValueTPairSet.empty;
+    allocas = IdTSet.empty;
+    coq_private = IdTSet.empty;
+  }
 
 let empty_invariant : Invariant.t =
-  Invariant.mk (empty_unary, empty_unary, empty_idt_set)
+  { src = empty_unary;
+    tgt = empty_unary;
+    maydiff = IdTSet.empty;
+  }
 
-let create_empty_hints_stmts (stmts: LLVMsyntax.stmts) : Hints.stmts =
+(* TODO: check create_empty_hints_* again *)
+let create_empty_hints_stmts (stmts: LLVMsyntax.stmts) : ValidationHint.stmts =
   match stmts with
   | Coq_stmts_intro (phinodes, cmds, _) ->
      let empty_hints_phinodes =
-       List.map (fun phi ->
-                  match phi with
-                  | LLVMsyntax.Coq_insn_phi (id,_,_) -> (id,[]))
-                phinodes
+       List.fold_left
+         (fun phi_hints phi ->
+           match phi with
+           | LLVMsyntax.Coq_insn_phi (_,_,vll) ->
+              let empty_inf_l = List.map (fun (v,l) -> (l,[])) vll in
+              Alist.updateAddALs phi_hints empty_inf_l
+         )
+         [] phinodes
      in
      let empty_hints_cmds =
        List.map (fun _ -> ([], empty_invariant)) cmd
@@ -44,15 +59,14 @@ let create_empty_hints_stmts (stmts: LLVMsyntax.stmts) : Hints.stmts =
                      empty_invariant,
                      empty_hints_cmds)
 
-
-let create_empty_hints_fdef (fdef:LLVMsyntax.fdef) : atom * Hints.fdef =
+let create_empty_hints_fdef (fdef:LLVMsyntax.fdef) : atom * ValidationHint.fdef =
   match fdef with
   | Coq_fdef_intro (Coq_fheader_intro (_,_,id,_,_), blks) ->
      (id, List.map (fun (bid, bstmts) ->
                      (bid, create_empty_hints_stmts bstmts))
                    blks)
 
-let create_empty_hints_module (m:LLVMsyntax.coq_module) : Hints.module =
+let create_empty_hints_module (m:LLVMsyntax.coq_module) : ValidationHint.coq_module =
   match m with
   | Coq_module_intro (lo, nts, prods) ->
      List.fold_left
@@ -63,65 +77,64 @@ let create_empty_hints_module (m:LLVMsyntax.coq_module) : Hints.module =
          | _ -> empty_hints_prods)
        [] prods
 
-let noret (hints_m:Hints.module) : Hints.module = hints_m (* don't know yet *)
+(* TOOD: don't know yet *)
+let noret (hints_m:Hints.module) : Hints.module = hints_m
 
-(* Convert CoreHint objs to coq-defined objs *)
+(** Convert propagate object to coq-defined objs **)
 
-(* Get type definition of a variable v from function fdefinition fdef. *)
-let lookup_LLVMtype_of_var (v : CoreHint_t.variable) (fdef:LLVMsyntax.fdef) =
-  if is_global v then 
-    failwith "propagateHints.ml : lookup_LLVMtype_of_var (juneyoung lee) : This version of code doesn't support finding a type of a global variable."
-  else 
-    match LLVMinfra.lookupTypViaIDFromFdef fdef (v.name) with
-    | Some typ -> typ
-    | None -> failwith "propagateHints.ml : lookup_LLVMtype_of_var : Cannot find type of a variable"
+let convert_propagate_value_to_Expr
+      (pv:CoreHint_t.propagate_value) (fdef:LLVMsyntax.fdef)
+    : Expr.t =
+  match pv with
+  | CoreHint_t.Var (var:CoreHint_t.variable) ->
+     Expr.value (ValueT.id (convert_variable_to_IdT var))
+  | CoreHint_t.Rhs (var:CoreHint_t.variable) ->
+     let instr = find_instr_from_fdef var.name fdef in
+     let rhs_exp = get_rhs instr in
+     rhs_exp
 
-let convert_variable_to_IdT (var : CoreHint_t.variable) : IdT.t =
-  let tag =
-    match var.tag with
-    | CoreHint_t.Physical -> Tag.physical
-    | CoreHint_t.Previous -> Tag.previous
-    | CoreHint_t.Ghost -> Tag.ghost
-  in
-  (tag,var. name)
-
-let convert_to_ValueT (core_value:CoreHint_t.value) (fdef:LLVMsyntax.fdef) : ValueT.t =
-  match core_value with
-  | CoreHint_t.VarValue (var : CoreHint_t.variable) ->
-      ValueT.id (convert_variable_to_IdT var)
-  | CoreHint_t.ConstValue (cv : CoreHint_t.const_value) ->
-      match cv with
-      | CoreHint_t.IntVal (iv : CoreHint_t.int_value) ->
-        let (issigned : bool), (bitsize : int) =
-        match iv.mytype with
-	| CoreHint_t.IntType (issigned, bitsize) ->
-	  issigned, bitsize
-	in
-	let api = Llvm.APInt.of_int64 bitsize (Int64.of_int iv.myvalue) issigned in
-	ValueT.const (LLVMsyntax.Coq_const_int (bitsize, api))
-      
-      | CoreHint_t.FloatVal (fv : CoreHint_t.float_value) ->
-        let (fptype : LLVMsyntax.floating_point) = 
-	  (match fv.mytype with
-	    | CoreHint_t.FloatType -> LLVMsyntax.Coq_fp_float
-	    | CoreHint_t.DoubleType -> LLVMsyntax.Coq_fp_double
-	    | CoreHint_t.FP128Type -> LLVMsyntax.Coq_fp_fp128
-	    | CoreHint_t.X86_FP80Type -> LLVMsyntax.Coq_fp_ppc_fp128)
-	in
-	let ctx = Llvm.global_context () in
-	let llvalue = Llvm.const_float (Coq2llvm.translate_floating_point ctx fptype) fv.myvalue in
-	let apfloat = Llvm.APFloat.const_float_get_value llvalue in
-	ValueT.const (LLVMsyntax.Coq_const_floatpoint (fptype, apfloat))
-
-
-(* execute corehint commands *)
+let convert_propagate_object 
+      (c_prop_obj:CoreHint_t.propagate_object) (fdef:LLVMsyntax.fdef)
+    : propagate_object =
+  match c_prop_obj with
+  | CoreHint_t.Instr ld | CoreHint_t.Eq ld ->
+     Lessdef_obj (convert_propagate_value_to_Expr ld.lhs fdef,
+                  convert_propagate_value_to_Expr ld.lhs fdef)
+  | CoreHint_t.Neq na ->
+     Noalias_obj (convert_value_to_ValueT na.lhs,
+                  convert_value_to_ValueT na.rhs)
+     
+(** execute corehint commands **)
 
 let execute_corehint_cmd
-      (hints_fdef:Hints.fdef) (lfdef:LLVMsyntax.fdef) (rfdef:LLVMsyntax.fdef)
+      (hint_f:Hints.fdef) (lfdef:LLVMsyntax.fdef) (rfdef:LLVMsyntax.fdef)
       (cmd:CoreHint_t.command) (dom_tree:LLVMsyntax.l coq_DTree)
     : Hints.fdef =
   match cmd with
-  | CoreHint_t.Propagate prop -> hints_fdef
+  | CoreHint_t.PropagateGlobal (options:CoreHint_t.propagate_global) ->
+     let idt =
+       match options.propagate with
+       | MaydiffGlobal var ->
+          convert_variable_to_IdT var.variable
+     in
+     propagate_maydiff_in_hints_fdef idt hint_f
+  | CoreHint_t.Propagate (options:CoreHint_t.propagate) ->
+     let fdef =
+       match options.scope with
+       | CoreHint_t.Source -> lfdef
+       | CoreHint_t.Target -> rfdef
+     in
+     let scope =
+       match options.scope with
+       | CoreHint_t.Source -> Left_scope
+       | CoreHint_t.Target -> Right_scope
+     in
+     let prop_expr = convert_propagate_object options.propagate_object fdef in
+     let pos_from = convert_position options.propagate_from fdef in
+     let pos_to = convert_position options.propagate_to fdef in
+     propagate pos_from pos_to prop_expr fdef dom_tree hint_f
+     
+     
   | _ -> hints_fdef
   (* TODO: like propagate_micro *)
 
@@ -135,17 +148,14 @@ let execute_corehint_cmds
     hints_fdef cmds
 
 let translate_corehint_to_hint
-      (lm_r:LLVMsyntax.coq_module) (rm_r:LLVMsyntax.coq_module)
+      (lm:LLVMsyntax.coq_module) (rm:LLVMsyntax.coq_module) (* assume nop-insertion is done *)
       (core_hint:CoreHint_t.hints)
     : LLVMsyntax.coq_module * LLVMsyntax.coq_module * Hints.module =
 
   let fid = core_hint.function_id in
 
-  let (lnop, rnop) = generate_nop core_hint in
-  let lm = insert_nop lm_r lnop in
-  let rm = insert_nop rm_r rnop in
-  let hints_module = create_empty_hints_module lm in
-  let hints_module = noret hints_module in (* TODO: noret? *)
+  let (vhint_module:ValidationHint.coq_module) = create_empty_hints_module lm in
+  let vhint_module = noret hints_module in (* TODO: noret? *)
 
   let (hints_fdef, lfdef, rfdef) =
     match Alist.lookupAL hints_module fid,
@@ -165,7 +175,7 @@ let translate_corehint_to_hint
     | None -> failwith "translateHints create_dom_tree"
   in
 
-  let hints_fdef = execute_corehint_cmds hints_fdef lfdef rfdef core_hint.commands dom_tree in
+  let hints_fdef = execute_corehint_cmds lfdef rfdef hints_fdef core_hint.commands dom_tree in
   let hints_module = Alist.updateAL hints_module fid hints_fdef in
   (lm, rm, hints_module)
 

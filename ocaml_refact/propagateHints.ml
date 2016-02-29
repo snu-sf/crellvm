@@ -235,6 +235,37 @@ let newlify_alloca hint_elt =
   | _ -> hint_elt
 *)
 
+(* scope and object for propagation *)
+type scope =
+  | Left_scope
+  | Right_scope
+
+type propagate_obj =
+  | Lessdef_obj of ExprPair.t
+  | Noalias_obj of ValueTPair.t
+  | Allocas_obj of IdT.t
+  | Private_obj of IdT.t
+
+type position_stmt =
+  | Phinode of atom
+  | After_phinodes
+  | Command of int
+  | End_pos
+
+type position = atom * position_stmt
+
+let position_lt (p1:position) (p2:position): bool =
+  let (bid1, pib1) = p1 in
+  let (bid2, pib2) = p2 in
+  if bid1 = bid2 then
+    match pib2 with
+    | Phinode _ -> false
+    | Command n2 ->
+       (match pib1 with
+        | Phinode _ -> true
+        | Command n1 -> n1 < n2)
+  else false
+
 let propagate_in_eqs
       (inv:invariant_elt_t) (eqs:eqs_t) : eqs_t =
   match inv with
@@ -317,12 +348,12 @@ let propagate_in_cmds_hint (nth_f:CoreHint_t.instr_index) (nth_t:CoreHint_t.inst
    @arg nth_f: from nth instruction
    @arg nth_t: to nth instruction
  *)
-let propagate_in_block_hint
-      ?(phiid_opt:atom option=None)
-      (nth_f : CoreHint_t.instr_index) (nth_t : CoreHint_t.instr_index)
-      (hint_elt:hint_elt_t)
-      (block_hint:block_hint_t) : block_hint_t =
-  let block_hint =
+let propagate_in_hints_stmts
+      (pos_from:position_stmt) (pos_to:position_stmt)
+      (prop_obj:propagate_obj)
+      (hints_stmts:Hints.stmts)
+    : Hints.stmts =
+  let hints_stmts =
     if nth_f <> CoreHint_t.Phinode
     then block_hint
     else
@@ -355,35 +386,6 @@ let propagate_in_block_hint
   in
 
   let block_hint =
-    let cmds_hint =
-      match phiid_opt with
-      | Some phiid ->
-         let split_cmds_hint =
-           match Alist.lookupAL block_hint.cmds_hint phiid with
-           | None -> failwith "propagate_in_block_hint"
-           | Some hint -> hint
-         in
-         let split_cmds_hint =
-           propagate_in_cmds_hint nth_f nth_t hint_elt split_cmds_hint
-         in
-         let cmds_hint = 
-           Alist.updateAddAL
-             block_hint.cmds_hint
-             phiid
-             split_cmds_hint
-         in
-         cmds_hint
-      | None ->
-         List.map
-           (fun (phiid, hint) ->
-            (phiid,
-             (propagate_in_cmds_hint nth_f nth_t hint_elt hint)))
-           block_hint.cmds_hint
-    in
-    {block_hint with cmds_hint = cmds_hint}
-  in
-
-  let block_hint =
     if nth_t <> CoreHint_t.Terminator
     then block_hint
     else
@@ -399,19 +401,19 @@ let oldify_invariant_elt (ids:atom list) (elt:invariant_elt_t) : invariant_elt_t
   | Eq_reg (id, Coq_rhs_ext_value rhs) -> Eq_reg (id, Coq_rhs_ext_value (oldify_value_ext ids rhs))
   | _ -> elt
 
-let oldify_hint_elt (ids:atom list) (elt:hint_elt_t) : hint_elt_t =
-  match elt with
-  | Hint_maydiff _ -> elt
-  | Hint_original elt -> Hint_original (oldify_invariant_elt ids elt)
-  | Hint_optimized elt -> Hint_optimized (oldify_invariant_elt ids elt)
-  | Hint_iso_original _ -> elt
-  | Hint_iso_optimized _ -> elt
+(* let oldify_hint_elt (ids:atom list) (elt:hint_elt_t) : hint_elt_t = *)
+(*   match elt with *)
+(*   | Hint_maydiff _ -> elt *)
+(*   | Hint_original elt -> Hint_original (oldify_invariant_elt ids elt) *)
+(*   | Hint_optimized elt -> Hint_optimized (oldify_invariant_elt ids elt) *)
+(*   | Hint_iso_original _ -> elt *)
+(*   | Hint_iso_optimized _ -> elt *)
 
-let next_pos pos =
-  match pos with
-  | CoreHint_t.Phinode ->  CoreHint_t.Command 0
-  | CoreHint_t.Command i -> CoreHint_t.Command (i + 1)
-  | _ -> failwith "PropagateHints.next_pos : (juneyoung lee) we cannot define next position of CoreHint_t.Terminator"
+(* let next_pos pos = *)
+(*   match pos with *)
+(*   | CoreHint_t.Phinode ->  CoreHint_t.Command 0 *)
+(*   | CoreHint_t.Command i -> CoreHint_t.Command (i + 1) *)
+(*   | _ -> failwith "PropagateHints.next_pos : (juneyoung lee) we cannot define next position of CoreHint_t.Terminator" *)
 
 let propagate_iso 
       (pos_from : CoreHint_t.position)
@@ -453,133 +455,60 @@ let propagate_iso
    lr=false means the left program, lr=true means the right program.
  *)
 let propagate
-      ?(block_prev_opt:string option = None)
-      (prop_info:CoreHint_t.propagate)
-      (fdef:LLVMsyntax.fdef) (hint:Hints.fdef)
+      (pos_from:position) (pos_to:position)
+      (prop_obj: propagate_obj)
+      (fdef:LLVMsyntax.fdef)
       (dom_tree:atom coq_DTree)
-    : fdef_hint_t =
-  let prop_obj = prop_info.propagate in
-  let pos_from = prop_info.propagate_from in
-  let pos_to = prop_info.propagate_to in
-  let scope = prop_info.scope in
-
-  let from_bid = pos_from.block_name in
-  let from_index = pos_from.instr_index in
-  let to_bid = pos_to.block_name in
-  let to_index = pos_to.instr_index in
-
-
-  
-  let ((block_f : string), (nth_f:CoreHint_t.instr_index)) = 
-        (position_f.block_name, position_f.instr_index) 
-  in
-  let ((block_t' : string), (nth_t':CoreHint_t.instr_index)) = 
-        (position_t.block_name, position_t.instr_index)
-  in
-  let ((block_t : string), (nth_t:CoreHint_t.instr_index)) =
-    match block_prev_opt with
-    | Some block_prev -> (block_prev, CoreHint_t.Terminator)
-    | None -> (block_t', nth_t')
-  in
+      (hints_f:Hints.fdef)
+    : Hints.fdef =
+  let bid_from = fst pos_from in
+  let bid_to = fst pos_to in
   let ((pass_through_t : bool), reachable_to_t) =
-    if block_f = block_t && CoreHintUtil.corehint_block_pos_lt nth_f nth_t
+    if position_lt pos_from pos_to
     then (false, AtomSetImpl.singleton block_f)
-    else if block_f = block_t' && CoreHintUtil.corehint_block_pos_lt nth_f nth_t'
-    then (false, AtomSetImpl.empty)]
     else
-      let dom_by_f = dom_by block_f dom_tree in
-      reachable_to block_t dom_by_f fd
+      let dom_by_f = dom_by bid_from dom_tree in
+      reachable_to bid_to dom_by_f fdef
   in
   
-  let block_hints =
+  let hints_f =
     AtomSetImpl.fold
-      (fun bid hint ->
-       let block_hint =
-         match Alist.lookupAL hint bid with
-         | None -> failwith "propagate: no bid in hint"
-         | Some block_hint -> block_hint
-       in
-       let nth_f =
-         if bid = block_f
-         then next_pos nth_f
-         else CoreHint_t.Phinode
-       in
-       let nth_t =
-         if bid = block_t && (not pass_through_t)
-         then nth_t
-         else CoreHint_t.Terminator
-       in
-       let block_hint =
-         propagate_in_block_hint
-           nth_f nth_t
-           hint_elt
-           block_hint
-       in
-       Alist.updateAddAL hint bid block_hint)
+      (fun bid hints_f ->
+        let hints_stmts =
+          match Alist.lookupAL hints_f bid with
+          | None -> failwith "propagateHints: no bid in hint"
+          | Some hs -> hs
+        in
+        let pos_in_b_from =
+          if bid = bid_from
+          then (snd pos_from)
+          else After_phinodes
+        in
+        let pos_in_b_to =
+          if bid = bid_to && (not pass_through_t)
+          then (snd pos_to)
+          else End_pos
+        in
+        let hints_stmts =
+          propagate_in_hints_stmts
+            pos_in_b_from pos_in_b_to
+            prop_obj
+            hints_stmts
+        in
+        Alist.updateAddAL hints_f bid hints_stmts)
       reachable_to_t
-      hint
+      hints_f
   in
-  let block_hints =
-    match block_prev_opt with
-    | None -> block_hints
-    | Some block_prev ->
-       (* 1. phinode pos *)
-       let block_hint =
-         match Alist.lookupAL block_hints block_t' with
-         | None -> failwith "propagate: no bid in hint"
-         | Some block_hint -> block_hint
-       in
-       let (block_hint, nth_f) =
-         if block_f = block_t' && CoreHintUtil.corehint_block_pos_lt nth_f nth_t'
-         then (block_hint, next_pos nth_f)
-         else
-           let block_hint =
-             propagate_in_block_hint
-               ~phiid_opt:block_prev_opt
-               CoreHint_t.Phinode CoreHint_t.Phinode
-               hint_elt
-               block_hint
-           in
-           let nth_f = CoreHint_t.Command 0 in
-           (block_hint, nth_f)
-       in
-       (* 2. command/terminator pos *)
-       let (block : LLVMsyntax.stmts) =
-         match LLVMinfra.lookupBlockViaLabelFromFdef fd block_t' with
-         | Some block -> block
-         | None -> failwith "propagate block"
-       in
-       let (phivars : LLVMsyntax.id list) (* but oldify_hint_elt syas phivars is atom list..! *) =
-         let LLVMsyntax.Coq_stmts_intro (phinodes, _, _) = block in
-         List.map (fun (LLVMsyntax.Coq_insn_phi (phivar, _, _)) -> phivar) phinodes
-       in
-       let hint_elt = oldify_hint_elt phivars hint_elt in
-       let block_hint =
-         propagate_in_block_hint
-           ~phiid_opt:block_prev_opt
-           nth_f nth_t'
-           hint_elt
-           block_hint
-       in
-       Alist.updateAddAL block_hints block_t' block_hint
-  in
-  block_hints
-
-(* is_global checks whether a variable is global or not by its name, 
-   so it may be incorrect. *)
-
-let is_global (v:CoreHint_t.variable) : bool = try v.name.[0] = '@' with _ -> false
-
-
+  hints_f
 
 let alist_map f m = List.map (fun (id, x) -> (id, f x)) m
-    
+                             
 let add_variable_to_invariant (idt:IdT.t) (inv:Invariant.t) =
   Invariant.update_maydiff
     (fun idtset -> (IdTSet.add idt idtset))
     inv
 
-let propagate_maydiff_in_fdef_hint (idt:IdT.t) (hint_f:Hints.fdef) =
+let propagate_maydiff_in_hints_fdef (idt:IdT.t) (hint_f:Hints.fdef) =
   alist_map
     (fun hint_stmts ->
       let inv_after_phi_new =
