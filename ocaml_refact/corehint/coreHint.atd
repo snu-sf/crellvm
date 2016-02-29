@@ -1,12 +1,20 @@
 type scope = [ Source | Target ] <ocaml repr="classic">
 
-type phinode = {
+type pos_phinode = {
   block_name : string;
   prev_block_name : string;
 }
 
+type pos_command = {
+  scope : scope;
+  var_name : string;
+}
+
 (* Position of an instruction is phinode or variable *)
-type position = [ Phinode of phinode | Command of string ] <ocaml repr="classic">
+type position = [
+  | Phinode of pos_phinode
+  | Command of pos_command
+  ] <ocaml repr="classic">
 
 (* If tag of variable is one of Physical, Previous, and Ghost *)
 type tag = [ Physical | Previous | Ghost ] <ocaml repr="classic">
@@ -21,40 +29,34 @@ type variable = {
 (*              Propagates               *)
 (*****************************************)
 
-type propagate_value = [ Var of variable | Rhs of variable ] <ocaml repr="classic">
+type propagate_expr = [ Var of variable | Rhs of variable ] <ocaml repr="classic">
 
-type propagate_instr = {
-  lhs : propagate_value;
-  rhs : propagate_value;
+type propagate_lessdef = {
+  lhs : propagate_expr;
+  rhs : propagate_expr;
+  scope : scope;
 }
-type propagate_neq = {
+(* TODO: noat variable, but value *)
+type propagate_noalias = { 
   lhs : variable;
   rhs : variable;
+  scope : scope;
 }
 type propagate_object = [
-  | Instr of propagate_instr
-  | Neq of propagate_neq
+  | Lessdef of propagate_lessdef
+  | Noalias of propagate_noalias
+  | Maydiff of variable
+  ] <ocaml repr="classic">
+
+type propagate_range = [
+  | Bounds of position * position
+  | Global
   ] <ocaml repr="classic">
 
 type propagate = {
   propagate : propagate_object;
-  propagate_from : position;
-  propagate_to : position;
-  scope : scope;
+  propagate_range : propagate_range;
 }
-
-
-type maydiff_global = {
-  variable : variable;
-}
-
-type propagate_global_object = [ MaydiffGlobal of maydiff_global ] <ocaml repr="classic">
-
-type propagate_global = {
-  propagate : propagate_global_object;
-  scope : scope;
-}
-
 
 (*****************************************)
 (*             Inference rules           *)
@@ -264,9 +266,7 @@ type remove_maydiff = {
   variable : variable;
 }
 
-type command = [
-  | Propagate of propagate
-  | PropagateGlobal of propagate_global
+type infrule = [
   | AddAssociative of add_associative
   | AddSub of add_sub
   | AddCommutative of add_commutative
@@ -302,12 +302,18 @@ type command = [
   | AndDeMorgan of and_de_morgan
   ] <ocaml repr="classic">
 
+type command = [
+  | Propagate of propagate
+  | Infrule of infrule
+  ] <ocaml repr="classic">
 
 type hints = {
   module_id : string;
   function_id : string;
   opt_name : string;
-  removed_instr_positions : position list;
-  added_instr_positions : position list;
+
+  src_nop_positions: position list; (* insert after position *)
+  tgt_nop_positions: position list;
+
   commands : command list;
 }
