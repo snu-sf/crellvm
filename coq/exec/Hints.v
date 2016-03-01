@@ -120,7 +120,7 @@ End Invariant.
 
 Module Infrule.
   Inductive t :=
-  | add_associative (z:IdT.t) (y:IdT.t) (x:ValueT.t) (s:sz) (c1:INTEGER.t) (c2:INTEGER.t) (c3:INTEGER.t)
+  | add_associative (x:IdT.t) (y:IdT.t) (z:IdT.t) (c1:INTEGER.t) (c2:INTEGER.t) (c3:INTEGER.t) (s:sz)
   | replace_rhs (z:IdT.t) (x:IdT.t) (y:ValueT.t) (e:Expr.t) (e':Expr.t)
   | replace_rhs_opt (z:IdT.t) (x:IdT.t) (y:ValueT.t) (e:Expr.t) (e':Expr.t)
   | replace_lhs (x:IdT.t) (y:IdT.t) (e:Expr.t)
@@ -249,7 +249,7 @@ Module Infrule.
   .
 End Infrule.
 
-Module Hints.
+Module ValidationHint.
   Structure stmts := mk_stmts {
     phinodes: AssocList (list Infrule.t);
     invariant_after_phinodes: Invariant.t;
@@ -261,4 +261,4 @@ Module Hints.
   Definition module := products.
   Definition modules := list module.
   Definition system := modules.
-End Hints.
+End ValidationHint.
