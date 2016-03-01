@@ -216,6 +216,7 @@ Module Cmd.
 
   Definition get_rhs (c:t): option Expr.t :=
     match c with
+    | insn_nop _ => None
     | insn_bop x b s v1 v2 => Some (Expr.bop b s (ValueT.lift Tag.physical v1) (ValueT.lift Tag.physical v2))
     | insn_fbop x fb fp v1 v2 => Some (Expr.fbop fb fp (ValueT.lift Tag.physical v1) (ValueT.lift Tag.physical v2))
     | insn_extractvalue x ty1 v lc ty2 => Some (Expr.extractvalue ty1 (ValueT.lift Tag.physical v) lc ty2)
@@ -239,6 +240,7 @@ Module Cmd.
 
   Definition get_uses (c:cmd): list id :=
     match c with
+    | insn_nop _ => []
     | insn_bop x b s v1 v2 => (Value.get_uses v1) ++ (Value.get_uses v2)
     | insn_fbop x fb fp v1 v2 => (Value.get_uses v1) ++ (Value.get_uses v2)
     | insn_extractvalue x ty1 v lc ty2 => (Value.get_uses v)
