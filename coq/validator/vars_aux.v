@@ -18,6 +18,7 @@ pointer(=value) defined by the input [cmd] ([phinode]). *)
 
 Definition def_cmd (c:cmd): id + value :=
   match c with
+    | insn_nop i => inl i
     | insn_bop i _ _ _ _ => inl i
     | insn_fbop i _ _ _ _ => inl i
     | insn_extractvalue i _ _ _ _ => inl i
@@ -193,6 +194,9 @@ Definition used_locals_in_params' (prms:list (typ * attributes * value)) : atoms
 
 Definition used_locals_in_cmd (c:cmd) : atoms :=
   match c with
+  | insn_nop _
+    => AtomSetImpl.empty
+
   | insn_malloc _ _ v _
   | insn_free _ _ v
   | insn_alloca _ _ v _
@@ -243,6 +247,7 @@ Definition add_ntag_params (prms:params) : params_ext :=
 
 Definition add_ntag_cmd (c:cmd) : option rhs_ext :=
   match c with
+  | insn_nop _ => None
   | insn_bop x b s v1 v2 =>
     Some (rhs_ext_bop b s (add_ntag_value v1) (add_ntag_value v2))
   | insn_fbop x fb fp v1 v2 =>
@@ -287,6 +292,7 @@ Definition is_typ_floatpoint typ :=
 
 Definition add_ntag_cmd_to_eqs (e:eqs_t) (c:cmd) : eqs_t :=
   match c with
+  | insn_nop x => e
   | insn_bop x b s v1 v2 => 
     add_eq_reg (add_ntag x, rhs_ext_bop b s (add_ntag_value v1) (add_ntag_value v2)) e
   | insn_fbop x fb fp v1 v2 => 
