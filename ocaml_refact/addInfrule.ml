@@ -17,6 +17,7 @@ open Utility
 open CoreHint_t
 open CoreHintUtil
 open Printexc
+open ConvertInfrule
 
 type atom = AtomImpl.atom
 

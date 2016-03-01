@@ -64,9 +64,9 @@ let convert_variable_to_IdT (var:CoreHint_t.variable) : IdT.t =
     | CoreHint_t.Previous -> Tag.previous
     | CoreHint_t.Ghost -> Tag.ghost
   in
-  (tag,var. name)
+  (tag, var.name)
 
-let convert_value_to_ValueT (v:CoreHint_t.value): ValueT.t =
+let convert_const_int_to_INTEGER (v:CoreHint_t.const_int): INTEGER.t =
   0 (* TODO *)
 
 let convert_size_to_sz (sz:CoreHint_t.size): LLVMsyntax.sz =

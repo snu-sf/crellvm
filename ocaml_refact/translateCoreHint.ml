@@ -4,7 +4,6 @@ open Llvm
 open Arg
 open Syntax
 open MetatheoryAtom
-open MicroHints
 open CommandArg
 open Dom_list
 open Dom_tree

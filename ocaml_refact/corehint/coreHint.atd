@@ -24,12 +24,35 @@ type variable = {
   tag : tag;     (* indicates whether this variable is physical or previous or ghost *)
 }
 
+(* integer type of signed, bitsize *)
+type int_type = [ IntType of (bool * int) ] <ocaml repr="classic">
+
+(* float type *)
+type float_type = [ FloatType | DoubleType | FP128Type | X86_FP80Type ] <ocaml repr="classic">
+
+type const_int = {
+  int_value : int;
+  int_type : int_type;
+}
+
+type const_float = {
+  float_value : float;
+  float_type : float_type;
+}
+
+type constant = [ ConstInt of const_int | ConstInt of const_float ] <ocaml repr="classic">
+
+type size = [ Size of int ] <ocaml repr="classic">
 
 (*****************************************)
 (*              Propagates               *)
 (*****************************************)
 
-type propagate_expr = [ Var of variable | Rhs of variable ] <ocaml repr="classic">
+type propagate_expr = [
+  | Var of variable
+  | Rhs of variable
+  | Const of constant
+] <ocaml repr="classic">
 
 type propagate_lessdef = {
   lhs : propagate_expr;
@@ -68,8 +91,13 @@ type infrule_base = {
 
 type add_associative = {
   inherit infrule_base;
-  lhs : variable;
-  rhs : variable;
+  x : variable;
+  y : variable;
+  z : variable;
+  c1 : const_int;
+  c2 : const_int;
+  c3 : const_int;
+  sz : size;
 }
 
 type add_sub = {
@@ -261,11 +289,6 @@ type div_sub_urem = {
   a : variable;
 }
 
-type remove_maydiff = {
-  inherit infrule_base;
-  variable : variable;
-}
-
 type infrule = [
   | AddAssociative of add_associative
   | AddSub of add_sub
@@ -298,7 +321,6 @@ type infrule = [
   | RemNeg of rem_neg
   | DivSubSrem of div_sub_srem
   | DivSubUrem of div_sub_urem
-  | RemoveMaydiff of remove_maydiff
   | AndDeMorgan of and_de_morgan
   ] <ocaml repr="classic">
 
