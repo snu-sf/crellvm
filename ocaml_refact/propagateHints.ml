@@ -14,128 +14,87 @@ open Dom_list
 open Dom_tree
 open CoreHint_t
 open CoreHintUtil
-
+open DomTreeUtil
 open Hints
 open Exprs
 
 type atom = AtomImpl.atom
 
-let rec string_of_dtree dtree =
-  match dtree with
-  | DT_node (a, dtrees) -> a ^ "->(" ^ (string_of_dtrees dtrees) ^  ")"
-and string_of_dtrees dtrees =
-  match dtrees with
-  | DT_nil -> ""
-  | DT_cons (dtree, dtrees) -> (string_of_dtree dtree) ^ ", " ^ (string_of_dtrees dtrees)
-
-let rec find_in_dtree a dtree =
-  match dtree with
-  | DT_node (a', dtrees) ->
-     if a = a'
-     then Some dtree
-     else find_in_dtrees a dtrees
-and find_in_dtrees a dtrees =
-  match dtrees with
-  | DT_nil -> None
-  | DT_cons (dtree, dtrees) ->
-     (match find_in_dtree a dtree with
-      | Some result -> Some result
-      | None -> find_in_dtrees a dtrees)
-
-let rec collapse_dtree ?(acc=AtomSetImpl.empty) dtree =
-  match dtree with
-  | DT_node (a, dtrees) -> collapse_dtrees ~acc:(AtomSetImpl.add a acc) dtrees
-and collapse_dtrees ?(acc=AtomSetImpl.empty) dtrees =
-  match dtrees with
-  | DT_nil -> acc
-  | DT_cons (dtree, dtrees) ->
-     let acc' = collapse_dtree ~acc:acc dtree in
-     let acc'' = collapse_dtrees ~acc:acc' dtrees in
-     acc''
-
-let dom_by a dtree =
-  let dtree =
-    match find_in_dtree a dtree with
-    | None -> failwith "translateHints sdom_by"
-    | Some dtree -> dtree
-  in
-  let result = collapse_dtree dtree in
-  result
-
-(* @arg f: block id
+module Reachable = struct
+  (* @arg f: block id
    @arg t: block id
    @arg succ: graph between block ids
    @return: set of block ids
      - reachable from f
      - without passing through t
- *)
-let reachable_filtered (f:atom) (ids:AtomSetImpl.t) (succs:LLVMsyntax.ls Maps_ext.ATree.t) : bool * AtomSetImpl.t =
-  let visit_f = ref false in
-  let rec r (worklist:atom list) (visit:AtomSetImpl.t) : bool * AtomSetImpl.t =
-    match worklist with
-    | [] -> (!visit_f, visit)
-    | work::worklist ->
-       let (worklist, visit) =
-         (match Maps_ext.ATree.get work succs with
-          | None -> (worklist, visit)
-          | Some succs ->
-             List.fold_left
-               (fun (worklist, visit) succ ->
-                let _ =
-                  if succ = f
-                  then
-                    visit_f := true
-                  else ()
-                in
-                if AtomSetImpl.mem succ visit or not (AtomSetImpl.mem succ ids)
-                then (worklist, visit)
-                else (succ::worklist, AtomSetImpl.add succ visit))
-               (worklist, visit)
-               succs)
-       in
-       r worklist visit
-  in
-  r [f] (AtomSetImpl.singleton f)
+   *)
+  let _filtered (f:atom) (ids:AtomSetImpl.t) (succs:LLVMsyntax.ls Maps_ext.ATree.t) : bool * AtomSetImpl.t =
+    let visit_f = ref false in
+    let rec r (worklist:atom list) (visit:AtomSetImpl.t) : bool * AtomSetImpl.t =
+      match worklist with
+      | [] -> (!visit_f, visit)
+      | work::worklist ->
+         let (worklist, visit) =
+           (match Maps_ext.ATree.get work succs with
+            | None -> (worklist, visit)
+            | Some succs ->
+               List.fold_left
+                 (fun (worklist, visit) succ ->
+                   let _ =
+                     if succ = f
+                     then
+                       visit_f := true
+                     else ()
+                   in
+                   if AtomSetImpl.mem succ visit or not (AtomSetImpl.mem succ ids)
+                   then (worklist, visit)
+                   else (succ::worklist, AtomSetImpl.add succ visit))
+                 (worklist, visit)
+                 succs)
+         in
+         r worklist visit
+    in
+    r [f] (AtomSetImpl.singleton f)
 
-(* @arg f: block id
+  (* @arg f: block id
    @arg succ: graph between block ids
    @return: set of block ids
      - reachable from f
- *)
-let reachable (f:atom) (succs:LLVMsyntax.ls Maps_ext.ATree.t) : AtomSetImpl.t =
-  let rec r (worklist:atom list) (reached:AtomSetImpl.t) : AtomSetImpl.t =
-    match worklist with
-    | [] -> reached
-    | work::worklist ->
-       let (worklist, reached) =
-         match Maps_ext.ATree.get work succs with
-         | None -> (worklist, reached)
-         | Some succs ->
-           List.fold_left
-             (fun (worklist,reached) succ ->
-               if AtomSetImpl.mem succ reached
-               then (worklist, reached)
-               else (succ::worklist, AtomSetImpl.add succ reached)
-             )
-             (worklist, reached)
-             succs
-       in
-       r worklist reached
-  in
-  r [f] AtomSetImpl.empty
+   *)
+  let _from (f:atom) (succs:LLVMsyntax.ls Maps_ext.ATree.t) : AtomSetImpl.t =
+    let rec r (worklist:atom list) (reached:AtomSetImpl.t) : AtomSetImpl.t =
+      match worklist with
+      | [] -> reached
+      | work::worklist ->
+         let (worklist, reached) =
+           match Maps_ext.ATree.get work succs with
+           | None -> (worklist, reached)
+           | Some succs ->
+              List.fold_left
+                (fun (worklist,reached) succ ->
+                  if AtomSetImpl.mem succ reached
+                  then (worklist, reached)
+                  else (succ::worklist, AtomSetImpl.add succ reached)
+                )
+                (worklist, reached)
+                succs
+         in
+         r worklist reached
+    in
+    r [f] AtomSetImpl.empty
 
-(* the set of nodes that is reachable to "t" without visiting "f" in "fd". *)
-let reachable_to (t:atom) (ids:AtomSetImpl.t) (fd:LLVMsyntax.fdef) : bool * AtomSetImpl.t =
-  if not (AtomSetImpl.mem t ids)
-  then (false, AtomSetImpl.empty)
-  else
-    let predecessors = Cfg.predecessors fd in
-    reachable_filtered t ids predecessors
+  (* the set of nodes that is reachable to "t" without visiting "f" in "fd". *)
+  let to (t:atom) (ids:AtomSetImpl.t) (fd:LLVMsyntax.fdef) : bool * AtomSetImpl.t =
+        if not (AtomSetImpl.mem t ids)
+        then (false, AtomSetImpl.empty)
+        else
+          let predecessors = Cfg.predecessors fd in
+          _filtered t ids predecessors
 
-(* the set of nodes that is reachable from "f". *)
-let reachable_from (f:atom) (fd:LLVMsyntax.fdef) : AtomSetImpl.t =
-  reachable f (Cfg.successors fd)
-
+  (* the set of nodes that is reachable from "f". *)
+  let from (f:atom) (fd:LLVMsyntax.fdef) : AtomSetImpl.t =
+    _from f (Cfg.successors fd)
+end
 (* object for propagation *)
 
 type invariant_object =

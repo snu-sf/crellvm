@@ -23,58 +23,61 @@ let insert_nop (m:LLVMsyntax.coq_module) (nops:int list) : LLVMsyntax.coq_module
 
 (** generating empty hint structure **)
 
-let empty_unary : Invariant.unary =
-  { lessdef = ExprPairSet.empty;
-    noalias = ValueTPairSet.empty;
-    allocas = IdTSet.empty;
-    coq_private = IdTSet.empty;
-  }
+module EmptyHint = struct
+  (* TODO: define in Coq *)
+  let unary : Invariant.unary =
+    { lessdef = ExprPairSet.empty;
+      noalias = ValueTPairSet.empty;
+      allocas = IdTSet.empty;
+      coq_private = IdTSet.empty;
+    }
 
-let empty_invariant : Invariant.t =
-  { src = empty_unary;
-    tgt = empty_unary;
-    maydiff = IdTSet.empty;
-  }
+  let invariant : Invariant.t =
+    { src = empty_unary;
+      tgt = empty_unary;
+      maydiff = IdTSet.empty;
+    }
 
-(* TODO: check create_empty_hint_* again *)
-let create_empty_hint_stmts (stmts: LLVMsyntax.stmts) : ValidationHint.stmts =
-  match stmts with
-  | Coq_stmts_intro (phinodes, cmds, _) ->
-     let empty_hint_phinodes =
+  (* TODO: check create_empty_hint_* again *)
+  let of_stmts (stmts: LLVMsyntax.stmts) : ValidationHint.stmts =
+    match stmts with
+    | Coq_stmts_intro (phinodes, cmds, _) ->
+       let empty_hint_phinodes =
+         List.fold_left
+           (fun phi_hint phi ->
+             match phi with
+             | LLVMsyntax.Coq_insn_phi (_,_,vll) ->
+                let empty_inf_l = List.map (fun (v,l) -> (l,[])) vll in
+                Alist.updateAddALs phi_hint empty_inf_l
+           )
+           [] phinodes
+       in
+       let empty_hint_cmds =
+         List.map (fun _ -> ([], empty_invariant)) cmd
+       in
+       { phinodes = empty_hint_phinodes;
+         invariant_after_phinodes = empty_invariant;
+         cmds = empty_hint_cmds;
+       }
+
+  let of_fdef (fdef:LLVMsyntax.fdef) : atom * ValidationHint.fdef =
+    match fdef with
+    | Coq_fdef_intro (Coq_fheader_intro (_,_,id,_,_), blks) ->
+       (id, List.map (fun (bid, bstmts) ->
+                       (bid, create_empty_hint_stmts bstmts))
+                     blks)
+
+  let of_module (m:LLVMsyntax.coq_module) : ValidationHint.coq_module =
+    match m with
+    | Coq_module_intro (lo, nts, prods) ->
        List.fold_left
-         (fun phi_hint phi ->
-           match phi with
-           | LLVMsyntax.Coq_insn_phi (_,_,vll) ->
-              let empty_inf_l = List.map (fun (v,l) -> (l,[])) vll in
-              Alist.updateAddALs phi_hint empty_inf_l
-         )
-         [] phinodes
-     in
-     let empty_hint_cmds =
-       List.map (fun _ -> ([], empty_invariant)) cmd
-     in
-     { phinodes = empty_hint_phinodes;
-       invariant_after_phinodes = empty_invariant;
-       cmds = empty_hint_cmds;
-     }
-
-let create_empty_hint_fdef (fdef:LLVMsyntax.fdef) : atom * ValidationHint.fdef =
-  match fdef with
-  | Coq_fdef_intro (Coq_fheader_intro (_,_,id,_,_), blks) ->
-     (id, List.map (fun (bid, bstmts) ->
-                     (bid, create_empty_hint_stmts bstmts))
-                   blks)
-
-let create_empty_hint_module (m:LLVMsyntax.coq_module) : ValidationHint.coq_module =
-  match m with
-  | Coq_module_intro (lo, nts, prods) ->
-     List.fold_left
-       (fun empty_hint_prods prod ->
-         match prod with
-         | Coq_product_fdef fd ->
-            (create_empty_hint_fdef fd)::empty_hint_prods
-         | _ -> empty_hint_prods)
-       [] prods
+         (fun empty_hint_prods prod ->
+           match prod with
+           | Coq_product_fdef fd ->
+              (create_empty_hint_fdef fd)::empty_hint_prods
+           | _ -> empty_hint_prods)
+         [] prods
+end
 
 (* TOOD: don't know yet *)
 let noret (vhint_module:ValidationHint.coq_module) : ValidationHint.coq_module = vhint_module
@@ -97,10 +100,9 @@ let translate_corehint_to_hint
       (lm:LLVMsyntax.coq_module) (rm:LLVMsyntax.coq_module) (* assume nop-insertion is done *)
       (core_hint:CoreHint_t.hints)
     : LLVMsyntax.coq_module * LLVMsyntax.coq_module * ValidationHint.coq_module =
-
   let fid = core_hint.function_id in
 
-  let (vhint_module:ValidationHint.coq_module) = create_empty_hint_module lm in
+  let (vhint_module:ValidationHint.coq_module) = EmptyHint.of_module lm in
   let vhint_module = noret vhint_module in (* TODO: noret? *)
 
   let (vhint_fdef, lfdef, rfdef) =
