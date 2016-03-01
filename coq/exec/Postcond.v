@@ -362,7 +362,7 @@ Definition postcond_cmd_inject_event
     insn_store _ t2 v2 p2 a2 =>
     typ_dec t1 t2 &&
     Invariant.inject_value inv (ValueT.lift Tag.physical v1) (ValueT.lift Tag.physical v2)
-  | insn_store _ t1 v1 p1 a1, _ => (* TODO: nop *)
+  | insn_store _ t1 v1 p1 a1, insn_nop _ =>
     Invariant.is_private inv.(Invariant.src) (ValueT.lift Tag.physical p1)
   (* | insn_store _ _ _ _ _, _ *)
   | _, insn_store _ _ _ _ _ => false
@@ -384,8 +384,8 @@ Definition postcond_cmd_inject_event
     typ_dec t1 t2 &&
     Invariant.inject_value inv (ValueT.lift Tag.physical v1) (ValueT.lift Tag.physical v2) &&
     align_dec a1 a2
-  | insn_alloca _ _ _ _, _ => true (* TODO: nop *)
-  | _, insn_alloca _ _ _ _ => true (* TODO: nop *)
+  | insn_alloca _ _ _ _, insn_nop _ => true
+  | insn_nop _, insn_alloca _ _ _ _ => true
   (* | insn_alloca _ _ _ _, _ => false *)
   (* | _, insn_alloca _ _ _ _ => false *)
 
@@ -408,11 +408,11 @@ Definition postcond_cmd_add_private_allocas
     let inv1 := Invariant.update_src (Invariant.update_allocas (IdTSet.add (IdT.lift Tag.physical aid_src))) inv0 in
     let inv2 := Invariant.update_tgt (Invariant.update_allocas (IdTSet.add (IdT.lift Tag.physical aid_tgt))) inv1 in
     inv2
-  | insn_alloca aid_src _ _ _, _ => (* TODO: nop *)
+  | insn_alloca aid_src _ _ _, insn_nop _ =>
     let inv1 := Invariant.update_src (Invariant.update_allocas (IdTSet.add (IdT.lift Tag.physical aid_src))) inv0 in
     let inv2 := Invariant.update_src (Invariant.update_private (IdTSet.add (IdT.lift Tag.physical aid_src))) inv1 in
     inv2
-  | _, insn_alloca aid_tgt _ _ _ => (* TODO: nop *)
+  | insn_nop _, insn_alloca aid_tgt _ _ _ =>
     let inv1 := Invariant.update_tgt (Invariant.update_allocas (IdTSet.add (IdT.lift Tag.physical aid_tgt))) inv0 in
     let inv2 := Invariant.update_tgt (Invariant.update_private (IdTSet.add (IdT.lift Tag.physical aid_tgt))) inv1 in
     inv2
