@@ -1,0 +1,341 @@
+type scope = [ Source | Target ] <ocaml repr="classic">
+
+type position_phinode = {
+  block_name : string;
+  prev_block_name : string;
+}
+
+type position_command = {
+  scope : scope;
+  var_name : string;
+}
+
+(* Position of an instruction is phinode or variable *)
+type position = [
+  | Phinode of position_phinode
+  | Command of position_command
+  ] <ocaml repr="classic">
+
+(* If tag of variable is one of Physical, Previous, and Ghost *)
+type tag = [ Physical | Previous | Ghost ] <ocaml repr="classic">
+
+type variable = {
+  name : string; (* identifier of a variable *)
+  tag : tag;     (* indicates whether this variable is physical or previous or ghost *)
+}
+
+(* integer type of signed, bitsize *)
+type int_type = [ IntType of (bool * int) ] <ocaml repr="classic">
+
+(* float type *)
+type float_type = [ FloatType | DoubleType | FP128Type | X86_FP80Type ] <ocaml repr="classic">
+
+type const_int = {
+  int_value : int;
+  int_type : int_type;
+}
+
+type const_float = {
+  float_value : float;
+  float_type : float_type;
+}
+
+type constant = [ ConstInt of const_int | ConstInt of const_float ] <ocaml repr="classic">
+
+type size = [ Size of int ] <ocaml repr="classic">
+
+(*****************************************)
+(*              Propagates               *)
+(*****************************************)
+
+type propagate_expr = [
+  | Var of variable
+  | Rhs of variable
+  | Const of constant
+] <ocaml repr="classic">
+
+type propagate_lessdef = {
+  lhs : propagate_expr;
+  rhs : propagate_expr;
+  scope : scope;
+}
+(* TODO: noat variable, but value *)
+type propagate_noalias = {
+  lhs : variable;
+  rhs : variable;
+  scope : scope;
+}
+type propagate_object = [
+  | Lessdef of propagate_lessdef
+  | Noalias of propagate_noalias
+  | Maydiff of variable
+  ] <ocaml repr="classic">
+
+type propagate_range = [
+  | Bounds of position * position
+  | Global
+  ] <ocaml repr="classic">
+
+type propagate = {
+  propagate : propagate_object;
+  propagate_range : propagate_range;
+}
+
+(*****************************************)
+(*             Inference rules           *)
+(*****************************************)
+
+type infrule_base = {
+  position : position;
+}
+
+type add_associative = {
+  inherit infrule_base;
+  x : variable;
+  y : variable;
+  z : variable;
+  c1 : const_int;
+  c2 : const_int;
+  c3 : const_int;
+  sz : size;
+}
+
+type add_sub = {
+  inherit infrule_base;
+  minusy : variable;
+  z : variable;
+}
+
+type add_commutative = {
+  inherit infrule_base;
+  z : variable;
+}
+
+type add_shift = {
+  inherit infrule_base;
+  y : variable;
+}
+
+type add_signbit = {
+  inherit infrule_base;
+  x : variable;
+}
+
+type add_onebit = {
+  inherit infrule_base;
+  z : variable;
+}
+
+type add_zext_bool = {
+  inherit infrule_base;
+  x : variable;
+  y : variable;
+}
+
+type add_const_not = {
+  inherit infrule_base;
+  z : variable;
+  y : variable;
+}
+
+type add_mask = {
+  inherit infrule_base;
+  z : variable;
+  y : variable;
+  yp : variable;
+}
+
+type add_select_zero = {
+  inherit infrule_base;
+  z : variable;
+  x : variable;
+  y : variable;
+}
+
+type add_select_zero2 = {
+  inherit infrule_base;
+  z : variable;
+  x : variable;
+  y : variable;
+}
+
+type add_dist_sub = {
+  inherit infrule_base;
+  z : variable;
+  minusx : variable;
+  minusy : variable;
+  w : variable;
+}
+
+type mul_add_distributive = {
+  inherit infrule_base;
+  z : variable;
+  x : variable;
+  y : variable;
+  w : variable;
+}
+
+type sub_add = {
+  inherit infrule_base;
+  minusy : variable;
+  z : variable;
+}
+
+type sub_mone = {
+  inherit infrule_base;
+  z : variable;
+}
+
+type sub_const_not = {
+  inherit infrule_base;
+  y : variable;
+  z : variable;
+}
+
+type sub_remove = {
+  inherit infrule_base;
+  y : variable;
+  z : variable;
+}
+
+type sub_remove2 = {
+  inherit infrule_base;
+  y : variable;
+  z : variable;
+}
+
+type sub_onebit = {
+  inherit infrule_base;
+  z : variable;
+}
+
+type sub_const_add = {
+  inherit infrule_base;
+  y : variable;
+  z : variable;
+}
+
+type sub_sdiv = {
+  inherit infrule_base;
+  y : variable;
+  z : variable;
+}
+
+type sub_shl = {
+  inherit infrule_base;
+  x : variable;
+  y : variable;
+  z : variable;
+}
+
+type mul_bool = {
+  inherit infrule_base;
+  z :variable;
+}
+
+type mul_mone = {
+  inherit infrule_base;
+  z : variable;
+}
+
+type mul_neg = {
+  inherit infrule_base;
+  z : variable;
+  mx : variable;
+  my : variable;
+}
+
+type mul_commutative = {
+  inherit infrule_base;
+  z : variable;
+}
+
+type mul_shl = {
+  inherit infrule_base;
+  z : variable;
+  y : variable;
+}
+
+type div_mone = {
+  inherit infrule_base;
+  z : variable;
+}
+
+type and_de_morgan = {
+  inherit infrule_base;
+  z : variable;
+  x : variable;
+  y : variable;
+  z2 : variable;
+}
+
+type rem_neg = {
+  inherit infrule_base;
+  z : variable;
+  my : variable;
+}
+
+type div_sub_srem = {
+  inherit infrule_base;
+  z : variable;
+  b : variable;
+  a : variable;
+}
+
+type div_sub_urem = {
+  inherit infrule_base;
+  z : variable;
+  b : variable;
+  a : variable;
+}
+
+type infrule = [
+  | AddAssociative of add_associative
+  | AddSub of add_sub
+  | AddCommutative of add_commutative
+  | AddShift of add_shift
+  | AddSignbit of add_signbit
+  | AddOnebit of add_onebit
+  | AddZextBool of add_zext_bool
+  | AddConstNot of add_const_not
+  | AddMask of add_mask
+  | AddSelectZero of add_select_zero
+  | AddSelectZero2 of add_select_zero2
+  | AddDistSub of add_dist_sub
+  | MulAddDistributive of mul_add_distributive
+  | SubMone of sub_mone
+  | SubAdd of sub_add
+  | SubConstNot of sub_const_not
+  | SubRemove of sub_remove
+  | SubRemove2 of sub_remove2
+  | SubOnebit of sub_onebit
+  | SubConstAdd of sub_const_add
+  | SubSdiv of sub_sdiv
+  | SubShl of sub_shl
+  | MulBool of mul_bool
+  | MulMone of mul_mone
+  | MulNeg of mul_neg
+  | MulCommutative of mul_commutative
+  | MulShl of mul_shl
+  | DivMone of div_mone
+  | RemNeg of rem_neg
+  | DivSubSrem of div_sub_srem
+  | DivSubUrem of div_sub_urem
+  | AndDeMorgan of and_de_morgan
+  ] <ocaml repr="classic">
+
+type command = [
+  | Propagate of propagate
+  | Infrule of infrule
+  ] <ocaml repr="classic">
+
+type hints = {
+  module_id : string;
+  function_id : string;
+  opt_name : string;
+
+  src_nop_positions: position list; (* insert after position *)
+  tgt_nop_positions: position list;
+
+  commands : command list;
+}
