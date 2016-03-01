@@ -1,19 +1,19 @@
 type scope = [ Source | Target ] <ocaml repr="classic">
 
-type pos_phinode = {
+type position_phinode = {
   block_name : string;
   prev_block_name : string;
 }
 
-type pos_command = {
+type position_command = {
   scope : scope;
   var_name : string;
 }
 
 (* Position of an instruction is phinode or variable *)
 type position = [
-  | Phinode of pos_phinode
-  | Command of pos_command
+  | Phinode of position_phinode
+  | Command of position_command
   ] <ocaml repr="classic">
 
 (* If tag of variable is one of Physical, Previous, and Ghost *)

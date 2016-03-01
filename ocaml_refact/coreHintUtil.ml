@@ -19,7 +19,7 @@ let rec get_pos_in_cmds (id:string) (cmds:LLVMsyntax.cmds) (n:int) : int =
      else find_position_in_cmds id cmds (n+1)
 
 (* TODO: name get_pos? *)
-let get_pos_from_command (pos_cmd:CoreHint_t.pos_command)
+let get_pos_from_command (pos_cmd:CoreHint_t.position_command)
                          (lfdef:LLVMsyntax.fdef)
                          (rfdef:LLVMsyntax.fdef)
     : string * int =
@@ -33,6 +33,15 @@ let get_pos_from_command (pos_cmd:CoreHint_t.pos_command)
   | Some (l, Coq_stmts_intro (_, cmds, _)) ->
      (l, get_pos_in_cmds var_id cmds 0)
   | None -> failwith "translateCoreHint: position_of_var"
+
+let get_block_name_from_position (pos:CoreHint_t.position)
+                                 (lfdef:LLVMsyntax.fdef)
+                                 (rfdef:LLVMsyntax.fdef) : string =
+  match pos with
+  | CoreHint_t.Phinode phinode -> phinode.block_name
+  | CoreHint_t.Command command ->
+      let (bid, _) = get pos_from_command command lfdef rfdef in
+      bid
 
 let get_rhs_from_var (var_id:string) (fdef:LLVMsyntax.fdef) : Expr.t =
   match LLVMinfra.lookupInsnViaIDFromFdef fdef var_id with
@@ -63,59 +72,7 @@ let convert_value_to_ValueT (v:CoreHint_t.value): ValueT.t =
 let convert_size_to_sz (sz:CoreHint_t.size): LLVMsyntax.sz =
   0 (* TODO *)
 
-(* currently not used *)
-(* let convert_value_to_ValueT (core_value:CoreHint_t.value) : ValueT.t = *)
-(*   match core_value with *)
-(*   | CoreHint_t.VarValue (var : CoreHint_t.variable) -> *)
-(*       ValueT.id (convert_variable_to_IdT var) *)
-(*   | CoreHint_t.ConstValue (cv : CoreHint_t.const_value) -> *)
-(*       match cv with *)
-(*       | CoreHint_t.IntVal (iv : CoreHint_t.int_value) -> *)
-(*         let (issigned : bool), (bitsize : int) = *)
-(*         match iv.mytype with *)
-(* 	| CoreHint_t.IntType (issigned, bitsize) -> *)
-(* 	  issigned, bitsize *)
-(* 	in *)
-(* 	let api = Llvm.APInt.of_int64 bitsize (Int64.of_int iv.myvalue) issigned in *)
-(* 	ValueT.const (LLVMsyntax.Coq_const_int (bitsize, api)) *)
-
-(*       | CoreHint_t.FloatVal (fv : CoreHint_t.float_value) -> *)
-(*         let (fptype : LLVMsyntax.floating_point) =  *)
-(* 	  (match fv.mytype with *)
-(* 	    | CoreHint_t.FloatType -> LLVMsyntax.Coq_fp_float *)
-(* 	    | CoreHint_t.DoubleType -> LLVMsyntax.Coq_fp_double *)
-(* 	    | CoreHint_t.FP128Type -> LLVMsyntax.Coq_fp_fp128 *)
-(* 	    | CoreHint_t.X86_FP80Type -> LLVMsyntax.Coq_fp_ppc_fp128) *)
-(* 	in *)
-(* 	let ctx = Llvm.global_context () in *)
-(* 	let llvalue = Llvm.const_float (Coq2llvm.translate_floating_point ctx fptype) fv.myvalue in *)
-(* 	let apfloat = Llvm.APFloat.const_float_get_value llvalue in *)
-(* 	ValueT.const (LLVMsyntax.Coq_const_floatpoint (fptype, apfloat)) *)
-
-
 (* old functions *)
-
-let corehint_block_pos_prev (pos : CoreHint_t.position) : CoreHint_t.position =
-  match pos.instr_index with
-    CoreHint_t.Command 0 -> {block_name = pos.block_name; instr_index = CoreHint_t.Phinode}
-  | CoreHint_t.Command i -> {block_name = pos.block_name; instr_index = CoreHint_t.Command (i-1)}
-  | _ -> failwith "corehint_block_pos_prev : juneyoung lee : ill-defined case.."
-
-let corehint_block_pos_next (pos : CoreHint_t.position) : CoreHint_t.position =
-  match pos.instr_index with
-    CoreHint_t.Phinode -> {block_name = pos.block_name; instr_index = CoreHint_t.Command 0}
-  | CoreHint_t.Command i -> {block_name = pos.block_name ; instr_index = CoreHint_t.Command (i+1)}
-  | CoreHint_t.Terminator -> {block_name = pos.block_name ; instr_index = CoreHint_t.Terminator}
-
-let corehint_block_pos_lt (lhs : CoreHint_t.instr_index) (rhs : CoreHint_t.instr_index) =
-  match lhs, rhs with
-    | CoreHint_t.Phinode, CoreHint_t.Phinode -> false
-    | CoreHint_t.Phinode, _ -> true
-    | _, CoreHint_t.Phinode -> false
-    | CoreHint_t.Command i, CoreHint_t.Command j -> i < j
-    | CoreHint_t.Command _, _ -> true
-    | _, CoreHint_t.Command _ -> false
-    | CoreHint_t.Terminator, CoreHint_t.Terminator -> false
 
 let rec string_of_list_endline ?(indent=0) s l =
   let rec r l =
