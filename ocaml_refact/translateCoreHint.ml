@@ -11,6 +11,7 @@ open Maps
 open CoreHint_t
 open PropagateHints
 
+open ConvertInfrule
 open Hints
 open Exprs
 
@@ -94,7 +95,8 @@ let execute_corehint_cmd
      propagate_hint prop.propagate prop.propagate_range
                          lfdef rfdef dom_tree vhint_fdef
   | CoreHint_t.Infrule infr ->
-     (* TODO *)
+      let coq_infrule = convert_infrule infr in
+      add_infrule coq_infrule lfdef rfdef vhint_fdef
 
 let translate_corehint_to_hint
       (lm:LLVMsyntax.coq_module) (rm:LLVMsyntax.coq_module) (* assume nop-insertion is done *)

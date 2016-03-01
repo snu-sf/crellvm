@@ -24,7 +24,7 @@ open CoreHint_t
 open CommandArg
 
 
-let make_coq_infrule (infrule:CoreHint_t.infrule) : Infrule.t =
+let convert_infrule (infrule:CoreHint_t.infrule) : Infrule.t =
   match infrule with
   | CoreHint_t.AddAssociative (args:CoreHint_t.add_associative) ->
       let (x, y, z, c1, c2, c3, sz) =
