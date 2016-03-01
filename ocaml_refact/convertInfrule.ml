@@ -28,9 +28,9 @@ let make_coq_infrule (infrule:CoreHint_t.infrule) : Infrule.t =
   match infrule with
   | CoreHint_t.AddAssociative (args:CoreHint_t.add_associative) ->
       let (x, y, z, c1, c2, c3, sz) =
-        (convert_variable_to_IdT args.x, convert_variable_to_IdT args.y,
-        convert_variable_to_IdT args.z, convert_const_int_to_INTEGER args.c1,
-        convert_const_int_to_INTEGER args.c2, convert_const_int_to_INTEGER args.c3,
-        convert_size_to_sz args.sz) in
+        (Convert.variable_to_IdT args.x, Convert.variable_to_IdT args.y,
+        Convert.variable_to_IdT args.z, Convert.const_int_to_INTEGER args.c1,
+        Convert.const_int_to_INTEGER args.c2, Convert.const_int_to_INTEGER args.c3,
+        Convert.size_to_sz args.sz) in
       Coq_add_associative (x, y, z, c1, c2, c3, sz)
 

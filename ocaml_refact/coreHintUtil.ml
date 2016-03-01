@@ -8,6 +8,8 @@ open Syntax.LLVMsyntax
 open CoreHint_t
 
 open Exprs
+open APInt
+
 
 module Position = struct
   (* line number starts from 0 *)
@@ -46,7 +48,8 @@ module Position = struct
 end
 
 module Convert = struct
-  let var_to_rhs_Expr (var_id:string) (fdef:LLVMsyntax.fdef) : Expr.t =
+  let variable_to_rhs_Expr (var:CoreHint_t) (fdef:LLVMsyntax.fdef) : Expr.t =
+    let var_id = variable.name in
     match LLVMinfra.lookupInsnViaIDFromFdef fdef var_id with
     | Some insn ->
        (match insn with
@@ -69,11 +72,15 @@ module Convert = struct
     in
     (tag, var.name)
 
-  let const_int_to_INTEGER (v:CoreHint_t.const_int): INTEGER.t =
-    0 (* TODO *)
+  let const_int_to_INTEGER (const_int:CoreHint_t.const_int): INTEGER.t =
+    let (is_signed, sz) =
+      match const_int.int_type with
+      | IntType (is_signed, sz) -> (is_signed, sz) in
+    APInt.of_int64 sz const_int.int_value is_signed
 
   let size_to_sz (sz:CoreHint_t.size): LLVMsyntax.sz =
-    0 (* TODO *)
+    match sz with
+    | Size sz -> sz
 end
 
 (* old functions *)

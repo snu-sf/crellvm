@@ -56,7 +56,7 @@ let add_infrule (infrule:CoreHint_t.infrule)
                 (hint:ValidationHint.fdef) : ValidationHint.fdef =
   let block_hints = hint in
   let pos = infrule.position in
-  let block_name = get_block_name_from_position pos lfd rfd in
+  let block_name = Position.get_block_name_from_position pos lfd rfd in
   match LLVMinfra.lookupBlockViaLabelFromFdef lfd block_name,
         LLVMinfra.lookupBlockViaLabelFromFdef rfd block_name,
         Alist.lookupAL block_hints block_name with
@@ -70,7 +70,7 @@ let add_infrule (infrule:CoreHint_t.infrule)
         | CoreHint_t.Phinode phinode ->
             add_infrule_phinode coq_infrule phinode block_hint
         | CoreHint_t.Command command ->
-            let (_, line_num) = get_pos_from_command command lfd rfd in
+            let (_, line_num) = Position.get_pos_from_command command lfd rfd in
             add_infrule_command coq_infrule command line_num block_hint) in
       let block_hints = Alist.updateAL block_hints block_name block_hint_new in
       block_hints
