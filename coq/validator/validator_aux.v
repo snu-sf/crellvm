@@ -1010,8 +1010,13 @@ Definition invariant_implies (from_h to_h:insn_hint_t) : bool :=
   maydiff_implies (hint_maydiff from_h) (hint_maydiff to_h) &&
   hint_invariant_implies (hint_invariant from_h) (hint_invariant to_h).
 
+(* Get next nop id. Each id should be unique in Function. *)
+(* Should manually be extracted to proper Ocaml code. *)
 Parameter next_nop_id : blocks -> id.
 
+(* Search through blocks with target label, and insert nop. *)
+(* Logic adding nop is commented below. *)
+(* If there is multiple blocks with target label, it only inserts in FIRST block. *)
 Fixpoint insert_nop (target : l * id) (bs : blocks) : option blocks :=
   match bs with
     | nil => Some nil
@@ -1053,6 +1058,7 @@ Fixpoint insert_nop (target : l * id) (bs : blocks) : option blocks :=
       else option_map (fun x => head :: x) (insert_nop target tail)
   end.
 
+(* Insert multiple nops in blocks. *)
 Definition insert_nops (targets : list (l * id)) (bs : blocks) : option blocks :=
   List.fold_left (fun (s : option blocks) i
                   => mjoin blocks (option_map (fun x => insert_nop i x) s))
