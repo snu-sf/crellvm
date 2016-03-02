@@ -25,20 +25,20 @@ let main original_filename optimized_filename hint_filename =
   let ist1 = SlotTracker.create_of_module im1 in
   (* let _ = Gc.full_major () in *)
   let _ = debug_print "coqim1" in
-  let coqim1 = 
-    try Tt.translate_module (*true*) !Globalstates.debug ist1 im1 with 
-    | Failure ("InlineAsmVal: Not_Supported.") -> 
+  let coqim1 =
+    try Tt.translate_module (*true*) !Globalstates.debug ist1 im1 with
+    | Failure ("InlineAsmVal: Not_Supported.") ->
       (print_endline "Validation aborted: InlineAsmVal"; exit 0)
     | Failure ("BlockAddress isnt Constant") ->
       (print_endline "Validation aborted: BlockAddress"; exit 0)
   in
   let _ = debug_print "something big" in
-  let _ = 
+  let _ =
     (if !Globalstates.debug then dump_module im1);
     (if !Globalstates.debug then Llvm_pretty_printer.travel_module ist1 im1);
     (if !Globalstates.debug then Coq_pretty_printer.travel_module coqim1);
     () in
-  
+
   (* main2.native: let _ = read_line () in *)
 
   let _ = debug_print "ic2 create_context" in
@@ -51,9 +51,9 @@ let main original_filename optimized_filename hint_filename =
   let ist2 = SlotTracker.create_of_module im2 in
   (* let _ = Gc.full_major () in *)
   let _ = debug_print "coqim2" in
-  let coqim2 = 
-    try Tt.translate_module (*true*) !Globalstates.debug ist2 im2 with 
-    | Failure ("InlineAsmVal: Not_Supported.") -> 
+  let coqim2 =
+    try Tt.translate_module (*true*) !Globalstates.debug ist2 im2 with
+    | Failure ("InlineAsmVal: Not_Supported.") ->
       (print_endline "Validation aborted: InlineAsmVal"; exit 0)
     | Failure ("BlockAddress isnt Constant") ->
       (print_endline "Validation aborted: BlockAddress"; exit 0)
@@ -63,7 +63,7 @@ let main original_filename optimized_filename hint_filename =
   (* let _ = print_endline "translated rm" in *)
   (* let _ = Coq_pretty_printer.travel_module coqim2 in *)
   let _ = debug_print "something big2" in
-  let _ = 
+  let _ =
     (if !Globalstates.debug then dump_module im2);
     (if !Globalstates.debug then Llvm_pretty_printer.travel_module ist2 im2);
     (if !Globalstates.debug then Coq_pretty_printer.travel_module coqim2);
@@ -87,7 +87,7 @@ let main original_filename optimized_filename hint_filename =
 
   (* read hint *)
   let _ = debug_print "atdgen read hint" in
-  let raw_hint = Ag_util.Json.from_file CoreHint_j.read_hints hint_filename in
+  let hint_ocaml = Ag_util.Json.from_file CoreHint_j.read_hints hint_filename in
   (*let raw_hint_json = Yojson.Safe.prettify ~std:true (CoreHint_j.string_of_hints raw_hint) in
   print_endline raw_hint_json; *)
 
@@ -97,19 +97,21 @@ let main original_filename optimized_filename hint_filename =
 
   (* translate hint *)
   let _ = debug_print "translate hint" in
-  let (coqim1,coqim2,hint) = TranslateCoreHint.translate_corehint_to_hint coqim1 coqim2 raw_hint in
+  let coqim1 = ConvertHint.insert_nop coqim1 (failwith "TODO") in
+  let coqim2 = ConvertHint.insert_nop coqim2 (failwith "TODO") in
+  let hint = ConvertHint.convert coqim1 coqim2 hint_ocaml in
   (*let _ = print_endline "hint translated" in
   let _ = print_endline (PrintHints.string_of_module_hint hint) in
-  let _ = print_endline "noop1" in 
+  let _ = print_endline "noop1" in
   let _ = print_endline (TranslateCoreHint.string_of_product_noop noop1) in
-  let _ = print_endline "noop2" in 
+  let _ = print_endline "noop2" in
   let _ = print_endline (TranslateCoreHint.string_of_product_noop noop2) in*)
 
 
   (* validation *)
   let _ = debug_print "validation" in
   let validation_result = Validator.valid_module hint coqim1 coqim2 in
-  let _ = if validation_result 
+  let _ = if validation_result
     then print_endline "Validation succeeded."
     else (prerr_endline "Validation failed."; exit 1)
   in
@@ -121,13 +123,13 @@ let main original_filename optimized_filename hint_filename =
 
 let argspec = [
   ("-d", Set Globalstates.debug, "debug");
-  ("-o", String (fun s -> 
+  ("-o", String (fun s ->
                  try out_file := open_out s
-                 with Sys_error _ -> failwith ("cannot open " ^ s)), 
+                 with Sys_error _ -> failwith ("cannot open " ^ s)),
    "output file")
 ]
 
-let () = 
+let () =
   let worklist = ref [] in
   Arg.parse argspec (fun f -> worklist := f :: !worklist) "Validation \n";
   match !worklist with

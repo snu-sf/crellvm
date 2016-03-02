@@ -2,6 +2,7 @@ open Printf
 open Llvm
 open Arg
 open Yojson.Basic.Util
+open MetatheoryAtom
 open Syntax.LLVMsyntax
 open CoreHint_t
 open Infrastructure
@@ -10,41 +11,45 @@ open Exprs
 open APInt
 open Datatype_base
 
+type atom = AtomImpl.atom
 
 module Position = struct
-  (* line number starts from 0 *)
-  let rec get_pos_in_cmds (id:string) (cmds:LLVMsyntax.cmds) (n:int) : int =
-  match cmds with
-  | [] -> failwith "translateCoreHint: get_pos_in_cmds"
-  | cmd::cmds ->
-     let cmd_id = LLVMinfra.getCmdLoc cmd in (* getCmdID? *)
-     if (id = cmd_id) then n
-     else get_pos_in_cmds id cmds (n+1)
+  type idx =
+    | Phinode of atom
+    | Command of int
 
-  (* TODO: name get_pos? *)
-  let get_pos_from_command (pos_cmd:CoreHint_t.position_command)
-                           (lfdef:LLVMsyntax.fdef)
-                           (rfdef:LLVMsyntax.fdef)
-      : string * int =
-    let fdef =
-      match pos_cmd.scope with
-      | CoreHint_t.Source -> lfdef
-      | CoreHint_t.Target -> rfdef
-    in
-    let var_id = pos_cmd.var_name in
-    match (LLVMinfra.lookupBlockViaIDFromFdef fdef var_id) with
-    | Some (l, Coq_stmts_intro (_, cmds, _)) ->
-       (l, get_pos_in_cmds var_id cmds 0)
-    | None -> failwith "translateCoreHint: position_of_var"
+  type t = atom * idx
 
-  let get_block_name_from_position (pos:CoreHint_t.position)
-                                 (lfdef:LLVMsyntax.fdef)
-                                 (rfdef:LLVMsyntax.fdef) : string =
+  type range =
+    | Bounds of (t * t)
+    | Global
+
+  let convert (pos:CoreHint_t.position)
+              (lfdef:LLVMsyntax.fdef)
+              (rfdef:LLVMsyntax.fdef): t =
   match pos with
-  | CoreHint_t.Phinode phinode -> phinode.block_name
+  | CoreHint_t.Phinode phinode ->
+     (phinode.block_name, Phinode phinode.prev_block_name)
   | CoreHint_t.Command command ->
-      let (bid, _) = get_pos_from_command command lfdef rfdef in
-      bid
+     let fdef =
+       if command.scope = CoreHint_t.Source
+       then lfdef
+       else rfdef
+     in
+     let (l, Coq_stmts_intro (_, cmds, _)) =
+       TODOCAML.get (LLVMinfra.lookupBlockViaIDFromFdef fdef command.var_name)
+     in
+     let (idx, _) =
+       TODOCAML.findi
+         (fun _ cmd -> LLVMinfra.getCmdLoc cmd = command.var_name)
+         cmds
+     in
+     (l, Command idx)
+
+  let convert_range (range:CoreHint_t.propagate_range) (lfdef:fdef) (rfdef:fdef) =
+    match range with
+    | CoreHint_t.Bounds (f, t) -> Bounds (convert f lfdef rfdef, convert t lfdef rfdef)
+    | CoreHint_t.Global -> Global
 end
 
 module Convert = struct

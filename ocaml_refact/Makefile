@@ -21,18 +21,18 @@ OCAMLBUILD_OPT = -r \
 	-lflags -cclib,-lLLVMBitWriter \
 	-lflags $(LIB_FILES)
 
-MLS = extraction/FMapWeakList.ml extraction/FMapWeakList.mli\
-	extraction/extraction_defs.ml extraction/extraction_defs.mli\
-	extraction/Hints.ml extraction/Hints.mli\
-	extraction/Validator.ml extraction/Validator.mli\
-	extraction/Exprs.ml extraction/Exprs.mli\
-	extraction/Infrules.ml extraction/Infrules.mli\
-	extraction/Postcond.ml extraction/Postcond.mli\
-	extraction/TODO.ml extraction/TODO.mli\
-	corehint/coreHint_j.ml corehint/coreHint_j.mli\
-	corehint/coreHint_t.ml corehint/coreHint_t.mli\
-	coq2ml.ml coreHintUtil.ml domTreeUtil.ml translateCoreHint.ml\
-	main.ml propagateHints.ml addInfrule.ml convertInfrule.ml tt.ml
+MLS = extraction/FMapWeakList.ml extraction/FMapWeakList.mli \
+	extraction/extraction_defs.ml extraction/extraction_defs.mli \
+	extraction/Hints.ml extraction/Hints.mli \
+	extraction/Validator.ml extraction/Validator.mli \
+	extraction/Exprs.ml extraction/Exprs.mli \
+	extraction/Infrules.ml extraction/Infrules.mli \
+	extraction/Postcond.ml extraction/Postcond.mli \
+	extraction/TODO.ml extraction/TODO.mli \
+	corehint/coreHint_j.ml corehint/coreHint_j.mli \
+	corehint/coreHint_t.ml corehint/coreHint_t.mli \
+	coq2ml.ml convertUtil.ml domTreeUtil.ml convertHint.ml TODOCAML.ml \
+	main.ml propagateHint.ml addInfrule.ml convertInfrule.ml tt.ml
 
 all: main.native
 

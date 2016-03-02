@@ -12,7 +12,7 @@ open Extraction_defs
 open Dom_list
 open Dom_tree
 open CoreHint_t
-open CoreHintUtil
+open ConvertUtil
 open DomTreeUtil
 open Hints
 open Exprs
@@ -117,7 +117,7 @@ let convert_propagate_expr_to_Expr
   | CoreHint_t.Const (c:CoreHint_t.constant) ->
      failwith "TODO"
 
-let convert_propagate_object_to_invariant
+let convert_propagate_object
       (c_prop_obj:CoreHint_t.propagate_object)
       (lfdef:LLVMsyntax.fdef) (rfdef:LLVMsyntax.fdef)
     : invariant_object =
@@ -145,20 +145,13 @@ let position_lt (p1:position) (p2:position): bool =
   (* else false *)
 
 let propagate_hint
-      (prop_obj:CoreHint_t.propagate_object)
-      (prop_range:CoreHint_t.propagate_range)
       (lfdef:LLVMsyntax.fdef)
-      (rfdef:LLVMsyntax.fdef)
-      (dom_tree:atom coq_DTree)
-      (vhint_fdef:ValidationHint.fdef)
+      (dtree_lfdef:atom coq_DTree)
+      (invariant:invariant_object)
+      (range:Position.range)
+      (hint_fdef:ValidationHint.fdef)
     : ValidationHint.fdef =
-  let inv_obj =
-    convert_propagate_object_to_invariant prop_obj lfdef rfdef in
-  match prop_range with
-  | CoreHint_t.Bounds (pos_from, pos_to) ->
-     (* TODO *)
-     vhint_fdef
-  | _ -> vhint_fdef
+  failwith "TODO"
 
 (* TODO: find bids
      propagate_invariant inv_obj (pos_from=pos_from) (pos_to=pos_to)

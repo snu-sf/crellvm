@@ -85,12 +85,7 @@ type propagate = {
 (*             Inference rules           *)
 (*****************************************)
 
-type infrule_base = {
-  position : position;
-}
-
 type add_associative = {
-  inherit infrule_base;
   x : variable;
   y : variable;
   z : variable;
@@ -101,66 +96,55 @@ type add_associative = {
 }
 
 type add_sub = {
-  inherit infrule_base;
   minusy : variable;
   z : variable;
 }
 
 type add_commutative = {
-  inherit infrule_base;
   z : variable;
 }
 
 type add_shift = {
-  inherit infrule_base;
   y : variable;
 }
 
 type add_signbit = {
-  inherit infrule_base;
   x : variable;
 }
 
 type add_onebit = {
-  inherit infrule_base;
   z : variable;
 }
 
 type add_zext_bool = {
-  inherit infrule_base;
   x : variable;
   y : variable;
 }
 
 type add_const_not = {
-  inherit infrule_base;
   z : variable;
   y : variable;
 }
 
 type add_mask = {
-  inherit infrule_base;
   z : variable;
   y : variable;
   yp : variable;
 }
 
 type add_select_zero = {
-  inherit infrule_base;
   z : variable;
   x : variable;
   y : variable;
 }
 
 type add_select_zero2 = {
-  inherit infrule_base;
   z : variable;
   x : variable;
   y : variable;
 }
 
 type add_dist_sub = {
-  inherit infrule_base;
   z : variable;
   minusx : variable;
   minusy : variable;
@@ -168,7 +152,6 @@ type add_dist_sub = {
 }
 
 type mul_add_distributive = {
-  inherit infrule_base;
   z : variable;
   x : variable;
   y : variable;
@@ -176,93 +159,77 @@ type mul_add_distributive = {
 }
 
 type sub_add = {
-  inherit infrule_base;
   minusy : variable;
   z : variable;
 }
 
 type sub_mone = {
-  inherit infrule_base;
   z : variable;
 }
 
 type sub_const_not = {
-  inherit infrule_base;
   y : variable;
   z : variable;
 }
 
 type sub_remove = {
-  inherit infrule_base;
   y : variable;
   z : variable;
 }
 
 type sub_remove2 = {
-  inherit infrule_base;
   y : variable;
   z : variable;
 }
 
 type sub_onebit = {
-  inherit infrule_base;
   z : variable;
 }
 
 type sub_const_add = {
-  inherit infrule_base;
   y : variable;
   z : variable;
 }
 
 type sub_sdiv = {
-  inherit infrule_base;
   y : variable;
   z : variable;
 }
 
 type sub_shl = {
-  inherit infrule_base;
   x : variable;
   y : variable;
   z : variable;
 }
 
 type mul_bool = {
-  inherit infrule_base;
   z :variable;
 }
 
 type mul_mone = {
-  inherit infrule_base;
   z : variable;
 }
 
 type mul_neg = {
-  inherit infrule_base;
   z : variable;
   mx : variable;
   my : variable;
 }
 
 type mul_commutative = {
-  inherit infrule_base;
   z : variable;
 }
 
 type mul_shl = {
-  inherit infrule_base;
   z : variable;
   y : variable;
 }
 
 type div_mone = {
-  inherit infrule_base;
   z : variable;
 }
 
 type and_de_morgan = {
-  inherit infrule_base;
   z : variable;
   x : variable;
   y : variable;
@@ -270,20 +237,17 @@ type and_de_morgan = {
 }
 
 type rem_neg = {
-  inherit infrule_base;
   z : variable;
   my : variable;
 }
 
 type div_sub_srem = {
-  inherit infrule_base;
   z : variable;
   b : variable;
   a : variable;
 }
 
 type div_sub_urem = {
-  inherit infrule_base;
   z : variable;
   b : variable;
   a : variable;
@@ -326,7 +290,7 @@ type infrule = [
 
 type command = [
   | Propagate of propagate
-  | Infrule of infrule
+  | Infrule of (position * infrule)
   ] <ocaml repr="classic">
 
 type hints = {
