@@ -1,6 +1,6 @@
 Require Import syntax.
 Require Import alist.
-Require Import decs.
+Require Import Decs.
 
 Require Import Metatheory.
 Import LLVMsyntax.
@@ -125,8 +125,8 @@ Module ValueTPair <: UsualDecidableType.
   Definition eq_trans := @trans_eq t.
   Definition eq_dec (x y:t): {x = y} + {x <> y}.
   Proof.
-    apply ott_list_eq_dec.pair_eq_dec;
-      apply ValueT.eq_dec.
+    apply prod_dec;
+    apply ValueT.eq_dec.
   Defined.
 End ValueTPair.
 Hint Resolve ValueTPair.eq_dec: EqDecDb.
@@ -159,7 +159,7 @@ Module Expr <: UsualDecidableType.
   Proof.
     decide equality;
       try (apply list_eq_dec);
-      try (apply ott_list_eq_dec.pair_eq_dec);
+      try (apply prod_dec);
       try (apply IdT.eq_dec);
       try (apply ValueT.eq_dec);
       try (apply id_dec);
@@ -190,7 +190,7 @@ Module ExprPair <: UsualDecidableType.
   Definition eq_trans := @trans_eq t.
   Definition eq_dec (x y:t): {x = y} + {x <> y}.
   Proof.
-    apply ott_list_eq_dec.pair_eq_dec;
+    apply prod_dec;
       apply Expr.eq_dec.
   Defined.
 End ExprPair.

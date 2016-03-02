@@ -1,14 +1,14 @@
-(* open Interpreter *)
 open Printf
 open Llvm
 open Arg
-
 open Yojson.Basic.Util
 open Syntax.LLVMsyntax
 open CoreHint_t
-
+open Infrastructure
+open Syntax
 open Exprs
 open APInt
+open Datatype_base
 
 
 module Position = struct
@@ -19,7 +19,7 @@ module Position = struct
   | cmd::cmds ->
      let cmd_id = LLVMinfra.getCmdLoc cmd in (* getCmdID? *)
      if (id = cmd_id) then n
-     else find_position_in_cmds id cmds (n+1)
+     else get_pos_in_cmds id cmds (n+1)
 
   (* TODO: name get_pos? *)
   let get_pos_from_command (pos_cmd:CoreHint_t.position_command)
@@ -43,13 +43,13 @@ module Position = struct
   match pos with
   | CoreHint_t.Phinode phinode -> phinode.block_name
   | CoreHint_t.Command command ->
-      let (bid, _) = get pos_from_command command lfdef rfdef in
+      let (bid, _) = get_pos_from_command command lfdef rfdef in
       bid
 end
 
 module Convert = struct
-  let variable_to_rhs_Expr (var:CoreHint_t) (fdef:LLVMsyntax.fdef) : Expr.t =
-    let var_id = variable.name in
+  let variable_to_rhs_Expr (var:CoreHint_t.variable) (fdef:LLVMsyntax.fdef) : Expr.t =
+    let var_id = var.name in
     match LLVMinfra.lookupInsnViaIDFromFdef fdef var_id with
     | Some insn ->
        (match insn with
@@ -57,7 +57,9 @@ module Convert = struct
         | LLVMsyntax.Coq_insn_cmd c ->
            (match c with
             | LLVMsyntax.Coq_insn_bop (_, bop, sz, v1, v2) ->
-               ..
+               (* TODO *)
+               failwith "TODO"
+            | _ -> failwith "TODO"
            )
         | LLVMsyntax.Coq_insn_terminator _ -> failwith "coreHintUtil: get_rhs_from_var terminator"
        )
@@ -66,9 +68,9 @@ module Convert = struct
   let variable_to_IdT (var:CoreHint_t.variable) : IdT.t =
     let tag =
       match var.tag with
-      | CoreHint_t.Physical -> Tag.physical
-      | CoreHint_t.Previous -> Tag.previous
-      | CoreHint_t.Ghost -> Tag.ghost
+      | CoreHint_t.Physical -> Tag.Coq_physical
+      | CoreHint_t.Previous -> Tag.Coq_previous
+      | CoreHint_t.Ghost -> Tag.Coq_ghost
     in
     (tag, var.name)
 
@@ -76,7 +78,7 @@ module Convert = struct
     let (is_signed, sz) =
       match const_int.int_type with
       | IntType (is_signed, sz) -> (is_signed, sz) in
-    APInt.of_int64 sz const_int.int_value is_signed
+    APInt.of_int64 sz (Int64.of_int const_int.int_value) is_signed
 
   let size_to_sz (sz:CoreHint_t.size): LLVMsyntax.sz =
     match sz with

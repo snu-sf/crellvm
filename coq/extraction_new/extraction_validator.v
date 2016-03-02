@@ -8,6 +8,7 @@ Require Import Hints.
 Require Import Exprs.
 Require Import Postcond.
 Require Import TODO.
+Require Import Decs.
 
 
 Require Import extraction_core.
@@ -78,5 +79,6 @@ Extraction Library Postcond.
 (* Extraction Library basic_aux. *)
 (* Extraction Library vars_aux. *)
 Extraction Library Infrules.
+Extraction Library Decs.
 (* Extraction Library my_gvar_dec. *)
 Extraction Library Validator.

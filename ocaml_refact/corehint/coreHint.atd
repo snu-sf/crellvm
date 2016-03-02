@@ -40,7 +40,7 @@ type const_float = {
   float_type : float_type;
 }
 
-type constant = [ ConstInt of const_int | ConstInt of const_float ] <ocaml repr="classic">
+type constant = [ ConstInt of const_int | ConstFloat of const_float ] <ocaml repr="classic">
 
 type size = [ Size of int ] <ocaml repr="classic">
 
@@ -72,7 +72,7 @@ type propagate_object = [
   ] <ocaml repr="classic">
 
 type propagate_range = [
-  | Bounds of position * position
+  | Bounds of (position * position)
   | Global
   ] <ocaml repr="classic">
 

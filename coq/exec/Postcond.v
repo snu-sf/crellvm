@@ -11,7 +11,7 @@ Import LLVMinfra.
 
 Require Import Exprs.
 Require Import Hints.
-Require Import decs.
+Require Import Decs.
 Require Import TODO.
 
 Import ListNotations.
