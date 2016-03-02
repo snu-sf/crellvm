@@ -5,6 +5,7 @@ Require Import FMapWeakList.
 Require Import Coqlib.
 Require Import infrastructure.
 Require Import Metatheory.
+Require Import sflib.
 Import LLVMsyntax.
 Import LLVMinfra.
 
@@ -84,3 +85,143 @@ Definition mapiAL A B (f: atom -> A -> B) (l:AssocList A): AssocList B :=
     (fun (p:atom * A) =>
        let (atom, a) := p in (atom, (f atom a)))
     l.
+
+(* Find FIRST occurence of element satisfying f. *)
+(* If there is not, return None *)
+Fixpoint find_index (A : Type) (l : list A) (f : A -> bool) : option nat :=
+  match l with
+      | nil => None
+      | head :: tail => (if(f head) then Some 0%nat else option_map (fun p => (1 + p)) (find_index tail f))%nat
+  end.
+
+Eval simpl in (find_index (1 :: 3 :: 5 :: 7 :: 6 :: 8 :: nil) Nat.even)%nat.
+(* should be 4 *)
+Eval simpl in (find_index (2 :: 3 :: 5 :: 7 :: 6 :: 8 :: nil) Nat.even)%nat.
+(* should be 0 *)
+
+Theorem find_index_sound : forall (A : Type) (l : list A) (f : A -> bool) (idx : nat),
+                             find_index l f = Some idx ->
+                             exists y, nth_error l idx = Some y ->
+                                       f y = true.
+Proof.
+  intros A l f. induction l; intros; simpl.
+  - simpl in H. inversion H.
+  - simpl in H.
+    remember (f a) as tmp.
+    destruct tmp.
+    + eexists; intros.
+      instantiate (1:=a).
+      rewrite <- Heqtmp. auto.
+    + destruct idx.
+      * unfold option_map in H. destruct (find_index l0 f); simpl in H; inversion H.
+      * exploit (IHl idx).
+        destruct (find_index l0 f); simpl in H; inversion H; subst; auto.
+        intro.
+        inv x0.
+        eexists; intro.
+        simpl in H1.
+        apply H0 in H1.
+        auto.
+Qed.
+
+Theorem find_index_complete : forall (A : Type) (l : list A) (f : A -> bool) (idx : nat),
+                                find_index l f = None ->
+                                (existsb f l) = false.
+Proof.
+  intros A l.
+  induction l; intros; simpl; auto.
+  simpl in H.
+  destruct (f a); simpl in H.
+  inversion H.
+  simpl. apply IHl; auto.
+  destruct (find_index l0 f); simpl in H; inversion H; auto.
+Qed.
+
+(* Insert element BEFORE index. If index is not in [0,length], return None. *)
+Fixpoint insert_at (A : Type) (l : list A) (idx : nat) (x : A) : option (list A) :=
+  match (idx, l) with
+    | (O, _) => Some (x :: l)
+    | (S idx', nil) => None
+    | (S idx', h :: t) => option_map (fun y => h :: y) (insert_at t idx' x)
+  end.
+
+Eval simpl in (insert_at (1 :: 2 :: 4 :: nil) 2 3).
+(* should be Some [1; 2; 3; 4] *)
+
+Ltac split_premises :=
+  repeat match goal with
+           | [ H: _ /\ _ |- _ ] => destruct H
+         end.
+
+Theorem insert_at_inside_bound : forall A (l : list A) idx x,
+                                 (idx <= (length l))%nat ->
+                                 exists l2,
+                                   insert_at l idx x = Some l2
+                                   /\ (length l + 1 = length l2)%nat
+                                   /\ nth_error l2 idx = Some x
+                                   /\ firstn idx l = firstn idx l2
+                                   /\ skipn idx l = skipn (idx +1) l2
+.
+Proof.
+  intros A l.
+  induction l; intros; simpl.
+  - eexists.
+    destruct idx; subst; simpl in *; inv H.
+    splits; auto.
+  - destruct idx.
+    + eexists.
+      splits; simpl; auto.
+      simpl.
+      rewrite Nat.add_comm; auto.
+    + remember (insert_at l0 idx x) as result.
+      destruct result; subst; simpl.
+      * exists (a :: l1).
+        exploit (IHl idx x). simpl in H. omega.
+        intro. inv x1.
+        split_premises.
+        rewrite <- Heqresult in H0.
+        inv H0.
+        splits; auto.
+        subst; simpl; auto.
+        rewrite H3. auto.
+      * exfalso.
+        exploit (IHl idx x).
+        simpl in H; omega.
+        intro.
+        inv x1.
+        split_premises.
+        rewrite <- Heqresult in H0.
+        inv H0.
+Qed.
+
+Theorem insert_at_outside_bound : forall A (l : list A) idx x,
+                                 (idx > (length l))%nat ->
+                                 insert_at l idx x = None.
+Proof.
+  intros A l.
+  induction l; intros; simpl in *; auto.
+  - destruct idx; inversion H; subst; simpl; auto.
+  - destruct idx; inversion H; subst; simpl; auto.
+    + unfold option_map.
+    exploit (IHl (S (length l0)) x); auto.
+    intro.
+    rewrite x1; auto.
+    + exploit (IHl idx x); auto; try omega.
+      intro.
+      rewrite x1.
+      auto.
+Qed.
+
+Fixpoint insert_at_guaranteed
+           (A : Type) (idx : nat) (l : list A)
+           (x : A) (H : (idx < length l)%nat) : list A.
+Proof.
+  destruct idx.
+  - apply (x :: l).
+  - destruct l as [| h t].
+    + simpl in H. omega.
+    + assert(G : (idx < (length t))%nat).
+      simpl in H.
+      apply lt_S_n in H. auto.
+      apply (h :: (insert_at_guaranteed A idx t x) G).
+Qed.

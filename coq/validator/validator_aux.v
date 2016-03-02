@@ -12,6 +12,7 @@ Require Import infrules.
 
 Require Import Metatheory.
 Require Export monad.
+Require Import TODO.
 
 Set Implicit Arguments.
 
@@ -1008,3 +1009,51 @@ Definition hint_invariant_implies (from_inv to_inv: invariant_t) : bool :=
 Definition invariant_implies (from_h to_h:insn_hint_t) : bool :=
   maydiff_implies (hint_maydiff from_h) (hint_maydiff to_h) &&
   hint_invariant_implies (hint_invariant from_h) (hint_invariant to_h).
+
+Parameter next_nop_id : blocks -> id.
+
+Fixpoint insert_nop (target : l * id) (bs : blocks) : option blocks :=
+  match bs with
+    | nil => Some nil
+    | head :: tail =>
+      let (target_label, target_id) := target in
+      let (head_label, head_stmts) := head in
+      if (eq_atom_dec target_label head_label)
+      then
+        let (head_phis, head_cmds, head_term) := head_stmts in
+        (* #1 target_id is in head_phis -> insert as first of cmds *)
+        (* #2 target_id is in head_cmds -> insert after that cmd *)
+        (* #3 target_id is in head_term-> None *)
+        let idx_ := find_index head_phis
+                               (fun x => eq_atom_dec (getPhiNodeID x) target_id) in
+        let new_nop := insn_nop (next_nop_id bs) in
+        let make_blocks := (fun x => Some ((head_label, x) :: tail)) in
+        match idx_ with
+            (* #1 *)
+          | Some _ => make_blocks (stmts_intro head_phis
+                                               (new_nop :: head_cmds)
+                                               head_term)
+          | None =>
+            let idy_ := find_index head_cmds
+                                   (fun x => eq_atom_dec (getCmdLoc x) target_id) in
+            match idy_ with
+              (* #2 *)
+              | Some idy => match (insert_at head_cmds (idy + 1) new_nop) with
+                              | Some new_head_cmds => make_blocks
+                                                        (stmts_intro head_phis
+                                                                     new_head_cmds
+                                                                     head_term)
+                              (* This should not occur *)
+                              | None => None
+                            end
+              (* #3 *)
+              | None => None
+            end
+        end
+      else option_map (fun x => head :: x) (insert_nop target tail)
+  end.
+
+Definition insert_nops (targets : list (l * id)) (bs : blocks) : option blocks :=
+  List.fold_left (fun (s : option blocks) i
+                  => mjoin blocks (option_map (fun x => insert_nop i x) s))
+                                        targets (Some bs).
