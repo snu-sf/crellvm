@@ -1,5 +1,5 @@
 COQMODULE     := LLVMBerry
-COQDEFINITION := $(wildcard coq/validator/*.v)
+COQDEFINITION := $(wildcard coq/exec/*.v coq/validator/*.v)
 COQEXTRACT    := $(wildcard coq/extraction/*.v)
 COQPROOF      := $(filter-out $(COQEXTRACT), $(filter-out $(COQDEFINITION), $(wildcard coq/*/*.v)))
 COQTHEORIES   := $(COQDEFINITION) $(COQEXTRACT) $(COQPROOF)
@@ -57,6 +57,13 @@ extract: definition $(COQEXTRACT)
 
 exec: extract
 	$(MAKE) -C ocaml
+
+# TODO: remove this after refactoring
+extract_refact: definition
+	$(MAKE) -C coq/extraction_new
+
+refact: extract_refact
+	$(MAKE) -C ocaml_refact
 
 proof: definition $(COQPROOF)
 	$(MAKE) -f Makefile.coq $(patsubst %.v,%.vo,$(COQPROOF))
