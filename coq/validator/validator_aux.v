@@ -1028,7 +1028,7 @@ Fixpoint insert_nop (target : l * id) (bs : blocks) : option blocks :=
         let (head_phis, head_cmds, head_term) := head_stmts in
         (* #1 target_id is in head_phis -> insert as first of cmds *)
         (* #2 target_id is in head_cmds -> insert after that cmd *)
-        (* #3 target_id is in head_term-> None *)
+        (* #3 target_id is in head_term or not in anywhere -> None *)
         let idx_ := find_index head_phis
                                (fun x => eq_atom_dec (getPhiNodeID x) target_id) in
         let new_nop := insn_nop (next_nop_id bs) in
