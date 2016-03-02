@@ -9,7 +9,6 @@ open Arg
 open Syntax
 open MetatheoryAtom
 open Extraction_defs
-open Utility
 open Dom_list
 open Dom_tree
 open CoreHint_t
@@ -46,7 +45,7 @@ module Reachable = struct
                        visit_f := true
                      else ()
                    in
-                   if AtomSetImpl.mem succ visit or not (AtomSetImpl.mem succ ids)
+                   if AtomSetImpl.mem succ visit || not (AtomSetImpl.mem succ ids)
                    then (worklist, visit)
                    else (succ::worklist, AtomSetImpl.add succ visit))
                  (worklist, visit)
@@ -84,7 +83,7 @@ module Reachable = struct
     r [f] AtomSetImpl.empty
 
   (* the set of nodes that is reachable to "t" without visiting "f" in "fd". *)
-  let to (t:atom) (ids:AtomSetImpl.t) (fd:LLVMsyntax.fdef) : bool * AtomSetImpl.t =
+  let to_block (t:atom) (ids:AtomSetImpl.t) (fd:LLVMsyntax.fdef) : bool * AtomSetImpl.t =
         if not (AtomSetImpl.mem t ids)
         then (false, AtomSetImpl.empty)
         else
@@ -92,55 +91,58 @@ module Reachable = struct
           _filtered t ids predecessors
 
   (* the set of nodes that is reachable from "f". *)
-  let from (f:atom) (fd:LLVMsyntax.fdef) : AtomSetImpl.t =
+  let from_block (f:atom) (fd:LLVMsyntax.fdef) : AtomSetImpl.t =
     _from f (Cfg.successors fd)
 end
 (* object for propagation *)
 
 type invariant_object =
   | Lessdef_obj of ExprPair.t
-  | Noalias_obj of ValueTPair.t
+  | Noalias_obj of IdT.t * IdT.t
   | Allocas_obj of IdT.t
   | Private_obj of IdT.t
 
 (** Convert propagate object to coq-defined objs **)
 
 (* TODO: fix convert_propagate_*, current code is wrong *)
-let convert_propagate_value_to_Expr
-      (pv:CoreHint_t.propagate_value) (fdef:LLVMsyntax.fdef)
+let convert_propagate_expr_to_Expr
+      (pv:CoreHint_t.propagate_expr)
+      (lfdef:LLVMsyntax.fdef) (rfdef:LLVMsyntax.fdef)
     : Expr.t =
   match pv with
   | CoreHint_t.Var (var:CoreHint_t.variable) ->
-     Expr.value (ValueT.id (convert_variable_to_IdT var))
+     Expr.Coq_value (ValueT.Coq_id (Convert.variable_to_IdT var))
   | CoreHint_t.Rhs (var:CoreHint_t.variable) ->
-     let instr = find_instr_from_fdef var.name fdef in
-     let rhs_exp = get_rhs instr in
-     rhs_exp
+     failwith "TODO"
+  | CoreHint_t.Const (c:CoreHint_t.constant) ->
+     failwith "TODO"
 
 let convert_propagate_object_to_invariant
       (c_prop_obj:CoreHint_t.propagate_object)
       (lfdef:LLVMsyntax.fdef) (rfdef:LLVMsyntax.fdef)
     : invariant_object =
   match c_prop_obj with
-  | CoreHint_t.Lessdef prop_ld
-     Lessdef_obj (convert_propagate_value_to_Expr prop_ld.lhs fdef,
-                  convert_propagate_value_to_Expr prop_ld.rhs fdef)
-  | CoreHint_t.Neq na ->
-     Noalias_obj (convert_value_to_ValueT na.lhs,
-                  convert_value_to_ValueT na.rhs
-)
+  | CoreHint_t.Lessdef prop_ld ->
+     Lessdef_obj (convert_propagate_expr_to_Expr prop_ld.lhs lfdef rfdef,
+                  convert_propagate_expr_to_Expr prop_ld.rhs lfdef rfdef)
+  | CoreHint_t.Noalias na ->
+     Noalias_obj (Convert.variable_to_IdT na.lhs,
+                  Convert.variable_to_IdT na.rhs)
+  | CoreHint_t.Maydiff v ->
+     failwith "TODO"
 
 let position_lt (p1:position) (p2:position): bool =
-  let (bid1, pib1) = p1 in
-  let (bid2, pib2) = p2 in
-  if bid1 = bid2 then
-    match pib2 with
-    | Phinode _ -> false
-    | Command n2 ->
-       (match pib1 with
-        | Phinode _ -> true
-        | Command n1 -> n1 < n2)
-  else false
+  failwith "TODO"
+  (* let (bid1, pib1) = p1 in *)
+  (* let (bid2, pib2) = p2 in *)
+  (* if bid1 = bid2 then *)
+  (*   match pib2 with *)
+  (*   | Phinode _ -> false *)
+  (*   | Command n2 -> *)
+  (*      (match pib1 with *)
+  (*       | Phinode _ -> true *)
+  (*       | Command n1 -> n1 < n2) *)
+  (* else false *)
 
 let propagate_hint
       (prop_obj:CoreHint_t.propagate_object)
@@ -154,7 +156,10 @@ let propagate_hint
     convert_propagate_object_to_invariant prop_obj lfdef rfdef in
   match prop_range with
   | CoreHint_t.Bounds (pos_from, pos_to) ->
-     let bids_to_prop =
+     (* TODO *)
+     vhint_fdef
+  | _ -> vhint_fdef
+
 (* TODO: find bids
      propagate_invariant inv_obj (pos_from=pos_from) (pos_to=pos_to)
                          lfdef rfdef bids

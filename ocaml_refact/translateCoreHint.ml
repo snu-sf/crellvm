@@ -4,18 +4,17 @@ open Llvm
 open Arg
 open Syntax
 open MetatheoryAtom
-open CommandArg
 open Dom_list
 open Dom_tree
 open Maps
 open CoreHint_t
 open PropagateHints
-
 open ConvertInfrule
 open Hints
 open Exprs
+open AddInfrule
 
-type atom = AtomSetImpl.t
+type atom = AtomSetImpl.elt
 
 let generate_nop (core_hint:CoreHint_t.hints) : int list = [] (* TODO *)
 
@@ -26,21 +25,21 @@ let insert_nop (m:LLVMsyntax.coq_module) (nops:int list) : LLVMsyntax.coq_module
 
 module EmptyHint = struct
   (* TODO: define in Coq *)
-  let unary : Invariant.unary =
+  let unary_hint : Invariant.unary =
     { lessdef = ExprPairSet.empty;
       noalias = ValueTPairSet.empty;
       allocas = IdTSet.empty;
       coq_private = IdTSet.empty;
     }
 
-  let invariant : Invariant.t =
-    { src = empty_unary;
-      tgt = empty_unary;
+  let invariant_hint : Invariant.t =
+    { src = unary_hint;
+      tgt = unary_hint;
       maydiff = IdTSet.empty;
     }
 
   (* TODO: check create_empty_hint_* again *)
-  let of_stmts (stmts: LLVMsyntax.stmts) : ValidationHint.stmts =
+  let stmts_hint (stmts: LLVMsyntax.stmts) : ValidationHint.stmts =
     match stmts with
     | Coq_stmts_intro (phinodes, cmds, _) ->
        let empty_hint_phinodes =
@@ -54,28 +53,28 @@ module EmptyHint = struct
            [] phinodes
        in
        let empty_hint_cmds =
-         List.map (fun _ -> ([], empty_invariant)) cmd
+         List.map (fun _ -> ([], invariant_hint)) cmds
        in
        { phinodes = empty_hint_phinodes;
-         invariant_after_phinodes = empty_invariant;
+         invariant_after_phinodes = invariant_hint;
          cmds = empty_hint_cmds;
        }
 
-  let of_fdef (fdef:LLVMsyntax.fdef) : atom * ValidationHint.fdef =
+  let fdef_hint (fdef:LLVMsyntax.fdef) : atom * ValidationHint.fdef =
     match fdef with
     | Coq_fdef_intro (Coq_fheader_intro (_,_,id,_,_), blks) ->
        (id, List.map (fun (bid, bstmts) ->
-                       (bid, create_empty_hint_stmts bstmts))
+                       (bid, stmts_hint bstmts))
                      blks)
 
-  let of_module (m:LLVMsyntax.coq_module) : ValidationHint.coq_module =
+  let module_hint (m:LLVMsyntax.coq_module) : ValidationHint.coq_module =
     match m with
     | Coq_module_intro (lo, nts, prods) ->
        List.fold_left
          (fun empty_hint_prods prod ->
            match prod with
-           | Coq_product_fdef fd ->
-              (create_empty_hint_fdef fd)::empty_hint_prods
+           | LLVMsyntax.Coq_product_fdef fd ->
+              (fdef_hint fd)::empty_hint_prods
            | _ -> empty_hint_prods)
          [] prods
 end
@@ -102,9 +101,11 @@ let translate_corehint_to_hint
       (lm:LLVMsyntax.coq_module) (rm:LLVMsyntax.coq_module) (* assume nop-insertion is done *)
       (core_hint:CoreHint_t.hints)
     : LLVMsyntax.coq_module * LLVMsyntax.coq_module * ValidationHint.coq_module =
+  (* TODO: insert nops *)
+  
   let fid = core_hint.function_id in
 
-  let (vhint_module:ValidationHint.coq_module) = EmptyHint.of_module lm in
+  let (vhint_module:ValidationHint.coq_module) = EmptyHint.module_hint lm in
   let vhint_module = noret vhint_module in (* TODO: noret? *)
 
   let (vhint_fdef, lfdef, rfdef) =
@@ -127,8 +128,8 @@ let translate_corehint_to_hint
 
   let vhint_fdef = List.fold_left
     (fun vhint_fdef core_cmd ->
-      execute_corehint_cmd vhint_fdef lfdef rfdef core_cmd dom_tree)
+      execute_corehint_cmd lfdef rfdef core_cmd dom_tree vhint_fdef)
     vhint_fdef core_hint.commands
-
+  in
   let vhint_module = Alist.updateAL vhint_module fid vhint_fdef in
   (lm, rm, vhint_module)
