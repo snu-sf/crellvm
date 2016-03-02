@@ -20,15 +20,16 @@ type atom = AtomImpl.atom
 let add_infrule_phinode (coq_infrule:Infrule.t)
                         (prev_block:atom)
                         (block_hint:ValidationHint.stmts) : ValidationHint.stmts =
-  let hint_phinodes =
+  let hint_phinodes = block_hint.ValidationHint.phinodes in
+  let new_hint_phinodes =
     let infrules =
-      match Alist.lookupAL block_hint.phinodes prev_block with
+      match Alist.lookupAL hint_phinodes prev_block with
       | None -> failwith "add_infrule_phinode: no previous block exists"
       | Some infrules -> infrules
     in
     let infrules = List.append infrules [coq_infrule] in
-    Alist.updateAL block_hint.phinodes prev_block infrules in
-  let block_hint = { block_hint with phinodes = hint_phinodes } in
+    Alist.updateAL hint_phinodes prev_block infrules in
+  let block_hint = { block_hint with ValidationHint.phinodes = new_hint_phinodes } in
   block_hint
 
 (* add an inference rule for a command *)
@@ -41,9 +42,9 @@ let add_infrule_command (infrule:Infrule.t)
       (fun n -> fun (infrules, inv) ->
                 if not (line_num = n) then (infrules, inv)
                 else (List.append infrules [infrule], inv))
-      block_hint.cmds
+      block_hint.ValidationHint.cmds
   in
-  let block_hint = { block_hint with cmds = hint_cmds } in
+  let block_hint = { block_hint with ValidationHint.cmds = hint_cmds } in
   block_hint
 
 (* add an inference rule at the "at" in the hint. *)
