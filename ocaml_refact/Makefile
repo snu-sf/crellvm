@@ -47,6 +47,14 @@ corehint/coreHint_j.ml: corehint/coreHint.atd
 	atdgen -t ./corehint/coreHint.atd
 	atdgen -j ./corehint/coreHint.atd
 
+corehint/coreHint_t.mli: corehint/coreHint.atd
+	atdgen -t ./corehint/coreHint.atd
+	atdgen -j ./corehint/coreHint.atd
+
+corehint/coreHint_j.mli: corehint/coreHint.atd
+	atdgen -t ./corehint/coreHint.atd
+	atdgen -j ./corehint/coreHint.atd
+
 clean:
 	rm ./corehint/coreHint_j.mli
 	rm ./corehint/coreHint_t.mli
