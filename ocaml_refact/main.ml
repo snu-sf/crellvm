@@ -33,7 +33,7 @@ let read_im filename =
   (* let _ = Gc.full_major () in *)
 
   let _ = debug_print "  coqim.." in
-  let coqim = Tt.translate_module !Globalstates.debug ist im in
+  let coqim = Llvm2coq.translate_module !Globalstates.debug ist im in
   let _ = debug_run (fun _ -> Coq_pretty_printer.travel_module coqim) in
 
   (* TODO: we commented the following out in order to prevent segfaults. *)
