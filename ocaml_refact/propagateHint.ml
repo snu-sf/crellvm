@@ -110,9 +110,9 @@ let convert_propagate_expr_to_Expr
       (lfdef:LLVMsyntax.fdef) (rfdef:LLVMsyntax.fdef)
     : Expr.t =
   match pv with
-  | CoreHint_t.Var (var:CoreHint_t.variable) ->
-     Expr.Coq_value (ValueT.Coq_id (Convert.variable var))
-  | CoreHint_t.Rhs (var:CoreHint_t.variable) ->
+  | CoreHint_t.Var (var:CoreHint_t.register) ->
+     Expr.Coq_value (ValueT.Coq_id (Convert.register var))
+  | CoreHint_t.Rhs (var:CoreHint_t.register) ->
      failwith "TODO"
   | CoreHint_t.Const (c:CoreHint_t.constant) ->
      failwith "TODO"
@@ -126,8 +126,8 @@ let convert_propagate_object
      Lessdef_obj (convert_propagate_expr_to_Expr prop_ld.lhs lfdef rfdef,
                   convert_propagate_expr_to_Expr prop_ld.rhs lfdef rfdef)
   | CoreHint_t.Noalias na ->
-     Noalias_obj (Convert.variable na.lhs,
-                  Convert.variable na.rhs)
+     Noalias_obj (Convert.register na.lhs,
+                  Convert.register na.rhs)
   | CoreHint_t.Maydiff v ->
      failwith "TODO"
 
