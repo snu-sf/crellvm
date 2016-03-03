@@ -24,6 +24,30 @@ module Position = struct
     | Bounds of (t * t)
     | Global
 
+  let any_phinode_idx: idx = Phinode "any"
+
+  let idx_lt (i:idx) (j:idx): bool =
+    match j with
+    | Phinode _ -> false
+    | Command n ->
+       (match i with
+        | Phinode _ -> true
+        | Command m -> m < n)
+
+  let idx_le (i:idx) (j:idx): bool =
+    not (idx_lt j i)
+
+  let next_idx (cur_idx:idx): idx =
+    match cur_idx with
+    | Phinode _ -> Command 0
+    | Command n -> Command (n+1)
+
+  let final_idx (bid:atom) (fdef:LLVMsyntax.fdef): idx =
+    match LLVMinfra.lookupBlockViaIDFromFdef fdef bid with
+    | None -> failwith "Position.final_idx: bid not exist"
+    | Some (_, LLVMsyntax.Coq_stmts_intro (_, cmds, _)) ->
+       Command (List.length cmds)
+
   let convert (pos:CoreHint_t.position)
               (lfdef:LLVMsyntax.fdef)
               (rfdef:LLVMsyntax.fdef): t =
