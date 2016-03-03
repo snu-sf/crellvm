@@ -110,9 +110,9 @@ let convert_propagate_expr_to_Expr
       (lfdef:LLVMsyntax.fdef) (rfdef:LLVMsyntax.fdef)
     : Expr.t =
   match pv with
-  | CoreHint_t.Var (var:CoreHint_t.register) ->
-     Expr.Coq_value (ValueT.Coq_id (Convert.register var))
-  | CoreHint_t.Rhs (var:CoreHint_t.register) ->
+  | CoreHint_t.Var (register:CoreHint_t.register) ->
+     Expr.Coq_value (ValueT.Coq_id (Convert.register register))
+  | CoreHint_t.Rhs (register:CoreHint_t.register) ->
      failwith "TODO"
   | CoreHint_t.Const (c:CoreHint_t.constant) ->
      failwith "TODO"

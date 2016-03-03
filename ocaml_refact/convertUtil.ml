@@ -37,11 +37,11 @@ module Position = struct
        else rfdef
      in
      let (l, Coq_stmts_intro (_, cmds, _)) =
-       TODOCAML.get (LLVMinfra.lookupBlockViaIDFromFdef fdef command.var_name)
+       TODOCAML.get (LLVMinfra.lookupBlockViaIDFromFdef fdef command.register_name)
      in
      let (idx, _) =
        TODOCAML.findi
-         (fun _ cmd -> LLVMinfra.getCmdLoc cmd = command.var_name)
+         (fun _ cmd -> LLVMinfra.getCmdLoc cmd = command.register_name)
          cmds
      in
      (l, Command idx)
@@ -59,8 +59,8 @@ module Convert = struct
     | CoreHint_t.Previous -> Tag.Coq_previous
     | CoreHint_t.Ghost -> Tag.Coq_ghost
 
-  let register (var:CoreHint_t.register) : IdT.t =
-    (tag var.tag, var.name)
+  let register (register:CoreHint_t.register) : IdT.t =
+    (tag register.tag, register.name)
 
   let const_int (const_int:CoreHint_t.const_int): INTEGER.t =
     let (is_signed, sz) =
@@ -76,9 +76,9 @@ module Convert = struct
     | Coq_value_id id -> ValueT.Coq_id (Tag.Coq_physical, id)
     | Coq_value_const const -> ValueT.Coq_const const
 
-  let rhs_of (var:CoreHint_t.register) (fdef:LLVMsyntax.fdef) : Expr.t =
-    let var_id = var.name in
-    let insn = TODOCAML.get (LLVMinfra.lookupInsnViaIDFromFdef fdef var_id) in
+  let rhs_of (register:CoreHint_t.register) (fdef:LLVMsyntax.fdef) : Expr.t =
+    let register_id = register.name in
+    let insn = TODOCAML.get (LLVMinfra.lookupInsnViaIDFromFdef fdef register_id) in
       match insn with
       | LLVMsyntax.Coq_insn_cmd c ->
          (match c with
