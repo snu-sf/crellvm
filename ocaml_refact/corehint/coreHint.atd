@@ -7,21 +7,21 @@ type position_phinode = {
 
 type position_command = {
   scope : scope;
-  var_name : string;
+  register_name : string;
 }
 
-(* Position of an instruction is phinode or variable *)
+(* Position of an instruction is phinode or register *)
 type position = [
   | Phinode of position_phinode
   | Command of position_command
   ] <ocaml repr="classic">
 
-(* If tag of variable is one of Physical, Previous, and Ghost *)
+(* If tag of register is one of Physical, Previous, and Ghost *)
 type tag = [ Physical | Previous | Ghost ] <ocaml repr="classic">
 
 type register = {
-  name : string; (* identifier of a variable *)
-  tag : tag;     (* indicates whether this variable is physical or previous or ghost *)
+  name : string; (* identifier of a register *)
+  tag : tag;     (* indicates whether this register is physical or previous or ghost *)
 }
 
 (* integer type of signed, bitsize *)
@@ -59,12 +59,13 @@ type propagate_lessdef = {
   rhs : propagate_expr;
   scope : scope;
 }
-(* TODO: noat variable, but value *)
+
 type propagate_noalias = {
   lhs : register;
   rhs : register;
   scope : scope;
 }
+
 type propagate_object = [
   | Lessdef of propagate_lessdef
   | Noalias of propagate_noalias
