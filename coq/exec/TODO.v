@@ -203,17 +203,3 @@ Proof.
       rewrite x1.
       auto.
 Qed.
-
-Fixpoint insert_at_guaranteed
-           (A : Type) (idx : nat) (l : list A)
-           (x : A) (H : (idx < length l)%nat) : list A.
-Proof.
-  destruct idx.
-  - apply (x :: l).
-  - destruct l as [| h t].
-    + simpl in H. omega.
-    + assert(G : (idx < (length t))%nat).
-      simpl in H.
-      apply lt_S_n in H. auto.
-      apply (h :: (insert_at_guaranteed A idx t x) G).
-Qed.
