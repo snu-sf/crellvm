@@ -59,7 +59,7 @@ module Convert = struct
     | CoreHint_t.Previous -> Tag.Coq_previous
     | CoreHint_t.Ghost -> Tag.Coq_ghost
 
-  let variable (var:CoreHint_t.variable) : IdT.t =
+  let register (var:CoreHint_t.register) : IdT.t =
     (tag var.tag, var.name)
 
   let const_int (const_int:CoreHint_t.const_int): INTEGER.t =
@@ -76,7 +76,7 @@ module Convert = struct
     | Coq_value_id id -> ValueT.Coq_id (Tag.Coq_physical, id)
     | Coq_value_const const -> ValueT.Coq_const const
 
-  let rhs_of (var:CoreHint_t.variable) (fdef:LLVMsyntax.fdef) : Expr.t =
+  let rhs_of (var:CoreHint_t.register) (fdef:LLVMsyntax.fdef) : Expr.t =
     let var_id = var.name in
     let insn = TODOCAML.get (LLVMinfra.lookupInsnViaIDFromFdef fdef var_id) in
       match insn with

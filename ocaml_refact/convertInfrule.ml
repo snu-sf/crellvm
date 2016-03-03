@@ -21,9 +21,9 @@ open ConvertUtil
 let convert_infrule (infrule:CoreHint_t.infrule) : Infrule.t =
   match infrule with
   | CoreHint_t.AddAssociative (args:CoreHint_t.add_associative) ->
-     let x = Convert.variable args.x in
-     let y = Convert.variable args.y in
-     let z = Convert.variable args.z in
+     let x = Convert.register args.x in
+     let y = Convert.register args.y in
+     let z = Convert.register args.z in
      let c1 = Convert.const_int args.c1 in
      let c2 = Convert.const_int args.c2 in
      let c3 = Convert.const_int args.c3 in

@@ -19,7 +19,7 @@ type position = [
 (* If tag of variable is one of Physical, Previous, and Ghost *)
 type tag = [ Physical | Previous | Ghost ] <ocaml repr="classic">
 
-type variable = {
+type register = {
   name : string; (* identifier of a variable *)
   tag : tag;     (* indicates whether this variable is physical or previous or ghost *)
 }
@@ -49,8 +49,8 @@ type size = [ Size of int ] <ocaml repr="classic">
 (*****************************************)
 
 type propagate_expr = [
-  | Var of variable
-  | Rhs of variable
+  | Var of register
+  | Rhs of register
   | Const of constant
 ] <ocaml repr="classic">
 
@@ -61,14 +61,14 @@ type propagate_lessdef = {
 }
 (* TODO: noat variable, but value *)
 type propagate_noalias = {
-  lhs : variable;
-  rhs : variable;
+  lhs : register;
+  rhs : register;
   scope : scope;
 }
 type propagate_object = [
   | Lessdef of propagate_lessdef
   | Noalias of propagate_noalias
-  | Maydiff of variable
+  | Maydiff of register
   ] <ocaml repr="classic">
 
 type propagate_range = [
@@ -86,9 +86,9 @@ type propagate = {
 (*****************************************)
 
 type add_associative = {
-  x : variable;
-  y : variable;
-  z : variable;
+  x : register;
+  y : register;
+  z : register;
   c1 : const_int;
   c2 : const_int;
   c3 : const_int;
@@ -96,161 +96,161 @@ type add_associative = {
 }
 
 type add_sub = {
-  minusy : variable;
-  z : variable;
+  minusy : register;
+  z : register;
 }
 
 type add_commutative = {
-  z : variable;
+  z : register;
 }
 
 type add_shift = {
-  y : variable;
+  y : register;
 }
 
 type add_signbit = {
-  x : variable;
+  x : register;
 }
 
 type add_onebit = {
-  z : variable;
+  z : register;
 }
 
 type add_zext_bool = {
-  x : variable;
-  y : variable;
+  x : register;
+  y : register;
 }
 
 type add_const_not = {
-  z : variable;
-  y : variable;
+  z : register;
+  y : register;
 }
 
 type add_mask = {
-  z : variable;
-  y : variable;
-  yp : variable;
+  z : register;
+  y : register;
+  yp: register  ;
 }
 
 type add_select_zero = {
-  z : variable;
-  x : variable;
-  y : variable;
+  z : register;
+  x : register;
+  y : register;
 }
 
 type add_select_zero2 = {
-  z : variable;
-  x : variable;
-  y : variable;
+  z : register;
+  x : register;
+  y : register;
 }
 
 type add_dist_sub = {
-  z : variable;
-  minusx : variable;
-  minusy : variable;
-  w : variable;
+  z : register;
+  minusx : register;
+  minusy : register;
+  w : register;
 }
 
 type mul_add_distributive = {
-  z : variable;
-  x : variable;
-  y : variable;
-  w : variable;
+  z : register;
+  x : register;
+  y : register;
+  w : register;
 }
 
 type sub_add = {
-  minusy : variable;
-  z : variable;
+  minusy : register;
+  z : register;
 }
 
 type sub_mone = {
-  z : variable;
+  z : register;
 }
 
 type sub_const_not = {
-  y : variable;
-  z : variable;
+  y : register;
+  z : register;
 }
 
 type sub_remove = {
-  y : variable;
-  z : variable;
+  y : register;
+  z : register;
 }
 
 type sub_remove2 = {
-  y : variable;
-  z : variable;
+  y : register;
+  z : register;
 }
 
 type sub_onebit = {
-  z : variable;
+  z : register;
 }
 
 type sub_const_add = {
-  y : variable;
-  z : variable;
+  y : register;
+  z : register;
 }
 
 type sub_sdiv = {
-  y : variable;
-  z : variable;
+  y : register;
+  z : register;
 }
 
 type sub_shl = {
-  x : variable;
-  y : variable;
-  z : variable;
+  x : register;
+  y : register;
+  z : register;
 }
 
 type mul_bool = {
-  z :variable;
+  z :register;
 }
 
 type mul_mone = {
-  z : variable;
+  z : register;
 }
 
 type mul_neg = {
-  z : variable;
-  mx : variable;
-  my : variable;
+  z : register;
+  mx : register;
+  my : register;
 }
 
 type mul_commutative = {
-  z : variable;
+  z : register;
 }
 
 type mul_shl = {
-  z : variable;
-  y : variable;
+  z : register;
+  y : register;
 }
 
 type div_mone = {
-  z : variable;
+  z : register;
 }
 
 type and_de_morgan = {
-  z : variable;
-  x : variable;
-  y : variable;
-  z2 : variable;
+  z : register;
+  x : register;
+  y : register;
+  z2 : register;
 }
 
 type rem_neg = {
-  z : variable;
-  my : variable;
+  z : register;
+  my : register;
 }
 
 type div_sub_srem = {
-  z : variable;
-  b : variable;
-  a : variable;
+  z : register;
+  b : register;
+  a : register;
 }
 
 type div_sub_urem = {
-  z : variable;
-  b : variable;
-  a : variable;
+  z : register;
+  b : register;
+  a : register;
 }
 
 type infrule = [
