@@ -132,69 +132,31 @@ Proof.
   destruct (find_index l0 f); simpl in H; inversion H; auto.
 Qed.
 
-(* Insert element BEFORE index. If index is not in [0,length], return None. *)
-Fixpoint insert_at (A : Type) (l : list A) (idx : nat) (x : A) : option (list A) :=
-  match (idx, l) with
-    | (O, _) => Some (x :: l)
-    | (S idx', nil) => None
-    | (S idx', h :: t) => option_map (fun y => h :: y) (insert_at t idx' x)
-  end.
+(* Insert element BEFORE index. If index is out of bound, it SILENTLY inserts at the last. *)
+Definition insert_at (A : Type) (l : list A) (idx : nat) (x : A) : list A :=
+  (firstn idx l) ++ [x] ++ (skipn idx l).
 
-Theorem insert_at_inside_bound : forall A (l : list A) idx x,
-                                 (idx <= (length l))%nat ->
-                                 exists l2,
-                                   insert_at l idx x = Some l2
-                                   /\ (length l + 1 = length l2)%nat
-                                   /\ nth_error l2 idx = Some x
-                                   /\ firstn idx l = firstn idx l2
-                                   /\ skipn idx l = skipn (idx +1) l2
-.
+Theorem insert_at_next : forall A idx (l : list A) x y,
+                           insert_at (y :: l) (S idx) x = y :: (insert_at l idx x).
 Proof.
-  intros A l.
-  induction l; intros; simpl.
-  - eexists.
-    destruct idx; subst; simpl in *; inv H.
-    splits; auto.
-  - destruct idx.
-    + eexists.
-      splits; simpl; auto.
-      simpl.
-      rewrite Nat.add_comm; auto.
-    + remember (insert_at l0 idx x) as result.
-      destruct result; subst; simpl.
-      * exists (a :: l1).
-        exploit (IHl idx x). simpl in H. omega.
-        intro. inv x1.
-        repeat des.
-        rewrite <- Heqresult in H0.
-        inv H0.
-        splits; auto.
-        subst; simpl; auto.
-        rewrite H3. auto.
-      * exfalso.
-        exploit (IHl idx x).
-        simpl in H; omega.
-        intro.
-        inv x1.
-        repeat des.
-        rewrite <- Heqresult in H0.
-        inv H0.
+  intros.
+  induction l0; simpl; auto.
 Qed.
 
-Theorem insert_at_outside_bound : forall A (l : list A) idx x,
-                                 (idx > (length l))%nat ->
-                                 insert_at l idx x = None.
+Theorem insert_at_outside_bound : forall (A : Type) (idx : nat) (l : list A) x,
+                                  (idx >= length l)%nat ->
+                                  insert_at l idx x = l ++ [x].
 Proof.
-  intros A l.
+  intros A idx l x H.
+  generalize dependent idx.
   induction l; intros; simpl in *; auto.
-  - destruct idx; inversion H; subst; simpl; auto.
-  - destruct idx; inversion H; subst; simpl; auto.
-    + unfold option_map.
-    exploit (IHl (S (length l0)) x); auto.
-    intro.
-    rewrite x1; auto.
-    + exploit (IHl idx x); auto; try omega.
+  - induction idx; simpl; auto.
+  - destruct idx.
+    + inv H.
+    + exploit (IHl idx).
+      omega.
       intro.
-      rewrite x1.
+      rewrite <- x1.
+      rewrite <- insert_at_next.
       auto.
 Qed.
