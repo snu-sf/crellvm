@@ -140,11 +140,6 @@ Fixpoint insert_at (A : Type) (l : list A) (idx : nat) (x : A) : option (list A)
     | (S idx', h :: t) => option_map (fun y => h :: y) (insert_at t idx' x)
   end.
 
-Ltac split_premises :=
-  repeat match goal with
-           | [ H: _ /\ _ |- _ ] => destruct H
-         end.
-
 Theorem insert_at_inside_bound : forall A (l : list A) idx x,
                                  (idx <= (length l))%nat ->
                                  exists l2,
@@ -170,7 +165,7 @@ Proof.
       * exists (a :: l1).
         exploit (IHl idx x). simpl in H. omega.
         intro. inv x1.
-        split_premises.
+        repeat des.
         rewrite <- Heqresult in H0.
         inv H0.
         splits; auto.
@@ -181,7 +176,7 @@ Proof.
         simpl in H; omega.
         intro.
         inv x1.
-        split_premises.
+        repeat des.
         rewrite <- Heqresult in H0.
         inv H0.
 Qed.
