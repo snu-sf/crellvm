@@ -40,6 +40,15 @@ Definition lift_option A B (pred:A -> B)
   | None => None
   end.
 
+Definition lift2_option
+           A B (pred:A -> B -> Prop)
+           (oa:option A) (ob:option B): Prop :=
+  match oa, ob with
+  | Some a, Some b => pred a b
+  | None, None => True
+  | _, _ => False
+  end.
+
 Definition option_to_list A (oa:option A): list A :=
   match oa with
   | Some a => a::nil
@@ -88,72 +97,38 @@ Definition mapiAL A B (f: atom -> A -> B) (l:AssocList A): AssocList B :=
 
 (* Find FIRST occurence of element satisfying f. *)
 (* If there is not, return None *)
-Fixpoint find_index (A : Type) (l : list A) (f : A -> bool) : option nat :=
+Fixpoint find_index (A:Type) (l:list A) (f:A -> bool):option nat :=
   match l with
-      | nil => None
-      | head :: tail =>
-        (if(f head) then Some 0%nat else option_map S (find_index tail f))%nat
+  | nil => None
+  | head :: tail =>
+    if (f head) then Some 0%nat else option_map S (find_index tail f)
   end.
 
-Theorem find_index_sound : forall (A : Type) (l : list A) (f : A -> bool)
-                                  (idx : nat) (FIND : find_index l f = Some idx),
-                             exists y, nth_error l idx = Some y /\
-                                       f y = true.
+Lemma find_index_sound
+      (A:Type) (l:list A) (f:A -> bool) (idx:nat)
+      (FIND:find_index l f = Some idx):
+  exists y, nth_error l idx = Some y /\
+       f y = true.
 Proof.
-  intros A l f. induction l; intros; simpl.
-  - simpl in FIND. inversion FIND.
-  - simpl in FIND.
-    remember (f a) as tmp.
-    destruct tmp.
-    + exists a; intros; split; inv FIND; auto.
-    + destruct idx.
-      * unfold option_map in FIND. destruct (find_index l0 f); simpl in FIND; inversion FIND.
-      * exploit (IHl idx).
-        destruct (find_index l0 f); simpl in FIND; inversion FIND; subst; auto.
-        intro.
-        inv x0.
-        des.
-        eexists; split; simpl; eauto.
+  revert idx FIND. induction l; intros; simpl in *.
+  - inv FIND.
+  - destruct (f a) eqn:FA.
+    + inv FIND. exists a. split; auto.
+    + destruct (find_index l0 f) eqn:FIND'; inv FIND.
+      exploit IHl; eauto.
 Qed.
 
-Theorem find_index_complete : forall (A : Type) (l : list A) (f : A -> bool)
-                                     (idx : nat) (FIND : find_index l f = None),
-                                (existsb f l) = false.
+Lemma find_index_complete
+      (A:Type) (l:list A) (f:A -> bool)
+      (idx:nat) (FIND:find_index l f = None):
+  negb (existsb f l).
 Proof.
-  intros A l.
-  induction l; intros; simpl; auto.
-  simpl in FIND.
-  destruct (f a); simpl in FIND.
-  inversion FIND.
-  simpl. apply IHl; auto.
-  destruct (find_index l0 f); simpl in FIND; inversion FIND; auto.
+  revert FIND. induction l; intros; simpl in *; auto.
+  destruct (f a), (find_index l0 f);
+    simpl in *; try congruence.
+  auto.
 Qed.
 
 (* Insert element BEFORE index. If index is out of bound, it SILENTLY inserts at the last. *)
-Definition insert_at (A : Type) (l : list A) (idx : nat) (x : A) : list A :=
+Definition insert_at (A:Type) (idx:nat) (x:A) (l:list A): list A :=
   (firstn idx l) ++ [x] ++ (skipn idx l).
-
-Theorem insert_at_next : forall A idx (l : list A) x y,
-                           insert_at (y :: l) (S idx) x = y :: (insert_at l idx x).
-Proof.
-  intros.
-  induction l0; simpl; auto.
-Qed.
-
-Theorem insert_at_outside_bound : forall (A : Type) (idx : nat) (l : list A) x,
-                                  (idx >= length l)%nat ->
-                                  insert_at l idx x = l ++ [x].
-Proof.
-  intros A idx l x H.
-  generalize dependent idx.
-  induction l; intros; simpl in *; auto.
-  - induction idx; simpl; auto.
-  - destruct idx.
-    + inv H.
-    + exploit (IHl idx).
-      omega.
-      intro.
-      rewrite <- x1.
-      rewrite <- insert_at_next.
-      auto.
-Qed.
