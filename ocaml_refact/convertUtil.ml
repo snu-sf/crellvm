@@ -81,34 +81,31 @@ module Convert = struct
     let insn = TODOCAML.get (LLVMinfra.lookupInsnViaIDFromFdef fdef var_id) in
       match insn with
       | LLVMsyntax.Coq_insn_cmd c ->
-         match c with
-         | LLVMsyntax.Coq_insn_bop (_, bop, sz, v1, v2) ->
-               Expr.Coq_bop (bop, sz, value v1, value v2)
-         | LLVMsyntax.Coq_insn_fbop (_, fbop, fp, v1, v2) ->
-               Expr.Coq_fbop (fbop, fp, value v1, value v2)
-         | LLVMsyntax.Coq_insn_extractvalue (_, typ1, v, clist, typ2) ->
-               Expr.Coq_extractvalue (typ1, value v, clist, typ2)
-         | LLVMsyntax.Coq_insn_insertvalue (_, typ1, v1, typ2, v2, clist) ->
-               Expr.Coq_insertvalue (typ1, value v1, typ2, value v2, clist)
-         | LLVMsyntax.Coq_insn_gep (_, inbounds, typ1, v1, szv, typ2) ->
-               let sz_v ((sz:LLVMsyntax.sz),(v:LLVMsyntax.value)): (LLVMsyntax.sz * ValueT.t) =
-                 (sz, value v) 
-               in
-               Expr.Coq_gep (inbounds, typ1, value v1, List.map sz_v szv, typ2)
-         | LLVMsyntax.Coq_insn_trunc (_, truncop, typ1, v, typ2) ->
-               Expr.Coq_trunc (truncop, typ1, value v, typ2)
-         | LLVMsyntax.Coq_insn_ext (_, extop, typ1, v, typ2) ->
-               Expr.Coq_ext (extop, typ1, value v, typ2)
-         | LLVMsyntax.Coq_insn_cast (_, castop, typ1, v, typ2) ->
-               Expr.Coq_cast (castop, typ1, value v, typ2)
-         | LLVMsyntax.Coq_insn_icmp (_, cond, typ, v1, v2) ->
-               Expr.Coq_icmp (cond, typ, value v1, value v2)
-         | LLVMsyntax.Coq_insn_fcmp (_, fcond, fp, v1, v2) ->
-               Expr.Coq_fcmp (fcond, fp, value v1, value v2)
-         | LLVMsyntax.Coq_insn_select (_, v1, typ, v2, v3) ->
-               Expr.Coq_select (value v1, typ, value v2, value v3)
-         | LLVMsyntax.Coq_insn_load (_, typ, v, align) ->
-               Expr.Coq_load (value v, typ, align)
-         | _ -> failwith "convertUtil: rhs_of no matching cmd"
+         (match c with
+          | LLVMsyntax.Coq_insn_bop (_, bop, sz, v1, v2) ->
+             Expr.Coq_bop (bop, sz, value v1, value v2)
+          | LLVMsyntax.Coq_insn_fbop (_, fbop, fp, v1, v2) ->
+             Expr.Coq_fbop (fbop, fp, value v1, value v2)
+          | LLVMsyntax.Coq_insn_extractvalue (_, typ1, v, clist, typ2) ->
+             Expr.Coq_extractvalue (typ1, value v, clist, typ2)
+          | LLVMsyntax.Coq_insn_insertvalue (_, typ1, v1, typ2, v2, clist) ->
+             Expr.Coq_insertvalue (typ1, value v1, typ2, value v2, clist)
+          | LLVMsyntax.Coq_insn_gep (_, inbounds, typ1, v1, szv, typ2) ->
+             Expr.Coq_gep (inbounds, typ1, value v1, List.map (fun szv -> (fst szv, value (snd szv))) szv, typ2)
+          | LLVMsyntax.Coq_insn_trunc (_, truncop, typ1, v, typ2) ->
+             Expr.Coq_trunc (truncop, typ1, value v, typ2)
+          | LLVMsyntax.Coq_insn_ext (_, extop, typ1, v, typ2) ->
+             Expr.Coq_ext (extop, typ1, value v, typ2)
+          | LLVMsyntax.Coq_insn_cast (_, castop, typ1, v, typ2) ->
+             Expr.Coq_cast (castop, typ1, value v, typ2)
+          | LLVMsyntax.Coq_insn_icmp (_, cond, typ, v1, v2) ->
+             Expr.Coq_icmp (cond, typ, value v1, value v2)
+          | LLVMsyntax.Coq_insn_fcmp (_, fcond, fp, v1, v2) ->
+             Expr.Coq_fcmp (fcond, fp, value v1, value v2)
+          | LLVMsyntax.Coq_insn_select (_, v1, typ, v2, v3) ->
+             Expr.Coq_select (value v1, typ, value v2, value v3)
+          | LLVMsyntax.Coq_insn_load (_, typ, v, align) ->
+             Expr.Coq_load (value v, typ, align)
+          | _ -> failwith "convertUtil: rhs_of no matching cmd")
       | _ -> failwith "convertUtil: rhs_of find no insn"
 end
