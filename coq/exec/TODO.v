@@ -91,45 +91,42 @@ Definition mapiAL A B (f: atom -> A -> B) (l:AssocList A): AssocList B :=
 Fixpoint find_index (A : Type) (l : list A) (f : A -> bool) : option nat :=
   match l with
       | nil => None
-      | head :: tail => (if(f head) then Some 0%nat else option_map (fun p => (1 + p)) (find_index tail f))%nat
+      | head :: tail =>
+        (if(f head) then Some 0%nat else option_map S (find_index tail f))%nat
   end.
 
-Theorem find_index_sound : forall (A : Type) (l : list A) (f : A -> bool) (idx : nat),
-                             find_index l f = Some idx ->
-                             exists y, nth_error l idx = Some y ->
+Theorem find_index_sound : forall (A : Type) (l : list A) (f : A -> bool)
+                                  (idx : nat) (FIND : find_index l f = Some idx),
+                             exists y, nth_error l idx = Some y /\
                                        f y = true.
 Proof.
   intros A l f. induction l; intros; simpl.
-  - simpl in H. inversion H.
-  - simpl in H.
+  - simpl in FIND. inversion FIND.
+  - simpl in FIND.
     remember (f a) as tmp.
     destruct tmp.
-    + eexists; intros.
-      instantiate (1:=a).
-      rewrite <- Heqtmp. auto.
+    + exists a; intros; split; inv FIND; auto.
     + destruct idx.
-      * unfold option_map in H. destruct (find_index l0 f); simpl in H; inversion H.
+      * unfold option_map in FIND. destruct (find_index l0 f); simpl in FIND; inversion FIND.
       * exploit (IHl idx).
-        destruct (find_index l0 f); simpl in H; inversion H; subst; auto.
+        destruct (find_index l0 f); simpl in FIND; inversion FIND; subst; auto.
         intro.
         inv x0.
-        eexists; intro.
-        simpl in H1.
-        apply H0 in H1.
-        auto.
+        des.
+        eexists; split; simpl; eauto.
 Qed.
 
-Theorem find_index_complete : forall (A : Type) (l : list A) (f : A -> bool) (idx : nat),
-                                find_index l f = None ->
+Theorem find_index_complete : forall (A : Type) (l : list A) (f : A -> bool)
+                                     (idx : nat) (FIND : find_index l f = None),
                                 (existsb f l) = false.
 Proof.
   intros A l.
   induction l; intros; simpl; auto.
-  simpl in H.
-  destruct (f a); simpl in H.
-  inversion H.
+  simpl in FIND.
+  destruct (f a); simpl in FIND.
+  inversion FIND.
   simpl. apply IHl; auto.
-  destruct (find_index l0 f); simpl in H; inversion H; auto.
+  destruct (find_index l0 f); simpl in FIND; inversion FIND; auto.
 Qed.
 
 (* Insert element BEFORE index. If index is out of bound, it SILENTLY inserts at the last. *)
