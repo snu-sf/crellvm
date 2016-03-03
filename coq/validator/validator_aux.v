@@ -1043,14 +1043,7 @@ Fixpoint insert_nop (target : l * id) (bs : blocks) : option blocks :=
                                    (fun x => eq_atom_dec (getCmdLoc x) target_id) in
             match idy_ with
               (* #2 *)
-              | Some idy => match (insert_at head_cmds (idy + 1) new_nop) with
-                              | Some new_head_cmds => make_blocks
-                                                        (stmts_intro head_phis
-                                                                     new_head_cmds
-                                                                     head_term)
-                              (* This should not occur *)
-                              | None => None
-                            end
+              | Some idy => make_blocks (stmts_intro head_phis (insert_at head_cmds (idy + 1) new_nop) head_term)
               (* #3 *)
               | None => None
             end
