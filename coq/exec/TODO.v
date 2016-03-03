@@ -94,11 +94,6 @@ Fixpoint find_index (A : Type) (l : list A) (f : A -> bool) : option nat :=
       | head :: tail => (if(f head) then Some 0%nat else option_map (fun p => (1 + p)) (find_index tail f))%nat
   end.
 
-Eval simpl in (find_index (1 :: 3 :: 5 :: 7 :: 6 :: 8 :: nil) Nat.even)%nat.
-(* should be 4 *)
-Eval simpl in (find_index (2 :: 3 :: 5 :: 7 :: 6 :: 8 :: nil) Nat.even)%nat.
-(* should be 0 *)
-
 Theorem find_index_sound : forall (A : Type) (l : list A) (f : A -> bool) (idx : nat),
                              find_index l f = Some idx ->
                              exists y, nth_error l idx = Some y ->
@@ -144,9 +139,6 @@ Fixpoint insert_at (A : Type) (l : list A) (idx : nat) (x : A) : option (list A)
     | (S idx', nil) => None
     | (S idx', h :: t) => option_map (fun y => h :: y) (insert_at t idx' x)
   end.
-
-Eval simpl in (insert_at (1 :: 2 :: 4 :: nil) 2 3).
-(* should be Some [1; 2; 3; 4] *)
 
 Ltac split_premises :=
   repeat match goal with
