@@ -104,8 +104,8 @@ module Reachable = struct
     let dominated_by_from = dom_by bid_from dtree in
     to_block bid_to dominated_by_from fdef
 end
-(* object for propagation *)
 
+(* object for propagation *)
 module InvariantObject = struct
     type scope =
       | Source
@@ -129,10 +129,10 @@ module InvariantObject = struct
           (fdef:LLVMsyntax.fdef)
         : Expr.t =
       match prop_expr with
-      | CoreHint_t.Var (var:CoreHint_t.variable) ->
-         Expr.Coq_value (ValueT.Coq_id (Convert.variable var))
-      | CoreHint_t.Rhs (var:CoreHint_t.variable) ->
-         Convert.rhs_of var fdef
+      | CoreHint_t.Var (register:CoreHint_t.register) ->
+         Expr.Coq_value (ValueT.Coq_id (Convert.register register))
+      | CoreHint_t.Rhs (register:CoreHint_t.register) ->
+         Convert.rhs_of register fdef
       | CoreHint_t.Const (c:CoreHint_t.constant) ->
          failwith "TODO: not supported yet"
 
@@ -148,10 +148,10 @@ module InvariantObject = struct
                          convert_propagate_expr prop_ld.rhs fdef))
       | CoreHint_t.Noalias prop_na ->
          Unary (convert_scope prop_na.scope,
-                Noalias (Convert.variable prop_na.lhs,
-                         Convert.variable prop_na.rhs))
+                Noalias (Convert.register prop_na.lhs,
+                         Convert.register prop_na.rhs))
       | CoreHint_t.Maydiff v ->
-         Maydiff (Convert.variable v)
+         Maydiff (Convert.register v)
 
     let insert (obj:t) (inv:Invariant.t): Invariant.t =
       match obj with
