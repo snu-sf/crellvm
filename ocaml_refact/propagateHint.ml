@@ -242,9 +242,8 @@ let propagate_global
       (invariant:InvariantObject.t)
       (hint_fdef:ValidationHint.fdef)
     : ValidationHint.fdef =
-  List.map
-    (fun (l, hint_stmts) ->
-     (l, PropagateStmts.global invariant hint_stmts))
+  TODO.mapAL
+    (fun hint_stmts -> PropagateStmts.global invariant hint_stmts)
     hint_fdef
 
 let propagate_hint

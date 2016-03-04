@@ -25,7 +25,6 @@ let generate_nop (core_hint:CoreHint_t.hints) : int list =
 let insert_nop (m:LLVMsyntax.coq_module) (nops:int list) : LLVMsyntax.coq_module =
   failwith "TODO"
 
-
 module EmptyHint = struct
   (* TODO(@youngju.song): in Coq *)
   let unary_hint : Invariant.unary =
@@ -60,7 +59,7 @@ module EmptyHint = struct
 
   let fdef_hint (fdef:LLVMsyntax.fdef) : ValidationHint.fdef =
     let Coq_fdef_intro (Coq_fheader_intro (_, _, id, _, _), blks) = fdef in
-    List.map (fun (bid, bstmts) -> (bid, stmts_hint bstmts)) blks
+    TODO.mapAL (fun bstmts -> stmts_hint bstmts) blks
 
   let module_hint (m:LLVMsyntax.coq_module) : ValidationHint.coq_module =
     let Coq_module_intro (lo, nts, prods) = m in
