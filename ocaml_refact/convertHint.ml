@@ -85,7 +85,7 @@ let apply_corehint_command
     : ValidationHint.fdef =
   match command with
   | CoreHint_t.Propagate prop ->
-     let invariant = PropagateHint.InvariantObject.convert_propagate_object prop.propagate lfdef rfdef in
+     let invariant = PropagateHint.InvariantObject.convert prop.propagate lfdef rfdef in
      let range = Position.convert_range prop.propagate_range lfdef rfdef in
      propagate_hint lfdef dtree_lfdef invariant range hint_fdef
   | CoreHint_t.Infrule (pos, infrule) ->
