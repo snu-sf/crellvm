@@ -51,4 +51,5 @@ clean:
 	rm ./corehint/coreHint_t.mli
 	rm ./corehint/coreHint_j.ml
 	rm ./corehint/coreHint_t.ml
-	$(OCAMLBUILD) -clean
+	rm -rf ./_build
+	rm main.native
