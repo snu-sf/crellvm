@@ -24,6 +24,28 @@ module Position = struct
     | Bounds of (t * t)
     | Global
 
+  let idx_any_phinode: idx = Phinode "any"
+
+  let idx_lt (i:idx) (j:idx): bool =
+    match i, j with
+    | _, Phinode _ -> false
+    | Phinode _, Command _ -> true
+    | Command m, Command n -> m < n
+
+  let idx_le (i:idx) (j:idx): bool =
+    not (idx_lt j i)
+
+  let idx_next (cur_idx:idx): idx =
+    match cur_idx with
+    | Phinode _ -> Command 0
+    | Command n -> Command (n+1)
+
+  let idx_final (bid:atom) (fdef:LLVMsyntax.fdef): idx =
+    let _, LLVMsyntax.Coq_stmts_intro (_, cmds, _) =
+      TODOCAML.get (LLVMinfra.lookupBlockViaIDFromFdef fdef bid)
+    in
+    Command (List.length cmds)
+
   let convert (pos:CoreHint_t.position)
               (lfdef:LLVMsyntax.fdef)
               (rfdef:LLVMsyntax.fdef): t =
