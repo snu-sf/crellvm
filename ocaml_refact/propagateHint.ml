@@ -284,12 +284,11 @@ let propagate_hint
        
        let hint_fdef = Alist.updateAL hint_fdef bid_from hint_stmts_from in
        let hint_fdef = Alist.updateAL hint_fdef bid_to hint_stmts_to in
-       List.map
-         (fun (bid, hint_stmts) ->
-          (bid, 
-           if AtomSetImpl.mem bid interm_bids
-           then PropagateStmts.global invariant hint_stmts
-           else hint_stmts))
+       TODO.mapiAL
+         (fun bid hint_stmts ->
+          if AtomSetImpl.mem bid interm_bids
+          then PropagateStmts.global invariant hint_stmts
+          else hint_stmts)
          hint_fdef
   | Position.Global ->
      propagate_global invariant hint_fdef
