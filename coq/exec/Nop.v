@@ -54,18 +54,17 @@ Definition insert_nop (target:id) (bs:blocks): blocks :=
        stmts_intro phinodes cmds terminator)
     bs.
 
-(* Insert multiple nops in blocks. *)
 Definition insert_nops (targets:list id) (bs:blocks): blocks :=
   List.fold_left (flip insert_nop) targets bs.
 
-Definition is_not_nop (c: cmd) :=
+Definition is_nop (c: cmd) :=
   match c with
-    | insn_nop _ => false
-    |  _ => true
+    | insn_nop _ => true
+    |  _ => false
   end.
 
 Definition nop_cmds (cmds_src cmds_tgt:cmds) :=
-  filter is_not_nop cmds_src = filter is_not_nop cmds_tgt.
+  filter (negb <*> is_nop) cmds_src = filter (negb <*> is_nop) cmds_tgt.
 
 Definition nop_blocks (blocks_src blocks_tgt:blocks): Prop :=
   forall bid,
@@ -83,42 +82,26 @@ Lemma lookupAL_mapAL A B i (f:A -> B) l:
   lookupAL _ (map f l) i = option_map f (lookupAL _ l i).
 Proof.
   induction l; simpl in *; auto.
-  destruct a.
-  destruct (i ==a); simpl; auto.
+  destruct a. destruct (i == a); auto.
 Qed.
 
-Lemma nop_cmds_commutes : forall x y,
-                            nop_cmds x y -> nop_cmds y x.
+Lemma nop_cmds_commutes
+      x y (NOP: nop_cmds x y):
+  nop_cmds y x.
 Proof.
   unfold nop_cmds.
   induction x; intros; simpl in *; auto.
 Qed.
 
-Lemma lift2_option_commutes :
-  forall X f (a b : option X),
-    (forall x y, f x y <-> f y x) ->
-    lift2_option f a b -> lift2_option f b a.
+Lemma nop_blocks_commutes
+      x y (NOP: nop_blocks x y):
+  nop_blocks y x.
 Proof.
-  intros.
-  unfold lift2_option.
-  destruct a, b; simpl; auto.
-  simpl in H0.
-  apply H in H0.
-  auto.
-Qed.
-
-Theorem nop_blocks_commutes : forall x y,
-                            nop_blocks x y -> nop_blocks y x.
-Proof.
-  unfold nop_blocks.
-  ii.
-  assert(H := H bid).
-  apply lift2_option_commutes in H; auto.
-  clear H.
-  intros.
-  destruct x0, y0; splits; auto.
-  unfold iff.
-  splits; intros H; destruct H as [H [H1 H2]]; splits; auto; try apply nop_cmds_commutes; auto.
+  ii. specialize (NOP bid).
+  destruct (lookupAL _ x bid), (lookupAL _ y bid);
+    simpl in *; try congruence.
+  destruct s, s0. des. splits; auto.
+  apply nop_cmds_commutes. auto.
 Qed.
 
 Lemma insert_nop_spec1 id bs:
@@ -126,24 +109,20 @@ Lemma insert_nop_spec1 id bs:
 Proof.
   ii. unfold insert_nop. rewrite lookupAL_mapAL.
   unfold insert_at, nop_cmds.
-  destruct (lookupAL stmts bs bid) eqn:LOOKUP2; simpl in *; auto.
+  destruct (lookupAL stmts bs bid); simpl in *; auto.
+  destruct s. splits; auto.
   repeat
     match goal with
       | [|- context[match ?c with | Some _ => _ | None => _ end]] => destruct c
       | [|- context[if ?c then _ else _]] => destruct c
-      | [|- context[let (_) := ?c in _]] => destruct c
     end;
     simpl; splits; auto.
   - rewrite util.filter_app; simpl.
-  clear phinodes5 terminator5 LOOKUP2 bid id.
-  rewrite Nat.add_comm.
-  simpl.
-  rewrite <- util.filter_app.
-  rewrite firstn_skipn.
-  auto.
-  - rewrite util.filter_app.
-  simpl. rewrite <- util.filter_app.
-  rewrite firstn_skipn. auto.
+    rewrite <- util.filter_app; simpl.
+    rewrite firstn_skipn. auto.
+  - rewrite util.filter_app; simpl.
+    rewrite <- util.filter_app; simpl.
+    rewrite firstn_skipn. auto.
 Qed.
 
 Lemma insert_nop_spec2 id bs:
