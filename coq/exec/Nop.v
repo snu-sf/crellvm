@@ -67,24 +67,6 @@ Definition is_not_nop (c: cmd) :=
 Definition nop_cmds (cmds_src cmds_tgt:cmds) :=
   filter is_not_nop cmds_src = filter is_not_nop cmds_tgt.
 
-(* TODO: how about defining with filters? *)
-(* Inductive nop_cmds: forall (cmds_src cmds_tgt:cmds), Prop := *)
-(* | nop_cmds_nil: *)
-(*     nop_cmds nil nil *)
-(* | nop_cmds_cons *)
-(*     c cmds_src cmds_tgt *)
-(*     (NOP: nop_cmds cmds_src cmds_tgt): *)
-(*     nop_cmds (c::cmds_src) (c::cmds_tgt) *)
-(* | nop_cmds_src *)
-(*     id cmds_src cmds_tgt *)
-(*     (NOP: nop_cmds cmds_src cmds_tgt): *)
-(*     nop_cmds ((insn_nop id)::cmds_src) cmds_tgt *)
-(* | nop_cmds_tgt *)
-(*     id cmds_src cmds_tgt *)
-(*     (NOP: nop_cmds cmds_src cmds_tgt): *)
-(*     nop_cmds cmds_src ((insn_nop id)::cmds_tgt) *)
-(* . *)
-
 Definition nop_blocks (blocks_src blocks_tgt:blocks): Prop :=
   forall bid,
     lift2_option
@@ -105,16 +87,6 @@ Proof.
   destruct (i ==a); simpl; auto.
 Qed.
 
-Lemma filter_pop_tail : forall A f (l : list A) x,
-                          (filter f (l ++ [x])) =
-                          (filter f l) ++ (if (f x) then [x] else nil).
-Proof.
-  ii.
-  induction l0 as [|y l IH];
-    destruct (f x) eqn:T; simpl in *; auto; try (rewrite T; auto);
-    destruct (f y); simpl in *; try (rewrite <- IH; auto).
-Qed.
-
 Lemma nop_cmds_commutes : forall x y,
                             nop_cmds x y -> nop_cmds y x.
 Proof.
@@ -122,81 +94,32 @@ Proof.
   induction x; intros; simpl in *; auto.
 Qed.
 
-Lemma nop_blocks_commutes : forall x y,
+Lemma lift2_option_commutes :
+  forall X f (a b : option X),
+    (forall x y, f x y <-> f y x) ->
+    lift2_option f a b -> lift2_option f b a.
+Proof.
+  intros.
+  unfold lift2_option.
+  destruct a, b; simpl; auto.
+  simpl in H0.
+  apply H in H0.
+  auto.
+Qed.
+
+Theorem nop_blocks_commutes : forall x y,
                             nop_blocks x y -> nop_blocks y x.
 Proof.
-  ii.
   unfold nop_blocks.
-  unfold lift2_option.
-  destruct (lookupAL stmts y bid) eqn:T.
-  generalize dependent y.
-  induction x; intros; simpl in *; auto.
-  - unfold nop_blocks in H.
-    assert(G:=(H bid)).
-    simpl in G.
-    rewrite T in G.
-    inv G.
-  - destruct a;
-    destruct (bid == l0);
-    destruct s, s0;
-    destruct (lookupAL stmts x bid) eqn:T2;
-    subst; simpl.
-    +
-    unfold nop_blocks in H.
-    assert(G:= (H l0)).
-    rewrite T in G.
-    simpl in G.
-    Set Printing All.
-    unfold lift2_option in G.
-    Check (l0 == l0).
-    Admitted.
-    (* { *)
-    (*   assert(J: (if l0 == l0 *)
-    (*              then Some (stmts_intro phinodes0 cmds0 terminator0) *)
-    (*              else lookupAL stmts x l0) = Some (stmts_intro phinodes0 cmds0 terminator0)). *)
-    (*   destruct (l0 == l0); auto. unfold not in n. exploit n; auto. intro. inv x0. *)
-    (*   unfold lift2_option in G. *)
-    (*   simpl in G. *)
-    (* } *)
-
-
-
-(*     destruct *)
-(*       (if l0 == l0 *)
-(*          then Some (stmts_intro phinodes0 cmds0 terminator0) *)
-(*          else lookupAL stmts x l0) eqn:ABC. *)
-(*     cbn in ABC. *)
-(*     (* cbv in ABC. *) *)
-(*     hnf in ABC. *)
-
-(*     unfold lift2_option in G. *)
-(*     (* rewrite ABC in G. *) *)
-(*     destruct (l0 == l0) eqn:TT. *)
-(*     rewrite TT in G. *)
-(*     simpl in G. *)
-    
-(*     inv ABC. *)
-(*     destruct (l0 == l0) eqn:ABC. *)
-(*     inv H1. *)
-(*     Focus 2. admit. *)
-(*     cbv in H1. *)
-
-
-(*     rewrite J in G. *)
-(*     assert(J:= (eq_atom_dec l0 l0)). *)
-(*     destruct J. *)
-(*     Focus 2. unfold not in n. exploit n; auto. intro. inv x0. *)
-(*     splits.  *)
-(*     (* + destruct s. destruct s0. splits; auto. *) *)
-
-(*     admit. *)
-(*     admit. *)
-(*     (* destruct (lookupAL stmts x bid). *) *)
-(*     (* destruct s. destruct s1. splits. auto. *) *)
-(*   - destruct (lookupAL stmts x bid) eqn:T2. *)
-(*     admit. *)
-(*     auto. *)
-(* Admitted. *)
+  ii.
+  assert(H := H bid).
+  apply lift2_option_commutes in H; auto.
+  clear H.
+  intros.
+  destruct x0, y0; splits; auto.
+  unfold iff.
+  splits; intros H; destruct H as [H [H1 H2]]; splits; auto; try apply nop_cmds_commutes; auto.
+Qed.
 
 Lemma insert_nop_spec1 id bs:
   nop_blocks bs (insert_nop id bs).
@@ -223,48 +146,9 @@ Proof.
   rewrite firstn_skipn. auto.
 Qed.
 
-Lemma gggg : forall n m,
-               (fix mul (n0 m0 : nat) {struct n0} : nat :=
-                  match n0 with
-                    | 0%nat => 0%nat
-                    | S p => (m0 + mul p m0)%nat
-                  end) n m
-               =
-               match n with
-                 | 0%nat => 0%nat
-                 | S p => (m +
-                           (fix mul (n0 m0 : nat) {struct n0} : nat :=
-                  match n0 with
-                    | 0%nat => 0%nat
-                    | S p => (m0 + mul p m0)%nat
-                  end) p m)%nat
-               end
-.
-Proof.
-  induction n; intros; auto.
-Qed.
-(* Lemma ggg : forall n m, Nat.mul n m = 0%nat. *)
-(* Proof. *)
-(*   intros. *)
-(*   unfold Nat.mul. *)
-(*   simpl. *)
-(* Qed. *)
 Lemma insert_nop_spec2 id bs:
   nop_blocks (insert_nop id bs) bs.
 Proof.
   apply nop_blocks_commutes.
   apply insert_nop_spec1.
 Qed.
-  ii. unfold insert_nop. rewrite lookupAL_mapAL.
-  destruct (lookupAL _ bs bid); simpl in *; auto.
-  destruct s; splits; auto.
-  repeat
-    match goal with
-    | [|- context[match ?c with | Some _ => _ | None => _ end]] => destruct c
-    | [|- context[if ?c then _ else _]] => destruct c
-    end.
-  - admit.
-  - admit.
-  - admit.
-  - admit.
-Admitted.
