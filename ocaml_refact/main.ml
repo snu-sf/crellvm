@@ -2,6 +2,7 @@ open Printf
 open Llvm
 open Arg
 open Syntax.LLVMsyntax
+open Printer
 
 let out_channel = ref stdout
 

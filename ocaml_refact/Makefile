@@ -23,6 +23,7 @@ OCAMLBUILD_OPT = -r \
 
 MLS =  corehint/coreHint_j.ml corehint/coreHint_j.mli \
 			 corehint/coreHint_t.ml corehint/coreHint_t.mli \
+			 $(shell find `pwd`/*.ml*) \
 			 $(shell find `pwd`/*/*.ml*)
 
 all: main.native
