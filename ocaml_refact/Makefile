@@ -23,8 +23,8 @@ OCAMLBUILD_OPT = -r \
 
 MLS =  corehint/coreHint_j.ml corehint/coreHint_j.mli \
 			 corehint/coreHint_t.ml corehint/coreHint_t.mli \
-			 $(shell find `pwd`/*.ml*) \
-			 $(shell find `pwd`/*/*.ml*)
+			 $(shell find *.ml*) \
+			 $(shell find */*.ml*)
 
 all: main.native
 
@@ -52,5 +52,5 @@ clean:
 	rm ./corehint/coreHint_t.mli
 	rm ./corehint/coreHint_j.ml
 	rm ./corehint/coreHint_t.ml
-	rm -rf ./_build
-	rm main.native
+	$(OCAMLBUILD) -clean
+
