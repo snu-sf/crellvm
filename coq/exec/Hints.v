@@ -117,20 +117,6 @@ Module Invariant.
     is_empty_unary inv.(tgt) &&
     IdTSet.is_empty inv.(maydiff).
 
-  Definition is_lessdef_in_src (lhs rhs:Expr.t) (inv:t): bool :=
-    ExprPairSet.mem (lhs, rhs) inv.(src).(lessdef).
-
-  Definition is_lessdef_in_tgt (lhs rhs:Expr.t) (inv:t): bool :=
-    ExprPairSet.mem (lhs, rhs) inv.(tgt).(lessdef).
-
-  Definition add_lessdef_to_src (lsh rhs:Expr.t) (inv:t): t :=
-    update_src (update_lessdef
-      (ExprPairSet.add (lsh, rhs))) inv.
-
-  Definition add_lessdef_to_tgt (lsh rhs:Expr.t) (inv:t): t :=
-    update_tgt (update_lessdef
-      (ExprPairSet.add (lsh, rhs))) inv.
-
 End Invariant.
 
 Module Infrule.
