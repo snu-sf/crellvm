@@ -2,6 +2,7 @@ open Printf
 open Llvm
 open Arg
 open Syntax.LLVMsyntax
+open Printer
 
 let out_channel = ref stdout
 
@@ -62,8 +63,8 @@ let main filename_src filename_tgt filename_hint =
   let coq_im_tgt = read_im filename_tgt in
   let hint = read_hint filename_hint in
 
-  let coq_im_src = ConvertHint.insert_nop coq_im_src (failwith "TODO") in
-  let coq_im_tgt = ConvertHint.insert_nop coq_im_tgt (failwith "TODO") in
+  (* let coq_im_src = ConvertHint.insert_nop coq_im_src (failwith "TODO") in *)
+  (* let coq_im_tgt = ConvertHint.insert_nop coq_im_tgt (failwith "TODO") in *)
   let coq_hint = ConvertHint.convert coq_im_src coq_im_tgt hint in
 
   let _ = debug_print "validation.." in

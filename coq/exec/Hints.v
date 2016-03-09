@@ -116,6 +116,7 @@ Module Invariant.
     is_empty_unary inv.(src) &&
     is_empty_unary inv.(tgt) &&
     IdTSet.is_empty inv.(maydiff).
+
 End Invariant.
 
 Module Infrule.

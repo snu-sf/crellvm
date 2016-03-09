@@ -26,7 +26,8 @@ Fixpoint valid_cmds
     | None => None
     | Some inv1 =>
       let inv2 := apply_infrules infrules inv1 in
-      if Invariant.implies inv2 inv
+      let inv3 := reduce_maydiff inv2 in
+      if Invariant.implies inv3 inv
       then valid_cmds src tgt hint inv
       else None
     end
