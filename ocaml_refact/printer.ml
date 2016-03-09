@@ -13,7 +13,7 @@ module ExprsToString = struct
     
     let idT (idt:IdT.t): string =
       let (t, id) = idt in
-      Printf.sprintf "( %s, %s )" (tag t) id
+      Printf.sprintf "(%s, %s)" (tag t) id
 
     let of_const (c:LLVMsyntax.const): string =
       "TODO"
@@ -21,9 +21,9 @@ module ExprsToString = struct
     let valueT (vt:ValueT.t): string =
       match vt with
       | ValueT.Coq_id idt ->
-         Printf.sprintf "(V_id %s)" (idT idt)
+         (idT idt)
       | ValueT.Coq_const c ->
-         Printf.sprintf "(V_const %s)" (of_const c)
+         (of_const c)
 
     let of_sz (s:LLVMsyntax.sz): string =
       Printf.sprintf "(sz %d)" s
