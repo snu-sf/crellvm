@@ -117,10 +117,6 @@ Module Invariant.
     is_empty_unary inv.(tgt) &&
     IdTSet.is_empty inv.(maydiff).
 
-  Definition src_tgt_empty (inv:t): bool :=
-    is_empty_unary inv.(src) &&
-    is_empty_unary inv.(tgt).
-
 End Invariant.
 
 Module Infrule.

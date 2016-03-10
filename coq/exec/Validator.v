@@ -102,7 +102,8 @@ Definition valid_entry_stmts (src tgt:stmts) (hint:ValidationHint.stmts): bool :
   let '(stmts_intro phinodes_tgt _ _) := tgt in
   is_empty phinodes_src &&
   is_empty phinodes_tgt &&
-  Invariant.src_tgt_empty hint.(ValidationHint.invariant_after_phinodes).
+  Invariant.is_empty_unary hint.(ValidationHint.invariant_after_phinodes).(Invariant.src) &&
+  Invariant.is_empty_unary hint.(ValidationHint.invariant_after_phinodes).(Invariant.tgt).
 
 Definition valid_fdef
            (src tgt:fdef)
