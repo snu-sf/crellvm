@@ -12,23 +12,9 @@ Require Import sflib.
 Require Import paco.
 
 Require Import GenericValues.
+Require Import MemInvariants.
 
 Set Implicit Arguments.
-
-Module MemInv.
-  (* TODO *)
-  Structure t := mk {
-    meminj: meminj
-  }.
-
-  Inductive le (lhs rhs:t): Prop :=
-  | le_intro
-      (INCR: inject_incr lhs.(meminj) rhs.(meminj))
-      (TODO: False)
-  .
-
-  (* TODO: le_public? *)
-End MemInv.
 
 Inductive sInsn_indexed (conf:Config):
   forall (st1 st2:State) (idx1 idx2:nat) (event:trace), Prop :=
@@ -44,12 +30,11 @@ Inductive sInsn_indexed (conf:Config):
 
 Section SimulationLocal.
   Variable (conf_src conf_tgt:Config).
-  Variable (stack0_src stack0_tgt:ECStack).
-  Variable (inv0:MemInv.t).
+  Variable (inv0:Relational.t).
 
   Inductive _sim_local
-            (sim_local: MemInv.t -> nat -> State -> State -> Prop)
-            (inv1:MemInv.t) (idx1:nat) (st1_src:State) (st1_tgt:State): Prop :=
+            (sim_local: ECStack -> ECStack -> Relational.t -> nat -> State -> State -> Prop)
+            (stack0_src stack0_tgt:ECStack) (inv1:Relational.t) (idx1:nat) (st1_src st1_tgt:State): Prop :=
   | _sim_local_error
       st2_src
       (STEP: sop_star conf_src st1_src st2_src E0)
@@ -67,9 +52,12 @@ Section SimulationLocal.
       (TERM_SRC: st2_src.(EC).(Terminator) = insn_return id2_src typ2_src ret2_src)
       (TERM_TGT: st1_tgt.(EC).(Terminator) = insn_return id1_tgt typ1_tgt ret1_tgt)
       (TYP: typ2_src = typ1_tgt)
+      (STACK_SRC: st2_src.(ECS) = stack0_src)
+      (STACK_TGT: st1_tgt.(ECS) = stack0_tgt)
+      (MEM_TODO: True)
       (RET_SRC: getOperandValue conf_src.(CurTargetData) ret2_src st2_src.(EC).(Locals) conf_src.(Globals) = Some retval2_src)
       (RET_TGT: getOperandValue conf_tgt.(CurTargetData) ret1_tgt st1_tgt.(EC).(Locals) conf_tgt.(Globals) = Some retval1_tgt)
-      (RETVAL: GVs.inject inv1.(MemInv.meminj) retval2_src retval1_tgt)
+      (RETVAL: GVs.inject inv1.(Relational.alpha) retval2_src retval1_tgt)
 
   | _sim_local_return_void
       st2_src
@@ -80,6 +68,9 @@ Section SimulationLocal.
       (CMDS_TGT: st1_tgt.(EC).(CurCmds) = nil)
       (TERM_SRC: st2_src.(EC).(Terminator) = insn_return_void id2_src)
       (TERM_TGT: st1_tgt.(EC).(Terminator) = insn_return_void id1_tgt)
+      (STACK_SRC: st2_src.(ECS) = stack0_src)
+      (STACK_TGT: st1_tgt.(ECS) = stack0_tgt)
+      (MEM_TODO: True)
 
   | _sim_local_call
       st2_src
@@ -96,19 +87,20 @@ Section SimulationLocal.
       (VARG: varg2_src = varg1_tgt)
       (FUN_SRC: getOperandValue conf_src.(CurTargetData) fun2_src st2_src.(EC).(Locals) conf_src.(Globals) = Some funval2_src)
       (FUN_TGT: getOperandValue conf_tgt.(CurTargetData) fun1_tgt st1_tgt.(EC).(Locals) conf_tgt.(Globals) = Some funval1_tgt)
-      (FUNVAL: GVs.inject inv1.(MemInv.meminj) funval2_src funval1_tgt)
+      (FUNVAL: GVs.inject inv1.(Relational.alpha) funval2_src funval1_tgt)
       (PARAMS_SRC: params2GVs conf_src.(CurTargetData) params2_src st2_src.(EC).(Locals) conf_src.(Globals) = Some args2_src)
       (PARAMS_TGT: params2GVs conf_tgt.(CurTargetData) params1_tgt st1_tgt.(EC).(Locals) conf_tgt.(Globals) = Some args1_tgt)
-      (ARGS: list_forall2 (GVs.inject inv1.(MemInv.meminj)) args2_src args1_tgt)
+      (ARGS: list_forall2 (GVs.inject inv1.(Relational.alpha)) args2_src args1_tgt)
+      (MEM_TODO: False)
       (RETURN:
          forall inv3 mem3_src mem3_tgt retval3_src retval3_tgt
-           (INCR: MemInv.le inv1 inv3)
-           (INV_TODO: False)
+           (INCR: Relational.le inv1 inv3)
+           (MEM_TODO: False)
            (RET: noret2_src = false)
-           (RETVAL: GVs.inject inv3.(MemInv.meminj) retval3_src retval3_tgt),
+           (RETVAL: GVs.inject inv3.(Relational.alpha) retval3_src retval3_tgt),
          exists idx3,
            sim_local
-             inv3 idx3
+             stack0_src stack0_tgt inv3 idx3
              (mkState
                 (mkEC st2_src.(EC).(CurFunction) st2_src.(EC).(CurBB) cmds2_src st2_src.(EC).(Terminator) st2_src.(EC).(Locals) st2_src.(EC).(Allocas))
                 st2_src.(ECS)
@@ -126,14 +118,14 @@ Section SimulationLocal.
          exists st2_src st3_src st3_tgt inv3 idx3,
            sop_star conf_src st1_src st2_src E0 /\
            sInsn_indexed conf_src st2_src st3_src idx1 idx3 event /\
-           MemInv.le inv1 inv3 /\
-           sim_local inv3 idx3 st3_src st3_tgt)
+           Relational.le inv1 inv3 /\
+           sim_local stack0_src stack0_tgt inv3 idx3 st3_src st3_tgt)
   .
   Hint Constructors _sim_local.
 
-  Lemma _sim_local_mon: monotone4 _sim_local.
+  Lemma _sim_local_mon: monotone6 _sim_local.
   Proof.
-    repeat intro. inv IN.
+    repeat intro; inv IN.
     - econs 1; eauto.
     - econs 2; eauto.
     - econs 3; eauto.
@@ -146,8 +138,38 @@ Section SimulationLocal.
   Qed.
   Hint Resolve _sim_local_mon: paco.
 
-  Definition sim_local: _ -> _ -> _ -> _ -> Prop :=
-    paco4 _sim_local bot4.
+  Definition sim_local: _ -> _ -> _ -> _ -> _ -> _ -> Prop :=
+    paco6 _sim_local bot6.
 End SimulationLocal.
 Hint Constructors _sim_local.
 Hint Resolve _sim_local_mon: paco.
+
+
+Inductive init_fdef (conf:Config) (f:fdef) (args:list GenericValue): forall (ec:ExecutionContext), Prop :=
+| init_fdef_intro
+    fa rt fid la va lb
+    l' ps' cs' tmn'
+    lc'
+    (FDEF: f = fdef_intro (fheader_intro fa rt fid la va) lb)
+    (ENTRY: getEntryBlock f = Some (l', stmts_intro ps' cs' tmn'))
+    (LOCALS: initLocals conf.(CurTargetData) la args = Some lc'):
+    init_fdef conf f args (mkEC f (l', stmts_intro ps' cs' tmn') cs' tmn' lc' nil)
+.
+
+
+Section SimulationLocalFunc.
+  Variable (conf_src conf_tgt:Config).
+
+  Definition sim_func (fdef_src fdef_tgt:fdef): Prop :=
+    forall inv0 stack0_src stack0_tgt mem0_src mem0_tgt
+      args_src args_tgt
+      ec0_tgt
+      (MEM_TODO: True)
+      (ARGS: list_forall2 (GVs.inject inv0.(Relational.alpha)) args_src args_tgt)
+      (TGT: init_fdef conf_tgt fdef_tgt args_tgt ec0_tgt),
+    exists ec0_src idx0,
+      init_fdef conf_src fdef_src args_src ec0_src /\
+      sim_local conf_src conf_tgt stack0_src stack0_tgt inv0 idx0
+                (mkState ec0_src stack0_src mem0_src)
+                (mkState ec0_tgt stack0_tgt mem0_tgt).
+End SimulationLocalFunc.

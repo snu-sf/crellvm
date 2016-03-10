@@ -7,10 +7,16 @@ Require Import infrastructure.
 Require Import Metatheory.
 Import LLVMsyntax.
 Import LLVMinfra.
+Require Import opsem.
 
 Require Import sflib.
+Require Import paco.
+Import Opsem.
 
 Require Import TODO.
+Require Import GenericValues.
+Require Import MemInvariants.
+Require Import SimulationLocal.
 
 Set Implicit Arguments.
 
@@ -130,4 +136,83 @@ Lemma insert_nop_spec2 id bs:
 Proof.
   apply nop_blocks_commutes.
   apply insert_nop_spec1.
+Qed.
+
+Inductive nop_fdef: forall (fdef_src fdef_tgt:fdef), Prop :=
+| nop_fdef_intro
+    header
+    blocks_src blocks_tgt
+    (BLOCKS: nop_blocks blocks_src blocks_tgt):
+    nop_fdef (fdef_intro header blocks_src) (fdef_intro header blocks_tgt)
+.
+
+Inductive nop_state_sim
+          stack0_src stack0_tgt (inv:Relational.t):
+  forall (idx:nat) (st_src st_tgt:State), Prop :=
+| nop_state_sim_intro
+    fdef_src fdef_tgt
+    l s_src s_tgt
+    cmds_src cmds_tgt term locals_src locals_tgt allocas_src allocas_tgt
+    mem_src mem_tgt
+    (FDEF: nop_fdef fdef_src fdef_tgt)
+    (CMDS: nop_cmds cmds_src cmds_tgt)
+    (LOCALS_TODO: True)
+    (ALLOCAS_TODO: True)
+    (MEM_TODO: True):
+    nop_state_sim
+      stack0_src stack0_tgt inv
+      (length cmds_tgt)
+      (mkState
+         (mkEC fdef_src (l, s_src) cmds_src term locals_src allocas_src)
+         stack0_src
+         mem_src)
+      (mkState
+         (mkEC fdef_tgt (l, s_tgt) cmds_tgt term locals_tgt allocas_tgt)
+         stack0_tgt
+         mem_tgt)
+.
+
+Lemma nop_init
+      conf_src conf_tgt
+      stack0_src stack0_tgt
+      fdef_src fdef_tgt
+      args_src args_tgt
+      mem_src mem_tgt
+      inv
+      ec_tgt
+      (FDEF: nop_fdef fdef_src fdef_tgt)
+      (ARGS: list_forall2 (GVs.inject inv.(Relational.alpha)) args_src args_tgt)
+      (MEM_TODO: True)
+      (INIT: init_fdef conf_tgt fdef_tgt args_tgt ec_tgt):
+  exists ec_src idx,
+    init_fdef conf_src fdef_src args_src ec_src /\
+    nop_state_sim
+      stack0_src stack0_tgt
+      inv idx
+      (mkState ec_src stack0_src mem_src)
+      (mkState ec_tgt stack0_tgt mem_tgt).
+Proof.
+Admitted.
+
+Lemma nop_step
+      conf_src conf_tgt:
+  nop_state_sim <6= (sim_local conf_src conf_tgt).
+Proof.
+  pcofix CIH. i.
+  inv PR.
+  destruct (forallb is_nop cmds_tgt) eqn:ALL_NOP.
+  - admit. (* tgt = nop; src should be nop, too *)
+  - admit. (* tgt <> nop; anyhow. *)
+Admitted.
+
+Lemma nop_sim
+      conf_src conf_tgt
+      fdef_src fdef_tgt
+      (NOP: nop_fdef fdef_src fdef_tgt):
+  sim_func conf_src conf_tgt fdef_src fdef_tgt.
+Proof.
+  ii.
+  exploit nop_init; eauto. i. des.
+  eexists _, _. splits; eauto.
+  apply nop_step. eauto.
 Qed.

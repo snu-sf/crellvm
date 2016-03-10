@@ -96,4 +96,12 @@ Module Relational.
       (TGT: Unary.sem conf_tgt st_tgt aux.(tgt) inv.(Invariant.tgt))
       (MAYDIFF: IdTSet.For_all (sem_maydiff st_src st_tgt aux) inv.(Invariant.maydiff))
   .
+
+  Inductive le (lhs rhs:t): Prop :=
+  | le_intro
+      (INCR: inject_incr lhs.(alpha) rhs.(alpha))
+      (TODO: False)
+  .
+
+  (* TODO: le_public? *)
 End Relational.
