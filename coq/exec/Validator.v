@@ -14,13 +14,15 @@ Require Import TODO.
 Require Import Postcond.
 Require Import Infrules.
 
+Require Import String.
+
 Set Implicit Arguments.
 
-Parameter ocaml_string : Type.
-Parameter msg_product_mismatch : ocaml_string.
-Parameter msg_TODO : ocaml_string.
+(* Parameter ocaml_string : Type. *)
+(* Parameter msg_product_mismatch : ocaml_string. *)
+(* Parameter msg_TODO : ocaml_string. *)
 
-Definition debug_bool (b:bool) (msg:ocaml_string): bool := b.
+Definition debug_bool (b:bool) (msg:string): bool := b.
 
 Fixpoint valid_cmds
          (src tgt:list cmd)
@@ -149,7 +151,7 @@ Definition valid_product (hint:ValidationHint.products) (src tgt:product): bool 
     | Some hint_fdef => valid_fdef fdef_src fdef_tgt hint_fdef
     end
   | _, _ =>
-    debug_bool false msg_product_mismatch
+    debug_bool false "TODO"
   end.
 
 Definition valid_products (hint:ValidationHint.products) (src tgt:products): bool :=
@@ -158,9 +160,9 @@ Definition valid_products (hint:ValidationHint.products) (src tgt:products): boo
 Definition valid_module (hint:ValidationHint.module) (src tgt:module): bool :=
   let '(module_intro layouts_src namedts_src products_src) := src in
   let '(module_intro layouts_tgt namedts_tgt products_tgt) := tgt in
-  debug_bool (layouts_dec layouts_src layouts_tgt) msg_TODO &&
-  debug_bool (namedts_dec namedts_src namedts_tgt) msg_TODO &&
-  debug_bool (valid_products hint products_src products_tgt) msg_TODO.
+  debug_bool (layouts_dec layouts_src layouts_tgt) "TODO" &&
+  debug_bool (namedts_dec namedts_src namedts_tgt) "TODO" &&
+  debug_bool (valid_products hint products_src products_tgt) "TODO".
 
 Definition valid_modules (hint:ValidationHint.modules) (src tgt:modules): bool :=
   list_forallb3 valid_module hint src tgt.
