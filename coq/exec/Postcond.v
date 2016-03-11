@@ -47,6 +47,10 @@ Module LiftPred.
       end.
 
     Definition ExprPair (ep:ExprPair.t): bool := Expr (fst ep) || Expr (snd ep).
+
+    Definition Ptr (p: Ptr.t): bool := ValueT (fst p).
+
+    Definition PtrPair (pp: PtrPair.t): bool := Ptr (fst pp) || Ptr (snd pp).
   End LiftPred.
 End LiftPred.
 
@@ -87,6 +91,10 @@ Module Previousify.
     end.
 
   Definition ExprPair (ep:ExprPair.t): ExprPair.t := (Expr (fst ep), Expr (snd ep)).
+
+  Definition Ptr (p:Ptr.t): Ptr.t := (ValueT (fst p), snd p).
+
+  Definition PtrPair (pp:PtrPair.t): PtrPair.t := (Ptr (fst pp), Ptr (snd pp)).
 End Previousify.
 
 (* TODO: move *)
@@ -110,11 +118,31 @@ Definition IdTSet_map f s :=
     s
     IdTSet.empty.
 
+(* TODO: move *)
+Definition PtrPairSet_map f s :=
+  PtrPairSet.fold
+    (compose PtrPairSet.add f)
+    s
+    PtrPairSet.empty.
+
+(* TODO: move *)
+Definition PtrSet_map f s :=
+  PtrSet.fold
+    (compose PtrSet.add f)
+    s
+    PtrSet.empty.
+
 Module Snapshot.
   Definition IdT (i:IdT.t): bool :=
     if Tag.eq_dec (fst i) Tag.previous
     then true
     else false.
+
+  Definition Ptr (p:Ptr.t): bool :=
+    match fst p with
+    | ValueT.id i => IdT i
+    | ValueT.const _ => false
+    end.
 
   Definition ValueTPairSet (inv0:ValueTPairSet.t): ValueTPairSet.t :=
     let inv1 := ValueTPairSet.filter (compose negb (LiftPred.ValueTPair IdT)) inv0 in
@@ -131,10 +159,30 @@ Module Snapshot.
     let inv2 := IdTSet.union inv1 (IdTSet_map Previousify.IdT inv1) in
     inv2.
 
+  Definition PtrSet (inv0:PtrSet.t): PtrSet.t :=
+    let inv1 := PtrSet.filter (compose negb Ptr) inv0 in
+    let inv2 := PtrSet.union inv0 (PtrSet_map Previousify.Ptr inv1) in
+    inv2.
+
+  Definition noalias (inv0:PtrPairSet.t): PtrPairSet.t :=
+    let inv1 := PtrPairSet.filter (compose negb (LiftPred.PtrPair IdT)) inv0 in
+    let inv2 := PtrPairSet.union inv1 (PtrPairSet_map Previousify.PtrPair inv1) in
+    inv2.
+
+  Definition diffblock (inv0:PtrPairSet.t): PtrPairSet.t :=
+    let inv1 := PtrPairSet.filter (compose negb (LiftPred.PtrPair IdT)) inv0 in
+    let inv2 := PtrPairSet.union inv1 (PtrPairSet_map Previousify.PtrPair inv1) in
+    inv2.
+
+  Definition alias (inv0: Invariant.aliasrel): Invariant.aliasrel :=
+    let inv1 := Invariant.update_noalias_rel noalias inv0 in
+    let inv2 := Invariant.update_diffblock_rel diffblock inv0 in
+    inv1.
+
   Definition unary (inv0:Invariant.unary): Invariant.unary :=
     let inv1 := Invariant.update_lessdef ExprPairSet inv0 in
-    let inv2 := Invariant.update_noalias ValueTPairSet inv1 in
-    let inv3 := Invariant.update_allocas IdTSet inv2 in
+    let inv2 := Invariant.update_alias alias inv1 in
+    let inv3 := Invariant.update_allocas PtrSet inv2 in
     let inv4 := Invariant.update_private IdTSet inv3 in
     inv4.
 
@@ -146,10 +194,15 @@ Module Snapshot.
 End Snapshot.
 
 Module Forget.
+  Definition alias (ids:IdTSet.t) (inv0:Invariant.aliasrel): Invariant.aliasrel :=
+    let inv1 := Invariant.update_diffblock_rel (PtrPairSet.filter (compose negb (LiftPred.PtrPair (flip IdTSet.mem ids)))) inv0 in
+    let inv2 := Invariant.update_noalias_rel (PtrPairSet.filter (compose negb (LiftPred.PtrPair (flip IdTSet.mem ids)))) inv1 in
+    inv2.
+
   Definition unary (ids:IdTSet.t) (inv0:Invariant.unary): Invariant.unary :=
     let inv1 := Invariant.update_lessdef (ExprPairSet.filter (compose negb (LiftPred.ExprPair (flip IdTSet.mem ids)))) inv0 in
-    let inv2 := Invariant.update_noalias (ValueTPairSet.filter (compose negb (LiftPred.ValueTPair (flip IdTSet.mem ids)))) inv1 in
-    let inv3 := Invariant.update_allocas (IdTSet.filter (compose negb (flip IdTSet.mem ids))) inv2 in
+    let inv2 := Invariant.update_alias (alias ids) inv1 in
+    let inv3 := Invariant.update_allocas (PtrSet.filter (compose negb (LiftPred.Ptr (flip IdTSet.mem ids)))) inv2 in
     let inv4 := Invariant.update_private (IdTSet.filter (compose negb (flip IdTSet.mem ids))) inv3 in
     inv4.
 
@@ -170,6 +223,9 @@ Module ForgetMemory.
       | ValueT.const _ => true
     end.
 
+  Definition is_noalias_Ptr (inv:Invariant.unary) (ids:IdTSet.t) (p:Ptr.t): bool :=
+    is_noalias_ValueT inv ids (fst p).
+
   Definition is_noalias_ValueTPair (inv:Invariant.unary) (ids:IdTSet.t) (ep:ValueTPair.t): bool :=
     is_noalias_ValueT inv ids (fst ep) && is_noalias_ValueT inv ids (snd ep).
 
@@ -182,10 +238,14 @@ Module ForgetMemory.
   Definition is_noalias_ExprPair (inv:Invariant.unary) (ids:IdTSet.t) (ep:ExprPair.t): bool :=
     is_noalias_Expr inv ids (fst ep) && is_noalias_Expr inv ids (snd ep).
 
+  Definition is_noalias_PtrPair (inv: Invariant.unary) (ids:IdTSet.t) (pp:PtrPair.t): bool :=
+    is_noalias_Ptr inv ids (fst pp) && is_noalias_Ptr inv ids (snd pp).
+
   Definition unary (ids:IdTSet.t) (inv0:Invariant.unary): Invariant.unary :=
     let inv1 := Invariant.update_lessdef (ExprPairSet.filter (is_noalias_ExprPair inv0 ids)) inv0 in
-    let inv2 := Invariant.update_noalias (ValueTPairSet.filter (is_noalias_ValueTPair inv0 ids)) inv1 in
-    inv2.
+    let inv2 := Invariant.update_diffblock (PtrPairSet.filter (is_noalias_PtrPair inv1 ids)) inv1 in
+    let inv3 := Invariant.update_noalias (PtrPairSet.filter (is_noalias_PtrPair inv2 ids)) inv2 in
+    inv3.
 
   Definition t (s_src s_tgt:IdTSet.t) (inv0:Invariant.t): Invariant.t :=
     let inv1 := Invariant.update_src (unary s_src) inv0 in
@@ -404,16 +464,16 @@ Definition postcond_cmd_add_private_allocas
            (src tgt:cmd)
            (inv0:Invariant.t): Invariant.t :=
   match src, tgt with
-  | insn_alloca aid_src _ _ _, insn_alloca aid_tgt _ _ _ =>
-    let inv1 := Invariant.update_src (Invariant.update_allocas (IdTSet.add (IdT.lift Tag.physical aid_src))) inv0 in
-    let inv2 := Invariant.update_tgt (Invariant.update_allocas (IdTSet.add (IdT.lift Tag.physical aid_tgt))) inv1 in
+  | insn_alloca aid_src tys _ _, insn_alloca aid_tgt tyt _ _ =>
+    let inv1 := Invariant.update_src (Invariant.update_allocas (PtrSet.add (ValueT.id (IdT.lift Tag.physical aid_src), tys))) inv0 in
+    let inv2 := Invariant.update_tgt (Invariant.update_allocas (PtrSet.add (ValueT.id (IdT.lift Tag.physical aid_tgt), tyt))) inv1 in
     inv2
-  | insn_alloca aid_src _ _ _, insn_nop _ =>
-    let inv1 := Invariant.update_src (Invariant.update_allocas (IdTSet.add (IdT.lift Tag.physical aid_src))) inv0 in
+  | insn_alloca aid_src ty _ _, insn_nop _ =>
+    let inv1 := Invariant.update_src (Invariant.update_allocas (PtrSet.add (ValueT.id (IdT.lift Tag.physical aid_src), ty))) inv0 in
     let inv2 := Invariant.update_src (Invariant.update_private (IdTSet.add (IdT.lift Tag.physical aid_src))) inv1 in
     inv2
-  | insn_nop _, insn_alloca aid_tgt _ _ _ =>
-    let inv1 := Invariant.update_tgt (Invariant.update_allocas (IdTSet.add (IdT.lift Tag.physical aid_tgt))) inv0 in
+  | insn_nop _, insn_alloca aid_tgt ty _ _ =>
+    let inv1 := Invariant.update_tgt (Invariant.update_allocas (PtrSet.add (ValueT.id (IdT.lift Tag.physical aid_tgt), ty))) inv0 in
     let inv2 := Invariant.update_tgt (Invariant.update_private (IdTSet.add (IdT.lift Tag.physical aid_tgt))) inv1 in
     inv2
   | _, _ => inv0
@@ -443,14 +503,14 @@ Definition postcond_cmd_add_lessdef
 
 Definition postcond_cmd_add_noalias
            (c:cmd)
-           (allocas:IdTSet.t)
-           (inv0:ValueTPairSet.t): ValueTPairSet.t :=
+           (allocas:PtrSet.t)
+           (inv0:PtrPairSet.t): PtrPairSet.t :=
   match c with
   | insn_alloca x ty v a =>
-    IdTSet.fold
+    PtrSet.fold
       (fun alloca result0 =>
-         let result1 := ValueTPairSet.add (ValueT.id alloca, ValueT.id (IdT.lift Tag.physical x)) result0 in
-         let result2 := ValueTPairSet.add (ValueT.id (IdT.lift Tag.physical x), ValueT.id alloca) result1 in
+         let result1 := PtrPairSet.add (alloca, (ValueT.id (IdT.lift Tag.physical x), ty)) result0 in
+         let result2 := PtrPairSet.add ((ValueT.id (IdT.lift Tag.physical x), ty), alloca) result1 in
          result2)
       allocas
       inv0

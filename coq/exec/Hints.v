@@ -1,3 +1,4 @@
+
 Require Import syntax.
 Require Import alist.
 Require Import FMapWeakList.
@@ -13,10 +14,15 @@ Require Import Exprs.
 Set Implicit Arguments.
 
 Module Invariant.
+  Structure aliasrel := mk_aliasrel {
+    diffblock: PtrPairSet.t;
+    noalias:  PtrPairSet.t;
+  }.
+
   Structure unary := mk_unary {
     lessdef: ExprPairSet.t;
-    noalias: ValueTPairSet.t;
-    allocas: IdTSet.t;
+    alias: aliasrel;
+    allocas: PtrSet.t;
     private: IdTSet.t;
   }.
 
@@ -29,28 +35,44 @@ Module Invariant.
   Definition update_lessdef (f:ExprPairSet.t -> ExprPairSet.t) (invariant:unary): unary :=
     mk_unary
       (f invariant.(lessdef))
-      invariant.(noalias)
+      invariant.(alias)
       invariant.(allocas)
       invariant.(private).
 
-  Definition update_noalias (f:ValueTPairSet.t -> ValueTPairSet.t) (invariant:unary): unary :=
+  Definition update_diffblock_rel (f:PtrPairSet.t -> PtrPairSet.t) (alias:aliasrel): aliasrel :=
+    mk_aliasrel
+      (f alias.(diffblock))
+      alias.(noalias).
+
+  Definition update_noalias_rel (f:PtrPairSet.t -> PtrPairSet.t) (alias:aliasrel): aliasrel :=
+    mk_aliasrel
+      alias.(diffblock)
+      (f alias.(noalias)).
+
+  Definition update_alias (f:aliasrel -> aliasrel) (invariant:unary): unary :=
     mk_unary
       invariant.(lessdef)
-      (f invariant.(noalias))
+      (f invariant.(alias))
       invariant.(allocas)
       invariant.(private).
 
-  Definition update_allocas (f:IdTSet.t -> IdTSet.t) (invariant:unary): unary :=
+  Definition update_diffblock (f:PtrPairSet.t -> PtrPairSet.t) (invariant:unary): unary :=
+    update_alias (update_diffblock_rel f) invariant.
+
+  Definition update_noalias (f:PtrPairSet.t -> PtrPairSet.t) (invariant:unary): unary :=
+    update_alias (update_noalias_rel f) invariant.
+
+  Definition update_allocas (f:PtrSet.t -> PtrSet.t) (invariant:unary): unary :=
     mk_unary
       invariant.(lessdef)
-      invariant.(noalias)
+      invariant.(alias)
       (f invariant.(allocas))
       invariant.(private).
 
   Definition update_private (f:IdTSet.t -> IdTSet.t) (invariant:unary): unary :=
     mk_unary
       invariant.(lessdef)
-      invariant.(noalias)
+      invariant.(alias)
       invariant.(allocas)
       (f invariant.(private)).
 
@@ -78,22 +100,37 @@ Module Invariant.
     | ValueT.const _ => false
     end.
 
+  Definition implies_alias (alias0 alias:aliasrel): bool :=
+    PtrPairSet.subset (alias.(noalias)) (alias0.(noalias)) &&
+    PtrPairSet.subset (alias.(diffblock)) (alias0.(diffblock)).
+
   Definition implies_unary (inv0 inv:unary): bool :=
     ExprPairSet.subset (inv.(lessdef)) (inv0.(lessdef)) &&
-    ValueTPairSet.subset (inv.(noalias)) (inv0.(noalias)) &&
-    IdTSet.subset (inv.(allocas)) (inv0.(allocas)) &&
+    implies_alias (inv.(alias)) (inv0.(alias)) &&
+    PtrSet.subset (inv.(allocas)) (inv0.(allocas)) &&
     IdTSet.subset (inv.(private)) (inv0.(private)).
 
   Definition implies (inv0 inv:t): bool :=
     implies_unary (inv0.(src)) (inv.(src)) &&
     implies_unary (inv0.(tgt)) (inv.(tgt)) &&
     IdTSet.subset (inv0.(maydiff)) (inv.(maydiff)).
-
+Print FSetExtra.Make.
+Print PtrPairSet.
+  Definition is_noalias (inv:unary) (i1:IdT.t) (i2:IdT.t) :=
+    let e1 := ValueT.id i1 in
+    let e2 := ValueT.id i2 in
+    PtrPairSet.exists_ (fun p1p2 =>
+                         match p1p2 with
+                           | ((xe1, _), (xe2, _)) =>
+                             (ValueT.eq_dec e1 xe1 && ValueT.eq_dec e2 xe2) ||
+                             (ValueT.eq_dec e1 xe2 && ValueT.eq_dec e2 xe1)
+                         end) inv.(alias).(noalias).
+(*
   Definition is_noalias (inv:unary) (i1:IdT.t) (i2:IdT.t) :=
     let e1 := ValueT.id i1 in
     let e2 := ValueT.id i2 in
     ValueTPairSet.mem (e1, e2) inv.(noalias) || ValueTPairSet.mem (e2, e1) inv.(noalias).
-
+*)
   Definition not_in_maydiff (inv:t) (value:ValueT.t): bool :=
     match value with
     | ValueT.id id =>
@@ -106,10 +143,14 @@ Module Invariant.
     (ExprPairSet.mem (Expr.value value_src, Expr.value value_tgt) inv.(tgt).(lessdef) && not_in_maydiff inv value_src) ||
     (ExprPairSet.mem (Expr.value value_src, Expr.value value_tgt) inv.(src).(lessdef) && not_in_maydiff inv value_tgt).
 
+  Definition is_empty_alias (alias:aliasrel): bool :=
+    PtrPairSet.is_empty alias.(noalias) &&
+    PtrPairSet.is_empty alias.(diffblock).
+
   Definition is_empty_unary (inv:unary): bool :=
     ExprPairSet.is_empty inv.(lessdef) &&
-    ValueTPairSet.is_empty inv.(noalias) &&
-    IdTSet.is_empty inv.(allocas) &&
+    is_empty_alias inv.(alias) &&
+    PtrSet.is_empty inv.(allocas) &&
     IdTSet.is_empty inv.(private).
 
   Definition is_empty (inv:t): bool :=

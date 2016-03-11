@@ -7,6 +7,7 @@ Import LLVMsyntax.
 
 Require Import sflib.
 
+
 Require Import TODO.
 
 Set Implicit Arguments.
@@ -198,3 +199,37 @@ Hint Resolve ExprPair.eq_dec: EqDecDb.
 
 Module ExprPairSet : FSetExtra.WSfun ExprPair := FSetExtra.Make ExprPair.
 Module ExprPairSetFacts := WFacts_fun ExprPair ExprPairSet.
+
+Module Ptr <: UsualDecidableType.
+  Definition t := (ValueT.t * typ)%type.
+  Definition eq := @eq t.
+  Definition eq_refl := @refl_equal t.
+  Definition eq_sym := @sym_eq t.
+  Definition eq_trans := @trans_eq t.
+  Definition eq_dec (x y:t): {x = y} + {x <> y}.
+  Proof.
+    apply ott_list_eq_dec.pair_eq_dec;
+      try apply ValueT.eq_dec;
+      try apply typ_dec.
+  Defined.
+End Ptr.
+
+Module PtrSet: FSetExtra.WSfun Ptr := FSetExtra.Make Ptr.
+Module PtrSetFacts := WFacts_fun Ptr PtrSet.
+
+Module PtrPair <: UsualDecidableType.
+  Definition t := (Ptr.t * Ptr.t)%type.
+  Definition eq := @eq t.
+  Definition eq_refl := @refl_equal t.
+  Definition eq_sym := @sym_eq t.
+  Definition eq_trans := @trans_eq t.
+  Definition eq_dec (x y:t): {x = y} + {x <> y}.
+  Proof.
+    apply ott_list_eq_dec.pair_eq_dec;
+      apply Ptr.eq_dec.
+  Defined.
+End PtrPair.
+Hint Resolve PtrPair.eq_dec: EqDecDb.
+
+Module PtrPairSet: FSetExtra.WSfun PtrPair := FSetExtra.Make PtrPair.
+Module PtrPairSetFacts := WFacts_fun PtrPair PtrPairSet.
