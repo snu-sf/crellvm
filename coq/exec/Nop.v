@@ -172,27 +172,64 @@ Inductive nop_state_sim
          mem_tgt)
 .
 
+Lemma locals_init
+      inv la gvs_tgt
+    args_src args_tgt
+    conf_src conf_tgt
+    (CONF_TODO : True)
+    (ARGS: list_forall2 (GVs.inject inv.(Relational.alpha)) args_src args_tgt)
+    (LOCALS : initLocals (CurTargetData conf_tgt) la args_tgt = Some gvs_tgt) :
+  initLocals (CurTargetData conf_src) la args_src =
+  initLocals (CurTargetData conf_tgt) la args_tgt.
+Proof.
+Admitted.
+
 Lemma nop_init
       conf_src conf_tgt
       stack0_src stack0_tgt
-      fdef_src fdef_tgt
+      header
+      blocks_src blocks_tgt
       args_src args_tgt
       mem_src mem_tgt
       inv
       ec_tgt
-      (FDEF: nop_fdef fdef_src fdef_tgt)
+      (NOP_FDEF: nop_fdef (fdef_intro header blocks_src)
+                          (fdef_intro header blocks_tgt))
+      (NOP_FIRST_MATCHES: option_map fst (hd_error blocks_src) = option_map fst (hd_error blocks_tgt))
       (ARGS: list_forall2 (GVs.inject inv.(Relational.alpha)) args_src args_tgt)
       (MEM_TODO: True)
-      (INIT: init_fdef conf_tgt fdef_tgt args_tgt ec_tgt):
+      (CONF_TODO: True)
+      (INIT: init_fdef conf_tgt (fdef_intro header blocks_tgt) args_tgt ec_tgt):
   exists ec_src idx,
-    init_fdef conf_src fdef_src args_src ec_src /\
+    init_fdef conf_src (fdef_intro header blocks_src) args_src ec_src /\
     nop_state_sim
       stack0_src stack0_tgt
       inv idx
       (mkState ec_src stack0_src mem_src)
       (mkState ec_tgt stack0_tgt mem_tgt).
 Proof.
-Admitted.
+  inv INIT.
+  inv NOP_FDEF.
+  destruct header.
+  destruct blocks_src, blocks_tgt; inv NOP_FIRST_MATCHES; try inv ENTRY.
+  inv FDEF.
+  destruct b. destruct s.
+  simpl in H0. subst.
+  eexists.
+  eexists.
+  splits.
+  - econs; simpl; eauto. rewrite <- LOCALS. eapply locals_init; eauto.
+  - assert(G:=BLOCKS l').
+    simpl in G.
+    match goal with | [H: context[if ?cond then Some _ else _] |- _] => destruct cond eqn:T end.
+    Focus 2.
+    + unfold not in n. contradiction n. auto.
+    + simpl in G.
+      destruct G as [nop_phi [nop_cmd nop_term]].
+      subst. simpl.
+      econs; eauto.
+      econs; eauto.
+Qed.
 
 Lemma nop_step
       conf_src conf_tgt:
@@ -201,15 +238,17 @@ Proof.
   pcofix CIH. i.
   inv PR.
   destruct (forallb is_nop cmds_tgt) eqn:ALL_NOP.
-  - admit. (* tgt = nop; src should be nop, too *)
-  - admit. (* tgt <> nop; anyhow. *)
+  - pfold; simpl. admit.
+  - pfold; simpl. admit.
 Admitted.
 
 Lemma nop_sim
       conf_src conf_tgt
-      fdef_src fdef_tgt
-      (NOP: nop_fdef fdef_src fdef_tgt):
-  sim_func conf_src conf_tgt fdef_src fdef_tgt.
+      header
+      blocks_src blocks_tgt
+      (NOP: nop_fdef (fdef_intro header blocks_src) (fdef_intro header blocks_tgt))
+      (NOP_FIRST_MATCHES: option_map fst (hd_error blocks_src) = option_map fst (hd_error blocks_tgt)):
+  sim_func conf_src conf_tgt (fdef_intro header blocks_src) (fdef_intro header blocks_tgt).
 Proof.
   ii.
   exploit nop_init; eauto. i. des.
