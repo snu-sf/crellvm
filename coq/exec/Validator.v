@@ -26,7 +26,8 @@ Fixpoint valid_cmds
     | None => None
     | Some inv1 =>
       let inv2 := apply_infrules infrules inv1 in
-      if Invariant.implies inv2 inv
+      let inv3 := reduce_maydiff inv2 in
+      if Invariant.implies inv3 inv
       then valid_cmds src tgt hint inv
       else None
     end
@@ -101,7 +102,8 @@ Definition valid_entry_stmts (src tgt:stmts) (hint:ValidationHint.stmts): bool :
   let '(stmts_intro phinodes_tgt _ _) := tgt in
   is_empty phinodes_src &&
   is_empty phinodes_tgt &&
-  Invariant.is_empty hint.(ValidationHint.invariant_after_phinodes).
+  Invariant.is_empty_unary hint.(ValidationHint.invariant_after_phinodes).(Invariant.src) &&
+  Invariant.is_empty_unary hint.(ValidationHint.invariant_after_phinodes).(Invariant.tgt).
 
 Definition valid_fdef
            (src tgt:fdef)
