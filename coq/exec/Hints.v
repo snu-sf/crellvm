@@ -1,4 +1,3 @@
-
 Require Import syntax.
 Require Import alist.
 Require Import FMapWeakList.
