@@ -24,8 +24,8 @@ type register = {
   tag : tag;     (* indicates whether this register is physical or previous or ghost *)
 }
 
-(* integer type of signed, bitsize *)
-type int_type = [ IntType of (bool * int) ] <ocaml repr="classic">
+(* integer type of bitsize *)
+type int_type = [ IntType of int ] <ocaml repr="classic">
 
 (* float type *)
 type float_type = [ FloatType | DoubleType | FP128Type | X86_FP80Type ] <ocaml repr="classic">
