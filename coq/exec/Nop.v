@@ -231,16 +231,255 @@ Proof.
       econs; eauto.
 Qed.
 
+Lemma double_neg : forall A : Prop, ~ ~ A -> A.
+Proof.
+  unfold not; intros.
+  assert(G:ClassicalFacts.excluded_middle).
+  unfold ClassicalFacts.excluded_middle.
+  intro.
+(*   apply ClassicalFacts.prop_degeneracy in A0. *)
+(*   apply ClassicalFacts.excluded_middle in A0. *)
+
+(*   ClassicalFacts.prop_degen_em: *)
+(*   ClassicalFacts.prop_degeneracy -> ClassicalFacts.excluded_middle *)
+(* ClassicalFacts.prop_ext_em_degen: *)
+(*   ClassicalFacts.prop_extensionality -> *)
+(*   ClassicalFacts.excluded_middle -> ClassicalFacts.prop_degeneracy *)
+(* ClassicalFacts.excluded_middle_Godel_Dummett: *)
+(*   ClassicalFacts.excluded_middle -> ClassicalFacts.GodelDummett *)
+
+(*   exploit (ClassicalFacts.excluded_middle A). *)
+  Admitted.
+
+Lemma double_neg2 : forall A : Prop, A -> ~ ~ A.
+Proof.
+  unfold not; intros.
+  apply H0 in H.
+  inv H.
+Qed.
+(* sim_local : *)
+(* Config -> *)
+(* Config -> ECStack -> ECStack -> Relational.t -> nat -> State -> State -> Prop *)
+
+(* Argument scopes are [_ _ _ _ _ nat_scope _ _] *)
+(* sim_local is transparent *)
+(* Expands to: Constant LLVMBerry.exec.SimulationLocal.sim_local *)
+
+
+(* _sim_local : *)
+(* Config -> *)
+(* Config -> *)
+(* (ECStack -> ECStack -> Relational.t -> nat -> State -> State -> Prop) -> *)
+(* ECStack -> ECStack -> Relational.t -> nat -> State -> State -> Prop *)
+
+(* Argument scopes are [_ _ _ _ _ _ nat_scope _ _] *)
+(* Expands to: Inductive LLVMBerry.exec.SimulationLocal._sim_local *)
+
+
+(* nop_state_sim : *)
+(* ECStack -> ECStack -> Relational.t -> nat -> State -> State -> Prop *)
+
+(* Argument scopes are [_ _ _ nat_scope _ _] *)
+(* Expands to: Inductive Top.nop_state_sim *)
+
+
+Inductive trivial_state_sim (stack0_src stack0_tgt : ECStack) (inv : Relational.t)
+          : nat -> State -> State -> Prop :=
+  trivial_state_sim_intro :
+    forall same_state
+      (SRC_STACK : ECS same_state = stack0_src)
+      (TGT_STACK : ECS same_state = stack0_tgt),
+    trivial_state_sim stack0_src stack0_tgt inv
+                      (length (CurCmds (EC same_state)))
+                      same_state same_state.
+
+Lemma trivial_step
+      conf_src conf_tgt:
+  trivial_state_sim <6= (sim_local conf_src conf_tgt).
+Proof.
+  pcofix CIH. i.
+  inv PR.
+  pfold; simpl.
+ 
+  destruct x5. (* eqn:T. *)
+  destruct EC0. (* eqn:T2. *)
+  destruct CurCmds0. (* eqn:T3. *)
+  destruct conf_tgt, conf_src.
+  -
+    destruct Terminator0. (* eqn:T4. *)
+    + (* insn_return *)
+      eapply _sim_local_return; repeat (simpl; eauto).
+      admit. admit. admit.
+    + (* insn_return_void *)
+      eapply _sim_local_return_void; repeat (simpl; eauto).
+    + (* insn_br *)
+      eapply _sim_local_step; repeat (simpl; eauto).
+      unfold stuck_state, not.
+      apply double_neg2.
+      repeat eexists.
+      eapply sBranch; simpl; eauto.
+      admit. admit. admit.
+
+      ii.
+      destruct event.
+      *
+        inv STEP.
+        eexists.
+        eexists.
+        eexists.
+        eexists.
+        eexists.
+        splits.
+        econs; simpl; eauto.
+        econs; simpl; eauto.
+        eapply sBranch; simpl; eauto.
+        admit. admit. admit.
+        econs; simpl; eauto.
+
+        pfold; simpl.
+    +
+      
+        | _sim_local_return : forall (st2_src : State) (id2_src : id)
+                          (typ2_src : typ) (ret2_src : value) 
+                          (id1_tgt : id) (typ1_tgt : typ) 
+                          (ret1_tgt : value)
+                          (retval2_src retval1_tgt : GenericValue),
+                        sop_star conf_src st1_src st2_src events.E0 ->
+                        CurCmds (EC st2_src) = [] ->
+                        CurCmds (EC st1_tgt) = [] ->
+                        Terminator (EC st2_src) =
+                        insn_return id2_src typ2_src ret2_src ->
+                        Terminator (EC st1_tgt) =
+                        insn_return id1_tgt typ1_tgt ret1_tgt ->
+                        typ2_src = typ1_tgt ->
+                        ECS st2_src = stack0_src ->
+                        ECS st1_tgt = stack0_tgt ->
+                        True ->
+                        getOperandValue (CurTargetData conf_src) ret2_src
+                          (Locals (EC st2_src)) (Globals conf_src) =
+                        Some retval2_src ->
+                        getOperandValue (CurTargetData conf_tgt) ret1_tgt
+                          (Locals (EC st1_tgt)) (Globals conf_tgt) =
+                        Some retval1_tgt ->
+                        GVs.inject (Relational.alpha inv1) retval2_src
+                          retval1_tgt ->
+                        _sim_local conf_src conf_tgt sim_local stack0_src
+                          stack0_tgt inv1 idx1 st1_src st1_tgt
+
+                          ECS0 = x0
+                                   subgoal 2 (ID 1106) is:
+                          ECS0 = x1
+
+
+    +
+    econs; simpl; eauto.
+    unfold stuck_state, not; i.
+    inv H.
+    inv H0.
+    inv H.
+    (* (sInsn_cases (inversion H) Case). *)
+  -
+  eapply _sim_local_step; simpl; eauto.
+  unfold stuck_state, not.
+  apply double_neg2.
+
+  repeat eexists.
+
+
 Lemma nop_step
       conf_src conf_tgt:
   nop_state_sim <6= (sim_local conf_src conf_tgt).
 Proof.
   pcofix CIH. i.
   inv PR.
+  pfold; simpl.
+  
+  (* destruct (cmds_src) eqn:EMPTY_CMD. *)
+  (* - (* empty_src *) *)
+  (*   subst; simpl. *)
+  (*   destruct (cmds_tgt) eqn:EMPTY_TGT. *)
+  (*   + *)
+  (*     destruct term. *)
+  (*     * *)
+  (*       eapply _sim_local_return; simpl; eauto. *)
+  (*       simpl; eauto. *)
+  (*       simpl; eauto. *)
+  (*       admit. *)
+  (*       admit. *)
+  (*       admit. *)
+  (*     * *)
+  (*       (* return_void *) *)
+  (*       eapply _sim_local_return_void; simpl; eauto. *)
+  (*       simpl; eauto. *)
+  (*     * *)
+  (*       (* insn_br *) *)
+  (*       destruct conf_tgt. *)
+  (*       destruct value5. *)
+  (*       eapply _sim_local_step; simpl; eauto. *)
+  (*       unfold stuck_state, not. *)
+  (*       apply double_neg2. *)
+  (*       repeat eexists. *)
+  (*       eapply sBranch; simpl; eauto. *)
+  (*       admit. *)
+  (*       admit. *)
+  (*       admit. *)
+
+  (*       admit. *)
+  (*       admit. *)
+  (*     * (* insn_br_uncond *) *)
+  (*       admit. *)
+  (*     * (* insn_unreachable *) *)
+  (*       admit. *)
+  (*   + *)
+  (* - *)
+  
   destruct (forallb is_nop cmds_tgt) eqn:ALL_NOP.
-  - pfold; simpl. admit.
-  - pfold; simpl. admit.
-Admitted.
+  -
+    assert(G:(forallb is_nop cmds_src)) by admit.
+    destruct cmds_src eqn:SRC_EMPTY;
+      destruct cmds_tgt eqn:TGT_EMPTY;
+      subst; simpl.
+    +
+      destruct term.
+      *
+        (* return *)
+        destruct value5;
+        eapply _sim_local_return; simpl; eauto; unfold Terminator; simpl; eauto.
+        admit.
+        admit.
+        admit.
+        admit.
+        admit.
+        admit.
+      *
+        (* return_void *)
+        eapply _sim_local_return_void; simpl; eauto; unfold Terminator; simpl; eauto.
+      *
+        (* br *)
+        admit.
+      *
+        destruct conf_tgt, conf_src.
+        
+        eapply _sim_local_step; simpl; eauto.
+        apply double_neg2.
+        repeat eexists.
+        eapply sBranch_uncond; simpl; eauto.
+        admit. (* <___________________ not able *)
+        admit.
+
+        intros.
+        repeat eexists.
+        eapply sop_star_nil; simpl; eauto.
+        econs; eauto.
+        instantiate (1:=st3_tgt).
+        eapply sBranch_uncond.
+      *
+        (* br_uncond *)
+        *
+        (* br_unreachable *)
+  -
+    
+    
 
 Lemma nop_sim
       conf_src conf_tgt
