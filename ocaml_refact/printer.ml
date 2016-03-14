@@ -4,6 +4,9 @@ open Syntax
        
 let out_channel = ref stdout
 
+let debug_print (msg:string): unit =
+  Printf.fprintf !out_channel "DEBUG: %s\n" msg
+
 module ExprsToString = struct
     let of_Tag (t:Tag.t): string =
       match t with
@@ -61,40 +64,41 @@ module ExprsToString = struct
       | Expr.Coq_value vt ->
          Printf.sprintf "value %s" (of_ValueT vt)
       | _ -> "TODO"
+
+    let of_exprPair (ep:ExprPair.t) (sym:string): string =
+      let (e1, e2) = ep in
+      let s1 = of_expr e1 in
+      let s2 = of_expr e2 in
+      Printf.sprintf "%s %s %s" s1 sym s2
+
+    let of_valueTPair (vp:ValueTPair.t) (sym:string): string =
+      let (v1, v2) = vp in
+      let s1 = of_ValueT v1 in
+      let s2 = of_ValueT v2 in
+      Printf.sprintf "%s %s %s" s1 sym s2
   end
 
 module PrintExprs = struct
-    let exprPair (ep:ExprPair.t): unit =
-      let (e1, e2) = ep in
-      let s1 = ExprsToString.of_expr e1 in
-      let s2 = ExprsToString.of_expr e2 in
-      let _ = Printf.fprintf !out_channel "DEBUG: (%s, %s)\n" s1 s2 in
-      ()
+    let exprPairSet (eps: ExprPairSet.t) (sym:string): unit =
+       let _ = ExprPairSet.fold
+                 (fun ep _ ->
+                  debug_print (ExprsToString.of_exprPair ep sym))
+                 eps ()
+       in ()
 
-    let valueTPair (vp:ValueTPair.t): unit =
-      let (v1, v2) = vp in
-      let s1 = ExprsToString.of_ValueT v1 in
-      let s2 = ExprsToString.of_ValueT v2 in
-      let _ = Printf.fprintf !out_channel "DEBUG: (%s, %s)\n" s1 s2 in
-      ()
-
-    let idT (idt:IdT.t): unit =
-      let s = ExprsToString.of_IdT idt in
-      let _ = Printf.fprintf !out_channel "DEBUG: %s\n" s in
-      ()
-    
-    let exprPairSet (eps: ExprPairSet.t): unit =
-       let _ = ExprPairSet.fold (fun ep _ -> exprPair ep) eps () in
-       ()
-
-    let valueTPairSet (vtps: ValueTPairSet.t): unit = 
-       let _ = ValueTPairSet.fold (fun vtp _ -> valueTPair vtp) vtps () in
-       ()
+    let valueTPairSet (vtps: ValueTPairSet.t) (sym:string): unit = 
+       let _ = ValueTPairSet.fold
+                 (fun vtp _ ->
+                  debug_print (ExprsToString.of_valueTPair vtp sym))
+                 vtps ()
+       in ()
 
     let idTSet (idts: IdTSet.t): unit =
-       let _ = IdTSet.fold (fun idt _ -> idT idt) idts () in
+       let _ = IdTSet.fold
+                 (fun idt _ ->
+                  debug_print (ExprsToString.of_IdT idt))
+                 idts () in
        ()
-
   end
                       
 module PrintHints = struct
@@ -108,30 +112,30 @@ module PrintHints = struct
       let _ = List.map
                 (fun inf ->
                  let s = infrules_to_string inf in
-                 let _ = Printf.fprintf !out_channel "DEBUG: %s\n" s in ())
+                 let _ = debug_print s in ())
                 infs
       in ()
         
     let unary (u:Invariant.unary): unit =
-      let _ = Printf.fprintf !out_channel "DEBUG: lessdef\n" in
-      let _ = PrintExprs.exprPairSet (u.Invariant.lessdef) in
-      let _ = Printf.fprintf !out_channel "DEBUG: noalias\n" in
-      let _ = PrintExprs.valueTPairSet (u.Invariant.noalias) in
-      let _ = Printf.fprintf !out_channel "DEBUG: allocas\n" in
+      let _ = debug_print "* lessdef" in
+      let _ = PrintExprs.exprPairSet (u.Invariant.lessdef) "<=" in
+      let _ = debug_print "* noalias" in
+      let _ = PrintExprs.valueTPairSet (u.Invariant.noalias) "!=" in
+      let _ = debug_print "* allocas" in
       let _ = PrintExprs.idTSet (u.Invariant.allocas) in
-      let _ = Printf.fprintf !out_channel "DEBUG: private\n" in
+      let _ = debug_print "* private" in
       let _ = PrintExprs.idTSet (u.Invariant.coq_private) in
       ()
     
     let invariant (inv:Invariant.t): unit =
-      let _ = Printf.fprintf !out_channel "DEBUG: P\n" in
+      let _ = debug_print "[ SOURCE ]" in
       let _ = unary (inv.Invariant.src) in
-      let _ = Printf.fprintf !out_channel "DEBUG: Q\n" in
+      let _ = debug_print "[ TARGET ]" in
       let _ = unary (inv.Invariant.tgt) in
 
       let num_in_nat = IdTSet.cardinal inv.Invariant.maydiff in
       let num = Datatype_base.Size.from_nat num_in_nat in
-      let _ = Printf.fprintf !out_channel "DEBUG: D (%d)\n" num in
+      let _ = debug_print (Printf.sprintf "[ MayDiff ] (%d)" num) in
       let _ = PrintExprs.idTSet (inv.Invariant.maydiff) in
       ()
   end
@@ -140,13 +144,13 @@ let debug_run f =
   if !Globalstates.debug
   then f ()
   else ()
-                      
+
 let debug_bool (b:bool) (msg:string): bool =
   let _ =
     debug_run
       (fun _ ->
        if not b
-       then Printf.fprintf !out_channel "DEBUG: %s\n" msg
+       then debug_print msg
        else ())
   in b
 
@@ -155,7 +159,7 @@ let debug_option (o:'a option) (msg:string): 'a option =
     debug_run
       (fun _ ->
        match o with
-         | None -> Printf.fprintf !out_channel "DEBUG: %s\n" msg
+         | None -> debug_print msg
          | Some _ -> ()
       )
   in o
@@ -170,16 +174,16 @@ let debug_print_validation_process (infrules: Infrule.t list)
   let _ =
     debug_run
       (fun _ ->
-       let _ = Printf.fprintf !out_channel "DEBUG: %s\n" "** precondition" in
+       let _ = debug_print "** precondition" in
        let _ = PrintHints.invariant inv0 in
-       let _ = Printf.fprintf !out_channel "DEBUG: %s\n" "** postcond generates" in
+       let _ = debug_print "** postcond generates" in
        let _ = PrintHints.invariant inv1 in
-       let _ = Printf.fprintf !out_channel "DEBUG: %s\n" "** infrules" in
+       let _ = debug_print "** infrules" in
        let _ = PrintHints.infrules infrules in
-       let _ = Printf.fprintf !out_channel "DEBUG: %s\n" "** applying infrule" in
+       let _ = debug_print "** applying infrule" in
        let _ = PrintHints.invariant inv2 in
-       let _ = Printf.fprintf !out_channel "DEBUG: %s\n" "** reducing maydiff" in
+       let _ = debug_print "** reducing maydiff" in
        let _ = PrintHints.invariant inv3 in
-       let _ = Printf.fprintf !out_channel "DEBUG: %s\n" "** next precondition" in
+       let _ = debug_print "** next precondition" in
        let _ = PrintHints.invariant inv in ())
   in inv
