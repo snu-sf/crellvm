@@ -9,6 +9,7 @@ Require Import Exprs.
 Require Import Postcond.
 Require Import TODO.
 Require Import Decs.
+Require Import Nop.
 
 
 Require Import extraction_core.
@@ -61,6 +62,8 @@ Extract Constant INTEGER_OPERATION.sub => "Coq2ml.llapint_sub".
 (* Coq_rhs_ext_value (Coq_value_ext_const (LLVMsyntax.Coq_const_floatpoint (coq_fp, (Llvm.APFloat.const_float_get_value (Llvm.const_float fp (Floats.Float.of_int (Int.one (S (S (S (S (S (S (S (S (S (S (S (S (S (S (S (S (S (S (S (S (S (S (S (S (S (S (S (S (S (S (S O))))))))))))))))))))))))))))))))))))))  *)
 (* )". *)
 
+Extract Constant next_nop_id => "fun _ -> ""%""^(string_of_int (Llvm2coq.get_fake_name ()))".
+
 Extraction Library FMapWeakList.
 Extraction Library extraction_defs.
 (* Extraction Library decs. *)
@@ -82,3 +85,4 @@ Extraction Library Infrules.
 Extraction Library Decs.
 (* Extraction Library my_gvar_dec. *)
 Extraction Library Validator.
+Extraction Library Nop.
