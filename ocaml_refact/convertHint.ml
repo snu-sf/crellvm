@@ -19,11 +19,26 @@ open AddInfrule
 type atom = AtomImpl.atom
 
 (* TODO(@youngju.song): in Coq *)
-let generate_nop (core_hint:CoreHint_t.hints) : int list =
-  failwith "TODO"
+let generate_nop (f_id : string) (ps : position list) (m : coq_module) : LLVMsyntax.id list =
+  let f = TODOCAML.get (LLVMinfra.lookupFdefViaIDFromModule m f_id) in
+  List.map (fun x -> Position.convert_to_id x f) ps
 
-let insert_nop (m:LLVMsyntax.coq_module) (nops:int list) : LLVMsyntax.coq_module =
-  failwith "TODO"
+let insert_nop (f_id : string) (m : LLVMsyntax.coq_module)
+               (nops : LLVMsyntax.id list) : LLVMsyntax.coq_module =
+  let Coq_module_intro (l, ns, ps) = m in
+  let ps = List.map (fun (x : product) ->
+                      match x with
+                      | LLVMsyntax.Coq_product_fdef f ->
+                         if (f_id = LLVMinfra.getFdefID f)
+                         then
+                           (* let Coq_fdef_intro (Coq_fheader_intro (_, _, id, _, _), blks) = f in *)
+                           let Coq_fdef_intro (h, blks) = f in
+                           let blks = (Nop.insert_nops nops blks) in
+                           (LLVMsyntax.Coq_product_fdef (Coq_fdef_intro (h, blks)))
+                         else x
+                      | _ -> x
+                     ) ps in
+  Coq_module_intro (l, ns, ps)
 
 module EmptyHint = struct
   (* TODO(@youngju.song): in Coq *)
