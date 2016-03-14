@@ -105,14 +105,13 @@ module PrintHints = struct
       | _ -> "TODO"
 
     let infrules (infs:Infrule.t list): unit =
-      List.map
-        (fun inf ->
-         let s = infrules_to_string inf in
-         let _ = Printf.fprintf !out_channel "DEBUG: %s\n" s in
-         ())
-        infs;
-      ()
-    
+      let _ = List.map
+                (fun inf ->
+                 let s = infrules_to_string inf in
+                 let _ = Printf.fprintf !out_channel "DEBUG: %s\n" s in ())
+                infs
+      in ()
+        
     let unary (u:Invariant.unary): unit =
       let _ = Printf.fprintf !out_channel "DEBUG: lessdef\n" in
       let _ = PrintExprs.exprPairSet (u.Invariant.lessdef) in
@@ -147,9 +146,40 @@ let debug_bool (b:bool) (msg:string): bool =
     debug_run
       (fun _ ->
        if not b
-       then Printf.fprintf !out_channel "DEBUG: %s" msg
+       then Printf.fprintf !out_channel "DEBUG: %s\n" msg
        else ())
   in b
 
-let debug_print_invariant (inv: Invariant.t): unit =
-  debug_run (fun _ -> PrintHints.invariant inv)
+let debug_option (o:'a option) (msg:string): 'a option =
+  let _ =
+    debug_run
+      (fun _ ->
+       match o with
+         | None -> Printf.fprintf !out_channel "DEBUG: %s\n" msg
+         | Some _ -> ()
+      )
+  in o
+
+let debug_print_validation_process (infrules: Infrule.t list)
+                                   (inv0: Invariant.t)
+                                   (inv1: Invariant.t)
+                                   (inv2: Invariant.t)
+                                   (inv3: Invariant.t)
+                                   (inv: Invariant.t)
+    : Invariant.t =
+  let _ =
+    debug_run
+      (fun _ ->
+       let _ = Printf.fprintf !out_channel "DEBUG: %s\n" "** precondition" in
+       let _ = PrintHints.invariant inv0 in
+       let _ = Printf.fprintf !out_channel "DEBUG: %s\n" "** postcond generates" in
+       let _ = PrintHints.invariant inv1 in
+       let _ = Printf.fprintf !out_channel "DEBUG: %s\n" "** infrules" in
+       let _ = PrintHints.infrules infrules in
+       let _ = Printf.fprintf !out_channel "DEBUG: %s\n" "** applying infrule" in
+       let _ = PrintHints.invariant inv2 in
+       let _ = Printf.fprintf !out_channel "DEBUG: %s\n" "** reducing maydiff" in
+       let _ = PrintHints.invariant inv3 in
+       let _ = Printf.fprintf !out_channel "DEBUG: %s\n" "** next precondition" in
+       let _ = PrintHints.invariant inv in ())
+  in inv
