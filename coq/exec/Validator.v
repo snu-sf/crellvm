@@ -133,12 +133,12 @@ Definition valid_entry_stmts (src tgt:stmts) (hint:ValidationHint.stmts): bool :
   is_empty phinodes_src &&
   is_empty phinodes_tgt &&
 
-debug_print_bool "valid_entry_stmts: phinode of source not empty" (is_empty phinodes_src) &&
+  debug_print_bool "valid_entry_stmts: phinode of source not empty" (is_empty phinodes_src) &&
   debug_print_bool "valid_entry_stmts: phinode of target not empty" (is_empty phinodes_tgt) &&
   debug_print_bool "valid_entry_stmts: invariant_after_phinodes of source not empty"
-  Invariant.is_empty_unary hint.(ValidationHint.invariant_after_phinodes).(Invariant.src) &&
+  (Invariant.is_empty_unary hint.(ValidationHint.invariant_after_phinodes).(Invariant.src)) &&
   debug_print_bool "valid_entry_stmts: invariant_after_phinodes of target not empty"
-  Invariant.is_empty_unary hint.(ValidationHint.invariant_after_phinodes).(Invariant.tgt).
+  (Invariant.is_empty_unary hint.(ValidationHint.invariant_after_phinodes).(Invariant.tgt)).
 
 Definition valid_fdef
            (src tgt:fdef)
