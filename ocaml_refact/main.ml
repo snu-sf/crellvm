@@ -12,7 +12,7 @@ let debug_run f =
   else ()
 
 let debug_print s =
-  debug_run (fun _ -> Printf.fprintf !out_channel "DEBUG: %s" s)
+  debug_run (fun _ -> Printf.fprintf !out_channel "DEBUG: %s\n" s)
 
 let read_im filename =
   let _ = debug_print "read_im.." in
