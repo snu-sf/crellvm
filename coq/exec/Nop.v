@@ -15,7 +15,7 @@ Import Opsem.
 
 Require Import TODO.
 Require Import GenericValues.
-Require Import MemInvariants.
+Require Import MemInv.
 Require Import SimulationLocal.
 
 Set Implicit Arguments.
@@ -177,7 +177,7 @@ Lemma locals_init
     args_src args_tgt
     conf_src conf_tgt
     (CONF_TODO : True)
-    (ARGS: list_forall2 (GVs.inject inv.(Relational.alpha)) args_src args_tgt)
+    (ARGS: list_forall2 (GVs.inject inv.(Relational.inject)) args_src args_tgt)
     (LOCALS : initLocals (CurTargetData conf_tgt) la args_tgt = Some gvs_tgt) :
   initLocals (CurTargetData conf_src) la args_src =
   initLocals (CurTargetData conf_tgt) la args_tgt.
@@ -196,7 +196,7 @@ Lemma nop_init
       (NOP_FDEF: nop_fdef (fdef_intro header blocks_src)
                           (fdef_intro header blocks_tgt))
       (NOP_FIRST_MATCHES: option_map fst (hd_error blocks_src) = option_map fst (hd_error blocks_tgt))
-      (ARGS: list_forall2 (GVs.inject inv.(Relational.alpha)) args_src args_tgt)
+      (ARGS: list_forall2 (GVs.inject inv.(Relational.inject)) args_src args_tgt)
       (MEM_TODO: True)
       (CONF_TODO: True)
       (INIT: init_fdef conf_tgt (fdef_intro header blocks_tgt) args_tgt ec_tgt):
@@ -258,22 +258,139 @@ Proof.
   inv H.
 Qed.
 
-Inductive trivial_state_sim (stack0_src stack0_tgt : ECStack) (inv : Relational.t)
-          : nat -> State -> State -> Prop :=
-  trivial_state_sim_intro :
-    forall state_src state_tgt
-      (SRC_STACK : ECS state_src = stack0_src)
-      (TGT_STACK : ECS state_tgt = stack0_tgt),
-    trivial_state_sim stack0_src stack0_tgt inv
-                      (length (CurCmds (EC state_tgt)))
-                      state_src state_tgt.
+Inductive inject_EC (inv:Relational.t): forall (ec_src ec_tgt:ExecutionContext), Prop :=
+| inject_EC_intro
+    fdef block cmds terminator
+    locals1 locals2
+    allocas1 allocas2
+    (LOCALS: True)
+    (ALLOCAS: True):
+    inject_EC
+      inv
+      (mkEC fdef block cmds terminator locals1 allocas1)
+      (mkEC fdef block cmds terminator locals2 allocas2)
+.
 
-Lemma trivial_step
-      conf_src conf_tgt:
-  trivial_state_sim <6= (sim_local conf_src conf_tgt).
+Inductive identity_state_sim
+          (conf_src conf_tgt:Config)
+          (stack0_src stack0_tgt:ECStack)
+          (inv:Relational.t):
+  forall (idx:nat) (st_src st_tgt:State), Prop :=
+| identity_state_sim_intro
+    state_src state_tgt
+    (EC_INJECT: inject_EC inv state_src.(EC) state_tgt.(EC))
+    (STACK_SRC : state_src.(ECS) = stack0_src)
+    (STACK_TGT : state_tgt.(ECS) = stack0_tgt)
+    (MEM_INJECT: Relational.sem conf_src conf_tgt state_src.(Mem) state_tgt.(Mem) inv):
+    identity_state_sim
+      conf_src conf_tgt
+      stack0_src stack0_tgt inv
+      (length state_tgt.(EC).(CurCmds))
+      state_src state_tgt.
+
+Inductive status :=
+| status_call
+| status_return
+| status_return_void
+| status_step
+.
+
+(* TODO *)
+Definition get_status (ec:ExecutionContext): status :=
+  match ec.(CurCmds) with
+  | c::_ =>
+    match c with
+    | insn_call _ _ _ _ _ _ _ => status_call
+    | _ => status_step
+    end
+  | nil =>
+    match ec.(Terminator) with
+    | insn_return _ _ _ => status_return
+    | insn_return_void _ => status_return_void
+    | _ => status_step
+    end
+  end.
+
+Lemma get_status_call_inv ec
+      (CALL: get_status ec = status_call):
+  exists id noret attrs ty varg f args cmds,
+    ec.(CurCmds) = (insn_call id noret attrs ty varg f args)::cmds.
+Proof.
+  destruct ec. unfold get_status in *. simpl in *.
+  destruct CurCmds0.
+  - destruct Terminator0; inv CALL.
+  - destruct c; inv CALL.
+    eexists _, _, _, _, _, _, _, _. eauto.
+Qed.
+
+(* TODO *)
+Definition is_error (st:State): bool :=
+  false.
+
+Lemma identity_step:
+  identity_state_sim <8= sim_local.
+Proof.
+  intros conf_src conf_tgt stack0_src stack0_tgt.
+  pcofix CIH.
+  intros inv0 idx0 st_src st_tgt SIM.
+  pfold. inv SIM.
+
+  destruct (is_error st_tgt) eqn:ERROR.
+  { eapply _sim_local_error.
+    - econs 1.
+    - admit.
+  }
+
+  destruct st_src as [ec_src ecs_src mem_src].
+  destruct st_tgt as [ec_tgt ecs_tgt mem_tgt].
+
+  destruct (get_status ec_tgt) eqn:TGT.
+  - inv EC_INJECT. simpl in *. subst.
+    apply get_status_call_inv in TGT. des. simpl in *. subst.
+    eapply _sim_local_call;
+      repeat (simpl in *; eauto).
+    + admit. (* locals inject *)
+    + admit. (* no error *)
+    + admit. (* locals inject *)
+    + admit. (* locals inject *)
+    + admit. (* no error *)
+    + admit. (* locals inject *)
+    + i. eexists. right. apply CIH.
+      econs; simpl; eauto.
+      admit. (* inject_EC *)
+  - eapply _sim_local_return.
+    + admit.
+    + admit.
+    + admit.
+    + admit.
+    + admit.
+    + admit.
+    + admit.
+    + admit.
+    + admit.
+    + admit.
+    + admit.
+    + admit.
+  - eapply _sim_local_return_void.
+    + admit.
+    + admit.
+    + admit.
+    + admit.
+    + admit.
+    + admit.
+    + admit.
+    + admit.
+  - eapply _sim_local_step.
+    + admit.
+    + i. eexists _, _, _, _, _. splits.
+      * admit.
+      * admit.
+      * admit.
+      * right. apply CIH.
+        admit.
 Admitted.
 
-Lemma trivial_init
+Lemma identity_init
       conf_src conf_tgt
       stack_src stack_tgt
       mem_src mem_tgt
@@ -281,11 +398,12 @@ Lemma trivial_init
       args_src args_tgt
       inv
       ec_tgt
-      (ARGS: list_forall2 (GVs.inject inv.(Relational.alpha)) args_src args_tgt)
+      (ARGS: list_forall2 (GVs.inject inv.(Relational.inject)) args_src args_tgt)
       (INIT: init_fdef conf_tgt same_fdef args_tgt ec_tgt):
   exists ec_src idx,
     init_fdef conf_src same_fdef args_src ec_src /\
-    trivial_state_sim
+    identity_state_sim
+      conf_src conf_tgt
       stack_src stack_tgt
       inv idx
       (mkState ec_src stack_src mem_src)
@@ -295,33 +413,31 @@ Proof.
   do 2 eexists.
   splits.
   econs; eauto. erewrite locals_init; eauto.
-  eapply trivial_state_sim_intro; eauto.
-Qed.
+  eapply identity_state_sim_intro; eauto.
+  - admit.
+  - admit.
+Admitted.
 
-Lemma trivial_sim
+Lemma identity_sim
       conf_src conf_tgt
       fdef_same :
   sim_func conf_src conf_tgt fdef_same fdef_same.
 Proof.
   ii.
-  exploit trivial_init; eauto.
+  exploit identity_init; eauto.
   ii.
   inv x0. inv H. inv H0. inv H1.
   do 2 eexists.
   splits; eauto.
-  apply trivial_step.
-  eapply trivial_state_sim_intro; simpl; eauto.
-  
-  Unshelve.
-  apply mem0_tgt.
-  apply mem0_src.
+  apply identity_step.
+  eapply identity_state_sim_intro; simpl; eauto.
 Qed.
 
 Lemma nop_step
       conf_src conf_tgt:
   nop_state_sim <6= (sim_local conf_src conf_tgt).
 Proof.
-Qed.
+Admitted.
 
 Lemma nop_sim
       conf_src conf_tgt

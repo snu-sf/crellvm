@@ -12,7 +12,7 @@ Require Import sflib.
 Require Import paco.
 
 Require Import GenericValues.
-Require Import MemInvariants.
+Require Import MemInv.
 
 Set Implicit Arguments.
 
@@ -54,10 +54,10 @@ Section SimulationLocal.
       (TYP: typ2_src = typ1_tgt)
       (STACK_SRC: st2_src.(ECS) = stack0_src)
       (STACK_TGT: st1_tgt.(ECS) = stack0_tgt)
-      (MEM_TODO: True)
+      (MEM: Relational.sem conf_src conf_tgt st2_src.(Mem) st1_tgt.(Mem) inv1)
       (RET_SRC: getOperandValue conf_src.(CurTargetData) ret2_src st2_src.(EC).(Locals) conf_src.(Globals) = Some retval2_src)
       (RET_TGT: getOperandValue conf_tgt.(CurTargetData) ret1_tgt st1_tgt.(EC).(Locals) conf_tgt.(Globals) = Some retval1_tgt)
-      (RETVAL: GVs.inject inv1.(Relational.alpha) retval2_src retval1_tgt)
+      (RETVAL: GVs.inject inv1.(Relational.inject) retval2_src retval1_tgt)
 
   | _sim_local_return_void
       st2_src
@@ -70,7 +70,7 @@ Section SimulationLocal.
       (TERM_TGT: st1_tgt.(EC).(Terminator) = insn_return_void id1_tgt)
       (STACK_SRC: st2_src.(ECS) = stack0_src)
       (STACK_TGT: st1_tgt.(ECS) = stack0_tgt)
-      (MEM_TODO: True)
+      (MEM: Relational.sem conf_src conf_tgt st2_src.(Mem) st1_tgt.(Mem) inv1)
 
   | _sim_local_call
       st2_src
@@ -87,17 +87,17 @@ Section SimulationLocal.
       (VARG: varg2_src = varg1_tgt)
       (FUN_SRC: getOperandValue conf_src.(CurTargetData) fun2_src st2_src.(EC).(Locals) conf_src.(Globals) = Some funval2_src)
       (FUN_TGT: getOperandValue conf_tgt.(CurTargetData) fun1_tgt st1_tgt.(EC).(Locals) conf_tgt.(Globals) = Some funval1_tgt)
-      (FUNVAL: GVs.inject inv1.(Relational.alpha) funval2_src funval1_tgt)
+      (FUNVAL: GVs.inject inv1.(Relational.inject) funval2_src funval1_tgt)
       (PARAMS_SRC: params2GVs conf_src.(CurTargetData) params2_src st2_src.(EC).(Locals) conf_src.(Globals) = Some args2_src)
       (PARAMS_TGT: params2GVs conf_tgt.(CurTargetData) params1_tgt st1_tgt.(EC).(Locals) conf_tgt.(Globals) = Some args1_tgt)
-      (ARGS: list_forall2 (GVs.inject inv1.(Relational.alpha)) args2_src args1_tgt)
-      (MEM_TODO: False)
+      (ARGS: list_forall2 (GVs.inject inv1.(Relational.inject)) args2_src args1_tgt)
+      (MEM: Relational.sem conf_src conf_tgt st2_src.(Mem) st1_tgt.(Mem) inv1)
       (RETURN:
          forall inv3 mem3_src mem3_tgt retval3_src retval3_tgt
            (INCR: Relational.le inv1 inv3)
-           (MEM_TODO: False)
+           (MEM: Relational.sem conf_src conf_tgt mem3_src mem3_tgt inv3)
            (RET: noret2_src = false)
-           (RETVAL: GVs.inject inv3.(Relational.alpha) retval3_src retval3_tgt),
+           (RETVAL: GVs.inject inv3.(Relational.inject) retval3_src retval3_tgt),
          exists idx3,
            sim_local
              stack0_src stack0_tgt inv3 idx3
@@ -164,8 +164,8 @@ Section SimulationLocalFunc.
     forall inv0 stack0_src stack0_tgt mem0_src mem0_tgt
       args_src args_tgt
       ec0_tgt
-      (MEM_TODO: True)
-      (ARGS: list_forall2 (GVs.inject inv0.(Relational.alpha)) args_src args_tgt)
+      (MEM: Relational.sem conf_src conf_tgt mem0_src mem0_tgt inv0)
+      (ARGS: list_forall2 (GVs.inject inv0.(Relational.inject)) args_src args_tgt)
       (TGT: init_fdef conf_tgt fdef_tgt args_tgt ec0_tgt),
     exists ec0_src idx0,
       init_fdef conf_src fdef_src args_src ec0_src /\
