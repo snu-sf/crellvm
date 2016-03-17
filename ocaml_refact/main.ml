@@ -64,14 +64,10 @@ let main filename_src filename_tgt filename_hint =
   let coq_im_tgt = read_im filename_tgt in
   let hint = read_hint filename_hint in
 
-  let coq_im_src = ConvertHint.insert_nop
-                     hint.function_id
-                     coq_im_src (ConvertHint.generate_nop hint.function_id
-                                                          hint.src_nop_positions coq_im_src) in
-  let coq_im_tgt = ConvertHint.insert_nop
-                     hint.function_id
-                     coq_im_tgt (ConvertHint.generate_nop hint.function_id
-                                                          hint.tgt_nop_positions coq_im_tgt) in
+  let coq_im_src = ConvertHint.insert_nop hint.function_id
+                     coq_im_src hint.src_nop_positions in
+  let coq_im_tgt = ConvertHint.insert_nop hint.function_id
+                     coq_im_tgt hint.src_nop_positions in
   let coq_hint = ConvertHint.convert coq_im_src coq_im_tgt hint in
 
   let _ = debug_print "validation.." in
