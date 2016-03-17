@@ -21,6 +21,16 @@ Set Implicit Arguments.
 Definition failwith_false (msg:string): bool := false.
 Definition failwith_None {A:Type} (msg:string): option A := None.
 
+(* These will be handled explicitly during extraction, the definition is just to notify meaning. *)
+(* [let unused_str := debug_print string_printer "my_string"] will be optimized away during extraction. *)
+(* This is the need for debug_print2. *)
+Definition debug_print (A: Type) (printer: A -> unit) (content: A): A :=
+  let unused := printer content in content.
+Definition debug_print2 (A B: Type) (printer: A -> unit) (content: A) (host: B): B :=
+  let unused := printer content in host.
+Parameter cmd_printer : cmd -> unit.
+Parameter string_printer : string -> unit.
+
 Definition debug_print_validation_process
            (infrules: list Infrule.t)
            (inv0 inv1 inv2 inv3 inv: Invariant.t): Invariant.t := inv.
@@ -31,6 +41,10 @@ Fixpoint valid_cmds
          (inv0:Invariant.t): option Invariant.t :=
   match hint, src, tgt with
   | (infrules, inv)::hint, cmd_src::src, cmd_tgt::tgt =>
+    let cmd_src := (debug_print2 string_printer "src cmd" cmd_src) in
+    let cmd_src := (debug_print cmd_printer cmd_src) in
+    let cmd_tgt := (debug_print2 string_printer "tgt cmd" cmd_tgt) in
+    let cmd_tgt := (debug_print cmd_printer cmd_tgt) in
     match postcond_cmd cmd_src cmd_tgt inv0 with
     | None => failwith_None "valid_cmds: postcond_cmd returned None"
     | Some inv1 =>
