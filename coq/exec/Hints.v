@@ -138,7 +138,7 @@ Module Infrule.
   | add_shift (y:IdT.t) (s:sz) (v:ValueT.t)
   | add_sub (z:IdT.t) (minusy:IdT.t) (s:sz) (x:ValueT.t) (y:ValueT.t)
   | add_commutative (z:IdT.t) (s:sz) (x:ValueT.t) (y:ValueT.t)
-  | sub_add (z:IdT.t) (minusy:IdT.t) (s:sz) (x:ValueT.t) (y:ValueT.t)
+  | sub_add (z:IdT.t) (minusy:IdT.t) (x:IdT.t) (y:IdT.t) (s:sz)
   | sub_onebit (z:IdT.t) (x:ValueT.t) (y:ValueT.t)
   | sub_mone (z:IdT.t) (s:sz) (x:ValueT.t)
   | sub_const_not (z:IdT.t) (y:IdT.t) (s:sz) (x:ValueT.t) (c1:INTEGER.t) (c2:INTEGER.t)
