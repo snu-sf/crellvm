@@ -18,43 +18,43 @@ Set Implicit Arguments.
 (* Should manually be extracted to proper Ocaml code. *)
 Parameter next_nop_id: blocks -> id.
 
+Inductive nop_position : Type :=
+  | phi_node_current_block_name : l -> nop_position
+  | command_register_name : id -> nop_position
+.
 (* Search through blocks with target label, and insert nop. *)
 (* Logic adding nop is commented below. *)
 (* If there is multiple blocks with target label, it only inserts in FIRST block. *)
-Definition insert_nop (target:id) (bs:blocks): blocks :=
-  map
-    (fun stmts =>
-       let '(stmts_intro phinodes cmds terminator) := stmts in
+Definition insert_nop (target : nop_position) (bs:blocks): blocks :=
+  match target with
+    | phi_node_current_block_name target_l =>
+      mapiAL (fun i stmts =>
+                if(eq_atom_dec i target_l)
+                then let '(stmts_intro ps cmds t) := stmts in
+                     let cmds := insert_at 0 (insn_nop (next_nop_id bs)) cmds in
+                     (stmts_intro ps cmds t)
+                else stmts) bs
+    | command_register_name target_id =>
+      Metatheory.EnvImpl.map
+        (fun stmts =>
+           let '(stmts_intro phinodes cmds terminator) := stmts in
+           let cmds_idx :=
+               find_index
+                 cmds
+                 (fun c => if eq_atom_dec (getCmdLoc c) target_id then true else false)
+           in
+           let cmds :=
+               match cmds_idx with
+                 | None => cmds
+                 | Some idx => insert_at (idx + 1) (insn_nop (next_nop_id bs)) cmds
+               end
+           in
 
-       (* after a phinode *)
-       let phinodes_valid :=
-           List.existsb
-             (fun phinode => if eq_atom_dec (getPhiNodeID phinode) target then true else false)
-             phinodes
-       in
-       let cmds :=
-           if phinodes_valid
-           then insert_at 0 (insn_nop (next_nop_id bs)) cmds
-           else cmds
-       in
+           stmts_intro phinodes cmds terminator)
+        bs
+  end.
 
-       (* after a command *)
-       let cmds_idx :=
-           find_index
-             cmds
-             (fun c => if eq_atom_dec (getCmdLoc c) target then true else false)
-       in
-       let cmds :=
-           match cmds_idx with
-           | None => cmds
-           | Some idx => insert_at (idx + 1) (insn_nop (next_nop_id bs)) cmds
-           end
-       in
-
-       stmts_intro phinodes cmds terminator)
-    bs.
-
-Definition insert_nops (targets:list id) (bs:blocks): blocks :=
+Definition insert_nops (targets:list nop_position) (bs:blocks): blocks :=
   List.fold_left (flip insert_nop) targets bs.
 
 Definition is_nop (c: cmd) :=
@@ -104,25 +104,64 @@ Proof.
   apply nop_cmds_commutes. auto.
 Qed.
 
-Lemma insert_nop_spec1 id bs:
-  nop_blocks bs (insert_nop id bs).
+Lemma lookupAL_mapiAL :
+  forall (A B : Type)
+         (i : atom)
+         (f : atom -> A -> B)
+         (l : AssocList A),
+    lookupAL B (mapiAL f l) i = option_map (f i) (lookupAL A l i).
 Proof.
-  ii. unfold insert_nop. rewrite lookupAL_mapAL.
-  unfold insert_at, nop_cmds.
-  destruct (lookupAL stmts bs bid); simpl in *; auto.
-  destruct s. splits; auto.
-  repeat
+  induction l0; ii; simpl in *; auto.
+  destruct a.
+  destruct (i0 == a).
+  - subst; auto.
+  - auto.
+Qed.
+
+Lemma insert_nop_spec1 nop_position bs:
+  nop_blocks bs (insert_nop nop_position bs).
+Proof.
+  Ltac insert_nop_ltac :=
+    repeat
     match goal with
-      | [|- context[match ?c with | Some _ => _ | None => _ end]] => destruct c
-      | [|- context[if ?c then _ else _]] => destruct c
+      | [|- context[match ?c with | Some _ => _ | None => _ end]] =>
+        let T := fresh "T" in
+        destruct c eqn:T
+      | [|- context[if ?c then _ else _]] =>
+        let T := fresh "T" in
+        destruct c eqn:T
+      | [ H : option_map _ (Some _) = None |- _ ] => inv H
+      | [ H : option_map _ None = (Some _) |- _ ] => inv H
     end;
     simpl; splits; auto.
-  - rewrite util.filter_app; simpl.
-    rewrite <- util.filter_app; simpl.
-    rewrite firstn_skipn. auto.
-  - rewrite util.filter_app; simpl.
-    rewrite <- util.filter_app; simpl.
-    rewrite firstn_skipn. auto.
+
+  ii. unfold insert_nop.
+  unfold lift2_option.
+  destruct nop_position; simpl.
+  - rewrite lookupAL_mapiAL.
+    insert_nop_ltac.
+    destruct s, s0.
+    simpl in *.
+    destruct (eq_atom_dec bid l0); simpl in *; inv T0; splits; auto.
+    + unfold nop_cmds. simpl. auto.
+    + unfold nop_cmds; auto.
+  - rewrite lookupAL_mapAL.
+    insert_nop_ltac.
+    destruct s, s0.
+    simpl in T0.
+    inv T0.
+    splits; auto.
+    destruct (find_index
+                cmds5 (fun c : cmd => if eq_atom_dec (getCmdLoc c) i0 then true else false)) eqn:T2.
+    + unfold insert_at.
+      unfold nop_cmds.
+      rewrite util.filter_app.
+      simpl.
+      rewrite <- util.filter_app.
+      rewrite firstn_skipn.
+      auto.
+    + unfold nop_cmds.
+      auto.
 Qed.
 
 Lemma insert_nop_spec2 id bs:
