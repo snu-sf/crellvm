@@ -160,8 +160,11 @@ type mul_add_distributive = {
 }
 
 type sub_add = {
-  minusy : register;
   z : register;
+  my : register;
+  x : register;
+  y : register;
+  sz : size;
 }
 
 type sub_mone = {
