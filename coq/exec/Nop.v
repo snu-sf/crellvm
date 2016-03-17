@@ -327,6 +327,39 @@ Qed.
 Definition is_error (st:State): bool :=
   false.
 
+Lemma identity_step_function
+      conf_src conf_tgt mem_src mem_tgt inv
+      CurTargetData
+      locals_tgt locals_src
+      allocas_tgt
+      fdef_tgt block_tgt
+      ecs_tgt
+      id noret attrs ty varg f args
+      cmds terminator
+      (LOCALS : True)
+      (ALLOCAS : True)
+      (MEM_INJECT : Relational.sem conf_src conf_tgt mem_src mem_tgt inv)
+      (NO_ERROR : is_error
+            {|
+            EC := {|
+                  CurFunction := fdef_tgt;
+                  CurBB := block_tgt;
+                  CurCmds := insn_call id noret attrs ty varg f args
+                             :: cmds;
+                  Terminator := terminator;
+                  Locals := locals_tgt;
+                  Allocas := allocas_tgt |};
+            ECS := ecs_tgt;
+            Mem := mem_tgt |} = false) :
+  exists funval_src funval_tgt,
+    getOperandValue (CurTargetData conf_tgt) f locals_tgt
+                    (Globals conf_tgt) = Some funval_tgt /\
+     getOperandValue (CurTargetData conf_src) f locals_src
+                    (Globals conf_src) = Some funval_src /\
+     GVs.inject (Relational.inject inv) funval_src funval_tgt.
+Proof.
+  Admitted.
+
 Lemma identity_step:
   identity_state_sim <8= sim_local.
 Proof.
@@ -347,11 +380,12 @@ Proof.
   destruct (get_status ec_tgt) eqn:TGT.
   - inv EC_INJECT. simpl in *. subst.
     apply get_status_call_inv in TGT. des. simpl in *. subst.
+    exploit identity_step_function; ii; eauto.
+    destruct x0. destruct H. destruct H. destruct H0.
     eapply _sim_local_call;
       repeat (simpl in *; eauto).
-    + admit. (* locals inject *)
-    + admit. (* no error *)
-    + admit. (* locals inject *)
+    (* function  *)
+    (* parameter *)
     + admit. (* locals inject *)
     + admit. (* no error *)
     + admit. (* locals inject *)
