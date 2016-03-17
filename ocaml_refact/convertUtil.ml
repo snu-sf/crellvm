@@ -101,10 +101,8 @@ module Convert = struct
     (tag register.tag, register.name)
 
   let const_int (const_int:CoreHint_t.const_int): INTEGER.t =
-    let (is_signed, sz) =
-      let (IntType (is_signed, sz)) = const_int.int_type in (is_signed, sz)
-    in
-    APInt.of_int64 sz (Int64.of_int const_int.int_value) is_signed
+    let IntType sz = const_int.int_type in
+    APInt.of_int64 sz (Int64.of_int const_int.int_value) true
 
   let size (sz:CoreHint_t.size): LLVMsyntax.sz =
     let (Size sz) = sz in sz
