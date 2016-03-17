@@ -83,6 +83,8 @@ Fixpoint unique
   | a::l => negb (in_dec eq_dec a l) && unique eq_dec l
   end.
 
+Definition mapAL := Metatheory.EnvImpl.map.
+
 Definition mapiAL A B (f: atom -> A -> B) (l:AssocList A): AssocList B :=
   List.map
     (fun (p:atom * A) =>
