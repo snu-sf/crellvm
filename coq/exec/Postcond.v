@@ -457,6 +457,21 @@ Definition postcond_cmd_add_noalias
   | _ => inv0
   end.
 
+ (* This removes the defined register from maydiff in 3 cases *)
+ (* (alloca, malloc, call) because postcond do not *)
+ (* produce any lessdef information from them *)
+ (* so that reduce_maydiff doesn't remove them.   *)
+Definition remove_def_from_maydiff (src tgt:cmd) (inv:Invariant.t): Invariant.t :=
+  match src, tgt with
+    | insn_alloca x _ _ _, insn_alloca x' _ _ _
+    | insn_malloc x _ _ _, insn_malloc x' _ _ _
+    | insn_call x _ _ _ _ _ _, insn_call x' _ _ _ _ _ _ =>
+      if (id_dec x x')
+      then Invariant.update_maydiff (IdTSet.remove (IdT.lift Tag.physical x)) inv
+      else inv
+    | _, _ => inv
+  end.
+
 Definition postcond_cmd
            (src tgt:cmd)
            (inv0:Invariant.t): option Invariant.t :=
@@ -486,5 +501,6 @@ Definition postcond_cmd
   let inv5 := Invariant.update_src (Invariant.update_noalias (postcond_cmd_add_noalias src inv4.(Invariant.src).(Invariant.allocas))) inv4 in
   let inv6 := Invariant.update_tgt (Invariant.update_noalias (postcond_cmd_add_noalias tgt inv5.(Invariant.tgt).(Invariant.allocas))) inv5 in
   let inv7 := postcond_cmd_add_private_allocas src tgt inv6 in
-  let inv8 := reduce_maydiff inv7 in
-  Some inv8.
+  let inv8 := remove_def_from_maydiff src tgt inv7 in
+  let inv9 := reduce_maydiff inv8 in
+  Some inv9.
