@@ -202,3 +202,8 @@ let string_printer (x: char list): unit =
   debug_run(
       fun _ ->
       debug_print (string_of_char_list x))
+
+let atom_printer (x: string): unit =
+  debug_run(
+      fun _ ->
+      debug_print x)

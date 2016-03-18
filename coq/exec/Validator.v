@@ -28,6 +28,7 @@ Definition debug_print (A: Type) (printer: A -> unit) (content: A): A :=
   let unused := printer content in content.
 Definition debug_print2 (A B: Type) (printer: A -> unit) (content: A) (host: B): B :=
   let unused := printer content in host.
+Parameter atom_printer : atom -> unit.
 Parameter cmd_printer : cmd -> unit.
 Parameter string_printer : string -> unit.
 
@@ -64,6 +65,8 @@ Definition valid_phinodes
            (inv0:Invariant.t)
            (blocks_src blocks_tgt:blocks)
            (l_from l_to:l): bool :=
+  let l_from := (debug_print atom_printer l_from) in
+  let l_to := (debug_print atom_printer l_to) in
   match lookupAL _ hint_fdef l_to, lookupAL _ blocks_src l_to, lookupAL _ blocks_tgt l_to with
   | Some hint_stmts, Some (stmts_intro phinodes_src _ _), Some (stmts_intro phinodes_tgt _ _) =>
     match lookupAL _ hint_stmts.(ValidationHint.phinodes) l_from with
