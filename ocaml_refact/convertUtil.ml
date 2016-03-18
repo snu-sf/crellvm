@@ -85,19 +85,54 @@ module Convert = struct
     (tag register.tag, register.name)
 
   let const_int (const_int:CoreHint_t.const_int): INTEGER.t =
-    let (is_signed, sz) =
-      let (IntType (is_signed, sz)) = const_int.int_type in (is_signed, sz)
-    in
-    APInt.of_int64 sz (Int64.of_int const_int.int_value) is_signed
+    let IntType sz = const_int.int_type in
+    APInt.of_int64 sz (Int64.of_int const_int.int_value) true
+
+  let const_float (const_float:CoreHint_t.const_float): FLOAT.t = 
+    let cxt:Llvm.llcontext = Llvm.create_context () in 
+    let ty:Llvm.lltype = 
+        (fun (cxt:Llvm.llcontext) ->
+        match const_float.float_type with
+        | CoreHint_t.HalfType -> failwith "Llvm ocaml binding does not have half type."
+        | CoreHint_t.FloatType -> Llvm.float_type cxt
+        | CoreHint_t.DoubleType -> Llvm.double_type cxt
+        | CoreHint_t.FP128Type -> Llvm.fp128_type cxt
+        | CoreHint_t.PPC_FP128Type -> Llvm.ppc_fp128_type cxt
+        | CoreHint_t.X86_FP80Type -> Llvm.x86fp80_type cxt)
+        cxt in
+    let _ = Llvm.dispose_context cxt in
+    let lval:Llvm.llvalue = Llvm.const_float ty (const_float.float_value) in
+    Llvm.APFloat.const_float_get_value lval
 
   let size (sz:CoreHint_t.size): LLVMsyntax.sz =
     let (Size sz) = sz in sz
 
-  let value (value:LLVMsyntax.value): ValueT.t =
+  let llvmvalue (value:LLVMsyntax.value): ValueT.t =
     match value with
     | Coq_value_id id -> ValueT.Coq_id (Tag.Coq_physical, id)
     | Coq_value_const const -> ValueT.Coq_const const
 
+  let value (value:CoreHint_t.value): ValueT.t = 
+    match value with
+    | CoreHint_t.Id reg -> ValueT.Coq_id (register reg)
+    | CoreHint_t.ConstVal constval -> ValueT.Coq_const (
+       match constval with 
+       | CoreHint_t.ConstInt ci -> 
+          LLVMsyntax.Coq_const_int 
+            ((match ci.int_type with 
+               | CoreHint_t.IntType sz -> sz)
+            , const_int ci)
+       | CoreHint_t.ConstFloat cf ->
+          LLVMsyntax.Coq_const_floatpoint (
+            (match cf.float_type with
+            | CoreHint_t.HalfType -> failwith "Vellvm has no Halftype" 
+            | CoreHint_t.FloatType -> LLVMsyntax.Coq_fp_float
+            | CoreHint_t.DoubleType -> LLVMsyntax.Coq_fp_double
+            | CoreHint_t.FP128Type -> LLVMsyntax.Coq_fp_fp128
+            | CoreHint_t.PPC_FP128Type -> LLVMsyntax.Coq_fp_ppc_fp128
+            | CoreHint_t.X86_FP80Type -> LLVMsyntax.Coq_fp_x86_fp80)
+            , const_float cf)
+       )
   let rhs_of (register:CoreHint_t.register) (fdef:LLVMsyntax.fdef) : Expr.t =
     let register_id = register.name in
     let insn = TODOCAML.get (LLVMinfra.lookupInsnViaIDFromFdef fdef register_id) in
@@ -105,29 +140,29 @@ module Convert = struct
       | LLVMsyntax.Coq_insn_cmd c ->
          (match c with
           | LLVMsyntax.Coq_insn_bop (_, bop, sz, v1, v2) ->
-             Expr.Coq_bop (bop, sz, value v1, value v2)
+             Expr.Coq_bop (bop, sz, llvmvalue v1, llvmvalue v2)
           | LLVMsyntax.Coq_insn_fbop (_, fbop, fp, v1, v2) ->
-             Expr.Coq_fbop (fbop, fp, value v1, value v2)
+             Expr.Coq_fbop (fbop, fp, llvmvalue v1, llvmvalue v2)
           | LLVMsyntax.Coq_insn_extractvalue (_, typ1, v, clist, typ2) ->
-             Expr.Coq_extractvalue (typ1, value v, clist, typ2)
+             Expr.Coq_extractvalue (typ1, llvmvalue v, clist, typ2)
           | LLVMsyntax.Coq_insn_insertvalue (_, typ1, v1, typ2, v2, clist) ->
-             Expr.Coq_insertvalue (typ1, value v1, typ2, value v2, clist)
+             Expr.Coq_insertvalue (typ1, llvmvalue v1, typ2, llvmvalue v2, clist)
           | LLVMsyntax.Coq_insn_gep (_, inbounds, typ1, v1, szv, typ2) ->
-             Expr.Coq_gep (inbounds, typ1, value v1, List.map (fun szv -> (fst szv, value (snd szv))) szv, typ2)
+             Expr.Coq_gep (inbounds, typ1, llvmvalue v1, List.map (fun szv -> (fst szv, llvmvalue (snd szv))) szv, typ2)
           | LLVMsyntax.Coq_insn_trunc (_, truncop, typ1, v, typ2) ->
-             Expr.Coq_trunc (truncop, typ1, value v, typ2)
+             Expr.Coq_trunc (truncop, typ1, llvmvalue v, typ2)
           | LLVMsyntax.Coq_insn_ext (_, extop, typ1, v, typ2) ->
-             Expr.Coq_ext (extop, typ1, value v, typ2)
+             Expr.Coq_ext (extop, typ1, llvmvalue v, typ2)
           | LLVMsyntax.Coq_insn_cast (_, castop, typ1, v, typ2) ->
-             Expr.Coq_cast (castop, typ1, value v, typ2)
+             Expr.Coq_cast (castop, typ1, llvmvalue v, typ2)
           | LLVMsyntax.Coq_insn_icmp (_, cond, typ, v1, v2) ->
-             Expr.Coq_icmp (cond, typ, value v1, value v2)
+             Expr.Coq_icmp (cond, typ, llvmvalue v1, llvmvalue v2)
           | LLVMsyntax.Coq_insn_fcmp (_, fcond, fp, v1, v2) ->
-             Expr.Coq_fcmp (fcond, fp, value v1, value v2)
+             Expr.Coq_fcmp (fcond, fp, llvmvalue v1, llvmvalue v2)
           | LLVMsyntax.Coq_insn_select (_, v1, typ, v2, v3) ->
-             Expr.Coq_select (value v1, typ, value v2, value v3)
+             Expr.Coq_select (llvmvalue v1, typ, llvmvalue v2, llvmvalue v3)
           | LLVMsyntax.Coq_insn_load (_, typ, v, align) ->
-             Expr.Coq_load (value v, typ, align)
+             Expr.Coq_load (llvmvalue v, typ, align)
           | _ -> failwith "convertUtil: rhs_of no matching cmd")
       | _ -> failwith "convertUtil: rhs_of find no insn"
 end

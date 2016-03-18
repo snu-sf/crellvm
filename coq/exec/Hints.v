@@ -162,6 +162,9 @@ End Invariant.
 Module Infrule.
   Inductive t :=
   | add_associative (x:IdT.t) (y:IdT.t) (z:IdT.t) (c1:INTEGER.t) (c2:INTEGER.t) (c3:INTEGER.t) (s:sz)
+  | add_sub (z:IdT.t) (minusy:IdT.t) (x:ValueT.t) (y:ValueT.t) (s:sz)
+  | add_commutative (z:IdT.t) (x:ValueT.t) (y:ValueT.t) (s:sz)
+  
   | replace_rhs (z:IdT.t) (x:IdT.t) (y:ValueT.t) (e:Expr.t) (e':Expr.t)
   | replace_rhs_opt (z:IdT.t) (x:IdT.t) (y:ValueT.t) (e:Expr.t) (e':Expr.t)
   | replace_lhs (x:IdT.t) (y:IdT.t) (e:Expr.t)
@@ -176,9 +179,7 @@ Module Infrule.
   | add_onebit (z:IdT.t) (x:ValueT.t) (y:ValueT.t)
   | stash_variable (z:IdT.t) (v:id)
   | add_shift (y:IdT.t) (s:sz) (v:ValueT.t)
-  | add_sub (z:IdT.t) (minusy:IdT.t) (s:sz) (x:ValueT.t) (y:ValueT.t)
-  | add_commutative (z:IdT.t) (s:sz) (x:ValueT.t) (y:ValueT.t)
-  | sub_add (z:IdT.t) (minusy:IdT.t) (s:sz) (x:ValueT.t) (y:ValueT.t)
+  | sub_add (z:IdT.t) (minusy:IdT.t) (x:IdT.t) (y:IdT.t) (s:sz)
   | sub_onebit (z:IdT.t) (x:ValueT.t) (y:ValueT.t)
   | sub_mone (z:IdT.t) (s:sz) (x:ValueT.t)
   | sub_const_not (z:IdT.t) (y:IdT.t) (s:sz) (x:ValueT.t) (c1:INTEGER.t) (c2:INTEGER.t)

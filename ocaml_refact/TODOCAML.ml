@@ -23,3 +23,6 @@ let get o =
   match o with
   | None -> failwith "Option.get None"
   | Some x -> x
+
+let list_to_string (l:char list) : string =
+  String.init (List.length l) (List.nth l)

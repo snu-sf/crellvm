@@ -29,5 +29,25 @@ let convert_infrule (infrule:CoreHint_t.infrule) : Infrule.t =
      let c3 = Convert.const_int args.c3 in
      let sz = Convert.size args.sz in
      Infrule.Coq_add_associative (x, y, z, c1, c2, c3, sz)
+  | CoreHint_t.AddSub (args:CoreHint_t.add_sub) ->
+     let z = Convert.register args.z in
+     let minusy = Convert.register args.minusy in
+     let x = Convert.value args.x in
+     let y = Convert.value args.y in
+     let sz = Convert.size args.sz in
+     Infrule.Coq_add_sub (z, minusy, x, y, sz)
+  | CoreHint_t.AddCommutative (args:CoreHint_t.add_commutative) ->
+     let z = Convert.register args.z in
+     let x = Convert.value args.x in
+     let y = Convert.value args.y in
+     let sz = Convert.size args.sz in
+     Infrule.Coq_add_commutative (z, x, y, sz)
+  | CoreHint_t.SubAdd (args:CoreHint_t.sub_add) ->
+     let z = Convert.register args.z in
+     let my = Convert.register args.my in
+     let x = Convert.register args.x in
+     let y = Convert.register args.y in
+     let sz = Convert.size args.sz in
+     Infrule.Coq_sub_add (z, my, x, y, sz)
   | _ ->
      failwith "TODO"

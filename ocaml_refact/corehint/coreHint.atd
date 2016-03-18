@@ -24,11 +24,26 @@ type register = {
   tag : tag;     (* indicates whether this register is physical or previous or ghost *)
 }
 
-(* integer type of signed, bitsize *)
-type int_type = [ IntType of (bool * int) ] <ocaml repr="classic">
+(* integer type of bitsize *)
+type int_type = [ IntType of int ] <ocaml repr="classic">
 
 (* float type *)
-type float_type = [ FloatType | DoubleType | FP128Type | X86_FP80Type ] <ocaml repr="classic">
+(* http://llvm.org/docs/LangRef.html#floating-point-types *)
+(* http://llvm.org/docs/doxygen/html/classllvm_1_1APFloat.html *)
+type float_type = [ 
+    | HalfType (* equivalent to Llvm.APFloat.Semantics.IEEEhalf in LLVM ocaml binding *)
+               (* no matching type in Vellvm *)
+    | FloatType (* equivalent to Llvm.APFloat.Semantics.IEEEsingle in LLVM ocaml binding *)
+                (* equivalent to Syntax.LLVMsyntax.Coq_fp_float in Vellvm *)
+    | DoubleType (* equivalent to Llvm.APFloat.Semantics.IEEEdouble in LLVM ocaml binding *)
+                 (* equivalent to Syntax.LLVMsyntax.Coq_fp_double in Vellvm *)
+    | FP128Type (* equivalent to Llvm.APFloat.Semantics.IEEEquad in LLVM ocaml binding*)
+                (* equivalent to Syntax.LLVMsyntax.Coq_fp_fp128 in Vellvm*)
+    | PPC_FP128Type (* equivalent to Llvm.APFloat.Semantics.PPCDoubleDouble in LLVM ocaml binding *)
+                    (* equivalent to Syntax.LLVMsyntax.Coq_fp_ppc_fp128 in Vellvm*)
+    | X86_FP80Type (* equivalent to Llvm.APFloat.Semantics.X87DoubleExternded in LLVM ocaml binding *)
+                   (* equivalent to Syntax.LLVMsyntax.Coq_fp_x86_fp80 in Vellvm*)
+    ] <ocaml repr="classic">
 
 type const_int = {
   int_value : int;
@@ -41,6 +56,8 @@ type const_float = {
 }
 
 type constant = [ ConstInt of const_int | ConstFloat of const_float ] <ocaml repr="classic">
+
+type value = [ Id of register | ConstVal of constant ] <ocaml repr="classic">
 
 type size = [ Size of int ] <ocaml repr="classic">
 
@@ -99,10 +116,16 @@ type add_associative = {
 type add_sub = {
   minusy : register;
   z : register;
+  x : value;
+  y : value;
+  sz : size;
 }
 
 type add_commutative = {
   z : register;
+  x : value;
+  y : value;
+  sz : size;
 }
 
 type add_shift = {
@@ -160,8 +183,11 @@ type mul_add_distributive = {
 }
 
 type sub_add = {
-  minusy : register;
   z : register;
+  my : register;
+  x : register;
+  y : register;
+  sz : size;
 }
 
 type sub_mone = {

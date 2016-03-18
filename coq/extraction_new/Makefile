@@ -1,7 +1,8 @@
 COQMODULE     := LLVMBerry
-COQTHEORIES := extraction_defs.v extraction_validator.v
+COQTHEORIES := extraction_defs.v extraction_validator.v $(wildcard ../../coq/exec/*.v)
 
 all: extraction
+	echo $(COQTHEORIES)
 
 extraction: Makefile.coq
 	$(MAKE) -f Makefile.coq extraction_defs.vo

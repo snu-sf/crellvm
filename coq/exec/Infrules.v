@@ -39,6 +39,20 @@ Definition apply_infrule
        cond_plus s c1 c2 c3
     then {{inv0 +++ (Expr.value (ValueT.id z)) >=src (Expr.bop bop_add s (ValueT.id x) (ValueT.const (const_int s c3)))}}
     else inv0
+  | Infrule.add_sub z minusy x y s =>
+    if $$ inv0 |- (Expr.value (ValueT.id minusy)) >=src (Expr.bop bop_sub s (ValueT.const (const_int s (INTEGER.of_Z (Size.to_Z s) 0%Z true))) y) $$ &&
+       $$ inv0 |- (Expr.value (ValueT.id z)) >=src (Expr.bop bop_add s x minusy) $$
+    then {{inv0 +++ (Expr.value (ValueT.id z)) >=src (Expr.bop bop_sub s x y)}}
+    else inv0
+  | Infrule.add_commutative z x y s =>
+    if $$ inv0 |- (Expr.value (ValueT.id z)) >=src (Expr.bop bop_add s x y) $$
+    then {{inv0 +++ (Expr.value (ValueT.id z)) >=src (Expr.bop bop_add s y x)}}
+    else inv0
+  | Infrule.sub_add z my x y s =>
+    if $$ inv0 |- (Expr.value (ValueT.id my)) >=src (Expr.bop bop_sub s (ValueT.const (const_int s (INTEGER.of_Z (Size.to_Z s) 0%Z true))) (ValueT.id y)) $$ &&
+       $$ inv0 |- (Expr.value (ValueT.id z)) >=src (Expr.bop bop_sub s (ValueT.id x) (ValueT.id my)) $$
+    then {{inv0 +++ (Expr.value (ValueT.id z)) >=src (Expr.bop bop_add s (ValueT.id x) (ValueT.id y))}}
+    else inv0
   | _ => inv0 (* TODO *)
   end.
 
