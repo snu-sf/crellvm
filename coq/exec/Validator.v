@@ -69,10 +69,11 @@ Definition valid_phinodes
   let l_to := (debug_print atom_printer l_to) in
   match lookupAL _ hint_fdef l_to, lookupAL _ blocks_src l_to, lookupAL _ blocks_tgt l_to with
   | Some hint_stmts, Some (stmts_intro phinodes_src _ _), Some (stmts_intro phinodes_tgt _ _) =>
-    match lookupAL _ hint_stmts.(ValidationHint.phinodes) l_from with
-    | None => failwith_false "valid_phinodes: phinode hint not exist"
-    | Some infrules =>
-      match postcond_phinodes l_from phinodes_src phinodes_tgt inv0 with
+    let infrules := match lookupAL _ hint_stmts.(ValidationHint.phinodes) l_from with
+                        | None => nil
+                        | Some infrules => infrules
+                    end in
+    match postcond_phinodes l_from phinodes_src phinodes_tgt inv0 with
       | None => failwith_false "valid_phinodes: postcond_phinodes returned None"
       | Some inv1 =>
         let inv2 := apply_infrules infrules inv1 in
@@ -82,7 +83,6 @@ Definition valid_phinodes
         if (Invariant.implies inv3 inv)
         then true
         else failwith_false "valid_phinodes: Invariant.implies returned false"
-      end
     end
   | _, _, _ => false
   end.
