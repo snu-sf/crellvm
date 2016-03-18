@@ -18,8 +18,8 @@ Extract Constant INTEGER_OPERATION.add => "Coq2ml.llapint_add".
 Extract Constant INTEGER_OPERATION.sub => "Coq2ml.llapint_sub".
 
 Extract Constant next_nop_id => "fun _ -> ""%""^(string_of_int (Llvm2coq.get_fake_name ()))".
-Extract Constant failwith_false => "(fun cl -> let _ = Printer.debug_print (TODOCAML.list_to_string cl) in false)".
-Extract Constant failwith_None => "(fun cl -> let _ = Printer.debug_print (TODOCAML.list_to_string cl) in None)".
+Extract Constant failwith_false => "(fun cl ls -> let _ = Printer.debug_print ((TODOCAML.list_to_string cl)^"" ""^(String.concat "" "" ls)) in false)".
+Extract Constant failwith_None => "(fun cl ls -> let _ = Printer.debug_print ((TODOCAML.list_to_string cl)^"" ""^(String.concat "" "" ls)) in None)".
 Extract Constant debug_print_validation_process => "Printer.debug_print_validation_process".
 Extract Constant debug_print => "fun (printer: 'a -> unit) (x: 'a) -> let _ = printer x in x".
 Extract Constant debug_print2 => "fun (printer: 'a -> unit) (x: 'a) (y: 'b) -> let _ = printer x in y".
