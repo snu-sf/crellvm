@@ -67,7 +67,7 @@ let main filename_src filename_tgt filename_hint =
   let coq_im_src = ConvertHint.insert_nop hint.function_id
                      coq_im_src hint.src_nop_positions in
   let coq_im_tgt = ConvertHint.insert_nop hint.function_id
-                     coq_im_tgt hint.src_nop_positions in
+                     coq_im_tgt hint.tgt_nop_positions in
   let coq_hint = ConvertHint.convert coq_im_src coq_im_tgt hint in
 
   let _ = debug_print "validation.." in
