@@ -208,6 +208,8 @@ type sub_shl = {
 
 type mul_bool = {
   z :register;
+  x :register;
+  y :register;
 }
 
 type mul_mone = {

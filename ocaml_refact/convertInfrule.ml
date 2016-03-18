@@ -36,5 +36,10 @@ let convert_infrule (infrule:CoreHint_t.infrule) : Infrule.t =
       let y = Convert.register args.y in
       let sz = Convert.size args.sz in
       Infrule.Coq_sub_add (z, my, x, y, sz)
+  | CoreHint_t.MulBool (args:CoreHint_t.mul_bool) ->
+      let z = Convert.register args.z in
+      let x = Convert.register args.x in
+      let y = Convert.register args.y in
+      Infrule.Coq_mul_bool (z, x, y) 
   | _ ->
      failwith "TODO"

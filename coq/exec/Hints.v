@@ -158,7 +158,7 @@ Module Infrule.
   | sub_mul2 (z:IdT.t) (y:IdT.t) (sz:sz) (x:ValueT.t) (c:INTEGER.t) (c':INTEGER.t)
   | mul_mone (z:IdT.t) (sz:sz) (x:ValueT.t)
   | mul_neg (z:IdT.t) (mx:IdT.t) (my:IdT.t) (sz:sz) (x:ValueT.t) (y:ValueT.t)
-  | mul_bool (z:IdT.t) (x:ValueT.t) (y:ValueT.t)
+  | mul_bool (z:IdT.t) (x:IdT.t) (y:IdT.t)
   | mul_commutative (z:IdT.t) (sz:sz) (x:ValueT.t) (y:ValueT.t)
   | mul_shl (z:IdT.t) (y:IdT.t) (sz:sz) (x:ValueT.t) (a:ValueT.t)
   | div_sub_srem (z:IdT.t) (b:IdT.t) (a:IdT.t) (sz:sz) (x:ValueT.t) (y:ValueT.t)
