@@ -207,9 +207,9 @@ Module Ptr <: UsualDecidableType.
   Definition eq_trans := @trans_eq t.
   Definition eq_dec (x y:t): {x = y} + {x <> y}.
   Proof.
-    apply ott_list_eq_dec.pair_eq_dec;
-      try apply ValueT.eq_dec;
-      try apply typ_dec.
+    apply prod_dec.
+    apply ValueT.eq_dec.
+    apply typ_dec.
   Defined.
 End Ptr.
 
@@ -224,8 +224,7 @@ Module PtrPair <: UsualDecidableType.
   Definition eq_trans := @trans_eq t.
   Definition eq_dec (x y:t): {x = y} + {x <> y}.
   Proof.
-    apply ott_list_eq_dec.pair_eq_dec;
-      apply Ptr.eq_dec.
+    apply prod_dec; apply Ptr.eq_dec.
   Defined.
 End PtrPair.
 Hint Resolve PtrPair.eq_dec: EqDecDb.
