@@ -16,8 +16,8 @@ Require Import ExtrOcamlString.
 Extract Constant INTEGER_OPERATION.add => "Coq2ml.llapint_add".
 Extract Constant INTEGER_OPERATION.sub => "Coq2ml.llapint_sub".
 
-Extract Constant failwith_false => "(fun cl -> let _ = Printer.debug_print (TODOCAML.list_to_string cl) in false)".
-Extract Constant failwith_None => "(fun cl -> let _ = Printer.debug_print (TODOCAML.list_to_string cl) in None)".
+Extract Constant failwith_false => "(fun cl ls -> let _ = Printer.debug_print ((TODOCAML.list_to_string cl)^"" ""^(String.concat "" "" ls)) in false)".
+Extract Constant failwith_None => "(fun cl ls -> let _ = Printer.debug_print ((TODOCAML.list_to_string cl)^"" ""^(String.concat "" "" ls)) in None)".
 Extract Constant debug_print_validation_process => "Printer.debug_print_validation_process".
                                          
 Extraction Library FMapWeakList.
