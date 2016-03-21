@@ -18,8 +18,6 @@ Require Import GenericValues.
 Require Import MemInv.
 Require Import SimulationLocal.
 
-Set Implicit Arguments.
-
 (* Get next nop id. Each id should be unique in Function. *)
 (* Should manually be extracted to proper Ocaml code. *)
 Parameter next_nop_id: blocks -> id.
@@ -323,11 +321,65 @@ Proof.
     eexists _, _, _, _, _, _, _, _. eauto.
 Qed.
 
-(* TODO *)
-Definition is_error (st:State): bool :=
-  false.
+Lemma get_status_return_inv ec
+      (CALL: get_status ec = status_return):
+    ec.(CurCmds) = [] /\
+    exists id typ value, ec.(Terminator) = insn_return id typ value.
+Proof.
+  unfold get_status in CALL.
+  splits.
+  - destruct CurCmds; inv CALL; simpl in *; auto.
+    destruct c; inv H0.
+  -
+    destruct (Terminator ec) eqn:T;
+    do 3 eexists; eauto;
+    destruct (CurCmds ec); inv CALL;
+    destruct c; inv H0.
+  Unshelve.
+  apply id5.
+  apply typ_int.
+  apply O.
+  apply (value_id id5).
+  apply id5.
+  apply typ_int.
+  apply O.
+  apply (value_id id5).
+  apply id5.
+  apply typ_int.
+  apply O.
+  apply (value_id id5).
+  apply id5.
+  apply typ_int.
+  apply O.
+  apply (value_id id5).
+Qed.
 
-Lemma identity_step_function
+Lemma get_status_return_void_inv ec
+      (CALL: get_status ec = status_return_void):
+    ec.(CurCmds) = [] /\
+    exists id, ec.(Terminator) = insn_return_void id.
+Proof.
+  unfold get_status in CALL.
+  splits.
+  - destruct CurCmds; inv CALL; simpl in *; auto.
+    destruct c; inv H0.
+  -
+    destruct (CurCmds ec); inv CALL.
+    + destruct (Terminator ec) eqn:T;
+      do 1 eexists; eauto;
+      destruct (CurCmds ec); try inv H0.
+    + destruct c; inv H0.
+  Unshelve.
+  apply id5.
+  apply id5.
+  apply id5.
+  apply id5.
+Qed.
+
+Parameter excluded_middle : ClassicalFacts.excluded_middle.
+(* Definition is_error (st:State): bool := false. *)
+
+Lemma identity_step_call_function
       conf_src conf_tgt mem_src mem_tgt inv
       CurTargetData
       locals_tgt locals_src
@@ -339,9 +391,11 @@ Lemma identity_step_function
       (LOCALS : True)
       (ALLOCAS : True)
       (MEM_INJECT : Relational.sem conf_src conf_tgt mem_src mem_tgt inv)
-      (NO_ERROR : is_error
-            {|
-            EC := {|
+      (NO_ERROR :
+         ~(stuck_state
+             conf_tgt
+             {|
+               EC := {|
                   CurFunction := fdef_tgt;
                   CurBB := block_tgt;
                   CurCmds := insn_call id noret attrs ty varg f args
@@ -350,7 +404,7 @@ Lemma identity_step_function
                   Locals := locals_tgt;
                   Allocas := allocas_tgt |};
             ECS := ecs_tgt;
-            Mem := mem_tgt |} = false) :
+            Mem := mem_tgt |})):
   exists funval_src funval_tgt,
     getOperandValue (CurTargetData conf_tgt) f locals_tgt
                     (Globals conf_tgt) = Some funval_tgt /\
@@ -360,6 +414,75 @@ Lemma identity_step_function
 Proof.
   Admitted.
 
+Lemma identity_step_call_parameter
+      conf_src conf_tgt mem_src mem_tgt inv
+      CurTargetData
+      locals_tgt locals_src
+      allocas_tgt
+      fdef_tgt block_tgt
+      ecs_tgt
+      id noret attrs ty varg f args
+      cmds terminator
+      (LOCALS : True)
+      (ALLOCAS : True)
+      (MEM_INJECT : Relational.sem conf_src conf_tgt mem_src mem_tgt inv)
+      (NO_ERROR :
+         ~(stuck_state
+             conf_tgt
+             {|
+               EC := {|
+                      CurFunction := fdef_tgt;
+                      CurBB := block_tgt;
+                      CurCmds := insn_call id noret attrs ty varg f args
+                                           :: cmds;
+                      Terminator := terminator;
+                      Locals := locals_tgt;
+                      Allocas := allocas_tgt |};
+               ECS := ecs_tgt;
+               Mem := mem_tgt |})):
+  exists args_src args_tgt,
+    params2GVs (CurTargetData conf_src) args locals_src (Globals conf_src) =
+    Some args_src /\
+    params2GVs (CurTargetData conf_tgt) args locals_tgt (Globals conf_tgt) =
+    Some args_tgt /\
+    list_forall2 (GVs.inject (Relational.inject inv)) args_src args_tgt.
+  Admitted.
+
+Lemma identity_step_return
+      inv
+      mem_src conf_src
+      ecs_tgt mem_tgt conf_tgt
+      (* (fdef_src : fdef) *)
+      (* (block_src : blocks) *)
+      (* cmds_src terminator_src locals_src allocas_src *)
+      fdef_tgt block_tgt cmds_tgt terminator_tgt locals_tgt allocas_tgt
+      ec_src
+      id typ value
+      (MEM_INJECT : Relational.sem conf_src conf_tgt mem_src mem_tgt inv)
+      (LOCALS : True)
+      (ALLOCALS : True)
+      (NO_ERROR :
+         ~(stuck_state
+             conf_tgt
+             {|
+               EC := {|
+                      CurFunction := fdef_tgt;
+                      CurBB := block_tgt;
+                      CurCmds := cmds_tgt;
+                      Terminator := terminator_tgt;
+                      Locals := locals_tgt;
+                      Allocas := allocas_tgt |};
+               ECS := ecs_tgt;
+               Mem := mem_tgt |}))
+      (TGT : terminator_tgt = insn_return id typ value):
+  exists retval_src retval_tgt,
+    getOperandValue (CurTargetData conf_src) value (Locals ec_src)
+                    (Globals conf_src) = Some retval_src /\
+    getOperandValue (CurTargetData conf_tgt) value locals_tgt
+                    (Globals conf_tgt) = Some retval_tgt /\
+    GVs.inject (Relational.inject inv) retval_src retval_tgt.
+  Admitted.
+
 Lemma identity_step:
   identity_state_sim <8= sim_local.
 Proof.
@@ -367,61 +490,101 @@ Proof.
   pcofix CIH.
   intros inv0 idx0 st_src st_tgt SIM.
   pfold. inv SIM.
-
-  destruct (is_error st_tgt) eqn:ERROR.
-  { eapply _sim_local_error.
+  
+  destruct (excluded_middle (stuck_state conf_tgt st_tgt)).
+  {
+    rename H into ERROR.
+    eapply _sim_local_error.
     - econs 1.
     - admit.
   }
 
+  rename H into NO_ERROR.
+ 
   destruct st_src as [ec_src ecs_src mem_src].
   destruct st_tgt as [ec_tgt ecs_tgt mem_tgt].
 
   destruct (get_status ec_tgt) eqn:TGT.
   - inv EC_INJECT. simpl in *. subst.
     apply get_status_call_inv in TGT. des. simpl in *. subst.
-    exploit identity_step_function; ii; eauto.
-    destruct x0. destruct H. destruct H. destruct H0.
+    exploit identity_step_call_function; ii; eauto.
+    des.
+    exploit identity_step_call_parameter; ii; eauto.
+    des.
     eapply _sim_local_call;
       repeat (simpl in *; eauto).
-    (* function  *)
-    (* parameter *)
-    + admit. (* locals inject *)
-    + admit. (* no error *)
-    + admit. (* locals inject *)
     + i. eexists. right. apply CIH.
       econs; simpl; eauto.
-      admit. (* inject_EC *)
-  - eapply _sim_local_return.
+      econs; eauto.
+  -
+    inv EC_INJECT; simpl in *; auto.
+    symmetry in H, H0. simpl in *; subst.
+    eapply get_status_return_inv in TGT. des. simpl in *.
+    exploit identity_step_return; eauto; ii; des; subst.
+    eapply _sim_local_return; repeat (simpl in *; eauto).
     + admit.
+  - inv EC_INJECT.
+    symmetry in H. symmetry in H0.
+    simpl in *; subst.
+    eapply get_status_return_void_inv in TGT; des.
+    eapply _sim_local_return_void; repeat (simpl in *; eauto).
+  -
+    destruct conf_src.
+    eapply _sim_local_step; simpl in *; eauto.
+    ii.
+    do 5 eexists.
+    splits.
+    + econs.
     + admit.
-    + admit.
-    + admit.
-    + admit.
-    + admit.
-    + admit.
-    + admit.
-    + admit.
-    + admit.
-    + admit.
-    + admit.
-  - eapply _sim_local_return_void.
-    + admit.
-    + admit.
-    + admit.
-    + admit.
-    + admit.
-    + admit.
-    + admit.
-    + admit.
-  - eapply _sim_local_step.
-    + admit.
-    + i. eexists _, _, _, _, _. splits.
-      * admit.
-      * admit.
-      * admit.
-      * right. apply CIH.
-        admit.
+      (* destruct event. *)
+      (* * eapply sInsn_stutter. admit. *)
+      (* * *)
+      (*   econs; eauto. *)
+      (*   inv EC_INJECT. *)
+      (*   econs. *)
+      (*   instantiate (1:=inv0). admit. *)
+
+      (*   unfold stuck_state, not in NO_ERROR. *)
+      (*   apply double_neg in NO_ERROR. *)
+    + instantiate (1:=inv0).
+      admit.
+    + right. apply CIH.
+      econs; simpl; eauto.
+      instantiate (2:=mkState ec_src ecs_src mem_src).
+      instantiate (1:=mkState ec_tgt ecs_tgt mem_tgt).
+      admit.
+      simpl; auto.
+      simpl; auto.
+      inv STEP; simpl; auto; inv TGT.
+  Unshelve.
+  apply {|
+      CurFunction := fdef0;
+      CurBB := block0;
+      CurCmds := cmds0;
+      Terminator := terminator0;
+      Locals := locals2;
+      Allocas := allocas2 |}.
+      
+
+    (* { *)
+    (* destruct conf_src. *)
+    (* eapply _sim_local_step; simpl in *; eauto. *)
+    (* unfold stuck_state, not. *)
+    (* apply double_neg2. *)
+    (* + (* ERROR should imply it *) admit. *)
+    (* + i. eexists _, _, st3_tgt, _, _. splits; simpl in *; eauto. *)
+    (*   * econs; eauto. *)
+    (*     inv EC_INJECT. *)
+    (*     (* destruct cmds0, terminator0; simpl in *; inv TGT. *) *)
+    (*     admit. *)
+    (*   * instantiate (1:=inv0). admit. *)
+    (*   * right. apply CIH. *)
+    (*     econs; simpl; eauto. *)
+    (*     instantiate (1:=mkState ec_src ecs_src mem_src). *)
+    (*     admit. *)
+    (*     simpl; auto. *)
+    (*     inv STEP; simpl; auto; inv TGT. *)
+    (* } *)
 Admitted.
 
 Lemma identity_init
@@ -448,7 +611,7 @@ Proof.
   splits.
   econs; eauto. erewrite locals_init; eauto.
   eapply identity_state_sim_intro; eauto.
-  - admit.
+  - econs; eauto.
   - admit.
 Admitted.
 
