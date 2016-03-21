@@ -24,7 +24,7 @@ Definition failwith_None {A:Type} (msg:string) (ls:list l): option A := None.
 (* These will be handled explicitly during extraction, the definition is just to notify meaning. *)
 Definition debug_print (A: Type) (printer: A -> unit) (content: A): A :=
   let unused := printer content in content.
-Definition string_print (A: Type) (str: string) (host: A): A := host.
+Definition debug_string (A: Type) (str: string) (host: A): A := host.
 
 Parameter atom_printer : atom -> unit.
 Parameter cmd_printer : cmd -> unit.
@@ -41,9 +41,9 @@ Fixpoint valid_cmds
          (inv0:Invariant.t): option Invariant.t :=
   match hint, src, tgt with
   | (infrules, inv)::hint, cmd_src::src, cmd_tgt::tgt =>
-    let cmd_src := (string_print "src cmd" cmd_src) in
+    let cmd_src := (debug_string "src cmd" cmd_src) in
     let cmd_src := (debug_print cmd_printer cmd_src) in
-    let cmd_tgt := (string_print "tgt cmd" cmd_tgt) in
+    let cmd_tgt := (debug_string "tgt cmd" cmd_tgt) in
     let cmd_tgt := (debug_print cmd_printer cmd_tgt) in
     match postcond_cmd cmd_src cmd_tgt inv0 with
     | None => failwith_None "valid_cmds: postcond_cmd returned None" nil

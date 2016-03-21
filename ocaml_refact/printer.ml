@@ -203,6 +203,6 @@ let atom_printer (x: string): unit =
       fun _ ->
       debug_print x)
 
-let string_print (x: char list) (y: 'a) =
+let debug_string (x: char list) (y: 'a) =
   let _ = debug_run(fun _ -> debug_print (string_of_char_list x))
   in y

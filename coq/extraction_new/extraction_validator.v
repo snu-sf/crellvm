@@ -22,7 +22,7 @@ Extract Constant failwith_false => "(fun cl ls -> let _ = Printer.debug_print ((
 Extract Constant failwith_None => "(fun cl ls -> let _ = Printer.debug_print ((TODOCAML.list_to_string cl)^"" ""^(String.concat "" "" ls)) in None)".
 Extract Constant debug_print_validation_process => "Printer.debug_print_validation_process".
 Extract Constant debug_print => "fun (printer: 'a -> unit) (x: 'a) -> let _ = printer x in x".
-Extract Constant string_print => "Printer.string_print".
+Extract Constant debug_string => "Printer.debug_string".
 Extract Constant cmd_printer => "Printer.cmd_printer".
 Extract Constant atom_printer => "Printer.atom_printer".
 
