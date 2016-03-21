@@ -198,12 +198,11 @@ let cmd_printer (x: LLVMsyntax.cmd): unit =
 let string_of_char_list (l: char list) =
   List.fold_left (fun s i -> s ^ (Char.escaped i)) "" l
 
-let string_printer (x: char list): unit =
-  debug_run(
-      fun _ ->
-      debug_print (string_of_char_list x))
-
 let atom_printer (x: string): unit =
   debug_run(
       fun _ ->
       debug_print x)
+
+let string_print (x: char list) (y: 'a) =
+  let _ = debug_run(fun _ -> debug_print (string_of_char_list x))
+  in y
