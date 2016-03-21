@@ -106,6 +106,37 @@ Module Invariant.
     (ExprPairSet.mem (Expr.value value_src, Expr.value value_tgt) inv.(tgt).(lessdef) && not_in_maydiff inv value_src) ||
     (ExprPairSet.mem (Expr.value value_src, Expr.value value_tgt) inv.(src).(lessdef) && not_in_maydiff inv value_tgt).
 
+  Definition not_in_maydiff_expr (inv:t) (expr: Expr.t): bool :=
+    let f := not_in_maydiff inv in
+    match expr with
+      | (Expr.bop _ _ v1 v2) => f v1 && f v2
+      | (Expr.fbop _ _ v1 v2) => f v1 && f v2
+      | (Expr.extractvalue _ v _ _) => f v
+      | (Expr.insertvalue _ v1 _ v2 _) => f v1 && f v2
+      | (Expr.gep _ _ v vl _) => f v && (List.fold_left (fun s i => s && f (snd i)) vl true)
+      | (Expr.trunc _ _ v _) => f v
+      | (Expr.ext _ _ v _) => f v
+      | (Expr.cast _ _ v _) => f v
+      | (Expr.icmp _ _ v1 v2) => f v1 && f v2
+      | (Expr.fcmp _ _ v1 v2) => f v1 && f v2
+      | (Expr.select v1 _ v2 v3) => f v1 && f v2 && f v3
+      | (Expr.value v) => f v
+      | (Expr.load v _ _) => f v
+    end.
+
+  Definition inject_expr (inv:t) (expr_src expr_tgt: Expr.t_): bool :=
+    match (expr_src, expr_tgt) with
+      | (Expr.bop bop_src sz_src v1_src v2_src,
+         Expr.bop bop_tgt sz_tgt v1_tgt v2_tgt) =>
+        (bopEqB bop_src bop_tgt) && (beq_nat sz_src sz_tgt) &&
+                                 (inject_value inv v1_src v1_tgt) &&(inject_value inv v2_src v2_tgt)
+      | (Expr.fbop fbop_src fp_src v1_src v2_src,
+         Expr.fbop fbop_tgt fp_tgt v1_tgt v2_tgt) =>
+        (fbop_dec fbop_src fbop_tgt) && (floating_point_dec fp_src fp_tgt) &&
+                                 (inject_value inv v1_src v1_tgt) &&(inject_value inv v2_src v2_tgt)
+      | (_, _) => false
+    end.
+
   Definition is_empty_unary (inv:unary): bool :=
     ExprPairSet.is_empty inv.(lessdef) &&
     ValueTPairSet.is_empty inv.(noalias) &&
