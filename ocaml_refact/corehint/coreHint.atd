@@ -322,13 +322,18 @@ type command = [
   | Infrule of (position * infrule)
   ] <ocaml repr="classic">
 
+type nop_position = [
+  | PhinodeCurrentBlockName of string
+  | CommandRegisterName of string
+  ] <ocaml repr="classic">
+
 type hints = {
   module_id : string;
   function_id : string;
   opt_name : string;
 
-  src_nop_positions: position list; (* insert after position *)
-  tgt_nop_positions: position list;
+  src_nop_positions: nop_position list; (* insert after position *)
+  tgt_nop_positions: nop_position list;
 
   commands : command list;
 }

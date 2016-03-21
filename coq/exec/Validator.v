@@ -21,6 +21,14 @@ Set Implicit Arguments.
 Definition failwith_false (msg:string) (ls:list l): bool := false.
 Definition failwith_None {A:Type} (msg:string) (ls:list l): option A := None.
 
+(* These will be handled explicitly during extraction, the definition is just to notify meaning. *)
+Definition debug_print (A: Type) (printer: A -> unit) (content: A): A :=
+  let unused := printer content in content.
+Definition debug_string (A: Type) (str: string) (host: A): A := host.
+
+Parameter atom_printer : atom -> unit.
+Parameter cmd_printer : cmd -> unit.
+
 Definition debug_print_validation_process
            (infrules: list Infrule.t)
            (inv0 inv1 inv2 inv3 inv: Invariant.t): Invariant.t := inv.
@@ -33,7 +41,10 @@ Fixpoint valid_cmds
          (inv0:Invariant.t): option Invariant.t :=
   match hint, src, tgt with
   | (infrules, inv)::hint, cmd_src::src, cmd_tgt::tgt =>
-    let '(cmd_src, cmd_tgt) := debug_print_cmd_pair cmd_src cmd_tgt in
+    let cmd_src := (debug_string "src cmd" cmd_src) in
+    let cmd_src := (debug_print cmd_printer cmd_src) in
+    let cmd_tgt := (debug_string "tgt cmd" cmd_tgt) in
+    let cmd_tgt := (debug_print cmd_printer cmd_tgt) in
     match postcond_cmd cmd_src cmd_tgt inv0 with
     | None => failwith_None "valid_cmds: postcond_cmd returned None" nil
     | Some inv1 =>
@@ -53,12 +64,15 @@ Definition valid_phinodes
            (inv0:Invariant.t)
            (blocks_src blocks_tgt:blocks)
            (l_from l_to:l): bool :=
+  let l_from := (debug_print atom_printer l_from) in
+  let l_to := (debug_print atom_printer l_to) in
   match lookupAL _ hint_fdef l_to, lookupAL _ blocks_src l_to, lookupAL _ blocks_tgt l_to with
   | Some hint_stmts, Some (stmts_intro phinodes_src _ _), Some (stmts_intro phinodes_tgt _ _) =>
-    match lookupAL _ hint_stmts.(ValidationHint.phinodes) l_from with
-    | None => failwith_false "valid_phinodes: phinode hint not exist at phinode" (l_from::l_to::nil)
-    | Some infrules =>
-      match postcond_phinodes l_from phinodes_src phinodes_tgt inv0 with
+    let infrules := match lookupAL _ hint_stmts.(ValidationHint.phinodes) l_from with
+                        | None => nil
+                        | Some infrules => infrules
+                    end in
+    match postcond_phinodes l_from phinodes_src phinodes_tgt inv0 with
       | None => failwith_false "valid_phinodes: postcond_phinodes returned None at phinode" (l_from::l_to::nil)
       | Some inv1 =>
         let inv2 := apply_infrules infrules inv1 in
@@ -68,7 +82,6 @@ Definition valid_phinodes
         if (Invariant.implies inv3 inv)
         then true
         else failwith_false "valid_phinodes: Invariant.implies returned false at phinode" (l_from::l_to::nil)
-      end
     end
   | _, _, _ => false
   end.

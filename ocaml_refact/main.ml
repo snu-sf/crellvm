@@ -3,6 +3,7 @@ open Llvm
 open Arg
 open Syntax.LLVMsyntax
 open Printer
+open CoreHint_j
 
 let out_channel = ref stdout
 
@@ -47,11 +48,11 @@ let read_im filename =
 let read_hint filename =
   let _ = debug_print "read hint json.." in
 
-  let hint = Ag_util.Json.from_file CoreHint_j.read_hints filename in
+  let hint = Ag_util.Json.from_file read_hints filename in
   let _ =
     debug_run
       (fun _ ->
-        let json = Yojson.Safe.prettify ~std:true (CoreHint_j.string_of_hints hint) in
+        let json = Yojson.Safe.prettify ~std:true (string_of_hints hint) in
         let _ = output_string !out_channel json in
         let _ = output_char !out_channel '\n' in
         ())
@@ -63,8 +64,10 @@ let main filename_src filename_tgt filename_hint =
   let coq_im_tgt = read_im filename_tgt in
   let hint = read_hint filename_hint in
 
-  (* let coq_im_src = ConvertHint.insert_nop coq_im_src (failwith "TODO") in *)
-  (* let coq_im_tgt = ConvertHint.insert_nop coq_im_tgt (failwith "TODO") in *)
+  let coq_im_src = ConvertHint.insert_nop hint.function_id
+                     coq_im_src hint.src_nop_positions in
+  let coq_im_tgt = ConvertHint.insert_nop hint.function_id
+                     coq_im_tgt hint.tgt_nop_positions in
   let coq_hint = ConvertHint.convert coq_im_src coq_im_tgt hint in
 
   let _ = debug_print "validation.." in
