@@ -200,8 +200,11 @@ type sub_const_not = {
 }
 
 type sub_remove = {
-  y : register;
   z : register;
+  y : register;
+  a : value;
+  b : value;
+  sz : size;
 }
 
 type sub_remove2 = {

@@ -54,5 +54,12 @@ let convert_infrule (infrule:CoreHint_t.infrule) : Infrule.t =
       let x = Convert.register args.x in
       let y = Convert.register args.y in
       Infrule.Coq_mul_bool (z, x, y) 
+  | CoreHint_t.SubRemove (args:CoreHint_t.sub_remove) ->
+      let z = Convert.register args.z in
+      let y = Convert.register args.y in
+      let a = Convert.value args.a in
+      let b = Convert.value args.b in
+      let sz = Convert.size args.sz in
+      Infrule.Coq_sub_remove (z, y, a, b, sz)
   | _ ->
      failwith "TODO"
