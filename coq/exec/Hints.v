@@ -124,19 +124,6 @@ Module Invariant.
       | (Expr.load v _ _) => f v
     end.
 
-  Definition inject_expr (inv:t) (expr_src expr_tgt: Expr.t_): bool :=
-    match (expr_src, expr_tgt) with
-      | (Expr.bop bop_src sz_src v1_src v2_src,
-         Expr.bop bop_tgt sz_tgt v1_tgt v2_tgt) =>
-        (bopEqB bop_src bop_tgt) && (beq_nat sz_src sz_tgt) &&
-                                 (inject_value inv v1_src v1_tgt) &&(inject_value inv v2_src v2_tgt)
-      | (Expr.fbop fbop_src fp_src v1_src v2_src,
-         Expr.fbop fbop_tgt fp_tgt v1_tgt v2_tgt) =>
-        (fbop_dec fbop_src fbop_tgt) && (floating_point_dec fp_src fp_tgt) &&
-                                 (inject_value inv v1_src v1_tgt) &&(inject_value inv v2_src v2_tgt)
-      | (_, _) => false
-    end.
-
   Definition is_empty_unary (inv:unary): bool :=
     ExprPairSet.is_empty inv.(lessdef) &&
     ValueTPairSet.is_empty inv.(noalias) &&
