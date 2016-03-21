@@ -201,11 +201,11 @@ Definition reduce_maydiff (inv0:Invariant.t): Invariant.t :=
                      lessdef_src in
   let inv1 := Invariant.update_maydiff
                 (IdTSet.filter
-                   (fun id => ExprPairSet.for_all
-                                (fun ep => negb ((Expr.eq_dec (fst ep)
-                                                             (Expr.value (ValueT.id id)))
-                                                   && Invariant.not_in_maydiff_expr inv0 (snd ep)))
-                                equations))
+                   (fun id => negb (ExprPairSet.exists_
+                                      (fun ep => ((Expr.eq_dec (fst ep)
+                                                               (Expr.value (ValueT.id id)))
+                                                    && Invariant.not_in_maydiff_expr inv0 (snd ep)))
+                                      equations)))
                 inv0 in
   inv1.
 
