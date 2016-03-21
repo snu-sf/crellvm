@@ -196,8 +196,16 @@ End ForgetMemory.
 Definition reduce_maydiff (inv0:Invariant.t): Invariant.t :=
   let lessdef_src := inv0.(Invariant.src).(Invariant.lessdef) in
   let lessdef_tgt := inv0.(Invariant.tgt).(Invariant.lessdef) in
-  let equations := ExprPairSet.filter (fun elt => ExprPairSet.mem (snd elt, fst elt) lessdef_tgt) lessdef_src in
-  let inv1 := Invariant.update_maydiff (IdTSet.filter (fun id => ExprPairSet.for_all (fun ep => negb (Expr.eq_dec (fst ep) (Expr.value (ValueT.id id)))) equations)) inv0 in
+  let equations := ExprPairSet.filter
+                     (fun elt => ExprPairSet.mem (snd elt, fst elt) lessdef_tgt)
+                     lessdef_src in
+  let inv1 := Invariant.update_maydiff
+                (IdTSet.filter
+                   (fun id => ExprPairSet.for_all
+                                (fun ep => negb (Expr.eq_dec (fst ep)
+                                                             (Expr.value (ValueT.id id))))
+                                equations))
+                inv0 in
   inv1.
 
 Module Cmd.
