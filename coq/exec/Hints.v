@@ -154,7 +154,7 @@ Module Infrule.
   | add_distributive (z:IdT.t) (x:IdT.t) (y:IdT.t) (w:IdT.t) (s:sz) (a:ValueT.t) (b:ValueT.t) (c:ValueT.t)
   | sub_zext_bool (x:IdT.t) (y:IdT.t) (b:ValueT.t) (sz:sz) (c:INTEGER.t) (c':INTEGER.t)
   | sub_const_add (z:IdT.t) (y:IdT.t) (sz:sz) (x:ValueT.t) (c1:INTEGER.t) (c2:INTEGER.t) (c3:INTEGER.t)
-  | sub_remove (z:IdT.t) (y:IdT.t) (sz:sz) (a:ValueT.t) (b:ValueT.t)
+  | sub_remove (z:IdT.t) (y:IdT.t) (a:ValueT.t) (b:ValueT.t) (sz:sz)
   | sub_remove2 (z:IdT.t) (y:IdT.t) (sz:sz) (a:ValueT.t) (b:ValueT.t)
   | sub_sdiv (z:IdT.t) (y:IdT.t) (sz:sz) (x:ValueT.t) (c:INTEGER.t) (c':INTEGER.t)
   | sub_shl (z:IdT.t) (x:IdT.t) (y:IdT.t) (sz:sz) (mx:ValueT.t) (a:ValueT.t)

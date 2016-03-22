@@ -57,6 +57,11 @@ Definition apply_infrule
     if $$ inv0 |- (Expr.value (ValueT.id z)) >=src (Expr.bop bop_mul Size.One (ValueT.id x) (ValueT.id y)) $$
     then {{inv0 +++ (Expr.value (ValueT.id z)) >=src (Expr.bop bop_and Size.One (ValueT.id x) (ValueT.id y)) }}
     else inv0
+  | Infrule.sub_remove z y a b sz =>
+    if $$ inv0 |- (Expr.value (ValueT.id y)) >=src (Expr.bop bop_add sz a b) $$ &&
+       $$ inv0 |- (Expr.value (ValueT.id z)) >=src (Expr.bop bop_sub sz a (ValueT.id y)) $$
+    then {{inv0 +++ (Expr.value (ValueT.id z)) >=src (Expr.bop bop_sub sz (ValueT.const (const_int sz (INTEGER.of_Z (Size.to_Z sz) 0%Z true))) b) }}
+    else inv0
   | _ => inv0 (* TODO *)
   end.
 
