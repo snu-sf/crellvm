@@ -13,6 +13,7 @@ Require Import Exprs.
 Require Import Hints.
 Require Import Decs.
 Require Import TODO.
+Require Import Debug.
 
 Import ListNotations.
 Set Implicit Arguments.
@@ -194,15 +195,18 @@ Module ForgetMemory.
 End ForgetMemory.
 
 Definition reduce_non_physical (inv0: Invariant.t): Invariant.t :=
+  let inv0 := (debug_string "** reduce_non_physical :: list of used ids" inv0) in
   let (src, tgt, _) := inv0 in
+  let used_ids := ((Invariant.get_idTs_unary src) ++ (Invariant.get_idTs_unary tgt)) in
+  let used_ids := List.map (fun x => debug_print idT_printer x) used_ids in
   Invariant.update_maydiff
     (fun (s: IdTSet.t) =>
        IdTSet.filter
          (fun idt =>
-            match List.find (fun x => IdT.eq_dec x idt)
-                            ((Invariant.get_idTs_unary src) ++ (Invariant.get_idTs_unary tgt)) with
-              | Some _ => false
-              | None => true
+            match (idt, List.find (fun x => IdT.eq_dec x idt) used_ids) with
+              | ((Tag.physical, _), _) => true
+              | (_, (Some _)) => true
+              | (_, None) => false
             end)
          s)
     inv0.

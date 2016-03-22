@@ -26,6 +26,7 @@ Extract Constant debug_print => "fun (printer: 'a -> unit) (x: 'a) -> let _ = pr
 Extract Constant debug_string => "Printer.debug_string".
 Extract Constant cmd_printer => "Printer.cmd_printer".
 Extract Constant atom_printer => "Printer.atom_printer".
+Extract Constant idT_printer => "Printer.idT_printer".
 
 Extraction Library FMapWeakList.
 Extraction Library extraction_defs.
