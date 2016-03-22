@@ -194,11 +194,13 @@ Module ForgetMemory.
 End ForgetMemory.
 
 Definition reduce_non_physical (inv0: Invariant.t): Invariant.t :=
+  let (src, tgt, _) := inv0 in
   Invariant.update_maydiff
     (fun (s: IdTSet.t) =>
        IdTSet.filter
          (fun idt =>
-            match List.find (fun x => IdT.eq_dec x idt) (Invariant.get_idTs inv0) with
+            match List.find (fun x => IdT.eq_dec x idt)
+                            ((Invariant.get_idTs_unary src) ++ (Invariant.get_idTs_unary tgt)) with
               | Some _ => false
               | None => true
             end)
