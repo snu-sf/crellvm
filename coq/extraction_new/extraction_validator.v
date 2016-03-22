@@ -8,6 +8,7 @@ Require Import Postcond.
 Require Import TODO.
 Require Import Decs.
 Require Import Nop.
+Require Import Debug.
 
 Require Import extraction_core.
 Require Import extraction_dom.
@@ -36,3 +37,4 @@ Extraction Library Infrules.
 Extraction Library Decs.
 Extraction Library Validator.
 Extraction Library Nop.
+Extraction Library Debug.

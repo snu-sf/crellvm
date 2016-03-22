@@ -6,6 +6,7 @@ Require Import Coqlib.
 Require Import infrastructure.
 Require Import Metatheory.
 Require Import sflib.
+Require Import String.
 Import LLVMsyntax.
 Import LLVMinfra.
 
