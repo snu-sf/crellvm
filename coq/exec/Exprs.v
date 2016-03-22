@@ -79,10 +79,10 @@ Qed.
 Module Value.
   Definition t := value.
 
-  Definition get_uses (v:t): list id :=
+  Definition get_uses (v: t): list id :=
     match v with
-    | value_id id => [id]
-    | value_const _ => []
+      | value_id i => [i]
+      | value_const _ => []
     end.
 End Value.
 
@@ -108,6 +108,12 @@ Module ValueT <: UsualDecidableType.
     | value_id i => id (IdT.lift tag i)
     | value_const c => const c
     end.
+
+  Definition get_uses (v: t): list LLVMsyntax.id :=
+    match v with
+      | id (_, i) => [i]
+      | const _ => []
+    end.
 End ValueT.
 Hint Resolve ValueT.eq_dec: EqDecDb.
 Coercion ValueT.id: IdT.t >-> ValueT.t_.
@@ -128,6 +134,11 @@ Module ValueTPair <: UsualDecidableType.
     apply prod_dec;
     apply ValueT.eq_dec.
   Defined.
+
+  Definition get_uses (v: t): list LLVMsyntax.id :=
+    match v with
+      | (x, y) => (ValueT.get_uses x) ++ (ValueT.get_uses y)
+    end.
 End ValueTPair.
 Hint Resolve ValueTPair.eq_dec: EqDecDb.
 
@@ -177,6 +188,26 @@ Module Expr <: UsualDecidableType.
       try (apply cond_dec);
       try (apply fcond_dec).
   Defined.
+
+  Definition fold_value (A: Type) (f: A -> ValueT.t -> A) (e: t) (default: A): A :=
+    match e with
+      | (Expr.bop _ _ v1 v2) => (f (f default v1) v2)
+      | (Expr.fbop _ _ v1 v2) => (f (f default v1) v2)
+      | (Expr.extractvalue _ v _ _) => (f default v)
+      | (Expr.insertvalue _ v1 _ v2 _) => (f (f default v1) v2)
+      | (Expr.gep _ _ v vl _) => f (List.fold_left f (List.map snd vl) default) v
+      | (Expr.trunc _ _ v _) => (f default v)
+      | (Expr.ext _ _ v _) => (f default v)
+      | (Expr.cast _ _ v _) => (f default v)
+      | (Expr.icmp _ _ v1 v2) => (f (f default v1) v2)
+      | (Expr.fcmp _ _ v1 v2) => (f (f default v1) v2)
+      | (Expr.select v1 _ v2 v3) => (f (f (f default v1) v2) v3)
+      | (Expr.value v) => (f default v)
+      | (Expr.load v _ _) => (f default v)
+    end.
+
+  Definition get_uses (e: t): list LLVMsyntax.id :=
+    fold_value (fun s i => ValueT.get_uses i ++ s) e [].
 End Expr.
 Hint Resolve Expr.eq_dec: EqDecDb.
 Coercion Expr.value: ValueT.t >-> Expr.t_.
@@ -193,6 +224,10 @@ Module ExprPair <: UsualDecidableType.
     apply prod_dec;
       apply Expr.eq_dec.
   Defined.
+
+  Definition get_uses (e: t): list LLVMsyntax.id :=
+    let (x, y) := e in
+    Expr.get_uses x ++ Expr.get_uses y.
 End ExprPair.
 Hint Resolve ExprPair.eq_dec: EqDecDb.
 
