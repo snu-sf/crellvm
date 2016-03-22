@@ -247,26 +247,26 @@ Module Cmd.
     | insn_call x _ _ typ _ f params => None
     end.
 
-  Definition get_uses (c:cmd): list id :=
+  Definition get_ids (c:cmd): list id :=
     match c with
     | insn_nop _ => []
-    | insn_bop x b s v1 v2 => (Value.get_uses v1) ++ (Value.get_uses v2)
-    | insn_fbop x fb fp v1 v2 => (Value.get_uses v1) ++ (Value.get_uses v2)
-    | insn_extractvalue x ty1 v lc ty2 => (Value.get_uses v)
-    | insn_insertvalue x ty1 v1 ty2 v2 lc => (Value.get_uses v1) ++ (Value.get_uses v2)
-    | insn_malloc x ty v a => (Value.get_uses v)
-    | insn_free x ty v => (Value.get_uses v)
-    | insn_alloca x ty v a => (Value.get_uses v)
-    | insn_load x ty p a => (Value.get_uses p)
-    | insn_store x ty v p a => (Value.get_uses v) ++ (Value.get_uses p)
-    | insn_gep x ib ty1 v lsv ty2 => (Value.get_uses v) ++ concat (List.map Value.get_uses (List.map snd lsv))
-    | insn_trunc x trop ty1 v ty2 => (Value.get_uses v)
-    | insn_ext x eop ty1 v ty2 => (Value.get_uses v)
-    | insn_cast x cop ty1 v ty2 => (Value.get_uses v)
-    | insn_icmp x con ty v1 v2 => (Value.get_uses v1) ++ (Value.get_uses v2)
-    | insn_fcmp x fcon fp v1 v2 => (Value.get_uses v1) ++ (Value.get_uses v2)
-    | insn_select x v1 ty v2 v3 => (Value.get_uses v1) ++ (Value.get_uses v2) ++ (Value.get_uses v3)
-    | insn_call x nr attr ty va f ps => (Value.get_uses f) ++ concat (List.map Value.get_uses (List.map snd ps))
+    | insn_bop x b s v1 v2 => (Value.get_ids v1) ++ (Value.get_ids v2)
+    | insn_fbop x fb fp v1 v2 => (Value.get_ids v1) ++ (Value.get_ids v2)
+    | insn_extractvalue x ty1 v lc ty2 => (Value.get_ids v)
+    | insn_insertvalue x ty1 v1 ty2 v2 lc => (Value.get_ids v1) ++ (Value.get_ids v2)
+    | insn_malloc x ty v a => (Value.get_ids v)
+    | insn_free x ty v => (Value.get_ids v)
+    | insn_alloca x ty v a => (Value.get_ids v)
+    | insn_load x ty p a => (Value.get_ids p)
+    | insn_store x ty v p a => (Value.get_ids v) ++ (Value.get_ids p)
+    | insn_gep x ib ty1 v lsv ty2 => (Value.get_ids v) ++ concat (List.map Value.get_ids (List.map snd lsv))
+    | insn_trunc x trop ty1 v ty2 => (Value.get_ids v)
+    | insn_ext x eop ty1 v ty2 => (Value.get_ids v)
+    | insn_cast x cop ty1 v ty2 => (Value.get_ids v)
+    | insn_icmp x con ty v1 v2 => (Value.get_ids v1) ++ (Value.get_ids v2)
+    | insn_fcmp x fcon fp v1 v2 => (Value.get_ids v1) ++ (Value.get_ids v2)
+    | insn_select x v1 ty v2 v3 => (Value.get_ids v1) ++ (Value.get_ids v2) ++ (Value.get_ids v3)
+    | insn_call x nr attr ty va f ps => (Value.get_ids f) ++ concat (List.map Value.get_ids (List.map snd ps))
     end.
 End Cmd.
 
@@ -492,8 +492,8 @@ Definition postcond_cmd
   let def_tgt := IdTSet_from_list (List.map (IdT.lift Tag.physical) def_tgt') in
   let def_memory_src := IdTSet_from_list (List.map (IdT.lift Tag.physical) def_memory_src') in
   let def_memory_tgt := IdTSet_from_list (List.map (IdT.lift Tag.physical) def_memory_tgt') in
-  let uses_src := AtomSetImpl_from_list (Cmd.get_uses src) in
-  let uses_tgt := AtomSetImpl_from_list (Cmd.get_uses tgt) in
+  let uses_src := AtomSetImpl_from_list (Cmd.get_ids src) in
+  let uses_tgt := AtomSetImpl_from_list (Cmd.get_ids tgt) in
 
   if negb (postcond_cmd_inject_event src tgt inv0)
   then None

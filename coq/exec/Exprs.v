@@ -79,7 +79,7 @@ Qed.
 Module Value.
   Definition t := value.
 
-  Definition get_uses (v: t): list id :=
+  Definition get_ids(v: t): list id :=
     match v with
       | value_id i => [i]
       | value_const _ => []
@@ -109,7 +109,7 @@ Module ValueT <: UsualDecidableType.
     | value_const c => const c
     end.
 
-  Definition get_uses (v: t): list LLVMsyntax.id :=
+  Definition get_ids (v: t): list LLVMsyntax.id :=
     match v with
       | id (_, i) => [i]
       | const _ => []
@@ -134,11 +134,6 @@ Module ValueTPair <: UsualDecidableType.
     apply prod_dec;
     apply ValueT.eq_dec.
   Defined.
-
-  Definition get_uses (v: t): list LLVMsyntax.id :=
-    match v with
-      | (x, y) => (ValueT.get_uses x) ++ (ValueT.get_uses y)
-    end.
 End ValueTPair.
 Hint Resolve ValueTPair.eq_dec: EqDecDb.
 
@@ -189,25 +184,25 @@ Module Expr <: UsualDecidableType.
       try (apply fcond_dec).
   Defined.
 
-  Definition fold_value (A: Type) (f: A -> ValueT.t -> A) (e: t) (default: A): A :=
+  Definition get_valueTs (e: t): list ValueT.t :=
     match e with
-      | (Expr.bop _ _ v1 v2) => (f (f default v1) v2)
-      | (Expr.fbop _ _ v1 v2) => (f (f default v1) v2)
-      | (Expr.extractvalue _ v _ _) => (f default v)
-      | (Expr.insertvalue _ v1 _ v2 _) => (f (f default v1) v2)
-      | (Expr.gep _ _ v vl _) => f (List.fold_left f (List.map snd vl) default) v
-      | (Expr.trunc _ _ v _) => (f default v)
-      | (Expr.ext _ _ v _) => (f default v)
-      | (Expr.cast _ _ v _) => (f default v)
-      | (Expr.icmp _ _ v1 v2) => (f (f default v1) v2)
-      | (Expr.fcmp _ _ v1 v2) => (f (f default v1) v2)
-      | (Expr.select v1 _ v2 v3) => (f (f (f default v1) v2) v3)
-      | (Expr.value v) => (f default v)
-      | (Expr.load v _ _) => (f default v)
+      | (Expr.bop _ _ v1 v2) => [v1 ; v2]
+      | (Expr.fbop _ _ v1 v2) => [v1 ; v2]
+      | (Expr.extractvalue _ v _ _) => [v]
+      | (Expr.insertvalue _ v1 _ v2 _) => [v1 ; v2]
+      | (Expr.gep _ _ v vl _) => v :: (List.map snd vl)
+      | (Expr.trunc _ _ v _) => [v]
+      | (Expr.ext _ _ v _) => [v]
+      | (Expr.cast _ _ v _) => [v]
+      | (Expr.icmp _ _ v1 v2) => [v1 ; v2]
+      | (Expr.fcmp _ _ v1 v2) => [v1 ; v2]
+      | (Expr.select v1 _ v2 v3) => [v1 ; v2 ; v3]
+      | (Expr.value v) => [v]
+      | (Expr.load v _ _) => [v]
     end.
 
-  Definition get_uses (e: t): list LLVMsyntax.id :=
-    fold_value (fun s i => ValueT.get_uses i ++ s) e [].
+  Definition get_ids (e: t): list LLVMsyntax.id :=
+    List.fold_left (fun s i => ValueT.get_ids i ++ s) (get_valueTs e) [].
 End Expr.
 Hint Resolve Expr.eq_dec: EqDecDb.
 Coercion Expr.value: ValueT.t >-> Expr.t_.
@@ -224,10 +219,6 @@ Module ExprPair <: UsualDecidableType.
     apply prod_dec;
       apply Expr.eq_dec.
   Defined.
-
-  Definition get_uses (e: t): list LLVMsyntax.id :=
-    let (x, y) := e in
-    Expr.get_uses x ++ Expr.get_uses y.
 End ExprPair.
 Hint Resolve ExprPair.eq_dec: EqDecDb.
 
