@@ -26,6 +26,24 @@ Extract Constant debug_string => "Printer.debug_string".
 Extract Constant cmd_printer => "Printer.cmd_printer".
 Extract Constant atom_printer => "Printer.atom_printer".
 
+Extract Constant power_sz => "(fun x ->
+  if x = 0 then Coq_xH else Coq_xO (power_sz (x-1)))".
+Extract Constant signbit_of => "(fun x ->
+  let rec positive_of_int = fun x ->
+    if x = 1 then Coq_xH
+    else if x mod 2 = 0 then Coq_xO (positive_of_int (x/2))
+    else Coq_xI (positive_of_int (x/2))
+  in
+  let coq_Z_of_int = fun x ->
+    if x = 0 then Z0
+    else if x > 0 then Zpos (positive_of_int x)
+    else Zneg (positive_of_int (-x))
+  in
+  if x = 0
+  then None
+  else Some (Camlcoq.z2llapint (coq_Z_of_int x) (Zneg (power_sz (x-1))) true))".
+
+
 Extraction Library FMapWeakList.
 Extraction Library extraction_defs.
 Extraction Library TODO.

@@ -130,10 +130,15 @@ type add_commutative = {
 
 type add_shift = {
   y : register;
+  v : value;
+  sz : size;
 }
 
 type add_signbit = {
   x : register;
+  e1 : value;
+  e2 : value;
+  sz : size;
 }
 
 type add_onebit = {
