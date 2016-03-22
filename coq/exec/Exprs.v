@@ -109,9 +109,9 @@ Module ValueT <: UsualDecidableType.
     | value_const c => const c
     end.
 
-  Definition get_ids (v: t): list LLVMsyntax.id :=
+  Definition get_idTs (v: t): list IdT.t :=
     match v with
-      | id (_, i) => [i]
+      | id i => [i]
       | const _ => []
     end.
 End ValueT.
@@ -201,8 +201,8 @@ Module Expr <: UsualDecidableType.
       | (Expr.load v _ _) => [v]
     end.
 
-  Definition get_ids (e: t): list LLVMsyntax.id :=
-    List.fold_left (fun s i => ValueT.get_ids i ++ s) (get_valueTs e) [].
+  Definition get_idTs (e: t): list IdT.t :=
+    List.fold_left (fun s i => ValueT.get_idTs i ++ s) (get_valueTs e) [].
 End Expr.
 Hint Resolve Expr.eq_dec: EqDecDb.
 Coercion Expr.value: ValueT.t >-> Expr.t_.
