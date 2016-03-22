@@ -120,6 +120,25 @@ Module Invariant.
     is_empty_unary inv.(tgt) &&
     IdTSet.is_empty inv.(maydiff).
 
+  Definition get_idTs_unary (u: unary): list IdT.t :=
+    let (lessdef, noalias, allocas, private) := u in
+    List.concat
+      (List.map
+         (fun (p: ExprPair.t) =>
+            let (x, y) := p in Expr.get_idTs x ++ Expr.get_idTs y)
+         (ExprPairSet.elements lessdef)) ++
+      List.concat
+      (List.map
+         (fun (p: ValueTPair.t) =>
+            let (x, y) := p in ValueT.get_idTs x ++ ValueT.get_idTs y)
+         (ValueTPairSet.elements noalias)) ++
+      IdTSet.elements allocas ++ IdTSet.elements private.
+
+  Definition get_idTs (inv: t): list IdT.t :=
+    let (src, tgt, maydiff) := inv in
+    (get_ids_in_unary src)
+      ++ (get_ids_in_unary tgt)
+      ++ (IdTSet.elements maydiff).
 End Invariant.
 
 Module Infrule.
