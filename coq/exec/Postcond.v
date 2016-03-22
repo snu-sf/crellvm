@@ -193,6 +193,18 @@ Module ForgetMemory.
     inv2.
 End ForgetMemory.
 
+Definition reduce_non_physical (inv0: Invariant.t): Invariant.t :=
+  Invariant.update_maydiff
+    (fun (s: IdTSet.t) =>
+       IdTSet.filter
+         (fun idt =>
+            match List.find (fun x => IdT.eq_dec x idt) (Invariant.get_idTs inv0) with
+              | Some _ => false
+              | None => true
+            end)
+         s)
+    inv0.
+
 Definition reduce_maydiff (inv0:Invariant.t): Invariant.t :=
   let lessdef_src := inv0.(Invariant.src).(Invariant.lessdef) in
   let lessdef_tgt := inv0.(Invariant.tgt).(Invariant.lessdef) in
@@ -207,7 +219,8 @@ Definition reduce_maydiff (inv0:Invariant.t): Invariant.t :=
                                                     && Invariant.not_in_maydiff_expr inv0 (snd ep)))
                                       equations)))
                 inv0 in
-  inv1.
+  let inv2 := reduce_non_physical inv1 in
+  inv2.
 
 Module Cmd.
   Definition t := cmd.

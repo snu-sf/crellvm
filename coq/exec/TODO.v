@@ -11,6 +11,12 @@ Import LLVMinfra.
 
 Set Implicit Arguments.
 
+Definition get_or_else A (x: option A) (default: A) :=
+  match x with
+    | None => default
+    | Some _x => _x
+  end.
+
 Fixpoint list_forallb2 A B (P: A -> B -> bool) (la:list A) (lb:list B): bool :=
   match la, lb with
   | a::la, b::lb => P a b && list_forallb2 P la lb

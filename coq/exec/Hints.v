@@ -136,8 +136,8 @@ Module Invariant.
 
   Definition get_idTs (inv: t): list IdT.t :=
     let (src, tgt, maydiff) := inv in
-    (get_ids_in_unary src)
-      ++ (get_ids_in_unary tgt)
+    (get_idTs_unary src)
+      ++ (get_idTs_unary tgt)
       ++ (IdTSet.elements maydiff).
 End Invariant.
 
