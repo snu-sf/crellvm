@@ -26,33 +26,29 @@ Inductive nop_position : Type :=
 (* Logic adding nop is commented below. *)
 (* If there is multiple blocks with target label, it only inserts in FIRST block. *)
 Definition insert_nop (target : nop_position) (bs:blocks): blocks :=
-  match target with
-    | phi_node_current_block_name target_l =>
-      mapiAL (fun i stmts =>
+  mapiAL (fun i stmts =>
+            match target with
+              | phi_node_current_block_name target_l =>
                 if(eq_atom_dec i target_l)
                 then let '(stmts_intro ps cmds t) := stmts in
                      let cmds := insert_at 0 (insn_nop (next_nop_id bs)) cmds in
                      (stmts_intro ps cmds t)
-                else stmts) bs
-    | command_register_name target_id =>
-      Metatheory.EnvImpl.map
-        (fun stmts =>
-           let '(stmts_intro phinodes cmds terminator) := stmts in
-           let cmds_idx :=
-               find_index
-                 cmds
-                 (fun c => if eq_atom_dec (getCmdLoc c) target_id then true else false)
-           in
-           let cmds :=
-               match cmds_idx with
-                 | None => cmds
-                 | Some idx => insert_at (idx + 1) (insn_nop (next_nop_id bs)) cmds
-               end
-           in
-
-           stmts_intro phinodes cmds terminator)
-        bs
-  end.
+                else stmts
+              | command_register_name target_id =>
+                let '(stmts_intro phinodes cmds terminator) := stmts in
+                let cmds_idx :=
+                    find_index
+                      cmds
+                      (fun c => if eq_atom_dec (getCmdLoc c) target_id then true else false)
+                in
+                let cmds :=
+                    match cmds_idx with
+                      | None => cmds
+                      | Some idx => insert_at (idx + 1) (insn_nop (next_nop_id bs)) cmds
+                    end
+                in
+                stmts_intro phinodes cmds terminator
+            end) bs.
 
 Definition insert_nops (targets:list nop_position) (bs:blocks): blocks :=
   List.fold_left (flip insert_nop) targets bs.
@@ -145,7 +141,7 @@ Proof.
     destruct (eq_atom_dec bid l0); simpl in *; inv T0; splits; auto.
     + unfold nop_cmds. simpl. auto.
     + unfold nop_cmds; auto.
-  - rewrite lookupAL_mapAL.
+  - rewrite lookupAL_mapiAL.
     insert_nop_ltac.
     destruct s, s0.
     simpl in T0.

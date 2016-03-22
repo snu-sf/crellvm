@@ -53,6 +53,10 @@ Definition apply_infrule
        $$ inv0 |- (Expr.value (ValueT.id z)) >=src (Expr.bop bop_sub s (ValueT.id x) (ValueT.id my)) $$
     then {{inv0 +++ (Expr.value (ValueT.id z)) >=src (Expr.bop bop_add s (ValueT.id x) (ValueT.id y))}}
     else inv0
+  | Infrule.mul_bool z x y =>
+    if $$ inv0 |- (Expr.value (ValueT.id z)) >=src (Expr.bop bop_mul Size.One (ValueT.id x) (ValueT.id y)) $$
+    then {{inv0 +++ (Expr.value (ValueT.id z)) >=src (Expr.bop bop_and Size.One (ValueT.id x) (ValueT.id y)) }}
+    else inv0
   | _ => inv0 (* TODO *)
   end.
 
