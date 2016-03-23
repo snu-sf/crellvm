@@ -200,15 +200,16 @@ Definition reduce_non_physical (inv0: Invariant.t): Invariant.t :=
   let used_ids := ((Invariant.get_idTs_unary src) ++ (Invariant.get_idTs_unary tgt)) in
   let used_ids := List.map (fun x => debug_print idT_printer x) used_ids in
   Invariant.update_maydiff
-    (fun (s: IdTSet.t) =>
-       IdTSet.filter
-         (fun idt =>
-            match (idt, List.find (fun x => IdT.eq_dec x idt) used_ids) with
-              | ((Tag.physical, _), _) => true
-              | (_, (Some _)) => true
-              | (_, None) => false
-            end)
-         s)
+    (IdTSet.filter
+       (fun idt =>
+          if(Tag.eq_dec (fst idt) Tag.physical)
+          then true
+          else
+            match List.find (IdT.eq_dec idt) used_ids with
+              | (Some _) => true
+              | None => false
+            end
+    ))
     inv0.
 
 Definition reduce_maydiff (inv0:Invariant.t): Invariant.t :=
