@@ -124,7 +124,8 @@ Module Infrule.
   | add_associative (x:IdT.t) (y:IdT.t) (z:IdT.t) (c1:INTEGER.t) (c2:INTEGER.t) (c3:INTEGER.t) (s:sz)
   | add_sub (z:IdT.t) (minusy:IdT.t) (x:ValueT.t) (y:ValueT.t) (s:sz)
   | add_commutative (z:IdT.t) (x:ValueT.t) (y:ValueT.t) (s:sz)
-  | sub_add (z:IdT.t) (minusy:IdT.t) (x:IdT.t) (y:IdT.t) (s:sz)
+  | sub_add (z:IdT.t) (minusy:ValueT.t) (x:IdT.t) (y:ValueT.t) (s:sz)
+  | neg_val (c1:INTEGER.t) (c2:INTEGER.t) (s:sz)
   | mul_bool (z:IdT.t) (x:IdT.t) (y:IdT.t)
 
 (* Updated semantics of rules should be located above this line *)
