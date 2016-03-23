@@ -18,7 +18,7 @@ open AddInfrule
 open CoreHint_t
 open ConvertUtil
 
-let convert_infrule (infrule:CoreHint_t.infrule) : Infrule.t =
+let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt_fdef:LLVMsyntax.fdef) : Infrule.t =
   match infrule with
   | CoreHint_t.AddAssociative (args:CoreHint_t.add_associative) ->
      let x = Convert.register args.x in
@@ -72,5 +72,43 @@ let convert_infrule (infrule:CoreHint_t.infrule) : Infrule.t =
       let b = Convert.value args.b in
       let sz = Convert.size args.sz in
       Infrule.Coq_sub_remove (z, y, a, b, sz)
+  | CoreHint_t.Transitivity (args:CoreHint_t.transitivity) ->
+      let e1 = Convert.expr args.e1 src_fdef tgt_fdef in
+      let e2 = Convert.expr args.e2 src_fdef tgt_fdef in
+      let e3 = Convert.expr args.e3 src_fdef tgt_fdef in
+      Infrule.Coq_transitivity (e1, e2, e3)
+  | CoreHint_t.NoaliasGlobalAlloca (args:CoreHint_t.noalias_global_alloca) ->
+      let x = Convert.register args.x in
+      let y = Convert.register args.y in
+      Infrule.Coq_noalias_global_alloca (x, y)
+  | CoreHint_t.TransitivityPointerLhs (args:CoreHint_t.transitivity_pointer_lhs) ->
+      let p = Convert.value args.p in
+      let q = Convert.value args.q in
+      let v = Convert.value args.v in
+      let loadq = Convert.expr args.loadq src_fdef tgt_fdef in
+      (match loadq with
+      | Exprs.Expr.Coq_load (vq, typ, align) ->
+         (* We should assert that vq == q. *)
+         Infrule.Coq_transitivity_pointer_lhs (p, q, v, typ, align)
+      | _ -> failwith "loadq must be load instruction."
+      )
+  | CoreHint_t.TransitivityPointerRhs (args:CoreHint_t.transitivity_pointer_rhs) ->
+      let p = Convert.value args.p in
+      let q = Convert.value args.q in
+      let v = Convert.value args.v in
+      let loadp = Convert.expr args.loadp src_fdef tgt_fdef in
+      (match loadp with
+      | Exprs.Expr.Coq_load (vp, typ, align) ->
+         (* We should assert that vp == p. *)
+         Infrule.Coq_transitivity_pointer_rhs (p, q, v, typ, align)
+      | _ -> failwith "loadq must be load instruction."
+      )
+  | CoreHint_t.ReplaceRhs (args:CoreHint_t.replace_rhs) ->
+      let x = Convert.register args.x in
+      let y = Convert.value args.y in
+      let e1 = Convert.expr args.e1 src_fdef tgt_fdef in
+      let e2 = Convert.expr args.e2 src_fdef tgt_fdef in
+      let e2' = Convert.expr args.e2' src_fdef tgt_fdef in
+      Infrule.Coq_replace_rhs (x, y, e1, e2, e2')
   | _ ->
      failwith "TODO"

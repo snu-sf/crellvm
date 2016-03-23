@@ -210,7 +210,7 @@ Definition apply_infrule
        $$ inv0 |- e2 >=src e3 $$ 
     then {{inv0 +++ e1 >=src e3}}
     else inv0
-  | Infrule.noalias_global_alloc x y =>
+  | Infrule.noalias_global_alloca x y =>
     if $$ inv0 |-allocasrc y $$ &&
        cond_is_global x m_src
     then {{inv0 +++ (ValueT.id y) _|_src (ValueT.id x) }} (* FIXME : is there no distinction between local and global variables? *)
