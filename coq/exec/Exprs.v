@@ -79,10 +79,10 @@ Qed.
 Module Value.
   Definition t := value.
 
-  Definition get_ids(v: t): list id :=
+  Definition get_ids(v: t): option id :=
     match v with
-      | value_id i => [i]
-      | value_const _ => []
+      | value_id i => Some i
+      | value_const _ => None
     end.
 End Value.
 
@@ -109,10 +109,10 @@ Module ValueT <: UsualDecidableType.
     | value_const c => const c
     end.
 
-  Definition get_idTs (v: t): list IdT.t :=
+  Definition get_idTs (v: t): option IdT.t :=
     match v with
-      | id i => [i]
-      | const _ => []
+      | id i => Some i
+      | const _ => None
     end.
 End ValueT.
 Hint Resolve ValueT.eq_dec: EqDecDb.
@@ -202,7 +202,7 @@ Module Expr <: UsualDecidableType.
     end.
 
   Definition get_idTs (e: t): list IdT.t :=
-    List.fold_left (fun s i => ValueT.get_idTs i ++ s) (get_valueTs e) [].
+    TODO.filter_map ValueT.get_idTs (get_valueTs e).
 End Expr.
 Hint Resolve Expr.eq_dec: EqDecDb.
 Coercion Expr.value: ValueT.t >-> Expr.t_.

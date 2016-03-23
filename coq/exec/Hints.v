@@ -12,6 +12,8 @@ Require Import Exprs.
 
 Set Implicit Arguments.
 
+Import ListNotations.
+
 Module Invariant.
   Structure unary := mk_unary {
     lessdef: ExprPairSet.t;
@@ -130,7 +132,7 @@ Module Invariant.
       List.concat
       (List.map
          (fun (p: ValueTPair.t) =>
-            let (x, y) := p in ValueT.get_idTs x ++ ValueT.get_idTs y)
+            let (x, y) := p in TODO.filter_map ValueT.get_idTs [x ; y])
          (ValueTPairSet.elements noalias)) ++
       IdTSet.elements allocas ++ IdTSet.elements private.
 

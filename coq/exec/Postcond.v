@@ -266,27 +266,30 @@ Module Cmd.
     | insn_call x _ _ typ _ f params => None
     end.
 
-  Definition get_ids (c:cmd): list id :=
+  Definition get_values (c: t): list value :=
     match c with
-    | insn_nop _ => []
-    | insn_bop x b s v1 v2 => (Value.get_ids v1) ++ (Value.get_ids v2)
-    | insn_fbop x fb fp v1 v2 => (Value.get_ids v1) ++ (Value.get_ids v2)
-    | insn_extractvalue x ty1 v lc ty2 => (Value.get_ids v)
-    | insn_insertvalue x ty1 v1 ty2 v2 lc => (Value.get_ids v1) ++ (Value.get_ids v2)
-    | insn_malloc x ty v a => (Value.get_ids v)
-    | insn_free x ty v => (Value.get_ids v)
-    | insn_alloca x ty v a => (Value.get_ids v)
-    | insn_load x ty p a => (Value.get_ids p)
-    | insn_store x ty v p a => (Value.get_ids v) ++ (Value.get_ids p)
-    | insn_gep x ib ty1 v lsv ty2 => (Value.get_ids v) ++ concat (List.map Value.get_ids (List.map snd lsv))
-    | insn_trunc x trop ty1 v ty2 => (Value.get_ids v)
-    | insn_ext x eop ty1 v ty2 => (Value.get_ids v)
-    | insn_cast x cop ty1 v ty2 => (Value.get_ids v)
-    | insn_icmp x con ty v1 v2 => (Value.get_ids v1) ++ (Value.get_ids v2)
-    | insn_fcmp x fcon fp v1 v2 => (Value.get_ids v1) ++ (Value.get_ids v2)
-    | insn_select x v1 ty v2 v3 => (Value.get_ids v1) ++ (Value.get_ids v2) ++ (Value.get_ids v3)
-    | insn_call x nr attr ty va f ps => (Value.get_ids f) ++ concat (List.map Value.get_ids (List.map snd ps))
+      | insn_nop _ => []
+      | insn_bop x b s v1 v2 => [v1 ; v2]
+      | insn_fbop x fb fp v1 v2 => [v1 ; v2]
+      | insn_extractvalue x ty1 v lc ty2 => [v]
+      | insn_insertvalue x ty1 v1 ty2 v2 lc => [v1 ; v2]
+      | insn_malloc x ty v a => [v]
+      | insn_free x ty v => [v]
+      | insn_alloca x ty v a => [v]
+      | insn_load x ty p a => [p]
+      | insn_store x ty v p a => [v ; p]
+      | insn_gep x ib ty1 v lsv ty2 => v :: (List.map snd lsv)
+      | insn_trunc x trop ty1 v ty2 => [v]
+      | insn_ext x eop ty1 v ty2 => [v]
+      | insn_cast x cop ty1 v ty2 => [v]
+      | insn_icmp x con ty v1 v2 => [v1 ; v2]
+      | insn_fcmp x fcon fp v1 v2 => [v1 ; v2]
+      | insn_select x v1 ty v2 v3 => [v1 ; v2 ; v3]
+      | insn_call x nr attr ty va f ps => f :: (List.map snd ps)
     end.
+
+  Definition get_ids (c: t): list id :=
+    TODO.filter_map Value.get_ids (get_values c).
 End Cmd.
 
 Module Phinode.
