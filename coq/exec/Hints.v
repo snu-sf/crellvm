@@ -109,7 +109,7 @@ Module Invariant.
     (ExprPairSet.mem (Expr.value value_src, Expr.value value_tgt) inv.(src).(lessdef) && not_in_maydiff inv value_tgt).
 
   Definition not_in_maydiff_expr (inv:t) (expr: Expr.t): bool :=
-    List.fold_left (fun s i => s && not_in_maydiff inv i) (Expr.get_valueTs expr) true.
+    List.forallb (not_in_maydiff inv) (Expr.get_valueTs expr).
 
   Definition is_empty_unary (inv:unary): bool :=
     ExprPairSet.is_empty inv.(lessdef) &&
