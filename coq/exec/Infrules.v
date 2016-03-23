@@ -41,6 +41,7 @@ Fixpoint collect_global_ids (ps: products) :=
   | _::tps => collect_global_ids tps
   end.
 
+
 Definition cond_is_global (x:IdT.t) (m:module) : bool :=
   match m with
   | module_intro _ _ ps => 
@@ -63,7 +64,8 @@ Definition cond_signbit (s:sz) (v:ValueT.t) : bool :=
   end.
 
 
-(* cond_replace_value_lessdef x y v v' : Given x >= y', if all x in v1 are replaced into y(let the replaced value v2), is v2 >= v'? *)
+(* cond_replace_value_lessdef x y v v' : 
+   Given x >= y, if all x in v1 are replaced into y(let the replaced value v2), is v2 >= v'? *)
 Definition cond_replace_lessdef_value (x:IdT.t) (y:ValueT.t) (v v':ValueT.t) : bool :=
   match v, v' with
   | ValueT.id a, _ =>
@@ -72,7 +74,6 @@ Definition cond_replace_lessdef_value (x:IdT.t) (y:ValueT.t) (v v':ValueT.t) : b
   | _,_ => false
   end.
 
-(* cond_replace_value_lessdef x y v v' : Given x >= y', if all x in v1 are replaced into y(let the replaced value v2), is v2 >= v'? *)
 Fixpoint cond_replace_lessdef_valuelist (x:IdT.t) (y:ValueT.t) (lsv1 lsv2:list (sz * ValueT.t)) : bool :=
   match lsv1 , lsv2 with
   | nil, nil => true
@@ -81,7 +82,8 @@ Fixpoint cond_replace_lessdef_valuelist (x:IdT.t) (y:ValueT.t) (lsv1 lsv2:list (
   | _,_ => false
   end.
 
-(* cond_replace_lessdef x y e e' : If all x in e are replaced into y(let the replaced expression e2), is e2 >= e'? *)
+(* cond_replace_lessdef x y e e' : 
+   Given x >= y, If all x in e are replaced into y(let the replaced expression e2), is e2 >= e'? *)
 Definition cond_replace_lessdef (x:IdT.t) (y:ValueT.t) (e e':Expr.t) : bool :=
   match e, e' with
   | Expr.bop b1 s1 v1 w1, Expr.bop b2 s2 v2 w2 =>
