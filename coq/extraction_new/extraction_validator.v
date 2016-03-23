@@ -8,6 +8,7 @@ Require Import Postcond.
 Require Import TODO.
 Require Import Decs.
 Require Import Nop.
+Require Import Debug.
 
 Require Import extraction_core.
 Require Import extraction_dom.
@@ -25,6 +26,7 @@ Extract Constant debug_print => "fun (printer: 'a -> unit) (x: 'a) -> let _ = pr
 Extract Constant debug_string => "Printer.debug_string".
 Extract Constant cmd_printer => "Printer.cmd_printer".
 Extract Constant atom_printer => "Printer.atom_printer".
+Extract Constant idT_printer => "Printer.idT_printer".
 
 Extract Constant power_sz => "(fun x ->
   if x = 0 then Coq_xH else Coq_xO (power_sz (x-1)))".
@@ -54,3 +56,4 @@ Extraction Library Infrules.
 Extraction Library Decs.
 Extraction Library Validator.
 Extraction Library Nop.
+Extraction Library Debug.

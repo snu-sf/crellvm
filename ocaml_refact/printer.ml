@@ -203,6 +203,11 @@ let atom_printer (x: string): unit =
       fun _ ->
       debug_print x)
 
+let idT_printer (x: Exprs.IdT.t): unit =
+  debug_run(
+      fun _ ->
+      debug_print (ExprsToString.of_IdT x))
+
 let debug_string (x: char list) (y: 'a) =
   let _ = debug_run(fun _ -> debug_print (string_of_char_list x))
   in y

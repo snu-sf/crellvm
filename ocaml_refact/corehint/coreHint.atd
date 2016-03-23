@@ -65,15 +65,15 @@ type size = [ Size of int ] <ocaml repr="classic">
 (*              Propagates               *)
 (*****************************************)
 
-type propagate_expr = [
+type expr = [
   | Var of register
-  | Rhs of register
+  | Rhs of (register * scope)
   | Const of constant
 ] <ocaml repr="classic">
 
 type propagate_lessdef = {
-  lhs : propagate_expr;
-  rhs : propagate_expr;
+  lhs : expr;
+  rhs : expr;
   scope : scope;
 }
 
@@ -211,8 +211,11 @@ type sub_const_not = {
 }
 
 type sub_remove = {
-  y : register;
   z : register;
+  y : register;
+  a : value;
+  b : value;
+  sz : size;
 }
 
 type sub_remove2 = {
