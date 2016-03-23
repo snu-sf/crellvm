@@ -14,7 +14,23 @@ Require Import Exprs.
 Require Import Hints.
 Require Import TODO.
 
+Require Import Decs.
 Set Implicit Arguments.
+
+(* Copied from validator/basic_aux.v because ocaml-extracted version of this code cannot find validator/basic_aux.v *)
+Fixpoint power_sz (s:sz) : positive :=
+  match s with
+    | O => xH
+    | S n => xO (power_sz n)
+  end.
+
+(* Copied from validator/basic_aux.v because ocaml-extracted version of this code cannot find validator/basic_aux.v *)
+Definition signbit_of (s:sz) : option Int :=
+  match s with 
+    | O => None
+    | S n => Some (Zneg (power_sz n))
+  end.
+
 
 Definition cond_plus (s:sz) (c1 c2 c3: INTEGER.t) : bool :=
   (Int.eq_dec _)
@@ -22,6 +38,14 @@ Definition cond_plus (s:sz) (c1 c2 c3: INTEGER.t) : bool :=
     (Int.add (Size.to_nat s - 1)
              (Int.repr (Size.to_nat s - 1) (INTEGER.to_Z c1))
              (Int.repr (Size.to_nat s - 1) (INTEGER.to_Z c2))).
+
+Definition cond_signbit (s:sz) (v:ValueT.t) : bool :=
+  match signbit_of s, v with
+  | None, _ => false
+  | Some n, ValueT.const (const_int s' n') =>
+    sz_dec s s' && INTEGER.dec n n'
+  | _, _ => false
+  end.
 
 Notation "$$ inv |- y >=src rhs $$" := (ExprPairSet.mem (y, rhs) inv.(Invariant.src).(Invariant.lessdef)) (at level 41).
 Notation "$$ inv |- y >=tgt rhs $$" := (ExprPairSet.mem (y, rhs) inv.(Invariant.tgt).(Invariant.lessdef)) (at level 41).
@@ -48,6 +72,15 @@ Definition apply_infrule
     if $$ inv0 |- (Expr.value (ValueT.id z)) >=src (Expr.bop bop_add s x y) $$
     then {{inv0 +++ (Expr.value (ValueT.id z)) >=src (Expr.bop bop_add s y x)}}
     else inv0
+  | Infrule.add_shift y v s =>
+    if $$ inv0 |- (Expr.value (ValueT.id y)) >=src (Expr.bop bop_add s v v) $$
+    then {{inv0 +++ (Expr.value (ValueT.id y)) >=src (Expr.bop bop_shl s v (ValueT.const (const_int s (INTEGER.of_Z (Size.to_Z s) 1%Z true))))}}
+    else inv0
+  | Infrule.add_signbit x e1 e2 s =>
+    if $$ inv0 |- (Expr.value (ValueT.id x)) >=src (Expr.bop bop_add s e1 e2) $$ &&
+       cond_signbit s e2
+    then {{inv0 +++ (Expr.value (ValueT.id x)) >=src (Expr.bop bop_xor s e1 e2)}}
+    else inv0
   | Infrule.sub_add z my x y s =>
     if $$ inv0 |- (Expr.value my) >=src (Expr.bop bop_sub s (ValueT.const (const_int s (INTEGER.of_Z (Size.to_Z s) 0%Z true))) y) $$ &&
        $$ inv0 |- (Expr.value (ValueT.id z)) >=src (Expr.bop bop_sub s (ValueT.id x) my) $$
@@ -60,6 +93,11 @@ Definition apply_infrule
   | Infrule.mul_bool z x y =>
     if $$ inv0 |- (Expr.value (ValueT.id z)) >=src (Expr.bop bop_mul Size.One (ValueT.id x) (ValueT.id y)) $$
     then {{inv0 +++ (Expr.value (ValueT.id z)) >=src (Expr.bop bop_and Size.One (ValueT.id x) (ValueT.id y)) }}
+    else inv0
+  | Infrule.sub_remove z y a b sz =>
+    if $$ inv0 |- (Expr.value (ValueT.id y)) >=src (Expr.bop bop_add sz a b) $$ &&
+       $$ inv0 |- (Expr.value (ValueT.id z)) >=src (Expr.bop bop_sub sz a (ValueT.id y)) $$
+    then {{inv0 +++ (Expr.value (ValueT.id z)) >=src (Expr.bop bop_sub sz (ValueT.const (const_int sz (INTEGER.of_Z (Size.to_Z sz) 0%Z true))) b) }}
     else inv0
   | _ => inv0 (* TODO *)
   end.
