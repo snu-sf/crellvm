@@ -13,6 +13,7 @@ Require Import Exprs.
 Require Import Hints.
 Require Import Decs.
 Require Import TODO.
+Require Import Debug.
 
 Import ListNotations.
 Set Implicit Arguments.
@@ -193,12 +194,40 @@ Module ForgetMemory.
     inv2.
 End ForgetMemory.
 
+Definition reduce_non_physical (inv0: Invariant.t): Invariant.t :=
+  let inv0 := (debug_string "** reduce_non_physical :: list of used ids" inv0) in
+  let (src, tgt, _) := inv0 in
+  let used_ids := ((Invariant.get_idTs_unary src) ++ (Invariant.get_idTs_unary tgt)) in
+  let used_ids := List.map (fun x => debug_print idT_printer x) used_ids in
+  Invariant.update_maydiff
+    (IdTSet.filter
+       (fun idt =>
+          if(Tag.eq_dec (fst idt) Tag.physical)
+          then true
+          else
+            match List.find (IdT.eq_dec idt) used_ids with
+              | (Some _) => true
+              | None => false
+            end
+    ))
+    inv0.
+
 Definition reduce_maydiff (inv0:Invariant.t): Invariant.t :=
   let lessdef_src := inv0.(Invariant.src).(Invariant.lessdef) in
   let lessdef_tgt := inv0.(Invariant.tgt).(Invariant.lessdef) in
-  let equations := ExprPairSet.filter (fun elt => ExprPairSet.mem (snd elt, fst elt) lessdef_tgt) lessdef_src in
-  let inv1 := Invariant.update_maydiff (IdTSet.filter (fun id => ExprPairSet.for_all (fun ep => negb (Expr.eq_dec (fst ep) (Expr.value (ValueT.id id)))) equations)) inv0 in
-  inv1.
+  let equations := ExprPairSet.filter
+                     (fun elt => ExprPairSet.mem (snd elt, fst elt) lessdef_tgt)
+                     lessdef_src in
+  let inv1 := Invariant.update_maydiff
+                (IdTSet.filter
+                   (fun id => negb (ExprPairSet.exists_
+                                      (fun ep => ((Expr.eq_dec (fst ep)
+                                                               (Expr.value (ValueT.id id)))
+                                                    && Invariant.not_in_maydiff_expr inv0 (snd ep)))
+                                      equations)))
+                inv0 in
+  let inv2 := reduce_non_physical inv1 in
+  inv2.
 
 Module Cmd.
   Definition t := cmd.
@@ -238,27 +267,30 @@ Module Cmd.
     | insn_call x _ _ typ _ f params => None
     end.
 
-  Definition get_uses (c:cmd): list id :=
+  Definition get_values (c: t): list value :=
     match c with
-    | insn_nop _ => []
-    | insn_bop x b s v1 v2 => (Value.get_uses v1) ++ (Value.get_uses v2)
-    | insn_fbop x fb fp v1 v2 => (Value.get_uses v1) ++ (Value.get_uses v2)
-    | insn_extractvalue x ty1 v lc ty2 => (Value.get_uses v)
-    | insn_insertvalue x ty1 v1 ty2 v2 lc => (Value.get_uses v1) ++ (Value.get_uses v2)
-    | insn_malloc x ty v a => (Value.get_uses v)
-    | insn_free x ty v => (Value.get_uses v)
-    | insn_alloca x ty v a => (Value.get_uses v)
-    | insn_load x ty p a => (Value.get_uses p)
-    | insn_store x ty v p a => (Value.get_uses v) ++ (Value.get_uses p)
-    | insn_gep x ib ty1 v lsv ty2 => (Value.get_uses v) ++ concat (List.map Value.get_uses (List.map snd lsv))
-    | insn_trunc x trop ty1 v ty2 => (Value.get_uses v)
-    | insn_ext x eop ty1 v ty2 => (Value.get_uses v)
-    | insn_cast x cop ty1 v ty2 => (Value.get_uses v)
-    | insn_icmp x con ty v1 v2 => (Value.get_uses v1) ++ (Value.get_uses v2)
-    | insn_fcmp x fcon fp v1 v2 => (Value.get_uses v1) ++ (Value.get_uses v2)
-    | insn_select x v1 ty v2 v3 => (Value.get_uses v1) ++ (Value.get_uses v2) ++ (Value.get_uses v3)
-    | insn_call x nr attr ty va f ps => (Value.get_uses f) ++ concat (List.map Value.get_uses (List.map snd ps))
+      | insn_nop _ => []
+      | insn_bop x b s v1 v2 => [v1 ; v2]
+      | insn_fbop x fb fp v1 v2 => [v1 ; v2]
+      | insn_extractvalue x ty1 v lc ty2 => [v]
+      | insn_insertvalue x ty1 v1 ty2 v2 lc => [v1 ; v2]
+      | insn_malloc x ty v a => [v]
+      | insn_free x ty v => [v]
+      | insn_alloca x ty v a => [v]
+      | insn_load x ty p a => [p]
+      | insn_store x ty v p a => [v ; p]
+      | insn_gep x ib ty1 v lsv ty2 => v :: (List.map snd lsv)
+      | insn_trunc x trop ty1 v ty2 => [v]
+      | insn_ext x eop ty1 v ty2 => [v]
+      | insn_cast x cop ty1 v ty2 => [v]
+      | insn_icmp x con ty v1 v2 => [v1 ; v2]
+      | insn_fcmp x fcon fp v1 v2 => [v1 ; v2]
+      | insn_select x v1 ty v2 v3 => [v1 ; v2 ; v3]
+      | insn_call x nr attr ty va f ps => f :: (List.map snd ps)
     end.
+
+  Definition get_ids (c: t): list id :=
+    TODO.filter_map Value.get_ids (get_values c).
 End Cmd.
 
 Module Phinode.
@@ -483,8 +515,8 @@ Definition postcond_cmd
   let def_tgt := IdTSet_from_list (List.map (IdT.lift Tag.physical) def_tgt') in
   let def_memory_src := IdTSet_from_list (List.map (IdT.lift Tag.physical) def_memory_src') in
   let def_memory_tgt := IdTSet_from_list (List.map (IdT.lift Tag.physical) def_memory_tgt') in
-  let uses_src := AtomSetImpl_from_list (Cmd.get_uses src) in
-  let uses_tgt := AtomSetImpl_from_list (Cmd.get_uses tgt) in
+  let uses_src := AtomSetImpl_from_list (Cmd.get_ids src) in
+  let uses_tgt := AtomSetImpl_from_list (Cmd.get_ids tgt) in
 
   if negb (postcond_cmd_inject_event src tgt inv0)
   then None
