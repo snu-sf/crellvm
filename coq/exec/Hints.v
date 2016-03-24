@@ -12,6 +12,8 @@ Require Import Exprs.
 
 Set Implicit Arguments.
 
+Import ListNotations.
+
 Module Invariant.
   Structure unary := mk_unary {
     lessdef: ExprPairSet.t;
@@ -106,6 +108,9 @@ Module Invariant.
     (ExprPairSet.mem (Expr.value value_src, Expr.value value_tgt) inv.(tgt).(lessdef) && not_in_maydiff inv value_src) ||
     (ExprPairSet.mem (Expr.value value_src, Expr.value value_tgt) inv.(src).(lessdef) && not_in_maydiff inv value_tgt).
 
+  Definition not_in_maydiff_expr (inv:t) (expr: Expr.t): bool :=
+    List.forallb (not_in_maydiff inv) (Expr.get_valueTs expr).
+
   Definition is_empty_unary (inv:unary): bool :=
     ExprPairSet.is_empty inv.(lessdef) &&
     ValueTPairSet.is_empty inv.(noalias) &&
@@ -117,6 +122,25 @@ Module Invariant.
     is_empty_unary inv.(tgt) &&
     IdTSet.is_empty inv.(maydiff).
 
+  Definition get_idTs_unary (u: unary): list IdT.t :=
+    let (lessdef, noalias, allocas, private) := u in
+    List.concat
+      (List.map
+         (fun (p: ExprPair.t) =>
+            let (x, y) := p in Expr.get_idTs x ++ Expr.get_idTs y)
+         (ExprPairSet.elements lessdef)) ++
+      List.concat
+      (List.map
+         (fun (p: ValueTPair.t) =>
+            let (x, y) := p in TODO.filter_map ValueT.get_idTs [x ; y])
+         (ValueTPairSet.elements noalias)) ++
+      IdTSet.elements allocas ++ IdTSet.elements private.
+
+  Definition get_idTs (inv: t): list IdT.t :=
+    let (src, tgt, maydiff) := inv in
+    (get_idTs_unary src)
+      ++ (get_idTs_unary tgt)
+      ++ (IdTSet.elements maydiff).
 End Invariant.
 
 Module Infrule.
@@ -124,7 +148,10 @@ Module Infrule.
   | add_associative (x:IdT.t) (y:IdT.t) (z:IdT.t) (c1:INTEGER.t) (c2:INTEGER.t) (c3:INTEGER.t) (s:sz)
   | add_sub (z:IdT.t) (minusy:IdT.t) (x:ValueT.t) (y:ValueT.t) (s:sz)
   | add_commutative (z:IdT.t) (x:ValueT.t) (y:ValueT.t) (s:sz)
-  | sub_add (z:IdT.t) (minusy:IdT.t) (x:IdT.t) (y:IdT.t) (s:sz)
+  | sub_add (z:IdT.t) (minusy:ValueT.t) (x:IdT.t) (y:ValueT.t) (s:sz)
+  | neg_val (c1:INTEGER.t) (c2:INTEGER.t) (s:sz)
+  | add_shift (y:IdT.t) (v:ValueT.t) (s:sz) 
+  | add_signbit (x:IdT.t) (e1:ValueT.t) (e2:ValueT.t) (s:sz)
   | mul_bool (z:IdT.t) (x:IdT.t) (y:IdT.t)
 
 (* Updated semantics of rules should be located above this line *)
@@ -137,12 +164,10 @@ Module Infrule.
   | eq_generate_same (x:IdT.t) (y:IdT.t) (e:Expr.t)
   | eq_generate_same_heap (x:IdT.t) (y:IdT.t) (p:ValueT.t) (ty:typ) (a:align)
   | eq_generate_same_heap_value (x:IdT.t) (p:ValueT.t) (v:ValueT.t) (ty:typ) (a:align)
-  | add_signbit (x:IdT.t) (sz:sz) (e:ValueT.t) (s:ValueT.t)
   | add_zext_bool (x:IdT.t) (y:IdT.t) (b:ValueT.t) (sz:sz) (c:INTEGER.t) (c':INTEGER.t)
   | ptr_trans (p:IdT.t) (q:ValueT.t) (v:ValueT.t) (ty:typ) (a:align)
   | add_onebit (z:IdT.t) (x:ValueT.t) (y:ValueT.t)
   | stash_variable (z:IdT.t) (v:id)
-  | add_shift (y:IdT.t) (s:sz) (v:ValueT.t)
   | sub_onebit (z:IdT.t) (x:ValueT.t) (y:ValueT.t)
   | sub_mone (z:IdT.t) (s:sz) (x:ValueT.t)
   | sub_const_not (z:IdT.t) (y:IdT.t) (s:sz) (x:ValueT.t) (c1:INTEGER.t) (c2:INTEGER.t)
@@ -154,7 +179,7 @@ Module Infrule.
   | add_distributive (z:IdT.t) (x:IdT.t) (y:IdT.t) (w:IdT.t) (s:sz) (a:ValueT.t) (b:ValueT.t) (c:ValueT.t)
   | sub_zext_bool (x:IdT.t) (y:IdT.t) (b:ValueT.t) (sz:sz) (c:INTEGER.t) (c':INTEGER.t)
   | sub_const_add (z:IdT.t) (y:IdT.t) (sz:sz) (x:ValueT.t) (c1:INTEGER.t) (c2:INTEGER.t) (c3:INTEGER.t)
-  | sub_remove (z:IdT.t) (y:IdT.t) (sz:sz) (a:ValueT.t) (b:ValueT.t)
+  | sub_remove (z:IdT.t) (y:IdT.t) (a:ValueT.t) (b:ValueT.t) (sz:sz)
   | sub_remove2 (z:IdT.t) (y:IdT.t) (sz:sz) (a:ValueT.t) (b:ValueT.t)
   | sub_sdiv (z:IdT.t) (y:IdT.t) (sz:sz) (x:ValueT.t) (c:INTEGER.t) (c':INTEGER.t)
   | sub_shl (z:IdT.t) (x:IdT.t) (y:IdT.t) (sz:sz) (mx:ValueT.t) (a:ValueT.t)
