@@ -1,5 +1,5 @@
 COQMODULE     := LLVMBerry
-COQTHEORIES := extraction_defs.v extraction_validator.v $(wildcard ../../coq/exec/*.v)
+COQTHEORIES := extraction_defs.v extraction_validator.v $(wildcard ../exec/*.v)
 
 all: extraction
 	echo $(COQTHEORIES)
