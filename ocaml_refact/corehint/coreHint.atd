@@ -83,9 +83,15 @@ type propagate_noalias = {
   scope : scope;
 }
 
+type propagate_alloca = {
+  p : register;
+  scope : scope;
+}
+
 type propagate_object = [
   | Lessdef of propagate_lessdef
   | Noalias of propagate_noalias
+  | Alloca of propagate_alloca
   | Maydiff of register
   ] <ocaml repr="classic">
 
@@ -139,6 +145,39 @@ type add_signbit = {
   e1 : value;
   e2 : value;
   sz : size;
+}
+
+type transitivity = {
+  e1 : expr;
+  e2 : expr;
+  e3 : expr;
+}
+
+type noalias_global_alloca = {
+  x : register;
+  y : register;
+}
+
+type transitivity_pointer_lhs = {
+  p : value;
+  q : value;
+  v : value;
+  loadq : expr;
+}
+
+type transitivity_pointer_rhs = {
+  p : value;
+  q : value;
+  v : value;
+  loadp : expr;
+}
+
+type replace_rhs = {
+  x : register;
+  y : value;
+  e1 : expr;
+  e2 : expr;
+  e2' : expr;
 }
 
 type add_onebit = {
@@ -324,12 +363,17 @@ type infrule = [
   | MulNeg of mul_neg
   | MulCommutative of mul_commutative
   | MulShl of mul_shl
+  | NoaliasGlobalAlloca of noalias_global_alloca
   | DivMone of div_mone
   | RemNeg of rem_neg
   | DivSubSrem of div_sub_srem
   | DivSubUrem of div_sub_urem
   | AndDeMorgan of and_de_morgan
   | NegVal of neg_val
+  | Transitivity of transitivity
+  | TransitivityPointerLhs of transitivity_pointer_lhs
+  | TransitivityPointerRhs of transitivity_pointer_rhs
+  | ReplaceRhs of replace_rhs
   ] <ocaml repr="classic">
 
 type command = [

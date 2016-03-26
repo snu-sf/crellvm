@@ -154,6 +154,9 @@ module InvariantObject = struct
                          Convert.register prop_na.rhs))
       | CoreHint_t.Maydiff v ->
          Maydiff (Convert.register v)
+      | CoreHint_t.Alloca prop_a ->
+         Unary (convert_scope prop_a.scope,
+                Allocas (Convert.register prop_a.p))
 
     let insert (obj:t) (inv:Invariant.t): Invariant.t =
       match obj with
