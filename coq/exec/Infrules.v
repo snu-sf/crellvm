@@ -170,9 +170,13 @@ Definition apply_infrule
     then {{inv0 +++ (Expr.value (ValueT.id x)) >=src (Expr.bop bop_xor s e1 e2)}}
     else inv0
   | Infrule.sub_add z my x y s =>
-    if $$ inv0 |- (Expr.value (ValueT.id my)) >=src (Expr.bop bop_sub s (ValueT.const (const_int s (INTEGER.of_Z (Size.to_Z s) 0%Z true))) (ValueT.id y)) $$ &&
-       $$ inv0 |- (Expr.value (ValueT.id z)) >=src (Expr.bop bop_sub s (ValueT.id x) (ValueT.id my)) $$
-    then {{inv0 +++ (Expr.value (ValueT.id z)) >=src (Expr.bop bop_add s (ValueT.id x) (ValueT.id y))}}
+    if $$ inv0 |- (Expr.value my) >=src (Expr.bop bop_sub s (ValueT.const (const_int s (INTEGER.of_Z (Size.to_Z s) 0%Z true))) y) $$ &&
+       $$ inv0 |- (Expr.value (ValueT.id z)) >=src (Expr.bop bop_sub s (ValueT.id x) my) $$
+    then {{inv0 +++ (Expr.value (ValueT.id z)) >=src (Expr.bop bop_add s (ValueT.id x) y)}}
+    else inv0
+  | Infrule.neg_val c1 c2 s =>
+    if $$ inv0 |- (Expr.value (ValueT.const(const_int s c1))) >=src (Expr.bop bop_sub s (ValueT.const (const_int s (INTEGER.of_Z (Size.to_Z s) 0%Z true))) (ValueT.const (const_int s c2))) $$ 
+    then {{inv0 +++ (Expr.value (ValueT.const(const_int s c1))) >=src (Expr.bop bop_sub s (ValueT.const (const_int s (INTEGER.of_Z (Size.to_Z s) 0%Z true))) (ValueT.const (const_int s c2)))}} 
     else inv0
   | Infrule.mul_bool z x y =>
     if $$ inv0 |- (Expr.value (ValueT.id z)) >=src (Expr.bop bop_mul Size.One (ValueT.id x) (ValueT.id y)) $$
