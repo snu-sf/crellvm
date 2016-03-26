@@ -193,9 +193,10 @@ module Convert = struct
     | CoreHint_t.Const constval ->
        Expr.Coq_value (ValueT.Coq_const (constant constval))
     | CoreHint_t.Rhs (reg,scope) ->
+       rhs_of reg 
        (match scope with
-       | CoreHint_t.Source -> rhs_of reg src_fdef
-       | CoreHint_t.Target -> rhs_of reg tgt_fdef)
+       | CoreHint_t.Source -> src_fdef
+       | CoreHint_t.Target -> tgt_fdef)
 
 
 end

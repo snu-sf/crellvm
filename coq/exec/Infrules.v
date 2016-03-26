@@ -31,23 +31,6 @@ Definition signbit_of (s:sz) : option Int :=
     | S n => Some (Zneg (power_sz n))
   end.
 
-(* Copied from validator/syntax_ext.v because ocaml-extracted version of this code cannot find validator/syntax_ext.v *)
-
-Fixpoint collect_global_ids (ps: products) :=
-  match ps with
-  | nil => nil
-  | (product_gvar (gvar_intro i _ _ _ _ _))::tps => (i::(collect_global_ids tps))
-  | (product_gvar (gvar_external i _ _))::tps => (i::(collect_global_ids tps))
-  | _::tps => collect_global_ids tps
-  end.
-
-
-Definition cond_is_global (x:IdT.t) (m:module) : bool :=
-  match m with
-  | module_intro _ _ ps => 
-    List.existsb (fun y => IdT.eq_dec (Tag.physical, y) x) (collect_global_ids ps)
-  end.
-
 Definition cond_plus (s:sz) (c1 c2 c3: INTEGER.t) : bool :=
   (Int.eq_dec _)
     (Int.repr (Size.to_nat s - 1) (INTEGER.to_Z c3))
@@ -71,14 +54,6 @@ Definition cond_replace_lessdef_value (x:IdT.t) (y:ValueT.t) (v v':ValueT.t) : b
   | ValueT.id a, _ =>
     (IdT.eq_dec a x && ValueT.eq_dec v' y) || (ValueT.eq_dec v v')
   | ValueT.const c1, ValueT.const c2 => const_dec c1 c2 (* How about the case, c1 == undef? *)
-  | _,_ => false
-  end.
-
-Fixpoint cond_replace_lessdef_valuelist (x:IdT.t) (y:ValueT.t) (lsv1 lsv2:list (sz * ValueT.t)) : bool :=
-  match lsv1 , lsv2 with
-  | nil, nil => true
-  | (_,h1)::t1,(_,h2)::t2 =>
-    cond_replace_lessdef_value x y h1 h2 && cond_replace_lessdef_valuelist x y t1 t2
   | _,_ => false
   end.
 
@@ -111,7 +86,8 @@ Definition cond_replace_lessdef (x:IdT.t) (y:ValueT.t) (e e':Expr.t) : bool :=
     inbounds_dec ib1 ib2 &&
     typ_dec t1 t2 &&
     cond_replace_lessdef_value x y v1 v2 &&
-    cond_replace_lessdef_valuelist x y lsv1 lsv2 &&
+    beq_nat (List.length lsv1) (List.length lsv2) &&
+    List.forallb (fun k => match k with ((_, h1), (_, h2)) => cond_replace_lessdef_value x y h1 h2 end) (List.combine lsv1 lsv2) &&
     typ_dec u1 u2
   | Expr.trunc top1 t1 v1 u1, Expr.trunc top2 t2 v2 u2 =>
     truncop_dec top1 top2 &&
@@ -213,10 +189,17 @@ Definition apply_infrule
     then {{inv0 +++ e1 >=src e3}}
     else inv0
   | Infrule.noalias_global_alloca x y =>
-    if $$ inv0 |-allocasrc y $$ &&
-       cond_is_global x m_src
-    then {{inv0 +++ (ValueT.id y) _|_src (ValueT.id x) }} (* FIXME : is there no distinction between local and global variables? *)
-    else inv0
+    match x with
+    | (Tag.physical, x_id) =>
+      match lookupTypViaGIDFromModule m_src x_id with
+      | None => inv0
+      | Some x_type => (* x is a global variable *)
+        if $$ inv0 |-allocasrc y $$ then
+          {{inv0 +++ (ValueT.id y) _|_src (ValueT.const (const_gid x_type x_id)) }}
+        else inv0
+      end
+    | _ => inv0
+    end
   | Infrule.transitivity_pointer_lhs p q v ty a =>
     if $$ inv0 |- (Expr.value p) >=src (Expr.value q) $$ &&
        $$ inv0 |- (Expr.load q ty a) >=src (Expr.value v) $$
