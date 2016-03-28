@@ -182,11 +182,17 @@ type replace_rhs = {
 
 type add_onebit = {
   z : register;
+  x : value;
+  y : value;
 }
 
 type add_zext_bool = {
   x : register;
   y : register;
+  b : value;
+  c : const_int;
+  cprime : const_int;
+  sz : size;
 }
 
 type add_const_not = {
@@ -197,7 +203,7 @@ type add_const_not = {
 type add_mask = {
   z : register;
   y : register;
-  yp: register  ;
+  yp: register;
 }
 
 type add_select_zero = {

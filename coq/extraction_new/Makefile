@@ -18,8 +18,8 @@ Makefile.coq: Makefile $(COQTHEORIES)
    echo "-R ../../lib/vellvm/lib/cpdtlib Cpdt"; \
    echo "-R ../../lib/vellvm/lib/compcert-2.4 compcert"; \
    echo $(COQTHEORIES)) > _CoqProject
-	rm extraction_validator.vo
-	rm extraction_defs.vo
+	rm -f extraction_validator.vo
+	rm -f extraction_defs.vo
 	coq_makefile -f _CoqProject -o Makefile.coq
 
 clean: Makefile.coq

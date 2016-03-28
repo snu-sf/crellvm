@@ -193,6 +193,16 @@ Definition apply_infrule
        $$ inv0 |- (Expr.value (ValueT.id z)) >=src (Expr.bop bop_sub sz a (ValueT.id y)) $$
     then {{inv0 +++ (Expr.value (ValueT.id z)) >=src (Expr.bop bop_sub sz (ValueT.const (const_int sz (INTEGER.of_Z (Size.to_Z sz) 0%Z true))) b) }}
     else inv0
+  | Infrule.add_onebit z x y =>
+    if $$ inv0 |- (Expr.value (ValueT.id z)) >=src (Expr.bop bop_add Size.One x y) $$
+    then {{inv0 +++ (Expr.value (ValueT.id z)) >=src (Expr.bop bop_xor Size.One x y)}}
+    else inv0
+  | Infrule.add_zext_bool x y b c c' sz =>
+    if $$ inv0 |- (Expr.value (ValueT.id x)) >=src (Expr.ext extop_z (typ_int Size.One) b (typ_int sz)) $$ &&
+       $$ inv0 |- (Expr.value (ValueT.id y)) >=src (Expr.bop bop_add sz (ValueT.id x) (ValueT.const (const_int sz c))) $$ &&
+       cond_plus sz c (INTEGER.of_Z (Size.to_Z sz) 1%Z true) c'
+    then {{ inv0 +++ (Expr.value (ValueT.id y)) >=src (Expr.select b (typ_int sz) (ValueT.const (const_int sz c')) (ValueT.const (const_int sz c))) }}
+    else inv0
   | Infrule.transitivity e1 e2 e3 =>
     if $$ inv0 |- e1 >=src e2 $$ &&
        $$ inv0 |- e2 >=src e3 $$ 
