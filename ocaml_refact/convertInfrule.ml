@@ -42,6 +42,11 @@ let convert_infrule (infrule:CoreHint_t.infrule) : Infrule.t =
      let y = Convert.value args.y in
      let sz = Convert.size args.sz in
      Infrule.Coq_add_commutative (z, x, y, sz)
+  | CoreHint_t.AddOnebit (args:CoreHint_t.add_onebit) ->
+     let z = Convert.register args.z in
+     let x = Convert.value args.x in
+     let y = Convert.value args.y in
+     Infrule.Coq_add_onebit (z, x, y)
   | CoreHint_t.AddShift (args:CoreHint_t.add_shift) ->
      let y = Convert.register args.y in
      let v = Convert.value args.v in
@@ -53,6 +58,14 @@ let convert_infrule (infrule:CoreHint_t.infrule) : Infrule.t =
      let e2 = Convert.value args.e2 in
      let sz = Convert.size args.sz in
      Infrule.Coq_add_signbit (x, e1, e2, sz)
+  | CoreHint_t.AddZextBool (args:CoreHint_t.add_zext_bool) ->
+     let x = Convert.register args.x in
+     let y = Convert.register args.y in
+     let b = Convert.value args.b in
+     let c = Convert.const_int args.c in
+     let c' = Convert.const_int args.cprime in
+     let sz = Convert.size args.sz in
+     Infrule.Coq_add_zext_bool (x, y, b, c, c', sz)
   | CoreHint_t.SubAdd (args:CoreHint_t.sub_add) ->
       let z = Convert.register args.z in
       let my = Convert.value args.my in
@@ -77,5 +90,6 @@ let convert_infrule (infrule:CoreHint_t.infrule) : Infrule.t =
       let b = Convert.value args.b in
       let sz = Convert.size args.sz in
       Infrule.Coq_sub_remove (z, y, a, b, sz)
+
   | _ ->
      failwith "TODO"
