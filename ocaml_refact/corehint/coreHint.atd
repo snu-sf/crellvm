@@ -294,8 +294,11 @@ type mul_mone = {
 
 type mul_neg = {
   z : register;
-  mx : register;
-  my : register;
+  mx : value;
+  my : value;
+  x : value;
+  y : value;
+  sz : size;
 }
 
 type mul_commutative = {
