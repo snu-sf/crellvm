@@ -4,6 +4,7 @@ COQEXTRACT    := $(wildcard coq/extraction/*.v)
 COQPROOF      := $(filter-out $(COQEXTRACT), $(filter-out $(COQDEFINITION), $(wildcard coq/*/*.v)))
 COQTHEORIES   := $(COQDEFINITION) $(COQEXTRACT) $(COQPROOF)
 
+JOBS=24
 ROOT=`pwd`
 LLVM_SRCDIR=${ROOT}/lib/llvm
 LLVM_OBJDIR=${ROOT}/.build/llvm-obj
@@ -40,8 +41,8 @@ Makefile.coq: Makefile $(COQTHEORIES)
 	coq_makefile -f _CoqProject -o Makefile.coq
 
 llvm: lib/llvm
-	./script/llvm-build.sh
-	./script/llvm-install.sh
+	./script/llvm-build.sh $(JOBS)
+	./script/llvm-install.sh $(JOBS)
 
 lib: lib/sflib lib/paco/src lib/vellvm
 	$(MAKE) -C lib/sflib
