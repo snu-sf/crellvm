@@ -72,7 +72,7 @@ proof: definition $(COQPROOF)
 	$(MAKE) -f Makefile.coq "$@"
 
 test:
-	python ./simplberry-tests/test.py -e ./build/bin/opt -v ./ocaml/main.native -r "-instcombine" -o -f -i "./simplberry-tests/inputs_full"
+	python ./simplberry-tests/test.py -e ./build/bin/opt -v ./ocaml_refact/main.native -r "-instcombine" -o -f -i "./simplberry-tests/inputs_full"
 
 clean: Makefile.coq
 	$(MAKE) -f Makefile.coq clean
