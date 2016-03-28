@@ -178,6 +178,12 @@ Definition apply_infrule
     if $$ inv0 |- (Expr.value (ValueT.const(const_int s c1))) >=src (Expr.bop bop_sub s (ValueT.const (const_int s (INTEGER.of_Z (Size.to_Z s) 0%Z true))) (ValueT.const (const_int s c2))) $$ 
     then {{inv0 +++ (Expr.value (ValueT.const(const_int s c1))) >=src (Expr.bop bop_sub s (ValueT.const (const_int s (INTEGER.of_Z (Size.to_Z s) 0%Z true))) (ValueT.const (const_int s c2)))}} 
     else inv0
+  | Infrule.mul_neg z mx my x y s =>
+    if $$ inv0 |- (Expr.value mx) >=src (Expr.bop bop_sub s (ValueT.const (const_int s (INTEGER.of_Z (Size.to_Z s) 0%Z true))) x) $$ &&
+       $$ inv0 |- (Expr.value my) >=src (Expr.bop bop_sub s (ValueT.const (const_int s (INTEGER.of_Z (Size.to_Z s) 0%Z true))) y) $$ &&
+       $$ inv0 |- (Expr.value (ValueT.id z)) >=src (Expr.bop bop_mul s mx my) $$
+    then {{inv0 +++ (Expr.value (ValueT.id z)) >=src (Expr.bop bop_mul s x y)}}
+    else inv0
   | Infrule.mul_bool z x y =>
     if $$ inv0 |- (Expr.value (ValueT.id z)) >=src (Expr.bop bop_mul Size.One (ValueT.id x) (ValueT.id y)) $$
     then {{inv0 +++ (Expr.value (ValueT.id z)) >=src (Expr.bop bop_and Size.One (ValueT.id x) (ValueT.id y)) }}

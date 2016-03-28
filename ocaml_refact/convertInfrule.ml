@@ -65,6 +65,14 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
       let c2 = Convert.const_int args.c2 in
       let sz = Convert.size args.sz in
       Infrule.Coq_neg_val (c1, c2, sz)
+  | CoreHint_t.MulNeg (args:CoreHint_t.mul_neg) ->
+      let z = Convert.register args.z in
+      let mx = Convert.value args.mx in
+      let my = Convert.value args.my in
+      let x = Convert.value args.x in
+      let y = Convert.value args.y in
+      let sz = Convert.size args.sz in
+      Infrule.Coq_mul_neg (z, mx, my, x, y, sz)
   | CoreHint_t.MulBool (args:CoreHint_t.mul_bool) ->
       let z = Convert.register args.z in
       let x = Convert.register args.x in
