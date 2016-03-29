@@ -18,12 +18,26 @@ open AddInfrule
 
 type atom = AtomImpl.atom
 
-(* TODO(@youngju.song): in Coq *)
-let generate_nop (core_hint:CoreHint_t.hints) : int list =
-  failwith "TODO"
+let nop_position_atd_to_coq (x : CoreHint_t.nop_position) : Nop.nop_position =
+  match x with
+    | PhinodeCurrentBlockName l -> Nop.Coq_phi_node_current_block_name l
+    | CommandRegisterName id -> Nop.Coq_command_register_name id
 
-let insert_nop (m:LLVMsyntax.coq_module) (nops:int list) : LLVMsyntax.coq_module =
-  failwith "TODO"
+let insert_nop (f_id : string) (m : LLVMsyntax.coq_module)
+               (nops : nop_position list) : LLVMsyntax.coq_module =
+  let Coq_module_intro (l, ns, ps) = m in
+  let ps = List.map (fun (x : product) ->
+                      match x with
+                      | LLVMsyntax.Coq_product_fdef f ->
+                         if (f_id = LLVMinfra.getFdefID f)
+                         then
+                           let Coq_fdef_intro (h, blks) = f in
+                           let blks = (Nop.insert_nops (List.map nop_position_atd_to_coq nops) blks) in
+                           (LLVMsyntax.Coq_product_fdef (Coq_fdef_intro (h, blks)))
+                         else x
+                      | _ -> x
+                     ) ps in
+  Coq_module_intro (l, ns, ps)
 
 module EmptyHint = struct
   (* TODO(@youngju.song): in Coq *)
@@ -89,7 +103,7 @@ let apply_corehint_command
      propagate_hint lfdef dtree_lfdef invariant range hint_fdef
   | CoreHint_t.Infrule (pos, infrule) ->
      let pos = Position.convert pos lfdef rfdef in
-     let infrule = convert_infrule infrule in
+     let infrule = convert_infrule infrule lfdef rfdef in
      add_infrule pos infrule hint_fdef
 
 let convert

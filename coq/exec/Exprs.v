@@ -79,10 +79,10 @@ Qed.
 Module Value.
   Definition t := value.
 
-  Definition get_uses (v:t): list id :=
+  Definition get_ids(v: t): option id :=
     match v with
-    | value_id id => [id]
-    | value_const _ => []
+      | value_id i => Some i
+      | value_const _ => None
     end.
 End Value.
 
@@ -107,6 +107,12 @@ Module ValueT <: UsualDecidableType.
     match v with
     | value_id i => id (IdT.lift tag i)
     | value_const c => const c
+    end.
+
+  Definition get_idTs (v: t): option IdT.t :=
+    match v with
+      | id i => Some i
+      | const _ => None
     end.
 End ValueT.
 Hint Resolve ValueT.eq_dec: EqDecDb.
@@ -177,6 +183,26 @@ Module Expr <: UsualDecidableType.
       try (apply cond_dec);
       try (apply fcond_dec).
   Defined.
+
+  Definition get_valueTs (e: t): list ValueT.t :=
+    match e with
+      | (Expr.bop _ _ v1 v2) => [v1 ; v2]
+      | (Expr.fbop _ _ v1 v2) => [v1 ; v2]
+      | (Expr.extractvalue _ v _ _) => [v]
+      | (Expr.insertvalue _ v1 _ v2 _) => [v1 ; v2]
+      | (Expr.gep _ _ v vl _) => v :: (List.map snd vl)
+      | (Expr.trunc _ _ v _) => [v]
+      | (Expr.ext _ _ v _) => [v]
+      | (Expr.cast _ _ v _) => [v]
+      | (Expr.icmp _ _ v1 v2) => [v1 ; v2]
+      | (Expr.fcmp _ _ v1 v2) => [v1 ; v2]
+      | (Expr.select v1 _ v2 v3) => [v1 ; v2 ; v3]
+      | (Expr.value v) => [v]
+      | (Expr.load v _ _) => [v]
+    end.
+
+  Definition get_idTs (e: t): list IdT.t :=
+    TODO.filter_map ValueT.get_idTs (get_valueTs e).
 End Expr.
 Hint Resolve Expr.eq_dec: EqDecDb.
 Coercion Expr.value: ValueT.t >-> Expr.t_.

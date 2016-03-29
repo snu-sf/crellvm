@@ -124,17 +124,20 @@ module InvariantObject = struct
     let convert_scope (s:CoreHint_t.scope): scope =
       if s = CoreHint_t.Source then Source else Target
 
-    let convert_propagate_expr
-          (prop_expr:CoreHint_t.propagate_expr)
-          (fdef:LLVMsyntax.fdef)
+    let convert_expr
+          (expr:CoreHint_t.expr)
+          (lfdef:LLVMsyntax.fdef)
+          (rfdef:LLVMsyntax.fdef)
         : Expr.t =
-      match prop_expr with
+      match expr with
       | CoreHint_t.Var (register:CoreHint_t.register) ->
          Expr.Coq_value (ValueT.Coq_id (Convert.register register))
-      | CoreHint_t.Rhs (register:CoreHint_t.register) ->
-         Convert.rhs_of register fdef
+      | CoreHint_t.Rhs ((register:CoreHint_t.register), (scope:CoreHint_t.scope)) ->
+         (match scope with
+          | CoreHint_t.Source -> Convert.rhs_of register lfdef
+          | CoreHint_t.Target -> Convert.rhs_of register rfdef)
       | CoreHint_t.Const (c:CoreHint_t.constant) ->
-         failwith "TODO: not supported yet"
+         failwith "TODO: convert_expr of const not supported yet"
 
     let convert
           (prop_obj:CoreHint_t.propagate_object)
@@ -142,16 +145,18 @@ module InvariantObject = struct
         : t =
       match prop_obj with
       | CoreHint_t.Lessdef prop_ld ->
-         let fdef = if prop_ld.scope = CoreHint_t.Source then lfdef else rfdef in
          Unary (convert_scope prop_ld.scope,
-                Lessdef (convert_propagate_expr prop_ld.lhs fdef,
-                         convert_propagate_expr prop_ld.rhs fdef))
+                Lessdef (convert_expr prop_ld.lhs lfdef rfdef,
+                         convert_expr prop_ld.rhs lfdef rfdef))
       | CoreHint_t.Noalias prop_na ->
          Unary (convert_scope prop_na.scope,
                 Noalias (Convert.register prop_na.lhs,
                          Convert.register prop_na.rhs))
       | CoreHint_t.Maydiff v ->
          Maydiff (Convert.register v)
+      | CoreHint_t.Alloca prop_a ->
+         Unary (convert_scope prop_a.scope,
+                Allocas (Convert.register prop_a.p))
 
     let insert (obj:t) (inv:Invariant.t): Invariant.t =
       match obj with

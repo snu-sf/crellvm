@@ -6,10 +6,17 @@ Require Import Coqlib.
 Require Import infrastructure.
 Require Import Metatheory.
 Require Import sflib.
+Require Import String.
 Import LLVMsyntax.
 Import LLVMinfra.
 
 Set Implicit Arguments.
+
+Definition get_or_else A (x: option A) (default: A) :=
+  match x with
+    | None => default
+    | Some _x => _x
+  end.
 
 Fixpoint list_forallb2 A B (P: A -> B -> bool) (la:list A) (lb:list B): bool :=
   match la, lb with
@@ -83,11 +90,7 @@ Fixpoint unique
   | a::l => negb (in_dec eq_dec a l) && unique eq_dec l
   end.
 
-Definition mapAL A B (f:A -> B) (l:AssocList A): AssocList B :=
-  List.map
-    (fun (p:atom * A) =>
-       let (atom, a) := p in (atom, (f a)))
-    l.
+Definition mapAL := Metatheory.EnvImpl.map.
 
 Definition mapiAL A B (f: atom -> A -> B) (l:AssocList A): AssocList B :=
   List.map

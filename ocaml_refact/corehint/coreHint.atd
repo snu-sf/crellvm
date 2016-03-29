@@ -65,15 +65,15 @@ type size = [ Size of int ] <ocaml repr="classic">
 (*              Propagates               *)
 (*****************************************)
 
-type propagate_expr = [
+type expr = [
   | Var of register
-  | Rhs of register
+  | Rhs of (register * scope)
   | Const of constant
 ] <ocaml repr="classic">
 
 type propagate_lessdef = {
-  lhs : propagate_expr;
-  rhs : propagate_expr;
+  lhs : expr;
+  rhs : expr;
   scope : scope;
 }
 
@@ -83,9 +83,15 @@ type propagate_noalias = {
   scope : scope;
 }
 
+type propagate_alloca = {
+  p : register;
+  scope : scope;
+}
+
 type propagate_object = [
   | Lessdef of propagate_lessdef
   | Noalias of propagate_noalias
+  | Alloca of propagate_alloca
   | Maydiff of register
   ] <ocaml repr="classic">
 
@@ -130,19 +136,63 @@ type add_commutative = {
 
 type add_shift = {
   y : register;
+  v : value;
+  sz : size;
 }
 
 type add_signbit = {
   x : register;
+  e1 : value;
+  e2 : value;
+  sz : size;
+}
+
+type transitivity = {
+  e1 : expr;
+  e2 : expr;
+  e3 : expr;
+}
+
+type noalias_global_alloca = {
+  x : register;
+  y : register;
+}
+
+type transitivity_pointer_lhs = {
+  p : value;
+  q : value;
+  v : value;
+  loadq : expr;
+}
+
+type transitivity_pointer_rhs = {
+  p : value;
+  q : value;
+  v : value;
+  loadp : expr;
+}
+
+type replace_rhs = {
+  x : register;
+  y : value;
+  e1 : expr;
+  e2 : expr;
+  e2' : expr;
 }
 
 type add_onebit = {
   z : register;
+  x : value;
+  y : value;
 }
 
 type add_zext_bool = {
   x : register;
   y : register;
+  b : value;
+  c : const_int;
+  cprime : const_int;
+  sz : size;
 }
 
 type add_const_not = {
@@ -153,7 +203,7 @@ type add_const_not = {
 type add_mask = {
   z : register;
   y : register;
-  yp: register  ;
+  yp: register;
 }
 
 type add_select_zero = {
@@ -184,9 +234,15 @@ type mul_add_distributive = {
 
 type sub_add = {
   z : register;
-  my : register;
+  my : value;
   x : register;
-  y : register;
+  y : value;
+  sz : size;
+}
+
+type neg_val = {
+  c1 : const_int;
+  c2 : const_int;
   sz : size;
 }
 
@@ -200,8 +256,11 @@ type sub_const_not = {
 }
 
 type sub_remove = {
-  y : register;
   z : register;
+  y : register;
+  a : value;
+  b : value;
+  sz : size;
 }
 
 type sub_remove2 = {
@@ -231,6 +290,8 @@ type sub_shl = {
 
 type mul_bool = {
   z :register;
+  x :register;
+  y :register;
 }
 
 type mul_mone = {
@@ -239,8 +300,11 @@ type mul_mone = {
 
 type mul_neg = {
   z : register;
-  mx : register;
-  my : register;
+  mx : value;
+  my : value;
+  x : value;
+  y : value;
+  sz : size;
 }
 
 type mul_commutative = {
@@ -308,11 +372,17 @@ type infrule = [
   | MulNeg of mul_neg
   | MulCommutative of mul_commutative
   | MulShl of mul_shl
+  | NoaliasGlobalAlloca of noalias_global_alloca
   | DivMone of div_mone
   | RemNeg of rem_neg
   | DivSubSrem of div_sub_srem
   | DivSubUrem of div_sub_urem
   | AndDeMorgan of and_de_morgan
+  | NegVal of neg_val
+  | Transitivity of transitivity
+  | TransitivityPointerLhs of transitivity_pointer_lhs
+  | TransitivityPointerRhs of transitivity_pointer_rhs
+  | ReplaceRhs of replace_rhs
   ] <ocaml repr="classic">
 
 type command = [
@@ -320,13 +390,18 @@ type command = [
   | Infrule of (position * infrule)
   ] <ocaml repr="classic">
 
+type nop_position = [
+  | PhinodeCurrentBlockName of string
+  | CommandRegisterName of string
+  ] <ocaml repr="classic">
+
 type hints = {
   module_id : string;
   function_id : string;
   opt_name : string;
 
-  src_nop_positions: position list; (* insert after position *)
-  tgt_nop_positions: position list;
+  src_nop_positions: nop_position list; (* insert after position *)
+  tgt_nop_positions: nop_position list;
 
   commands : command list;
 }

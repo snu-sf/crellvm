@@ -1,6 +1,8 @@
 open Exprs
 open Hints
 open Syntax
+open Coq_pretty_printer
+open Printf
        
 let out_channel = ref stdout
 
@@ -187,3 +189,25 @@ let debug_print_validation_process (infrules: Infrule.t list)
        let _ = debug_print "** next precondition" in
        let _ = PrintHints.invariant inv in ())
   in inv
+
+let cmd_printer (x: LLVMsyntax.cmd): unit =
+  debug_run(
+      fun _ ->
+      debug_print (string_of_cmd x))
+
+let string_of_char_list (l: char list) =
+  List.fold_left (fun s i -> s ^ (Char.escaped i)) "" l
+
+let atom_printer (x: string): unit =
+  debug_run(
+      fun _ ->
+      debug_print x)
+
+let idT_printer (x: Exprs.IdT.t): unit =
+  debug_run(
+      fun _ ->
+      debug_print (ExprsToString.of_IdT x))
+
+let debug_string (x: char list) (y: 'a) =
+  let _ = debug_run(fun _ -> debug_print (string_of_char_list x))
+  in y

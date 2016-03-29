@@ -68,6 +68,22 @@ module Position = struct
      in
      (l, Command idx)
 
+  let convert_to_id (pos : CoreHint_t.position)
+              (fdef : LLVMsyntax.fdef)
+              : Syntax.LLVMsyntax.id =
+  match pos with
+  | CoreHint_t.Phinode phinode ->
+     let b = TODOCAML.get (LLVMinfra.lookupBlockViaLabelFromFdef fdef phinode.block_name) in
+     let Coq_stmts_intro (ps, _, _) = b in
+     let p : Syntax.LLVMsyntax.phinode =
+       TODOCAML.get (LLVMinfra.lookupPhiNodeViaIDFromPhiNodes ps phinode.prev_block_name) in
+     LLVMinfra.getPhiNodeID p
+  | CoreHint_t.Command command ->
+     let (l, Coq_stmts_intro (_, cmds, _)) =
+       TODOCAML.get (LLVMinfra.lookupBlockViaIDFromFdef fdef command.register_name)
+     in
+     List.find (fun x -> x = command.register_name) (List.map LLVMinfra.getCmdLoc cmds)
+
   let convert_range (range:CoreHint_t.propagate_range) (lfdef:fdef) (rfdef:fdef) =
     match range with
     | CoreHint_t.Bounds (f, t) -> Bounds (convert f lfdef rfdef, convert t lfdef rfdef)
@@ -112,27 +128,30 @@ module Convert = struct
     | Coq_value_id id -> ValueT.Coq_id (Tag.Coq_physical, id)
     | Coq_value_const const -> ValueT.Coq_const const
 
+  let constant (constval:CoreHint_t.constant): LLVMsyntax.const = 
+    match constval with 
+    | CoreHint_t.ConstInt ci -> 
+       LLVMsyntax.Coq_const_int 
+         ((match ci.int_type with 
+            | CoreHint_t.IntType sz -> sz)
+         , const_int ci)
+    | CoreHint_t.ConstFloat cf ->
+       LLVMsyntax.Coq_const_floatpoint (
+         (match cf.float_type with
+         | CoreHint_t.HalfType -> failwith "Vellvm has no Halftype" 
+         | CoreHint_t.FloatType -> LLVMsyntax.Coq_fp_float
+         | CoreHint_t.DoubleType -> LLVMsyntax.Coq_fp_double
+         | CoreHint_t.FP128Type -> LLVMsyntax.Coq_fp_fp128
+         | CoreHint_t.PPC_FP128Type -> LLVMsyntax.Coq_fp_ppc_fp128
+         | CoreHint_t.X86_FP80Type -> LLVMsyntax.Coq_fp_x86_fp80)
+         , const_float cf)
+   
+
   let value (value:CoreHint_t.value): ValueT.t = 
     match value with
     | CoreHint_t.Id reg -> ValueT.Coq_id (register reg)
-    | CoreHint_t.ConstVal constval -> ValueT.Coq_const (
-       match constval with 
-       | CoreHint_t.ConstInt ci -> 
-          LLVMsyntax.Coq_const_int 
-            ((match ci.int_type with 
-               | CoreHint_t.IntType sz -> sz)
-            , const_int ci)
-       | CoreHint_t.ConstFloat cf ->
-          LLVMsyntax.Coq_const_floatpoint (
-            (match cf.float_type with
-            | CoreHint_t.HalfType -> failwith "Vellvm has no Halftype" 
-            | CoreHint_t.FloatType -> LLVMsyntax.Coq_fp_float
-            | CoreHint_t.DoubleType -> LLVMsyntax.Coq_fp_double
-            | CoreHint_t.FP128Type -> LLVMsyntax.Coq_fp_fp128
-            | CoreHint_t.PPC_FP128Type -> LLVMsyntax.Coq_fp_ppc_fp128
-            | CoreHint_t.X86_FP80Type -> LLVMsyntax.Coq_fp_x86_fp80)
-            , const_float cf)
-       )
+    | CoreHint_t.ConstVal constval -> ValueT.Coq_const (constant constval)
+
   let rhs_of (register:CoreHint_t.register) (fdef:LLVMsyntax.fdef) : Expr.t =
     let register_id = register.name in
     let insn = TODOCAML.get (LLVMinfra.lookupInsnViaIDFromFdef fdef register_id) in
@@ -165,4 +184,19 @@ module Convert = struct
              Expr.Coq_load (llvmvalue v, typ, align)
           | _ -> failwith "convertUtil: rhs_of no matching cmd")
       | _ -> failwith "convertUtil: rhs_of find no insn"
+
+
+  let expr (e:CoreHint_t.expr) (src_fdef:LLVMsyntax.fdef) (tgt_fdef:LLVMsyntax.fdef) : Expr.t = 
+    match e with
+    | CoreHint_t.Var reg ->
+       Expr.Coq_value (ValueT.Coq_id (register reg))
+    | CoreHint_t.Const constval ->
+       Expr.Coq_value (ValueT.Coq_const (constant constval))
+    | CoreHint_t.Rhs (reg,scope) ->
+       rhs_of reg 
+       (match scope with
+       | CoreHint_t.Source -> src_fdef
+       | CoreHint_t.Target -> tgt_fdef)
+
+
 end
