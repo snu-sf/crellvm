@@ -113,7 +113,7 @@ module InvariantObject = struct
 
     type unary =
       | Lessdef of ExprPair.t
-      | Noalias of IdT.t * IdT.t
+      | Noalias of (IdT.t * LLVMsyntax.typ) * (IdT.t * LLVMsyntax.typ)
       | Allocas of IdT.t
       | Private of IdT.t
 
@@ -161,7 +161,7 @@ module InvariantObject = struct
            | Lessdef expr_pair ->
               Invariant.update_lessdef (ExprPairSet.add expr_pair) unary
            | Noalias (idt1, idt2) ->
-              Invariant.update_noalias (ValueTPairSet.add (ValueT.Coq_id idt1, ValueT.Coq_id idt2)) unary
+              Invariant.update_noalias (PtrPairSet.add (ValueT.Coq_id idt1, ValueT.Coq_id idt2)) unary
            | Allocas idt ->
               Invariant.update_allocas (IdTSet.add idt) unary
            | Private idt ->
