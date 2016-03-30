@@ -6,8 +6,9 @@ type position_phinode = {
 }
 
 type position_command = {
-  scope : scope;
-  register_name : string;
+  block_name : string;
+  index : int;
+  register_name : (scope * string) option;
 }
 
 (* Position of an instruction is phinode or register *)
