@@ -175,8 +175,8 @@ Definition apply_infrule
     then {{inv0 +++ (Expr.value z) >=src (Expr.bop bop_add s x y)}}
     else inv0
   | Infrule.neg_val c1 c2 s =>
-    if $$ inv0 |- (Expr.value (const_int s c1)) >=src (Expr.bop bop_sub s (const_int s (INTEGER.of_Z (Size.to_Z s) 0%Z true)) (const_int s c2)) $$ 
-    then {{inv0 +++ (Expr.value (const_int s c1)) >=src (Expr.bop bop_sub s (const_int s (INTEGER.of_Z (Size.to_Z s) 0%Z true)) (const_int s c2))}} 
+    if cond_plus s c1 c2 (INTEGER.of_Z (Size.to_Z s) 0%Z true)  
+    then {{inv0 +++ (Expr.value (const_int s c1)) >=src (Expr.bop bop_sub s (const_int s (INTEGER.of_Z (Size.to_Z s) 0%Z true)) (const_int s c2))}}
     else inv0
   | Infrule.mul_neg z mx my x y s =>
     if $$ inv0 |- (Expr.value mx) >=src (Expr.bop bop_sub s (const_int s (INTEGER.of_Z (Size.to_Z s) 0%Z true)) x) $$ &&
