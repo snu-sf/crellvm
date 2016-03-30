@@ -103,7 +103,7 @@ let apply_corehint_command
      propagate_hint lfdef dtree_lfdef invariant range hint_fdef
   | CoreHint_t.Infrule (pos, infrule) ->
      let pos = Position.convert pos lfdef rfdef in
-     let infrule = convert_infrule infrule in
+     let infrule = convert_infrule infrule lfdef rfdef in
      add_infrule pos infrule hint_fdef
 
 let convert

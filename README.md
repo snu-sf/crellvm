@@ -31,6 +31,7 @@
     + `script/llvm-build.sh`
     + `.build/llvm-obj` will contain llvm object files.
     + `build/bin` will contain llvm installation.
+    + You may want to alter "JOBS" variable, default is 8.
 
 - `make exec`
 
