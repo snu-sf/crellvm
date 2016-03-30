@@ -6,8 +6,9 @@ type position_phinode = {
 }
 
 type position_command = {
-  scope : scope;
-  register_name : string;
+  block_name : string;
+  index : int;
+  register_name : (scope * string) option;
 }
 
 (* Position of an instruction is phinode or register *)
@@ -198,24 +199,40 @@ type add_zext_bool = {
 type add_const_not = {
   z : register;
   y : register;
+  x : value;
+  c1 : const_int;
+  c2 : const_int;
+  sz : size;
 }
 
 type add_mask = {
   z : register;
   y : register;
-  yp: register;
+  yprime : register;
+  x : value;
+  c1 : const_int;
+  c2 : const_int;
+  sz : size;
 }
 
 type add_select_zero = {
   z : register;
   x : register;
   y : register;
+  c : value;
+  n : value;
+  a : value;
+  sz : size;
 }
 
 type add_select_zero2 = {
   z : register;
   x : register;
   y : register;
+  c : value;
+  n : value;
+  a : value;
+  sz : size;
 }
 
 type add_dist_sub = {
