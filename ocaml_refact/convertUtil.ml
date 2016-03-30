@@ -46,6 +46,7 @@ module Position = struct
     in
     Command (List.length cmds)
 
+  (* TODO: remove lfdef and rfdef *)
   let convert (pos:CoreHint_t.position)
               (lfdef:LLVMsyntax.fdef)
               (rfdef:LLVMsyntax.fdef): t =
@@ -53,36 +54,23 @@ module Position = struct
   | CoreHint_t.Phinode phinode ->
      (phinode.block_name, Phinode phinode.prev_block_name)
   | CoreHint_t.Command command ->
-     let fdef =
-       if command.scope = CoreHint_t.Source
-       then lfdef
-       else rfdef
-     in
-     let (l, Coq_stmts_intro (_, cmds, _)) =
-       TODOCAML.get (LLVMinfra.lookupBlockViaIDFromFdef fdef command.register_name)
-     in
-     let (idx, _) =
-       TODOCAML.findi
-         (fun _ cmd -> LLVMinfra.getCmdLoc cmd = command.register_name)
-         cmds
-     in
-     (l, Command idx)
+     (command.block_name, Command command.index)
 
-  let convert_to_id (pos : CoreHint_t.position)
-              (fdef : LLVMsyntax.fdef)
-              : Syntax.LLVMsyntax.id =
-  match pos with
-  | CoreHint_t.Phinode phinode ->
-     let b = TODOCAML.get (LLVMinfra.lookupBlockViaLabelFromFdef fdef phinode.block_name) in
-     let Coq_stmts_intro (ps, _, _) = b in
-     let p : Syntax.LLVMsyntax.phinode =
-       TODOCAML.get (LLVMinfra.lookupPhiNodeViaIDFromPhiNodes ps phinode.prev_block_name) in
-     LLVMinfra.getPhiNodeID p
-  | CoreHint_t.Command command ->
-     let (l, Coq_stmts_intro (_, cmds, _)) =
-       TODOCAML.get (LLVMinfra.lookupBlockViaIDFromFdef fdef command.register_name)
-     in
-     List.find (fun x -> x = command.register_name) (List.map LLVMinfra.getCmdLoc cmds)
+  (* let convert_to_id (pos : CoreHint_t.position) *)
+  (*             (fdef : LLVMsyntax.fdef) *)
+  (*             : Syntax.LLVMsyntax.id = *)
+  (* match pos with *)
+  (* | CoreHint_t.Phinode phinode -> *)
+  (*    let b = TODOCAML.get (LLVMinfra.lookupBlockViaLabelFromFdef fdef phinode.block_name) in *)
+  (*    let Coq_stmts_intro (ps, _, _) = b in *)
+  (*    let p : Syntax.LLVMsyntax.phinode = *)
+  (*      TODOCAML.get (LLVMinfra.lookupPhiNodeViaIDFromPhiNodes ps phinode.prev_block_name) in *)
+  (*    LLVMinfra.getPhiNodeID p *)
+  (* | CoreHint_t.Command command -> *)
+  (*    let (l, Coq_stmts_intro (_, cmds, _)) = *)
+  (*      TODOCAML.get (LLVMinfra.lookupBlockViaIDFromFdef fdef command.register_name) *)
+  (*    in *)
+  (*    List.find (fun x -> x = command.register_name) (List.map LLVMinfra.getCmdLoc cmds) *)
 
   let convert_range (range:CoreHint_t.propagate_range) (lfdef:fdef) (rfdef:fdef) =
     match range with
