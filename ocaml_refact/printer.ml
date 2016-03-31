@@ -95,10 +95,10 @@ module PrintExprs = struct
                  vtps ()
        in ()
 
-    let idTSet (idts: IdTSet.t): unit =
+    let idTSet (idts: IdTSet.t) (sym: string): unit =
        let _ = IdTSet.fold
                  (fun idt _ ->
-                  debug_print (ExprsToString.of_IdT idt))
+                  debug_print (sym ^ "(" ^ (ExprsToString.of_IdT idt) ^ ")"))
                  idts () in
        ()
   end
@@ -119,26 +119,25 @@ module PrintHints = struct
       in ()
         
     let unary (u:Invariant.unary): unit =
-      let _ = debug_print "* lessdef" in
       let _ = PrintExprs.exprPairSet (u.Invariant.lessdef) ">=" in
-      let _ = debug_print "* noalias" in
       let _ = PrintExprs.valueTPairSet (u.Invariant.noalias) "!=" in
-      let _ = debug_print "* allocas" in
-      let _ = PrintExprs.idTSet (u.Invariant.allocas) in
-      let _ = debug_print "* private" in
-      let _ = PrintExprs.idTSet (u.Invariant.coq_private) in
+      let _ = PrintExprs.idTSet (u.Invariant.allocas) "alc" in
+      let _ = PrintExprs.idTSet (u.Invariant.coq_private) "isol" in
       ()
     
     let invariant (inv:Invariant.t): unit =
+      let num_in_nat = IdTSet.cardinal inv.Invariant.maydiff in
+      let num = Datatype_base.Size.from_nat num_in_nat in
+
       let _ = debug_print "[ SOURCE ]" in
       let _ = unary (inv.Invariant.src) in
+
       let _ = debug_print "[ TARGET ]" in
       let _ = unary (inv.Invariant.tgt) in
 
-      let num_in_nat = IdTSet.cardinal inv.Invariant.maydiff in
-      let num = Datatype_base.Size.from_nat num_in_nat in
       let _ = debug_print (Printf.sprintf "[ MayDiff ] (%d)" num) in
       let _ = PrintExprs.idTSet (inv.Invariant.maydiff) in
+
       ()
   end
 
