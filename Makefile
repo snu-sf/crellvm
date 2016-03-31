@@ -4,6 +4,7 @@ COQEXTRACT    := $(wildcard coq/extraction/*.v)
 COQPROOF      := $(filter-out $(COQEXTRACT), $(filter-out $(COQDEFINITION), $(wildcard coq/*/*.v)))
 COQTHEORIES   := $(COQDEFINITION) $(COQEXTRACT) $(COQPROOF)
 
+JOBS=8
 ROOT=`pwd`
 LLVM_SRCDIR=${ROOT}/lib/llvm
 LLVM_OBJDIR=${ROOT}/.build/llvm-obj
@@ -40,8 +41,8 @@ Makefile.coq: Makefile $(COQTHEORIES)
 	coq_makefile -f _CoqProject -o Makefile.coq
 
 llvm: lib/llvm
-	./script/llvm-build.sh
-	./script/llvm-install.sh
+	./script/llvm-build.sh $(JOBS)
+	./script/llvm-install.sh $(JOBS)
 
 lib: lib/sflib lib/paco/src lib/vellvm
 	$(MAKE) -C lib/sflib
@@ -72,7 +73,7 @@ proof: definition $(COQPROOF)
 	$(MAKE) -f Makefile.coq "$@"
 
 test:
-	python ./simplberry-tests/test.py -e ./build/bin/opt -v ./ocaml/main.native -r "-instcombine" -o -f -i "./simplberry-tests/inputs_full"
+	python ./simplberry-tests/test.py -e ./build/bin/opt -v ./ocaml_refact/main.native -r "-instcombine" -o -f -i "./simplberry-tests/inputs_full"
 
 clean: Makefile.coq
 	$(MAKE) -f Makefile.coq clean

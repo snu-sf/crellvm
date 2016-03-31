@@ -29,6 +29,23 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
      let c3 = Convert.const_int args.c3 in
      let sz = Convert.size args.sz in
      Infrule.Coq_add_associative (x, y, z, c1, c2, c3, sz)
+  | CoreHint_t.AddConstNot (args:CoreHint_t.add_const_not) ->
+     let z = Convert.register args.z in
+     let y = Convert.register args.y in
+     let x = Convert.value args.x in
+     let c1 = Convert.const_int args.c1 in
+     let c2 = Convert.const_int args.c2 in
+     let sz = Convert.size args.sz in
+     Infrule.Coq_add_const_not (z,y,x,c1,c2,sz)
+  | CoreHint_t.AddMask (args:CoreHint_t.add_mask) ->
+     let z = Convert.register args.z in
+     let y = Convert.register args.y in
+     let y' = Convert.register args.yprime in
+     let x = Convert.value args.x in
+     let c1 = Convert.const_int args.c1 in
+     let c2 = Convert.const_int args.c2 in
+     let sz = Convert.size args.sz in
+     Infrule.Coq_add_mask(z,y,y',x,c1,c2,sz)
   | CoreHint_t.AddSub (args:CoreHint_t.add_sub) ->
      let z = Convert.register args.z in
      let minusy = Convert.register args.minusy in
@@ -47,6 +64,24 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
      let x = Convert.value args.x in
      let y = Convert.value args.y in
      Infrule.Coq_add_onebit (z, x, y)
+  | CoreHint_t.AddSelectZero (args:CoreHint_t.add_select_zero) ->
+     let z = Convert.register args.z in
+     let x = Convert.register args.x in
+     let y = Convert.register args.y in
+     let c = Convert.value args.c in
+     let n = Convert.value args.n in
+     let a = Convert.value args.a in
+     let sz = Convert.size args.sz in
+     Infrule.Coq_add_select_zero (z, x, y, c, n, a, sz)
+  | CoreHint_t.AddSelectZero2 (args:CoreHint_t.add_select_zero2) ->
+     let z = Convert.register args.z in
+     let x = Convert.register args.x in
+     let y = Convert.register args.y in
+     let c = Convert.value args.c in
+     let n = Convert.value args.n in
+     let a = Convert.value args.a in
+     let sz = Convert.size args.sz in
+     Infrule.Coq_add_select_zero2 (z, x, y, c, n, a, sz)
   | CoreHint_t.AddShift (args:CoreHint_t.add_shift) ->
      let y = Convert.register args.y in
      let v = Convert.value args.v in

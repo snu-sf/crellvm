@@ -9,4 +9,4 @@ LOCALDIR=$ROOT/build
 cd $OBJDIR
 mkdir $LOCALDIR
 
-cmake -DCMAKE_INSTALL_PREFIX=${LOCALDIR} -P cmake_install.cmake
+cmake -DCMAKE_INSTALL_PREFIX=${LOCALDIR} -P cmake_install.cmake -- -j$1
