@@ -162,6 +162,7 @@ Module Infrule.
   | transitivity_pointer_lhs (p:ValueT.t) (q:ValueT.t) (v:ValueT.t) (ty:typ) (a:align)
   | transitivity_pointer_rhs (p:ValueT.t) (q:ValueT.t) (v:ValueT.t) (ty:typ) (a:align)
   | replace_rhs (x:IdT.t) (y:ValueT.t) (e1:Expr.t) (e2:Expr.t) (e2':Expr.t)
+  | intro_ghost (x:IdT.t) (y:ValueT.t) (z:id)
 
 (* Updated semantics of rules should be located above this line *)
 

@@ -136,6 +136,10 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
       let e2 = Convert.expr args.e2 src_fdef tgt_fdef in
       let e2' = Convert.expr args.e2' src_fdef tgt_fdef in
       Infrule.Coq_replace_rhs (x, y, e1, e2, e2')
-  
+  | CoreHint_t.IntroGhost (args:CoreHint_t.intro_ghost) ->
+      let x = Convert.register args.x in
+      let y = Convert.value args.y in
+      let z = args.z.name in
+      Infrule.Coq_intro_ghost (x, y, z)
   | _ ->
      failwith "TODO"

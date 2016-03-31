@@ -180,6 +180,12 @@ type replace_rhs = {
   e2' : expr;
 }
 
+type intro_ghost = {
+  x : register;
+  y : value;
+  z : register;
+}
+
 type add_onebit = {
   z : register;
   x : value;
@@ -383,6 +389,7 @@ type infrule = [
   | TransitivityPointerLhs of transitivity_pointer_lhs
   | TransitivityPointerRhs of transitivity_pointer_rhs
   | ReplaceRhs of replace_rhs
+  | IntroGhost of intro_ghost
   ] <ocaml repr="classic">
 
 type command = [

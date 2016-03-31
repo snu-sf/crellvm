@@ -157,6 +157,7 @@ module Convert = struct
     let insn = TODOCAML.get (LLVMinfra.lookupInsnViaIDFromFdef fdef register_id) in
       match insn with
       | LLVMsyntax.Coq_insn_cmd c ->
+          let _ = print_endline(Coq_pretty_printer.string_of_cmd c) in
          (match c with
           | LLVMsyntax.Coq_insn_bop (_, bop, sz, v1, v2) ->
              Expr.Coq_bop (bop, sz, llvmvalue v1, llvmvalue v2)

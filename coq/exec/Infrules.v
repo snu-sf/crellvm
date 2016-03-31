@@ -236,6 +236,14 @@ Definition apply_infrule
        cond_replace_lessdef x y e2 e2'
     then {{inv0 +++ e1 >=src e2'}}
     else inv0
+  | Infrule.intro_ghost x y z =>
+    if $$ inv0 |- (Expr.value (ValueT.id x)) >=src (Expr.value y) $$ &&
+       Invariant.not_in_maydiff inv0 y
+    then {{
+      {{inv0 +++ (Expr.value y) >=src (Expr.value (ValueT.id (Tag.ghost, z)))}}
+             +++ (Expr.value (ValueT.id (Tag.ghost, z))) >=tgt (Expr.value y)
+    }}
+    else inv0
   | _ => inv0 (* TODO *)
   end.
 
