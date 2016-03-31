@@ -125,7 +125,7 @@ module PrintHints = struct
       let num_in_nat = IdTSet.cardinal inv.Invariant.maydiff in
       let num = Datatype_base.Size.from_nat num_in_nat in
       let title =
-        Printf.sprintf "%60s %60s %60s (%d)"
+        Printf.sprintf "%30s %60s %60s (%d)"
                        "[ SOURCE ]" "[ TARGET ]" "[ MayDiff ]" num in
       let src = unary (inv.Invariant.src) in
       let tgt = unary (inv.Invariant.tgt) in
