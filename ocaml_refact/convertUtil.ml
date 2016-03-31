@@ -48,13 +48,31 @@ module Position = struct
 
   (* TODO: remove lfdef and rfdef *)
   let convert (pos:CoreHint_t.position)
+              (nops:CoreHint_t.position list)
               (lfdef:LLVMsyntax.fdef)
               (rfdef:LLVMsyntax.fdef): t =
-  match pos with
-  | CoreHint_t.Phinode phinode ->
-     (phinode.block_name, Phinode phinode.prev_block_name)
-  | CoreHint_t.Command command ->
-     (command.block_name, Command command.index)
+    match pos.CoreHint_t.instr_index with
+    | CoreHint_t.Phinode phinode ->
+       (pos.CoreHint_t.block_name,
+        Phinode phinode.CoreHint_t.prev_block_name)
+    | CoreHint_t.Command command ->
+       let related_nops =
+         List.filter (fun (p:CoreHint_t.position) ->
+                      (p.CoreHint_t.scope = pos.CoreHint_t.scope) &&
+                      (p.CoreHint_t.block_name = pos.CoreHint_t.block_name))
+                     nops
+       in
+       let new_cmd_index =
+         List.fold_left (fun idx nop ->
+                         match nop.CoreHint_t.instr_index with
+                         | Phinode _ -> idx + 1
+                         | Command pos_cmd ->
+                            if pos_cmd.CoreHint_t.index < idx
+                            then idx + 1
+                            else idx)
+                        command.CoreHint_t.index related_nops
+       in 
+       (pos.CoreHint_t.block_name, Command new_cmd_index)
 
   (* let convert_to_id (pos : CoreHint_t.position) *)
   (*             (fdef : LLVMsyntax.fdef) *)
@@ -72,9 +90,9 @@ module Position = struct
   (*    in *)
   (*    List.find (fun x -> x = command.register_name) (List.map LLVMinfra.getCmdLoc cmds) *)
 
-  let convert_range (range:CoreHint_t.propagate_range) (lfdef:fdef) (rfdef:fdef) =
+  let convert_range (range:CoreHint_t.propagate_range) (nops:CoreHint_t.position list) (lfdef:fdef) (rfdef:fdef) =
     match range with
-    | CoreHint_t.Bounds (f, t) -> Bounds (convert f lfdef rfdef, convert t lfdef rfdef)
+    | CoreHint_t.Bounds (f, t) -> Bounds (convert f nops lfdef rfdef, convert t nops lfdef rfdef)
     | CoreHint_t.Global -> Global
 end
 

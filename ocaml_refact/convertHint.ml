@@ -18,13 +18,30 @@ open AddInfrule
 
 type atom = AtomImpl.atom
 
-let nop_position_atd_to_coq (x : CoreHint_t.nop_position) : Nop.nop_position =
-  match x with
-    | PhinodeCurrentBlockName l -> Nop.Coq_phi_node_current_block_name l
-    | CommandRegisterName id -> Nop.Coq_command_register_name id
+let rec nat_of_int n =
+  assert (n >= 0);
+  if n = 0 then Datatypes.O else Datatypes.S (nat_of_int (n - 1))
 
+let nop_position_atd_to_coq (x : CoreHint_t.position) : Nop.nop_position =
+  let nop_pos_i =
+    match x.CoreHint_t.instr_index with
+    | CoreHint_t.Phinode _ -> Nop.Coq_phi_node
+    | CoreHint_t.Command pc -> Nop.Coq_command_index (nat_of_int pc.CoreHint_t.index)
+  in
+  (x.CoreHint_t.block_name, nop_pos_i)
+  
 let insert_nop (f_id : string) (m : LLVMsyntax.coq_module)
-               (nops : nop_position list) : LLVMsyntax.coq_module =
+               (nops : CoreHint_t.position list) : LLVMsyntax.coq_module =
+  let nops =
+    List.sort (fun p1 p2 ->
+               match p1.CoreHint_t.instr_index, p2.CoreHint_t.instr_index with
+               | CoreHint_t.Phinode _, CoreHint_t.Phinode _ -> 0
+               | CoreHint_t.Phinode _, CoreHint_t.Command _ -> 1
+               | CoreHint_t.Command _, CoreHint_t.Phinode _ -> (-1)
+               | CoreHint_t.Command c1, CoreHint_t.Command c2 ->
+                  (compare c2.CoreHint_t.index c1.CoreHint_t.index))
+              nops
+  in
   let Coq_module_intro (l, ns, ps) = m in
   let ps = List.map (fun (x : product) ->
                       match x with
@@ -93,16 +110,17 @@ let noret (hint_module:ValidationHint.coq_module) : ValidationHint.coq_module =
 let apply_corehint_command
       (lfdef:LLVMsyntax.fdef) (rfdef:LLVMsyntax.fdef)
       (dtree_lfdef:LLVMsyntax.l coq_DTree)
-      (command:CoreHint_t.command)
+      (nops:CoreHint_t.position list)
+      (command:CoreHint_t.hint_command)
       (hint_fdef:ValidationHint.fdef)
     : ValidationHint.fdef =
   match command with
   | CoreHint_t.Propagate prop ->
      let invariant = PropagateHint.InvariantObject.convert prop.propagate lfdef rfdef in
-     let range = Position.convert_range prop.propagate_range lfdef rfdef in
+     let range = Position.convert_range prop.propagate_range nops lfdef rfdef in
      propagate_hint lfdef dtree_lfdef invariant range hint_fdef
   | CoreHint_t.Infrule (pos, infrule) ->
-     let pos = Position.convert pos lfdef rfdef in
+     let pos = Position.convert pos nops lfdef rfdef in
      let infrule = convert_infrule infrule lfdef rfdef in
      add_infrule pos infrule hint_fdef
 
@@ -119,8 +137,8 @@ let convert
 
   let hint_fdef = EmptyHint.fdef_hint lfdef in
   let hint_fdef = List.fold_left
-                    (TODOCAML.flip (apply_corehint_command lfdef rfdef dtree_lfdef))
-                    hint_fdef core_hint.commands
+                    (TODOCAML.flip (apply_corehint_command lfdef rfdef dtree_lfdef core_hint.CoreHint_t.nop_positions))
+                    hint_fdef core_hint.CoreHint_t.commands
   in
 
   let hint_module = EmptyHint.module_hint lm in
