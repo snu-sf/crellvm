@@ -94,7 +94,7 @@ module PrintExprs = struct
 
     let idTSet (idts: IdTSet.t) (sym: string): string list =
       List.map
-        (fun idt -> (sym ^ "(" ^ (ExprsToString.of_IdT idt) ^ ")"))
+        (fun idt -> (sym ^ (ExprsToString.of_IdT idt)))
         (IdTSet.elements idts)
   end
                       
