@@ -38,6 +38,22 @@ Definition cond_plus (s:sz) (c1 c2 c3: INTEGER.t) : bool :=
              (Int.repr (Size.to_nat s - 1) (INTEGER.to_Z c1))
              (Int.repr (Size.to_nat s - 1) (INTEGER.to_Z c2))).
 
+Definition cond_minus (s:sz) (c1 c2 c3: INTEGER.t) : bool :=
+  (Int.eq_dec (Size.to_nat s - 1))
+  (Int.repr (Size.to_nat s - 1) (INTEGER.to_Z c3))
+  (Int.sub (Size.to_nat s - 1)
+    (Int.repr (Size.to_nat s - 1) (INTEGER.to_Z c1))
+    (Int.repr (Size.to_nat s - 1) (INTEGER.to_Z c2))).
+
+Definition cond_mask_up (s:sz) (c1i c2i:INTEGER.t) : bool :=
+  let ws := (Size.to_nat s - 1)%nat in
+  let c1 := (Int.repr ws (INTEGER.to_Z c1i)) in
+  let mc1 := (Int.sub ws (Int.zero ws) c1) in
+  let c2 := (Int.repr ws (INTEGER.to_Z c2i)) in
+  let c1up := (Int.not ws (Int.sub ws (Int.and ws c1 mc1) (Int.one ws))) in
+    (Int.eq_dec ws) (Int.and ws c1up c2) c1up.
+
+
 Definition cond_signbit (s:sz) (v:ValueT.t) : bool :=
   match signbit_of s, v with
   | None, _ => false
@@ -151,6 +167,12 @@ Definition apply_infrule
        cond_plus s c1 c2 c3
     then {{inv0 +++ (Expr.value z) >=src (Expr.bop bop_add s x (const_int s c3))}}
     else inv0
+  | Infrule.add_const_not z y x c1 c2 s =>
+    if $$ inv0 |- (Expr.value (ValueT.id y)) >=src (Expr.bop bop_xor s x (ValueT.const (const_int s (INTEGER.of_Z (Size.to_Z s) (-1)%Z true)))) $$ &&
+       $$ inv0 |- (Expr.value (ValueT.id z)) >=src (Expr.bop bop_add s (ValueT.id y) (ValueT.const (const_int s c1))) $$ &&
+       cond_minus s c1 (INTEGER.of_Z (Size.to_Z s) 1%Z true) c2
+    then {{inv0 +++ (Expr.value (ValueT.id z)) >=src (Expr.bop bop_sub s (ValueT.const (const_int s c2)) x)}}
+    else inv0
   | Infrule.add_sub z minusy x y s =>
     if $$ inv0 |- (Expr.value minusy) >=src (Expr.bop bop_sub s (const_int s (INTEGER.of_Z (Size.to_Z s) 0%Z true)) y) $$ &&
        $$ inv0 |- (Expr.value z) >=src (Expr.bop bop_add s x minusy) $$
@@ -160,6 +182,25 @@ Definition apply_infrule
     if $$ inv0 |- (Expr.value z) >=src (Expr.bop bop_add s x y) $$
     then {{inv0 +++ (Expr.value z) >=src (Expr.bop bop_add s y x)}}
     else inv0
+  | Infrule.add_mask z y y' x c1 c2 s =>
+      if $$ inv0 |- (Expr.bop bop_and s x (ValueT.const (const_int s c2))) >=tgt (Expr.value (ValueT.id y)) $$ &&
+         $$ inv0 |- (Expr.bop bop_add s x (ValueT.const (const_int s c1))) >=tgt (Expr.value (ValueT.id y')) $$ &&
+         $$ inv0 |- (Expr.bop bop_and s (ValueT.id y') (ValueT.const (const_int s c2))) >=tgt (Expr.value (ValueT.id z)) $$ &&
+         cond_mask_up s c1 c2
+      then {{inv0 +++ (Expr.bop bop_add s (ValueT.id y) (ValueT.const (const_int s c1))) >=tgt (Expr.value (ValueT.id z)) }}
+      else inv0
+  | Infrule.add_select_zero z x y c n a s =>
+      if $$ inv0 |- (Expr.value (ValueT.id x)) >=src (Expr.bop bop_sub s n a) $$ &&
+         $$ inv0 |- (Expr.value (ValueT.id y)) >=src (Expr.select c (typ_int s) (ValueT.id x) (ValueT.const (const_int s (INTEGER.of_Z (Size.to_Z s) 0%Z true)))) $$ &&
+         $$ inv0 |- (Expr.value (ValueT.id z)) >=src (Expr.bop bop_add s (ValueT.id y) a) $$
+      then {{inv0 +++ (Expr.value (ValueT.id z)) >=src (Expr.select c (typ_int s) n a) }}
+      else inv0
+  | Infrule.add_select_zero2 z x y c n a s =>
+      if $$ inv0 |- (Expr.value (ValueT.id x)) >=src (Expr.bop bop_sub s n a) $$ &&
+         $$ inv0 |- (Expr.value (ValueT.id y)) >=src (Expr.select c (typ_int s) (ValueT.const (const_int s (INTEGER.of_Z (Size.to_Z s) 0%Z true))) (ValueT.id x)) $$ &&
+         $$ inv0 |- (Expr.value (ValueT.id z)) >=src (Expr.bop bop_add s (ValueT.id y) a) $$
+      then {{inv0 +++ (Expr.value (ValueT.id z)) >=src (Expr.select c (typ_int s) a n) }}
+      else inv0
   | Infrule.add_shift y v s =>
     if $$ inv0 |- (Expr.value y) >=src (Expr.bop bop_add s v v) $$
     then {{inv0 +++ (Expr.value y) >=src (Expr.bop bop_shl s v (const_int s (INTEGER.of_Z (Size.to_Z s) 1%Z true)))}}
@@ -175,8 +216,8 @@ Definition apply_infrule
     then {{inv0 +++ (Expr.value z) >=src (Expr.bop bop_add s x y)}}
     else inv0
   | Infrule.neg_val c1 c2 s =>
-    if $$ inv0 |- (Expr.value (const_int s c1)) >=src (Expr.bop bop_sub s (const_int s (INTEGER.of_Z (Size.to_Z s) 0%Z true)) (const_int s c2)) $$ 
-    then {{inv0 +++ (Expr.value (const_int s c1)) >=src (Expr.bop bop_sub s (const_int s (INTEGER.of_Z (Size.to_Z s) 0%Z true)) (const_int s c2))}} 
+    if cond_plus s c1 c2 (INTEGER.of_Z (Size.to_Z s) 0%Z true)  
+    then {{inv0 +++ (Expr.value (const_int s c1)) >=src (Expr.bop bop_sub s (const_int s (INTEGER.of_Z (Size.to_Z s) 0%Z true)) (const_int s c2))}}
     else inv0
   | Infrule.mul_neg z mx my x y s =>
     if $$ inv0 |- (Expr.value mx) >=src (Expr.bop bop_sub s (const_int s (INTEGER.of_Z (Size.to_Z s) 0%Z true)) x) $$ &&

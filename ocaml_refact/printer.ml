@@ -120,7 +120,7 @@ module PrintHints = struct
         
     let unary (u:Invariant.unary): unit =
       let _ = debug_print "* lessdef" in
-      let _ = PrintExprs.exprPairSet (u.Invariant.lessdef) "<=" in
+      let _ = PrintExprs.exprPairSet (u.Invariant.lessdef) ">=" in
       let _ = debug_print "* noalias" in
       let _ = PrintExprs.valueTPairSet (u.Invariant.noalias) "!=" in
       let _ = debug_print "* allocas" in
