@@ -121,7 +121,7 @@ module PrintHints = struct
     
     let invariant (inv:Invariant.t): unit =
       (* print_bar(), print_sum() should be function *)
-      let print_bar() = print_endline (String.make 200 '-') in
+      let print_bar() = debug_print (String.make 200 '-') in
       let num_in_nat = IdTSet.cardinal inv.Invariant.maydiff in
       let num = Datatype_base.Size.from_nat num_in_nat in
       let title =
@@ -134,17 +134,17 @@ module PrintHints = struct
 
       let print_sum() =
         let _ = print_bar() in
-        let _ = print_endline title in
+        let _ = debug_print title in
         let _ = List.iter (fun i ->
                            match i with
                            | [s ; t ; m] ->
-                              print_endline (sprintf "%60s %60s %60s" s t m)
+                              debug_print (sprintf "%60s %60s %60s" s t m)
                            | x ->
                               let _ =
-                                (List.iter (fun i -> print_endline i) x) in
+                                (List.iter (fun i -> debug_print i) x) in
                               failwith "should not occur!") sum in
         let _ = print_bar() in
-        let _ = print_endline "" in
+        let _ = debug_print "" in
         () in
       let _ = if(length sum <> 0) then print_sum() else () in
       ()
