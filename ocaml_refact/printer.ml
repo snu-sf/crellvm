@@ -206,8 +206,12 @@ let cmd_printer (x: LLVMsyntax.cmd): unit =
 let cmd_pair_printer ((x,y): (LLVMsyntax.cmd * LLVMsyntax.cmd)): unit =
   debug_run(
       fun _ ->
+      let print_bar() = debug_print (String.make 200 '-') in
+      print_bar() ;
       debug_print (sprintf "%30s %60s" "[ SRC CMD ]" "[ TGT CMD ]") ;
-      debug_print (sprintf "%30s %60s" (string_of_cmd x) (string_of_cmd y)))
+      debug_print (sprintf "%30s %60s" (string_of_cmd x) (string_of_cmd y)) ;
+      print_bar() ;
+      debug_print(""))
 
 let string_of_char_list (l: char list) =
   List.fold_left (fun s i -> s ^ (Char.escaped i)) "" l
