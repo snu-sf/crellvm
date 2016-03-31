@@ -13,9 +13,9 @@ let debug_print (msg:string): unit =
 module ExprsToString = struct
     let of_Tag (t:Tag.t): string =
       match t with
-      | Tag.Coq_physical -> "Physical"
-      | Tag.Coq_previous -> "Previous"
-      | Tag.Coq_ghost -> "Ghost"
+      | Tag.Coq_physical -> "●"
+      | Tag.Coq_previous -> "◌◍◎"
+      | Tag.Coq_ghost -> "○"
     
     let of_IdT (idt:IdT.t): string =
       let (t, id) = idt in
