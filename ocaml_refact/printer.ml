@@ -119,8 +119,8 @@ module PrintHints = struct
       in ()
         
     let unary (u:Invariant.unary): unit =
-      let _ = PrintExprs.exprPairSet (u.Invariant.lessdef) ">=" in
-      let _ = PrintExprs.valueTPairSet (u.Invariant.noalias) "!=" in
+      let _ = PrintExprs.exprPairSet (u.Invariant.lessdef) "≥" in
+      let _ = PrintExprs.valueTPairSet (u.Invariant.noalias) "≠" in
       let _ = PrintExprs.idTSet (u.Invariant.allocas) "alc" in
       let _ = PrintExprs.idTSet (u.Invariant.coq_private) "isol" in
       ()
