@@ -23,7 +23,6 @@ let rec nat_of_int n =
   if n = 0 then Datatypes.O else Datatypes.S (nat_of_int (n - 1))
 
 let nop_position_atd_to_coq (x : CoreHint_t.position) : Nop.nop_position =
-(* TODO *)
   let nop_pos_i =
     match x.CoreHint_t.instr_index with
     | CoreHint_t.Phinode _ -> Nop.Coq_phi_node
