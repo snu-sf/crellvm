@@ -137,7 +137,7 @@ module InvariantObject = struct
           | CoreHint_t.Source -> Convert.rhs_of register lfdef
           | CoreHint_t.Target -> Convert.rhs_of register rfdef)
       | CoreHint_t.Const (c:CoreHint_t.constant) ->
-         failwith "TODO: convert_expr of const not supported yet"
+         Expr.Coq_value (ValueT.Coq_const (Convert.constant c))
 
     let convert
           (prop_obj:CoreHint_t.propagate_object)
