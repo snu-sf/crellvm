@@ -152,6 +152,8 @@ Notation "$$ inv |-allocasrc y $$" := (IdTSet.mem y inv.(Invariant.src).(Invaria
 Notation "$$ inv |-allocatgt y $$" := (IdTSet.mem y inv.(Invariant.tgt).(Invariant.allocas)) (at level 41).
 Notation "{{ inv +++ y >=src rhs }}" := (Invariant.update_src (Invariant.update_lessdef (ExprPairSet.add (y, rhs))) inv) (at level 41).
 Notation "{{ inv +++ y >=tgt rhs }}" := (Invariant.update_tgt (Invariant.update_lessdef (ExprPairSet.add (y, rhs))) inv) (at level 41).
+Notation "{{ inv --- y >=src rhs }}" := (Invariant.update_src (Invariant.update_lessdef (ExprPairSet.remove (y, rhs))) inv) (at level 41).
+Notation "{{ inv --- y >=tgt rhs }}" := (Invariant.update_tgt (Invariant.update_lessdef (ExprPairSet.remove (y, rhs))) inv) (at level 41).
 Notation "{{ inv +++ y _|_src x }}" := (Invariant.update_src (Invariant.update_noalias (ValueTPairSet.add (y, x))) inv) (at level 41).
 Notation "{{ inv +++ y _|_tgt x }}" := (Invariant.update_tgt (Invariant.update_noalias (ValueTPairSet.add (y, x))) inv) (at level 41).
 
@@ -280,10 +282,17 @@ Definition apply_infrule
   | Infrule.intro_ghost x y z =>
     if $$ inv0 |- (Expr.value (ValueT.id x)) >=src (Expr.value y) $$ &&
        Invariant.not_in_maydiff inv0 y
-    then {{
-      {{inv0 +++ (Expr.value y) >=src (Expr.value (ValueT.id (Tag.ghost, z)))}}
-             +++ (Expr.value (ValueT.id (Tag.ghost, z))) >=tgt (Expr.value y)
-    }}
+    then if (negb (IdTSet.mem (Tag.ghost, z) (IdTSet_from_list (Invariant.get_idTs inv0))))
+         then {{
+          {{ inv0 +++ (Expr.value y) >=src (Expr.value (ValueT.id (Tag.ghost, z))) }}
+                  +++ (Expr.value (ValueT.id (Tag.ghost, z))) >=tgt (Expr.value y)
+         }}
+         else {{
+          {{ inv0 --- (Invariant.get_lhs_in_src inv0 (Expr.value (ValueT.id (Tag.ghost, z)))) 
+                                          >=src (Expr.value (ValueT.id (Tag.ghost, z))) }}
+                  --- (Expr.value (ValueT.id (Tag.ghost, z))) 
+                            >=tgt (Invariant.get_rhs_in_tgt inv0 (Expr.value (ValueT.id (Tag.ghost, z))))
+         }}
     else inv0
   | _ => inv0 (* TODO *)
   end.

@@ -141,6 +141,30 @@ Module Invariant.
     (get_idTs_unary src)
       ++ (get_idTs_unary tgt)
       ++ (IdTSet.elements maydiff).
+
+  Definition get_lhs_in_src (inv: t) (rhs: Expr.t): Expr.t :=
+    let (src, tgt, maydiff) := inv in
+    let (lessdef, noalias, allocas, private) := src in
+    let res := (List.filter
+       (fun (p: ExprPair.t) =>
+          let (x, y) := p in Expr.eq_dec y rhs)
+       (ExprPairSet.elements lessdef)) in
+    match res with
+    | nil => rhs
+    | (a, b)::t => a
+    end.
+
+  Definition get_rhs_in_tgt (inv: t) (lhs: Expr.t): Expr.t :=
+    let (src, tgt, maydiff) := inv in
+    let (lessdef, noalias, allocas, private) := tgt in
+    let res := (List.filter
+       (fun (p: ExprPair.t) =>
+          let (x, y) := p in Expr.eq_dec x lhs)
+       (ExprPairSet.elements lessdef)) in
+    match res with
+    | nil => lhs
+    | (a, b)::t => b
+    end.
 End Invariant.
 
 Module Infrule.
