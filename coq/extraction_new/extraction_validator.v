@@ -25,6 +25,7 @@ Extract Constant debug_print_validation_process => "Printer.debug_print_validati
 Extract Constant debug_print => "fun (printer: 'a -> unit) (x: 'a) -> let _ = printer x in x".
 Extract Constant debug_string => "Printer.debug_string".
 Extract Constant cmd_printer => "Printer.cmd_printer".
+Extract Constant cmd_pair_printer => "Printer.cmd_pair_printer".
 Extract Constant atom_printer => "Printer.atom_printer".
 Extract Constant idT_printer => "Printer.idT_printer".
 

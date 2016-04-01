@@ -1,21 +1,25 @@
 type scope = [ Source | Target ] <ocaml repr="classic">
 
 type position_phinode = {
-  block_name : string;
   prev_block_name : string;
 }
 
 type position_command = {
-  block_name : string;
   index : int;
-  register_name : (scope * string) option;
+  register_name : string;
 }
 
 (* Position of an instruction is phinode or register *)
-type position = [
+type instr_index = [
   | Phinode of position_phinode
   | Command of position_command
   ] <ocaml repr="classic">
+
+type position = {
+  scope : scope;
+  block_name : string;
+  instr_index : instr_index;
+}
 
 (* If tag of register is one of Physical, Previous, and Ghost *)
 type tag = [ Physical | Previous | Ghost ] <ocaml repr="classic">
@@ -409,14 +413,9 @@ type infrule = [
   | IntroGhost of intro_ghost
   ] <ocaml repr="classic">
 
-type command = [
+type hint_command = [
   | Propagate of propagate
   | Infrule of (position * infrule)
-  ] <ocaml repr="classic">
-
-type nop_position = [
-  | PhinodeCurrentBlockName of string
-  | CommandRegisterName of string
   ] <ocaml repr="classic">
 
 type hints = {
@@ -424,8 +423,7 @@ type hints = {
   function_id : string;
   opt_name : string;
 
-  src_nop_positions: nop_position list; (* insert after position *)
-  tgt_nop_positions: nop_position list;
+  nop_positions: position list; (* insert after position *)
 
-  commands : command list;
+  commands : hint_command list;
 }

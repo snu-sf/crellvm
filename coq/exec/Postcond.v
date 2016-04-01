@@ -195,10 +195,8 @@ Module ForgetMemory.
 End ForgetMemory.
 
 Definition reduce_non_physical (inv0: Invariant.t): Invariant.t :=
-  let inv0 := (debug_string "** reduce_non_physical :: list of used ids" inv0) in
   let (src, tgt, _) := inv0 in
   let used_ids := ((Invariant.get_idTs_unary src) ++ (Invariant.get_idTs_unary tgt)) in
-  let used_ids := List.map (fun x => debug_print idT_printer x) used_ids in
   Invariant.update_maydiff
     (IdTSet.filter
        (fun idt =>
