@@ -3,6 +3,7 @@ open Hints
 open Syntax
 open Coq_pretty_printer
 open Printf
+open List
        
 let out_channel = ref stdout
 
@@ -12,9 +13,9 @@ let debug_print (msg:string): unit =
 module ExprsToString = struct
     let of_Tag (t:Tag.t): string =
       match t with
-      | Tag.Coq_physical -> "Physical"
-      | Tag.Coq_previous -> "Previous"
-      | Tag.Coq_ghost -> "Ghost"
+      | Tag.Coq_physical -> "●"
+      | Tag.Coq_previous -> "◎"
+      | Tag.Coq_ghost -> "○"
     
     let of_IdT (idt:IdT.t): string =
       let (t, id) = idt in
@@ -81,26 +82,20 @@ module ExprsToString = struct
   end
 
 module PrintExprs = struct
-    let exprPairSet (eps: ExprPairSet.t) (sym:string): unit =
-       let _ = ExprPairSet.fold
-                 (fun ep _ ->
-                  debug_print (ExprsToString.of_exprPair ep sym))
-                 eps ()
-       in ()
+    let exprPairSet (eps: ExprPairSet.t) (sym:string): string list =
+      List.map
+        (fun ep -> (ExprsToString.of_exprPair ep sym))
+        (ExprPairSet.elements eps)
 
-    let valueTPairSet (vtps: ValueTPairSet.t) (sym:string): unit = 
-       let _ = ValueTPairSet.fold
-                 (fun vtp _ ->
-                  debug_print (ExprsToString.of_valueTPair vtp sym))
-                 vtps ()
-       in ()
+    let valueTPairSet (vtps: ValueTPairSet.t) (sym:string): string list = 
+      List.map
+        (fun vtp -> (ExprsToString.of_valueTPair vtp sym))
+        (ValueTPairSet.elements vtps)
 
-    let idTSet (idts: IdTSet.t): unit =
-       let _ = IdTSet.fold
-                 (fun idt _ ->
-                  debug_print (ExprsToString.of_IdT idt))
-                 idts () in
-       ()
+    let idTSet (idts: IdTSet.t) (sym: string): string list =
+      List.map
+        (fun idt -> (sym ^ (ExprsToString.of_IdT idt)))
+        (IdTSet.elements idts)
   end
                       
 module PrintHints = struct
@@ -118,27 +113,40 @@ module PrintHints = struct
                 infs
       in ()
         
-    let unary (u:Invariant.unary): unit =
-      let _ = debug_print "* lessdef" in
-      let _ = PrintExprs.exprPairSet (u.Invariant.lessdef) ">=" in
-      let _ = debug_print "* noalias" in
-      let _ = PrintExprs.valueTPairSet (u.Invariant.noalias) "!=" in
-      let _ = debug_print "* allocas" in
-      let _ = PrintExprs.idTSet (u.Invariant.allocas) in
-      let _ = debug_print "* private" in
-      let _ = PrintExprs.idTSet (u.Invariant.coq_private) in
-      ()
+    let unary (u:Invariant.unary): string list =
+      (PrintExprs.exprPairSet (u.Invariant.lessdef) "≥") @
+        (PrintExprs.valueTPairSet (u.Invariant.noalias) "≠") @
+        (PrintExprs.idTSet (u.Invariant.allocas) "alc") @
+        (PrintExprs.idTSet (u.Invariant.coq_private) "isol")
     
     let invariant (inv:Invariant.t): unit =
-      let _ = debug_print "[ SOURCE ]" in
-      let _ = unary (inv.Invariant.src) in
-      let _ = debug_print "[ TARGET ]" in
-      let _ = unary (inv.Invariant.tgt) in
-
+      (* print_bar(), print_sum() should be function *)
+      let print_bar() = debug_print (String.make 200 '-') in
       let num_in_nat = IdTSet.cardinal inv.Invariant.maydiff in
       let num = Datatype_base.Size.from_nat num_in_nat in
-      let _ = debug_print (Printf.sprintf "[ MayDiff ] (%d)" num) in
-      let _ = PrintExprs.idTSet (inv.Invariant.maydiff) in
+      let title =
+        Printf.sprintf "%30s %60s %60s (%d)"
+                       "[ SOURCE ]" "[ TARGET ]" "[ MayDiff ]" num in
+      let src = unary (inv.Invariant.src) in
+      let tgt = unary (inv.Invariant.tgt) in
+      let maydiff = PrintExprs.idTSet (inv.Invariant.maydiff) "" in
+      let sum = TODOCAML.list_zip [src ; tgt ; maydiff] "-" in
+
+      let print_sum() =
+        let _ = print_bar() in
+        let _ = debug_print title in
+        let _ = List.iter (fun i ->
+                           match i with
+                           | [s ; t ; m] ->
+                              debug_print (sprintf "%60s %60s %60s" s t m)
+                           | x ->
+                              let _ =
+                                (List.iter (fun i -> debug_print i) x) in
+                              failwith "should not occur!") sum in
+        let _ = print_bar() in
+        let _ = debug_print "" in
+        () in
+      let _ = if(length sum <> 0) then print_sum() else () in
       ()
   end
 
@@ -194,6 +202,16 @@ let cmd_printer (x: LLVMsyntax.cmd): unit =
   debug_run(
       fun _ ->
       debug_print (string_of_cmd x))
+
+let cmd_pair_printer ((x,y): (LLVMsyntax.cmd * LLVMsyntax.cmd)): unit =
+  debug_run(
+      fun _ ->
+      let print_bar() = debug_print (String.make 200 '-') in
+      print_bar() ;
+      debug_print (sprintf "%30s %60s" "[ SRC CMD ]" "[ TGT CMD ]") ;
+      debug_print (sprintf "%30s %60s" (string_of_cmd x) (string_of_cmd y)) ;
+      print_bar() ;
+      debug_print(""))
 
 let string_of_char_list (l: char list) =
   List.fold_left (fun s i -> s ^ (Char.escaped i)) "" l
