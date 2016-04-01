@@ -164,6 +164,13 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
          Infrule.Coq_transitivity_pointer_rhs (p, q, v, typ, align)
       | _ -> failwith "loadq must be load instruction."
       )
+  | CoreHint_t.BopBoth (args:CoreHint_t.bop_both) ->
+      let b = Convert.bop args.b in
+      let x = Convert.value args.x in
+      let y = Convert.value args.y in
+      let z = Convert.value args.z in
+      let sz = Convert.size args.sz in
+      Infrule.Coq_bop_both (b, x, y, z, sz)
   | CoreHint_t.ReplaceRhs (args:CoreHint_t.replace_rhs) ->
       let x = Convert.register args.x in
       let y = Convert.value args.y in

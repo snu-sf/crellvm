@@ -66,6 +66,8 @@ type value = [ Id of register | ConstVal of constant ] <ocaml repr="classic">
 
 type size = [ Size of int ] <ocaml repr="classic">
 
+type bop = [ Bop_add | Bop_sub | Bop_mul | Bop_udiv | Bop_sdiv | Bop_urem | Bop_srem | Bop_shl | Bop_lshr | Bop_ashr | Bop_and | Bop_or | Bop_xor ] <ocaml repr="classic">
+
 (*****************************************)
 (*              Propagates               *)
 (*****************************************)
@@ -175,6 +177,14 @@ type transitivity_pointer_rhs = {
   q : value;
   v : value;
   loadp : expr;
+}
+
+type bop_both = {
+  b : bop;
+  x : value;
+  y : value;
+  z : value;
+  sz : size;
 }
 
 type replace_rhs = {
@@ -403,6 +413,7 @@ type infrule = [
   | Transitivity of transitivity
   | TransitivityPointerLhs of transitivity_pointer_lhs
   | TransitivityPointerRhs of transitivity_pointer_rhs
+  | BopBoth of bop_both
   | ReplaceRhs of replace_rhs
   ] <ocaml repr="classic">
 
