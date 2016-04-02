@@ -269,6 +269,8 @@ type neg_val = {
 
 type sub_mone = {
   z : register;
+  x : value;
+  sz : size;
 }
 
 type sub_const_not = {
@@ -291,6 +293,8 @@ type sub_remove2 = {
 
 type sub_onebit = {
   z : register;
+  x : value;
+  y : value;
 }
 
 type sub_const_add = {
@@ -299,14 +303,21 @@ type sub_const_add = {
 }
 
 type sub_sdiv = {
-  y : register;
   z : register;
+  y : register;
+  x : value;
+  c : const_int;
+  cprime : const_int;
+  sz : size;
 }
 
 type sub_shl = {
-  x : register;
-  y : register;
   z : register;
+  x : value;
+  y : register;
+  mx : value;
+  a : value;
+  sz : size;
 }
 
 type mul_bool = {
