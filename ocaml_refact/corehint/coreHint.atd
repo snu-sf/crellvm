@@ -187,6 +187,11 @@ type bop_both = {
   sz : size;
 }
 
+type intro_eq = {
+  x : value;
+  g : register;
+}
+
 type replace_rhs = {
   x : register;
   y : value;
@@ -414,6 +419,7 @@ type infrule = [
   | TransitivityPointerLhs of transitivity_pointer_lhs
   | TransitivityPointerRhs of transitivity_pointer_rhs
   | BopBoth of bop_both
+  | IntroEq of intro_eq
   | ReplaceRhs of replace_rhs
   ] <ocaml repr="classic">
 

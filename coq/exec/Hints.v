@@ -166,6 +166,7 @@ Module Infrule.
   | transitivity_pointer_lhs (p:ValueT.t) (q:ValueT.t) (v:ValueT.t) (ty:typ) (a:align)
   | transitivity_pointer_rhs (p:ValueT.t) (q:ValueT.t) (v:ValueT.t) (ty:typ) (a:align)
   | bop_both (b:bop) (x:ValueT.t) (y:ValueT.t) (z:ValueT.t) (s:sz)
+  | intro_eq (x:ValueT.t) (g:IdT.t) (* tag of g should be ghost. *)
   | replace_rhs (x:IdT.t) (y:ValueT.t) (e1:Expr.t) (e2:Expr.t) (e2':Expr.t)
 
 (* Updated semantics of rules should be located above this line *)

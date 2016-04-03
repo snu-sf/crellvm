@@ -171,6 +171,10 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
       let z = Convert.value args.z in
       let sz = Convert.size args.sz in
       Infrule.Coq_bop_both (b, x, y, z, sz)
+  | CoreHint_t.IntroEq (args:CoreHint_t.intro_eq) ->
+      let x = Convert.value args.x in
+      let g = Convert.register args.g in
+      Infrule.Coq_intro_eq (x, g)
   | CoreHint_t.ReplaceRhs (args:CoreHint_t.replace_rhs) ->
       let x = Convert.register args.x in
       let y = Convert.value args.y in
