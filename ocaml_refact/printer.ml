@@ -108,9 +108,9 @@ module PrintExprs = struct
         (fun idt -> (sym ^ (ExprsToString.of_IdT idt)))
         (IdTSet.elements idts)
 
-    let ptrSet (ps: PtrSet.t): string list =
+    let ptrSet (ps: PtrSet.t) (sym: string): string list =
       List.map
-        (fun p -> (ExprsToString.of_Ptr p))
+        (fun p -> (sym ^ ExprsToString.of_Ptr p))
         (PtrSet.elements ps)
 
     let ptrPairSet (pps: PtrPairSet.t) (sym:string): string list =
@@ -136,8 +136,8 @@ module PrintHints = struct
         
     let unary (u:Invariant.unary): string list =
       (PrintExprs.exprPairSet (u.Invariant.lessdef) "≥") @
-        (PrintExprs.valueTPairSet (u.Invariant.noalias) "≠") @
-        (PrintExprs.idTSet (u.Invariant.allocas) "alc") @
+        (PrintExprs.ptrPairSet (u.Invariant.alias.Invariant.noalias) "≠") @
+        (PrintExprs.ptrSet (u.Invariant.allocas) "alc") @
         (PrintExprs.idTSet (u.Invariant.coq_private) "isol")
     
     let invariant (inv:Invariant.t): unit =
