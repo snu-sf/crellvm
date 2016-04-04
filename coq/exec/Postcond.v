@@ -324,18 +324,17 @@ Module Phinode.
      Expr.value (ValueT.lift Tag.previous (get_rhs a))).
 End Phinode.
 
-
-
 Definition get_br_cond
            (term:terminator)
            (l_to:l): ExprPairSet.t :=
+  let sz := Size.One in
   match term with
     | insn_br _ v l1 l2 =>
       if (l_dec l_to l1)
-      then ExprPairSet.singleton (Expr.value (ValueT.lift Tag.physical v), Expr.value (ValueT.const (const_int 1%nat 1%Z)))
+      then ExprPairSet.singleton (Expr.value (ValueT.lift Tag.physical v), Expr.value (ValueT.const (const_int sz (INTEGER.of_Z (Size.to_Z sz) 1%Z true))))
       else
       if (l_dec l_to l2)
-      then ExprPairSet.singleton (Expr.value (ValueT.lift Tag.physical v), Expr.value (ValueT.const (const_int 1%nat 0%Z)))
+      then ExprPairSet.singleton (Expr.value (ValueT.lift Tag.physical v), Expr.value (ValueT.const (const_int sz (INTEGER.of_Z (Size.to_Z sz) 0%Z true))))
       else debug_string "get_br_cond: label not matched" ExprPairSet.empty
     | _ => ExprPairSet.empty
   end.
