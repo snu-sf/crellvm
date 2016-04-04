@@ -18,37 +18,33 @@ Set Implicit Arguments.
 (* Should manually be extracted to proper Ocaml code. *)
 Parameter next_nop_id: blocks -> id.
 
-Inductive nop_position : Type :=
-  | phi_node_current_block_name : l -> nop_position
-  | command_register_name : id -> nop_position
+Inductive nop_instr_index : Type :=
+  | phi_node : nop_instr_index
+  | command_index : nat -> nop_instr_index
 .
+
+Definition nop_position : Type := l * nop_instr_index.
+  
 (* Search through blocks with target label, and insert nop. *)
 (* Logic adding nop is commented below. *)
 (* If there is multiple blocks with target label, it only inserts in FIRST block. *)
 Definition insert_nop (target : nop_position) (bs:blocks): blocks :=
   mapiAL (fun i stmts =>
-            match target with
-              | phi_node_current_block_name target_l =>
-                if(eq_atom_dec i target_l)
-                then let '(stmts_intro ps cmds t) := stmts in
-                     let cmds := insert_at 0 (insn_nop (next_nop_id bs)) cmds in
-                     (stmts_intro ps cmds t)
-                else stmts
-              | command_register_name target_id =>
-                let '(stmts_intro phinodes cmds terminator) := stmts in
-                let cmds_idx :=
-                    find_index
-                      cmds
-                      (fun c => if eq_atom_dec (getCmdLoc c) target_id then true else false)
-                in
-                let cmds :=
-                    match cmds_idx with
-                      | None => cmds
-                      | Some idx => insert_at (idx + 1) (insn_nop (next_nop_id bs)) cmds
-                    end
-                in
-                stmts_intro phinodes cmds terminator
-            end) bs.
+            let (target_l, pos_i) := target in
+            if (eq_atom_dec i target_l)
+            then
+              match pos_i with
+                | phi_node =>
+                  let '(stmts_intro ps cmds t) := stmts in
+                  let cmds := insert_at 0 (insn_nop (next_nop_id bs)) cmds in
+                  (stmts_intro ps cmds t)
+                | command_index idx =>
+                  let '(stmts_intro phinodes cmds terminator) := stmts in
+                  let cmds := insert_at (idx + 1) (insn_nop (next_nop_id bs)) cmds in
+                  stmts_intro phinodes cmds terminator
+              end
+            else stmts
+         ) bs.
 
 Definition insert_nops (targets:list nop_position) (bs:blocks): blocks :=
   List.fold_left (flip insert_nop) targets bs.
@@ -133,31 +129,29 @@ Proof.
 
   ii. unfold insert_nop.
   unfold lift2_option.
-  destruct nop_position; simpl.
+  destruct nop_position.
+  destruct n; simpl.
   - rewrite lookupAL_mapiAL.
     insert_nop_ltac.
     destruct s, s0.
     simpl in *.
-    destruct (eq_atom_dec bid l0); simpl in *; inv T0; splits; auto.
-    + unfold nop_cmds. simpl. auto.
-    + unfold nop_cmds; auto.
+    destruct (eq_atom_dec bid l0);
+      inv T0; unfold nop_cmds; auto.
   - rewrite lookupAL_mapiAL.
     insert_nop_ltac.
     destruct s, s0.
     simpl in T0.
     inv T0.
-    splits; auto.
-    destruct (find_index
-                cmds5 (fun c : cmd => if eq_atom_dec (getCmdLoc c) i0 then true else false)) eqn:T2.
-    + unfold insert_at.
+    destruct (eq_atom_dec bid l0).
+    + inv H0.
+      unfold insert_at.
       unfold nop_cmds.
       rewrite util.filter_app.
       simpl.
       rewrite <- util.filter_app.
       rewrite firstn_skipn.
       auto.
-    + unfold nop_cmds.
-      auto.
+    + inv H0. unfold nop_cmds. eauto.
 Qed.
 
 Lemma insert_nop_spec2 id bs:

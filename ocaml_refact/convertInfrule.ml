@@ -29,6 +29,23 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
      let c3 = Convert.const_int args.c3 in
      let sz = Convert.size args.sz in
      Infrule.Coq_add_associative (x, y, z, c1, c2, c3, sz)
+  | CoreHint_t.AddConstNot (args:CoreHint_t.add_const_not) ->
+     let z = Convert.register args.z in
+     let y = Convert.register args.y in
+     let x = Convert.value args.x in
+     let c1 = Convert.const_int args.c1 in
+     let c2 = Convert.const_int args.c2 in
+     let sz = Convert.size args.sz in
+     Infrule.Coq_add_const_not (z,y,x,c1,c2,sz)
+  | CoreHint_t.AddMask (args:CoreHint_t.add_mask) ->
+     let z = Convert.register args.z in
+     let y = Convert.register args.y in
+     let y' = Convert.register args.yprime in
+     let x = Convert.value args.x in
+     let c1 = Convert.const_int args.c1 in
+     let c2 = Convert.const_int args.c2 in
+     let sz = Convert.size args.sz in
+     Infrule.Coq_add_mask(z,y,y',x,c1,c2,sz)
   | CoreHint_t.AddSub (args:CoreHint_t.add_sub) ->
      let z = Convert.register args.z in
      let minusy = Convert.register args.minusy in
@@ -47,6 +64,24 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
      let x = Convert.value args.x in
      let y = Convert.value args.y in
      Infrule.Coq_add_onebit (z, x, y)
+  | CoreHint_t.AddSelectZero (args:CoreHint_t.add_select_zero) ->
+     let z = Convert.register args.z in
+     let x = Convert.register args.x in
+     let y = Convert.register args.y in
+     let c = Convert.value args.c in
+     let n = Convert.value args.n in
+     let a = Convert.value args.a in
+     let sz = Convert.size args.sz in
+     Infrule.Coq_add_select_zero (z, x, y, c, n, a, sz)
+  | CoreHint_t.AddSelectZero2 (args:CoreHint_t.add_select_zero2) ->
+     let z = Convert.register args.z in
+     let x = Convert.register args.x in
+     let y = Convert.register args.y in
+     let c = Convert.value args.c in
+     let n = Convert.value args.n in
+     let a = Convert.value args.a in
+     let sz = Convert.size args.sz in
+     Infrule.Coq_add_select_zero2 (z, x, y, c, n, a, sz)
   | CoreHint_t.AddShift (args:CoreHint_t.add_shift) ->
      let y = Convert.register args.y in
      let v = Convert.value args.v in
@@ -91,6 +126,16 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
       let x = Convert.register args.x in
       let y = Convert.register args.y in
       Infrule.Coq_mul_bool (z, x, y) 
+  | CoreHint_t.SubMone (args:CoreHint_t.sub_mone) ->
+      let z = Convert.register args.z in
+      let x = Convert.value args.x in
+      let sz = Convert.size args.sz in
+      Infrule.Coq_sub_mone (z, x, sz)
+  | CoreHint_t.SubOnebit (args:CoreHint_t.sub_onebit) ->
+      let z = Convert.register args.z in
+      let x = Convert.value args.x in
+      let y = Convert.value args.y in
+      Infrule.Coq_sub_onebit (z, x, y)
   | CoreHint_t.SubRemove (args:CoreHint_t.sub_remove) ->
       let z = Convert.register args.z in
       let y = Convert.register args.y in
@@ -98,6 +143,22 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
       let b = Convert.value args.b in
       let sz = Convert.size args.sz in
       Infrule.Coq_sub_remove (z, y, a, b, sz)
+  | CoreHint_t.SubSdiv (args:CoreHint_t.sub_sdiv) ->
+      let z = Convert.register args.z in
+      let y = Convert.register args.y in
+      let x = Convert.value args.x in
+      let c = Convert.const_int args.c in
+      let c' = Convert.const_int args.cprime in
+      let sz = Convert.size args.sz in
+      Infrule.Coq_sub_sdiv (z, y, x, c, c', sz)
+  | CoreHint_t.SubShl (args:CoreHint_t.sub_shl) ->
+      let z = Convert.register args.z in
+      let x = Convert.value args.x in
+      let y = Convert.register args.y in
+      let mx = Convert.value args.mx in
+      let a = Convert.value args.a in
+      let sz = Convert.size args.sz in
+      Infrule.Coq_sub_shl (z, x, y, mx, a, sz)
   | CoreHint_t.Transitivity (args:CoreHint_t.transitivity) ->
       let e1 = Convert.expr args.e1 src_fdef tgt_fdef in
       let e2 = Convert.expr args.e2 src_fdef tgt_fdef in

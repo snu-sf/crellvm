@@ -25,10 +25,8 @@ Fixpoint valid_cmds
          (inv0:Invariant.t): option Invariant.t :=
   match hint, src, tgt with
   | (infrules, inv)::hint, cmd_src::src, cmd_tgt::tgt =>
-    let cmd_src := (debug_string "src cmd" cmd_src) in
-    let cmd_src := (debug_print cmd_printer cmd_src) in
-    let cmd_tgt := (debug_string "tgt cmd" cmd_tgt) in
-    let cmd_tgt := (debug_print cmd_printer cmd_tgt) in
+    let (cmd_src, cmd_tgt) :=
+        (debug_print cmd_pair_printer (cmd_src, cmd_tgt)) in
     match postcond_cmd cmd_src cmd_tgt inv0 with
     | None => failwith_None "valid_cmds: postcond_cmd returned None" nil
     | Some inv1 =>
