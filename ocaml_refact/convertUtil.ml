@@ -129,6 +129,22 @@ module Convert = struct
   let size (sz:CoreHint_t.size): LLVMsyntax.sz =
     let (Size sz) = sz in sz
 
+  let bop (b:CoreHint_t.bop): LLVMsyntax.bop =
+    match b with
+    | CoreHint_t.Bop_add -> Coq_bop_add
+    | CoreHint_t.Bop_sub -> Coq_bop_sub
+    | CoreHint_t.Bop_mul -> Coq_bop_mul
+    | CoreHint_t.Bop_udiv -> Coq_bop_udiv
+    | CoreHint_t.Bop_sdiv -> Coq_bop_sdiv
+    | CoreHint_t.Bop_urem -> Coq_bop_urem
+    | CoreHint_t.Bop_srem -> Coq_bop_srem
+    | CoreHint_t.Bop_shl -> Coq_bop_shl
+    | CoreHint_t.Bop_lshr -> Coq_bop_lshr
+    | CoreHint_t.Bop_ashr -> Coq_bop_ashr
+    | CoreHint_t.Bop_and -> Coq_bop_and
+    | CoreHint_t.Bop_or -> Coq_bop_or
+    | CoreHint_t.Bop_xor -> Coq_bop_xor
+
   let llvmvalue (value:LLVMsyntax.value): ValueT.t =
     match value with
     | Coq_value_id id -> ValueT.Coq_id (Tag.Coq_physical, id)
