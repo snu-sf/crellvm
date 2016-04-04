@@ -282,8 +282,8 @@ Definition apply_infrule
     else inv0
   | Infrule.intro_eq x g =>
     if is_ghost g
-    then {{ {{inv0 +++ (Expr.value x) >=tgt (Expr.value (ValueT.id g)) }}
-                   +++ (Expr.value (ValueT.id g)) >=tgt (Expr.value x) }}
+    then {{ {{inv0 +++ (Expr.value x) >=src (Expr.value (ValueT.id g)) }}
+                   +++ (Expr.value (ValueT.id g)) >=src (Expr.value x) }}
     else inv0
   | Infrule.replace_rhs x y e1 e2 e2' =>
     if $$ inv0 |- (Expr.value x) >=src (Expr.value y) $$ &&
