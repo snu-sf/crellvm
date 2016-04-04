@@ -55,6 +55,7 @@ Definition valid_phinodes
                         | None => nil
                         | Some infrules => infrules
                     end in
+    let inv0 := postcond_branch blocks_src blocks_tgt l_from l_to inv0 in
     match postcond_phinodes l_from phinodes_src phinodes_tgt inv0 with
       | None => failwith_false "valid_phinodes: postcond_phinodes returned None at phinode" (l_from::l_to::nil)
       | Some inv1 =>

@@ -324,6 +324,34 @@ Module Phinode.
      Expr.value (ValueT.lift Tag.previous (get_rhs a))).
 End Phinode.
 
+
+
+Definition get_br_cond
+           (term:terminator)
+           (l_to:l): ExprPairSet.t :=
+  match term with
+    | insn_br _ v l1 l2 =>
+      if (l_dec l_to l1)
+      then ExprPairSet.singleton (Expr.value (ValueT.lift Tag.physical v), Expr.value (ValueT.const (const_int 1%nat 1%Z)))
+      else
+      if (l_dec l_to l2)
+      then ExprPairSet.singleton (Expr.value (ValueT.lift Tag.physical v), Expr.value (ValueT.const (const_int 1%nat 0%Z)))
+      else debug_string "get_br_cond: label not matched" ExprPairSet.empty
+    | _ => ExprPairSet.empty
+  end.
+
+Definition postcond_branch
+           (blocks_src blocks_tgt:blocks)
+           (l_from l_to:l)
+           (inv:Invariant.t): Invariant.t :=
+  match lookupAL _ blocks_src l_from, lookupAL _ blocks_tgt l_from with
+    | Some (stmts_intro _ _ term_src), Some (stmts_intro _ _ term_tgt) =>
+      let inv1 := Invariant.update_src (Invariant.update_lessdef (ExprPairSet.union (get_br_cond term_src l_to))) inv in
+      let inv2 := Invariant.update_tgt (Invariant.update_lessdef (ExprPairSet.union (get_br_cond term_tgt l_to))) inv1 in
+      inv2
+    | _, _ => inv
+  end.
+
 Definition postcond_phinodes_add_lessdef
            (assigns:list Phinode.assign)
            (inv0:ExprPairSet.t): ExprPairSet.t :=
