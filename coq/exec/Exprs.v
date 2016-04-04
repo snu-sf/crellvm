@@ -237,6 +237,10 @@ Module Ptr <: UsualDecidableType.
     apply ValueT.eq_dec.
     apply typ_dec.
   Defined.
+  Definition get_idTs (p: t): option IdT.t :=
+    match p with
+    | (v,_) => ValueT.get_idTs v
+    end.
 End Ptr.
 
 Module PtrSet: FSetExtra.WSfun Ptr := FSetExtra.Make Ptr.

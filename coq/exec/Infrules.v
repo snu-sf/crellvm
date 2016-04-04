@@ -132,12 +132,12 @@ Definition cond_replace_lessdef (x:IdT.t) (y:ValueT.t) (e e':Expr.t) : bool :=
 
 Notation "$$ inv |- y >=src rhs $$" := (ExprPairSet.mem (y, rhs) inv.(Invariant.src).(Invariant.lessdef)) (at level 41).
 Notation "$$ inv |- y >=tgt rhs $$" := (ExprPairSet.mem (y, rhs) inv.(Invariant.tgt).(Invariant.lessdef)) (at level 41).
-Notation "$$ inv |-allocasrc y $$" := (IdTSet.mem y inv.(Invariant.src).(Invariant.allocas)) (at level 41).
-Notation "$$ inv |-allocatgt y $$" := (IdTSet.mem y inv.(Invariant.tgt).(Invariant.allocas)) (at level 41).
+Notation "$$ inv |-allocasrc y $$" := (PtrSet.mem y inv.(Invariant.src).(Invariant.allocas)) (at level 41).
+Notation "$$ inv |-allocatgt y $$" := (PtrSet.mem y inv.(Invariant.tgt).(Invariant.allocas)) (at level 41).
 Notation "{{ inv +++ y >=src rhs }}" := (Invariant.update_src (Invariant.update_lessdef (ExprPairSet.add (y, rhs))) inv) (at level 41).
 Notation "{{ inv +++ y >=tgt rhs }}" := (Invariant.update_tgt (Invariant.update_lessdef (ExprPairSet.add (y, rhs))) inv) (at level 41).
-Notation "{{ inv +++ y _|_src x }}" := (Invariant.update_src (Invariant.update_noalias (ValueTPairSet.add (y, x))) inv) (at level 41).
-Notation "{{ inv +++ y _|_tgt x }}" := (Invariant.update_tgt (Invariant.update_noalias (ValueTPairSet.add (y, x))) inv) (at level 41).
+Notation "{{ inv +++ y _|_src x }}" := (Invariant.update_src (Invariant.update_noalias (PtrPairSet.add (y, x))) inv) (at level 41).
+Notation "{{ inv +++ y _|_tgt x }}" := (Invariant.update_tgt (Invariant.update_noalias (PtrPairSet.add (y, x))) inv) (at level 41).
 
 (* TODO *)
 Definition apply_infrule
@@ -208,14 +208,14 @@ Definition apply_infrule
        $$ inv0 |- e2 >=src e3 $$ 
     then {{inv0 +++ e1 >=src e3}}
     else inv0
-  | Infrule.noalias_global_alloca x y =>
+  | Infrule.noalias_global_alloca (x, t1) (y, t2) =>
     match x with
-    | (Tag.physical, x_id) =>
+    | ValueT.id (Tag.physical, x_id) =>
       match lookupTypViaGIDFromModule m_src x_id with
       | None => inv0
       | Some x_type => (* x is a global variable *)
-        if $$ inv0 |-allocasrc y $$ then
-          {{inv0 +++ (ValueT.id y) _|_src (ValueT.const (const_gid x_type x_id)) }}
+        if $$ inv0 |-allocasrc (y, t2) $$ then
+          {{inv0 +++ (y, t2) _|_src (ValueT.const (const_gid x_type x_id), t1) }}
         else inv0
       end
     | _ => inv0

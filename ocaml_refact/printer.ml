@@ -30,6 +30,11 @@ module ExprsToString = struct
       | ValueT.Coq_const c ->
          (of_const c)
 
+    let of_Ptr (p:Ptr.t): string =
+      match p with
+      | (vt, typ) ->
+        Printf.sprintf "%s:ptr" (of_ValueT vt)
+
     let of_sz (s:LLVMsyntax.sz): string =
       Printf.sprintf "(sz %d)" s
 
@@ -78,6 +83,12 @@ module ExprsToString = struct
       let s1 = of_ValueT v1 in
       let s2 = of_ValueT v2 in
       Printf.sprintf "%s %s %s" s1 sym s2
+
+    let of_ptrPair (pp:PtrPair.t) (sym:string): string =
+      let (p1, p2) = pp in
+      let s1 = of_Ptr p1 in
+      let s2 = of_Ptr p2 in
+      Printf.sprintf "%s %s %s" s1 sym s2
   end
 
 module PrintExprs = struct
@@ -95,12 +106,27 @@ module PrintExprs = struct
                  vtps ()
        in ()
 
+    let ptrPairSet (pps: PtrPairSet.t) (sym:string): unit =
+       let _ = PtrPairSet.fold
+                 (fun pp _ ->
+                  debug_print (ExprsToString.of_ptrPair pp sym))
+                 pps () in
+       ()
+
     let idTSet (idts: IdTSet.t): unit =
        let _ = IdTSet.fold
                  (fun idt _ ->
                   debug_print (ExprsToString.of_IdT idt))
                  idts () in
        ()
+
+    let ptrSet (ps: PtrSet.t): unit =
+       let _ = PtrSet.fold
+                 (fun p _ ->
+                  debug_print (ExprsToString.of_Ptr p))
+                 ps () in
+       ()
+
   end
                       
 module PrintHints = struct
@@ -122,9 +148,9 @@ module PrintHints = struct
       let _ = debug_print "* lessdef" in
       let _ = PrintExprs.exprPairSet (u.Invariant.lessdef) "<=" in
       let _ = debug_print "* noalias" in
-      let _ = PrintExprs.valueTPairSet (u.Invariant.noalias) "!=" in
+      let _ = PrintExprs.ptrPairSet (u.Invariant.alias.Invariant.noalias) "!=" in
       let _ = debug_print "* allocas" in
-      let _ = PrintExprs.idTSet (u.Invariant.allocas) in
+      let _ = PrintExprs.ptrSet (u.Invariant.allocas) in
       let _ = debug_print "* private" in
       let _ = PrintExprs.idTSet (u.Invariant.coq_private) in
       ()

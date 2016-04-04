@@ -104,8 +104,8 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
       let e3 = Convert.expr args.e3 src_fdef tgt_fdef in
       Infrule.Coq_transitivity (e1, e2, e3)
   | CoreHint_t.NoaliasGlobalAlloca (args:CoreHint_t.noalias_global_alloca) ->
-      let x = Convert.register args.x in
-      let y = Convert.register args.y in
+      let x = Convert.pointer args.x src_fdef in
+      let y = Convert.pointer args.y src_fdef in
       Infrule.Coq_noalias_global_alloca (x, y)
   | CoreHint_t.TransitivityPointerLhs (args:CoreHint_t.transitivity_pointer_lhs) ->
       let p = Convert.value args.p in

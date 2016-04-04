@@ -113,8 +113,8 @@ module InvariantObject = struct
 
     type unary =
       | Lessdef of ExprPair.t
-      | Noalias of (IdT.t * LLVMsyntax.typ) * (IdT.t * LLVMsyntax.typ)
-      | Allocas of IdT.t
+      | Noalias of PtrPair.t
+      | Allocas of Ptr.t
       | Private of IdT.t
 
     type t =
@@ -150,13 +150,13 @@ module InvariantObject = struct
                          convert_expr prop_ld.rhs lfdef rfdef))
       | CoreHint_t.Noalias prop_na ->
          Unary (convert_scope prop_na.scope,
-                Noalias (Convert.register prop_na.lhs,
-                         Convert.register prop_na.rhs))
+                Noalias (Convert.pointer prop_na.lhs lfdef,
+                         Convert.pointer prop_na.rhs lfdef))
       | CoreHint_t.Maydiff v ->
          Maydiff (Convert.register v)
       | CoreHint_t.Alloca prop_a ->
          Unary (convert_scope prop_a.scope,
-                Allocas (Convert.register prop_a.p))
+                Allocas (Convert.pointer prop_a.p lfdef))
 
     let insert (obj:t) (inv:Invariant.t): Invariant.t =
       match obj with
@@ -165,10 +165,10 @@ module InvariantObject = struct
            match unary_obj with
            | Lessdef expr_pair ->
               Invariant.update_lessdef (ExprPairSet.add expr_pair) unary
-           | Noalias (idt1, idt2) ->
-              Invariant.update_noalias (PtrPairSet.add (ValueT.Coq_id idt1, ValueT.Coq_id idt2)) unary
-           | Allocas idt ->
-              Invariant.update_allocas (IdTSet.add idt) unary
+           | Noalias (ptr1, ptr2) ->
+              Invariant.update_noalias (PtrPairSet.add (ptr1, ptr2)) unary
+           | Allocas ptr ->
+              Invariant.update_allocas (PtrSet.add ptr) unary
            | Private idt ->
               Invariant.update_private (IdTSet.add idt) unary
          in

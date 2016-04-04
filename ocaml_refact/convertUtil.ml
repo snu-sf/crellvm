@@ -100,6 +100,12 @@ module Convert = struct
   let register (register:CoreHint_t.register) : IdT.t =
     (tag register.tag, register.name)
 
+  let pointer (register:CoreHint_t.register) (fdef:LLVMsyntax.fdef) : Ptr.t =
+    match LLVMinfra.lookupTypViaIDFromFdef fdef register.name with
+    | Some typ ->
+      (ValueT.Coq_id (tag register.tag, register.name), typ)
+    | None -> invalid_arg "TODO: not implemented in Convert.pointer"
+
   let const_int (const_int:CoreHint_t.const_int): INTEGER.t =
     let IntType sz = const_int.int_type in
     APInt.of_int64 sz (Int64.of_int const_int.int_value) true

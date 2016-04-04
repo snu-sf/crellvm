@@ -115,8 +115,7 @@ Module Invariant.
     implies_unary (inv0.(src)) (inv.(src)) &&
     implies_unary (inv0.(tgt)) (inv.(tgt)) &&
     IdTSet.subset (inv0.(maydiff)) (inv.(maydiff)).
-Print FSetExtra.Make.
-Print PtrPairSet.
+
   Definition is_noalias (inv:unary) (i1:IdT.t) (i2:IdT.t) :=
     let e1 := ValueT.id i1 in
     let e2 := ValueT.id i2 in
@@ -163,18 +162,19 @@ Print PtrPairSet.
     IdTSet.is_empty inv.(maydiff).
 
   Definition get_idTs_unary (u: unary): list IdT.t :=
-    let (lessdef, noalias, allocas, private) := u in
+    let (lessdef, alias, allocas, private) := u in
     List.concat
       (List.map
          (fun (p: ExprPair.t) =>
             let (x, y) := p in Expr.get_idTs x ++ Expr.get_idTs y)
          (ExprPairSet.elements lessdef)) ++
-      List.concat
+    List.concat
       (List.map
-         (fun (p: ValueTPair.t) =>
-            let (x, y) := p in TODO.filter_map ValueT.get_idTs [x ; y])
-         (ValueTPairSet.elements noalias)) ++
-      IdTSet.elements allocas ++ IdTSet.elements private.
+         (fun (p: PtrPair.t) =>
+            let (x, y) := p in TODO.filter_map Ptr.get_idTs [x ; y])
+         (PtrPairSet.elements (alias.(noalias)))) ++
+      TODO.filter_map Ptr.get_idTs (PtrSet.elements allocas) ++
+      IdTSet.elements private.
 
   Definition get_idTs (inv: t): list IdT.t :=
     let (src, tgt, maydiff) := inv in
@@ -198,7 +198,7 @@ Module Infrule.
   | mul_neg (z:IdT.t) (mx:ValueT.t) (my:ValueT.t) (x:ValueT.t) (y:ValueT.t) (s:sz)  
   | sub_remove (z:IdT.t) (y:IdT.t) (a:ValueT.t) (b:ValueT.t) (sz:sz)
   | transitivity (e1:Expr.t) (e2:Expr.t) (e3:Expr.t)
-  | noalias_global_alloca (x:IdT.t) (y:IdT.t)
+  | noalias_global_alloca (x:Ptr.t) (y:Ptr.t)
   | transitivity_pointer_lhs (p:ValueT.t) (q:ValueT.t) (v:ValueT.t) (ty:typ) (a:align)
   | transitivity_pointer_rhs (p:ValueT.t) (q:ValueT.t) (v:ValueT.t) (ty:typ) (a:align)
   | replace_rhs (x:IdT.t) (y:ValueT.t) (e1:Expr.t) (e2:Expr.t) (e2':Expr.t)
