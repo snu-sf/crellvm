@@ -271,7 +271,7 @@ type add_select_zero2 = {
 type add_dist_sub = {
   z : register;
   minusx : register;
-  minusy : register;
+  minusy : value;
   w : register;
   x : value;
   y : value;
@@ -322,14 +322,6 @@ type sub_remove = {
   sz : size;
 }
 
-type sub_remove2 = {
-  z : register;
-  y : register;
-  a : value;
-  b : value;
-  sz : size;
-}
-
 type sub_onebit = {
   z : register;
   x : value;
@@ -364,15 +356,6 @@ type sub_shl = {
   sz : size;
 }
 
-type sub_zext_bool = {
-  x : register;
-  y : register;
-  b : value;
-  c : const_int;
-  cprime : const_int;
-  sz : size;
-}
-
 type mul_bool = {
   z :register;
   x :register;
@@ -396,11 +379,17 @@ type mul_neg = {
 
 type mul_commutative = {
   z : register;
+  x : value;
+  y : value;
+  sz : size;
 }
 
 type mul_shl = {
   z : register;
   y : register;
+  x : value;
+  a : value;
+  sz : size;
 }
 
 type div_mone = {
@@ -419,16 +408,22 @@ type rem_neg = {
   my : register;
 }
 
-type div_sub_srem = {
+type sdiv_sub_srem = {
   z : register;
   b : register;
   a : register;
+  x : value;
+  y : value;
+  sz : size;
 }
 
-type div_sub_urem = {
+type udiv_sub_urem = {
   z : register;
   b : register;
   a : register;
+  x : value;
+  y : value;
+  sz : size;
 }
 
 type infrule = [
@@ -449,12 +444,10 @@ type infrule = [
   | SubAdd of sub_add
   | SubConstNot of sub_const_not
   | SubRemove of sub_remove
-  | SubRemove2 of sub_remove2
   | SubOnebit of sub_onebit
   | SubConstAdd of sub_const_add
   | SubSdiv of sub_sdiv
   | SubShl of sub_shl
-  | SubZextBool of sub_zext_bool
   | MulBool of mul_bool
   | MulMone of mul_mone
   | MulNeg of mul_neg
@@ -463,8 +456,8 @@ type infrule = [
   | NoaliasGlobalAlloca of noalias_global_alloca
   | DivMone of div_mone
   | RemNeg of rem_neg
-  | DivSubSrem of div_sub_srem
-  | DivSubUrem of div_sub_urem
+  | SdivSubSrem of sdiv_sub_srem
+  | UdivSubUrem of udiv_sub_urem
   | AndDeMorgan of and_de_morgan
   | NegVal of neg_val
   | Transitivity of transitivity
