@@ -298,15 +298,6 @@ Definition apply_infrule
        $$ inv0 |- (Expr.value v) >=src (Expr.load p ty a) $$
     then {{inv0 +++ (Expr.value v) >=src (Expr.load q ty a)}}
     else inv0
-  | Infrule.bop_both b x y z sz =>
-    if $$ inv0 |- (Expr.value y) >=tgt (Expr.value z) $$
-    then {{inv0 +++ (Expr.bop b sz x y) >=tgt (Expr.bop b sz x z)}}
-    else inv0
-  | Infrule.intro_eq x g =>
-    if is_ghost g
-    then {{ {{inv0 +++ (Expr.value x) >=tgt (Expr.value (ValueT.id g)) }}
-                   +++ (Expr.value (ValueT.id g)) >=tgt (Expr.value x) }}
-    else inv0
   | Infrule.replace_rhs x y e1 e2 e2' =>
     if $$ inv0 |- (Expr.value x) >=src (Expr.value y) $$ &&
        $$ inv0 |- e1 >=src e2 $$ &&
