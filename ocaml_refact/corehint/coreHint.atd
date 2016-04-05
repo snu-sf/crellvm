@@ -244,6 +244,9 @@ type add_dist_sub = {
   minusx : register;
   minusy : register;
   w : register;
+  x : value;
+  y : value;
+  sz : size;
 }
 
 type mul_add_distributive = {
@@ -274,8 +277,12 @@ type sub_mone = {
 }
 
 type sub_const_not = {
-  y : register;
   z : register;
+  y : register;
+  x : value;
+  c1 : const_int;
+  c2 : const_int;
+  sz : size;
 }
 
 type sub_remove = {
@@ -287,8 +294,11 @@ type sub_remove = {
 }
 
 type sub_remove2 = {
-  y : register;
   z : register;
+  y : register;
+  a : value;
+  b : value;
+  sz : size;
 }
 
 type sub_onebit = {
@@ -298,8 +308,13 @@ type sub_onebit = {
 }
 
 type sub_const_add = {
-  y : register;
   z : register;
+  y : register;
+  x : value;
+  c1 : const_int;
+  c2 : const_int;
+  c3 : const_int;
+  sz : size;
 }
 
 type sub_sdiv = {
@@ -320,6 +335,15 @@ type sub_shl = {
   sz : size;
 }
 
+type sub_zext_bool = {
+  x : register;
+  y : register;
+  b : value;
+  c : const_int;
+  cprime : const_int;
+  sz : size;
+}
+
 type mul_bool = {
   z :register;
   x :register;
@@ -328,6 +352,8 @@ type mul_bool = {
 
 type mul_mone = {
   z : register;
+  x : value;
+  sz : size;
 }
 
 type mul_neg = {
@@ -399,6 +425,7 @@ type infrule = [
   | SubConstAdd of sub_const_add
   | SubSdiv of sub_sdiv
   | SubShl of sub_shl
+  | SubZextBool of sub_zext_bool
   | MulBool of mul_bool
   | MulMone of mul_mone
   | MulNeg of mul_neg
