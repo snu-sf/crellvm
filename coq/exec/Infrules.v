@@ -17,11 +17,6 @@ Require Import TODO.
 Require Import Decs.
 Set Implicit Arguments.
 
-Definition is_ghost (g:IdT.t) := 
-  match g with
-  | (tag, _) => if Tag.eq_dec tag Tag.ghost then true else false 
-  end.
-
 (* Copied from validator/basic_aux.v because ocaml-extracted version of this code cannot find validator/basic_aux.v *)
 Fixpoint power_sz (s:sz) : positive :=
   match s with
