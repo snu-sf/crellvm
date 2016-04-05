@@ -140,6 +140,15 @@ module Convert = struct
     | Coq_value_id id -> ValueT.Coq_id (Tag.Coq_physical, id)
     | Coq_value_const const -> ValueT.Coq_const const
 
+  let float_type (ft:CoreHint_t.float_type): LLVMsyntax.floating_point =
+    match ft with
+    | CoreHint_t.HalfType -> failwith "Vellvm has no Halftype" 
+    | CoreHint_t.FloatType -> LLVMsyntax.Coq_fp_float
+    | CoreHint_t.DoubleType -> LLVMsyntax.Coq_fp_double
+    | CoreHint_t.FP128Type -> LLVMsyntax.Coq_fp_fp128
+    | CoreHint_t.PPC_FP128Type -> LLVMsyntax.Coq_fp_ppc_fp128
+    | CoreHint_t.X86_FP80Type -> LLVMsyntax.Coq_fp_x86_fp80
+
   let constant (constval:CoreHint_t.constant): LLVMsyntax.const = 
     match constval with 
     | CoreHint_t.ConstInt ci -> 
@@ -148,21 +157,24 @@ module Convert = struct
             | CoreHint_t.IntType sz -> sz)
          , const_int ci)
     | CoreHint_t.ConstFloat cf ->
-       LLVMsyntax.Coq_const_floatpoint (
-         (match cf.float_type with
-         | CoreHint_t.HalfType -> failwith "Vellvm has no Halftype" 
-         | CoreHint_t.FloatType -> LLVMsyntax.Coq_fp_float
-         | CoreHint_t.DoubleType -> LLVMsyntax.Coq_fp_double
-         | CoreHint_t.FP128Type -> LLVMsyntax.Coq_fp_fp128
-         | CoreHint_t.PPC_FP128Type -> LLVMsyntax.Coq_fp_ppc_fp128
-         | CoreHint_t.X86_FP80Type -> LLVMsyntax.Coq_fp_x86_fp80)
-         , const_float cf)
+       LLVMsyntax.Coq_const_floatpoint (float_type cf.float_type, const_float cf)
    
 
   let value (value:CoreHint_t.value): ValueT.t = 
     match value with
     | CoreHint_t.Id reg -> ValueT.Coq_id (register reg)
     | CoreHint_t.ConstVal constval -> ValueT.Coq_const (constant constval)
+  
+  let rec value_type (vt:CoreHint_t.value_type): LLVMsyntax.typ = 
+    match vt with
+    | CoreHint_t.IntValueType ciarg -> 
+      (match ciarg with IntType sz -> LLVMsyntax.Coq_typ_int sz)
+    | CoreHint_t.FloatValueType cfarg -> LLVMsyntax.Coq_typ_floatpoint (float_type cfarg)
+    | CoreHint_t.NamedType typename -> LLVMsyntax.Coq_typ_namedt typename
+    | CoreHint_t.PtrType (addrspace, ptrtype) -> 
+        (match addrspace with
+        | 0 -> LLVMsyntax.Coq_typ_pointer (value_type ptrtype)
+        | _ -> failwith "Vellvm does not support pointer address with address space larger than 0")
 
   let rhs_of (register:CoreHint_t.register) (fdef:LLVMsyntax.fdef) : Expr.t =
     let register_id = register.name in
@@ -197,6 +209,30 @@ module Convert = struct
           | _ -> failwith "convertUtil: rhs_of no matching cmd")
       | _ -> failwith "convertUtil: rhs_of find no insn"
 
+  let bop (b:CoreHint_t.bop) : (LLVMsyntax.bop option * LLVMsyntax.fbop option) = 
+    (
+      (match b with
+      | CoreHint_t.BopAdd -> Some LLVMsyntax.Coq_bop_add
+      | CoreHint_t.BopSub -> Some LLVMsyntax.Coq_bop_sub
+      | CoreHint_t.BopMul -> Some LLVMsyntax.Coq_bop_mul
+      | CoreHint_t.BopUdiv -> Some LLVMsyntax.Coq_bop_udiv
+      | CoreHint_t.BopSdiv -> Some LLVMsyntax.Coq_bop_sdiv
+      | CoreHint_t.BopUrem -> Some LLVMsyntax.Coq_bop_urem
+      | CoreHint_t.BopSrem -> Some LLVMsyntax.Coq_bop_srem
+      | CoreHint_t.BopShl -> Some LLVMsyntax.Coq_bop_shl
+      | CoreHint_t.BopLshr -> Some LLVMsyntax.Coq_bop_lshr
+      | CoreHint_t.BopAshr -> Some LLVMsyntax.Coq_bop_ashr
+      | CoreHint_t.BopAnd -> Some LLVMsyntax.Coq_bop_and
+      | CoreHint_t.BopOr -> Some LLVMsyntax.Coq_bop_or
+      | CoreHint_t.BopXor -> Some LLVMsyntax.Coq_bop_xor
+      | _ -> None),
+      (match b with
+      | CoreHint_t.BopFadd -> Some LLVMsyntax.Coq_fbop_fadd
+      | CoreHint_t.BopFsub -> Some LLVMsyntax.Coq_fbop_fsub
+      | CoreHint_t.BopFmul -> Some LLVMsyntax.Coq_fbop_fmul
+      | CoreHint_t.BopFdiv -> Some LLVMsyntax.Coq_fbop_fdiv
+      | CoreHint_t.BopFrem -> Some LLVMsyntax.Coq_fbop_frem
+      | _ -> None))
 
   let expr (e:CoreHint_t.expr) (src_fdef:LLVMsyntax.fdef) (tgt_fdef:LLVMsyntax.fdef) : Expr.t = 
     match e with
@@ -209,6 +245,26 @@ module Convert = struct
        (match scope with
        | CoreHint_t.Source -> src_fdef
        | CoreHint_t.Target -> tgt_fdef)
-
-
+    | CoreHint_t.Insn instr ->
+       (match instr with
+       | CoreHint_t.BinaryOp bop_arg ->
+         (match (bop bop_arg.opcode) with
+         | Some vellvmbop, None -> 
+           (match bop_arg.operandtype with
+             | IntValueType ivt ->
+               (match ivt with IntType sz ->
+               Expr.Coq_bop (vellvmbop, sz, value bop_arg.operand1, value bop_arg.operand2))
+             | _ -> failwith "Only integer type is allowed")
+         | None, Some (vellvmfbop) ->
+           (match value_type bop_arg.operandtype with
+           | LLVMsyntax.Coq_typ_floatpoint fptype ->
+             Expr.Coq_fbop (vellvmfbop, fptype, 
+                        value bop_arg.operand1, value bop_arg.operand2)
+           | _ -> failwith "Only floating type is allowed")
+         | _, _ -> failwith "Unknown binaryop"
+         )
+       | CoreHint_t.LoadInst li_arg ->
+         Expr.Coq_load (value li_arg.ptrvalue, value_type li_arg.valtype, li_arg.align)
+       | _ -> failwith "Unknown instruction type"
+       )
 end
