@@ -126,6 +126,16 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
       let x = Convert.register args.x in
       let y = Convert.register args.y in
       Infrule.Coq_mul_bool (z, x, y) 
+  | CoreHint_t.SubMone (args:CoreHint_t.sub_mone) ->
+      let z = Convert.register args.z in
+      let x = Convert.value args.x in
+      let sz = Convert.size args.sz in
+      Infrule.Coq_sub_mone (z, x, sz)
+  | CoreHint_t.SubOnebit (args:CoreHint_t.sub_onebit) ->
+      let z = Convert.register args.z in
+      let x = Convert.value args.x in
+      let y = Convert.value args.y in
+      Infrule.Coq_sub_onebit (z, x, y)
   | CoreHint_t.SubRemove (args:CoreHint_t.sub_remove) ->
       let z = Convert.register args.z in
       let y = Convert.register args.y in
@@ -133,6 +143,22 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
       let b = Convert.value args.b in
       let sz = Convert.size args.sz in
       Infrule.Coq_sub_remove (z, y, a, b, sz)
+  | CoreHint_t.SubSdiv (args:CoreHint_t.sub_sdiv) ->
+      let z = Convert.register args.z in
+      let y = Convert.register args.y in
+      let x = Convert.value args.x in
+      let c = Convert.const_int args.c in
+      let c' = Convert.const_int args.cprime in
+      let sz = Convert.size args.sz in
+      Infrule.Coq_sub_sdiv (z, y, x, c, c', sz)
+  | CoreHint_t.SubShl (args:CoreHint_t.sub_shl) ->
+      let z = Convert.register args.z in
+      let x = Convert.value args.x in
+      let y = Convert.register args.y in
+      let mx = Convert.value args.mx in
+      let a = Convert.value args.a in
+      let sz = Convert.size args.sz in
+      Infrule.Coq_sub_shl (z, x, y, mx, a, sz)
   | CoreHint_t.Transitivity (args:CoreHint_t.transitivity) ->
       let e1 = Convert.expr args.e1 src_fdef tgt_fdef in
       let e2 = Convert.expr args.e2 src_fdef tgt_fdef in
@@ -164,17 +190,6 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
          Infrule.Coq_transitivity_pointer_rhs (p, q, v, typ, align)
       | _ -> failwith "loadq must be load instruction."
       )
-  | CoreHint_t.BopBoth (args:CoreHint_t.bop_both) ->
-      let b = Convert.bop args.b in
-      let x = Convert.value args.x in
-      let y = Convert.value args.y in
-      let z = Convert.value args.z in
-      let sz = Convert.size args.sz in
-      Infrule.Coq_bop_both (b, x, y, z, sz)
-  | CoreHint_t.IntroEq (args:CoreHint_t.intro_eq) ->
-      let x = Convert.value args.x in
-      let g = Convert.register args.g in
-      Infrule.Coq_intro_eq (x, g)
   | CoreHint_t.ReplaceRhs (args:CoreHint_t.replace_rhs) ->
       let x = Convert.register args.x in
       let y = Convert.value args.y in
