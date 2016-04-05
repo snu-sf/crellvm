@@ -13,7 +13,7 @@ Require Import Integers.
 Require Import Exprs.
 Require Import Hints.
 Require Import TODO.
-
+Require Import Debug.
 Require Import Decs.
 Set Implicit Arguments.
 
@@ -249,7 +249,12 @@ Definition apply_infrule
   | Infrule.transitivity e1 e2 e3 =>
     if $$ inv0 |- e1 >=src e2 $$ &&
        $$ inv0 |- e2 >=src e3 $$ 
-    then {{inv0 +++ e1 >=src e3}}
+    then {{ inv0 +++ e1 >=src e3 }}
+    else inv0
+  | Infrule.transitivity_tgt e1 e2 e3 =>
+    if $$ inv0 |- e1 >=tgt e2 $$ &&
+       $$ inv0 |- e2 >=tgt e3 $$
+    then {{ inv0 +++ e1 >=tgt e3 }}
     else inv0
   | Infrule.noalias_global_alloca x y =>
     match x with
@@ -279,21 +284,27 @@ Definition apply_infrule
        cond_replace_lessdef x y e2 e2'
     then {{inv0 +++ e1 >=src e2'}}
     else inv0
-  | Infrule.intro_ghost x y z =>
-    if $$ inv0 |- (Expr.value (ValueT.id x)) >=src (Expr.value y) $$ &&
-       Invariant.not_in_maydiff inv0 y
-    then if (negb (IdTSet.mem (Tag.ghost, z) (IdTSet_from_list (Invariant.get_idTs inv0))))
+  | Infrule.intro_ghost x g =>
+    if Invariant.not_in_maydiff inv0 x
+    then if (negb (IdTSet.mem (Tag.ghost, g) (IdTSet_from_list (Invariant.get_idTs inv0))))
          then {{
-          {{ inv0 +++ (Expr.value y) >=src (Expr.value (ValueT.id (Tag.ghost, z))) }}
-                  +++ (Expr.value (ValueT.id (Tag.ghost, z))) >=tgt (Expr.value y)
+          {{ inv0 +++ (Expr.value x) >=src (Expr.value (ValueT.id (Tag.ghost, g))) }}
+                  +++ (Expr.value (ValueT.id (Tag.ghost, g))) >=tgt (Expr.value x)
          }}
-         else {{
-          {{ inv0 --- (Invariant.get_lhs_in_src inv0 (Expr.value (ValueT.id (Tag.ghost, z)))) 
+         else
+          (Invariant.update_src (Invariant.update_lessdef (ExprPairSet.add ((Expr.value x), (Expr.value (ValueT.id (Tag.ghost, g))))))
+          (Invariant.update_tgt (Invariant.update_lessdef (ExprPairSet.add ((Expr.value (ValueT.id (Tag.ghost, g))), (Expr.value x))))
+          (Invariant.update_src (Invariant.update_lessdef (ExprPairSet.remove ((Invariant.get_lhs_in_src inv0 (Expr.value (ValueT.id (Tag.ghost, g)))), (Expr.value (ValueT.id (Tag.ghost, g))))))
+          (Invariant.update_tgt (Invariant.update_lessdef (ExprPairSet.remove ((Expr.value (ValueT.id (Tag.ghost, g))), (Invariant.get_rhs_in_tgt inv0 (Expr.value (ValueT.id (Tag.ghost, g))))))) inv0))))
+
+         (* {{ inv0 --- (Invariant.get_lhs_in_src inv0 (Expr.value (ValueT.id (Tag.ghost, z)))) 
                                           >=src (Expr.value (ValueT.id (Tag.ghost, z))) }}
                   --- (Expr.value (ValueT.id (Tag.ghost, z))) 
                             >=tgt (Invariant.get_rhs_in_tgt inv0 (Expr.value (ValueT.id (Tag.ghost, z))))
-         }}
-    else inv0
+          {{ inv0 +++ (Expr.value y) >=src (Expr.value (ValueT.id (Tag.ghost, z))) }}
+                  +++ (Expr.value (ValueT.id (Tag.ghost, z))) >=tgt (Expr.value y)
+         *)
+    else inv0 
   | _ => inv0 (* TODO *)
   end.
 

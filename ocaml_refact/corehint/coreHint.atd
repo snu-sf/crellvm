@@ -158,6 +158,12 @@ type transitivity = {
   e3 : expr;
 }
 
+type transitivity_tgt = {
+  e1 : expr;
+  e2 : expr;
+  e3 : expr;
+}
+
 type noalias_global_alloca = {
   x : register;
   y : register;
@@ -186,9 +192,8 @@ type replace_rhs = {
 }
 
 type intro_ghost = {
-  x : register;
-  y : value;
-  z : register;
+  x : value;
+  g : register;
 }
 
 type add_onebit = {
@@ -407,6 +412,7 @@ type infrule = [
   | AndDeMorgan of and_de_morgan
   | NegVal of neg_val
   | Transitivity of transitivity
+  | TransitivityTgt of transitivity_tgt
   | TransitivityPointerLhs of transitivity_pointer_lhs
   | TransitivityPointerRhs of transitivity_pointer_rhs
   | ReplaceRhs of replace_rhs

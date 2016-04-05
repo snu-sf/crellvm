@@ -186,11 +186,12 @@ Module Infrule.
   | mul_neg (z:IdT.t) (mx:ValueT.t) (my:ValueT.t) (x:ValueT.t) (y:ValueT.t) (s:sz)  
   | sub_remove (z:IdT.t) (y:IdT.t) (a:ValueT.t) (b:ValueT.t) (sz:sz)
   | transitivity (e1:Expr.t) (e2:Expr.t) (e3:Expr.t)
+  | transitivity_tgt (e1:Expr.t) (e2:Expr.t) (e3:Expr.t)
   | noalias_global_alloca (x:IdT.t) (y:IdT.t)
   | transitivity_pointer_lhs (p:ValueT.t) (q:ValueT.t) (v:ValueT.t) (ty:typ) (a:align)
   | transitivity_pointer_rhs (p:ValueT.t) (q:ValueT.t) (v:ValueT.t) (ty:typ) (a:align)
   | replace_rhs (x:IdT.t) (y:ValueT.t) (e1:Expr.t) (e2:Expr.t) (e2':Expr.t)
-  | intro_ghost (x:IdT.t) (y:ValueT.t) (z:id)
+  | intro_ghost (x:ValueT.t) (g:id)
 
 (* Updated semantics of rules should be located above this line *)
 
