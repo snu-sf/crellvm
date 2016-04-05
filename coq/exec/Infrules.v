@@ -231,10 +231,32 @@ Definition apply_infrule
     if $$ inv0 |- (Expr.value z) >=src (Expr.bop bop_mul Size.One x y) $$
     then {{inv0 +++ (Expr.value z) >=src (Expr.bop bop_and Size.One x y) }}
     else inv0
+  | Infrule.sub_mone z x s =>
+    if $$ inv0 |- (Expr.value (ValueT.id z)) >=src (Expr.bop bop_sub s 
+                (ValueT.const (const_int s (INTEGER.of_Z (Size.to_Z s) (-1)%Z true))) x) $$
+      then {{inv0 +++ (Expr.value (ValueT.id z)) >=src (Expr.bop bop_xor s x 
+                (ValueT.const (const_int s (INTEGER.of_Z (Size.to_Z s) (-1)%Z true))))}}
+      else inv0
   | Infrule.sub_remove z y a b sz =>
     if $$ inv0 |- (Expr.value y) >=src (Expr.bop bop_add sz a b) $$ &&
        $$ inv0 |- (Expr.value z) >=src (Expr.bop bop_sub sz a y) $$
     then {{inv0 +++ (Expr.value z) >=src (Expr.bop bop_sub sz (const_int sz (INTEGER.of_Z (Size.to_Z sz) 0%Z true)) b) }}
+    else inv0
+  | Infrule.sub_onebit z x y =>
+    if $$ inv0 |- (Expr.value (ValueT.id z)) >=src (Expr.bop bop_sub Size.One x y) $$
+    then {{inv0 +++ (Expr.value (ValueT.id z)) >=src (Expr.bop bop_xor Size.One x y)}}
+    else inv0
+  | Infrule.sub_shl z x y mx a sz =>
+    if $$ inv0 |- (Expr.value x) >=src (Expr.bop bop_sub sz (ValueT.const (const_int sz (INTEGER.of_Z (Size.to_Z sz) 0%Z true))) mx) $$ &&
+       $$ inv0 |- (Expr.value (ValueT.id y)) >=src (Expr.bop bop_shl sz x a) $$ &&
+       $$ inv0 |- (Expr.value (ValueT.id z)) >=src (Expr.bop bop_sub sz (ValueT.const (const_int sz (INTEGER.of_Z (Size.to_Z sz) 0%Z true))) (ValueT.id y)) $$
+    then {{inv0 +++ (Expr.value (ValueT.id z)) >=src (Expr.bop bop_shl sz mx a) }}
+    else inv0
+  | Infrule.sub_sdiv z y x c c' sz =>
+    if $$ inv0 |- (Expr.value (ValueT.id y)) >=src (Expr.bop bop_sdiv sz x (ValueT.const (const_int sz c))) $$ &&
+       $$ inv0 |- (Expr.value (ValueT.id z)) >=src (Expr.bop bop_sub sz (ValueT.const (const_int sz (INTEGER.of_Z (Size.to_Z sz) 0%Z true))) (ValueT.id y)) $$ &&
+       cond_minus sz (INTEGER.of_Z (Size.to_Z sz) 0%Z true) c c'
+    then {{inv0 +++ (Expr.value (ValueT.id z)) >=src (Expr.bop bop_sdiv sz x (ValueT.const (const_int sz c'))) }}
     else inv0
   | Infrule.add_onebit z x y =>
     if $$ inv0 |- (Expr.value (ValueT.id z)) >=src (Expr.bop bop_add Size.One x y) $$

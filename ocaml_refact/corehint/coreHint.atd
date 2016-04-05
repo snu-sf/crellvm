@@ -50,6 +50,8 @@ type float_type = [
                    (* equivalent to Syntax.LLVMsyntax.Coq_fp_x86_fp80 in Vellvm*)
     ] <ocaml repr="classic">
 
+type value_type = [ IntValueType of int_type | FloatValueType of float_type | NamedType of string | PtrType of (int * value_type) ] <ocaml repr="classic">
+
 type const_int = {
   int_value : int;
   int_type : int_type;
@@ -66,15 +68,42 @@ type value = [ Id of register | ConstVal of constant ] <ocaml repr="classic">
 
 type size = [ Size of int ] <ocaml repr="classic">
 
-(*****************************************)
-(*              Propagates               *)
-(*****************************************)
+type bop = [ | BopAdd | BopSub | BopMul | BopUdiv 
+             | BopSdiv | BopUrem | BopSrem | BopShl 
+             | BopLshr | BopAshr | BopAnd | BopOr 
+             | BopXor | BopFadd | BopFsub | BopFmul 
+             | BopFdiv | BopFrem ] <ocaml repr="classic">
+
+type binary_operator = {
+  opcode : bop;
+  operandtype : value_type;
+  operand1 : value;
+  operand2 : value;
+}
+
+type load_inst = {
+  pointertype : value_type;
+  valtype : value_type;
+  ptrvalue : value;
+  align : int;
+}
+
+type instruction = [ 
+  | BinaryOp of binary_operator
+  | LoadInst of load_inst
+] <ocaml repr="classic">
 
 type expr = [
   | Var of register
   | Rhs of (register * scope)
   | Const of constant
+  | Insn of instruction
 ] <ocaml repr="classic">
+
+
+(*****************************************)
+(*              Propagates               *)
+(*****************************************)
 
 type propagate_lessdef = {
   lhs : expr;
@@ -280,6 +309,8 @@ type neg_val = {
 
 type sub_mone = {
   z : register;
+  x : value;
+  sz : size;
 }
 
 type sub_const_not = {
@@ -302,6 +333,8 @@ type sub_remove2 = {
 
 type sub_onebit = {
   z : register;
+  x : value;
+  y : value;
 }
 
 type sub_const_add = {
@@ -310,14 +343,21 @@ type sub_const_add = {
 }
 
 type sub_sdiv = {
-  y : register;
   z : register;
+  y : register;
+  x : value;
+  c : const_int;
+  cprime : const_int;
+  sz : size;
 }
 
 type sub_shl = {
-  x : register;
-  y : register;
   z : register;
+  x : value;
+  y : register;
+  mx : value;
+  a : value;
+  sz : size;
 }
 
 type mul_bool = {
