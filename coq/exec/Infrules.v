@@ -31,6 +31,11 @@ Definition signbit_of (s:sz) : option Int :=
     | S n => Some (Zneg (power_sz n))
   end.
 
+Definition is_ghost (g:IdT.t) :=
+  match g with
+  | (tag, _) => if Tag.eq_dec tag Tag.ghost then true else false
+  end.
+
 Definition cond_plus (s:sz) (c1 c2 c3: INTEGER.t) : bool :=
   (Int.eq_dec _)
     (Int.repr (Size.to_nat s - 1) (INTEGER.to_Z c3))
@@ -293,12 +298,25 @@ Definition apply_infrule
        $$ inv0 |- (Expr.value v) >=src (Expr.load p ty a) $$
     then {{inv0 +++ (Expr.value v) >=src (Expr.load q ty a)}}
     else inv0
-  | Infrule.bop_both b x y z sz =>
+  | Infrule.bop_both_src_left b x y z sz =>
+    if $$ inv0 |- (Expr.value y) >=src (Expr.value z) $$
+    then {{inv0 +++ (Expr.bop b sz x y) >=src (Expr.bop b sz x z)}}
+    else inv0
+  | Infrule.bop_both_src_right b x y z sz =>
+    if $$ inv0 |- (Expr.value y) >=src (Expr.value z) $$
+    then {{inv0 +++ (Expr.bop b sz y x) >=src (Expr.bop b sz z x)}}
+    else inv0
+  | Infrule.bop_both_tgt_left b x y z sz =>
     if $$ inv0 |- (Expr.value y) >=tgt (Expr.value z) $$
     then {{inv0 +++ (Expr.bop b sz x y) >=tgt (Expr.bop b sz x z)}}
     else inv0
-  | Infrule.intro_eq x g =>
+  | Infrule.bop_both_tgt_right b x y z sz =>
+    if $$ inv0 |- (Expr.value y) >=tgt (Expr.value z) $$
+    then {{inv0 +++ (Expr.bop b sz y x) >=tgt (Expr.bop b sz z x)}}
+    else inv0
+ | Infrule.intro_eq x g =>
     if is_ghost g
+    (* TODO : && g has to be a fresh variable *)
     then {{ {{inv0 +++ (Expr.value x) >=src (Expr.value (ValueT.id g)) }}
                    +++ (Expr.value (ValueT.id g)) >=src (Expr.value x) }}
     else inv0

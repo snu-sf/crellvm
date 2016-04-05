@@ -169,6 +169,11 @@ Module Infrule.
   | noalias_global_alloca (x:IdT.t) (y:IdT.t)
   | transitivity_pointer_lhs (p:ValueT.t) (q:ValueT.t) (v:ValueT.t) (ty:typ) (a:align)
   | transitivity_pointer_rhs (p:ValueT.t) (q:ValueT.t) (v:ValueT.t) (ty:typ) (a:align)
+  | bop_both_src_left (b:bop) (x:ValueT.t) (y:ValueT.t) (z:ValueT.t) (sz:sz)
+  | bop_both_src_right (b:bop) (x:ValueT.t) (y:ValueT.t) (z:ValueT.t) (sz:sz)
+  | bop_both_tgt_left (b:bop) (x:ValueT.t) (y:ValueT.t) (z:ValueT.t) (sz:sz)
+  | bop_both_tgt_right (b:bop) (x:ValueT.t) (y:ValueT.t) (z:ValueT.t) (sz:sz)
+  | intro_eq (x:ValueT.t) (g:IdT.t)
   | replace_rhs (x:IdT.t) (y:ValueT.t) (e1:Expr.t) (e2:Expr.t) (e2':Expr.t)
 
 (* Updated semantics of rules should be located above this line *)

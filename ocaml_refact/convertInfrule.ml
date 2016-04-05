@@ -190,6 +190,46 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
          Infrule.Coq_transitivity_pointer_rhs (p, q, v, typ, align)
       | _ -> failwith "loadq must be load instruction."
       )
+  | CoreHint_t.BopBothSrcLeft (args:CoreHint_t.bop_both_src_left) ->
+      let b = Convert.bop args.b in
+      let x = Convert.value args.x in
+      let y = Convert.value args.y in
+      let z = Convert.value args.z in
+      let sz = Convert.size args.sz in
+      (match b with
+      | (Some bop, None) -> Infrule.Coq_bop_both_src_left (bop, x, y, z, sz)
+      | _ -> failwith "b is neither bop or fbop")
+  | CoreHint_t.BopBothSrcRight (args:CoreHint_t.bop_both_src_right) ->
+      let b = Convert.bop args.b in
+      let x = Convert.value args.x in
+      let y = Convert.value args.y in
+      let z = Convert.value args.z in
+      let sz = Convert.size args.sz in
+      (match b with
+      | (Some bop, None) -> Infrule.Coq_bop_both_src_right (bop, x, y, z, sz)
+      | _ -> failwith "b is neither bop or fbop")
+  | CoreHint_t.BopBothTgtLeft (args:CoreHint_t.bop_both_tgt_left) ->
+      let b = Convert.bop args.b in
+      let x = Convert.value args.x in
+      let y = Convert.value args.y in
+      let z = Convert.value args.z in
+      let sz = Convert.size args.sz in
+      (match b with
+      | (Some bop, None) -> Infrule.Coq_bop_both_tgt_left (bop, x, y, z, sz)
+      | _ -> failwith "b is neither bop or fbop")
+  | CoreHint_t.BopBothTgtRight (args:CoreHint_t.bop_both_tgt_right) ->
+      let b = Convert.bop args.b in
+      let x = Convert.value args.x in
+      let y = Convert.value args.y in
+      let z = Convert.value args.z in
+      let sz = Convert.size args.sz in
+      (match b with
+      | (Some bop, None) -> Infrule.Coq_bop_both_tgt_right (bop, x, y, z, sz)
+      | _ -> failwith "b is neither bop or fbop")
+  | CoreHint_t.IntroEq (args:CoreHint_t.intro_eq) ->
+      let x = Convert.value args.x in
+      let g = Convert.register args.g in
+      Infrule.Coq_intro_eq (x, g)
   | CoreHint_t.ReplaceRhs (args:CoreHint_t.replace_rhs) ->
       let x = Convert.register args.x in
       let y = Convert.value args.y in
