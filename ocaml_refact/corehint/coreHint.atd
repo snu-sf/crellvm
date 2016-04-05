@@ -50,6 +50,8 @@ type float_type = [
                    (* equivalent to Syntax.LLVMsyntax.Coq_fp_x86_fp80 in Vellvm*)
     ] <ocaml repr="classic">
 
+type value_type = [ IntValueType of int_type | FloatValueType of float_type | NamedType of string | PtrType of (int * value_type) ] <ocaml repr="classic">
+
 type const_int = {
   int_value : int;
   int_type : int_type;
@@ -66,17 +68,42 @@ type value = [ Id of register | ConstVal of constant ] <ocaml repr="classic">
 
 type size = [ Size of int ] <ocaml repr="classic">
 
-type bop = [ Bop_add | Bop_sub | Bop_mul | Bop_udiv | Bop_sdiv | Bop_urem | Bop_srem | Bop_shl | Bop_lshr | Bop_ashr | Bop_and | Bop_or | Bop_xor ] <ocaml repr="classic">
+type bop = [ | BopAdd | BopSub | BopMul | BopUdiv 
+             | BopSdiv | BopUrem | BopSrem | BopShl 
+             | BopLshr | BopAshr | BopAnd | BopOr 
+             | BopXor | BopFadd | BopFsub | BopFmul 
+             | BopFdiv | BopFrem ] <ocaml repr="classic">
 
-(*****************************************)
-(*              Propagates               *)
-(*****************************************)
+type binary_operator = {
+  opcode : bop;
+  operandtype : value_type;
+  operand1 : value;
+  operand2 : value;
+}
+
+type load_inst = {
+  pointertype : value_type;
+  valtype : value_type;
+  ptrvalue : value;
+  align : int;
+}
+
+type instruction = [ 
+  | BinaryOp of binary_operator
+  | LoadInst of load_inst
+] <ocaml repr="classic">
 
 type expr = [
   | Var of register
   | Rhs of (register * scope)
   | Const of constant
+  | Insn of instruction
 ] <ocaml repr="classic">
+
+
+(*****************************************)
+(*              Propagates               *)
+(*****************************************)
 
 type propagate_lessdef = {
   lhs : expr;
@@ -177,19 +204,6 @@ type transitivity_pointer_rhs = {
   q : value;
   v : value;
   loadp : expr;
-}
-
-type bop_both = {
-  b : bop;
-  x : value;
-  y : value;
-  z : value;
-  sz : size;
-}
-
-type intro_eq = {
-  x : value;
-  g : register;
 }
 
 type replace_rhs = {
@@ -429,8 +443,6 @@ type infrule = [
   | Transitivity of transitivity
   | TransitivityPointerLhs of transitivity_pointer_lhs
   | TransitivityPointerRhs of transitivity_pointer_rhs
-  | BopBoth of bop_both
-  | IntroEq of intro_eq
   | ReplaceRhs of replace_rhs
   ] <ocaml repr="classic">
 
