@@ -21,52 +21,98 @@ module ExprsToString = struct
       let (t, id) = idt in
       Printf.sprintf "(%s, %s)" (of_Tag t) id
 
-    let of_const (c:LLVMsyntax.const): string =
-      "TODO"
-
     let of_ValueT (vt:ValueT.t): string =
       match vt with
       | ValueT.Coq_id idt ->
          (of_IdT idt)
       | ValueT.Coq_const c ->
-         (of_const c)
+         (string_of_constant c)
 
     let of_sz (s:LLVMsyntax.sz): string =
       Printf.sprintf "(sz %d)" s
 
-    let of_bop (b:LLVMsyntax.bop): string=
-      match b with
-      | LLVMsyntax.Coq_bop_add -> "add"
-      | LLVMsyntax.Coq_bop_sub -> "sub"
-      | LLVMsyntax.Coq_bop_mul -> "mul"
-      | LLVMsyntax.Coq_bop_udiv -> "udiv"
-      | LLVMsyntax.Coq_bop_sdiv -> "sdiv"
-      | LLVMsyntax.Coq_bop_urem -> "urem"
-      | LLVMsyntax.Coq_bop_srem -> "srem"
-      | LLVMsyntax.Coq_bop_shl -> "shl"
-      | LLVMsyntax.Coq_bop_lshr -> "lshr"
-      | LLVMsyntax.Coq_bop_ashr -> "ashr"
-      | LLVMsyntax.Coq_bop_and -> "and"
-      | LLVMsyntax.Coq_bop_or -> "or"
-      | LLVMsyntax.Coq_bop_xor -> "xor"
+    let of_align (al:LLVMsyntax.align): string =
+      Printf.sprintf "(align %d)" al
 
-    let of_fbop (fb:LLVMsyntax.fbop): string = "TODO"
-
-    let of_floating_point (fp:LLVMsyntax.floating_point): string =
-      "TODO"
+    let rec of_sz_ValueT_list svl =
+      match svl with
+      | [] -> ""
+      | (sz, vt)::svlt ->
+         "i"^(string_of_int sz)^" "^(of_ValueT vt)^", "^
+           (of_sz_ValueT_list svlt)
         
     let of_expr (e:Expr.t): string =
       match e with
       | Expr.Coq_bop (b, s, vt1, vt2) ->
          Printf.sprintf "bop %s %s %s %s"
-                       (of_bop b) (of_sz s) (of_ValueT vt1) (of_ValueT vt2)
+                       (string_of_bop b) (of_sz s) (of_ValueT vt1) (of_ValueT vt2)
       | Expr.Coq_fbop (fb, fp, vt1, vt2) ->
          Printf.sprintf "fbop %s %s %s %s"
-                        (of_fbop fb) (of_floating_point fp)
+                        (string_of_fbop fb) (string_of_floating_point fp)
                         (of_ValueT vt1) (of_ValueT vt2)
+      | Expr.Coq_extractvalue (ty1, vt, cl, ty2) ->
+         Printf.sprintf "extractvalue %s %s %s %s"
+                        (string_of_typ ty1)
+                        (of_ValueT vt)
+                        (string_of_list_constant cl)
+                        (string_of_typ ty2)
+      | Expr.Coq_insertvalue (ty1, vt1, ty2, vt2, cl) ->
+         Printf.sprintf "insertvalue %s %s %s %s %s"
+                        (string_of_typ ty1)
+                        (of_ValueT vt1)
+                        (string_of_typ ty2)
+                        (of_ValueT vt2)
+                        (string_of_list_constant cl)
+      | Expr.Coq_gep (inb, ty1, vt, svl, ty2) ->
+         Printf.sprintf "getelementptr %s %s %s %s %s"
+                        (string_of_bool inb)
+                        (string_of_typ ty1)
+                        (of_ValueT vt)
+                        (of_sz_ValueT_list svl)
+                        (string_of_typ ty2)
+      | Expr.Coq_trunc (trop, ty1, vt, ty2) ->
+         Printf.sprintf "trunc %s %s %s %s"
+                        (string_of_truncop trop)
+                        (string_of_typ ty1)
+                        (of_ValueT vt)
+                        (string_of_typ ty2)
+      | Expr.Coq_ext (extop, ty1, vt, ty2) ->
+         Printf.sprintf "ext %s %s %s %s"
+                        (string_of_extop extop)
+                        (string_of_typ ty1)
+                        (of_ValueT vt)
+                        (string_of_typ ty2)
+      | Expr.Coq_cast (castop, ty1, vt, ty2) ->
+         Printf.sprintf "cast %s %s %s %s"
+                        (string_of_castop castop)
+                        (string_of_typ ty1)
+                        (of_ValueT vt)
+                        (string_of_typ ty2)
+      | Expr.Coq_icmp (cond, ty, vt1, vt2) ->
+         Printf.sprintf "icmp %s %s %s %s"
+                        (string_of_cond cond)
+                        (string_of_typ ty)
+                        (of_ValueT vt1)
+                        (of_ValueT vt2)
+      | Expr.Coq_fcmp (fcond, fp, vt1, vt2) ->
+         Printf.sprintf "fcmp %s %s %s %s"
+                        (string_of_fcond fcond)
+                        (string_of_floating_point fp)
+                        (of_ValueT vt1)
+                        (of_ValueT vt2)
+      | Expr.Coq_select (vt, ty, vt1, vt2) ->
+         Printf.sprintf "select %s %s %s %s"
+                        (of_ValueT vt)
+                        (string_of_typ ty)
+                        (of_ValueT vt1)
+                        (of_ValueT vt2)
       | Expr.Coq_value vt ->
          Printf.sprintf "value %s" (of_ValueT vt)
-      | _ -> "TODO"
+      | Expr.Coq_load (vt, ty, al) ->
+         Printf.sprintf "load %s %s %s"
+                        (of_ValueT vt)
+                        (string_of_typ ty)
+                        (of_align al)
 
     let of_exprPair (ep:ExprPair.t) (sym:string): string =
       let (e1, e2) = ep in
@@ -100,10 +146,26 @@ module PrintExprs = struct
                       
 module PrintHints = struct
     let infrules_to_string (inf:Infrule.t): string =
+      (* TODO: print args *)
       match inf with
       | Infrule.Coq_add_associative (x, y, z, c1, c2, c3, sz) ->
          "add_assoc"
-      | _ -> "TODO"
+      | Infrule.Coq_add_const_not (x, y, v, c1, c2, sz) ->
+         "add_const_not"
+      | Infrule.Coq_add_sub _ -> "add_sub"
+      | Infrule.Coq_add_commutative _ -> "add_commutative"
+      | Infrule.Coq_sub_add _ -> "sub_add"
+      | Infrule.Coq_neg_val _ -> "neg_val"
+      | Infrule.Coq_add_mask _ -> "add_mask"
+      | Infrule.Coq_add_onebit _ -> "add_onebit"
+      | Infrule.Coq_add_select_zero _ -> "add_select_zero"
+      | Infrule.Coq_add_select_zero2 _ -> "add_select_zero2"
+      | Infrule.Coq_add_shift _ -> "add_shift"
+      | Infrule.Coq_add_signbit _ -> "add_signbit"
+      | Infrule.Coq_add_zext_bool _ -> "add_zext_bool"
+      | Infrule.Coq_transitivity _ -> "transitivity"
+      | Infrule.Coq_replace_rhs _ -> "replace_rhs"
+      | _ -> "infrule(TODO)"
 
     let infrules (infs:Infrule.t list): unit =
       let _ = List.map
