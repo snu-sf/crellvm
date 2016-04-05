@@ -55,15 +55,15 @@ Definition valid_phinodes
                         | None => nil
                         | Some infrules => infrules
                     end in
-    let inv0 := postcond_branch blocks_src blocks_tgt l_from l_to inv0 in
-    match postcond_phinodes l_from phinodes_src phinodes_tgt inv0 with
+    let inv1 := postcond_branch blocks_src blocks_tgt l_from l_to inv0 in
+    match postcond_phinodes l_from phinodes_src phinodes_tgt inv1 with
       | None => failwith_false "valid_phinodes: postcond_phinodes returned None at phinode" (l_from::l_to::nil)
-      | Some inv1 =>
-        let inv2 := apply_infrules m_src m_tgt infrules inv1 in
-        let inv3 := reduce_maydiff inv2 in
+      | Some inv2 =>
+        let inv3 := apply_infrules m_src m_tgt infrules inv2 in
+        let inv4 := reduce_maydiff inv3 in
         let inv := hint_stmts.(ValidationHint.invariant_after_phinodes) in
-        let inv := debug_print_validation_process infrules inv0 inv1 inv2 inv3 inv in
-        if (Invariant.implies inv3 inv)
+        let inv := debug_print_validation_process infrules inv0 inv2 inv3 inv4 inv in
+        if (Invariant.implies inv4 inv)
         then true
         else failwith_false "valid_phinodes: Invariant.implies returned false at phinode" (l_from::l_to::nil)
     end

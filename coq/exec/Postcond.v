@@ -330,12 +330,10 @@ Definition get_br_cond
   let sz := Size.One in
   match term with
     | insn_br _ v l1 l2 =>
-      if (l_dec l_to l1)
-      then ExprPairSet.singleton (Expr.value (ValueT.lift Tag.physical v), Expr.value (ValueT.const (const_int sz (INTEGER.of_Z (Size.to_Z sz) 1%Z true))))
-      else
-      if (l_dec l_to l2)
-      then ExprPairSet.singleton (Expr.value (ValueT.lift Tag.physical v), Expr.value (ValueT.const (const_int sz (INTEGER.of_Z (Size.to_Z sz) 0%Z true))))
-      else debug_string "get_br_cond: label not matched" ExprPairSet.empty
+      let cond_val := if (l_dec l_to l1) then 1%Z else 0%Z in
+      ExprPairSet.singleton
+        (Expr.value (ValueT.lift Tag.physical v),
+         Expr.value (ValueT.const (const_int sz (INTEGER.of_Z (Size.to_Z sz) cond_val true))))
     | _ => ExprPairSet.empty
   end.
 
