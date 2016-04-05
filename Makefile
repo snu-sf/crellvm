@@ -75,6 +75,7 @@ proof: definition $(COQPROOF)
 test:
 	rm -rf results-opt
 	python ./simplberry-tests/test.py -e ./build/bin/opt -v ./ocaml_refact/main.native -r "-instcombine" -o -i "./simplberry-tests/inputs_full"
+	python ./simplberry-tests/listfails.py -f results-opt
 	python ./simplberry-tests/statistics.py -f results-opt -o
 
 clean: Makefile.coq
