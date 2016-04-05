@@ -41,8 +41,8 @@ module Position = struct
     | Command n -> Command (n+1)
 
   let idx_final (bid:atom) (fdef:LLVMsyntax.fdef): idx =
-    let _, LLVMsyntax.Coq_stmts_intro (_, cmds, _) =
-      TODOCAML.get (LLVMinfra.lookupBlockViaIDFromFdef fdef bid)
+    let LLVMsyntax.Coq_stmts_intro (_, cmds, _) =
+      TODOCAML.get (LLVMinfra.lookupBlockViaLabelFromFdef fdef bid)
     in
     Command (List.length cmds)
 
