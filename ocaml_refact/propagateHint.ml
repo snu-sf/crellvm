@@ -124,22 +124,6 @@ module InvariantObject = struct
     let convert_scope (s:CoreHint_t.scope): scope =
       if s = CoreHint_t.Source then Source else Target
 
-(*  let convert_expr
-          (expr:CoreHint_t.expr)
-          (lfdef:LLVMsyntax.fdef)
-          (rfdef:LLVMsyntax.fdef)
-        : Expr.t =
-      Convert.expr expr lfdef rfdef
-      match expr with
-      | CoreHint_t.Var (register:CoreHint_t.register) ->
-         Expr.Coq_value (ValueT.Coq_id (Convert.register register))
-      | CoreHint_t.Rhs ((register:CoreHint_t.register), (scope:CoreHint_t.scope)) ->
-         (match scope with
-          | CoreHint_t.Source -> Convert.rhs_of register lfdef
-          | CoreHint_t.Target -> Convert.rhs_of register rfdef)
-      | CoreHint_t.Const (c:CoreHint_t.constant) ->
-         failwith "TODO: convert_expr of const not supported yet"*)
-
     let convert
           (prop_obj:CoreHint_t.propagate_object)
           (lfdef:LLVMsyntax.fdef) (rfdef:LLVMsyntax.fdef)

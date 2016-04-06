@@ -103,13 +103,62 @@ Module Invariant.
     | ValueT.const _ => true
     end.
 
+  Definition not_in_maydiff_expr (inv:t) (expr: Expr.t): bool :=
+    List.forallb (not_in_maydiff inv) (Expr.get_valueTs expr).
+
+  Definition get_lhs_in_src (inv: t) (rhs: Expr.t): Expr.t :=
+    let (src, tgt, maydiff) := inv in
+    let (lessdef, noalias, allocas, private) := src in
+    let res := (List.filter
+       (fun (p: ExprPair.t) =>
+          let (x, y) := p in Expr.eq_dec y rhs)
+       (ExprPairSet.elements lessdef)) in
+    match res with
+    | nil => rhs
+    | (a, b)::t => a
+    end.
+
+  Definition get_lhs_in_tgt (inv: t) (rhs: Expr.t): Expr.t :=
+    let (src, tgt, maydiff) := inv in
+    let (lessdef, noalias, allocas, private) := tgt in
+    let res := (List.filter
+       (fun (p: ExprPair.t) =>
+          let (x, y) := p in Expr.eq_dec y rhs)
+       (ExprPairSet.elements lessdef)) in
+    match res with
+    | nil => rhs
+    | (a, b)::t => a
+    end.
+
+  Definition get_rhs_in_src (inv: t) (lhs: Expr.t): Expr.t :=
+    let (src, tgt, maydiff) := inv in
+    let (lessdef, noalias, allocas, private) := src in
+    let res := (List.filter
+       (fun (p: ExprPair.t) =>
+          let (x, y) := p in Expr.eq_dec x lhs)
+       (ExprPairSet.elements lessdef)) in
+    match res with
+    | nil => lhs
+    | (a, b)::t => b
+    end.
+
+  Definition get_rhs_in_tgt (inv: t) (lhs: Expr.t): Expr.t :=
+    let (src, tgt, maydiff) := inv in
+    let (lessdef, noalias, allocas, private) := tgt in
+    let res := (List.filter
+       (fun (p: ExprPair.t) =>
+          let (x, y) := p in Expr.eq_dec x lhs)
+       (ExprPairSet.elements lessdef)) in
+    match res with
+    | nil => lhs
+    | (a, b)::t => b
+    end.
+
   Definition inject_value (inv:t) (value_src value_tgt:ValueT.t): bool :=
     (ValueT.eq_dec value_src value_tgt && not_in_maydiff inv value_src) ||
     (ExprPairSet.mem (Expr.value value_src, Expr.value value_tgt) inv.(tgt).(lessdef) && not_in_maydiff inv value_src) ||
-    (ExprPairSet.mem (Expr.value value_src, Expr.value value_tgt) inv.(src).(lessdef) && not_in_maydiff inv value_tgt).
-
-  Definition not_in_maydiff_expr (inv:t) (expr: Expr.t): bool :=
-    List.forallb (not_in_maydiff inv) (Expr.get_valueTs expr).
+    (ExprPairSet.mem (Expr.value value_src, Expr.value value_tgt) inv.(src).(lessdef) && not_in_maydiff inv value_tgt) ||
+    ((ExprPairSet.mem (Expr.value value_src, get_rhs_in_src inv value_src) inv.(src).(lessdef)) && (ExprPairSet.mem (get_rhs_in_src inv value_src, Expr.value value_tgt) inv.(tgt).(lessdef)) && not_in_maydiff_expr inv (get_rhs_in_src inv value_src)).
 
   Definition is_empty_unary (inv:unary): bool :=
     ExprPairSet.is_empty inv.(lessdef) &&
@@ -147,6 +196,7 @@ Module Infrule.
   Inductive t :=
   | add_associative (x:IdT.t) (y:IdT.t) (z:IdT.t) (c1:INTEGER.t) (c2:INTEGER.t) (c3:INTEGER.t) (s:sz)
   | add_const_not (z:IdT.t) (y:IdT.t) (x:ValueT.t) (c1:INTEGER.t) (c2:INTEGER.t) (s:sz)
+  | add_dist_sub (z:IdT.t) (minusx:IdT.t) (minusy:ValueT.t) (w:IdT.t) (x:ValueT.t) (y:ValueT.t) (s:sz)
   | add_sub (z:IdT.t) (minusy:IdT.t) (x:ValueT.t) (y:ValueT.t) (s:sz)
   | add_commutative (z:IdT.t) (x:ValueT.t) (y:ValueT.t) (s:sz)
   | sub_add (z:IdT.t) (minusy:ValueT.t) (x:IdT.t) (y:ValueT.t) (s:sz)
@@ -159,13 +209,20 @@ Module Infrule.
   | add_signbit (x:IdT.t) (e1:ValueT.t) (e2:ValueT.t) (s:sz)
   | add_zext_bool (x:IdT.t) (y:IdT.t) (b:ValueT.t) (c:INTEGER.t) (c':INTEGER.t) (sz:sz)
   | mul_bool (z:IdT.t) (x:IdT.t) (y:IdT.t)
+  | mul_commutative (z:IdT.t) (x:ValueT.t) (y:ValueT.t) (sz:sz)
+  | mul_mone (z:IdT.t) (x:ValueT.t) (sz:sz)
   | mul_neg (z:IdT.t) (mx:ValueT.t) (my:ValueT.t) (x:ValueT.t) (y:ValueT.t) (s:sz)  
+  | mul_shl (z:IdT.t) (y:IdT.t) (x:ValueT.t) (a:ValueT.t) (sz:sz)
+  | sdiv_sub_srem (z:IdT.t) (b:IdT.t) (a:IdT.t) (x:ValueT.t) (y:ValueT.t) (sz:sz)
+  | sub_const_add (z:IdT.t) (y:IdT.t) (x:ValueT.t) (c1:INTEGER.t) (c2:INTEGER.t) (c3:INTEGER.t) (sz:sz)
+  | sub_const_not (z:IdT.t) (y:IdT.t) (x:ValueT.t) (c1:INTEGER.t) (c2:INTEGER.t) (s:sz)
   | sub_mone (z:IdT.t) (x:ValueT.t) (s:sz) 
   | sub_onebit (z:IdT.t) (x:ValueT.t) (y:ValueT.t)
   | sub_remove (z:IdT.t) (y:IdT.t) (a:ValueT.t) (b:ValueT.t) (sz:sz)
   | sub_sdiv (z:IdT.t) (y:IdT.t) (x:ValueT.t) (c:INTEGER.t) (c':INTEGER.t) (sz:sz)
   | sub_shl (z:IdT.t) (x:ValueT.t) (y:IdT.t) (mx:ValueT.t) (a:ValueT.t) (sz:sz)
   | transitivity (e1:Expr.t) (e2:Expr.t) (e3:Expr.t)
+  | transitivity_tgt (e1:Expr.t) (e2:Expr.t) (e3:Expr.t)
   | noalias_global_alloca (x:IdT.t) (y:IdT.t)
   | transitivity_pointer_lhs (p:ValueT.t) (q:ValueT.t) (v:ValueT.t) (ty:typ) (a:align)
   | transitivity_pointer_rhs (p:ValueT.t) (q:ValueT.t) (v:ValueT.t) (ty:typ) (a:align)
@@ -175,6 +232,8 @@ Module Infrule.
   | bop_both_tgt_right (b:bop) (x:ValueT.t) (y:ValueT.t) (z:ValueT.t) (sz:sz)
   | intro_eq (x:Expr.t) (g:IdT.t)
   | replace_rhs (x:IdT.t) (y:ValueT.t) (e1:Expr.t) (e2:Expr.t) (e2':Expr.t)
+  | udiv_sub_urem (z:IdT.t) (b:IdT.t) (a:IdT.t) (x:ValueT.t) (y:ValueT.t) (sz:sz)
+  | intro_ghost (x:ValueT.t) (g:id)
 
 (* Updated semantics of rules should be located above this line *)
 
@@ -184,18 +243,8 @@ Module Infrule.
   | remove_maydiff_rhs (v:IdT.t) (e:IdT.t)
   | eq_generate_same_heap_value (x:IdT.t) (p:ValueT.t) (v:ValueT.t) (ty:typ) (a:align)
   | stash_variable (z:IdT.t) (v:id)
-  | sub_const_not (z:IdT.t) (y:IdT.t) (s:sz) (x:ValueT.t) (c1:INTEGER.t) (c2:INTEGER.t)
   | add_mul_fold (z:IdT.t) (y:IdT.t) (s:sz) (x:ValueT.t) (c1:INTEGER.t) (c2:INTEGER.t)
-  | add_dist_sub (z:IdT.t) (minusx:IdT.t) (minusy:IdT.t) (w:IdT.t) (s:sz) (x:ValueT.t) (y:ValueT.t)
   | add_distributive (z:IdT.t) (x:IdT.t) (y:IdT.t) (w:IdT.t) (s:sz) (a:ValueT.t) (b:ValueT.t) (c:ValueT.t)
-  | sub_zext_bool (x:IdT.t) (y:IdT.t) (b:ValueT.t) (sz:sz) (c:INTEGER.t) (c':INTEGER.t)
-  | sub_const_add (z:IdT.t) (y:IdT.t) (sz:sz) (x:ValueT.t) (c1:INTEGER.t) (c2:INTEGER.t) (c3:INTEGER.t)
-  | sub_remove2 (z:IdT.t) (y:IdT.t) (sz:sz) (a:ValueT.t) (b:ValueT.t)
-  | mul_mone (z:IdT.t) (sz:sz) (x:ValueT.t)
-  | mul_commutative (z:IdT.t) (sz:sz) (x:ValueT.t) (y:ValueT.t)
-  | mul_shl (z:IdT.t) (y:IdT.t) (sz:sz) (x:ValueT.t) (a:ValueT.t)
-  | div_sub_srem (z:IdT.t) (b:IdT.t) (a:IdT.t) (sz:sz) (x:ValueT.t) (y:ValueT.t)
-  | div_sub_urem (z:IdT.t) (b:IdT.t) (a:IdT.t) (sz:sz) (x:ValueT.t) (y:ValueT.t)
   | div_zext (z:IdT.t) (x:IdT.t) (y:IdT.t) (k:IdT.t) (sz1:sz) (sz2:sz) (a:ValueT.t) (b:ValueT.t)
   | div_mone (z:IdT.t) (sz:sz) (x:ValueT.t)
   | rem_zext (z:IdT.t) (x:IdT.t) (y:IdT.t) (k:IdT.t) (sz1:sz) (sz2:sz) (a:ValueT.t) (b:ValueT.t)
