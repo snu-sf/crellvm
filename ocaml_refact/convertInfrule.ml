@@ -37,6 +37,15 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
      let c2 = Convert.const_int args.c2 in
      let sz = Convert.size args.sz in
      Infrule.Coq_add_const_not (z,y,x,c1,c2,sz)
+  | CoreHint_t.AddDistSub (args:CoreHint_t.add_dist_sub) ->
+     let z = Convert.register args.z in
+     let minusx = Convert.register args.minusx in
+     let minusy = Convert.value args.minusy in
+     let w = Convert.register args.w in
+     let x = Convert.value args.x in
+     let y = Convert.value args.y in
+     let sz = Convert.size args.sz in
+     Infrule.Coq_add_dist_sub (z, minusx, minusy, w, x, y, sz)
   | CoreHint_t.AddMask (args:CoreHint_t.add_mask) ->
      let z = Convert.register args.z in
      let y = Convert.register args.y in
@@ -101,26 +110,55 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
      let c' = Convert.const_int args.cprime in
      let sz = Convert.size args.sz in
      Infrule.Coq_add_zext_bool (x, y, b, c, c', sz)
-  | CoreHint_t.Addrspacecastptr (args:CoreHint_t.addrspacecast) ->
-     let v = Convert.value args.v in
-     let vprime = Convert.value args.vprime in
-     let addrspaceinst = Convert.expr args.addrspacecastinst in
-     Infrule.Coq_addrspacecastptr (v, vprime, addrspaceinst)
   | CoreHint_t.Bitcastptr (args:CoreHint_t.bitcastptr) ->
      let v = Convert.value args.v in
      let vprime = Convert.value args.vprime in
-     let bitcastinst = Convert.expr args.bitcastinst in
+     let bitcastinst = Convert.expr args.bitcastinst src_fdef tgt_fdef in
      Infrule.Coq_bitcastptr (v, vprime, bitcastinst)
   | CoreHint_t.Gepzero (args:CoreHint_t.gepzero) ->
      let v = Convert.value args.v in
      let vprime = Convert.value args.vprime in
-     let gepinst = Convert.expr args.gepinst in
+     let gepinst = Convert.expr args.gepinst src_fdef tgt_fdef in
      Infrule.Coq_gepzero (v, vprime, gepinst)
+  | CoreHint_t.SdivSubSrem (args:CoreHint_t.sdiv_sub_srem) ->
+     let z = Convert.register args.z in
+     let b = Convert.register args.b in
+     let a = Convert.register args.a in
+     let x = Convert.value args.x in
+     let y = Convert.value args.y in
+     let sz = Convert.size args.sz in
+     Infrule.Coq_sdiv_sub_srem (z, b, a, x, y, sz)
+  | CoreHint_t.UdivSubUrem (args:CoreHint_t.udiv_sub_urem) ->
+     let z = Convert.register args.z in
+     let b = Convert.register args.b in
+     let a = Convert.register args.a in
+     let x = Convert.value args.x in
+     let y = Convert.value args.y in
+     let sz = Convert.size args.sz in
+     Infrule.Coq_udiv_sub_urem (z, b, a, x, y, sz)
+  | CoreHint_t.SubAdd (args:CoreHint_t.sub_add) ->
+     let z = Convert.register args.z in
+     let my = Convert.value args.my in
+     let x = Convert.register args.x in
+     let y = Convert.value args.y in
+     let sz = Convert.size args.sz in
+     Infrule.Coq_sub_add (z, my, x, y, sz)
   | CoreHint_t.NegVal (args:CoreHint_t.neg_val) ->
      let c1 = Convert.const_int args.c1 in
      let c2 = Convert.const_int args.c2 in
      let sz = Convert.size args.sz in
      Infrule.Coq_neg_val (c1, c2, sz)
+  | CoreHint_t.MulBool (args:CoreHint_t.mul_bool) ->
+     let z = Convert.register args.z in
+     let x = Convert.register args.x in
+     let y = Convert.register args.y in
+     Infrule.Coq_mul_bool (z, x, y) 
+  | CoreHint_t.MulCommutative (args:CoreHint_t.mul_commutative) ->
+     let z = Convert.register args.z in
+     let x = Convert.value args.x in
+     let y = Convert.value args.y in
+     let sz = Convert.size args.sz in
+     Infrule.Coq_mul_commutative (z, x, y, sz)
   | CoreHint_t.MulNeg (args:CoreHint_t.mul_neg) ->
      let z = Convert.register args.z in
      let mx = Convert.value args.mx in
@@ -129,18 +167,35 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
      let y = Convert.value args.y in
      let sz = Convert.size args.sz in
      Infrule.Coq_mul_neg (z, mx, my, x, y, sz)
-  | CoreHint_t.MulBool (args:CoreHint_t.mul_bool) ->
+  | CoreHint_t.MulMone (args:CoreHint_t.mul_mone) ->
      let z = Convert.register args.z in
-     let x = Convert.register args.x in
-     let y = Convert.register args.y in
-     Infrule.Coq_mul_bool (z, x, y) 
-  | CoreHint_t.SubAdd (args:CoreHint_t.sub_add) ->
-     let z = Convert.register args.z in
-     let my = Convert.value args.my in
-     let x = Convert.register args.x in
-     let y = Convert.value args.y in
+     let x = Convert.value args.x in
      let sz = Convert.size args.sz in
-     Infrule.Coq_sub_add (z, my, x, y, sz)  
+     Infrule.Coq_mul_mone (z, x, sz)
+  | CoreHint_t.MulShl (args:CoreHint_t.mul_shl) ->
+     let z = Convert.register args.z in
+     let y = Convert.register args.y in
+     let x = Convert.value args.x in
+     let a = Convert.value args.a in
+     let sz = Convert.size args.sz in
+     Infrule.Coq_mul_shl (z, y, x, a, sz);
+  | CoreHint_t.SubConstAdd (args:CoreHint_t.sub_const_add) ->
+     let z = Convert.register args.z in
+     let y = Convert.register args.y in
+     let x = Convert.value args.x in
+     let c1 = Convert.const_int args.c1 in
+     let c2 = Convert.const_int args.c2 in
+     let c3 = Convert.const_int args.c3 in
+     let sz = Convert.size args.sz in
+     Infrule.Coq_sub_const_add (z, y, x, c1, c2, c3, sz)
+  | CoreHint_t.SubConstNot (args:CoreHint_t.sub_const_not) ->
+     let z = Convert.register args.z in
+     let y = Convert.register args.y in
+     let x = Convert.value args.x in
+     let c1 = Convert.const_int args.c1 in
+     let c2 = Convert.const_int args.c2 in
+     let sz = Convert.size args.sz in
+     Infrule.Coq_sub_const_not (z, y, x, c1, c2, sz)
   | CoreHint_t.SubMone (args:CoreHint_t.sub_mone) ->
      let z = Convert.register args.z in
      let x = Convert.value args.x in
@@ -183,15 +238,15 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
      let x = Convert.register args.x in
      let y = Convert.register args.y in
      Infrule.Coq_noalias_global_alloca (x, y)
-  | CoreHint_t.NoaliasGlobalGlobal (args:CoreHint_t.noalias_global_alloca) ->
+  | CoreHint_t.NoaliasGlobalGlobal (args:CoreHint_t.noalias_global_global) ->
      let x = Convert.register args.x in
      let y = Convert.register args.y in
      Infrule.Coq_noalias_global_global (x, y)
   | CoreHint_t.NoaliasLessthan (args:CoreHint_t.noalias_lessthan) ->
-     let x = Convert.register args.x in
-     let y = Convert.register args.y in
-     let xprime = Convert.register args.xprime in
-     let yprime = Convert.register args.yprime in
+     let x = Convert.value args.x in
+     let y = Convert.value args.y in
+     let xprime = Convert.value args.xprime in
+     let yprime = Convert.value args.yprime in
      Infrule.Coq_noalias_lessthan (x, y, xprime, yprime)
   | CoreHint_t.TransitivityPointerLhs (args:CoreHint_t.transitivity_pointer_lhs) ->
      let p = Convert.value args.p in
@@ -222,6 +277,5 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
      let e2 = Convert.expr args.e2 src_fdef tgt_fdef in
      let e2' = Convert.expr args.e2' src_fdef tgt_fdef in
      Infrule.Coq_replace_rhs (x, y, e1, e2, e2')
-  
   | _ ->
-     failwith "TODO"
+     failwith "convert_infrule does not deal with this inferece rule"

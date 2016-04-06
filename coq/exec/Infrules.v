@@ -73,6 +73,7 @@ Definition cond_replace_lessdef_value (x:IdT.t) (y:ValueT.t) (v v':ValueT.t) : b
   | _,_ => false
   end.
 
+
 (* cond_replace_lessdef x y e e' : 
    Given x >= y, If all x in e are replaced into y(let the replaced expression e2), is e2 >= e'? *)
 Definition cond_replace_lessdef (x:IdT.t) (y:ValueT.t) (e e':Expr.t) : bool :=
@@ -145,11 +146,52 @@ Definition cond_replace_lessdef (x:IdT.t) (y:ValueT.t) (e e':Expr.t) : bool :=
   | _, _ => false
   end.
 
+Definition cond_gep_zero (v':ValueT.t) (e:Expr.t) : bool :=
+  match e with
+  | Expr.gep inbound ty1 v idxlist ty2 =>
+    ValueT.eq_dec v v' &&
+    (List.forallb 
+      (fun itm => 
+        match itm with
+        | (sz,idx) =>
+          match idx with 
+          | (ValueT.const (const_int sz_i i)) => 
+            sz_dec sz sz_i &&
+            const_dec (const_int sz_i i) (const_int sz_i (INTEGER.of_Z (Size.to_Z sz_i) 0%Z true))
+          | _ => false
+          end
+        end)
+      idxlist)
+  | _ => false
+  end.
+
+Definition cond_bitcast_ptr (v':ValueT.t) (e:Expr.t) : bool :=
+  match e with
+  | Expr.cast eop fromty v toty =>
+    (match eop with 
+    | castop_bitcast => 
+      (match fromty, toty with
+      | typ_pointer _, typ_pointer_ => ValueT.eq_dec v v'
+      | _, _ => false
+      end)
+    | _ => false
+    end)
+  | _ => false
+  end.
+
+Definition cond_pointertyp (t:typ) : bool :=
+  match t with
+  | typ_pointer _ => true
+  | _ => false
+  end.
+
 
 Notation "$$ inv |- y >=src rhs $$" := (ExprPairSet.mem (y, rhs) inv.(Invariant.src).(Invariant.lessdef)) (at level 41).
 Notation "$$ inv |- y >=tgt rhs $$" := (ExprPairSet.mem (y, rhs) inv.(Invariant.tgt).(Invariant.lessdef)) (at level 41).
 Notation "$$ inv |-allocasrc y $$" := (IdTSet.mem y inv.(Invariant.src).(Invariant.allocas)) (at level 41).
 Notation "$$ inv |-allocatgt y $$" := (IdTSet.mem y inv.(Invariant.tgt).(Invariant.allocas)) (at level 41).
+Notation "$$ inv |- x _|_src y $$" := ((ValueTPairSet.mem (x, y) inv.(Invariant.src).(Invariant.noalias)) || (ValueTPairSet.mem (y, x) inv.(Invariant.src).(Invariant.noalias))) (at level 41).
+Notation "$$ inv |- x _|_tgt y $$" := ((ValueTPairSet.mem (x, y) inv.(Invariant.tgt).(Invariant.noalias)) || (ValueTPairSet.mem (y, x) inv.(Invariant.tgt).(Invariant.noalias))) (at level 41).
 Notation "{{ inv +++ y >=src rhs }}" := (Invariant.update_src (Invariant.update_lessdef (ExprPairSet.add (y, rhs))) inv) (at level 41).
 Notation "{{ inv +++ y >=tgt rhs }}" := (Invariant.update_tgt (Invariant.update_lessdef (ExprPairSet.add (y, rhs))) inv) (at level 41).
 Notation "{{ inv +++ y _|_src x }}" := (Invariant.update_src (Invariant.update_noalias (ValueTPairSet.add (y, x))) inv) (at level 41).
@@ -172,6 +214,17 @@ Definition apply_infrule
        $$ inv0 |- (Expr.value (ValueT.id z)) >=src (Expr.bop bop_add s (ValueT.id y) (ValueT.const (const_int s c1))) $$ &&
        cond_minus s c1 (INTEGER.of_Z (Size.to_Z s) 1%Z true) c2
     then {{inv0 +++ (Expr.value (ValueT.id z)) >=src (Expr.bop bop_sub s (ValueT.const (const_int s c2)) x)}}
+    else inv0
+  | Infrule.add_dist_sub z minusx minusy w x y s =>
+    if $$ inv0 |- (Expr.value (ValueT.id minusx)) 
+                  >=tgt (Expr.bop bop_sub s (ValueT.const (const_int s (INTEGER.of_Z (Size.to_Z s) 0%Z true))) x) $$
+        && $$ inv0 |- (Expr.value minusy)
+                      >=tgt (Expr.bop bop_sub s (ValueT.const (const_int s (INTEGER.of_Z (Size.to_Z s) 0%Z true))) y) $$
+        && $$ inv0 |- (Expr.bop bop_add s x y) 
+                      >=tgt (Expr.value (ValueT.id w)) $$ 
+        && $$ inv0 |- (Expr.bop bop_sub s (ValueT.const (const_int s (INTEGER.of_Z (Size.to_Z s) 0%Z true))) (ValueT.id w))
+                      >=tgt (Expr.value (ValueT.id z)) $$  
+    then {{inv0 +++ (Expr.bop bop_add s (ValueT.id minusx) minusy) >=tgt (Expr.value (ValueT.id z))}}  
     else inv0
   | Infrule.add_sub z minusy x y s =>
     if $$ inv0 |- (Expr.value minusy) >=src (Expr.bop bop_sub s (const_int s (INTEGER.of_Z (Size.to_Z s) 0%Z true)) y) $$ &&
@@ -210,6 +263,34 @@ Definition apply_infrule
        cond_signbit s e2
     then {{inv0 +++ (Expr.value x) >=src (Expr.bop bop_xor s e1 e2)}}
     else inv0
+  | Infrule.bitcastptr v v' bitcastinst =>
+    if $$ inv0 |- (Expr.value v) >=src bitcastinst $$ &&
+       $$ inv0 |- bitcastinst >=src (Expr.value v) $$ &&
+       cond_bitcast_ptr v' bitcastinst
+    then 
+      let inv0 := {{inv0 +++ (Expr.value v) >=src (Expr.value v')}} in
+      {{inv0 +++ (Expr.value v') >=src (Expr.value v)}}
+    else inv0
+  | Infrule.gepzero v v' gepinst =>
+    if $$ inv0 |- (Expr.value v) >=src gepinst $$ &&
+       $$ inv0 |- gepinst >=src (Expr.value v) $$ &&
+       cond_gep_zero v' gepinst
+    then 
+      let inv0 := {{inv0 +++ (Expr.value v) >=src (Expr.value v')}} in
+      {{inv0 +++ (Expr.value v') >=src (Expr.value v)}}
+    else inv0
+  | Infrule.sdiv_sub_srem z b a x y s =>
+    if $$ inv0 |- (Expr.value (ValueT.id b)) >=src (Expr.bop bop_srem s x y) $$ &&
+       $$ inv0 |- (Expr.value (ValueT.id a)) >=src (Expr.bop bop_sub s x (ValueT.id b)) $$ &&
+       $$ inv0 |- (Expr.value (ValueT.id z)) >=src (Expr.bop bop_sdiv s (ValueT.id a) y) $$
+    then {{inv0 +++ (Expr.value (ValueT.id z)) >=src (Expr.bop bop_sdiv s x y) }}
+    else inv0
+  | Infrule.udiv_sub_urem z b a x y s =>
+    if $$ inv0 |- (Expr.value (ValueT.id b)) >=src (Expr.bop bop_urem s x y) $$ &&
+       $$ inv0 |- (Expr.value (ValueT.id a)) >=src (Expr.bop bop_sub s x (ValueT.id b)) $$ &&
+       $$ inv0 |- (Expr.value (ValueT.id z)) >=src (Expr.bop bop_udiv s (ValueT.id a) y) $$
+    then {{inv0 +++ (Expr.value (ValueT.id z)) >=src (Expr.bop bop_udiv s x y) }}
+    else inv0
   | Infrule.sub_add z my x y s =>
     if $$ inv0 |- (Expr.value my) >=src (Expr.bop bop_sub s (const_int s (INTEGER.of_Z (Size.to_Z s) 0%Z true)) y) $$ &&
        $$ inv0 |- (Expr.value z) >=src (Expr.bop bop_sub s x my) $$
@@ -217,7 +298,16 @@ Definition apply_infrule
     else inv0
   | Infrule.neg_val c1 c2 s =>
     if cond_plus s c1 c2 (INTEGER.of_Z (Size.to_Z s) 0%Z true)  
-    then {{inv0 +++ (Expr.value (const_int s c1)) >=src (Expr.bop bop_sub s (const_int s (INTEGER.of_Z (Size.to_Z s) 0%Z true)) (const_int s c2))}}
+    then 
+      let inv0 := 
+      {{inv0 +++ (Expr.value (const_int s c1)) >=src (Expr.bop bop_sub s (const_int s (INTEGER.of_Z (Size.to_Z s) 0%Z true)) (const_int s c2))}} in
+      {{inv0 +++ (Expr.bop bop_sub s (const_int s (INTEGER.of_Z (Size.to_Z s) 0%Z true)) (const_int s c2)) >=tgt (Expr.value (const_int s c1))}}
+    else inv0
+  | Infrule.mul_mone z x s =>
+    if $$ inv0 |- (Expr.value (ValueT.id z)) 
+                >=src (Expr.bop bop_mul s x (ValueT.const (const_int s (INTEGER.of_Z (Size.to_Z s) (-1)%Z true)))) $$
+    then {{ inv0 +++ (Expr.value (ValueT.id z)) 
+                >=src (Expr.bop bop_sub s (ValueT.const (const_int s (INTEGER.of_Z (Size.to_Z s) 0%Z true))) x) }}
     else inv0
   | Infrule.mul_neg z mx my x y s =>
     if $$ inv0 |- (Expr.value mx) >=src (Expr.bop bop_sub s (const_int s (INTEGER.of_Z (Size.to_Z s) 0%Z true)) x) $$ &&
@@ -229,6 +319,27 @@ Definition apply_infrule
     if $$ inv0 |- (Expr.value z) >=src (Expr.bop bop_mul Size.One x y) $$
     then {{inv0 +++ (Expr.value z) >=src (Expr.bop bop_and Size.One x y) }}
     else inv0
+  | Infrule.mul_commutative z x y s =>
+    if $$ inv0 |- (Expr.value (ValueT.id z)) >=src (Expr.bop bop_mul s x y) $$
+    then {{inv0 +++ (Expr.value (ValueT.id z)) >=src (Expr.bop bop_mul s y x)}}
+    else inv0
+  | Infrule.mul_shl z y x a s =>
+    if $$ inv0 |- (Expr.value (ValueT.id y)) >=src (Expr.bop bop_shl s (ValueT.const (const_int s (INTEGER.of_Z (Size.to_Z s) 1%Z true))) a) $$ &&
+       $$ inv0 |- (Expr.value (ValueT.id z)) >=src (Expr.bop bop_mul s (ValueT.id y) x) $$
+    then {{ inv0 +++ (Expr.value (ValueT.id z)) >=src (Expr.bop bop_shl s x a) }}
+    else inv0
+  | Infrule.sub_const_add z y x c1 c2 c3 s =>
+    if $$ inv0 |- (Expr.value (ValueT.id y)) >=src (Expr.bop bop_add s x (ValueT.const (const_int s c1))) $$ &&
+       $$ inv0 |- (Expr.value (ValueT.id z)) >=src (Expr.bop bop_sub s (ValueT.const (const_int s c2)) (ValueT.id y)) $$ &&
+       cond_minus s c2 c1 c3
+    then {{inv0 +++ (Expr.value (ValueT.id z)) >=src (Expr.bop bop_sub s (ValueT.const (const_int s c3)) x) }}
+    else inv0
+  | Infrule.sub_const_not z y x c1 c2 s =>
+    if $$ inv0 |- (Expr.value (ValueT.id y)) >=src (Expr.bop bop_xor s x (ValueT.const (const_int s (INTEGER.of_Z (Size.to_Z s) (-1)%Z true)))) $$ &&
+       $$ inv0 |- (Expr.value (ValueT.id z)) >=src (Expr.bop bop_sub s (ValueT.const (const_int s c1)) (ValueT.id y)) $$ &&
+       cond_plus s c1 (INTEGER.of_Z (Size.to_Z s) 1%Z true) c2
+    then {{inv0 +++ (Expr.value (ValueT.id z)) >=src (Expr.bop bop_add s x (ValueT.const (const_int s c2)))}}
+    else inv0
   | Infrule.sub_mone z x s =>
     if $$ inv0 |- (Expr.value (ValueT.id z)) >=src (Expr.bop bop_sub s 
                 (ValueT.const (const_int s (INTEGER.of_Z (Size.to_Z s) (-1)%Z true))) x) $$
@@ -236,9 +347,9 @@ Definition apply_infrule
                 (ValueT.const (const_int s (INTEGER.of_Z (Size.to_Z s) (-1)%Z true))))}}
       else inv0
   | Infrule.sub_remove z y a b sz =>
-    if $$ inv0 |- (Expr.value y) >=src (Expr.bop bop_add sz a b) $$ &&
-       $$ inv0 |- (Expr.value z) >=src (Expr.bop bop_sub sz a y) $$
-    then {{inv0 +++ (Expr.value z) >=src (Expr.bop bop_sub sz (const_int sz (INTEGER.of_Z (Size.to_Z sz) 0%Z true)) b) }}
+    if $$ inv0 |- (Expr.value (ValueT.id y)) >=src (Expr.bop bop_add sz a b) $$ &&
+       $$ inv0 |- (Expr.value (ValueT.id z)) >=src (Expr.bop bop_sub sz a (ValueT.id y)) $$
+    then {{inv0 +++ (Expr.value (ValueT.id z)) >=src (Expr.bop bop_sub sz (const_int sz (INTEGER.of_Z (Size.to_Z sz) 0%Z true)) b) }}
     else inv0
   | Infrule.sub_onebit z x y =>
     if $$ inv0 |- (Expr.value (ValueT.id z)) >=src (Expr.bop bop_sub Size.One x y) $$
@@ -283,6 +394,30 @@ Definition apply_infrule
       end
     | _ => inv0
     end
+  | Infrule.noalias_global_global x y =>
+    match x with 
+    | (Tag.physical, x_id) =>
+      match lookupTypViaGIDFromModule m_src x_id with
+      | Some x_type => (* x is a global variable *)
+        (match y with
+        | (Tag.physical, y_id) =>
+          match lookupTypViaGIDFromModule m_src y_id with
+          | Some y_type => 
+            {{inv0 +++ (ValueT.id y) _|_src (ValueT.const (const_gid x_type x_id)) }}
+          | None => inv0
+          end
+        | _ => inv0
+        end)
+      | None => inv0
+      end
+    | _ => inv0
+    end
+  | Infrule.noalias_lessthan x y x' y' =>
+    if $$ inv0 |- x _|_src y $$ &&
+       $$ inv0 |- (Expr.value x) >=src (Expr.value x') $$ &&
+       $$ inv0 |- (Expr.value y) >=src (Expr.value y') $$
+    then {{inv0 +++ x' _|_src y'}}
+    else inv0
   | Infrule.transitivity_pointer_lhs p q v ty a =>
     if $$ inv0 |- (Expr.value p) >=src (Expr.value q) $$ &&
        $$ inv0 |- (Expr.load q ty a) >=src (Expr.value v) $$

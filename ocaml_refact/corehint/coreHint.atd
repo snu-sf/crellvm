@@ -266,8 +266,11 @@ type add_select_zero2 = {
 type add_dist_sub = {
   z : register;
   minusx : register;
-  minusy : register;
+  minusy : value;
   w : register;
+  x : value;
+  y : value;
+  sz : size;
 }
 
 type gepzero = {
@@ -280,12 +283,6 @@ type bitcastptr = {
   v : value;
   vprime : value;
   bitcastinst : expr;
-}
-
-type addrspacecastptr = {
-  v : value;
-  vprime : value;
-  addrspacecastinst : expr;
 }
 
 type mul_add_distributive = {
@@ -307,10 +304,10 @@ type noalias_global_alloca = {
 }
 
 type noalias_lessthan = {
-  x : register;
-  y : register;
-  xprime : register;
-  yprime : register;
+  x : value;
+  y : value;
+  xprime : value;
+  yprime : value;
 }
 
 type noalias_global_global = {
@@ -333,8 +330,12 @@ type sub_mone = {
 }
 
 type sub_const_not = {
-  y : register;
   z : register;
+  y : register;
+  x : value;
+  c1 : const_int;
+  c2 : const_int;
+  sz : size;
 }
 
 type sub_remove = {
@@ -345,11 +346,6 @@ type sub_remove = {
   sz : size;
 }
 
-type sub_remove2 = {
-  y : register;
-  z : register;
-}
-
 type sub_onebit = {
   z : register;
   x : value;
@@ -357,8 +353,13 @@ type sub_onebit = {
 }
 
 type sub_const_add = {
-  y : register;
   z : register;
+  y : register;
+  x : value;
+  c1 : const_int;
+  c2 : const_int;
+  c3 : const_int;
+  sz : size;
 }
 
 type sub_sdiv = {
@@ -387,6 +388,8 @@ type mul_bool = {
 
 type mul_mone = {
   z : register;
+  x : value;
+  sz : size;
 }
 
 type mul_neg = {
@@ -400,11 +403,17 @@ type mul_neg = {
 
 type mul_commutative = {
   z : register;
+  x : value;
+  y : value;
+  sz : size;
 }
 
 type mul_shl = {
   z : register;
   y : register;
+  x : value;
+  a : value;
+  sz : size;
 }
 
 type div_mone = {
@@ -423,16 +432,22 @@ type rem_neg = {
   my : register;
 }
 
-type div_sub_srem = {
+type sdiv_sub_srem = {
   z : register;
   b : register;
   a : register;
+  x : value;
+  y : value;
+  sz : size;
 }
 
-type div_sub_urem = {
+type udiv_sub_urem = {
   z : register;
   b : register;
   a : register;
+  x : value;
+  y : value;
+  sz : size;
 }
 
 type infrule = [
@@ -448,12 +463,9 @@ type infrule = [
   | AddSelectZero of add_select_zero
   | AddSelectZero2 of add_select_zero2
   | AddDistSub of add_dist_sub
-  | Addrspacecastptr of addrspacecastptr
   | AndDeMorgan of and_de_morgan
   | Bitcastptr of bitcastptr
   | DivMone of div_mone
-  | DivSubSrem of div_sub_srem
-  | DivSubUrem of div_sub_urem
   | Gepzero of gepzero
   | MulAddDistributive of mul_add_distributive
   | NegVal of neg_val
@@ -461,7 +473,6 @@ type infrule = [
   | SubAdd of sub_add
   | SubConstNot of sub_const_not
   | SubRemove of sub_remove
-  | SubRemove2 of sub_remove2
   | SubOnebit of sub_onebit
   | SubConstAdd of sub_const_add
   | SubSdiv of sub_sdiv
@@ -476,6 +487,8 @@ type infrule = [
   | NoaliasLessthan of noalias_lessthan
   | RemNeg of rem_neg
   | ReplaceRhs of replace_rhs
+  | SdivSubSrem of sdiv_sub_srem
+  | UdivSubUrem of udiv_sub_urem
   | Transitivity of transitivity
   | TransitivityPointerLhs of transitivity_pointer_lhs
   | TransitivityPointerRhs of transitivity_pointer_rhs
