@@ -227,9 +227,9 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
       | (Some bop, None) -> Infrule.Coq_bop_both_tgt_right (bop, x, y, z, sz)
       | _ -> failwith "b is neither bop or fbop")
   | CoreHint_t.IntroEq (args:CoreHint_t.intro_eq) ->
-      let x = Convert.value args.x in
+      let e = Convert.expr args.e src_fdef tgt_fdef in
       let g = Convert.register args.g in
-      Infrule.Coq_intro_eq (x, g)
+      Infrule.Coq_intro_eq (e, g)
   | CoreHint_t.ReplaceRhs (args:CoreHint_t.replace_rhs) ->
       let x = Convert.register args.x in
       let y = Convert.value args.y in

@@ -239,7 +239,7 @@ type bop_both_tgt_right = {
 }
 
 type intro_eq = {
-  x : value;
+  e : expr;
   g : register;
 }
 

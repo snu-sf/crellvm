@@ -173,7 +173,7 @@ Module Infrule.
   | bop_both_src_right (b:bop) (x:ValueT.t) (y:ValueT.t) (z:ValueT.t) (sz:sz)
   | bop_both_tgt_left (b:bop) (x:ValueT.t) (y:ValueT.t) (z:ValueT.t) (sz:sz)
   | bop_both_tgt_right (b:bop) (x:ValueT.t) (y:ValueT.t) (z:ValueT.t) (sz:sz)
-  | intro_eq (x:ValueT.t) (g:IdT.t)
+  | intro_eq (x:Expr.t) (g:IdT.t)
   | replace_rhs (x:IdT.t) (y:ValueT.t) (e1:Expr.t) (e2:Expr.t) (e2':Expr.t)
 
 (* Updated semantics of rules should be located above this line *)

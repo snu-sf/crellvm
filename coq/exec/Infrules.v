@@ -36,6 +36,9 @@ Definition is_ghost (g:IdT.t) :=
   | (tag, _) => if Tag.eq_dec tag Tag.ghost then true else false
   end.
 
+Definition cond_fresh (g:IdT.t) (inv:Invariant.t) : bool :=
+  negb (List.existsb (fun x => IdT.eq_dec g x) (Invariant.get_idTs inv)).
+
 Definition cond_plus (s:sz) (c1 c2 c3: INTEGER.t) : bool :=
   (Int.eq_dec _)
     (Int.repr (Size.to_nat s - 1) (INTEGER.to_Z c3))
@@ -314,11 +317,14 @@ Definition apply_infrule
     if $$ inv0 |- (Expr.value y) >=tgt (Expr.value z) $$
     then {{inv0 +++ (Expr.bop b sz y x) >=tgt (Expr.bop b sz z x)}}
     else inv0
- | Infrule.intro_eq x g =>
+ | Infrule.intro_eq e g =>
     if is_ghost g
-    (* TODO : && g has to be a fresh variable *)
-    then {{ {{inv0 +++ (Expr.value x) >=src (Expr.value (ValueT.id g)) }}
-                   +++ (Expr.value (ValueT.id g)) >=src (Expr.value x) }}
+       && Invariant.not_in_maydiff_expr inv0 e
+       && cond_fresh g inv0
+    then {{ {{ {{ {{inv0 +++ e >=src (Expr.value (ValueT.id g)) }}
+                         +++ (Expr.value (ValueT.id g)) >=src e }}
+                         +++ e >=tgt (Expr.value (ValueT.id g)) }}
+                         +++ (Expr.value (ValueT.id g)) >=tgt e }}
     else inv0
   | Infrule.replace_rhs x y e1 e2 e2' =>
     if $$ inv0 |- (Expr.value x) >=src (Expr.value y) $$ &&
