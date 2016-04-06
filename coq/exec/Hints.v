@@ -157,7 +157,6 @@ Module Infrule.
   | add_shift (y:IdT.t) (v:ValueT.t) (s:sz) 
   | add_signbit (x:IdT.t) (e1:ValueT.t) (e2:ValueT.t) (s:sz)
   | add_zext_bool (x:IdT.t) (y:IdT.t) (b:ValueT.t) (c:INTEGER.t) (c':INTEGER.t) (sz:sz)
-  | addrspacecastptr (v:ValueT.t) (addrspacecastinst:Expr.t)
   | bitcastptr (v:ValueT.t) (v':ValueT.t) (bitcastinst:Expr.t)
   | gepzero (v:ValueT.t) (v':ValueT.t) (gepinst:Expr.t)
   | mul_bool (z:IdT.t) (x:IdT.t) (y:IdT.t)
