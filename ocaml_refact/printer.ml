@@ -35,11 +35,8 @@ module ExprsToString = struct
       Printf.sprintf "(align %d)" al
 
     let rec of_sz_ValueT_list svl =
-      match svl with
-      | [] -> ""
-      | (sz, vt)::svlt ->
-         "i"^(string_of_int sz)^" "^(of_ValueT vt)^", "^
-           (of_sz_ValueT_list svlt)
+      String.concat ", " (List.map (fun (sz, vt) ->
+                                    "i"^(string_of_int sz)^" "^(of_ValueT vt)) svl)
         
     let of_expr (e:Expr.t): string =
       match e with
@@ -64,7 +61,7 @@ module ExprsToString = struct
                         (of_ValueT vt2)
                         (string_of_list_constant cl)
       | Expr.Coq_gep (inb, ty1, vt, svl, ty2) ->
-         Printf.sprintf "getelementptr %s %s %s %s %s"
+         Printf.sprintf "getelementptr %s %s %s (%s) %s"
                         (string_of_bool inb)
                         (string_of_typ ty1)
                         (of_ValueT vt)
