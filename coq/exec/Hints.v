@@ -146,10 +146,10 @@ End Invariant.
 Module Infrule.
   Inductive t :=
   | add_associative (x:IdT.t) (y:IdT.t) (z:IdT.t) (c1:INTEGER.t) (c2:INTEGER.t) (c3:INTEGER.t) (s:sz)
+  | add_commutative (z:IdT.t) (x:ValueT.t) (y:ValueT.t) (s:sz)
   | add_const_not (z:IdT.t) (y:IdT.t) (x:ValueT.t) (c1:INTEGER.t) (c2:INTEGER.t) (s:sz)
   | add_dist_sub (z:IdT.t) (minusx:IdT.t) (minusy:ValueT.t) (w:IdT.t) (x:ValueT.t) (y:ValueT.t) (s:sz)
   | add_sub (z:IdT.t) (minusy:IdT.t) (x:ValueT.t) (y:ValueT.t) (s:sz)
-  | add_commutative (z:IdT.t) (x:ValueT.t) (y:ValueT.t) (s:sz)
   | add_mask (z:IdT.t) (y:IdT.t) (y':IdT.t) (x:ValueT.t) (c1:INTEGER.t) (c2:INTEGER.t) (s:sz)
   | add_onebit (z:IdT.t) (x:ValueT.t) (y:ValueT.t)
   | add_select_zero (z:IdT.t) (x:IdT.t) (y:IdT.t) (c:ValueT.t) (n:ValueT.t) (a:ValueT.t) (s:sz)
