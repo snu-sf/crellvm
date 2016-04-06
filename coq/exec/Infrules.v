@@ -13,7 +13,6 @@ Require Import Integers.
 Require Import Exprs.
 Require Import Hints.
 Require Import TODO.
-Require Import Debug.
 Require Import Decs.
 Set Implicit Arguments.
 
@@ -152,8 +151,6 @@ Notation "$$ inv |-allocasrc y $$" := (IdTSet.mem y inv.(Invariant.src).(Invaria
 Notation "$$ inv |-allocatgt y $$" := (IdTSet.mem y inv.(Invariant.tgt).(Invariant.allocas)) (at level 41).
 Notation "{{ inv +++ y >=src rhs }}" := (Invariant.update_src (Invariant.update_lessdef (ExprPairSet.add (y, rhs))) inv) (at level 41).
 Notation "{{ inv +++ y >=tgt rhs }}" := (Invariant.update_tgt (Invariant.update_lessdef (ExprPairSet.add (y, rhs))) inv) (at level 41).
-Notation "{{ inv --- y >=src rhs }}" := (Invariant.update_src (Invariant.update_lessdef (ExprPairSet.remove (y, rhs))) inv) (at level 41).
-Notation "{{ inv --- y >=tgt rhs }}" := (Invariant.update_tgt (Invariant.update_lessdef (ExprPairSet.remove (y, rhs))) inv) (at level 41).
 Notation "{{ inv +++ y _|_src x }}" := (Invariant.update_src (Invariant.update_noalias (ValueTPairSet.add (y, x))) inv) (at level 41).
 Notation "{{ inv +++ y _|_tgt x }}" := (Invariant.update_tgt (Invariant.update_noalias (ValueTPairSet.add (y, x))) inv) (at level 41).
 
@@ -371,14 +368,6 @@ Definition apply_infrule
           (Invariant.update_tgt (Invariant.update_lessdef (ExprPairSet.add ((Expr.value (ValueT.id (Tag.ghost, g))), (Expr.value x))))
           (Invariant.update_src (Invariant.update_lessdef (ExprPairSet.remove ((Invariant.get_lhs_in_src inv0 (Expr.value (ValueT.id (Tag.ghost, g)))), (Expr.value (ValueT.id (Tag.ghost, g))))))
           (Invariant.update_tgt (Invariant.update_lessdef (ExprPairSet.remove ((Expr.value (ValueT.id (Tag.ghost, g))), (Invariant.get_rhs_in_tgt inv0 (Expr.value (ValueT.id (Tag.ghost, g))))))) inv0))))
-
-         (* {{ inv0 --- (Invariant.get_lhs_in_src inv0 (Expr.value (ValueT.id (Tag.ghost, z)))) 
-                                          >=src (Expr.value (ValueT.id (Tag.ghost, z))) }}
-                  --- (Expr.value (ValueT.id (Tag.ghost, z))) 
-                            >=tgt (Invariant.get_rhs_in_tgt inv0 (Expr.value (ValueT.id (Tag.ghost, z))))
-          {{ inv0 +++ (Expr.value y) >=src (Expr.value (ValueT.id (Tag.ghost, z))) }}
-                  +++ (Expr.value (ValueT.id (Tag.ghost, z))) >=tgt (Expr.value y)
-         *)
     else inv0 
   | _ => inv0 (* TODO *)
   end.

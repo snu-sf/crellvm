@@ -103,13 +103,62 @@ Module Invariant.
     | ValueT.const _ => true
     end.
 
+  Definition not_in_maydiff_expr (inv:t) (expr: Expr.t): bool :=
+    List.forallb (not_in_maydiff inv) (Expr.get_valueTs expr).
+
+  Definition get_lhs_in_src (inv: t) (rhs: Expr.t): Expr.t :=
+    let (src, tgt, maydiff) := inv in
+    let (lessdef, noalias, allocas, private) := src in
+    let res := (List.filter
+       (fun (p: ExprPair.t) =>
+          let (x, y) := p in Expr.eq_dec y rhs)
+       (ExprPairSet.elements lessdef)) in
+    match res with
+    | nil => rhs
+    | (a, b)::t => a
+    end.
+
+  Definition get_lhs_in_tgt (inv: t) (rhs: Expr.t): Expr.t :=
+    let (src, tgt, maydiff) := inv in
+    let (lessdef, noalias, allocas, private) := tgt in
+    let res := (List.filter
+       (fun (p: ExprPair.t) =>
+          let (x, y) := p in Expr.eq_dec y rhs)
+       (ExprPairSet.elements lessdef)) in
+    match res with
+    | nil => rhs
+    | (a, b)::t => a
+    end.
+
+  Definition get_rhs_in_src (inv: t) (lhs: Expr.t): Expr.t :=
+    let (src, tgt, maydiff) := inv in
+    let (lessdef, noalias, allocas, private) := src in
+    let res := (List.filter
+       (fun (p: ExprPair.t) =>
+          let (x, y) := p in Expr.eq_dec x lhs)
+       (ExprPairSet.elements lessdef)) in
+    match res with
+    | nil => lhs
+    | (a, b)::t => b
+    end.
+
+  Definition get_rhs_in_tgt (inv: t) (lhs: Expr.t): Expr.t :=
+    let (src, tgt, maydiff) := inv in
+    let (lessdef, noalias, allocas, private) := tgt in
+    let res := (List.filter
+       (fun (p: ExprPair.t) =>
+          let (x, y) := p in Expr.eq_dec x lhs)
+       (ExprPairSet.elements lessdef)) in
+    match res with
+    | nil => lhs
+    | (a, b)::t => b
+    end.
+
   Definition inject_value (inv:t) (value_src value_tgt:ValueT.t): bool :=
     (ValueT.eq_dec value_src value_tgt && not_in_maydiff inv value_src) ||
     (ExprPairSet.mem (Expr.value value_src, Expr.value value_tgt) inv.(tgt).(lessdef) && not_in_maydiff inv value_src) ||
-    (ExprPairSet.mem (Expr.value value_src, Expr.value value_tgt) inv.(src).(lessdef) && not_in_maydiff inv value_tgt).
-
-  Definition not_in_maydiff_expr (inv:t) (expr: Expr.t): bool :=
-    List.forallb (not_in_maydiff inv) (Expr.get_valueTs expr).
+    (ExprPairSet.mem (Expr.value value_src, Expr.value value_tgt) inv.(src).(lessdef) && not_in_maydiff inv value_tgt) ||
+    ((ExprPairSet.mem (Expr.value value_src, get_rhs_in_src inv value_src) inv.(src).(lessdef)) && (ExprPairSet.mem (get_rhs_in_src inv value_src, Expr.value value_tgt) inv.(tgt).(lessdef)) && not_in_maydiff_expr inv (get_rhs_in_src inv value_src)).
 
   Definition is_empty_unary (inv:unary): bool :=
     ExprPairSet.is_empty inv.(lessdef) &&
@@ -141,30 +190,6 @@ Module Invariant.
     (get_idTs_unary src)
       ++ (get_idTs_unary tgt)
       ++ (IdTSet.elements maydiff).
-
-  Definition get_lhs_in_src (inv: t) (rhs: Expr.t): Expr.t :=
-    let (src, tgt, maydiff) := inv in
-    let (lessdef, noalias, allocas, private) := src in
-    let res := (List.filter
-       (fun (p: ExprPair.t) =>
-          let (x, y) := p in Expr.eq_dec y rhs)
-       (ExprPairSet.elements lessdef)) in
-    match res with
-    | nil => rhs
-    | (a, b)::t => a
-    end.
-
-  Definition get_rhs_in_tgt (inv: t) (lhs: Expr.t): Expr.t :=
-    let (src, tgt, maydiff) := inv in
-    let (lessdef, noalias, allocas, private) := tgt in
-    let res := (List.filter
-       (fun (p: ExprPair.t) =>
-          let (x, y) := p in Expr.eq_dec x lhs)
-       (ExprPairSet.elements lessdef)) in
-    match res with
-    | nil => lhs
-    | (a, b)::t => b
-    end.
 End Invariant.
 
 Module Infrule.
