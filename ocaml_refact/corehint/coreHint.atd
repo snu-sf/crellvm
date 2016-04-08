@@ -472,9 +472,9 @@ type infrule = [
   | AddSelectZero2 of add_select_zero2
   | AddDistSub of add_dist_sub
   | AndDeMorgan of and_de_morgan
-  | MulAddDistributive of mul_add_distributive
   | Bitcastptr of bitcastptr
   | Gepzero of gepzero
+  | MulAddDistributive of mul_add_distributive
   | NegVal of neg_val
   | SubMone of sub_mone
   | SubAdd of sub_add
