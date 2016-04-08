@@ -133,12 +133,12 @@ Module Snapshot.
     inv2.
 
   Definition physical_previous_lessdef (inv:Invariant.unary): ExprPairSet.t :=
-    let prev_idt_set := IdTSet_from_list (Invariant.get_idTs_unary inv) in
+    let idt_set := IdTSet_from_list (Invariant.get_idTs_unary inv) in
+    let prev_idt_set := IdTSet.filter IdT idt_set in
     IdTSet.fold
       (fun idt eps =>
-         let (_, id) := idt in
-         let id_expr_phys := Expr.value (ValueT.id (IdT.lift Tag.physical id)) in
-         let id_expr_prev := Expr.value (ValueT.id (IdT.lift Tag.previous id)) in
+         let id_expr_prev := Expr.value (ValueT.id idt) in
+         let id_expr_phys := Expr.value (ValueT.id (IdT.lift Tag.physical (snd idt))) in
          (ExprPairSet.add (id_expr_phys, id_expr_prev)
                           (ExprPairSet.add (id_expr_prev, id_expr_phys) eps)))
       prev_idt_set ExprPairSet.empty.
