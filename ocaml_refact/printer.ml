@@ -7,8 +7,10 @@ open List
        
 let out_channel = ref stdout
 
-let debug_print (msg:string): unit =
-  Printf.fprintf !out_channel "DEBUG: %s\n" msg
+let debug_print ?default_format:(df = true) (msg:string): unit =
+  if df
+  then Printf.fprintf !out_channel "DEBUG: %s\n" msg
+  else Printf.fprintf !out_channel "%s" msg
 
 module ExprsToString = struct
     let of_Tag (t:Tag.t): string =
@@ -142,7 +144,7 @@ module PrintExprs = struct
   end
                       
 module PrintHints = struct
-    let infrules_to_string (inf:Infrule.t): string =
+    let infrule_to_string (inf:Infrule.t): string =
       (* TODO: print args *)
       match inf with
       | Infrule.Coq_add_associative (x, y, z, c1, c2, c3, sz) ->
@@ -167,7 +169,7 @@ module PrintHints = struct
     let infrules (infs:Infrule.t list): unit =
       let _ = List.map
                 (fun inf ->
-                 let s = infrules_to_string inf in
+                 let s = infrule_to_string inf in
                  let _ = debug_print s in ())
                 infs
       in ()
@@ -285,6 +287,11 @@ let idT_printer (x: Exprs.IdT.t): unit =
       fun _ ->
       debug_print (ExprsToString.of_IdT x))
 
-let debug_string (x: char list) (y: 'a) =
-  let _ = debug_run(fun _ -> debug_print (string_of_char_list x))
+let infrule_printer (x: Infrule.t): unit =
+  debug_run(
+      fun _ ->
+      debug_print (PrintHints.infrule_to_string x))
+
+let debug_string (default_format: bool) (x: char list) (y: 'a) =
+  let _ = debug_run(fun _ -> debug_print ~default_format:default_format (string_of_char_list x))
   in y
