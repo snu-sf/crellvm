@@ -162,8 +162,8 @@ Definition apply_infrule
            (infrule:Infrule.t)
            (inv0:Invariant.t): Invariant.t :=
   let apply_fail := (fun _: unit => (debug_print2 infrule_printer infrule
-                                                  (debug_string false "Infrule application failed! : " inv0))) in
-  let no_match_fail := (fun _: unit => debug_string false "Infrule match failed! : "
+                                                  (debug_string "Infrule application failed!" inv0))) in
+  let no_match_fail := (fun _: unit => debug_string "Infrule match failed!"
                                                     (debug_print2 infrule_printer infrule inv0)) in
   match infrule with
   | Infrule.add_associative x y z c1 c2 c3 s =>

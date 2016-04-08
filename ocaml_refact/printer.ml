@@ -7,10 +7,8 @@ open List
        
 let out_channel = ref stdout
 
-let debug_print ?default_format:(df = true) (msg:string): unit =
-  if df
-  then Printf.fprintf !out_channel "DEBUG: %s\n" msg
-  else Printf.fprintf !out_channel "%s" msg
+let debug_print (msg:string): unit =
+  Printf.fprintf !out_channel "DEBUG: %s\n" msg
 
 module ExprsToString = struct
     let of_Tag (t:Tag.t): string =
@@ -292,6 +290,6 @@ let infrule_printer (x: Infrule.t): unit =
       fun _ ->
       debug_print (PrintHints.infrule_to_string x))
 
-let debug_string (default_format: bool) (x: char list) (y: 'a) =
-  let _ = debug_run(fun _ -> debug_print ~default_format:default_format (string_of_char_list x))
+let debug_string (x: char list) (y: 'a) =
+  let _ = debug_run(fun _ -> debug_print (string_of_char_list x))
   in y

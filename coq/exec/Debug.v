@@ -15,7 +15,7 @@ Definition debug_print (A: Type) (printer: A -> unit) (content: A): A :=
   let unused := printer content in content.
 Definition debug_print2 (A B: Type) (printer: A -> unit) (content: A) (host: B): B :=
   let unused := printer content in host.
-Definition debug_string (A: Type) (default_format: bool) (str: string) (host: A): A := host.
+Definition debug_string (A: Type) (str: string) (host: A): A := host.
 
 Parameter atom_printer : atom -> unit.
 Parameter cmd_printer : cmd -> unit.
