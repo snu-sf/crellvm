@@ -204,7 +204,7 @@ module PrintHints = struct
                            | x ->
                               let _ =
                                 (List.iter (fun i -> debug_print i) x) in
-                              failwith "should not occur!") sum in
+                              TODOCAML.print_callstack_and_fail "should not occur!") sum in
         let _ = print_bar() in
         let _ = debug_print "" in
         () in

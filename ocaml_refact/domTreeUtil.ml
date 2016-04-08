@@ -38,7 +38,7 @@ and collapse_dtrees ?(acc=AtomSetImpl.empty) dtrees =
 let dom_by a dtree =
   let dtree =
     match find_in_dtree a dtree with
-    | None -> failwith "translateHints sdom_by"
+    | None -> TODOCAML.print_callstack_and_fail "translateHints sdom_by"
     | Some dtree -> dtree
   in
   let result = collapse_dtree dtree in
