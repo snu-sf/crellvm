@@ -13,6 +13,7 @@ Require Import Integers.
 Require Import Exprs.
 Require Import Hints.
 Require Import TODO.
+
 Require Import Decs.
 Set Implicit Arguments.
 
@@ -366,8 +367,8 @@ Definition apply_infrule
          else
           (Invariant.update_src (Invariant.update_lessdef (ExprPairSet.add ((Expr.value x), (Expr.value (ValueT.id (Tag.ghost, g))))))
           (Invariant.update_tgt (Invariant.update_lessdef (ExprPairSet.add ((Expr.value (ValueT.id (Tag.ghost, g))), (Expr.value x))))
-          (Invariant.update_src (Invariant.update_lessdef (ExprPairSet.remove ((Invariant.get_lhs_in_src inv0 (Expr.value (ValueT.id (Tag.ghost, g)))), (Expr.value (ValueT.id (Tag.ghost, g))))))
-          (Invariant.update_tgt (Invariant.update_lessdef (ExprPairSet.remove ((Expr.value (ValueT.id (Tag.ghost, g))), (Invariant.get_rhs_in_tgt inv0 (Expr.value (ValueT.id (Tag.ghost, g))))))) inv0))))
+          (Invariant.update_src (Invariant.update_lessdef (ExprPairSet.remove ((Invariant.get_hd_lhs (Invariant.src inv0) (Expr.value (ValueT.id (Tag.ghost, g)))), (Expr.value (ValueT.id (Tag.ghost, g))))))
+          (Invariant.update_tgt (Invariant.update_lessdef (ExprPairSet.remove ((Expr.value (ValueT.id (Tag.ghost, g))), Invariant.get_hd_rhs (Invariant.tgt inv0) (Expr.value (ValueT.id (Tag.ghost, g)))))) inv0))))
     else inv0 
   | _ => inv0 (* TODO *)
   end.
