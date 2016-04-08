@@ -110,6 +110,16 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
      let c' = Convert.const_int args.cprime in
      let sz = Convert.size args.sz in
      Infrule.Coq_add_zext_bool (x, y, b, c, c', sz)
+  | CoreHint_t.Bitcastptr (args:CoreHint_t.bitcastptr) ->
+     let v = Convert.value args.v in
+     let vprime = Convert.value args.vprime in
+     let bitcastinst = Convert.expr args.bitcastinst src_fdef tgt_fdef in
+     Infrule.Coq_bitcastptr (v, vprime, bitcastinst)
+  | CoreHint_t.Gepzero (args:CoreHint_t.gepzero) ->
+     let v = Convert.value args.v in
+     let vprime = Convert.value args.vprime in
+     let gepinst = Convert.expr args.gepinst src_fdef tgt_fdef in
+     Infrule.Coq_gepzero (v, vprime, gepinst)
   | CoreHint_t.SdivSubSrem (args:CoreHint_t.sdiv_sub_srem) ->
      let z = Convert.register args.z in
      let b = Convert.register args.b in
@@ -233,6 +243,16 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
      let x = Convert.register args.x in
      let y = Convert.register args.y in
      Infrule.Coq_noalias_global_alloca (x, y)
+  | CoreHint_t.NoaliasGlobalGlobal (args:CoreHint_t.noalias_global_global) ->
+     let x = Convert.register args.x in
+     let y = Convert.register args.y in
+     Infrule.Coq_noalias_global_global (x, y)
+  | CoreHint_t.NoaliasLessthan (args:CoreHint_t.noalias_lessthan) ->
+     let x = Convert.value args.x in
+     let y = Convert.value args.y in
+     let xprime = Convert.value args.xprime in
+     let yprime = Convert.value args.yprime in
+     Infrule.Coq_noalias_lessthan (x, y, xprime, yprime)
   | CoreHint_t.TransitivityPointerLhs (args:CoreHint_t.transitivity_pointer_lhs) ->
      let p = Convert.value args.p in
      let q = Convert.value args.q in

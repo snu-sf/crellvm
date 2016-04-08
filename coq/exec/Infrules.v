@@ -73,6 +73,7 @@ Definition cond_replace_lessdef_value (x:IdT.t) (y:ValueT.t) (v v':ValueT.t) : b
   | _,_ => false
   end.
 
+
 (* cond_replace_lessdef x y e e' : 
    Given x >= y, If all x in e are replaced into y(let the replaced expression e2), is e2 >= e'? *)
 Definition cond_replace_lessdef (x:IdT.t) (y:ValueT.t) (e e':Expr.t) : bool :=
@@ -145,11 +146,52 @@ Definition cond_replace_lessdef (x:IdT.t) (y:ValueT.t) (e e':Expr.t) : bool :=
   | _, _ => false
   end.
 
+Definition cond_gep_zero (v':ValueT.t) (e:Expr.t) : bool :=
+  match e with
+  | Expr.gep inbound ty1 v idxlist ty2 =>
+    ValueT.eq_dec v v' &&
+    (List.forallb 
+      (fun itm => 
+        match itm with
+        | (sz,idx) =>
+          match idx with 
+          | (ValueT.const (const_int sz_i i)) => 
+            sz_dec sz sz_i &&
+            const_dec (const_int sz_i i) (const_int sz_i (INTEGER.of_Z (Size.to_Z sz_i) 0%Z true))
+          | _ => false
+          end
+        end)
+      idxlist)
+  | _ => false
+  end.
+
+Definition cond_bitcast_ptr (v':ValueT.t) (e:Expr.t) : bool :=
+  match e with
+  | Expr.cast eop fromty v toty =>
+    (match eop with 
+    | castop_bitcast => 
+      (match fromty, toty with
+      | typ_pointer _, typ_pointer_ => ValueT.eq_dec v v'
+      | _, _ => false
+      end)
+    | _ => false
+    end)
+  | _ => false
+  end.
+
+Definition cond_pointertyp (t:typ) : bool :=
+  match t with
+  | typ_pointer _ => true
+  | _ => false
+  end.
+
 
 Notation "$$ inv |- y >=src rhs $$" := (ExprPairSet.mem (y, rhs) inv.(Invariant.src).(Invariant.lessdef)) (at level 41).
 Notation "$$ inv |- y >=tgt rhs $$" := (ExprPairSet.mem (y, rhs) inv.(Invariant.tgt).(Invariant.lessdef)) (at level 41).
 Notation "$$ inv |-allocasrc y $$" := (IdTSet.mem y inv.(Invariant.src).(Invariant.allocas)) (at level 41).
 Notation "$$ inv |-allocatgt y $$" := (IdTSet.mem y inv.(Invariant.tgt).(Invariant.allocas)) (at level 41).
+Notation "$$ inv |- x _|_src y $$" := ((ValueTPairSet.mem (x, y) inv.(Invariant.src).(Invariant.noalias)) || (ValueTPairSet.mem (y, x) inv.(Invariant.src).(Invariant.noalias))) (at level 41).
+Notation "$$ inv |- x _|_tgt y $$" := ((ValueTPairSet.mem (x, y) inv.(Invariant.tgt).(Invariant.noalias)) || (ValueTPairSet.mem (y, x) inv.(Invariant.tgt).(Invariant.noalias))) (at level 41).
 Notation "{{ inv +++ y >=src rhs }}" := (Invariant.update_src (Invariant.update_lessdef (ExprPairSet.add (y, rhs))) inv) (at level 41).
 Notation "{{ inv +++ y >=tgt rhs }}" := (Invariant.update_tgt (Invariant.update_lessdef (ExprPairSet.add (y, rhs))) inv) (at level 41).
 Notation "{{ inv +++ y _|_src x }}" := (Invariant.update_src (Invariant.update_noalias (ValueTPairSet.add (y, x))) inv) (at level 41).
@@ -220,6 +262,22 @@ Definition apply_infrule
     if $$ inv0 |- (Expr.value x) >=src (Expr.bop bop_add s e1 e2) $$ &&
        cond_signbit s e2
     then {{inv0 +++ (Expr.value x) >=src (Expr.bop bop_xor s e1 e2)}}
+    else inv0
+  | Infrule.bitcastptr v v' bitcastinst =>
+    if $$ inv0 |- (Expr.value v) >=src bitcastinst $$ &&
+       $$ inv0 |- bitcastinst >=src (Expr.value v) $$ &&
+       cond_bitcast_ptr v' bitcastinst
+    then 
+      let inv0 := {{inv0 +++ (Expr.value v) >=src (Expr.value v')}} in
+      {{inv0 +++ (Expr.value v') >=src (Expr.value v)}}
+    else inv0
+  | Infrule.gepzero v v' gepinst =>
+    if $$ inv0 |- (Expr.value v) >=src gepinst $$ &&
+       $$ inv0 |- gepinst >=src (Expr.value v) $$ &&
+       cond_gep_zero v' gepinst
+    then 
+      let inv0 := {{inv0 +++ (Expr.value v) >=src (Expr.value v')}} in
+      {{inv0 +++ (Expr.value v') >=src (Expr.value v)}}
     else inv0
   | Infrule.sdiv_sub_srem z b a x y s =>
     if $$ inv0 |- (Expr.value (ValueT.id b)) >=src (Expr.bop bop_srem s x y) $$ &&
@@ -341,6 +399,30 @@ Definition apply_infrule
       end
     | _ => inv0
     end
+  | Infrule.noalias_global_global x y =>
+    match x with 
+    | (Tag.physical, x_id) =>
+      match lookupTypViaGIDFromModule m_src x_id with
+      | Some x_type => (* x is a global variable *)
+        (match y with
+        | (Tag.physical, y_id) =>
+          match lookupTypViaGIDFromModule m_src y_id with
+          | Some y_type => 
+            {{inv0 +++ (ValueT.id y) _|_src (ValueT.const (const_gid x_type x_id)) }}
+          | None => inv0
+          end
+        | _ => inv0
+        end)
+      | None => inv0
+      end
+    | _ => inv0
+    end
+  | Infrule.noalias_lessthan x y x' y' =>
+    if $$ inv0 |- x _|_src y $$ &&
+       $$ inv0 |- (Expr.value x) >=src (Expr.value x') $$ &&
+       $$ inv0 |- (Expr.value y) >=src (Expr.value y') $$
+    then {{inv0 +++ x' _|_src y'}}
+    else inv0
   | Infrule.transitivity_pointer_lhs p q v ty a =>
     if $$ inv0 |- (Expr.value p) >=src (Expr.value q) $$ &&
        $$ inv0 |- (Expr.load q ty a) >=src (Expr.value v) $$
