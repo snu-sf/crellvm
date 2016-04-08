@@ -71,14 +71,9 @@ module EmptyHint = struct
       Invariant.maydiff = IdTSet.empty;
     }
 
-  let stmts_hint (stmts: LLVMsyntax.stmts) : ValidationHint.stmts =
+  let stmts_hint (stmts: LLVMsyntax.stmts) (incoming_blocks: string list) : ValidationHint.stmts =
     let Coq_stmts_intro (phinodes, cmds, _) = stmts in
 
-    let incoming_blocks =
-      match phinodes with
-      | [] -> []
-      | (LLVMsyntax.Coq_insn_phi (_, _, vls))::_ -> List.map snd vls
-    in
     let phinodes = List.map (fun bid -> (bid, [])) incoming_blocks in
 
     let cmds = List.map (fun _ -> ([], invariant_hint)) cmds in
@@ -90,7 +85,15 @@ module EmptyHint = struct
 
   let fdef_hint (fdef:LLVMsyntax.fdef) : ValidationHint.fdef =
     let Coq_fdef_intro (Coq_fheader_intro (_, _, id, _, _), blks) = fdef in
-    TODO.mapAL (fun bstmts -> stmts_hint bstmts) blks
+    TODO.mapiAL (fun bname bstmts ->
+                 let incoming_blocks =
+                   let cfg_pred = Cfg.predecessors fdef in
+                   let preds = Maps_ext.ATree.get bname cfg_pred in
+                   match preds with
+                   | None -> []
+                   | Some t -> t
+                 in
+                 stmts_hint bstmts incoming_blocks) blks
 
   let module_hint (m:LLVMsyntax.coq_module) : ValidationHint.coq_module =
     let Coq_module_intro (lo, nts, prods) = m in
