@@ -160,7 +160,10 @@ module PrintHints = struct
       | Infrule.Coq_add_shift _ -> "add_shift"
       | Infrule.Coq_add_signbit _ -> "add_signbit"
       | Infrule.Coq_add_zext_bool _ -> "add_zext_bool"
-      | Infrule.Coq_transitivity _ -> "transitivity"
+      | Infrule.Coq_transitivity (a, b, c) -> "transitivity : " ^
+                                                ExprsToString.of_expr a ^ " ≥ " ^
+                                                  ExprsToString.of_expr b ^ " ≥ " ^
+                                                    ExprsToString.of_expr c
       | Infrule.Coq_replace_rhs _ -> "replace_rhs"
       | _ -> "infrule(TODO)"
 
