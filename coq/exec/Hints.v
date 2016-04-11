@@ -106,33 +106,29 @@ Module Invariant.
   Definition not_in_maydiff_expr (inv:t) (expr: Expr.t): bool :=
     List.forallb (not_in_maydiff inv) (Expr.get_valueTs expr).
 
-  Definition get_lhs (inv:unary) (rhs:Expr.t): list Expr.t :=
-    (List.map
-       (fun (p: ExprPair.t) => fst p)
-       (List.filter
-          (fun (p: ExprPair.t) => Expr.eq_dec rhs (snd p))
-          (ExprPairSet.elements inv.(lessdef)))).
+  Definition get_lhs (inv:ExprPairSet.t) (rhs:Expr.t): ExprPairSet.t :=
+    ExprPairSet.filter
+       (fun (p: ExprPair.t) => Expr.eq_dec rhs (snd p))
+       inv.
       
-  Definition get_rhs (inv:unary) (lhs:Expr.t): list Expr.t :=
-    (List.map  
-       (fun (p: ExprPair.t) => snd p)
-       (List.filter
-          (fun (p: ExprPair.t) => Expr.eq_dec lhs (fst p))
-          (ExprPairSet.elements inv.(lessdef)))).
-
-  Definition get_hd_lhs (inv:unary) (expr:Expr.t): Expr.t :=
-    (List.hd expr (get_lhs inv expr)).
-
-  Definition get_hd_rhs (inv:unary) (expr:Expr.t): Expr.t :=
-    (List.hd expr (get_rhs inv expr)).
+  Definition get_rhs (inv:ExprPairSet.t) (lhs:Expr.t): ExprPairSet.t :=
+    ExprPairSet.filter
+       (fun (p: ExprPair.t) => Expr.eq_dec lhs (fst p))
+       inv.
 
   Definition inject_value (inv:t) (value_src value_tgt:ValueT.t): bool :=
     (ValueT.eq_dec value_src value_tgt && not_in_maydiff inv value_src) ||
     (ExprPairSet.mem (Expr.value value_src, Expr.value value_tgt) inv.(tgt).(lessdef) && not_in_maydiff inv value_src) ||
     (ExprPairSet.mem (Expr.value value_src, Expr.value value_tgt) inv.(src).(lessdef) && not_in_maydiff inv value_tgt) ||
-    ((ExprPairSet.mem (Expr.value value_src, get_hd_rhs inv.(src) (Expr.value value_src)) inv.(src).(lessdef)) && 
-     (ExprPairSet.mem (get_hd_rhs inv.(src) (Expr.value value_src), Expr.value value_tgt) inv.(tgt).(lessdef)) && 
-     not_in_maydiff_expr inv (get_hd_rhs inv.(src) (Expr.value value_src))).
+    ((ExprPairSet.exists_ 
+       (fun (p: ExprPair.t) => ExprPairSet.mem p inv.(src).(lessdef))
+       (get_rhs inv.(src).(lessdef) (Expr.value value_src))) &&
+     (ExprPairSet.exists_
+       (fun (p: ExprPair.t) => 
+          let (x, y) := p in 
+          ((ExprPairSet.mem (y, Expr.value value_tgt) inv.(tgt).(lessdef)) &&
+           (not_in_maydiff_expr inv y)))
+       (get_rhs inv.(src).(lessdef) (Expr.value value_src)))).
 
   Definition is_empty_unary (inv:unary): bool :=
     ExprPairSet.is_empty inv.(lessdef) &&

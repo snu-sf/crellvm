@@ -463,10 +463,17 @@ Definition apply_infrule
                   +++ (Expr.value (ValueT.id (Tag.ghost, g))) >=tgt (Expr.value x)
          }}
          else
-          (Invariant.update_src (Invariant.update_lessdef (ExprPairSet.add ((Expr.value x), (Expr.value (ValueT.id (Tag.ghost, g))))))
-          (Invariant.update_tgt (Invariant.update_lessdef (ExprPairSet.add ((Expr.value (ValueT.id (Tag.ghost, g))), (Expr.value x))))
-          (Invariant.update_src (Invariant.update_lessdef (ExprPairSet.remove ((Invariant.get_hd_lhs (Invariant.src inv0) (Expr.value (ValueT.id (Tag.ghost, g)))), (Expr.value (ValueT.id (Tag.ghost, g))))))
-          (Invariant.update_tgt (Invariant.update_lessdef (ExprPairSet.remove ((Expr.value (ValueT.id (Tag.ghost, g))), Invariant.get_hd_rhs (Invariant.tgt inv0) (Expr.value (ValueT.id (Tag.ghost, g)))))) inv0))))
+          (Invariant.update_src (Invariant.update_lessdef 
+            (ExprPairSet.add ((Expr.value x), (Expr.value (ValueT.id (Tag.ghost, g))))))
+          (Invariant.update_tgt (Invariant.update_lessdef 
+            (ExprPairSet.add ((Expr.value (ValueT.id (Tag.ghost, g))), (Expr.value x))))
+          (Invariant.update_src (Invariant.update_lessdef 
+            (ExprPairSet.filter
+              (fun (p: ExprPair.t) => negb (Expr.eq_dec (Expr.value (ValueT.id (Tag.ghost, g))) (snd p)))))
+          (Invariant.update_tgt (Invariant.update_lessdef 
+            (ExprPairSet.filter
+              (fun (p: ExprPair.t) => negb (Expr.eq_dec (Expr.value (ValueT.id (Tag.ghost, g))) (fst p)))))
+           inv0))))
     else inv0 
   | _ => inv0 (* TODO *)
   end.
