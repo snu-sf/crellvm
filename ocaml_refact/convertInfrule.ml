@@ -298,5 +298,25 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
      let e2 = Convert.expr args.e2 src_fdef tgt_fdef in
      let e2' = Convert.expr args.e2' src_fdef tgt_fdef in
      Infrule.Coq_replace_rhs (x, y, e1, e2, e2')
+  | CoreHint_t.UdivZext (args:CoreHint_t.udiv_zext) ->
+     let z = Convert.register args.z in
+     let x = Convert.register args.x in
+     let y = Convert.register args.y in
+     let k = Convert.register args.k in
+     let a = Convert.value args.a in
+     let b = Convert.value args.b in
+     let sz1 = Convert.size args.sz1 in
+     let sz2 = Convert.size args.sz2 in
+     Infrule.Coq_udiv_zext (z, x, y, k, a, b, sz1, sz2)
+  | CoreHint_t.UremZext (args:CoreHint_t.urem_zext) ->
+     let z = Convert.register args.z in
+     let x = Convert.register args.x in
+     let y = Convert.register args.y in
+     let k = Convert.register args.k in
+     let a = Convert.value args.a in
+     let b = Convert.value args.b in
+     let sz1 = Convert.size args.sz1 in
+     let sz2 = Convert.size args.sz2 in
+     Infrule.Coq_urem_zext (z, x, y, k, a, b, sz1, sz2)
   | _ ->
      failwith "convert_infrule does not deal with this inferece rule"

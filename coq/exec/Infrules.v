@@ -388,6 +388,20 @@ Definition apply_infrule
        cond_plus sz c (INTEGER.of_Z (Size.to_Z sz) 1%Z true) c'
     then {{ inv0 +++ (Expr.value (ValueT.id y)) >=src (Expr.select b (typ_int sz) (ValueT.const (const_int sz c')) (ValueT.const (const_int sz c))) }}
     else inv0
+  | Infrule.bop_distributive_over_selectinst opcode r s t' t x y z c bopsz selty =>
+    if $$ inv0 |- (Expr.bop opcode bopsz x y) >=tgt (Expr.value (ValueT.id r)) $$ &&
+       $$ inv0 |- (Expr.bop opcode bopsz x z) >=tgt (Expr.value (ValueT.id s)) $$ &&
+       $$ inv0 |- (Expr.select c selty y z) >=tgt (Expr.value (ValueT.id t')) $$ &&
+       $$ inv0 |- (Expr.bop opcode bopsz x t') >=tgt (Expr.value (ValueT.id t)) $$
+     then {{ inv0 +++ (Expr.select c selty (ValueT.id r) (ValueT.id s)) >=tgt (Expr.value (ValueT.id t)) }}
+     else inv0
+  | Infrule.fbop_distributive_over_selectinst fbopcode r s t' t x y z c fbopty selty =>
+    if $$ inv0 |- (Expr.fbop opcode fbopty x y) >=tgt (Expr.value (ValueT.id r)) $$ &&
+       $$ inv0 |- (Expr.fbop opcode fbopty x z) >=tgt (Expr.value (ValueT.id s)) $$ &&
+       $$ inv0 |- (Expr.select c selty y z) >=tgt (Expr.value (ValueT.id t')) $$ &&
+       $$ inv0 |- (Expr.fbop opcode fbopty x t') >=tgt (Expr.value (ValueT.id t)) $$
+     then {{ inv0 +++ (Expr.select c selty (ValueT.id r) (ValueT.id s)) >=tgt (Expr.value (ValueT.id t)) }}
+     else inv0
   | Infrule.transitivity e1 e2 e3 =>
     if $$ inv0 |- e1 >=src e2 $$ &&
        $$ inv0 |- e2 >=src e3 $$ 
@@ -450,6 +464,21 @@ Definition apply_infrule
        cond_replace_lessdef x y e2 e2'
     then {{inv0 +++ e1 >=src e2'}}
     else inv0
+  | Infrule.udiv_zext z x y k a b s1 s2 =>
+    if $$ inv0 |- (Expr.ext extop_z (typ_int s1) a (typ_int s2)) >=tgt (Expr.value (ValueT.id x)) $$ &&
+       $$ inv0 |- (Expr.ext extop_z (typ_int s1) b (typ_int s2)) >=tgt (Expr.value (ValueT.id y)) $$ &&
+       $$ inv0 |- (Expr.bop bop_udiv s1 a b) >=tgt (Expr.value (ValueT.id k)) $$ &&
+       $$ inv0 |- (Expr.ext extop_z (typ_int s1) (ValueT.id k) (typ_int s2)) >=tgt (Expr.value (ValueT.id z)) $$
+    then {{ inv0 +++ (Expr.bop bop_udiv s2 (ValueT.id x) (ValueT.id y)) >=tgt (Expr.value (ValueT.id z)) }}
+    else inv0
+  | Infrule.urem_zext z x y k a b s1 s2 =>
+    if $$ inv0 |- (Expr.ext extop_z (typ_int s1) a (typ_int s2)) >=tgt (Expr.value (ValueT.id x)) $$ &&
+       $$ inv0 |- (Expr.ext extop_z (typ_int s1) b (typ_int s2)) >=tgt (Expr.value (ValueT.id y)) $$ &&
+       $$ inv0 |- (Expr.bop bop_urem s1 a b) >=tgt (Expr.value (ValueT.id k)) $$ &&
+       $$ inv0 |- (Expr.ext extop_z (typ_int s1) (ValueT.id k) (typ_int s2)) >=tgt (Expr.value (ValueT.id z)) $$
+    then {{ inv0 +++ (Expr.bop bop_urem s2 (ValueT.id x) (ValueT.id y)) >=tgt (Expr.value (ValueT.id z)) }}
+    else inv0
+
   | _ => inv0 (* TODO *)
   end.
 

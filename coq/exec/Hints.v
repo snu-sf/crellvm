@@ -158,7 +158,9 @@ Module Infrule.
   | add_shift (y:IdT.t) (v:ValueT.t) (s:sz) 
   | add_signbit (x:IdT.t) (e1:ValueT.t) (e2:ValueT.t) (s:sz)
   | add_zext_bool (x:IdT.t) (y:IdT.t) (b:ValueT.t) (c:INTEGER.t) (c':INTEGER.t) (sz:sz)
+  | bop_distributive_over_selectinst (opcode:bop) (r:IdT.t) (s:IdT.t) (t':IdT.t) (t:IdT.t) (x:ValueT.t) (y:ValueT.t) (z:ValueT.t) (c:ValueT.t) (bopsz:size) (selty:ValueT.t)
   | bitcastptr (v:ValueT.t) (v':ValueT.t) (bitcastinst:Expr.t)
+  | fbop_distributive_over_selectinst (opcode:fbop) (r:IdT.t) (s:IdT.t) (t':IdT.t) (t:IdT.t) (x:ValueT.t) (y:ValueT.t) (z:ValueT.t) (c:ValueT.t) (fbopty:floating_point) (selty:ValueT.t)
   | gepzero (v:ValueT.t) (v':ValueT.t) (gepinst:Expr.t)
   | mul_bool (z:IdT.t) (x:IdT.t) (y:IdT.t)
   | mul_commutative (z:IdT.t) (x:ValueT.t) (y:ValueT.t) (sz:sz)
@@ -185,6 +187,8 @@ Module Infrule.
   | transitivity_pointer_rhs (p:ValueT.t) (q:ValueT.t) (v:ValueT.t) (ty:typ) (a:align)
   | replace_rhs (x:IdT.t) (y:ValueT.t) (e1:Expr.t) (e2:Expr.t) (e2':Expr.t)
   | udiv_sub_urem (z:IdT.t) (b:IdT.t) (a:IdT.t) (x:ValueT.t) (y:ValueT.t) (sz:sz)
+  | udiv_zext (z:IdT.t) (x:IdT.t) (y:IdT.t) (k:IdT.t) (a:ValueT.t) (b:ValueT.t) (sz1:sz) (sz2:sz)
+  | urem_zext (z:IdT.t) (x:IdT.t) (y:IdT.t) (k:IdT.t) (a:ValueT.t) (b:ValueT.t) (sz1:sz) (sz2:sz)
 
 (* Updated semantics of rules should be located above this line *)
 
@@ -196,8 +200,6 @@ Module Infrule.
   | stash_variable (z:IdT.t) (v:id)
   | add_mul_fold (z:IdT.t) (y:IdT.t) (s:sz) (x:ValueT.t) (c1:INTEGER.t) (c2:INTEGER.t)
   | add_distributive (z:IdT.t) (x:IdT.t) (y:IdT.t) (w:IdT.t) (s:sz) (a:ValueT.t) (b:ValueT.t) (c:ValueT.t)
-  | div_zext (z:IdT.t) (x:IdT.t) (y:IdT.t) (k:IdT.t) (sz1:sz) (sz2:sz) (a:ValueT.t) (b:ValueT.t)
-  | rem_zext (z:IdT.t) (x:IdT.t) (y:IdT.t) (k:IdT.t) (sz1:sz) (sz2:sz) (a:ValueT.t) (b:ValueT.t)
   | rem_neg2 (z:IdT.t) (sz:sz) (x:ValueT.t) (c1:INTEGER.t) (c2:INTEGER.t)
   | inbound_remove (x:IdT.t) (y:IdT.t) (pty:typ) (pa:align) (ty:typ) (a:ValueT.t) (idx:list (sz*ValueT.t)) (u:typ) (v:ValueT.t)
   | inbound_remove2 (x:IdT.t) (y:IdT.t) (pty:typ) (pa:align) (ty:typ) (a:ValueT.t) (idx:list (sz*ValueT.t)) (u:typ) (v:ValueT.t)
