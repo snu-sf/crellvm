@@ -257,6 +257,14 @@ type replace_rhs = {
   e2' : expr;
 }
 
+type replace_rhs_opt = {
+  x : register;
+  y : value;
+  e1 : expr;
+  e2 : expr;
+  e2' : expr;
+}
+
 type intro_ghost = {
   x : value;
   g : register;
@@ -554,6 +562,7 @@ type infrule = [
   | BopBothTgtRight of bop_both_tgt_right
   | IntroEq of intro_eq
   | ReplaceRhs of replace_rhs
+	| ReplaceRhsOpt of replace_rhs_opt
   | IntroGhost of intro_ghost
   ] <ocaml repr="classic">
 

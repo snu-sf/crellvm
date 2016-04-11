@@ -487,6 +487,12 @@ Definition apply_infrule
        cond_replace_lessdef x y e2 e2'
     then {{inv0 +++ e1 >=src e2'}}
     else inv0
+	| Infrule.replace_rhs_opt x y e1 e2 e2' =>
+    if $$ inv0 |- (Expr.value x) >=tgt (Expr.value y) $$ &&
+       $$ inv0 |- e1 >=tgt e2 $$ &&
+       cond_replace_lessdef x y e2 e2'
+    then {{inv0 +++ e1 >=tgt e2'}}
+    else inv0
   | Infrule.intro_ghost x g =>
     if Invariant.not_in_maydiff inv0 x
     then if (negb (IdTSet.mem (Tag.ghost, g) (IdTSet_from_list (Invariant.get_idTs inv0))))
