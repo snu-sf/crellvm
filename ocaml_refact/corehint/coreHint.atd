@@ -351,11 +351,6 @@ type neg_val = {
   sz : size;
 }
 
-type noalias_global_alloca = {
-  x : register;
-  y : register;
-}
-
 type noalias_lessthan = {
   x : value;
   y : value;
@@ -546,7 +541,6 @@ type infrule = [
   | NoaliasGlobalGlobal of noalias_global_global
   | NoaliasLessthan of noalias_lessthan
   | RemNeg of rem_neg
-  | ReplaceRhs of replace_rhs
   | SdivMone of sdiv_mone
   | SdivSubSrem of sdiv_sub_srem
   | UdivSubUrem of udiv_sub_urem
