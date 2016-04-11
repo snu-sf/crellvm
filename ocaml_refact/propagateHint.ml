@@ -151,13 +151,13 @@ module InvariantObject = struct
                          Convert.expr prop_ld.rhs lfdef rfdef))
       | CoreHint_t.Noalias prop_na ->
          Unary (convert_scope prop_na.scope,
-                Noalias (Convert.pointer prop_na.lhs lfdef,
-                         Convert.pointer prop_na.rhs lfdef))
+                Noalias (Convert.pointer_id prop_na.lhs lfdef,
+                         Convert.pointer_id prop_na.rhs lfdef))
       | CoreHint_t.Maydiff v ->
          Maydiff (Convert.register v)
       | CoreHint_t.Alloca prop_a ->
          Unary (convert_scope prop_a.scope,
-                Allocas (Convert.pointer prop_a.p lfdef))
+                Allocas (Convert.pointer_id prop_a.p lfdef))
 
     let insert (obj:t) (inv:Invariant.t): Invariant.t =
       match obj with

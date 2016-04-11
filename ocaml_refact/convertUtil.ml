@@ -106,12 +106,6 @@ module Convert = struct
   let register (register:CoreHint_t.register) : IdT.t =
     (tag register.tag, register.name)
 
-  let pointer (register:CoreHint_t.register) (fdef:LLVMsyntax.fdef) : Ptr.t =
-    match LLVMinfra.lookupTypViaIDFromFdef fdef register.name with
-    | Some typ ->
-      (ValueT.Coq_id (tag register.tag, register.name), typ)
-    | None -> invalid_arg "TODO: not implemented in Convert.pointer"
-
   let const_int (const_int:CoreHint_t.const_int): INTEGER.t =
     let IntType sz = const_int.int_type in
     APInt.of_int64 sz (Int64.of_int const_int.int_value) true
@@ -148,6 +142,30 @@ module Convert = struct
     | CoreHint_t.FP128Type -> LLVMsyntax.Coq_fp_fp128
     | CoreHint_t.PPC_FP128Type -> LLVMsyntax.Coq_fp_ppc_fp128
     | CoreHint_t.X86_FP80Type -> LLVMsyntax.Coq_fp_x86_fp80
+
+  let pointer_id (register:CoreHint_t.register) (fdef:LLVMsyntax.fdef) : Ptr.t =
+    match LLVMinfra.lookupTypViaIDFromFdef fdef register.name with
+    | Some typ ->
+      (ValueT.Coq_id (tag register.tag, register.name), typ)
+    | None -> invalid_arg "TODO: not implemented in Convert.pointer"
+
+  let pointer_val (value:CoreHint_t.value) (fdef:LLVMsyntax.fdef) : Ptr.t =
+    match value with
+    | CoreHint_t.Id reg -> pointer_id reg fdef
+    | CoreHint_t.ConstVal constval ->
+      let (c, ty) =
+        match constval with 
+        | CoreHint_t.ConstInt ci -> 
+          begin match ci.int_type with
+            | CoreHint_t.IntType sz ->
+              (LLVMsyntax.Coq_const_int (sz, const_int ci),
+              LLVMsyntax.Coq_typ_pointer (LLVMsyntax.Coq_typ_int sz))
+          end
+        | CoreHint_t.ConstFloat cf ->
+          (LLVMsyntax.Coq_const_floatpoint (float_type cf.float_type, const_float cf),
+          LLVMsyntax.Coq_typ_pointer (LLVMsyntax.Coq_typ_floatpoint (float_type cf.float_type)))
+      in
+      (ValueT.Coq_const c, ty)
 
   let constant (constval:CoreHint_t.constant): LLVMsyntax.const = 
     match constval with 

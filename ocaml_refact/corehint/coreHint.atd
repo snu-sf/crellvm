@@ -187,11 +187,6 @@ type transitivity = {
   e3 : expr;
 }
 
-type noalias_global_alloca = {
-  x : register;
-  y : register;
-}
-
 type transitivity_pointer_lhs = {
   p : value;
   q : value;
@@ -278,6 +273,18 @@ type add_dist_sub = {
   sz : size;
 }
 
+type gepzero = {
+  v : value;
+  vprime : value;
+  gepinst : expr;
+}
+
+type bitcastptr = {
+  v : value;
+  vprime : value;
+  bitcastinst : expr;
+}
+
 type mul_add_distributive = {
   z : register;
   x : register;
@@ -285,17 +292,34 @@ type mul_add_distributive = {
   w : register;
 }
 
+type neg_val = {
+  c1 : const_int;
+  c2 : const_int;
+  sz : size;
+}
+
+type noalias_global_alloca = {
+  x : register;
+  y : register;
+}
+
+type noalias_lessthan = {
+  x : value;
+  y : value;
+  xprime : value;
+  yprime : value;
+}
+
+type noalias_global_global = {
+  x : register;
+  y : register;
+}
+
 type sub_add = {
   z : register;
   my : value;
   x : register;
   y : value;
-  sz : size;
-}
-
-type neg_val = {
-  c1 : const_int;
-  c2 : const_int;
   sz : size;
 }
 
@@ -392,20 +416,28 @@ type mul_shl = {
   sz : size;
 }
 
-type div_mone = {
+type sdiv_mone = {
   z : register;
+  x : value;
+  sz : size;
 }
 
 type and_de_morgan = {
   z : register;
   x : register;
   y : register;
-  z2 : register;
+  zprime : register;
+  a : value;
+  b : value;
+  sz : size;
 }
 
 type rem_neg = {
   z : register;
-  my : register;
+  my : value;
+  x : value;
+  y : value;
+  sz : size;
 }
 
 type sdiv_sub_srem = {
@@ -439,7 +471,11 @@ type infrule = [
   | AddSelectZero of add_select_zero
   | AddSelectZero2 of add_select_zero2
   | AddDistSub of add_dist_sub
+  | AndDeMorgan of and_de_morgan
+  | Bitcastptr of bitcastptr
+  | Gepzero of gepzero
   | MulAddDistributive of mul_add_distributive
+  | NegVal of neg_val
   | SubMone of sub_mone
   | SubAdd of sub_add
   | SubConstNot of sub_const_not
@@ -454,16 +490,16 @@ type infrule = [
   | MulCommutative of mul_commutative
   | MulShl of mul_shl
   | NoaliasGlobalAlloca of noalias_global_alloca
-  | DivMone of div_mone
+  | NoaliasGlobalGlobal of noalias_global_global
+  | NoaliasLessthan of noalias_lessthan
   | RemNeg of rem_neg
+  | ReplaceRhs of replace_rhs
+  | SdivMone of sdiv_mone
   | SdivSubSrem of sdiv_sub_srem
   | UdivSubUrem of udiv_sub_urem
-  | AndDeMorgan of and_de_morgan
-  | NegVal of neg_val
   | Transitivity of transitivity
   | TransitivityPointerLhs of transitivity_pointer_lhs
   | TransitivityPointerRhs of transitivity_pointer_rhs
-  | ReplaceRhs of replace_rhs
   ] <ocaml repr="classic">
 
 type hint_command = [

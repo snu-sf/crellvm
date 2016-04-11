@@ -180,12 +180,26 @@ Module Snapshot.
     let inv2 := Invariant.update_diffblock_rel diffblock inv0 in
     inv1.
 
+  Definition physical_previous_lessdef (inv:Invariant.unary): ExprPairSet.t :=
+    let idt_set := IdTSet_from_list (Invariant.get_idTs_unary inv) in
+    let prev_idt_set := IdTSet.filter IdT idt_set in
+    IdTSet.fold
+      (fun idt eps =>
+         let id_expr_prev := Expr.value (ValueT.id idt) in
+         let id_expr_phys := Expr.value (ValueT.id (IdT.lift Tag.physical (snd idt))) in
+         (ExprPairSet.add (id_expr_phys, id_expr_prev)
+                          (ExprPairSet.add (id_expr_prev, id_expr_phys) eps)))
+      prev_idt_set ExprPairSet.empty.
+
   Definition unary (inv0:Invariant.unary): Invariant.unary :=
     let inv1 := Invariant.update_lessdef ExprPairSet inv0 in
     let inv2 := Invariant.update_alias alias inv1 in
     let inv3 := Invariant.update_allocas PtrSet inv2 in
     let inv4 := Invariant.update_private IdTSet inv3 in
-    inv4.
+    let inv5 := Invariant.update_lessdef
+                  (ExprPairSet.union
+                     (physical_previous_lessdef inv4)) inv4 in
+    inv5.
 
   Definition t (inv0:Invariant.t): Invariant.t :=
     let inv1 := Invariant.update_src unary inv0 in
