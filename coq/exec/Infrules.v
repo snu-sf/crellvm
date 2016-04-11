@@ -396,7 +396,12 @@ Definition apply_infrule
   | Infrule.transitivity e1 e2 e3 =>
     if $$ inv0 |- e1 >=src e2 $$ &&
        $$ inv0 |- e2 >=src e3 $$ 
-    then {{inv0 +++ e1 >=src e3}}
+    then {{ inv0 +++ e1 >=src e3 }}
+    else apply_fail tt
+  | Infrule.transitivity_tgt e1 e2 e3 =>
+    if $$ inv0 |- e1 >=tgt e2 $$ &&
+       $$ inv0 |- e2 >=tgt e3 $$
+    then {{ inv0 +++ e1 >=tgt e3 }}
     else apply_fail tt
   | Infrule.noalias_global_alloca x y =>
     match x with
@@ -454,6 +459,26 @@ Definition apply_infrule
        $$ inv0 |- e1 >=src e2 $$ &&
        cond_replace_lessdef x y e2 e2'
     then {{inv0 +++ e1 >=src e2'}}
+    else apply_fail tt
+  | Infrule.intro_ghost x g =>
+    if Invariant.not_in_maydiff inv0 x
+    then if (negb (IdTSet.mem (Tag.ghost, g) (IdTSet_from_list (Invariant.get_idTs inv0))))
+         then {{
+          {{ inv0 +++ (Expr.value x) >=src (Expr.value (ValueT.id (Tag.ghost, g))) }}
+                  +++ (Expr.value (ValueT.id (Tag.ghost, g))) >=tgt (Expr.value x)
+         }}
+         else
+          (Invariant.update_src (Invariant.update_lessdef 
+            (ExprPairSet.add ((Expr.value x), (Expr.value (ValueT.id (Tag.ghost, g))))))
+          (Invariant.update_tgt (Invariant.update_lessdef 
+            (ExprPairSet.add ((Expr.value (ValueT.id (Tag.ghost, g))), (Expr.value x))))
+          (Invariant.update_src (Invariant.update_lessdef 
+            (ExprPairSet.filter
+              (fun (p: ExprPair.t) => negb (Expr.eq_dec (Expr.value (ValueT.id (Tag.ghost, g))) (snd p)))))
+          (Invariant.update_tgt (Invariant.update_lessdef 
+            (ExprPairSet.filter
+              (fun (p: ExprPair.t) => negb (Expr.eq_dec (Expr.value (ValueT.id (Tag.ghost, g))) (fst p)))))
+           inv0))))
     else apply_fail tt
   | _ => no_match_fail tt (* TODO *)
   end.

@@ -187,6 +187,12 @@ type transitivity = {
   e3 : expr;
 }
 
+type transitivity_tgt = {
+  e1 : expr;
+  e2 : expr;
+  e3 : expr;
+}
+
 type transitivity_pointer_lhs = {
   p : value;
   q : value;
@@ -207,6 +213,11 @@ type replace_rhs = {
   e1 : expr;
   e2 : expr;
   e2' : expr;
+}
+
+type intro_ghost = {
+  x : value;
+  g : register;
 }
 
 type add_onebit = {
@@ -498,8 +509,10 @@ type infrule = [
   | SdivSubSrem of sdiv_sub_srem
   | UdivSubUrem of udiv_sub_urem
   | Transitivity of transitivity
+  | TransitivityTgt of transitivity_tgt
   | TransitivityPointerLhs of transitivity_pointer_lhs
   | TransitivityPointerRhs of transitivity_pointer_rhs
+  | IntroGhost of intro_ghost
   ] <ocaml repr="classic">
 
 type hint_command = [

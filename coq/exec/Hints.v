@@ -103,13 +103,29 @@ Module Invariant.
     | ValueT.const _ => true
     end.
 
+  Definition not_in_maydiff_expr (inv:t) (expr: Expr.t): bool :=
+    List.forallb (not_in_maydiff inv) (Expr.get_valueTs expr).
+
+  Definition get_lhs (inv:ExprPairSet.t) (rhs:Expr.t): ExprPairSet.t :=
+    ExprPairSet.filter
+       (fun (p: ExprPair.t) => Expr.eq_dec rhs (snd p))
+       inv.
+      
+  Definition get_rhs (inv:ExprPairSet.t) (lhs:Expr.t): ExprPairSet.t :=
+    ExprPairSet.filter
+       (fun (p: ExprPair.t) => Expr.eq_dec lhs (fst p))
+       inv.
+
   Definition inject_value (inv:t) (value_src value_tgt:ValueT.t): bool :=
     (ValueT.eq_dec value_src value_tgt && not_in_maydiff inv value_src) ||
     (ExprPairSet.mem (Expr.value value_src, Expr.value value_tgt) inv.(tgt).(lessdef) && not_in_maydiff inv value_src) ||
-    (ExprPairSet.mem (Expr.value value_src, Expr.value value_tgt) inv.(src).(lessdef) && not_in_maydiff inv value_tgt).
-
-  Definition not_in_maydiff_expr (inv:t) (expr: Expr.t): bool :=
-    List.forallb (not_in_maydiff inv) (Expr.get_valueTs expr).
+    (ExprPairSet.mem (Expr.value value_src, Expr.value value_tgt) inv.(src).(lessdef) && not_in_maydiff inv value_tgt) ||
+    (ExprPairSet.exists_
+       (fun (p: ExprPair.t) => 
+          let (x, y) := p in 
+          ((ExprPairSet.mem (y, Expr.value value_tgt) inv.(tgt).(lessdef)) &&
+           (not_in_maydiff_expr inv y)))
+       (get_rhs inv.(src).(lessdef) (Expr.value value_src))).
 
   Definition is_empty_unary (inv:unary): bool :=
     ExprPairSet.is_empty inv.(lessdef) &&
@@ -178,6 +194,7 @@ Module Infrule.
   | sub_sdiv (z:IdT.t) (y:IdT.t) (x:ValueT.t) (c:INTEGER.t) (c':INTEGER.t) (sz:sz)
   | sub_shl (z:IdT.t) (x:ValueT.t) (y:IdT.t) (mx:ValueT.t) (a:ValueT.t) (sz:sz)
   | transitivity (e1:Expr.t) (e2:Expr.t) (e3:Expr.t)
+  | transitivity_tgt (e1:Expr.t) (e2:Expr.t) (e3:Expr.t)
   | noalias_global_alloca (x:IdT.t) (y:IdT.t)
   | noalias_global_global (x:IdT.t) (y:IdT.t)
   | noalias_lessthan (x:ValueT.t) (y:ValueT.t) (x':ValueT.t) (y':ValueT.t)
@@ -185,6 +202,7 @@ Module Infrule.
   | transitivity_pointer_rhs (p:ValueT.t) (q:ValueT.t) (v:ValueT.t) (ty:typ) (a:align)
   | replace_rhs (x:IdT.t) (y:ValueT.t) (e1:Expr.t) (e2:Expr.t) (e2':Expr.t)
   | udiv_sub_urem (z:IdT.t) (b:IdT.t) (a:IdT.t) (x:ValueT.t) (y:ValueT.t) (sz:sz)
+  | intro_ghost (x:ValueT.t) (g:id)
 
 (* Updated semantics of rules should be located above this line *)
 
