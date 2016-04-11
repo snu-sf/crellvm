@@ -110,6 +110,15 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
      let c' = Convert.const_int args.cprime in
      let sz = Convert.size args.sz in
      Infrule.Coq_add_zext_bool (x, y, b, c, c', sz)
+  | CoreHint_t.AndDeMorgan (args:CoreHint_t.and_de_morgan) ->
+     let z = Convert.register args.z in
+     let x = Convert.register args.x in
+     let y = Convert.register args.y in
+     let zprime = Convert.register args.zprime in
+     let a = Convert.value args.a in
+     let b = Convert.value args.b in
+     let sz = Convert.size args.sz in
+     Infrule.Coq_and_de_morgan (z, x, y, zprime, a, b, sz)
   | CoreHint_t.Bitcastptr (args:CoreHint_t.bitcastptr) ->
      let v = Convert.value args.v in
      let vprime = Convert.value args.vprime in
@@ -179,6 +188,18 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
      let a = Convert.value args.a in
      let sz = Convert.size args.sz in
      Infrule.Coq_mul_shl (z, y, x, a, sz);
+  | CoreHint_t.RemNeg (args:CoreHint_t.rem_neg) ->
+     let z = Convert.register args.z in
+     let my = Convert.value args.my in
+     let x = Convert.value args.x in
+     let y = Convert.value args.y in
+     let sz = Convert.size args.sz in
+     Infrule.Coq_rem_neg (z, my, x, y, sz)
+  | CoreHint_t.SdivMone (args:CoreHint_t.sdiv_mone) ->
+     let z = Convert.register args.z in
+     let x = Convert.value args.x in
+     let sz = Convert.size args.sz in
+     Infrule.Coq_sdiv_mone (z, x, sz)
   | CoreHint_t.SubConstAdd (args:CoreHint_t.sub_const_add) ->
      let z = Convert.register args.z in
      let y = Convert.register args.y in

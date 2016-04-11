@@ -193,11 +193,6 @@ type transitivity_tgt = {
   e3 : expr;
 }
 
-type noalias_global_alloca = {
-  x : register;
-  y : register;
-}
-
 type transitivity_pointer_lhs = {
   p : value;
   q : value;
@@ -432,20 +427,28 @@ type mul_shl = {
   sz : size;
 }
 
-type div_mone = {
+type sdiv_mone = {
   z : register;
+  x : value;
+  sz : size;
 }
 
 type and_de_morgan = {
   z : register;
   x : register;
   y : register;
-  z2 : register;
+  zprime : register;
+  a : value;
+  b : value;
+  sz : size;
 }
 
 type rem_neg = {
   z : register;
-  my : register;
+  my : value;
+  x : value;
+  y : value;
+  sz : size;
 }
 
 type sdiv_sub_srem = {
@@ -481,7 +484,6 @@ type infrule = [
   | AddDistSub of add_dist_sub
   | AndDeMorgan of and_de_morgan
   | Bitcastptr of bitcastptr
-  | DivMone of div_mone
   | Gepzero of gepzero
   | MulAddDistributive of mul_add_distributive
   | NegVal of neg_val
@@ -503,13 +505,13 @@ type infrule = [
   | NoaliasLessthan of noalias_lessthan
   | RemNeg of rem_neg
   | ReplaceRhs of replace_rhs
+  | SdivMone of sdiv_mone
   | SdivSubSrem of sdiv_sub_srem
   | UdivSubUrem of udiv_sub_urem
   | Transitivity of transitivity
   | TransitivityTgt of transitivity_tgt
   | TransitivityPointerLhs of transitivity_pointer_lhs
   | TransitivityPointerRhs of transitivity_pointer_rhs
-  | ReplaceRhs of replace_rhs
   | IntroGhost of intro_ghost
   ] <ocaml repr="classic">
 
