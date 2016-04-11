@@ -163,7 +163,7 @@ module PrintExprs = struct
   end
                       
 module PrintHints = struct
-    let infrules_to_string (inf:Infrule.t): string =
+    let infrule_to_string (inf:Infrule.t): string =
       (* TODO: print args *)
       match inf with
       | Infrule.Coq_add_associative (x, y, z, c1, c2, c3, sz) ->
@@ -181,14 +181,17 @@ module PrintHints = struct
       | Infrule.Coq_add_shift _ -> "add_shift"
       | Infrule.Coq_add_signbit _ -> "add_signbit"
       | Infrule.Coq_add_zext_bool _ -> "add_zext_bool"
-      | Infrule.Coq_transitivity _ -> "transitivity"
+      | Infrule.Coq_transitivity (a, b, c) -> "transitivity : " ^
+                                                ExprsToString.of_expr a ^ " ≥ " ^
+                                                  ExprsToString.of_expr b ^ " ≥ " ^
+                                                    ExprsToString.of_expr c
       | Infrule.Coq_replace_rhs _ -> "replace_rhs"
       | _ -> "infrule(TODO)"
 
     let infrules (infs:Infrule.t list): unit =
       let _ = List.map
                 (fun inf ->
-                 let s = infrules_to_string inf in
+                 let s = infrule_to_string inf in
                  let _ = debug_print s in ())
                 infs
       in ()
@@ -305,6 +308,11 @@ let idT_printer (x: Exprs.IdT.t): unit =
   debug_run(
       fun _ ->
       debug_print (ExprsToString.of_IdT x))
+
+let infrule_printer (x: Infrule.t): unit =
+  debug_run(
+      fun _ ->
+      debug_print (PrintHints.infrule_to_string x))
 
 let debug_string (x: char list) (y: 'a) =
   let _ = debug_run(fun _ -> debug_print (string_of_char_list x))

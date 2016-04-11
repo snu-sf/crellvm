@@ -1,3 +1,5 @@
+open Printexc
+
 let flip f = fun x y -> f y x
 
 let rec filter_map f l =
@@ -21,7 +23,9 @@ let findi p l =
 
 let get o =
   match o with
-  | None -> failwith "Option.get None"
+  | None ->
+     print_endline (Printexc.raw_backtrace_to_string (Printexc.get_callstack(20))) ;
+     failwith "Option.get None: "
   | Some x -> x
 
 let list_to_string (l:char list) : string =

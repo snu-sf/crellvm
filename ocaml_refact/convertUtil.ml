@@ -224,7 +224,7 @@ module Convert = struct
              Expr.Coq_select (llvmvalue v1, typ, llvmvalue v2, llvmvalue v3)
           | LLVMsyntax.Coq_insn_load (_, typ, v, align) ->
              Expr.Coq_load (llvmvalue v, typ, align)
-          | _ -> failwith "convertUtil: rhs_of no matching cmd")
+          | _ -> failwith ("convertUtil: rhs_of no matching cmd: " ^ (Coq_pretty_printer.string_of_cmd c)))
       | _ -> failwith "convertUtil: rhs_of find no insn"
 
   let bop (b:CoreHint_t.bop) : (LLVMsyntax.bop option * LLVMsyntax.fbop option) = 
