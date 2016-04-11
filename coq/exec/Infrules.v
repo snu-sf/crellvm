@@ -487,9 +487,9 @@ Definition apply_infrule
        cond_replace_lessdef x y e2 e2'
     then {{inv0 +++ e1 >=src e2'}}
     else inv0
-	| Infrule.replace_rhs_opt x y e1 e2 e2' =>
+  | Infrule.replace_rhs_opt x y e1 e2 e2' =>
     if $$ inv0 |- (Expr.value x) >=tgt (Expr.value y) $$ &&
-       $$ inv0 |- e1 >=tgt e2 $$ &&
+    $$ inv0 |- e1 >=tgt e2 $$ &&
        cond_replace_lessdef x y e2 e2'
     then {{inv0 +++ e1 >=tgt e2'}}
     else inv0
