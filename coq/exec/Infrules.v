@@ -15,6 +15,7 @@ Require Import Hints.
 Require Import TODO.
 
 Require Import Decs.
+Require Import Debug.
 Set Implicit Arguments.
 
 (* Copied from validator/basic_aux.v because ocaml-extracted version of this code cannot find validator/basic_aux.v *)
@@ -202,19 +203,23 @@ Definition apply_infrule
            (m_src m_tgt:module)
            (infrule:Infrule.t)
            (inv0:Invariant.t): Invariant.t :=
+  let apply_fail := (fun _: unit => (debug_print2 infrule_printer infrule
+                                                  (debug_string "Infrule application failed!" inv0))) in
+  let no_match_fail := (fun _: unit => debug_string "Infrule match failed!"
+                                                    (debug_print2 infrule_printer infrule inv0)) in
   match infrule with
   | Infrule.add_associative x y z c1 c2 c3 s =>
     if $$ inv0 |- (Expr.value y) >=src (Expr.bop bop_add s x (const_int s c1)) $$ &&
        $$ inv0 |- (Expr.value z) >=src (Expr.bop bop_add s y (const_int s c2)) $$ &&
        cond_plus s c1 c2 c3
     then {{inv0 +++ (Expr.value z) >=src (Expr.bop bop_add s x (const_int s c3))}}
-    else inv0
+    else apply_fail tt
   | Infrule.add_const_not z y x c1 c2 s =>
     if $$ inv0 |- (Expr.value (ValueT.id y)) >=src (Expr.bop bop_xor s x (ValueT.const (const_int s (INTEGER.of_Z (Size.to_Z s) (-1)%Z true)))) $$ &&
        $$ inv0 |- (Expr.value (ValueT.id z)) >=src (Expr.bop bop_add s (ValueT.id y) (ValueT.const (const_int s c1))) $$ &&
        cond_minus s c1 (INTEGER.of_Z (Size.to_Z s) 1%Z true) c2
     then {{inv0 +++ (Expr.value (ValueT.id z)) >=src (Expr.bop bop_sub s (ValueT.const (const_int s c2)) x)}}
-    else inv0
+    else apply_fail tt
   | Infrule.add_dist_sub z minusx minusy w x y s =>
     if $$ inv0 |- (Expr.value (ValueT.id minusx)) 
                   >=tgt (Expr.bop bop_sub s (ValueT.const (const_int s (INTEGER.of_Z (Size.to_Z s) 0%Z true))) x) $$
@@ -225,55 +230,55 @@ Definition apply_infrule
         && $$ inv0 |- (Expr.bop bop_sub s (ValueT.const (const_int s (INTEGER.of_Z (Size.to_Z s) 0%Z true))) (ValueT.id w))
                       >=tgt (Expr.value (ValueT.id z)) $$  
     then {{inv0 +++ (Expr.bop bop_add s (ValueT.id minusx) minusy) >=tgt (Expr.value (ValueT.id z))}}  
-    else inv0
+    else apply_fail tt
   | Infrule.add_sub z minusy x y s =>
     if $$ inv0 |- (Expr.value minusy) >=src (Expr.bop bop_sub s (const_int s (INTEGER.of_Z (Size.to_Z s) 0%Z true)) y) $$ &&
        $$ inv0 |- (Expr.value z) >=src (Expr.bop bop_add s x minusy) $$
     then {{inv0 +++ (Expr.value z) >=src (Expr.bop bop_sub s x y)}}
-    else inv0
+    else apply_fail tt
   | Infrule.add_commutative z x y s =>
     if $$ inv0 |- (Expr.value z) >=src (Expr.bop bop_add s x y) $$
     then {{inv0 +++ (Expr.value z) >=src (Expr.bop bop_add s y x)}}
-    else inv0
+    else apply_fail tt
   | Infrule.add_mask z y y' x c1 c2 s =>
       if $$ inv0 |- (Expr.bop bop_and s x (ValueT.const (const_int s c2))) >=tgt (Expr.value (ValueT.id y)) $$ &&
          $$ inv0 |- (Expr.bop bop_add s x (ValueT.const (const_int s c1))) >=tgt (Expr.value (ValueT.id y')) $$ &&
          $$ inv0 |- (Expr.bop bop_and s (ValueT.id y') (ValueT.const (const_int s c2))) >=tgt (Expr.value (ValueT.id z)) $$ &&
          cond_mask_up s c1 c2
       then {{inv0 +++ (Expr.bop bop_add s (ValueT.id y) (ValueT.const (const_int s c1))) >=tgt (Expr.value (ValueT.id z)) }}
-      else inv0
+      else apply_fail tt
   | Infrule.add_select_zero z x y c n a s =>
       if $$ inv0 |- (Expr.value (ValueT.id x)) >=src (Expr.bop bop_sub s n a) $$ &&
          $$ inv0 |- (Expr.value (ValueT.id y)) >=src (Expr.select c (typ_int s) (ValueT.id x) (ValueT.const (const_int s (INTEGER.of_Z (Size.to_Z s) 0%Z true)))) $$ &&
          $$ inv0 |- (Expr.value (ValueT.id z)) >=src (Expr.bop bop_add s (ValueT.id y) a) $$
       then {{inv0 +++ (Expr.value (ValueT.id z)) >=src (Expr.select c (typ_int s) n a) }}
-      else inv0
+      else apply_fail tt
   | Infrule.add_select_zero2 z x y c n a s =>
       if $$ inv0 |- (Expr.value (ValueT.id x)) >=src (Expr.bop bop_sub s n a) $$ &&
          $$ inv0 |- (Expr.value (ValueT.id y)) >=src (Expr.select c (typ_int s) (ValueT.const (const_int s (INTEGER.of_Z (Size.to_Z s) 0%Z true))) (ValueT.id x)) $$ &&
          $$ inv0 |- (Expr.value (ValueT.id z)) >=src (Expr.bop bop_add s (ValueT.id y) a) $$
       then {{inv0 +++ (Expr.value (ValueT.id z)) >=src (Expr.select c (typ_int s) a n) }}
-      else inv0
+      else apply_fail tt
   | Infrule.add_shift y v s =>
     if $$ inv0 |- (Expr.value y) >=src (Expr.bop bop_add s v v) $$
     then {{inv0 +++ (Expr.value y) >=src (Expr.bop bop_shl s v (const_int s (INTEGER.of_Z (Size.to_Z s) 1%Z true)))}}
-    else inv0
+    else apply_fail tt
   | Infrule.add_signbit x e1 e2 s =>
     if $$ inv0 |- (Expr.value x) >=src (Expr.bop bop_add s e1 e2) $$ &&
        cond_signbit s e2
     then {{inv0 +++ (Expr.value x) >=src (Expr.bop bop_xor s e1 e2)}}
-    else inv0
+    else apply_fail tt
   | Infrule.and_de_morgan z x y z' a b s =>
     if $$ inv0 |- (Expr.bop bop_xor s a (ValueT.const (const_int s (INTEGER.of_Z (Size.to_Z s) (-1)%Z true)))) >=tgt (Expr.value (ValueT.id x)) $$ &&
        $$ inv0 |- (Expr.bop bop_xor s b (ValueT.const (const_int s (INTEGER.of_Z (Size.to_Z s) (-1)%Z true)))) >=tgt (Expr.value (ValueT.id y))$$ &&
        $$ inv0 |- (Expr.bop bop_or s a b) >=tgt (Expr.value (ValueT.id z')) $$ &&
        $$ inv0 |- (Expr.bop bop_xor s (ValueT.id z') (ValueT.const (const_int s (INTEGER.of_Z (Size.to_Z s) (-1)%Z true)))) >=tgt (Expr.value (ValueT.id z)) $$
     then {{inv0 +++ (Expr.bop bop_and s (ValueT.id x) (ValueT.id y)) >=tgt (Expr.value (ValueT.id z))}}
-    else inv0
+    else apply_fail tt
   | Infrule.sdiv_mone z x s => 
     if $$ inv0 |- (Expr.value z) >=src (Expr.bop bop_sdiv s x (ValueT.const (const_int s (INTEGER.of_Z (Size.to_Z s) (-1)%Z true)))) $$
     then {{inv0 +++ (Expr.value (ValueT.id z)) >=src (Expr.bop bop_sub s (ValueT.const (const_int s (INTEGER.of_Z (Size.to_Z s) 0%Z true))) x) }}
-    else inv0
+    else apply_fail tt
   | Infrule.bitcastptr v v' bitcastinst =>
     if $$ inv0 |- (Expr.value v) >=src bitcastinst $$ &&
        $$ inv0 |- bitcastinst >=src (Expr.value v) $$ &&
@@ -281,7 +286,7 @@ Definition apply_infrule
     then 
       let inv0 := {{inv0 +++ (Expr.value v) >=src (Expr.value v')}} in
       {{inv0 +++ (Expr.value v') >=src (Expr.value v)}}
-    else inv0
+    else apply_fail tt
   | Infrule.gepzero v v' gepinst =>
     if $$ inv0 |- (Expr.value v) >=src gepinst $$ &&
        $$ inv0 |- gepinst >=src (Expr.value v) $$ &&
@@ -289,141 +294,146 @@ Definition apply_infrule
     then 
       let inv0 := {{inv0 +++ (Expr.value v) >=src (Expr.value v')}} in
       {{inv0 +++ (Expr.value v') >=src (Expr.value v)}}
-    else inv0
+    else apply_fail tt
   | Infrule.sdiv_sub_srem z b a x y s =>
     if $$ inv0 |- (Expr.value (ValueT.id b)) >=src (Expr.bop bop_srem s x y) $$ &&
        $$ inv0 |- (Expr.value (ValueT.id a)) >=src (Expr.bop bop_sub s x (ValueT.id b)) $$ &&
        $$ inv0 |- (Expr.value (ValueT.id z)) >=src (Expr.bop bop_sdiv s (ValueT.id a) y) $$
     then {{inv0 +++ (Expr.value (ValueT.id z)) >=src (Expr.bop bop_sdiv s x y) }}
-    else inv0
+    else apply_fail tt
   | Infrule.udiv_sub_urem z b a x y s =>
     if $$ inv0 |- (Expr.value (ValueT.id b)) >=src (Expr.bop bop_urem s x y) $$ &&
        $$ inv0 |- (Expr.value (ValueT.id a)) >=src (Expr.bop bop_sub s x (ValueT.id b)) $$ &&
        $$ inv0 |- (Expr.value (ValueT.id z)) >=src (Expr.bop bop_udiv s (ValueT.id a) y) $$
     then {{inv0 +++ (Expr.value (ValueT.id z)) >=src (Expr.bop bop_udiv s x y) }}
-    else inv0
+    else apply_fail tt
   | Infrule.sub_add z my x y s =>
     if $$ inv0 |- (Expr.value my) >=src (Expr.bop bop_sub s (const_int s (INTEGER.of_Z (Size.to_Z s) 0%Z true)) y) $$ &&
        $$ inv0 |- (Expr.value z) >=src (Expr.bop bop_sub s x my) $$
     then {{inv0 +++ (Expr.value z) >=src (Expr.bop bop_add s x y)}}
-    else inv0
+    else apply_fail tt
   | Infrule.neg_val c1 c2 s =>
     if cond_plus s c1 c2 (INTEGER.of_Z (Size.to_Z s) 0%Z true)  
     then 
       let inv0 := 
       {{inv0 +++ (Expr.value (const_int s c1)) >=src (Expr.bop bop_sub s (const_int s (INTEGER.of_Z (Size.to_Z s) 0%Z true)) (const_int s c2))}} in
       {{inv0 +++ (Expr.bop bop_sub s (const_int s (INTEGER.of_Z (Size.to_Z s) 0%Z true)) (const_int s c2)) >=tgt (Expr.value (const_int s c1))}}
-    else inv0
+    else apply_fail tt
   | Infrule.mul_mone z x s =>
     if $$ inv0 |- (Expr.value (ValueT.id z)) 
                 >=src (Expr.bop bop_mul s x (ValueT.const (const_int s (INTEGER.of_Z (Size.to_Z s) (-1)%Z true)))) $$
     then {{ inv0 +++ (Expr.value (ValueT.id z)) 
                 >=src (Expr.bop bop_sub s (ValueT.const (const_int s (INTEGER.of_Z (Size.to_Z s) 0%Z true))) x) }}
-    else inv0
+    else apply_fail tt
   | Infrule.mul_neg z mx my x y s =>
     if $$ inv0 |- (Expr.value mx) >=src (Expr.bop bop_sub s (const_int s (INTEGER.of_Z (Size.to_Z s) 0%Z true)) x) $$ &&
        $$ inv0 |- (Expr.value my) >=src (Expr.bop bop_sub s (const_int s (INTEGER.of_Z (Size.to_Z s) 0%Z true)) y) $$ &&
        $$ inv0 |- (Expr.value z) >=src (Expr.bop bop_mul s mx my) $$
     then {{inv0 +++ (Expr.value z) >=src (Expr.bop bop_mul s x y)}}
-    else inv0
+    else apply_fail tt
   | Infrule.mul_bool z x y =>
     if $$ inv0 |- (Expr.value z) >=src (Expr.bop bop_mul Size.One x y) $$
     then {{inv0 +++ (Expr.value z) >=src (Expr.bop bop_and Size.One x y) }}
-    else inv0
+    else apply_fail tt
   | Infrule.mul_commutative z x y s =>
     if $$ inv0 |- (Expr.value (ValueT.id z)) >=src (Expr.bop bop_mul s x y) $$
     then {{inv0 +++ (Expr.value (ValueT.id z)) >=src (Expr.bop bop_mul s y x)}}
-    else inv0
+    else apply_fail tt
   | Infrule.mul_shl z y x a s =>
     if $$ inv0 |- (Expr.value (ValueT.id y)) >=src (Expr.bop bop_shl s (ValueT.const (const_int s (INTEGER.of_Z (Size.to_Z s) 1%Z true))) a) $$ &&
        $$ inv0 |- (Expr.value (ValueT.id z)) >=src (Expr.bop bop_mul s (ValueT.id y) x) $$
     then {{ inv0 +++ (Expr.value (ValueT.id z)) >=src (Expr.bop bop_shl s x a) }}
-    else inv0
+    else apply_fail tt
   | Infrule.sub_const_add z y x c1 c2 c3 s =>
     if $$ inv0 |- (Expr.value (ValueT.id y)) >=src (Expr.bop bop_add s x (ValueT.const (const_int s c1))) $$ &&
        $$ inv0 |- (Expr.value (ValueT.id z)) >=src (Expr.bop bop_sub s (ValueT.const (const_int s c2)) (ValueT.id y)) $$ &&
        cond_minus s c2 c1 c3
     then {{inv0 +++ (Expr.value (ValueT.id z)) >=src (Expr.bop bop_sub s (ValueT.const (const_int s c3)) x) }}
-    else inv0
+    else apply_fail tt
   | Infrule.sub_const_not z y x c1 c2 s =>
     if $$ inv0 |- (Expr.value (ValueT.id y)) >=src (Expr.bop bop_xor s x (ValueT.const (const_int s (INTEGER.of_Z (Size.to_Z s) (-1)%Z true)))) $$ &&
        $$ inv0 |- (Expr.value (ValueT.id z)) >=src (Expr.bop bop_sub s (ValueT.const (const_int s c1)) (ValueT.id y)) $$ &&
        cond_plus s c1 (INTEGER.of_Z (Size.to_Z s) 1%Z true) c2
     then {{inv0 +++ (Expr.value (ValueT.id z)) >=src (Expr.bop bop_add s x (ValueT.const (const_int s c2)))}}
-    else inv0
+    else apply_fail tt
   | Infrule.sub_mone z x s =>
     if $$ inv0 |- (Expr.value (ValueT.id z)) >=src (Expr.bop bop_sub s 
                 (ValueT.const (const_int s (INTEGER.of_Z (Size.to_Z s) (-1)%Z true))) x) $$
       then {{inv0 +++ (Expr.value (ValueT.id z)) >=src (Expr.bop bop_xor s x 
                 (ValueT.const (const_int s (INTEGER.of_Z (Size.to_Z s) (-1)%Z true))))}}
-      else inv0
+      else apply_fail tt
   | Infrule.sub_remove z y a b sz =>
     if $$ inv0 |- (Expr.value (ValueT.id y)) >=src (Expr.bop bop_add sz a b) $$ &&
        $$ inv0 |- (Expr.value (ValueT.id z)) >=src (Expr.bop bop_sub sz a (ValueT.id y)) $$
     then {{inv0 +++ (Expr.value (ValueT.id z)) >=src (Expr.bop bop_sub sz (const_int sz (INTEGER.of_Z (Size.to_Z sz) 0%Z true)) b) }}
-    else inv0
+    else apply_fail tt
   | Infrule.sub_onebit z x y =>
     if $$ inv0 |- (Expr.value (ValueT.id z)) >=src (Expr.bop bop_sub Size.One x y) $$
     then {{inv0 +++ (Expr.value (ValueT.id z)) >=src (Expr.bop bop_xor Size.One x y)}}
-    else inv0
+    else apply_fail tt
   | Infrule.sub_shl z x y mx a sz =>
     if $$ inv0 |- (Expr.value x) >=src (Expr.bop bop_sub sz (ValueT.const (const_int sz (INTEGER.of_Z (Size.to_Z sz) 0%Z true))) mx) $$ &&
        $$ inv0 |- (Expr.value (ValueT.id y)) >=src (Expr.bop bop_shl sz x a) $$ &&
        $$ inv0 |- (Expr.value (ValueT.id z)) >=src (Expr.bop bop_sub sz (ValueT.const (const_int sz (INTEGER.of_Z (Size.to_Z sz) 0%Z true))) (ValueT.id y)) $$
     then {{inv0 +++ (Expr.value (ValueT.id z)) >=src (Expr.bop bop_shl sz mx a) }}
-    else inv0
+    else apply_fail tt
   | Infrule.sub_sdiv z y x c c' sz =>
     if $$ inv0 |- (Expr.value (ValueT.id y)) >=src (Expr.bop bop_sdiv sz x (ValueT.const (const_int sz c))) $$ &&
        $$ inv0 |- (Expr.value (ValueT.id z)) >=src (Expr.bop bop_sub sz (ValueT.const (const_int sz (INTEGER.of_Z (Size.to_Z sz) 0%Z true))) (ValueT.id y)) $$ &&
        cond_minus sz (INTEGER.of_Z (Size.to_Z sz) 0%Z true) c c'
     then {{inv0 +++ (Expr.value (ValueT.id z)) >=src (Expr.bop bop_sdiv sz x (ValueT.const (const_int sz c'))) }}
-    else inv0
+    else apply_fail tt
   | Infrule.add_onebit z x y =>
     if $$ inv0 |- (Expr.value (ValueT.id z)) >=src (Expr.bop bop_add Size.One x y) $$
     then {{inv0 +++ (Expr.value (ValueT.id z)) >=src (Expr.bop bop_xor Size.One x y)}}
-    else inv0
+    else apply_fail tt
   | Infrule.add_zext_bool x y b c c' sz =>
     if $$ inv0 |- (Expr.value (ValueT.id x)) >=src (Expr.ext extop_z (typ_int Size.One) b (typ_int sz)) $$ &&
        $$ inv0 |- (Expr.value (ValueT.id y)) >=src (Expr.bop bop_add sz (ValueT.id x) (ValueT.const (const_int sz c))) $$ &&
        cond_plus sz c (INTEGER.of_Z (Size.to_Z sz) 1%Z true) c'
     then {{ inv0 +++ (Expr.value (ValueT.id y)) >=src (Expr.select b (typ_int sz) (ValueT.const (const_int sz c')) (ValueT.const (const_int sz c))) }}
-    else inv0
+    else apply_fail tt
   | Infrule.bop_distributive_over_selectinst opcode r s t' t x y z c bopsz selty =>
     if $$ inv0 |- (Expr.bop opcode bopsz x y) >=tgt (Expr.value (ValueT.id r)) $$ &&
        $$ inv0 |- (Expr.bop opcode bopsz x z) >=tgt (Expr.value (ValueT.id s)) $$ &&
        $$ inv0 |- (Expr.select c selty y z) >=tgt (Expr.value (ValueT.id t')) $$ &&
        $$ inv0 |- (Expr.bop opcode bopsz x t') >=tgt (Expr.value (ValueT.id t)) $$
      then {{ inv0 +++ (Expr.select c selty (ValueT.id r) (ValueT.id s)) >=tgt (Expr.value (ValueT.id t)) }}
-     else inv0
+     else apply_fail tt
   | Infrule.fbop_distributive_over_selectinst fbopcode r s t' t x y z c fbopty selty =>
     if $$ inv0 |- (Expr.fbop opcode fbopty x y) >=tgt (Expr.value (ValueT.id r)) $$ &&
        $$ inv0 |- (Expr.fbop opcode fbopty x z) >=tgt (Expr.value (ValueT.id s)) $$ &&
        $$ inv0 |- (Expr.select c selty y z) >=tgt (Expr.value (ValueT.id t')) $$ &&
        $$ inv0 |- (Expr.fbop opcode fbopty x t') >=tgt (Expr.value (ValueT.id t)) $$
      then {{ inv0 +++ (Expr.select c selty (ValueT.id r) (ValueT.id s)) >=tgt (Expr.value (ValueT.id t)) }}
-     else inv0
+    else apply_fail tt
   | Infrule.transitivity e1 e2 e3 =>
     if $$ inv0 |- e1 >=src e2 $$ &&
        $$ inv0 |- e2 >=src e3 $$ 
-    then {{inv0 +++ e1 >=src e3}}
-    else inv0
+    then {{ inv0 +++ e1 >=src e3 }}
+    else apply_fail tt
+  | Infrule.transitivity_tgt e1 e2 e3 =>
+    if $$ inv0 |- e1 >=tgt e2 $$ &&
+       $$ inv0 |- e2 >=tgt e3 $$
+    then {{ inv0 +++ e1 >=tgt e3 }}
+    else apply_fail tt
   | Infrule.noalias_global_alloca x y =>
     match x with
     | (Tag.physical, x_id) =>
       match lookupTypViaGIDFromModule m_src x_id with
-      | None => inv0
+      | None => apply_fail tt
       | Some x_type => (* x is a global variable *)
         if $$ inv0 |-allocasrc y $$ then
           {{inv0 +++ (ValueT.id y) _|_src (ValueT.const (const_gid x_type x_id)) }}
-        else inv0
+        else apply_fail tt
       end
-    | _ => inv0
+    | _ => apply_fail tt
     end
   | Infrule.rem_neg z my x y s =>
     if $$ inv0 |- (Expr.value my) >=src (Expr.bop bop_sub s (ValueT.const (const_int s (INTEGER.of_Z (Size.to_Z s) 0%Z true))) y) $$ && 
        $$ inv0 |- (Expr.value (ValueT.id z)) >=src (Expr.bop bop_srem s x my) $$
     then {{inv0 +++ (Expr.value (ValueT.id z)) >=src (Expr.bop bop_srem s x y) }}
-    else inv0
+    else apply_fail tt
   | Infrule.noalias_global_global x y =>
     match x with 
     | (Tag.physical, x_id) =>
@@ -434,52 +444,71 @@ Definition apply_infrule
           match lookupTypViaGIDFromModule m_src y_id with
           | Some y_type => 
             {{inv0 +++ (ValueT.id y) _|_src (ValueT.const (const_gid x_type x_id)) }}
-          | None => inv0
+          | None => apply_fail tt
           end
-        | _ => inv0
+        | _ => apply_fail tt
         end)
-      | None => inv0
+      | None => apply_fail tt
       end
-    | _ => inv0
+    | _ => apply_fail tt
     end
   | Infrule.noalias_lessthan x y x' y' =>
     if $$ inv0 |- x _|_src y $$ &&
        $$ inv0 |- (Expr.value x) >=src (Expr.value x') $$ &&
        $$ inv0 |- (Expr.value y) >=src (Expr.value y') $$
     then {{inv0 +++ x' _|_src y'}}
-    else inv0
+    else apply_fail tt
   | Infrule.transitivity_pointer_lhs p q v ty a =>
     if $$ inv0 |- (Expr.value p) >=src (Expr.value q) $$ &&
        $$ inv0 |- (Expr.load q ty a) >=src (Expr.value v) $$
     then {{inv0 +++ (Expr.load p ty a) >=src (Expr.value v)}}
-    else inv0
+    else apply_fail tt
   | Infrule.transitivity_pointer_rhs p q v ty a =>
     if $$ inv0 |- (Expr.value p) >=src (Expr.value q) $$ &&
        $$ inv0 |- (Expr.value v) >=src (Expr.load p ty a) $$
     then {{inv0 +++ (Expr.value v) >=src (Expr.load q ty a)}}
-    else inv0
+    else apply_fail tt
   | Infrule.replace_rhs x y e1 e2 e2' =>
     if $$ inv0 |- (Expr.value x) >=src (Expr.value y) $$ &&
        $$ inv0 |- e1 >=src e2 $$ &&
        cond_replace_lessdef x y e2 e2'
     then {{inv0 +++ e1 >=src e2'}}
-    else inv0
+    else apply_fail tt
   | Infrule.udiv_zext z x y k a b s1 s2 =>
     if $$ inv0 |- (Expr.ext extop_z (typ_int s1) a (typ_int s2)) >=tgt (Expr.value (ValueT.id x)) $$ &&
        $$ inv0 |- (Expr.ext extop_z (typ_int s1) b (typ_int s2)) >=tgt (Expr.value (ValueT.id y)) $$ &&
        $$ inv0 |- (Expr.bop bop_udiv s1 a b) >=tgt (Expr.value (ValueT.id k)) $$ &&
        $$ inv0 |- (Expr.ext extop_z (typ_int s1) (ValueT.id k) (typ_int s2)) >=tgt (Expr.value (ValueT.id z)) $$
     then {{ inv0 +++ (Expr.bop bop_udiv s2 (ValueT.id x) (ValueT.id y)) >=tgt (Expr.value (ValueT.id z)) }}
-    else inv0
+    else apply_fail tt
   | Infrule.urem_zext z x y k a b s1 s2 =>
     if $$ inv0 |- (Expr.ext extop_z (typ_int s1) a (typ_int s2)) >=tgt (Expr.value (ValueT.id x)) $$ &&
        $$ inv0 |- (Expr.ext extop_z (typ_int s1) b (typ_int s2)) >=tgt (Expr.value (ValueT.id y)) $$ &&
        $$ inv0 |- (Expr.bop bop_urem s1 a b) >=tgt (Expr.value (ValueT.id k)) $$ &&
        $$ inv0 |- (Expr.ext extop_z (typ_int s1) (ValueT.id k) (typ_int s2)) >=tgt (Expr.value (ValueT.id z)) $$
     then {{ inv0 +++ (Expr.bop bop_urem s2 (ValueT.id x) (ValueT.id y)) >=tgt (Expr.value (ValueT.id z)) }}
-    else inv0
-
-  | _ => inv0 (* TODO *)
+    else apply_fail tt
+  | Infrule.intro_ghost x g =>
+    if Invariant.not_in_maydiff inv0 x
+    then if (negb (IdTSet.mem (Tag.ghost, g) (IdTSet_from_list (Invariant.get_idTs inv0))))
+         then {{
+          {{ inv0 +++ (Expr.value x) >=src (Expr.value (ValueT.id (Tag.ghost, g))) }}
+                  +++ (Expr.value (ValueT.id (Tag.ghost, g))) >=tgt (Expr.value x)
+         }}
+         else
+          (Invariant.update_src (Invariant.update_lessdef 
+            (ExprPairSet.add ((Expr.value x), (Expr.value (ValueT.id (Tag.ghost, g))))))
+          (Invariant.update_tgt (Invariant.update_lessdef 
+            (ExprPairSet.add ((Expr.value (ValueT.id (Tag.ghost, g))), (Expr.value x))))
+          (Invariant.update_src (Invariant.update_lessdef 
+            (ExprPairSet.filter
+              (fun (p: ExprPair.t) => negb (Expr.eq_dec (Expr.value (ValueT.id (Tag.ghost, g))) (snd p)))))
+          (Invariant.update_tgt (Invariant.update_lessdef 
+            (ExprPairSet.filter
+              (fun (p: ExprPair.t) => negb (Expr.eq_dec (Expr.value (ValueT.id (Tag.ghost, g))) (fst p)))))
+           inv0))))
+    else apply_fail tt
+  | _ => no_match_fail tt (* TODO *)
   end.
 
 (* TODO *)

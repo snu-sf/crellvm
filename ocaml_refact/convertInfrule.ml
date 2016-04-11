@@ -251,10 +251,15 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
      let sz = Convert.size args.sz in
      Infrule.Coq_sub_shl (z, x, y, mx, a, sz)
   | CoreHint_t.Transitivity (args:CoreHint_t.transitivity) ->
-     let e1 = Convert.expr args.e1 src_fdef tgt_fdef in
-     let e2 = Convert.expr args.e2 src_fdef tgt_fdef in
-     let e3 = Convert.expr args.e3 src_fdef tgt_fdef in
-     Infrule.Coq_transitivity (e1, e2, e3)
+      let e1 = Convert.expr args.e1 src_fdef tgt_fdef in
+      let e2 = Convert.expr args.e2 src_fdef tgt_fdef in
+      let e3 = Convert.expr args.e3 src_fdef tgt_fdef in
+      Infrule.Coq_transitivity (e1, e2, e3)
+  | CoreHint_t.TransitivityTgt (args:CoreHint_t.transitivity_tgt) ->
+      let e1 = Convert.expr args.e1 src_fdef tgt_fdef in
+      let e2 = Convert.expr args.e2 src_fdef tgt_fdef in
+      let e3 = Convert.expr args.e3 src_fdef tgt_fdef in
+      Infrule.Coq_transitivity_tgt (e1, e2, e3)
   | CoreHint_t.NoaliasGlobalAlloca (args:CoreHint_t.noalias_global_alloca) ->
      let x = Convert.register args.x in
      let y = Convert.register args.y in
@@ -318,5 +323,9 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
      let sz1 = Convert.size args.sz1 in
      let sz2 = Convert.size args.sz2 in
      Infrule.Coq_urem_zext (z, x, y, k, a, b, sz1, sz2)
+  | CoreHint_t.IntroGhost (args:CoreHint_t.intro_ghost) ->
+      let x = Convert.value args.x in
+      let g = args.g.name in
+      Infrule.Coq_intro_ghost (x, g)
   | _ ->
      failwith "convert_infrule does not deal with this inferece rule"
