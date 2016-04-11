@@ -106,7 +106,7 @@ module EmptyHint = struct
 end
 
 let noret (hint_module:ValidationHint.coq_module) : ValidationHint.coq_module =
-  TODOCAML.print_callstack_and_fail "TODO: don't know yet"
+  failwith "TODO: don't know yet"
 
 (** execute corehint commands **)
 

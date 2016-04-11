@@ -115,7 +115,7 @@ module Convert = struct
     let ty:Llvm.lltype = 
         (fun (cxt:Llvm.llcontext) ->
         match const_float.float_type with
-        | CoreHint_t.HalfType -> TODOCAML.print_callstack_and_fail "Llvm ocaml binding does not have half type."
+        | CoreHint_t.HalfType -> failwith "Llvm ocaml binding does not have half type."
         | CoreHint_t.FloatType -> Llvm.float_type cxt
         | CoreHint_t.DoubleType -> Llvm.double_type cxt
         | CoreHint_t.FP128Type -> Llvm.fp128_type cxt
@@ -136,7 +136,7 @@ module Convert = struct
 
   let float_type (ft:CoreHint_t.float_type): LLVMsyntax.floating_point =
     match ft with
-    | CoreHint_t.HalfType -> TODOCAML.print_callstack_and_fail "Vellvm has no Halftype"
+    | CoreHint_t.HalfType -> failwith "Vellvm has no Halftype" 
     | CoreHint_t.FloatType -> LLVMsyntax.Coq_fp_float
     | CoreHint_t.DoubleType -> LLVMsyntax.Coq_fp_double
     | CoreHint_t.FP128Type -> LLVMsyntax.Coq_fp_fp128
@@ -168,7 +168,7 @@ module Convert = struct
     | CoreHint_t.PtrType (addrspace, ptrtype) -> 
         (match addrspace with
         | 0 -> LLVMsyntax.Coq_typ_pointer (value_type ptrtype)
-        | _ -> TODOCAML.print_callstack_and_fail "Vellvm does not support pointer address with address space larger than 0")
+        | _ -> failwith "Vellvm does not support pointer address with address space larger than 0")
 
   let rhs_of (register:CoreHint_t.register) (fdef:LLVMsyntax.fdef) : Expr.t =
     let register_id = register.name in
@@ -200,8 +200,8 @@ module Convert = struct
              Expr.Coq_select (llvmvalue v1, typ, llvmvalue v2, llvmvalue v3)
           | LLVMsyntax.Coq_insn_load (_, typ, v, align) ->
              Expr.Coq_load (llvmvalue v, typ, align)
-          | _ -> TODOCAML.print_callstack_and_fail ("convertUtil: rhs_of no matching cmd: " ^ (Coq_pretty_printer.string_of_cmd c)))
-      | _ -> TODOCAML.print_callstack_and_fail "convertUtil: rhs_of find no insn"
+          | _ -> failwith ("convertUtil: rhs_of no matching cmd: " ^ (Coq_pretty_printer.string_of_cmd c)))
+      | _ -> failwith "convertUtil: rhs_of find no insn"
 
   let bop (b:CoreHint_t.bop) : (LLVMsyntax.bop option * LLVMsyntax.fbop option) = 
     (
@@ -248,17 +248,17 @@ module Convert = struct
              | IntValueType ivt ->
                (match ivt with IntType sz ->
                Expr.Coq_bop (vellvmbop, sz, value bop_arg.operand1, value bop_arg.operand2))
-             | _ -> TODOCAML.print_callstack_and_fail "Only integer type is allowed")
+             | _ -> failwith "Only integer type is allowed")
          | None, Some (vellvmfbop) ->
            (match value_type bop_arg.operandtype with
            | LLVMsyntax.Coq_typ_floatpoint fptype ->
              Expr.Coq_fbop (vellvmfbop, fptype, 
                         value bop_arg.operand1, value bop_arg.operand2)
-           | _ -> TODOCAML.print_callstack_and_fail "Only floating type is allowed")
-         | _, _ -> TODOCAML.print_callstack_and_fail "Unknown binaryop"
+           | _ -> failwith "Only floating type is allowed")
+         | _, _ -> failwith "Unknown binaryop"
          )
        | CoreHint_t.LoadInst li_arg ->
          Expr.Coq_load (value li_arg.ptrvalue, value_type li_arg.valtype, li_arg.align)
-       | _ -> TODOCAML.print_callstack_and_fail "Unknown instruction type"
+       | _ -> failwith "Unknown instruction type"
        )
 end

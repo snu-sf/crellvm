@@ -1,9 +1,5 @@
 open Printexc
 
-let print_callstack_and_fail str =
-  print_endline (Printexc.raw_backtrace_to_string (Printexc.get_callstack(20))) ;
-  failwith str
-
 let flip f = fun x y -> f y x
 
 let rec filter_map f l =
@@ -17,7 +13,7 @@ let rec filter_map f l =
 let findi p l =
   let rec r l idx = 
   match l with
-  | [] -> print_callstack_and_fail "List.findi"
+  | [] -> failwith "List.findi"
   | x::l ->
      if p idx x
      then (idx, x)
@@ -28,7 +24,8 @@ let findi p l =
 let get o =
   match o with
   | None ->
-     print_callstack_and_fail "Option.get None: "
+     print_endline (Printexc.raw_backtrace_to_string (Printexc.get_callstack(20))) ;
+     failwith "Option.get None: "
   | Some x -> x
 
 let list_to_string (l:char list) : string =

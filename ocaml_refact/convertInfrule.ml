@@ -257,7 +257,7 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
      | Exprs.Expr.Coq_load (vq, typ, align) ->
         (* We should assert that vq == q. *)
         Infrule.Coq_transitivity_pointer_lhs (p, q, v, typ, align)
-     | _ -> TODOCAML.print_callstack_and_fail "loadq must be load instruction."
+     | _ -> failwith "loadq must be load instruction."
      )
   | CoreHint_t.TransitivityPointerRhs (args:CoreHint_t.transitivity_pointer_rhs) ->
      let p = Convert.value args.p in
@@ -268,7 +268,7 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
      | Exprs.Expr.Coq_load (vp, typ, align) ->
         (* We should assert that vp == p. *)
         Infrule.Coq_transitivity_pointer_rhs (p, q, v, typ, align)
-     | _ -> TODOCAML.print_callstack_and_fail "loadq must be load instruction."
+     | _ -> failwith "loadq must be load instruction."
      )
   | CoreHint_t.ReplaceRhs (args:CoreHint_t.replace_rhs) ->
      let x = Convert.register args.x in
@@ -278,4 +278,4 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
      let e2' = Convert.expr args.e2' src_fdef tgt_fdef in
      Infrule.Coq_replace_rhs (x, y, e1, e2, e2')
   | _ ->
-     TODOCAML.print_callstack_and_fail "convert_infrule does not deal with this inferece rule"
+     failwith "convert_infrule does not deal with this inferece rule"
