@@ -120,15 +120,12 @@ Module Invariant.
     (ValueT.eq_dec value_src value_tgt && not_in_maydiff inv value_src) ||
     (ExprPairSet.mem (Expr.value value_src, Expr.value value_tgt) inv.(tgt).(lessdef) && not_in_maydiff inv value_src) ||
     (ExprPairSet.mem (Expr.value value_src, Expr.value value_tgt) inv.(src).(lessdef) && not_in_maydiff inv value_tgt) ||
-    ((ExprPairSet.exists_ 
-       (fun (p: ExprPair.t) => ExprPairSet.mem p inv.(src).(lessdef))
-       (get_rhs inv.(src).(lessdef) (Expr.value value_src))) &&
-     (ExprPairSet.exists_
+    (ExprPairSet.exists_
        (fun (p: ExprPair.t) => 
           let (x, y) := p in 
           ((ExprPairSet.mem (y, Expr.value value_tgt) inv.(tgt).(lessdef)) &&
            (not_in_maydiff_expr inv y)))
-       (get_rhs inv.(src).(lessdef) (Expr.value value_src)))).
+       (get_rhs inv.(src).(lessdef) (Expr.value value_src))).
 
   Definition is_empty_unary (inv:unary): bool :=
     ExprPairSet.is_empty inv.(lessdef) &&
