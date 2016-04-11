@@ -267,18 +267,18 @@ Definition apply_infrule
     if $$ inv0 |- (Expr.value x) >=src (Expr.bop bop_add s e1 e2) $$ &&
        cond_signbit s e2
     then {{inv0 +++ (Expr.value x) >=src (Expr.bop bop_xor s e1 e2)}}
-    else inv0
+    else apply_fail tt
   | Infrule.and_de_morgan z x y z' a b s =>
     if $$ inv0 |- (Expr.bop bop_xor s a (ValueT.const (const_int s (INTEGER.of_Z (Size.to_Z s) (-1)%Z true)))) >=tgt (Expr.value (ValueT.id x)) $$ &&
        $$ inv0 |- (Expr.bop bop_xor s b (ValueT.const (const_int s (INTEGER.of_Z (Size.to_Z s) (-1)%Z true)))) >=tgt (Expr.value (ValueT.id y))$$ &&
        $$ inv0 |- (Expr.bop bop_or s a b) >=tgt (Expr.value (ValueT.id z')) $$ &&
        $$ inv0 |- (Expr.bop bop_xor s (ValueT.id z') (ValueT.const (const_int s (INTEGER.of_Z (Size.to_Z s) (-1)%Z true)))) >=tgt (Expr.value (ValueT.id z)) $$
     then {{inv0 +++ (Expr.bop bop_and s (ValueT.id x) (ValueT.id y)) >=tgt (Expr.value (ValueT.id z))}}
-    else inv0
+    else apply_fail tt
   | Infrule.sdiv_mone z x s => 
     if $$ inv0 |- (Expr.value z) >=src (Expr.bop bop_sdiv s x (ValueT.const (const_int s (INTEGER.of_Z (Size.to_Z s) (-1)%Z true)))) $$
     then {{inv0 +++ (Expr.value (ValueT.id z)) >=src (Expr.bop bop_sub s (ValueT.const (const_int s (INTEGER.of_Z (Size.to_Z s) 0%Z true))) x) }}
-    else inv0
+    else apply_fail tt
   | Infrule.bitcastptr v v' bitcastinst =>
     if $$ inv0 |- (Expr.value v) >=src bitcastinst $$ &&
        $$ inv0 |- bitcastinst >=src (Expr.value v) $$ &&
@@ -402,7 +402,7 @@ Definition apply_infrule
     match x with
     | (Tag.physical, x_id) =>
       match lookupTypViaGIDFromModule m_src x_id with
-      | None => inv0
+      | None => apply_fail tt
       | Some x_type => (* x is a global variable *)
         if $$ inv0 |-allocasrc y $$ then
           {{inv0 +++ (ValueT.id y) _|_src (ValueT.const (const_gid x_type x_id)) }}
@@ -414,7 +414,7 @@ Definition apply_infrule
     if $$ inv0 |- (Expr.value my) >=src (Expr.bop bop_sub s (ValueT.const (const_int s (INTEGER.of_Z (Size.to_Z s) 0%Z true))) y) $$ && 
        $$ inv0 |- (Expr.value (ValueT.id z)) >=src (Expr.bop bop_srem s x my) $$
     then {{inv0 +++ (Expr.value (ValueT.id z)) >=src (Expr.bop bop_srem s x y) }}
-    else inv0
+    else apply_fail tt
   | Infrule.noalias_global_global x y =>
     match x with 
     | (Tag.physical, x_id) =>
@@ -425,20 +425,20 @@ Definition apply_infrule
           match lookupTypViaGIDFromModule m_src y_id with
           | Some y_type => 
             {{inv0 +++ (ValueT.id y) _|_src (ValueT.const (const_gid x_type x_id)) }}
-          | None => inv0
+          | None => apply_fail tt
           end
-        | _ => inv0
+        | _ => apply_fail tt
         end)
-      | None => inv0
+      | None => apply_fail tt
       end
-    | _ => inv0
+    | _ => apply_fail tt
     end
   | Infrule.noalias_lessthan x y x' y' =>
     if $$ inv0 |- x _|_src y $$ &&
        $$ inv0 |- (Expr.value x) >=src (Expr.value x') $$ &&
        $$ inv0 |- (Expr.value y) >=src (Expr.value y') $$
     then {{inv0 +++ x' _|_src y'}}
-    else inv0
+    else apply_fail tt
   | Infrule.transitivity_pointer_lhs p q v ty a =>
     if $$ inv0 |- (Expr.value p) >=src (Expr.value q) $$ &&
        $$ inv0 |- (Expr.load q ty a) >=src (Expr.value v) $$
