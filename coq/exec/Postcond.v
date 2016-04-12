@@ -198,9 +198,7 @@ Module ForgetMemory.
     is_noalias_Expr inv ids (fst ep) && is_noalias_Expr inv ids (snd ep).
 
   Definition unary (ids:IdTSet.t) (inv0:Invariant.unary): Invariant.unary :=
-    let inv1 := Invariant.update_lessdef (ExprPairSet.filter (is_noalias_ExprPair inv0 ids)) inv0 in
-    let inv2 := Invariant.update_noalias (ValueTPairSet.filter (is_noalias_ValueTPair inv0 ids)) inv1 in
-    inv2.
+    Invariant.update_lessdef (ExprPairSet.filter (is_noalias_ExprPair inv0 ids)) inv0.
 
   Definition t (s_src s_tgt:IdTSet.t) (inv0:Invariant.t): Invariant.t :=
     let inv1 := Invariant.update_src (unary s_src) inv0 in
