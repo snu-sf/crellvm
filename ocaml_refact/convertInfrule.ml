@@ -68,6 +68,12 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
      let y = Convert.value args.y in
      let sz = Convert.size args.sz in
      Infrule.Coq_add_commutative (z, x, y, sz)
+  | CoreHint_t.AddCommutativeTgt (args:CoreHint_t.add_commutative_tgt) ->
+     let z = Convert.register args.z in
+     let x = Convert.value args.x in
+     let y = Convert.value args.y in
+     let sz = Convert.size args.sz in
+     Infrule.Coq_add_commutative_tgt (z, x, y, sz)
   | CoreHint_t.AddOnebit (args:CoreHint_t.add_onebit) ->
      let z = Convert.register args.z in
      let x = Convert.value args.x in
@@ -110,6 +116,12 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
      let c' = Convert.const_int args.cprime in
      let sz = Convert.size args.sz in
      Infrule.Coq_add_zext_bool (x, y, b, c, c', sz)
+  | CoreHint_t.AndCommutative (args:CoreHint_t.and_commutative) ->
+     let z = Convert.register args.z in
+     let x = Convert.value args.x in
+     let y = Convert.value args.y in
+     let sz = Convert.size args.sz in
+     Infrule.Coq_and_commutative (z, x, y, sz)
   | CoreHint_t.AndDeMorgan (args:CoreHint_t.and_de_morgan) ->
      let z = Convert.register args.z in
      let x = Convert.register args.x in
@@ -124,11 +136,111 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
      let vprime = Convert.value args.vprime in
      let bitcastinst = Convert.expr args.bitcastinst src_fdef tgt_fdef in
      Infrule.Coq_bitcastptr (v, vprime, bitcastinst)
+  | CoreHint_t.BopDistributiveOverSelectinst (args:CoreHint_t.bop_distributive_over_selectinst) ->
+     let opcode = Convert.bop args.opcode in
+     let r = Convert.register args.r in
+     let s = Convert.register args.s in
+     let t' = Convert.register args.tprime in
+     let t0 = Convert.register args.t0 in
+     let x = Convert.value args.x in
+     let y = Convert.value args.y in
+     let z = Convert.value args.z in
+     let c = Convert.value args.c in
+     let bopsz = Convert.size args.bopsz in
+     let selty = Convert.value_type args.selty in
+     Infrule.Coq_bop_distributive_over_selectinst (opcode, r, s, t', t0, x, y, z, c, bopsz, selty)
+  | CoreHint_t.BopDistributiveOverSelectinst2 (args:CoreHint_t.bop_distributive_over_selectinst2) ->
+     let opcode = Convert.bop args.opcode in
+     let r = Convert.register args.r in
+     let s = Convert.register args.s in
+     let t' = Convert.register args.tprime in
+     let t0 = Convert.register args.t0 in
+     let x = Convert.value args.x in
+     let y = Convert.value args.y in
+     let z = Convert.value args.z in
+     let c = Convert.value args.c in
+     let bopsz = Convert.size args.bopsz in
+     let selty = Convert.value_type args.selty in
+     Infrule.Coq_bop_distributive_over_selectinst2 (opcode, r, s, t', t0, x, y, z, c, bopsz, selty)
+  | CoreHint_t.FaddCommutativeTgt (args:CoreHint_t.fadd_commutative_tgt) ->
+     let z = Convert.register args.z in
+     let x = Convert.value args.x in
+     let y = Convert.value args.y in
+     let fty = Convert.float_type args.fty in
+     Infrule.Coq_fadd_commutative_tgt (z, x, y, fty)
+  | CoreHint_t.FbopDistributiveOverSelectinst (args:CoreHint_t.fbop_distributive_over_selectinst) ->
+     let fopcode = Convert.fbop args.fopcode in
+     let r = Convert.register args.r in
+     let s = Convert.register args.s in
+     let t' = Convert.register args.tprime in
+     let t0 = Convert.register args.t0 in
+     let x = Convert.value args.x in
+     let y = Convert.value args.y in
+     let z = Convert.value args.z in
+     let c = Convert.value args.c in
+     let fbopty = Convert.float_type args.fbopty in
+     let selty = Convert.value_type args.selty in
+     Infrule.Coq_fbop_distributive_over_selectinst (fopcode, r, s, t', t0, x, y, z, c, fbopty, selty)
+  | CoreHint_t.FbopDistributiveOverSelectinst2 (args:CoreHint_t.fbop_distributive_over_selectinst2) ->
+     let fopcode = Convert.fbop args.fopcode in
+     let r = Convert.register args.r in
+     let s = Convert.register args.s in
+     let t' = Convert.register args.tprime in
+     let t0 = Convert.register args.t0 in
+     let x = Convert.value args.x in
+     let y = Convert.value args.y in
+     let z = Convert.value args.z in
+     let c = Convert.value args.c in
+     let fbopty = Convert.float_type args.fbopty in
+     let selty = Convert.value_type args.selty in
+     Infrule.Coq_fbop_distributive_over_selectinst2 (fopcode, r, s, t', t0, x, y, z, c, fbopty, selty)
   | CoreHint_t.Gepzero (args:CoreHint_t.gepzero) ->
      let v = Convert.value args.v in
      let vprime = Convert.value args.vprime in
      let gepinst = Convert.expr args.gepinst src_fdef tgt_fdef in
      Infrule.Coq_gepzero (v, vprime, gepinst)
+  | CoreHint_t.OrCommutative (args:CoreHint_t.or_commutative) ->
+     let z = Convert.register args.z in
+     let x = Convert.value args.x in
+     let y = Convert.value args.y in
+     let sz = Convert.size args.sz in
+     Infrule.Coq_or_commutative (z, x, y, sz)
+  | CoreHint_t.OrOr (args:CoreHint_t.or_or) ->
+     let z = Convert.value args.z in
+     let x = Convert.value args.x in
+     let y = Convert.value args.y in
+     let a = Convert.value args.a in
+     let b = Convert.value args.b in
+     let sz = Convert.size args.sz in
+     Infrule.Coq_or_or (z, x, y, a, b, sz)
+  | CoreHint_t.OrOr2 (args:CoreHint_t.or_or2) ->
+     let z = Convert.value args.z in
+     let x = Convert.value args.x in
+     let y = Convert.value args.y in
+     let yprime = Convert.value args.yprime in
+     let a = Convert.value args.a in
+     let b = Convert.value args.b in
+     let sz = Convert.size args.sz in
+     Infrule.Coq_or_or2 (z, x, y, yprime, a, b, sz)
+  | CoreHint_t.OrXor (args:CoreHint_t.or_xor) ->
+     let w = Convert.value args.w in
+     let z = Convert.value args.z in
+     let x = Convert.value args.x in
+     let y = Convert.value args.y in
+     let a = Convert.value args.a in
+     let b = Convert.value args.b in
+     let sz = Convert.size args.sz in
+     Infrule.Coq_or_xor (w, z, x, y, a, b, sz)
+  | CoreHint_t.OrXor2 (args:CoreHint_t.or_xor2) ->
+     let z = Convert.value args.z in
+     let x1 = Convert.value args.x1 in
+     let y1 = Convert.value args.y1 in
+     let x2 = Convert.value args.x2 in
+     let y2 = Convert.value args.y2 in
+     let a = Convert.value args.a in
+     let b = Convert.value args.b in
+     let sz = Convert.size args.sz in
+     Infrule.Coq_or_xor2 (z, x1, y1, x2, y2, a, b, sz)
   | CoreHint_t.SdivSubSrem (args:CoreHint_t.sdiv_sub_srem) ->
      let z = Convert.register args.z in
      let b = Convert.register args.b in
@@ -327,5 +439,11 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
       let x = Convert.value args.x in
       let g = args.g.name in
       Infrule.Coq_intro_ghost (x, g)
+  | CoreHint_t.XorCommutative (args:CoreHint_t.xor_commutative) ->
+     let z = Convert.register args.z in
+     let x = Convert.value args.x in
+     let y = Convert.value args.y in
+     let sz = Convert.size args.sz in
+     Infrule.Coq_xor_commutative (z, x, y, sz)
   | _ ->
      failwith "convert_infrule does not deal with this inferece rule"
