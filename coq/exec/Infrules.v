@@ -240,6 +240,10 @@ Definition apply_infrule
     if $$ inv0 |- (Expr.value z) >=src (Expr.bop bop_add s x y) $$
     then {{inv0 +++ (Expr.value z) >=src (Expr.bop bop_add s y x)}}
     else apply_fail tt
+  | Infrule.add_commutative_tgt z x y s =>
+    if $$ inv0 |- (Expr.bop bop_add s x y) >=tgt (Expr.value z) $$
+    then {{inv0 +++ (Expr.bop bop_add s y x) >=tgt (Expr.value z) }}
+    else apply_fail tt
   | Infrule.add_mask z y y' x c1 c2 s =>
       if $$ inv0 |- (Expr.bop bop_and s x (ValueT.const (const_int s c2))) >=tgt (Expr.value (ValueT.id y)) $$ &&
          $$ inv0 |- (Expr.bop bop_add s x (ValueT.const (const_int s c1))) >=tgt (Expr.value (ValueT.id y')) $$ &&
@@ -268,6 +272,10 @@ Definition apply_infrule
        cond_signbit s e2
     then {{inv0 +++ (Expr.value x) >=src (Expr.bop bop_xor s e1 e2)}}
     else apply_fail tt
+  | Infrule.and_commutative z x y s =>
+    if $$ inv0 |- (Expr.value z) >=src (Expr.bop bop_and s x y) $$
+    then {{inv0 +++ (Expr.value z) >=src (Expr.bop bop_and s y x)}}
+    else apply_fail tt
   | Infrule.and_de_morgan z x y z' a b s =>
     if $$ inv0 |- (Expr.bop bop_xor s a (ValueT.const (const_int s (INTEGER.of_Z (Size.to_Z s) (-1)%Z true)))) >=tgt (Expr.value (ValueT.id x)) $$ &&
        $$ inv0 |- (Expr.bop bop_xor s b (ValueT.const (const_int s (INTEGER.of_Z (Size.to_Z s) (-1)%Z true)))) >=tgt (Expr.value (ValueT.id y))$$ &&
@@ -275,6 +283,20 @@ Definition apply_infrule
        $$ inv0 |- (Expr.bop bop_xor s (ValueT.id z') (ValueT.const (const_int s (INTEGER.of_Z (Size.to_Z s) (-1)%Z true)))) >=tgt (Expr.value (ValueT.id z)) $$
     then {{inv0 +++ (Expr.bop bop_and s (ValueT.id x) (ValueT.id y)) >=tgt (Expr.value (ValueT.id z))}}
     else apply_fail tt
+  | Infrule.bop_distributive_over_selectinst opcode r s t' t x y z c bopsz selty =>
+    if $$ inv0 |- (Expr.bop opcode bopsz x y) >=tgt (Expr.value (ValueT.id r)) $$ &&
+       $$ inv0 |- (Expr.bop opcode bopsz x z) >=tgt (Expr.value (ValueT.id s)) $$ &&
+       $$ inv0 |- (Expr.select c (typ_int bopsz) y z) >=tgt (Expr.value (ValueT.id t')) $$ &&
+       $$ inv0 |- (Expr.bop opcode bopsz x t') >=tgt (Expr.value (ValueT.id t)) $$
+     then {{ inv0 +++ (Expr.select c (typ_int bopsz) (ValueT.id r) (ValueT.id s)) >=tgt (Expr.value (ValueT.id t)) }}
+     else apply_fail tt
+  | Infrule.bop_distributive_over_selectinst2 opcode r s t' t x y z c bopsz selty =>
+    if $$ inv0 |- (Expr.bop opcode bopsz y x) >=tgt (Expr.value (ValueT.id r)) $$ &&
+       $$ inv0 |- (Expr.bop opcode bopsz z x) >=tgt (Expr.value (ValueT.id s)) $$ &&
+       $$ inv0 |- (Expr.select c (typ_int bopsz) y z) >=tgt (Expr.value (ValueT.id t')) $$ &&
+       $$ inv0 |- (Expr.bop opcode bopsz t' x) >=tgt (Expr.value (ValueT.id t)) $$
+     then {{ inv0 +++ (Expr.select c (typ_int bopsz) (ValueT.id r) (ValueT.id s)) >=tgt (Expr.value (ValueT.id t)) }}
+     else apply_fail tt
   | Infrule.sdiv_mone z x s => 
     if $$ inv0 |- (Expr.value z) >=src (Expr.bop bop_sdiv s x (ValueT.const (const_int s (INTEGER.of_Z (Size.to_Z s) (-1)%Z true)))) $$
     then {{inv0 +++ (Expr.value (ValueT.id z)) >=src (Expr.bop bop_sub s (ValueT.const (const_int s (INTEGER.of_Z (Size.to_Z s) 0%Z true))) x) }}
@@ -286,6 +308,24 @@ Definition apply_infrule
     then 
       let inv0 := {{inv0 +++ (Expr.value v) >=src (Expr.value v')}} in
       {{inv0 +++ (Expr.value v') >=src (Expr.value v)}}
+    else apply_fail tt
+  | Infrule.fadd_commutative_tgt z x y fty =>
+    if $$ inv0 |- (Expr.fbop fbop_fadd fty x y) >=tgt (Expr.value (ValueT.id z)) $$
+    then {{ inv0 +++ (Expr.fbop fbop_fadd fty y x) >=tgt (Expr.value (ValueT.id z)) }}
+    else apply_fail tt
+  | Infrule.fbop_distributive_over_selectinst fbopcode r s t' t x y z c fbopty selty =>
+    if $$ inv0 |- (Expr.fbop fbopcode fbopty x y) >=tgt (Expr.value (ValueT.id r)) $$ &&
+       $$ inv0 |- (Expr.fbop fbopcode fbopty x z) >=tgt (Expr.value (ValueT.id s)) $$ &&
+       $$ inv0 |- (Expr.select c (typ_floatpoint fbopty) y z) >=tgt (Expr.value (ValueT.id t')) $$ &&
+       $$ inv0 |- (Expr.fbop fbopcode fbopty x t') >=tgt (Expr.value (ValueT.id t)) $$
+     then {{ inv0 +++ (Expr.select c (typ_floatpoint fbopty) (ValueT.id r) (ValueT.id s)) >=tgt (Expr.value (ValueT.id t)) }}
+    else apply_fail tt
+  | Infrule.fbop_distributive_over_selectinst2 fbopcode r s t' t x y z c fbopty selty =>
+    if $$ inv0 |- (Expr.fbop fbopcode fbopty y x) >=tgt (Expr.value (ValueT.id r)) $$ &&
+       $$ inv0 |- (Expr.fbop fbopcode fbopty z x) >=tgt (Expr.value (ValueT.id s)) $$ &&
+       $$ inv0 |- (Expr.select c (typ_floatpoint fbopty) y z) >=tgt (Expr.value (ValueT.id t')) $$ &&
+       $$ inv0 |- (Expr.fbop fbopcode fbopty t' x) >=tgt (Expr.value (ValueT.id t)) $$
+     then {{ inv0 +++ (Expr.select c (typ_floatpoint fbopty) (ValueT.id r) (ValueT.id s)) >=tgt (Expr.value (ValueT.id t)) }}
     else apply_fail tt
   | Infrule.gepzero v v' gepinst =>
     if $$ inv0 |- (Expr.value v) >=src gepinst $$ &&
@@ -343,6 +383,38 @@ Definition apply_infrule
     if $$ inv0 |- (Expr.value (ValueT.id y)) >=src (Expr.bop bop_shl s (ValueT.const (const_int s (INTEGER.of_Z (Size.to_Z s) 1%Z true))) a) $$ &&
        $$ inv0 |- (Expr.value (ValueT.id z)) >=src (Expr.bop bop_mul s (ValueT.id y) x) $$
     then {{ inv0 +++ (Expr.value (ValueT.id z)) >=src (Expr.bop bop_shl s x a) }}
+    else apply_fail tt
+  | Infrule.or_commutative z x y s =>
+    if $$ inv0 |- (Expr.value z) >=src (Expr.bop bop_or s x y) $$
+    then {{inv0 +++ (Expr.value z) >=src (Expr.bop bop_or s y x)}}
+    else apply_fail tt
+  | Infrule.or_or z x y a b s =>
+    if $$ inv0 |- (Expr.value x) >=src (Expr.bop bop_xor s a (ValueT.const (const_int s (INTEGER.of_Z (Size.to_Z s) (-1)%Z true)))) $$ &&
+       $$ inv0 |- (Expr.value y) >=src (Expr.bop bop_and s x b) $$ &&
+       $$ inv0 |- (Expr.value z) >=src (Expr.bop bop_or s y a) $$
+    then {{ inv0 +++ (Expr.value z) >=src (Expr.bop bop_or s a b) }}
+    else apply_fail tt
+  | Infrule.or_or2 z x y y' a b s =>
+    if $$ inv0 |- (Expr.bop bop_and s a b) >=tgt (Expr.value x) $$ &&
+       $$ inv0 |- (Expr.bop bop_xor s a (ValueT.const (const_int s (INTEGER.of_Z (Size.to_Z s) (-1)%Z true)))) >=tgt (Expr.value y) $$ &&
+       $$ inv0 |- (Expr.bop bop_xor s a (ValueT.const (const_int s (INTEGER.of_Z (Size.to_Z s) (-1)%Z true)))) >=tgt (Expr.value y') $$ &&
+       $$ inv0 |- (Expr.bop bop_or s y' b) >=tgt (Expr.value z)$$
+    then {{ inv0 +++ (Expr.bop bop_or s x y) >=tgt (Expr.value z) }}
+    else apply_fail tt
+  | Infrule.or_xor w z x y a b s =>
+    if $$ inv0 |- (Expr.value x) >=src (Expr.bop bop_xor s b (ValueT.const (const_int s (INTEGER.of_Z (Size.to_Z s) (-1)%Z true)))) $$ &&
+       $$ inv0 |- (Expr.value y) >=src (Expr.bop bop_and s a x) $$ &&
+       $$ inv0 |- (Expr.value z) >=src (Expr.bop bop_xor s a b) $$ &&
+       $$ inv0 |- (Expr.value w) >=src (Expr.bop bop_or s y z) $$
+    then {{ inv0 +++ (Expr.value w) >=src (Expr.bop bop_xor s a b) }}
+    else apply_fail tt
+  | Infrule.or_xor2 z x1 y1 x2 y2 a b s =>
+    if $$ inv0 |- (Expr.value x1) >=src (Expr.bop bop_xor s b (ValueT.const (const_int s (INTEGER.of_Z (Size.to_Z s) (-1)%Z true)))) $$ &&
+       $$ inv0 |- (Expr.value y1) >=src (Expr.bop bop_and s a x1) $$ &&
+       $$ inv0 |- (Expr.value x2) >=src (Expr.bop bop_xor s a (ValueT.const (const_int s (INTEGER.of_Z (Size.to_Z s) (-1)%Z true)))) $$ &&
+       $$ inv0 |- (Expr.value y2) >=src (Expr.bop bop_and s x2 b) $$ &&
+       $$ inv0 |- (Expr.value z) >=src (Expr.bop bop_or s y1 y2) $$
+    then {{ inv0 +++ (Expr.value z) >=src (Expr.bop bop_xor s a b) }}
     else apply_fail tt
   | Infrule.sub_const_add z y x c1 c2 c3 s =>
     if $$ inv0 |- (Expr.value (ValueT.id y)) >=src (Expr.bop bop_add s x (ValueT.const (const_int s c1))) $$ &&
@@ -460,6 +532,20 @@ Definition apply_infrule
        cond_replace_lessdef x y e2 e2'
     then {{inv0 +++ e1 >=src e2'}}
     else apply_fail tt
+  | Infrule.udiv_zext z x y k a b s1 s2 =>
+    if $$ inv0 |- (Expr.ext extop_z (typ_int s1) a (typ_int s2)) >=tgt (Expr.value (ValueT.id x)) $$ &&
+       $$ inv0 |- (Expr.ext extop_z (typ_int s1) b (typ_int s2)) >=tgt (Expr.value (ValueT.id y)) $$ &&
+       $$ inv0 |- (Expr.bop bop_udiv s1 a b) >=tgt (Expr.value (ValueT.id k)) $$ &&
+       $$ inv0 |- (Expr.ext extop_z (typ_int s1) (ValueT.id k) (typ_int s2)) >=tgt (Expr.value (ValueT.id z)) $$
+    then {{ inv0 +++ (Expr.bop bop_udiv s2 (ValueT.id x) (ValueT.id y)) >=tgt (Expr.value (ValueT.id z)) }}
+    else apply_fail tt
+  | Infrule.urem_zext z x y k a b s1 s2 =>
+    if $$ inv0 |- (Expr.ext extop_z (typ_int s1) a (typ_int s2)) >=tgt (Expr.value (ValueT.id x)) $$ &&
+       $$ inv0 |- (Expr.ext extop_z (typ_int s1) b (typ_int s2)) >=tgt (Expr.value (ValueT.id y)) $$ &&
+       $$ inv0 |- (Expr.bop bop_urem s1 a b) >=tgt (Expr.value (ValueT.id k)) $$ &&
+       $$ inv0 |- (Expr.ext extop_z (typ_int s1) (ValueT.id k) (typ_int s2)) >=tgt (Expr.value (ValueT.id z)) $$
+    then {{ inv0 +++ (Expr.bop bop_urem s2 (ValueT.id x) (ValueT.id y)) >=tgt (Expr.value (ValueT.id z)) }}
+    else apply_fail tt
   | Infrule.intro_ghost x g =>
     if Invariant.not_in_maydiff inv0 x
     then if (negb (IdTSet.mem (Tag.ghost, g) (IdTSet_from_list (Invariant.get_idTs inv0))))
@@ -479,6 +565,14 @@ Definition apply_infrule
             (ExprPairSet.filter
               (fun (p: ExprPair.t) => negb (Expr.eq_dec (Expr.value (ValueT.id (Tag.ghost, g))) (fst p)))))
            inv0))))
+    else apply_fail tt
+  | Infrule.xor_commutative z x y s =>
+    if $$ inv0 |- (Expr.value z) >=src (Expr.bop bop_xor s x y) $$
+    then {{inv0 +++ (Expr.value z) >=src (Expr.bop bop_xor s y x)}}
+    else apply_fail tt
+  | Infrule.xor_commutative_tgt z x y s =>
+    if $$ inv0 |- (Expr.bop bop_xor s x y) >=tgt (Expr.value z) $$
+    then {{inv0 +++ (Expr.bop bop_xor s y x) >=tgt (Expr.value z)}}
     else apply_fail tt
   | _ => no_match_fail tt (* TODO *)
   end.
