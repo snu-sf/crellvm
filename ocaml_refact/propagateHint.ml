@@ -142,6 +142,9 @@ module InvariantObject = struct
       | CoreHint_t.Alloca prop_a ->
          Unary (convert_scope prop_a.scope,
                 Allocas (Convert.register prop_a.p))
+      | CoreHint_t.Private prop_a ->
+         Unary (convert_scope prop_a.scope,
+                Private (Convert.register prop_a.p))
 
     let insert (obj:t) (inv:Invariant.t): Invariant.t =
       match obj with

@@ -122,11 +122,17 @@ type propagate_alloca = {
   scope : scope;
 }
 
+type propagate_private = {
+  p : register;
+  scope : scope;
+}
+
 type propagate_object = [
   | Lessdef of propagate_lessdef
   | Noalias of propagate_noalias
   | Alloca of propagate_alloca
   | Maydiff of register
+  | Private of propagate_private
   ] <ocaml repr="classic">
 
 type propagate_range = [
