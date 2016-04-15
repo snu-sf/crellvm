@@ -707,11 +707,11 @@ let translate_operand_to_value m st v =
       LLVMsyntax.Coq_value_const (translate_constant m st v)
   | ValueKind.ConstantPointerNull -> 
       LLVMsyntax.Coq_value_const (translate_constant m st v)
-  (* ignore unsupported variants. make them undefined (may cause trouble?) *)
-  (* TODO *)
-  | ValueKind.NullValue | ValueKind.BlockAddress | ValueKind.MDNode 
-  | ValueKind.MDString  | ValueKind.InlineAsm -> 
-      Coq_value_const (LLVMsyntax.Coq_const_undef (translate_typ (type_of v)))
+  | ValueKind.NullValue -> failwith "NullValue: Not_Supported."
+  | ValueKind.BlockAddress -> failwith "BlockAddress: Not_Supported."
+  | ValueKind.MDNode -> failwith "MDNodeVal: Not_Supported."
+  | ValueKind.MDString -> failwith "MDStringVal: Not_Supported."
+  | ValueKind.InlineAsm -> failwith "InlineAsmVal: Not_Supported."
   (* added valuekind in 3.6.2 *)
   | ValueKind.ConstantDataArray ->
      LLVMsyntax.Coq_value_const (translate_constant m st v)
