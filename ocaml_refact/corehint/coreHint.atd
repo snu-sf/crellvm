@@ -71,11 +71,19 @@ type size = [ Size of int ] <ocaml repr="classic">
 type bop = [ | BopAdd | BopSub | BopMul | BopUdiv 
              | BopSdiv | BopUrem | BopSrem | BopShl 
              | BopLshr | BopAshr | BopAnd | BopOr 
-             | BopXor | BopFadd | BopFsub | BopFmul 
-             | BopFdiv | BopFrem ] <ocaml repr="classic">
+             | BopXor ] <ocaml repr="classic">
+
+type fbop = [ BopFadd | BopFsub | BopFmul | BopFdiv | BopFrem ] <ocaml repr="classic">
 
 type binary_operator = {
   opcode : bop;
+  operandtype : value_type;
+  operand1 : value;
+  operand2 : value;
+}
+
+type float_binary_operator = {
+  opcode : fbop;
   operandtype : value_type;
   operand1 : value;
   operand2 : value;
@@ -90,6 +98,7 @@ type load_inst = {
 
 type instruction = [ 
   | BinaryOp of binary_operator
+  | FloatBinaryOp of float_binary_operator
   | LoadInst of load_inst
 ] <ocaml repr="classic">
 
@@ -122,11 +131,17 @@ type propagate_alloca = {
   scope : scope;
 }
 
+type propagate_private = {
+  p : register;
+  scope : scope;
+}
+
 type propagate_object = [
   | Lessdef of propagate_lessdef
   | Noalias of propagate_noalias
   | Alloca of propagate_alloca
   | Maydiff of register
+  | Private of propagate_private
   ] <ocaml repr="classic">
 
 type propagate_range = [
@@ -168,6 +183,12 @@ type add_commutative = {
   sz : size;
 }
 
+type add_commutative_tgt = {
+  z : register;
+  x : value;
+  y : value;
+  sz : size;
+}
 type add_shift = {
   y : register;
   v : value;
@@ -334,6 +355,76 @@ type add_dist_sub = {
   sz : size;
 }
 
+type and_commutative = {
+  z : register;
+  x : value;
+  y : value;
+  sz : size;
+}
+
+type bop_distributive_over_selectinst = {
+  opcode : bop;
+  r : register;
+  s : register;
+  tprime : register;
+  t0 : register;
+  x : value;
+  y : value;
+  z : value;
+  c : value;
+  bopsz : size;
+  selty : value_type;
+}
+
+type bop_distributive_over_selectinst2 = {
+  opcode : bop;
+  r : register;
+  s : register;
+  tprime : register;
+  t0 : register;
+  x : value;
+  y : value;
+  z : value;
+  c : value;
+  bopsz : size;
+  selty : value_type;
+}
+
+type fadd_commutative_tgt = {
+  z : register;
+  x : value;
+  y : value;
+  fty : float_type;
+}
+
+type fbop_distributive_over_selectinst = {
+  fopcode : fbop;
+  r : register;
+  s : register;
+  tprime : register;
+  t0 : register;
+  x : value;
+  y : value;
+  z : value;
+  c : value;
+  fbopty : float_type;
+  selty : value_type;
+}
+
+type fbop_distributive_over_selectinst2 = {
+  fopcode : fbop;
+  r : register;
+  s : register;
+  tprime : register;
+  t0 : register;
+  x : value;
+  y : value;
+  z : value;
+  c : value;
+  fbopty : float_type;
+  selty : value_type;
+}
+
 type gepzero = {
   v : value;
   vprime : value;
@@ -369,6 +460,53 @@ type noalias_lessthan = {
 type noalias_global_global = {
   x : register;
   y : register;
+}
+
+type or_commutative = {
+  z : register;
+  x : value;
+  y : value;
+  sz : size;
+}
+
+type or_or = {
+  z : value;
+  x : value;
+  y : value;
+  a : value;
+  b : value;
+  sz : size;
+}
+
+type or_or2 = {
+  z : value;
+  x : value;
+  y : value;
+  yprime : value;
+  a : value;
+  b : value;
+  sz : size;
+}
+
+type or_xor = {
+  w : value;
+  z : value;
+  x : value;
+  y : value;
+  a : value;
+  b : value;
+  sz : size;
+}
+
+type or_xor2 = {
+  z : value;
+  x1 : value;
+  y1 : value;
+  x2 : value;
+  y2 : value;
+  a : value;
+  b : value;
+  sz : size;
 }
 
 type sub_add = {
@@ -514,10 +652,41 @@ type udiv_sub_urem = {
   sz : size;
 }
 
+type udiv_zext = {
+  z : register;
+  x : register;
+  y : register;
+  k : register;
+  a : value;
+  b : value;
+  sz1 : size;
+  sz2 : size;
+}
+
+type urem_zext = {
+  z : register;
+  x : register;
+  y : register;
+  k : register;
+  a : value;
+  b : value;
+  sz1 : size;
+  sz2 : size;
+}
+
+type xor_commutative = {
+  z : register;
+  x : value;
+  y : value;
+  sz : size;
+}
+
+
 type infrule = [
   | AddAssociative of add_associative
   | AddSub of add_sub
   | AddCommutative of add_commutative
+  | AddCommutativeTgt of add_commutative_tgt
   | AddShift of add_shift
   | AddSignbit of add_signbit
   | AddOnebit of add_onebit
@@ -527,11 +696,22 @@ type infrule = [
   | AddSelectZero of add_select_zero
   | AddSelectZero2 of add_select_zero2
   | AddDistSub of add_dist_sub
+  | AndCommutative of and_commutative
   | AndDeMorgan of and_de_morgan
   | Bitcastptr of bitcastptr
+  | BopDistributiveOverSelectinst of bop_distributive_over_selectinst
+  | BopDistributiveOverSelectinst2 of bop_distributive_over_selectinst2
+  | FaddCommutativeTgt of fadd_commutative_tgt
+  | FbopDistributiveOverSelectinst of fbop_distributive_over_selectinst
+  | FbopDistributiveOverSelectinst2 of fbop_distributive_over_selectinst2
   | Gepzero of gepzero
   | MulAddDistributive of mul_add_distributive
   | NegVal of neg_val
+  | OrCommutative of or_commutative
+  | OrOr of or_or
+  | OrOr2 of or_or2
+  | OrXor of or_xor
+  | OrXor2 of or_xor2
   | SubMone of sub_mone
   | SubAdd of sub_add
   | SubConstNot of sub_const_not
@@ -552,6 +732,8 @@ type infrule = [
   | SdivMone of sdiv_mone
   | SdivSubSrem of sdiv_sub_srem
   | UdivSubUrem of udiv_sub_urem
+  | UdivZext of udiv_zext
+  | UremZext of urem_zext
   | Transitivity of transitivity
   | TransitivityTgt of transitivity_tgt
   | TransitivityPointerLhs of transitivity_pointer_lhs
@@ -564,6 +746,7 @@ type infrule = [
   | ReplaceRhs of replace_rhs
   | ReplaceRhsOpt of replace_rhs_opt
   | IntroGhost of intro_ghost
+  | XorCommutative of xor_commutative
   ] <ocaml repr="classic">
 
 type hint_command = [
