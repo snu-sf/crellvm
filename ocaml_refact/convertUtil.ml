@@ -143,22 +143,6 @@ module Convert = struct
     | CoreHint_t.PPC_FP128Type -> LLVMsyntax.Coq_fp_ppc_fp128
     | CoreHint_t.X86_FP80Type -> LLVMsyntax.Coq_fp_x86_fp80
 
-  let constant (constval:CoreHint_t.constant): LLVMsyntax.const = 
-    match constval with 
-    | CoreHint_t.ConstInt ci -> 
-       LLVMsyntax.Coq_const_int 
-         ((match ci.int_type with 
-            | CoreHint_t.IntType sz -> sz)
-         , const_int ci)
-    | CoreHint_t.ConstFloat cf ->
-       LLVMsyntax.Coq_const_floatpoint (float_type cf.float_type, const_float cf)
-   
-
-  let value (value:CoreHint_t.value): ValueT.t = 
-    match value with
-    | CoreHint_t.Id reg -> ValueT.Coq_id (register reg)
-    | CoreHint_t.ConstVal constval -> ValueT.Coq_const (constant constval)
-  
   let rec value_type (vt:CoreHint_t.value_type): LLVMsyntax.typ = 
     match vt with
     | CoreHint_t.IntValueType ciarg -> 
@@ -169,6 +153,23 @@ module Convert = struct
         (match addrspace with
         | 0 -> LLVMsyntax.Coq_typ_pointer (value_type ptrtype)
         | _ -> failwith "Vellvm does not support pointer address with address space larger than 0")
+
+  let constant (constval:CoreHint_t.constant): LLVMsyntax.const = 
+    match constval with 
+    | CoreHint_t.ConstInt ci -> 
+       LLVMsyntax.Coq_const_int 
+         ((match ci.int_type with 
+            | CoreHint_t.IntType sz -> sz)
+         , const_int ci)
+    | CoreHint_t.ConstFloat cf ->
+       LLVMsyntax.Coq_const_floatpoint (float_type cf.float_type, const_float cf)
+    | CoreHint_t.ConstUndef vt ->
+       LLVMsyntax.Coq_const_undef (value_type vt)
+   
+  let value (value:CoreHint_t.value): ValueT.t = 
+    match value with
+    | CoreHint_t.Id reg -> ValueT.Coq_id (register reg)
+    | CoreHint_t.ConstVal constval -> ValueT.Coq_const (constant constval)
 
   let rhs_of (register:CoreHint_t.register) (fdef:LLVMsyntax.fdef) : Expr.t =
     let register_id = register.name in
