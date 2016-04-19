@@ -32,6 +32,16 @@ let nop_position_atd_to_coq (x : CoreHint_t.position) : Nop.nop_position =
   
 let insert_nop (f_id : string) (m : LLVMsyntax.coq_module)
                (nops : CoreHint_t.position list) : LLVMsyntax.coq_module =
+  let nops =   
+    List.sort (fun p1 p2 ->   
+               match p1.CoreHint_t.instr_index, p2.CoreHint_t.instr_index with    
+               | CoreHint_t.Phinode _, CoreHint_t.Phinode _ -> 0    
+               | CoreHint_t.Phinode _, CoreHint_t.Command _ -> (-1)    
+               | CoreHint_t.Command _, CoreHint_t.Phinode _ -> 1   
+               | CoreHint_t.Command c1, CoreHint_t.Command c2 ->    
+                  (compare c1.CoreHint_t.index c2.CoreHint_t.index))    
+              nops    
+  in
   let Coq_module_intro (l, ns, ps) = m in
   let ps = List.map (fun (x : product) ->
                       match x with
