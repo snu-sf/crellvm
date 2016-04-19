@@ -172,7 +172,7 @@ module Convert = struct
     match value with
     | CoreHint_t.Id reg -> ValueT.Coq_id (register reg)
     | CoreHint_t.ConstVal constval -> ValueT.Coq_const (constant constval)
-  
+
   let rhs_of (register:CoreHint_t.register) (fdef:LLVMsyntax.fdef) : Expr.t =
     let register_id = register.name in
     let insn = TODOCAML.get (LLVMinfra.lookupInsnViaIDFromFdef fdef register_id) in
