@@ -142,8 +142,8 @@ type propagate_lessdef = {
 }
 
 type propagate_noalias = {
-  lhs : value;
-  rhs : value;
+  lhs : register;
+  rhs : register;
   scope : scope;
 }
 
@@ -448,7 +448,7 @@ type neg_val = {
 
 type noalias_global_alloca = {
   x : register;
-  y : const_global_var_addr;
+  y : register;
 }
 
 type noalias_lessthan = {
@@ -459,8 +459,8 @@ type noalias_lessthan = {
 }
 
 type noalias_global_global = {
-  x : const_global_var_addr;
-  y : const_global_var_addr;
+  x : register;
+  y : register;
 }
 
 type or_commutative = {
