@@ -62,7 +62,7 @@ type const_float = {
   float_type : float_type;
 }
 
-type constant = [ ConstInt of const_int | ConstFloat of const_float ] <ocaml repr="classic">
+type constant = [ ConstInt of const_int | ConstFloat of const_float | ConstUndef of value_type ] <ocaml repr="classic">
 
 type value = [ Id of register | ConstVal of constant ] <ocaml repr="classic">
 
