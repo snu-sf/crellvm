@@ -217,6 +217,7 @@ Module Infrule.
   | udiv_zext (z:IdT.t) (x:IdT.t) (y:IdT.t) (k:IdT.t) (a:ValueT.t) (b:ValueT.t) (sz1:sz) (sz2:sz)
   | urem_zext (z:IdT.t) (x:IdT.t) (y:IdT.t) (k:IdT.t) (a:ValueT.t) (b:ValueT.t) (sz1:sz) (sz2:sz)
   | intro_ghost (x:ValueT.t) (g:id)
+  | intro_eq (x:ValueT.t)
   | xor_commutative (z:IdT.t) (x:ValueT.t) (y:ValueT.t) (sz:sz)
   | xor_commutative_tgt (z:IdT.t) (x:ValueT.t) (y:ValueT.t) (sz:sz)
 

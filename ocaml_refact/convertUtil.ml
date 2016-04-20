@@ -106,6 +106,26 @@ module Convert = struct
   let register (register:CoreHint_t.register) : IdT.t =
     (tag register.tag, register.name)
 
+  let float_type (ft:CoreHint_t.float_type): LLVMsyntax.floating_point =
+    match ft with
+    | CoreHint_t.HalfType -> failwith "Vellvm has no Halftype" 
+    | CoreHint_t.FloatType -> LLVMsyntax.Coq_fp_float
+    | CoreHint_t.DoubleType -> LLVMsyntax.Coq_fp_double
+    | CoreHint_t.FP128Type -> LLVMsyntax.Coq_fp_fp128
+    | CoreHint_t.PPC_FP128Type -> LLVMsyntax.Coq_fp_ppc_fp128
+    | CoreHint_t.X86_FP80Type -> LLVMsyntax.Coq_fp_x86_fp80
+
+  let rec value_type (vt:CoreHint_t.value_type): LLVMsyntax.typ = 
+    match vt with
+    | CoreHint_t.IntValueType ciarg -> 
+      (match ciarg with IntType sz -> LLVMsyntax.Coq_typ_int sz)
+    | CoreHint_t.FloatValueType cfarg -> LLVMsyntax.Coq_typ_floatpoint (float_type cfarg)
+    | CoreHint_t.NamedType typename -> LLVMsyntax.Coq_typ_namedt typename
+    | CoreHint_t.PtrType (addrspace, ptrtype) -> 
+        (match addrspace with
+        | 0 -> LLVMsyntax.Coq_typ_pointer (value_type ptrtype)
+        | _ -> failwith "Vellvm does not support pointer address with address space larger than 0")
+ 
   let const_int (const_int:CoreHint_t.const_int): INTEGER.t =
     let IntType sz = const_int.int_type in
     APInt.of_int64 sz (Int64.of_int const_int.int_value) true
@@ -134,26 +154,6 @@ module Convert = struct
     | Coq_value_id id -> ValueT.Coq_id (Tag.Coq_physical, id)
     | Coq_value_const const -> ValueT.Coq_const const
 
-  let float_type (ft:CoreHint_t.float_type): LLVMsyntax.floating_point =
-    match ft with
-    | CoreHint_t.HalfType -> failwith "Vellvm has no Halftype" 
-    | CoreHint_t.FloatType -> LLVMsyntax.Coq_fp_float
-    | CoreHint_t.DoubleType -> LLVMsyntax.Coq_fp_double
-    | CoreHint_t.FP128Type -> LLVMsyntax.Coq_fp_fp128
-    | CoreHint_t.PPC_FP128Type -> LLVMsyntax.Coq_fp_ppc_fp128
-    | CoreHint_t.X86_FP80Type -> LLVMsyntax.Coq_fp_x86_fp80
-
-  let rec value_type (vt:CoreHint_t.value_type): LLVMsyntax.typ = 
-    match vt with
-    | CoreHint_t.IntValueType ciarg -> 
-      (match ciarg with IntType sz -> LLVMsyntax.Coq_typ_int sz)
-    | CoreHint_t.FloatValueType cfarg -> LLVMsyntax.Coq_typ_floatpoint (float_type cfarg)
-    | CoreHint_t.NamedType typename -> LLVMsyntax.Coq_typ_namedt typename
-    | CoreHint_t.PtrType (addrspace, ptrtype) -> 
-        (match addrspace with
-        | 0 -> LLVMsyntax.Coq_typ_pointer (value_type ptrtype)
-        | _ -> failwith "Vellvm does not support pointer address with address space larger than 0")
-
   let constant (constval:CoreHint_t.constant): LLVMsyntax.const = 
     match constval with 
     | CoreHint_t.ConstInt ci -> 
@@ -163,6 +163,8 @@ module Convert = struct
          , const_int ci)
     | CoreHint_t.ConstFloat cf ->
        LLVMsyntax.Coq_const_floatpoint (float_type cf.float_type, const_float cf)
+    | CoreHint_t.ConstGlobalVarAddr cgva ->
+       LLVMsyntax.Coq_const_gid (value_type cgva.var_type, cgva.var_id)
     | CoreHint_t.ConstUndef vt ->
        LLVMsyntax.Coq_const_undef (value_type vt)
    
@@ -259,6 +261,15 @@ module Convert = struct
          | _ -> failwith "Only floating type is allowed")
        | CoreHint_t.LoadInst li_arg ->
          Expr.Coq_load (value li_arg.ptrvalue, value_type li_arg.valtype, li_arg.align)
+       | CoreHint_t.BitCastInst bci_arg ->
+         Expr.Coq_cast (LLVMsyntax.Coq_castop_bitcast, value_type bci_arg.fromty, 
+                value bci_arg.v, value_type bci_arg.toty)
+       | CoreHint_t.GetElementPtrInst gepi_arg ->
+         Expr.Coq_gep (gepi_arg.is_inbounds, 
+                value_type gepi_arg.ty, 
+                value gepi_arg.ptr,
+                List.map (fun szv -> (size (fst szv), value (snd szv))) gepi_arg.indexes,
+                value_type gepi_arg.ptrty)
        | _ -> failwith "Unknown instruction type"
        )
 end
