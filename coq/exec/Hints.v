@@ -15,9 +15,12 @@ Set Implicit Arguments.
 Import ListNotations.
 
 Module Invariant.
+  (* alias relation.
+     Ptr is used because we want to use type information in alias reasoning.
+     for example, i64* ptr cannot alias with i32 memory block *)
   Structure aliasrel := mk_aliasrel {
-    diffblock: PtrPairSet.t;
-    noalias:  PtrPairSet.t;
+    diffblock: PtrPairSet.t; (* strong no-alias, in different logic block *)
+    noalias:  PtrPairSet.t; (* weak no-alias, maybe in the same logic block *)
   }.
 
   Structure unary := mk_unary {
@@ -116,21 +119,14 @@ Module Invariant.
     implies_unary (inv0.(tgt)) (inv.(tgt)) &&
     IdTSet.subset (inv0.(maydiff)) (inv.(maydiff)).
 
-  Definition is_noalias (inv:unary) (i1:IdT.t) (i2:IdT.t) :=
-    let e1 := ValueT.id i1 in
-    let e2 := ValueT.id i2 in
+  Definition is_noalias (inv:unary) (p1:Ptr.t) (p2:Ptr.t) :=
     PtrPairSet.exists_ (fun p1p2 =>
                          match p1p2 with
-                           | ((xe1, _), (xe2, _)) =>
-                             (ValueT.eq_dec e1 xe1 && ValueT.eq_dec e2 xe2) ||
-                             (ValueT.eq_dec e1 xe2 && ValueT.eq_dec e2 xe1)
+                           | (xp1, xp2) =>
+                             (Ptr.eq_dec p1 xp1 && Ptr.eq_dec p2 xp2) ||
+                             (Ptr.eq_dec p1 xp2 && Ptr.eq_dec p2 xp1)
                          end) inv.(alias).(noalias).
-(*
-  Definition is_noalias (inv:unary) (i1:IdT.t) (i2:IdT.t) :=
-    let e1 := ValueT.id i1 in
-    let e2 := ValueT.id i2 in
-    ValueTPairSet.mem (e1, e2) inv.(noalias) || ValueTPairSet.mem (e2, e1) inv.(noalias).
-*)
+
   Definition not_in_maydiff (inv:t) (value:ValueT.t): bool :=
     match value with
     | ValueT.id id =>

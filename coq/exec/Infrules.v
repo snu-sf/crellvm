@@ -397,7 +397,7 @@ Definition apply_infrule
     if $$ inv0 |- e1 >=src e2 $$ &&
        $$ inv0 |- e2 >=src e3 $$ 
     then {{inv0 +++ e1 >=src e3}}
-    else inv0
+    else apply_fail tt
   | Infrule.noalias_global_alloca x (y, y_type) =>
     match x with
     | (Tag.physical, x_id) =>
@@ -406,7 +406,7 @@ Definition apply_infrule
       | Some x_type => (* x is a global variable *)
         if $$ inv0 |-allocasrc (y, y_type) $$ then
           {{inv0 +++ (y, y_type) _|_src (ValueT.const (const_gid x_type x_id), x_type) }}
-        else inv0
+        else apply_fail tt
       end
     | _ => apply_fail tt
     end
@@ -414,7 +414,7 @@ Definition apply_infrule
     if $$ inv0 |- (Expr.value my) >=src (Expr.bop bop_sub s (ValueT.const (const_int s (INTEGER.of_Z (Size.to_Z s) 0%Z true))) y) $$ && 
        $$ inv0 |- (Expr.value (ValueT.id z)) >=src (Expr.bop bop_srem s x my) $$
     then {{inv0 +++ (Expr.value (ValueT.id z)) >=src (Expr.bop bop_srem s x y) }}
-    else inv0
+    else apply_fail tt
   | Infrule.noalias_global_global x y =>
     match x with 
     | (Tag.physical, x_id) =>
@@ -425,20 +425,20 @@ Definition apply_infrule
           match lookupTypViaGIDFromModule m_src y_id with
           | Some y_type => 
             {{inv0 +++ (ValueT.const (const_gid y_type y_id), y_type) _|_src (ValueT.const (const_gid x_type x_id), x_type) }}
-          | None => inv0
+          | None => apply_fail tt
           end
-        | _ => inv0
+        | _ => apply_fail tt
         end)
-      | None => inv0
+      | None => apply_fail tt
       end
-    | _ => inv0
+    | _ => apply_fail tt
     end
   | Infrule.noalias_lessthan (x, x_type) (y, y_type) (x', x_type') (y', y_type') =>
     if $$ inv0 |- (x, x_type) _|_src (y, y_type) $$ &&
        $$ inv0 |- (Expr.value x) >=src (Expr.value x') $$ &&
        $$ inv0 |- (Expr.value y) >=src (Expr.value y') $$
     then {{inv0 +++ (x', x_type') _|_src (y', y_type')}}
-    else inv0
+    else apply_fail tt
   | Infrule.transitivity_pointer_lhs p q v ty a =>
     if $$ inv0 |- (Expr.value p) >=src (Expr.value q) $$ &&
        $$ inv0 |- (Expr.load q ty a) >=src (Expr.value v) $$

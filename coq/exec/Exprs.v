@@ -225,7 +225,10 @@ Hint Resolve ExprPair.eq_dec: EqDecDb.
 Module ExprPairSet : FSetExtra.WSfun ExprPair := FSetExtra.Make ExprPair.
 Module ExprPairSetFacts := WFacts_fun ExprPair ExprPairSet.
 
+(* Ptr: alias related values *)
 Module Ptr <: UsualDecidableType.
+  (* typ has the type of the 'object', not the type of the 'pointer'.
+     ex: %x = load i32* %y, align 4 <- (id x, typ_int 32) *)
   Definition t := (ValueT.t * typ)%type.
   Definition eq := @eq t.
   Definition eq_refl := @refl_equal t.
@@ -245,6 +248,30 @@ End Ptr.
 
 Module PtrSet: FSetExtra.WSfun Ptr := FSetExtra.Make Ptr.
 Module PtrSetFacts := WFacts_fun Ptr PtrSet.
+
+(* TODO: move *)
+Definition PtrSet_from_list
+           (ps:list Ptr.t): PtrSet.t :=
+  fold_left (flip PtrSet.add) ps PtrSet.empty.
+
+Lemma PtrSet_from_list_spec ps:
+  forall p, PtrSet.mem p (PtrSet_from_list ps) <-> In p ps.
+Proof.
+  unfold PtrSet_from_list. rewrite <- fold_left_rev_right.
+  intros. rewrite in_rev.
+  match goal with
+  | [|- context[@rev ?T ?ps]] => induction (@rev T ps)
+  end; simpl.
+  - rewrite PtrSetFacts.empty_b. intuition.
+  - unfold flip in *. rewrite PtrSetFacts.add_b.
+    unfold PtrSetFacts.eqb. constructor; intros.
+    + apply orb_true_iff in H. destruct H.
+      * left. destruct (Ptr.eq_dec a p); intuition.
+      * right. apply IHl0. auto.
+    + apply orb_true_intro. destruct H.
+      * subst. destruct (Ptr.eq_dec p p); auto.
+      * right. apply IHl0. auto.
+Qed.
 
 Module PtrPair <: UsualDecidableType.
   Definition t := (Ptr.t * Ptr.t)%type.

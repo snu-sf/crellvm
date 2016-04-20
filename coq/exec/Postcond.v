@@ -229,40 +229,28 @@ Module Forget.
 End Forget.
 
 Module ForgetMemory.
-  Definition is_noalias_IdT (inv:Invariant.unary) (ids:IdTSet.t) (idt:IdT.t): bool :=
-    IdTSet.for_all (Invariant.is_noalias inv idt) ids.
+  Definition is_noalias_Ptr (inv:Invariant.unary) (ps:PtrSet.t) (p:Ptr.t): bool :=
+    PtrSet.for_all (Invariant.is_noalias inv p) ps.
 
-  Definition is_noalias_ValueT (inv:Invariant.unary) (ids:IdTSet.t) (v:ValueT.t): bool :=
-    match v with
-      | ValueT.id idt => is_noalias_IdT inv ids idt
-      | ValueT.const _ => true
-    end.
-
-  Definition is_noalias_Ptr (inv:Invariant.unary) (ids:IdTSet.t) (p:Ptr.t): bool :=
-    is_noalias_ValueT inv ids (fst p).
-
-  Definition is_noalias_ValueTPair (inv:Invariant.unary) (ids:IdTSet.t) (ep:ValueTPair.t): bool :=
-    is_noalias_ValueT inv ids (fst ep) && is_noalias_ValueT inv ids (snd ep).
-
-  Definition is_noalias_Expr (inv:Invariant.unary) (ids:IdTSet.t) (e:Expr.t): bool :=
+  Definition is_noalias_Expr (inv:Invariant.unary) (ps:PtrSet.t) (e:Expr.t): bool :=
     match e with
-      | Expr.load v ty al => is_noalias_ValueT inv ids v
+      | Expr.load v ty al => is_noalias_Ptr inv ps (v, ty)
       | _ => true
     end.
 
-  Definition is_noalias_ExprPair (inv:Invariant.unary) (ids:IdTSet.t) (ep:ExprPair.t): bool :=
-    is_noalias_Expr inv ids (fst ep) && is_noalias_Expr inv ids (snd ep).
+  Definition is_noalias_ExprPair (inv:Invariant.unary) (ps:PtrSet.t) (ep:ExprPair.t): bool :=
+    is_noalias_Expr inv ps (fst ep) && is_noalias_Expr inv ps (snd ep).
 
-  Definition is_noalias_PtrPair (inv: Invariant.unary) (ids:IdTSet.t) (pp:PtrPair.t): bool :=
-    is_noalias_Ptr inv ids (fst pp) && is_noalias_Ptr inv ids (snd pp).
+  Definition is_noalias_PtrPair (inv: Invariant.unary) (ps:PtrSet.t) (pp:PtrPair.t): bool :=
+    is_noalias_Ptr inv ps (fst pp) && is_noalias_Ptr inv ps (snd pp).
 
-  Definition unary (ids:IdTSet.t) (inv0:Invariant.unary): Invariant.unary :=
-    let inv1 := Invariant.update_lessdef (ExprPairSet.filter (is_noalias_ExprPair inv0 ids)) inv0 in
-    let inv2 := Invariant.update_diffblock (PtrPairSet.filter (is_noalias_PtrPair inv1 ids)) inv1 in
-    let inv3 := Invariant.update_noalias (PtrPairSet.filter (is_noalias_PtrPair inv2 ids)) inv2 in
+  Definition unary (ps:PtrSet.t) (inv0:Invariant.unary): Invariant.unary :=
+    let inv1 := Invariant.update_lessdef (ExprPairSet.filter (is_noalias_ExprPair inv0 ps)) inv0 in
+    let inv2 := Invariant.update_diffblock (PtrPairSet.filter (is_noalias_PtrPair inv1 ps)) inv1 in
+    let inv3 := Invariant.update_noalias (PtrPairSet.filter (is_noalias_PtrPair inv2 ps)) inv2 in
     inv3.
 
-  Definition t (s_src s_tgt:IdTSet.t) (inv0:Invariant.t): Invariant.t :=
+  Definition t (s_src s_tgt:PtrSet.t) (inv0:Invariant.t): Invariant.t :=
     let inv1 := Invariant.update_src (unary s_src) inv0 in
     let inv2 := Invariant.update_tgt (unary s_tgt) inv1 in
     inv2.
@@ -306,12 +294,18 @@ Module Cmd.
 
   Definition get_def (c:t): option id := getCmdID c.
 
-  Definition get_def_memory (c:t): option id :=
+  Definition get_def_memory (c:t): option Ptr.t :=
     match c with
-    | insn_malloc x ty v a => Some x
-    | insn_free x ty v => getValueID v
-    | insn_alloca x ty v a => Some x
-    | insn_store x ty v p a => getValueID p
+    | insn_malloc x ty v a => Some (ValueT.id (IdT.lift Tag.physical x), ty)
+    | insn_free x ty v =>
+      TODO.lift_option
+        (fun id => (ValueT.id (IdT.lift Tag.physical id), ty))
+        (getValueID v)
+    | insn_alloca x ty v a => Some (ValueT.id (IdT.lift Tag.physical x), ty)
+    | insn_store x ty v p a =>
+      TODO.lift_option
+        (fun id => (ValueT.id (IdT.lift Tag.physical id), ty))
+        (getValueID p)
     | _ => None
     end.
 
@@ -610,8 +604,8 @@ Definition postcond_cmd
   let def_memory_tgt' := option_to_list (Cmd.get_def_memory tgt) in
   let def_src := IdTSet_from_list (List.map (IdT.lift Tag.physical) def_src') in
   let def_tgt := IdTSet_from_list (List.map (IdT.lift Tag.physical) def_tgt') in
-  let def_memory_src := IdTSet_from_list (List.map (IdT.lift Tag.physical) def_memory_src') in
-  let def_memory_tgt := IdTSet_from_list (List.map (IdT.lift Tag.physical) def_memory_tgt') in
+  let def_memory_src := PtrSet_from_list def_memory_src' in
+  let def_memory_tgt := PtrSet_from_list def_memory_tgt' in
   let uses_src := AtomSetImpl_from_list (Cmd.get_ids src) in
   let uses_tgt := AtomSetImpl_from_list (Cmd.get_ids tgt) in
 
