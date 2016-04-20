@@ -62,7 +62,12 @@ type const_float = {
   float_type : float_type;
 }
 
-type constant = [ ConstInt of const_int | ConstFloat of const_float ] <ocaml repr="classic">
+type const_global_var_addr = {
+  var_id : string;
+  var_type : value_type;
+}
+
+type constant = [ ConstInt of const_int | ConstFloat of const_float | ConstUndef of value_type | ConstGlobalVarAddr of const_global_var_addr ] <ocaml repr="classic">
 
 type value = [ Id of register | ConstVal of constant ] <ocaml repr="classic">
 
@@ -96,10 +101,26 @@ type load_inst = {
   align : int;
 }
 
+type bit_cast_inst = {
+  fromty : value_type;
+  v : value;
+  toty : value_type;
+}
+
+type get_element_ptr_inst = {
+  ty : value_type;
+  ptrty : value_type;
+  ptr : value;
+  indexes : (size * value) list;
+  is_inbounds : bool;
+}
+
 type instruction = [ 
   | BinaryOp of binary_operator
   | FloatBinaryOp of float_binary_operator
   | LoadInst of load_inst
+  | BitCastInst of bit_cast_inst
+  | GetElementPtrInst of get_element_ptr_inst
 ] <ocaml repr="classic">
 
 type expr = [
@@ -265,11 +286,6 @@ type bop_both_tgt_right = {
   sz : size;
 }
 
-type intro_eq = {
-  e : expr;
-  g : register;
-}
-
 type replace_rhs = {
   x : register;
   y : value;
@@ -284,11 +300,6 @@ type replace_rhs_opt = {
   e1 : expr;
   e2 : expr;
   e2' : expr;
-}
-
-type intro_ghost = {
-  x : value;
-  g : register;
 }
 
 type add_onebit = {
@@ -362,6 +373,16 @@ type and_commutative = {
   sz : size;
 }
 
+type and_de_morgan = {
+  z : register;
+  x : register;
+  y : register;
+  zprime : register;
+  a : value;
+  b : value;
+  sz : size;
+}
+
 type bop_distributive_over_selectinst = {
   opcode : bop;
   r : register;
@@ -374,6 +395,12 @@ type bop_distributive_over_selectinst = {
   c : value;
   bopsz : size;
   selty : value_type;
+}
+
+type bitcastptr = {
+  v : value;
+  vprime : value;
+  bitcastinst : expr;
 }
 
 type bop_distributive_over_selectinst2 = {
@@ -431,11 +458,51 @@ type gepzero = {
   gepinst : expr;
 }
 
-type bitcastptr = {
-  v : value;
-  vprime : value;
-  bitcastinst : expr;
+type intro_ghost = {
+  x : value;
+  g : register;
 }
+
+type intro_eq = {
+  x : value;
+}
+
+type mul_bool = {
+  z :register;
+  x :register;
+  y :register;
+}
+
+type mul_mone = {
+  z : register;
+  x : value;
+  sz : size;
+}
+
+type mul_neg = {
+  z : register;
+  mx : value;
+  my : value;
+  x : value;
+  y : value;
+  sz : size;
+}
+
+type mul_commutative = {
+  z : register;
+  x : value;
+  y : value;
+  sz : size;
+}
+
+type mul_shl = {
+  z : register;
+  y : register;
+  x : value;
+  a : value;
+  sz : size;
+}
+
 
 type mul_add_distributive = {
   z : register;
@@ -509,6 +576,14 @@ type or_xor2 = {
   sz : size;
 }
 
+type rem_neg = {
+  z : register;
+  my : value;
+  x : value;
+  y : value;
+  sz : size;
+}
+
 type sub_add = {
   z : register;
   my : value;
@@ -574,63 +649,9 @@ type sub_shl = {
   sz : size;
 }
 
-type mul_bool = {
-  z :register;
-  x :register;
-  y :register;
-}
-
-type mul_mone = {
-  z : register;
-  x : value;
-  sz : size;
-}
-
-type mul_neg = {
-  z : register;
-  mx : value;
-  my : value;
-  x : value;
-  y : value;
-  sz : size;
-}
-
-type mul_commutative = {
-  z : register;
-  x : value;
-  y : value;
-  sz : size;
-}
-
-type mul_shl = {
-  z : register;
-  y : register;
-  x : value;
-  a : value;
-  sz : size;
-}
-
 type sdiv_mone = {
   z : register;
   x : value;
-  sz : size;
-}
-
-type and_de_morgan = {
-  z : register;
-  x : register;
-  y : register;
-  zprime : register;
-  a : value;
-  b : value;
-  sz : size;
-}
-
-type rem_neg = {
-  z : register;
-  my : value;
-  x : value;
-  y : value;
   sz : size;
 }
 
@@ -742,10 +763,10 @@ type infrule = [
   | BopBothSrcRight of bop_both_src_right
   | BopBothTgtLeft of bop_both_tgt_left
   | BopBothTgtRight of bop_both_tgt_right
-  | IntroEq of intro_eq
   | ReplaceRhs of replace_rhs
   | ReplaceRhsOpt of replace_rhs_opt
   | IntroGhost of intro_ghost
+  | IntroEq of intro_eq
   | XorCommutative of xor_commutative
   ] <ocaml repr="classic">
 
@@ -758,7 +779,7 @@ type hints = {
   module_id : string;
   function_id : string;
   opt_name : string;
-
+  ~description : string;
   nop_positions: position list; (* insert after position *)
 
   commands : hint_command list;

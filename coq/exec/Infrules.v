@@ -550,15 +550,6 @@ Definition apply_infrule
     if $$ inv0 |- (Expr.value y) >=tgt (Expr.value z) $$
     then {{inv0 +++ (Expr.bop b sz y x) >=tgt (Expr.bop b sz z x)}}
     else apply_fail tt
- | Infrule.intro_eq e g =>
-    if is_ghost g
-       && Invariant.not_in_maydiff_expr inv0 e
-       && cond_fresh g inv0
-    then {{ {{ {{ {{inv0 +++ e >=src (Expr.value (ValueT.id g)) }}
-                         +++ (Expr.value (ValueT.id g)) >=src e }}
-                         +++ e >=tgt (Expr.value (ValueT.id g)) }}
-                         +++ (Expr.value (ValueT.id g)) >=tgt e }}
-    else apply_fail tt
   | Infrule.replace_rhs x y e1 e2 e2' =>
     if $$ inv0 |- (Expr.value x) >=src (Expr.value y) $$ &&
        $$ inv0 |- e1 >=src e2 $$ &&
@@ -585,6 +576,8 @@ Definition apply_infrule
        $$ inv0 |- (Expr.ext extop_z (typ_int s1) (ValueT.id k) (typ_int s2)) >=tgt (Expr.value (ValueT.id z)) $$
     then {{ inv0 +++ (Expr.bop bop_urem s2 (ValueT.id x) (ValueT.id y)) >=tgt (Expr.value (ValueT.id z)) }}
     else apply_fail tt
+  | Infrule.intro_eq x => 
+    {{ inv0 +++ (Expr.value x) >=src (Expr.value x) }}
   | Infrule.intro_ghost x g =>
     if Invariant.not_in_maydiff inv0 x
     then if (negb (IdTSet.mem (Tag.ghost, g) (IdTSet_from_list (Invariant.get_idTs inv0))))
