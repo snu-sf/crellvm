@@ -534,23 +534,7 @@ Definition apply_infrule
        $$ inv0 |- (Expr.value v) >=src (Expr.load p ty a) $$
     then {{inv0 +++ (Expr.value v) >=src (Expr.load q ty a)}}
     else apply_fail tt
-  | Infrule.bop_both_src_left b x y z sz =>
-    if $$ inv0 |- (Expr.value y) >=src (Expr.value z) $$
-    then {{inv0 +++ (Expr.bop b sz x y) >=src (Expr.bop b sz x z)}}
-    else apply_fail tt
-  | Infrule.bop_both_src_right b x y z sz =>
-    if $$ inv0 |- (Expr.value y) >=src (Expr.value z) $$
-    then {{inv0 +++ (Expr.bop b sz y x) >=src (Expr.bop b sz z x)}}
-    else apply_fail tt
-  | Infrule.bop_both_tgt_left b x y z sz =>
-    if $$ inv0 |- (Expr.value y) >=tgt (Expr.value z) $$
-    then {{inv0 +++ (Expr.bop b sz x y) >=tgt (Expr.bop b sz x z)}}
-    else apply_fail tt
-  | Infrule.bop_both_tgt_right b x y z sz =>
-    if $$ inv0 |- (Expr.value y) >=tgt (Expr.value z) $$
-    then {{inv0 +++ (Expr.bop b sz y x) >=tgt (Expr.bop b sz z x)}}
-    else apply_fail tt
-  | Infrule.replace_rhs x y e1 e2 e2' =>
+    | Infrule.replace_rhs x y e1 e2 e2' =>
     if $$ inv0 |- (Expr.value x) >=src (Expr.value y) $$ &&
        $$ inv0 |- e1 >=src e2 $$ &&
        cond_replace_lessdef x y e2 e2'

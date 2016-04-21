@@ -408,35 +408,7 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
          Infrule.Coq_transitivity_pointer_rhs (p, q, v, typ, align)
       | _ -> failwith "loadq must be load instruction."
       )
-  | CoreHint_t.BopBothSrcLeft (args:CoreHint_t.bop_both_src_left) ->
-      let b = Convert.bop args.b in
-      let x = Convert.value args.x in
-      let y = Convert.value args.y in
-      let z = Convert.value args.z in
-      let sz = Convert.size args.sz in
-      Infrule.Coq_bop_both_src_left (b, x, y, z, sz)
-  | CoreHint_t.BopBothSrcRight (args:CoreHint_t.bop_both_src_right) ->
-      let b = Convert.bop args.b in
-      let x = Convert.value args.x in
-      let y = Convert.value args.y in
-      let z = Convert.value args.z in
-      let sz = Convert.size args.sz in
-      Infrule.Coq_bop_both_src_right (b, x, y, z, sz)
-  | CoreHint_t.BopBothTgtLeft (args:CoreHint_t.bop_both_tgt_left) ->
-      let b = Convert.bop args.b in
-      let x = Convert.value args.x in
-      let y = Convert.value args.y in
-      let z = Convert.value args.z in
-      let sz = Convert.size args.sz in
-      Infrule.Coq_bop_both_tgt_left (b, x, y, z, sz)
-  | CoreHint_t.BopBothTgtRight (args:CoreHint_t.bop_both_tgt_right) ->
-      let b = Convert.bop args.b in
-      let x = Convert.value args.x in
-      let y = Convert.value args.y in
-      let z = Convert.value args.z in
-      let sz = Convert.size args.sz in
-      Infrule.Coq_bop_both_tgt_right (b, x, y, z, sz)
- | CoreHint_t.ReplaceRhs (args:CoreHint_t.replace_rhs) ->
+  | CoreHint_t.ReplaceRhs (args:CoreHint_t.replace_rhs) ->
       let x = Convert.register args.x in
       let y = Convert.value args.y in
       let e1 = Convert.expr args.e1 src_fdef tgt_fdef in

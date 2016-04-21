@@ -254,38 +254,6 @@ type transitivity_pointer_rhs = {
   loadp : expr;
 }
 
-type bop_both_src_left = {
-  b : bop;
-  x : value;
-  y : value;
-  z : value;
-  sz : size;
-}
-
-type bop_both_src_right = {
-  b : bop;
-  x : value;
-  y : value;
-  z : value;
-  sz : size;
-}
-
-type bop_both_tgt_left = {
-  b : bop;
-  x : value;
-  y : value;
-  z : value;
-  sz : size;
-}
-
-type bop_both_tgt_right = {
-  b : bop;
-  x : value;
-  y : value;
-  z : value;
-  sz : size;
-}
-
 type replace_rhs = {
   x : register;
   y : value;
@@ -759,10 +727,6 @@ type infrule = [
   | TransitivityTgt of transitivity_tgt
   | TransitivityPointerLhs of transitivity_pointer_lhs
   | TransitivityPointerRhs of transitivity_pointer_rhs
-  | BopBothSrcLeft of bop_both_src_left
-  | BopBothSrcRight of bop_both_src_right
-  | BopBothTgtLeft of bop_both_tgt_left
-  | BopBothTgtRight of bop_both_tgt_right
   | ReplaceRhs of replace_rhs
   | ReplaceRhsOpt of replace_rhs_opt
   | IntroGhost of intro_ghost
