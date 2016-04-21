@@ -223,7 +223,46 @@ type add_signbit = {
   sz : size;
 }
 
+type transitivity = {
+  e1 : expr;
+  e2 : expr;
+  e3 : expr;
+}
+
+type transitivity_tgt = {
+  e1 : expr;
+  e2 : expr;
+  e3 : expr;
+}
+
+type noalias_global_alloca = {
+  x : register;
+  y : register;
+}
+
+type transitivity_pointer_lhs = {
+  p : value;
+  q : value;
+  v : value;
+  loadq : expr;
+}
+
+type transitivity_pointer_rhs = {
+  p : value;
+  q : value;
+  v : value;
+  loadp : expr;
+}
+
 type replace_rhs = {
+  x : register;
+  y : value;
+  e1 : expr;
+  e2 : expr;
+  e2' : expr;
+}
+
+type replace_rhs_opt = {
   x : register;
   y : value;
   e1 : expr;
@@ -446,11 +485,6 @@ type neg_val = {
   sz : size;
 }
 
-type noalias_global_alloca = {
-  x : register;
-  y : register;
-}
-
 type noalias_lessthan = {
   x : value;
   y : value;
@@ -598,33 +632,6 @@ type sdiv_sub_srem = {
   sz : size;
 }
 
-type transitivity = {
-  e1 : expr;
-  e2 : expr;
-  e3 : expr;
-}
-
-type transitivity_tgt = {
-  e1 : expr;
-  e2 : expr;
-  e3 : expr;
-}
-
-type transitivity_pointer_lhs = {
-  p : value;
-  q : value;
-  v : value;
-  loadq : expr;
-}
-
-type transitivity_pointer_rhs = {
-  p : value;
-  q : value;
-  v : value;
-  loadp : expr;
-}
-
-
 type udiv_sub_urem = {
   z : register;
   b : register;
@@ -711,7 +718,6 @@ type infrule = [
   | NoaliasGlobalGlobal of noalias_global_global
   | NoaliasLessthan of noalias_lessthan
   | RemNeg of rem_neg
-  | ReplaceRhs of replace_rhs
   | SdivMone of sdiv_mone
   | SdivSubSrem of sdiv_sub_srem
   | UdivSubUrem of udiv_sub_urem
@@ -721,6 +727,8 @@ type infrule = [
   | TransitivityTgt of transitivity_tgt
   | TransitivityPointerLhs of transitivity_pointer_lhs
   | TransitivityPointerRhs of transitivity_pointer_rhs
+  | ReplaceRhs of replace_rhs
+  | ReplaceRhsOpt of replace_rhs_opt
   | IntroGhost of intro_ghost
   | IntroEq of intro_eq
   | XorCommutative of xor_commutative
