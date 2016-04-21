@@ -398,23 +398,30 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
      | _ -> failwith "loadq must be load instruction."
      )
   | CoreHint_t.TransitivityPointerRhs (args:CoreHint_t.transitivity_pointer_rhs) ->
-     let p = Convert.value args.p in
-     let q = Convert.value args.q in
-     let v = Convert.value args.v in
-     let loadp = Convert.expr args.loadp src_fdef tgt_fdef in
-     (match loadp with
-     | Exprs.Expr.Coq_load (vp, typ, align) ->
-        (* We should assert that vp == p. *)
-        Infrule.Coq_transitivity_pointer_rhs (p, q, v, typ, align)
-     | _ -> failwith "loadq must be load instruction."
-     )
+      let p = Convert.value args.p in
+      let q = Convert.value args.q in
+      let v = Convert.value args.v in
+      let loadp = Convert.expr args.loadp src_fdef tgt_fdef in
+      (match loadp with
+      | Exprs.Expr.Coq_load (vp, typ, align) ->
+         (* We should assert that vp == p. *)
+         Infrule.Coq_transitivity_pointer_rhs (p, q, v, typ, align)
+      | _ -> failwith "loadq must be load instruction."
+      )
   | CoreHint_t.ReplaceRhs (args:CoreHint_t.replace_rhs) ->
-     let x = Convert.register args.x in
-     let y = Convert.value args.y in
-     let e1 = Convert.expr args.e1 src_fdef tgt_fdef in
-     let e2 = Convert.expr args.e2 src_fdef tgt_fdef in
-     let e2' = Convert.expr args.e2' src_fdef tgt_fdef in
-     Infrule.Coq_replace_rhs (x, y, e1, e2, e2')
+      let x = Convert.register args.x in
+      let y = Convert.value args.y in
+      let e1 = Convert.expr args.e1 src_fdef tgt_fdef in
+      let e2 = Convert.expr args.e2 src_fdef tgt_fdef in
+      let e2' = Convert.expr args.e2' src_fdef tgt_fdef in
+      Infrule.Coq_replace_rhs (x, y, e1, e2, e2')
+  | CoreHint_t.ReplaceRhsOpt (args:CoreHint_t.replace_rhs_opt) ->
+      let x = Convert.register args.x in
+      let y = Convert.value args.y in
+      let e1 = Convert.expr args.e1 src_fdef tgt_fdef in
+      let e2 = Convert.expr args.e2 src_fdef tgt_fdef in
+      let e2' = Convert.expr args.e2' src_fdef tgt_fdef in
+      Infrule.Coq_replace_rhs_opt (x, y, e1, e2, e2')
   | CoreHint_t.UdivZext (args:CoreHint_t.udiv_zext) ->
      let z = Convert.register args.z in
      let x = Convert.register args.x in

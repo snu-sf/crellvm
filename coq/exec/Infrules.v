@@ -32,6 +32,14 @@ Definition signbit_of (s:sz) : option Int :=
     | S n => Some (Zneg (power_sz n))
   end.
 
+Definition is_ghost (g:IdT.t) :=
+  match g with
+  | (tag, _) => if Tag.eq_dec tag Tag.ghost then true else false
+  end.
+
+Definition cond_fresh (g:IdT.t) (inv:Invariant.t) : bool :=
+  negb (List.existsb (fun x => IdT.eq_dec g x) (Invariant.get_idTs inv)).
+
 Definition cond_plus (s:sz) (c1 c2 c3: INTEGER.t) : bool :=
   (Int.eq_dec _)
     (Int.repr (Size.to_nat s - 1) (INTEGER.to_Z c3))
@@ -526,11 +534,17 @@ Definition apply_infrule
        $$ inv0 |- (Expr.value v) >=src (Expr.load p ty a) $$
     then {{inv0 +++ (Expr.value v) >=src (Expr.load q ty a)}}
     else apply_fail tt
-  | Infrule.replace_rhs x y e1 e2 e2' =>
+    | Infrule.replace_rhs x y e1 e2 e2' =>
     if $$ inv0 |- (Expr.value x) >=src (Expr.value y) $$ &&
        $$ inv0 |- e1 >=src e2 $$ &&
        cond_replace_lessdef x y e2 e2'
     then {{inv0 +++ e1 >=src e2'}}
+    else apply_fail tt
+  | Infrule.replace_rhs_opt x y e1 e2 e2' =>
+    if $$ inv0 |- (Expr.value x) >=tgt (Expr.value y) $$ &&
+    $$ inv0 |- e1 >=tgt e2 $$ &&
+       cond_replace_lessdef x y e2 e2'
+    then {{inv0 +++ e1 >=tgt e2'}}
     else apply_fail tt
   | Infrule.udiv_zext z x y k a b s1 s2 =>
     if $$ inv0 |- (Expr.ext extop_z (typ_int s1) a (typ_int s2)) >=tgt (Expr.value (ValueT.id x)) $$ &&

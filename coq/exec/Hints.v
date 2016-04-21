@@ -213,6 +213,7 @@ Module Infrule.
   | transitivity_pointer_lhs (p:ValueT.t) (q:ValueT.t) (v:ValueT.t) (ty:typ) (a:align)
   | transitivity_pointer_rhs (p:ValueT.t) (q:ValueT.t) (v:ValueT.t) (ty:typ) (a:align)
   | replace_rhs (x:IdT.t) (y:ValueT.t) (e1:Expr.t) (e2:Expr.t) (e2':Expr.t)
+  | replace_rhs_opt	(x:IdT.t) (y:ValueT.t) (e1:Expr.t) (e2:Expr.t) (e2':Expr.t)
   | udiv_sub_urem (z:IdT.t) (b:IdT.t) (a:IdT.t) (x:ValueT.t) (y:ValueT.t) (sz:sz)
   | udiv_zext (z:IdT.t) (x:IdT.t) (y:IdT.t) (k:IdT.t) (a:ValueT.t) (b:ValueT.t) (sz1:sz) (sz2:sz)
   | urem_zext (z:IdT.t) (x:IdT.t) (y:IdT.t) (k:IdT.t) (a:ValueT.t) (b:ValueT.t) (sz1:sz) (sz2:sz)
@@ -223,7 +224,6 @@ Module Infrule.
 
 (* Updated semantics of rules should be located above this line *)
 
-  | replace_rhs_opt (z:IdT.t) (x:IdT.t) (y:ValueT.t) (e:Expr.t) (e':Expr.t)
   | replace_lhs (x:IdT.t) (y:IdT.t) (e:Expr.t)
   | remove_maydiff (v:IdT.t) (e:Expr.t)
   | remove_maydiff_rhs (v:IdT.t) (e:IdT.t)
