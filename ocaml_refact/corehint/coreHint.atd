@@ -285,13 +285,33 @@ type add_select_zero2 = {
   sz : size;
 }
 
-type add_dist_sub = {
-  z : register;
-  minusx : register;
-  minusy : value;
-  w : register;
+
+type add_sext_sext = {
+  xprime : register;
   x : value;
+  yprime : register;
   y : value;
+  zprime : register;
+  z : register;
+  from_sz : size;
+  to_sz : size;
+}
+
+type add_xor_and = {
+  a : value;
+  b : value;
+  x : register;
+  y : register;
+  z : register;
+  sz : size;
+}
+
+type add_or_and = {
+  a : value;
+  b : value;
+  x : register;
+  y : register;
+  z : register;
   sz : size;
 }
 
@@ -555,6 +575,15 @@ type sub_onebit = {
   y : value;
 }
 
+type sub_or_xor = {
+  a : value;
+  b : value;
+  x : register;
+  y : register;
+  z : register;
+  sz : size;
+}
+
 type sub_const_add = {
   z : register;
   y : register;
@@ -581,6 +610,13 @@ type sub_shl = {
   mx : value;
   a : value;
   sz : size;
+}
+
+type sub_sub = {
+  x : value;
+  y : value;
+  w : register;
+  z : register;
 }
 
 type sdiv_mone = {
