@@ -144,10 +144,8 @@ module Convert = struct
     | CoreHint_t.X86_FP80Type -> LLVMsyntax.Coq_fp_x86_fp80
 
   let pointer_id (register:CoreHint_t.register) (fdef:LLVMsyntax.fdef) : Ptr.t =
-    match LLVMinfra.lookupTypViaIDFromFdef fdef register.name with
-    | Some typ ->
-      (ValueT.Coq_id (tag register.tag, register.name), typ)
-    | None -> invalid_arg "TODO: not implemented in Convert.pointer"
+    let typ = TODOCAML.get (LLVMinfra.lookupTypViaIDFromFdef fdef register.name) in
+    (ValueT.Coq_id (tag register.tag, register.name), typ)
 
   let pointer_val (value:CoreHint_t.value) (fdef:LLVMsyntax.fdef) : Ptr.t =
     match value with
