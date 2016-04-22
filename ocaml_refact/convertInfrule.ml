@@ -79,6 +79,14 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
      let x = Convert.value args.x in
      let y = Convert.value args.y in
      Infrule.Coq_add_onebit (z, x, y)
+  | CoreHint_t.AddOrAnd (args:CoreHint_t.add_or_and) ->
+     let z = Convert.register args.z in
+     let a = Convert.value args.a in
+     let b = Convert.value args.b in
+     let x = Convert.register args.x in
+     let y = Convert.register args.y in
+     let sz = Convert.size args.sz in
+     Infrule.Coq_add_or_and (z, a, b, x, y, sz)
   | CoreHint_t.AddSelectZero (args:CoreHint_t.add_select_zero) ->
      let z = Convert.register args.z in
      let x = Convert.register args.x in
@@ -116,6 +124,14 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
      let c' = Convert.const_int args.cprime in
      let sz = Convert.size args.sz in
      Infrule.Coq_add_zext_bool (x, y, b, c, c', sz)
+  | CoreHint_t.AddXorAnd (args:CoreHint_t.add_xor_and) ->
+     let z = Convert.register args.z in
+     let a = Convert.value args.a in
+     let b = Convert.value args.b in
+     let x = Convert.register args.x in
+     let y = Convert.register args.y in
+     let sz = Convert.size args.sz in
+     Infrule.Coq_add_xor_and (z, a, b, x, y, sz)
   | CoreHint_t.AndCommutative (args:CoreHint_t.and_commutative) ->
      let z = Convert.register args.z in
      let x = Convert.value args.x in
@@ -339,6 +355,14 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
      let x = Convert.value args.x in
      let y = Convert.value args.y in
      Infrule.Coq_sub_onebit (z, x, y)
+  | CoreHint_t.SubOrXor (args:CoreHint_t.sub_or_xor) ->
+     let z = Convert.register args.z in
+     let a = Convert.value args.a in
+     let b = Convert.value args.b in
+     let x = Convert.register args.x in
+     let y = Convert.register args.y in
+     let sz = Convert.size args.sz in
+     Infrule.Coq_sub_or_xor (z, a, b, x, y, sz)
   | CoreHint_t.SubRemove (args:CoreHint_t.sub_remove) ->
      let z = Convert.register args.z in
      let y = Convert.register args.y in
@@ -362,6 +386,13 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
      let a = Convert.value args.a in
      let sz = Convert.size args.sz in
      Infrule.Coq_sub_shl (z, x, y, mx, a, sz)
+  | CoreHint_t.SubSub (args:CoreHint_t.sub_sub) ->
+     let z = Convert.register args.z in
+     let x = Convert.value args.x in
+     let y = Convert.value args.y in
+     let w = Convert.value args.w in
+     let sz = Convert.size args.sz in
+     Infrule.Coq_sub_sub (z, x, y, w, sz)
   | CoreHint_t.Transitivity (args:CoreHint_t.transitivity) ->
       let e1 = Convert.expr args.e1 src_fdef tgt_fdef in
       let e2 = Convert.expr args.e2 src_fdef tgt_fdef in

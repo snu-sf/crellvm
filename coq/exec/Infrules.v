@@ -280,6 +280,18 @@ Definition apply_infrule
        cond_signbit s e2
     then {{inv0 +++ (Expr.value x) >=src (Expr.bop bop_xor s e1 e2)}}
     else apply_fail tt
+  | Infrule.add_xor_and z a b x y s =>
+    if $$ inv0 |- (Expr.value (ValueT.id x)) >=src (Expr.bop bop_xor s a b) $$ &&
+       $$ inv0 |- (Expr.value (ValueT.id y)) >=src (Expr.bop bop_and s a b) $$ &&
+       $$ inv0 |- (Expr.value (ValueT.id z)) >=src (Expr.bop bop_add s (ValueT.id x) (ValueT.id y)) $$
+    then {{inv0 +++ (Expr.value (ValueT.id z)) >=src (Expr.bop bop_or s a b)}}
+    else apply_fail tt
+  | Infrule.add_or_and z a b x y s =>
+    if $$ inv0 |- (Expr.value (ValueT.id x)) >=src (Expr.bop bop_or s a b) $$ &&
+       $$ inv0 |- (Expr.value (ValueT.id y)) >=src (Expr.bop bop_and s a b) $$ &&
+       $$ inv0 |- (Expr.value (ValueT.id z)) >=src (Expr.bop bop_add s (ValueT.id x) (ValueT.id y)) $$
+    then {{inv0 +++ (Expr.value (ValueT.id z)) >=src (Expr.bop bop_add s a b)}}
+    else apply_fail tt
   | Infrule.and_commutative z x y s =>
     if $$ inv0 |- (Expr.value z) >=src (Expr.bop bop_and s x y) $$
     then {{inv0 +++ (Expr.value z) >=src (Expr.bop bop_and s y x)}}
@@ -359,6 +371,11 @@ Definition apply_infrule
     if $$ inv0 |- (Expr.value my) >=src (Expr.bop bop_sub s (const_int s (INTEGER.of_Z (Size.to_Z s) 0%Z true)) y) $$ &&
        $$ inv0 |- (Expr.value z) >=src (Expr.bop bop_sub s x my) $$
     then {{inv0 +++ (Expr.value z) >=src (Expr.bop bop_add s x y)}}
+    else apply_fail tt
+  | Infrule.sub_sub z x y w s =>
+    if $$ inv0 |- (Expr.value w) >=src (Expr.bop bop_sub s x y) $$ &&
+       $$ inv0 |- (Expr.value (ValueT.id z)) >=src (Expr.bop bop_sub s w x) $$
+    then {{inv0 +++ (Expr.value (ValueT.id z)) >=src (Expr.bop bop_sub s (const_int s (INTEGER.of_Z (Size.to_Z s) 0%Z true)) y)}}
     else apply_fail tt
   | Infrule.neg_val c1 c2 s =>
     if cond_plus s c1 c2 (INTEGER.of_Z (Size.to_Z s) 0%Z true)  
@@ -442,6 +459,12 @@ Definition apply_infrule
       then {{inv0 +++ (Expr.value (ValueT.id z)) >=src (Expr.bop bop_xor s x 
                 (ValueT.const (const_int s (INTEGER.of_Z (Size.to_Z s) (-1)%Z true))))}}
       else apply_fail tt
+  | Infrule.sub_or_xor z a b x y s =>
+    if $$ inv0 |- (Expr.value (ValueT.id x)) >=src (Expr.bop bop_or s a b) $$ &&
+       $$ inv0 |- (Expr.value (ValueT.id y)) >=src (Expr.bop bop_xor s a b) $$ &&
+       $$ inv0 |- (Expr.value (ValueT.id z)) >=src (Expr.bop bop_sub s (ValueT.id x) (ValueT.id y)) $$
+    then {{inv0 +++ (Expr.value (ValueT.id z)) >=src (Expr.bop bop_and s a b)}}
+    else apply_fail tt
   | Infrule.sub_remove z y a b sz =>
     if $$ inv0 |- (Expr.value (ValueT.id y)) >=src (Expr.bop bop_add sz a b) $$ &&
        $$ inv0 |- (Expr.value (ValueT.id z)) >=src (Expr.bop bop_sub sz a (ValueT.id y)) $$
