@@ -62,7 +62,12 @@ type const_float = {
   float_type : float_type;
 }
 
-type constant = [ ConstInt of const_int | ConstFloat of const_float ] <ocaml repr="classic">
+type const_global_var_addr = {
+  var_id : string;
+  var_type : value_type;
+}
+
+type constant = [ ConstInt of const_int | ConstFloat of const_float | ConstUndef of value_type | ConstGlobalVarAddr of const_global_var_addr ] <ocaml repr="classic">
 
 type value = [ Id of register | ConstVal of constant ] <ocaml repr="classic">
 
@@ -71,11 +76,19 @@ type size = [ Size of int ] <ocaml repr="classic">
 type bop = [ | BopAdd | BopSub | BopMul | BopUdiv 
              | BopSdiv | BopUrem | BopSrem | BopShl 
              | BopLshr | BopAshr | BopAnd | BopOr 
-             | BopXor | BopFadd | BopFsub | BopFmul 
-             | BopFdiv | BopFrem ] <ocaml repr="classic">
+             | BopXor ] <ocaml repr="classic">
+
+type fbop = [ BopFadd | BopFsub | BopFmul | BopFdiv | BopFrem ] <ocaml repr="classic">
 
 type binary_operator = {
   opcode : bop;
+  operandtype : value_type;
+  operand1 : value;
+  operand2 : value;
+}
+
+type float_binary_operator = {
+  opcode : fbop;
   operandtype : value_type;
   operand1 : value;
   operand2 : value;
@@ -88,9 +101,26 @@ type load_inst = {
   align : int;
 }
 
+type bit_cast_inst = {
+  fromty : value_type;
+  v : value;
+  toty : value_type;
+}
+
+type get_element_ptr_inst = {
+  ty : value_type;
+  ptrty : value_type;
+  ptr : value;
+  indexes : (size * value) list;
+  is_inbounds : bool;
+}
+
 type instruction = [ 
   | BinaryOp of binary_operator
+  | FloatBinaryOp of float_binary_operator
   | LoadInst of load_inst
+  | BitCastInst of bit_cast_inst
+  | GetElementPtrInst of get_element_ptr_inst
 ] <ocaml repr="classic">
 
 type expr = [
@@ -122,11 +152,17 @@ type propagate_alloca = {
   scope : scope;
 }
 
+type propagate_private = {
+  p : register;
+  scope : scope;
+}
+
 type propagate_object = [
   | Lessdef of propagate_lessdef
   | Noalias of propagate_noalias
   | Alloca of propagate_alloca
   | Maydiff of register
+  | Private of propagate_private
   ] <ocaml repr="classic">
 
 type propagate_range = [
@@ -168,6 +204,12 @@ type add_commutative = {
   sz : size;
 }
 
+type add_commutative_tgt = {
+  z : register;
+  x : value;
+  y : value;
+  sz : size;
+}
 type add_shift = {
   y : register;
   v : value;
@@ -187,6 +229,17 @@ type transitivity = {
   e3 : expr;
 }
 
+type transitivity_tgt = {
+  e1 : expr;
+  e2 : expr;
+  e3 : expr;
+}
+
+type noalias_global_alloca = {
+  x : register;
+  y : register;
+}
+
 type transitivity_pointer_lhs = {
   p : value;
   q : value;
@@ -202,6 +255,14 @@ type transitivity_pointer_rhs = {
 }
 
 type replace_rhs = {
+  x : register;
+  y : value;
+  e1 : expr;
+  e2 : expr;
+  e2' : expr;
+}
+
+type replace_rhs_opt = {
   x : register;
   y : value;
   e1 : expr;
@@ -273,10 +334,35 @@ type add_dist_sub = {
   sz : size;
 }
 
-type gepzero = {
-  v : value;
-  vprime : value;
-  gepinst : expr;
+type and_commutative = {
+  z : register;
+  x : value;
+  y : value;
+  sz : size;
+}
+
+type and_de_morgan = {
+  z : register;
+  x : register;
+  y : register;
+  zprime : register;
+  a : value;
+  b : value;
+  sz : size;
+}
+
+type bop_distributive_over_selectinst = {
+  opcode : bop;
+  r : register;
+  s : register;
+  tprime : register;
+  t0 : register;
+  x : value;
+  y : value;
+  z : value;
+  c : value;
+  bopsz : size;
+  selty : value_type;
 }
 
 type bitcastptr = {
@@ -284,6 +370,107 @@ type bitcastptr = {
   vprime : value;
   bitcastinst : expr;
 }
+
+type bop_distributive_over_selectinst2 = {
+  opcode : bop;
+  r : register;
+  s : register;
+  tprime : register;
+  t0 : register;
+  x : value;
+  y : value;
+  z : value;
+  c : value;
+  bopsz : size;
+  selty : value_type;
+}
+
+type fadd_commutative_tgt = {
+  z : register;
+  x : value;
+  y : value;
+  fty : float_type;
+}
+
+type fbop_distributive_over_selectinst = {
+  fopcode : fbop;
+  r : register;
+  s : register;
+  tprime : register;
+  t0 : register;
+  x : value;
+  y : value;
+  z : value;
+  c : value;
+  fbopty : float_type;
+  selty : value_type;
+}
+
+type fbop_distributive_over_selectinst2 = {
+  fopcode : fbop;
+  r : register;
+  s : register;
+  tprime : register;
+  t0 : register;
+  x : value;
+  y : value;
+  z : value;
+  c : value;
+  fbopty : float_type;
+  selty : value_type;
+}
+
+type gepzero = {
+  v : value;
+  vprime : value;
+  gepinst : expr;
+}
+
+type intro_ghost = {
+  x : value;
+  g : register;
+}
+
+type intro_eq = {
+  x : value;
+}
+
+type mul_bool = {
+  z :register;
+  x :register;
+  y :register;
+}
+
+type mul_mone = {
+  z : register;
+  x : value;
+  sz : size;
+}
+
+type mul_neg = {
+  z : register;
+  mx : value;
+  my : value;
+  x : value;
+  y : value;
+  sz : size;
+}
+
+type mul_commutative = {
+  z : register;
+  x : value;
+  y : value;
+  sz : size;
+}
+
+type mul_shl = {
+  z : register;
+  y : register;
+  x : value;
+  a : value;
+  sz : size;
+}
+
 
 type mul_add_distributive = {
   z : register;
@@ -298,11 +485,6 @@ type neg_val = {
   sz : size;
 }
 
-type noalias_global_alloca = {
-  x : register;
-  y : register;
-}
-
 type noalias_lessthan = {
   x : value;
   y : value;
@@ -313,6 +495,61 @@ type noalias_lessthan = {
 type noalias_global_global = {
   x : register;
   y : register;
+}
+
+type or_commutative = {
+  z : register;
+  x : value;
+  y : value;
+  sz : size;
+}
+
+type or_or = {
+  z : value;
+  x : value;
+  y : value;
+  a : value;
+  b : value;
+  sz : size;
+}
+
+type or_or2 = {
+  z : value;
+  x : value;
+  y : value;
+  yprime : value;
+  a : value;
+  b : value;
+  sz : size;
+}
+
+type or_xor = {
+  w : value;
+  z : value;
+  x : value;
+  y : value;
+  a : value;
+  b : value;
+  sz : size;
+}
+
+type or_xor2 = {
+  z : value;
+  x1 : value;
+  y1 : value;
+  x2 : value;
+  y2 : value;
+  a : value;
+  b : value;
+  sz : size;
+}
+
+type rem_neg = {
+  z : register;
+  my : value;
+  x : value;
+  y : value;
+  sz : size;
 }
 
 type sub_add = {
@@ -380,63 +617,9 @@ type sub_shl = {
   sz : size;
 }
 
-type mul_bool = {
-  z :register;
-  x :register;
-  y :register;
-}
-
-type mul_mone = {
-  z : register;
-  x : value;
-  sz : size;
-}
-
-type mul_neg = {
-  z : register;
-  mx : value;
-  my : value;
-  x : value;
-  y : value;
-  sz : size;
-}
-
-type mul_commutative = {
-  z : register;
-  x : value;
-  y : value;
-  sz : size;
-}
-
-type mul_shl = {
-  z : register;
-  y : register;
-  x : value;
-  a : value;
-  sz : size;
-}
-
 type sdiv_mone = {
   z : register;
   x : value;
-  sz : size;
-}
-
-type and_de_morgan = {
-  z : register;
-  x : register;
-  y : register;
-  zprime : register;
-  a : value;
-  b : value;
-  sz : size;
-}
-
-type rem_neg = {
-  z : register;
-  my : value;
-  x : value;
-  y : value;
   sz : size;
 }
 
@@ -458,10 +641,41 @@ type udiv_sub_urem = {
   sz : size;
 }
 
+type udiv_zext = {
+  z : register;
+  x : register;
+  y : register;
+  k : register;
+  a : value;
+  b : value;
+  sz1 : size;
+  sz2 : size;
+}
+
+type urem_zext = {
+  z : register;
+  x : register;
+  y : register;
+  k : register;
+  a : value;
+  b : value;
+  sz1 : size;
+  sz2 : size;
+}
+
+type xor_commutative = {
+  z : register;
+  x : value;
+  y : value;
+  sz : size;
+}
+
+
 type infrule = [
   | AddAssociative of add_associative
   | AddSub of add_sub
   | AddCommutative of add_commutative
+  | AddCommutativeTgt of add_commutative_tgt
   | AddShift of add_shift
   | AddSignbit of add_signbit
   | AddOnebit of add_onebit
@@ -471,11 +685,22 @@ type infrule = [
   | AddSelectZero of add_select_zero
   | AddSelectZero2 of add_select_zero2
   | AddDistSub of add_dist_sub
+  | AndCommutative of and_commutative
   | AndDeMorgan of and_de_morgan
   | Bitcastptr of bitcastptr
+  | BopDistributiveOverSelectinst of bop_distributive_over_selectinst
+  | BopDistributiveOverSelectinst2 of bop_distributive_over_selectinst2
+  | FaddCommutativeTgt of fadd_commutative_tgt
+  | FbopDistributiveOverSelectinst of fbop_distributive_over_selectinst
+  | FbopDistributiveOverSelectinst2 of fbop_distributive_over_selectinst2
   | Gepzero of gepzero
   | MulAddDistributive of mul_add_distributive
   | NegVal of neg_val
+  | OrCommutative of or_commutative
+  | OrOr of or_or
+  | OrOr2 of or_or2
+  | OrXor of or_xor
+  | OrXor2 of or_xor2
   | SubMone of sub_mone
   | SubAdd of sub_add
   | SubConstNot of sub_const_not
@@ -493,13 +718,20 @@ type infrule = [
   | NoaliasGlobalGlobal of noalias_global_global
   | NoaliasLessthan of noalias_lessthan
   | RemNeg of rem_neg
-  | ReplaceRhs of replace_rhs
   | SdivMone of sdiv_mone
   | SdivSubSrem of sdiv_sub_srem
   | UdivSubUrem of udiv_sub_urem
+  | UdivZext of udiv_zext
+  | UremZext of urem_zext
   | Transitivity of transitivity
+  | TransitivityTgt of transitivity_tgt
   | TransitivityPointerLhs of transitivity_pointer_lhs
   | TransitivityPointerRhs of transitivity_pointer_rhs
+  | ReplaceRhs of replace_rhs
+  | ReplaceRhsOpt of replace_rhs_opt
+  | IntroGhost of intro_ghost
+  | IntroEq of intro_eq
+  | XorCommutative of xor_commutative
   ] <ocaml repr="classic">
 
 type hint_command = [
@@ -511,7 +743,7 @@ type hints = {
   module_id : string;
   function_id : string;
   opt_name : string;
-
+  ~description : string;
   nop_positions: position list; (* insert after position *)
 
   commands : hint_command list;

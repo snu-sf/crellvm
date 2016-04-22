@@ -206,6 +206,16 @@ module PrintHints = struct
                                                   ExprsToString.of_expr b ^ " ≥ " ^
                                                     ExprsToString.of_expr c
       | Infrule.Coq_replace_rhs _ -> "replace_rhs"
+      | Infrule.Coq_transitivity_pointer_lhs (p, q, v, ty, a) -> "transitivity_pointer_lhs : " ^
+                                                ExprsToString.of_expr(Expr.Coq_value p) ^ " ≥ " ^
+                                                ExprsToString.of_expr(Expr.Coq_value q) ^ " && " ^
+                                                ExprsToString.of_expr(Expr.Coq_load (q, ty, a) ) ^ " ≥ " ^
+                                                ExprsToString.of_expr(Expr.Coq_value v)
+      | Infrule.Coq_transitivity_pointer_rhs (p, q, v, ty, a) -> "transitivity_pointer_rhs : " ^
+                                                ExprsToString.of_expr(Expr.Coq_value p) ^ " ≥ " ^
+                                                ExprsToString.of_expr(Expr.Coq_value q) ^ " && " ^
+                                                ExprsToString.of_expr(Expr.Coq_value v) ^ " ≥ " ^
+                                                ExprsToString.of_expr(Expr.Coq_load (p, ty, a) )      
       | _ -> "infrule(TODO)"
 
     let infrules (infs:Infrule.t list): unit =
