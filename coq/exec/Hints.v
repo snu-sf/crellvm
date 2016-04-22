@@ -150,16 +150,6 @@ Module Invariant.
   Definition inject_value (inv:t) (value_src value_tgt:ValueT.t): bool :=
     (ValueT.eq_dec value_src value_tgt && not_in_maydiff inv value_src) ||
     (ExprPairSet.mem (Expr.value value_src, Expr.value value_tgt) inv.(tgt).(lessdef) && not_in_maydiff inv value_src) ||
-<<<<<<< HEAD
-    (ExprPairSet.mem (Expr.value value_src, Expr.value value_tgt) inv.(src).(lessdef) && not_in_maydiff inv value_tgt).
-
-  Definition is_empty_alias (alias:aliasrel): bool :=
-    PtrPairSet.is_empty alias.(noalias) &&
-    PtrPairSet.is_empty alias.(diffblock).
-
-  Definition not_in_maydiff_expr (inv:t) (expr: Expr.t): bool :=
-    List.forallb (not_in_maydiff inv) (Expr.get_valueTs expr).
-=======
     (ExprPairSet.mem (Expr.value value_src, Expr.value value_tgt) inv.(src).(lessdef) && not_in_maydiff inv value_tgt) ||
     (ExprPairSet.exists_
        (fun (p: ExprPair.t) => 
@@ -167,7 +157,10 @@ Module Invariant.
           ((ExprPairSet.mem (y, Expr.value value_tgt) inv.(tgt).(lessdef)) &&
            (not_in_maydiff_expr inv y)))
        (get_rhs inv.(src).(lessdef) (Expr.value value_src))).
->>>>>>> snu-sf/refactoring
+
+  Definition is_empty_alias (alias:aliasrel): bool :=
+    PtrPairSet.is_empty alias.(noalias) &&
+    PtrPairSet.is_empty alias.(diffblock).
 
   Definition is_empty_unary (inv:unary): bool :=
     ExprPairSet.is_empty inv.(lessdef) &&
