@@ -62,9 +62,9 @@ module EmptyHint = struct
     { Invariant.lessdef = ExprPairSet.empty;
       Invariant.alias =
         { Invariant.noalias = PtrPairSet.empty;
-          Invariant.diffblock = PtrPairSet.empty;
+          Invariant.diffblock = ValueTPairSet.empty;
         };
-      Invariant.allocas = PtrSet.empty;
+      Invariant.allocas = IdTSet.empty;
       Invariant.coq_private = IdTSet.empty;
     }
 

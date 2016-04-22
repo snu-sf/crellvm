@@ -229,7 +229,7 @@ module PrintHints = struct
     let unary (u:Invariant.unary): string list =
       (PrintExprs.exprPairSet (u.Invariant.lessdef) "≥") @
         (PrintExprs.ptrPairSet (u.Invariant.alias.Invariant.noalias) "≠") @
-        (PrintExprs.ptrSet (u.Invariant.allocas) "alc") @
+        (PrintExprs.idTSet (u.Invariant.allocas) "alc") @
         (PrintExprs.idTSet (u.Invariant.coq_private) "isol")
     
     let invariant (inv:Invariant.t): unit =

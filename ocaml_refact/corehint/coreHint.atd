@@ -235,7 +235,7 @@ type transitivity_tgt = {
   e3 : expr;
 }
 
-type noalias_global_alloca = {
+type diffblock_global_alloca = {
   x : register;
   y : register;
 }
@@ -492,7 +492,14 @@ type noalias_lessthan = {
   yprime : value;
 }
 
-type noalias_global_global = {
+type diffblock_noalias = {
+  x : register;
+  y : register;
+  xprime : register;
+  yprime : register;
+}
+
+type diffblock_global_global = {
   x : register;
   y : register;
 }
@@ -714,9 +721,10 @@ type infrule = [
   | MulNeg of mul_neg
   | MulCommutative of mul_commutative
   | MulShl of mul_shl
-  | NoaliasGlobalAlloca of noalias_global_alloca
-  | NoaliasGlobalGlobal of noalias_global_global
+  | DiffblockGlobalAlloca of diffblock_global_alloca
+  | DiffblockGlobalGlobal of diffblock_global_global
   | NoaliasLessthan of noalias_lessthan
+  | DiffblockNoalias of diffblock_noalias
   | RemNeg of rem_neg
   | SdivMone of sdiv_mone
   | SdivSubSrem of sdiv_sub_srem

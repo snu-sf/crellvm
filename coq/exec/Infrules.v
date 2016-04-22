@@ -197,14 +197,18 @@ Definition cond_pointertyp (t:typ) : bool :=
 
 Notation "$$ inv |- y >=src rhs $$" := (ExprPairSet.mem (y, rhs) inv.(Invariant.src).(Invariant.lessdef)) (at level 41).
 Notation "$$ inv |- y >=tgt rhs $$" := (ExprPairSet.mem (y, rhs) inv.(Invariant.tgt).(Invariant.lessdef)) (at level 41).
-Notation "$$ inv |-allocasrc y $$" := (PtrSet.mem y inv.(Invariant.src).(Invariant.allocas)) (at level 41).
-Notation "$$ inv |-allocatgt y $$" := (PtrSet.mem y inv.(Invariant.tgt).(Invariant.allocas)) (at level 41).
+Notation "$$ inv |-allocasrc y $$" := (IdTSet.mem y inv.(Invariant.src).(Invariant.allocas)) (at level 41).
+Notation "$$ inv |-allocatgt y $$" := (IdTSet.mem y inv.(Invariant.tgt).(Invariant.allocas)) (at level 41).
 Notation "$$ inv |- x _|_src y $$" := ((PtrPairSet.mem (x, y) inv.(Invariant.src).(Invariant.alias).(Invariant.noalias)) || (PtrPairSet.mem (y, x) inv.(Invariant.src).(Invariant.alias).(Invariant.noalias))) (at level 41).
 Notation "$$ inv |- x _|_tgt y $$" := ((PtrPairSet.mem (x, y) inv.(Invariant.tgt).(Invariant.alias).(Invariant.noalias)) || (PtrPairSet.mem (y, x) inv.(Invariant.tgt).(Invariant.alias).(Invariant.noalias))) (at level 41).
+Notation "$$ inv |- x _||_src y $$" := ((ValueTPairSet.mem (x, y) inv.(Invariant.src).(Invariant.alias).(Invariant.diffblock)) || (ValueTPairSet.mem (y, x) inv.(Invariant.src).(Invariant.alias).(Invariant.diffblock))) (at level 41).
+Notation "$$ inv |- x _||_tgt y $$" := ((ValueTPairSet.mem (x, y) inv.(Invariant.tgt).(Invariant.alias).(Invariant.diffblock)) || (ValueTPairSet.mem (y, x) inv.(Invariant.tgt).(Invariant.alias).(Invariant.diffblock))) (at level 41).
 Notation "{{ inv +++ y >=src rhs }}" := (Invariant.update_src (Invariant.update_lessdef (ExprPairSet.add (y, rhs))) inv) (at level 41).
 Notation "{{ inv +++ y >=tgt rhs }}" := (Invariant.update_tgt (Invariant.update_lessdef (ExprPairSet.add (y, rhs))) inv) (at level 41).
 Notation "{{ inv +++ y _|_src x }}" := (Invariant.update_src (Invariant.update_noalias (PtrPairSet.add (y, x))) inv) (at level 41).
 Notation "{{ inv +++ y _|_tgt x }}" := (Invariant.update_tgt (Invariant.update_noalias (PtrPairSet.add (y, x))) inv) (at level 41).
+Notation "{{ inv +++ y _||_src x }}" := (Invariant.update_src (Invariant.update_diffblock (ValueTPairSet.add (y, x))) inv) (at level 41).
+Notation "{{ inv +++ y _||_tgt x }}" := (Invariant.update_tgt (Invariant.update_diffblock (ValueTPairSet.add (y, x))) inv) (at level 41).
 
 (* TODO *)
 Definition apply_infrule
@@ -483,14 +487,14 @@ Definition apply_infrule
        $$ inv0 |- e2 >=tgt e3 $$
     then {{ inv0 +++ e1 >=tgt e3 }}
     else apply_fail tt
-  | Infrule.noalias_global_alloca x (y, y_type) =>
+  | Infrule.diffblock_global_alloca x y =>
     match x with
     | (Tag.physical, x_id) =>
       match lookupTypViaGIDFromModule m_src x_id with
       | None => apply_fail tt
       | Some x_type => (* x is a global variable *)
-        if $$ inv0 |-allocasrc (y, y_type) $$ then
-          {{inv0 +++ (y, y_type) _|_src (ValueT.const (const_gid x_type x_id), typ_pointer x_type) }}
+        if $$ inv0 |-allocasrc y $$ then
+          {{inv0 +++ (ValueT.id y) _||_src (ValueT.const (const_gid x_type x_id)) }}
         else apply_fail tt
       end
     | _ => apply_fail tt
@@ -500,7 +504,7 @@ Definition apply_infrule
        $$ inv0 |- (Expr.value (ValueT.id z)) >=src (Expr.bop bop_srem s x my) $$
     then {{inv0 +++ (Expr.value (ValueT.id z)) >=src (Expr.bop bop_srem s x y) }}
     else apply_fail tt
-  | Infrule.noalias_global_global x y =>
+  | Infrule.diffblock_global_global x y =>
     match x with 
     | (Tag.physical, x_id) =>
       match lookupTypViaGIDFromModule m_src x_id with
@@ -509,7 +513,7 @@ Definition apply_infrule
         | (Tag.physical, y_id) =>
           match lookupTypViaGIDFromModule m_src y_id with
           | Some y_type => 
-            {{inv0 +++ (ValueT.const (const_gid y_type y_id), typ_pointer y_type) _|_src (ValueT.const (const_gid x_type x_id), typ_pointer x_type) }}
+            {{inv0 +++ (ValueT.const (const_gid y_type y_id)) _||_src (ValueT.const (const_gid x_type x_id)) }}
           | None => apply_fail tt
           end
         | _ => apply_fail tt
@@ -522,6 +526,11 @@ Definition apply_infrule
     if $$ inv0 |- (x, x_type) _|_src (y, y_type) $$ &&
        $$ inv0 |- (Expr.value x) >=src (Expr.value x') $$ &&
        $$ inv0 |- (Expr.value y) >=src (Expr.value y') $$
+    then {{inv0 +++ (x', x_type') _|_src (y', y_type')}}
+    else apply_fail tt
+  | Infrule.diffblock_noalias x y (x', x_type') (y', y_type') =>
+    if $$ inv0 |- (ValueT.id x) _||_src (ValueT.id y) $$ &&
+       ValueT.eq_dec (ValueT.id x) x' && ValueT.eq_dec (ValueT.id y) y'
     then {{inv0 +++ (x', x_type') _|_src (y', y_type')}}
     else apply_fail tt
   | Infrule.transitivity_pointer_lhs p q v ty a =>

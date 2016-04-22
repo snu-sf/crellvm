@@ -372,20 +372,26 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
       let e2 = Convert.expr args.e2 src_fdef tgt_fdef in
       let e3 = Convert.expr args.e3 src_fdef tgt_fdef in
       Infrule.Coq_transitivity_tgt (e1, e2, e3)
-  | CoreHint_t.NoaliasGlobalAlloca (args:CoreHint_t.noalias_global_alloca) ->
-     let x = Convert.register args.x in
-     let y = Convert.pointer_id args.y src_fdef in
-     Infrule.Coq_noalias_global_alloca (x, y)
-  | CoreHint_t.NoaliasGlobalGlobal (args:CoreHint_t.noalias_global_global) ->
+  | CoreHint_t.DiffblockGlobalAlloca (args:CoreHint_t.diffblock_global_alloca) ->
      let x = Convert.register args.x in
      let y = Convert.register args.y in
-     Infrule.Coq_noalias_global_global (x, y)
+     Infrule.Coq_diffblock_global_alloca (x, y)
+  | CoreHint_t.DiffblockGlobalGlobal (args:CoreHint_t.diffblock_global_global) ->
+     let x = Convert.register args.x in
+     let y = Convert.register args.y in
+     Infrule.Coq_diffblock_global_global (x, y)
   | CoreHint_t.NoaliasLessthan (args:CoreHint_t.noalias_lessthan) ->
      let x = Convert.pointer_val args.x src_fdef in
      let y = Convert.pointer_val args.y src_fdef in
      let xprime = Convert.pointer_val args.xprime tgt_fdef in
      let yprime = Convert.pointer_val args.yprime tgt_fdef in
      Infrule.Coq_noalias_lessthan (x, y, xprime, yprime)
+  | CoreHint_t.DiffblockNoalias (args:CoreHint_t.diffblock_noalias) ->
+     let x = Convert.register args.x in
+     let y = Convert.register args.y in
+     let xprime = Convert.pointer_id args.xprime src_fdef in
+     let yprime = Convert.pointer_id args.yprime src_fdef in
+     Infrule.Coq_diffblock_noalias (x, y, xprime, yprime)
   | CoreHint_t.TransitivityPointerLhs (args:CoreHint_t.transitivity_pointer_lhs) ->
      let p = Convert.value args.p in
      let q = Convert.value args.q in
