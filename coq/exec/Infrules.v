@@ -405,7 +405,7 @@ Definition apply_infrule
       | None => inv0
       | Some x_type => (* x is a global variable *)
         if $$ inv0 |-allocasrc (y, y_type) $$ then
-          {{inv0 +++ (y, y_type) _|_src (ValueT.const (const_gid x_type x_id), x_type) }}
+          {{inv0 +++ (y, y_type) _|_src (ValueT.const (const_gid x_type x_id), typ_pointer x_type) }}
         else apply_fail tt
       end
     | _ => apply_fail tt
@@ -424,7 +424,7 @@ Definition apply_infrule
         | (Tag.physical, y_id) =>
           match lookupTypViaGIDFromModule m_src y_id with
           | Some y_type => 
-            {{inv0 +++ (ValueT.const (const_gid y_type y_id), y_type) _|_src (ValueT.const (const_gid x_type x_id), x_type) }}
+            {{inv0 +++ (ValueT.const (const_gid y_type y_id), typ_pointer y_type) _|_src (ValueT.const (const_gid x_type x_id), typ_pointer x_type) }}
           | None => apply_fail tt
           end
         | _ => apply_fail tt

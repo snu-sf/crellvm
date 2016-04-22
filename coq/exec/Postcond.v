@@ -304,7 +304,7 @@ Module Cmd.
     | insn_alloca x ty v a => Some (ValueT.id (IdT.lift Tag.physical x), ty)
     | insn_store x ty v p a =>
       TODO.lift_option
-        (fun id => (ValueT.id (IdT.lift Tag.physical id), ty))
+        (fun id => (ValueT.id (IdT.lift Tag.physical id), typ_pointer ty))
         (getValueID p)
     | _ => None
     end.

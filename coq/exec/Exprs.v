@@ -227,8 +227,10 @@ Module ExprPairSetFacts := WFacts_fun ExprPair ExprPairSet.
 
 (* Ptr: alias related values *)
 Module Ptr <: UsualDecidableType.
-  (* typ has the type of the 'object', not the type of the 'pointer'.
-     ex: %x = load i32* %y, align 4 <- (id x, typ_int 32) *)
+  (* typ has the type of the 'pointer', not the type of the 'object'.
+     ex: %x = load i32* %y, align 4 <- (id y, typ_pointer (typ_int 32))
+                   ^^^^
+  *)
   Definition t := (ValueT.t * typ)%type.
   Definition eq := @eq t.
   Definition eq_refl := @refl_equal t.

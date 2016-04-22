@@ -28,13 +28,33 @@ module ExprsToString = struct
       | ValueT.Coq_const c ->
          (string_of_constant c)
 
+    let of_sz (s:LLVMsyntax.sz): string =
+      Printf.sprintf "(sz %d)" s
+
+    let rec of_typ (ty:LLVMsyntax.typ): string =
+      match ty with
+      | LLVMsyntax.Coq_typ_int sz -> Printf.sprintf "i%d" sz
+      | LLVMsyntax.Coq_typ_floatpoint fp ->
+        begin match fp with
+        | LLVMsyntax.Coq_fp_float -> "f32"
+        | LLVMsyntax.Coq_fp_double -> "f64"
+        | LLVMsyntax.Coq_fp_fp128 -> "fp128"
+        | LLVMsyntax.Coq_fp_x86_fp80 -> "x86fp80"
+        | LLVMsyntax.Coq_fp_ppc_fp128 -> "ppcfp128"
+        end
+      | LLVMsyntax.Coq_typ_void -> "void"
+      | LLVMsyntax.Coq_typ_label -> "lbl"
+      | LLVMsyntax.Coq_typ_metadata -> "md"
+      | LLVMsyntax.Coq_typ_array (sz, typ') -> Printf.sprintf "%s[%d]" (of_typ typ') sz
+      | LLVMsyntax.Coq_typ_function (ret_typ, arg_typs, vargs) -> "fun" (* TODO: more precise *)
+      | LLVMsyntax.Coq_typ_struct elem_typs -> "struct" (* TODO: more precise *)
+      | LLVMsyntax.Coq_typ_pointer obj_typ -> Printf.sprintf "%s*" (of_typ obj_typ)
+      | LLVMsyntax.Coq_typ_namedt id -> "namedt" (* TODO: more precise *)
+
     let of_Ptr (p:Ptr.t): string =
       match p with
       | (vt, typ) ->
-        Printf.sprintf "%s:ptr" (of_ValueT vt)
-
-    let of_sz (s:LLVMsyntax.sz): string =
-      Printf.sprintf "(sz %d)" s
+        Printf.sprintf "%s:%s" (of_ValueT vt) (of_typ typ)
 
     let of_align (al:LLVMsyntax.align): string =
       Printf.sprintf "(align %d)" al
