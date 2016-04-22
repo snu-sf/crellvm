@@ -210,6 +210,18 @@ type add_commutative_tgt = {
   y : value;
   sz : size;
 }
+
+
+type add_dist_sub = {
+  z : register;
+  minusx : register;
+  minusy : value;
+  w : register;
+  x : value;
+  y : value;
+  sz : size;
+}
+
 type add_shift = {
   y : register;
   v : value;
@@ -324,13 +336,22 @@ type add_select_zero2 = {
   sz : size;
 }
 
-type add_dist_sub = {
+
+type add_xor_and = {
   z : register;
-  minusx : register;
-  minusy : value;
-  w : register;
-  x : value;
-  y : value;
+  a : value;
+  b : value;
+  x : register;
+  y : register;
+  sz : size;
+}
+
+type add_or_and = {
+  z : register;
+  a : value;
+  b : value;
+  x : register;
+  y : register;
   sz : size;
 }
 
@@ -589,6 +610,15 @@ type sub_onebit = {
   y : value;
 }
 
+type sub_or_xor = {
+  z : register;
+  a : value;
+  b : value;
+  x : register;
+  y : register;
+  sz : size;
+}
+
 type sub_const_add = {
   z : register;
   y : register;
@@ -614,6 +644,14 @@ type sub_shl = {
   y : register;
   mx : value;
   a : value;
+  sz : size;
+}
+
+type sub_sub = {
+  z : register;
+  x : value;
+  y : value;
+  w : value;
   sz : size;
 }
 
@@ -682,9 +720,11 @@ type infrule = [
   | AddZextBool of add_zext_bool
   | AddConstNot of add_const_not
   | AddMask of add_mask
+  | AddOrAnd of add_or_and
   | AddSelectZero of add_select_zero
   | AddSelectZero2 of add_select_zero2
   | AddDistSub of add_dist_sub
+  | AddXorAnd of add_xor_and
   | AndCommutative of and_commutative
   | AndDeMorgan of and_de_morgan
   | Bitcastptr of bitcastptr
@@ -701,14 +741,6 @@ type infrule = [
   | OrOr2 of or_or2
   | OrXor of or_xor
   | OrXor2 of or_xor2
-  | SubMone of sub_mone
-  | SubAdd of sub_add
-  | SubConstNot of sub_const_not
-  | SubRemove of sub_remove
-  | SubOnebit of sub_onebit
-  | SubConstAdd of sub_const_add
-  | SubSdiv of sub_sdiv
-  | SubShl of sub_shl
   | MulBool of mul_bool
   | MulMone of mul_mone
   | MulNeg of mul_neg
@@ -720,6 +752,16 @@ type infrule = [
   | RemNeg of rem_neg
   | SdivMone of sdiv_mone
   | SdivSubSrem of sdiv_sub_srem
+  | SubAdd of sub_add
+  | SubConstAdd of sub_const_add
+  | SubConstNot of sub_const_not
+  | SubMone of sub_mone
+  | SubOnebit of sub_onebit
+  | SubRemove of sub_remove
+  | SubSdiv of sub_sdiv
+  | SubShl of sub_shl
+  | SubOrXor of sub_or_xor
+  | SubSub of sub_sub
   | UdivSubUrem of udiv_sub_urem
   | UdivZext of udiv_zext
   | UremZext of urem_zext
