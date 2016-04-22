@@ -15,10 +15,18 @@ Set Implicit Arguments.
 Import ListNotations.
 
 Module Invariant.
+  (* alias relation.
+     Ptr is used because we want to use type information in alias reasoning.
+     for example, i64* ptr cannot alias with i32 memory block *)
+  Structure aliasrel := mk_aliasrel {
+    diffblock: PtrPairSet.t; (* strong no-alias, in different logic block *)
+    noalias:  PtrPairSet.t; (* weak no-alias, maybe in the same logic block *)
+  }.
+
   Structure unary := mk_unary {
     lessdef: ExprPairSet.t;
-    noalias: ValueTPairSet.t;
-    allocas: IdTSet.t;
+    alias: aliasrel;
+    allocas: PtrSet.t;
     private: IdTSet.t;
   }.
 
@@ -31,28 +39,44 @@ Module Invariant.
   Definition update_lessdef (f:ExprPairSet.t -> ExprPairSet.t) (invariant:unary): unary :=
     mk_unary
       (f invariant.(lessdef))
-      invariant.(noalias)
+      invariant.(alias)
       invariant.(allocas)
       invariant.(private).
 
-  Definition update_noalias (f:ValueTPairSet.t -> ValueTPairSet.t) (invariant:unary): unary :=
+  Definition update_diffblock_rel (f:PtrPairSet.t -> PtrPairSet.t) (alias:aliasrel): aliasrel :=
+    mk_aliasrel
+      (f alias.(diffblock))
+      alias.(noalias).
+
+  Definition update_noalias_rel (f:PtrPairSet.t -> PtrPairSet.t) (alias:aliasrel): aliasrel :=
+    mk_aliasrel
+      alias.(diffblock)
+      (f alias.(noalias)).
+
+  Definition update_alias (f:aliasrel -> aliasrel) (invariant:unary): unary :=
     mk_unary
       invariant.(lessdef)
-      (f invariant.(noalias))
+      (f invariant.(alias))
       invariant.(allocas)
       invariant.(private).
 
-  Definition update_allocas (f:IdTSet.t -> IdTSet.t) (invariant:unary): unary :=
+  Definition update_diffblock (f:PtrPairSet.t -> PtrPairSet.t) (invariant:unary): unary :=
+    update_alias (update_diffblock_rel f) invariant.
+
+  Definition update_noalias (f:PtrPairSet.t -> PtrPairSet.t) (invariant:unary): unary :=
+    update_alias (update_noalias_rel f) invariant.
+
+  Definition update_allocas (f:PtrSet.t -> PtrSet.t) (invariant:unary): unary :=
     mk_unary
       invariant.(lessdef)
-      invariant.(noalias)
+      invariant.(alias)
       (f invariant.(allocas))
       invariant.(private).
 
   Definition update_private (f:IdTSet.t -> IdTSet.t) (invariant:unary): unary :=
     mk_unary
       invariant.(lessdef)
-      invariant.(noalias)
+      invariant.(alias)
       invariant.(allocas)
       (f invariant.(private)).
 
@@ -80,10 +104,14 @@ Module Invariant.
     | ValueT.const _ => false
     end.
 
+  Definition implies_alias (alias0 alias:aliasrel): bool :=
+    PtrPairSet.subset (alias.(noalias)) (alias0.(noalias)) &&
+    PtrPairSet.subset (alias.(diffblock)) (alias0.(diffblock)).
+
   Definition implies_unary (inv0 inv:unary): bool :=
     ExprPairSet.subset (inv.(lessdef)) (inv0.(lessdef)) &&
-    ValueTPairSet.subset (inv.(noalias)) (inv0.(noalias)) &&
-    IdTSet.subset (inv.(allocas)) (inv0.(allocas)) &&
+    implies_alias (inv.(alias)) (inv0.(alias)) &&
+    PtrSet.subset (inv.(allocas)) (inv0.(allocas)) &&
     IdTSet.subset (inv.(private)) (inv0.(private)).
 
   Definition implies (inv0 inv:t): bool :=
@@ -91,10 +119,13 @@ Module Invariant.
     implies_unary (inv0.(tgt)) (inv.(tgt)) &&
     IdTSet.subset (inv0.(maydiff)) (inv.(maydiff)).
 
-  Definition is_noalias (inv:unary) (i1:IdT.t) (i2:IdT.t) :=
-    let e1 := ValueT.id i1 in
-    let e2 := ValueT.id i2 in
-    ValueTPairSet.mem (e1, e2) inv.(noalias) || ValueTPairSet.mem (e2, e1) inv.(noalias).
+  Definition is_noalias (inv:unary) (p1:Ptr.t) (p2:Ptr.t) :=
+    PtrPairSet.exists_ (fun p1p2 =>
+                         match p1p2 with
+                           | (xp1, xp2) =>
+                             (Ptr.eq_dec p1 xp1 && Ptr.eq_dec p2 xp2) ||
+                             (Ptr.eq_dec p1 xp2 && Ptr.eq_dec p2 xp1)
+                         end) inv.(alias).(noalias).
 
   Definition not_in_maydiff (inv:t) (value:ValueT.t): bool :=
     match value with
@@ -127,10 +158,14 @@ Module Invariant.
            (not_in_maydiff_expr inv y)))
        (get_rhs inv.(src).(lessdef) (Expr.value value_src))).
 
+  Definition is_empty_alias (alias:aliasrel): bool :=
+    PtrPairSet.is_empty alias.(noalias) &&
+    PtrPairSet.is_empty alias.(diffblock).
+
   Definition is_empty_unary (inv:unary): bool :=
     ExprPairSet.is_empty inv.(lessdef) &&
-    ValueTPairSet.is_empty inv.(noalias) &&
-    IdTSet.is_empty inv.(allocas) &&
+    is_empty_alias inv.(alias) &&
+    PtrSet.is_empty inv.(allocas) &&
     IdTSet.is_empty inv.(private).
 
   Definition is_empty (inv:t): bool :=
@@ -139,18 +174,19 @@ Module Invariant.
     IdTSet.is_empty inv.(maydiff).
 
   Definition get_idTs_unary (u: unary): list IdT.t :=
-    let (lessdef, noalias, allocas, private) := u in
+    let (lessdef, alias, allocas, private) := u in
     List.concat
       (List.map
          (fun (p: ExprPair.t) =>
             let (x, y) := p in Expr.get_idTs x ++ Expr.get_idTs y)
          (ExprPairSet.elements lessdef)) ++
-      List.concat
+    List.concat
       (List.map
-         (fun (p: ValueTPair.t) =>
-            let (x, y) := p in TODO.filter_map ValueT.get_idTs [x ; y])
-         (ValueTPairSet.elements noalias)) ++
-      IdTSet.elements allocas ++ IdTSet.elements private.
+         (fun (p: PtrPair.t) =>
+            let (x, y) := p in TODO.filter_map Ptr.get_idTs [x ; y])
+         (PtrPairSet.elements (alias.(noalias)))) ++
+      TODO.filter_map Ptr.get_idTs (PtrSet.elements allocas) ++
+      IdTSet.elements private.
 
   Definition get_idTs (inv: t): list IdT.t :=
     let (src, tgt, maydiff) := inv in
@@ -207,9 +243,9 @@ Module Infrule.
   | sub_shl (z:IdT.t) (x:ValueT.t) (y:IdT.t) (mx:ValueT.t) (a:ValueT.t) (sz:sz)
   | transitivity (e1:Expr.t) (e2:Expr.t) (e3:Expr.t)
   | transitivity_tgt (e1:Expr.t) (e2:Expr.t) (e3:Expr.t)
-  | noalias_global_alloca (x:IdT.t) (y:IdT.t)
+  | noalias_global_alloca (x:IdT.t) (y:Ptr.t)
   | noalias_global_global (x:IdT.t) (y:IdT.t)
-  | noalias_lessthan (x:ValueT.t) (y:ValueT.t) (x':ValueT.t) (y':ValueT.t)
+  | noalias_lessthan (x:Ptr.t) (y:Ptr.t) (x':Ptr.t) (y':Ptr.t)
   | transitivity_pointer_lhs (p:ValueT.t) (q:ValueT.t) (v:ValueT.t) (ty:typ) (a:align)
   | transitivity_pointer_rhs (p:ValueT.t) (q:ValueT.t) (v:ValueT.t) (ty:typ) (a:align)
   | replace_rhs (x:IdT.t) (y:ValueT.t) (e1:Expr.t) (e2:Expr.t) (e2':Expr.t)

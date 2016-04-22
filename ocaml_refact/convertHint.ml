@@ -60,8 +60,11 @@ module EmptyHint = struct
   (* TODO(@youngju.song): in Coq *)
   let unary_hint : Invariant.unary =
     { Invariant.lessdef = ExprPairSet.empty;
-      Invariant.noalias = ValueTPairSet.empty;
-      Invariant.allocas = IdTSet.empty;
+      Invariant.alias =
+        { Invariant.noalias = PtrPairSet.empty;
+          Invariant.diffblock = PtrPairSet.empty;
+        };
+      Invariant.allocas = PtrSet.empty;
       Invariant.coq_private = IdTSet.empty;
     }
 

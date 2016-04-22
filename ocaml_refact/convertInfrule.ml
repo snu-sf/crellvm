@@ -374,17 +374,17 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
       Infrule.Coq_transitivity_tgt (e1, e2, e3)
   | CoreHint_t.NoaliasGlobalAlloca (args:CoreHint_t.noalias_global_alloca) ->
      let x = Convert.register args.x in
-     let y = Convert.register args.y in
+     let y = Convert.pointer_id args.y src_fdef in
      Infrule.Coq_noalias_global_alloca (x, y)
   | CoreHint_t.NoaliasGlobalGlobal (args:CoreHint_t.noalias_global_global) ->
      let x = Convert.register args.x in
      let y = Convert.register args.y in
      Infrule.Coq_noalias_global_global (x, y)
   | CoreHint_t.NoaliasLessthan (args:CoreHint_t.noalias_lessthan) ->
-     let x = Convert.value args.x in
-     let y = Convert.value args.y in
-     let xprime = Convert.value args.xprime in
-     let yprime = Convert.value args.yprime in
+     let x = Convert.pointer_val args.x src_fdef in
+     let y = Convert.pointer_val args.y src_fdef in
+     let xprime = Convert.pointer_val args.xprime tgt_fdef in
+     let yprime = Convert.pointer_val args.yprime tgt_fdef in
      Infrule.Coq_noalias_lessthan (x, y, xprime, yprime)
   | CoreHint_t.TransitivityPointerLhs (args:CoreHint_t.transitivity_pointer_lhs) ->
      let p = Convert.value args.p in

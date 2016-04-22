@@ -154,6 +154,37 @@ module Convert = struct
     | Coq_value_id id -> ValueT.Coq_id (Tag.Coq_physical, id)
     | Coq_value_const const -> ValueT.Coq_const const
 
+  let float_type (ft:CoreHint_t.float_type): LLVMsyntax.floating_point =
+    match ft with
+    | CoreHint_t.HalfType -> failwith "Vellvm has no Halftype" 
+    | CoreHint_t.FloatType -> LLVMsyntax.Coq_fp_float
+    | CoreHint_t.DoubleType -> LLVMsyntax.Coq_fp_double
+    | CoreHint_t.FP128Type -> LLVMsyntax.Coq_fp_fp128
+    | CoreHint_t.PPC_FP128Type -> LLVMsyntax.Coq_fp_ppc_fp128
+    | CoreHint_t.X86_FP80Type -> LLVMsyntax.Coq_fp_x86_fp80
+
+  let pointer_id (register:CoreHint_t.register) (fdef:LLVMsyntax.fdef) : Ptr.t =
+    let typ = TODOCAML.get (LLVMinfra.lookupTypViaIDFromFdef fdef register.name) in
+    (ValueT.Coq_id (tag register.tag, register.name), typ)
+
+  let pointer_val (value:CoreHint_t.value) (fdef:LLVMsyntax.fdef) : Ptr.t =
+    match value with
+    | CoreHint_t.Id reg -> pointer_id reg fdef
+    | CoreHint_t.ConstVal constval ->
+      let (c, ty) =
+        match constval with 
+        | CoreHint_t.ConstInt ci -> 
+          begin match ci.int_type with
+            | CoreHint_t.IntType sz ->
+              (LLVMsyntax.Coq_const_int (sz, const_int ci),
+              LLVMsyntax.Coq_typ_pointer (LLVMsyntax.Coq_typ_int sz))
+          end
+        | CoreHint_t.ConstFloat cf ->
+          (LLVMsyntax.Coq_const_floatpoint (float_type cf.float_type, const_float cf),
+          LLVMsyntax.Coq_typ_pointer (LLVMsyntax.Coq_typ_floatpoint (float_type cf.float_type)))
+      in
+      (ValueT.Coq_const c, ty)
+
   let constant (constval:CoreHint_t.constant): LLVMsyntax.const = 
     match constval with 
     | CoreHint_t.ConstInt ci -> 

@@ -224,3 +224,69 @@ Hint Resolve ExprPair.eq_dec: EqDecDb.
 
 Module ExprPairSet : FSetExtra.WSfun ExprPair := FSetExtra.Make ExprPair.
 Module ExprPairSetFacts := WFacts_fun ExprPair ExprPairSet.
+
+(* Ptr: alias related values *)
+Module Ptr <: UsualDecidableType.
+  (* typ has the type of the 'pointer', not the type of the 'object'.
+     ex: %x = load i32* %y, align 4 <- (id y, typ_pointer (typ_int 32))
+                   ^^^^
+  *)
+  Definition t := (ValueT.t * typ)%type.
+  Definition eq := @eq t.
+  Definition eq_refl := @refl_equal t.
+  Definition eq_sym := @sym_eq t.
+  Definition eq_trans := @trans_eq t.
+  Definition eq_dec (x y:t): {x = y} + {x <> y}.
+  Proof.
+    apply prod_dec.
+    apply ValueT.eq_dec.
+    apply typ_dec.
+  Defined.
+  Definition get_idTs (p: t): option IdT.t :=
+    match p with
+    | (v,_) => ValueT.get_idTs v
+    end.
+End Ptr.
+
+Module PtrSet: FSetExtra.WSfun Ptr := FSetExtra.Make Ptr.
+Module PtrSetFacts := WFacts_fun Ptr PtrSet.
+
+(* TODO: move *)
+Definition PtrSet_from_list
+           (ps:list Ptr.t): PtrSet.t :=
+  fold_left (flip PtrSet.add) ps PtrSet.empty.
+
+Lemma PtrSet_from_list_spec ps:
+  forall p, PtrSet.mem p (PtrSet_from_list ps) <-> In p ps.
+Proof.
+  unfold PtrSet_from_list. rewrite <- fold_left_rev_right.
+  intros. rewrite in_rev.
+  match goal with
+  | [|- context[@rev ?T ?ps]] => induction (@rev T ps)
+  end; simpl.
+  - rewrite PtrSetFacts.empty_b. intuition.
+  - unfold flip in *. rewrite PtrSetFacts.add_b.
+    unfold PtrSetFacts.eqb. constructor; intros.
+    + apply orb_true_iff in H. destruct H.
+      * left. destruct (Ptr.eq_dec a p); intuition.
+      * right. apply IHl0. auto.
+    + apply orb_true_intro. destruct H.
+      * subst. destruct (Ptr.eq_dec p p); auto.
+      * right. apply IHl0. auto.
+Qed.
+
+Module PtrPair <: UsualDecidableType.
+  Definition t := (Ptr.t * Ptr.t)%type.
+  Definition eq := @eq t.
+  Definition eq_refl := @refl_equal t.
+  Definition eq_sym := @sym_eq t.
+  Definition eq_trans := @trans_eq t.
+  Definition eq_dec (x y:t): {x = y} + {x <> y}.
+  Proof.
+    apply prod_dec; apply Ptr.eq_dec.
+  Defined.
+End PtrPair.
+Hint Resolve PtrPair.eq_dec: EqDecDb.
+
+Module PtrPairSet: FSetExtra.WSfun PtrPair := FSetExtra.Make PtrPair.
+Module PtrPairSetFacts := WFacts_fun PtrPair PtrPairSet.

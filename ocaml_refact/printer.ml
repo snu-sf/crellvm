@@ -31,6 +31,31 @@ module ExprsToString = struct
     let of_sz (s:LLVMsyntax.sz): string =
       Printf.sprintf "(sz %d)" s
 
+    let rec of_typ (ty:LLVMsyntax.typ): string =
+      match ty with
+      | LLVMsyntax.Coq_typ_int sz -> Printf.sprintf "i%d" sz
+      | LLVMsyntax.Coq_typ_floatpoint fp ->
+        begin match fp with
+        | LLVMsyntax.Coq_fp_float -> "f32"
+        | LLVMsyntax.Coq_fp_double -> "f64"
+        | LLVMsyntax.Coq_fp_fp128 -> "fp128"
+        | LLVMsyntax.Coq_fp_x86_fp80 -> "x86fp80"
+        | LLVMsyntax.Coq_fp_ppc_fp128 -> "ppcfp128"
+        end
+      | LLVMsyntax.Coq_typ_void -> "void"
+      | LLVMsyntax.Coq_typ_label -> "lbl"
+      | LLVMsyntax.Coq_typ_metadata -> "md"
+      | LLVMsyntax.Coq_typ_array (sz, typ') -> Printf.sprintf "%s[%d]" (of_typ typ') sz
+      | LLVMsyntax.Coq_typ_function (ret_typ, arg_typs, vargs) -> "fun" (* TODO: more precise *)
+      | LLVMsyntax.Coq_typ_struct elem_typs -> "struct" (* TODO: more precise *)
+      | LLVMsyntax.Coq_typ_pointer obj_typ -> Printf.sprintf "%s*" (of_typ obj_typ)
+      | LLVMsyntax.Coq_typ_namedt id -> "namedt" (* TODO: more precise *)
+
+    let of_Ptr (p:Ptr.t): string =
+      match p with
+      | (vt, typ) ->
+        Printf.sprintf "%s:%s" (of_ValueT vt) (of_typ typ)
+
     let of_align (al:LLVMsyntax.align): string =
       Printf.sprintf "(align %d)" al
 
@@ -122,6 +147,12 @@ module ExprsToString = struct
       let s1 = of_ValueT v1 in
       let s2 = of_ValueT v2 in
       Printf.sprintf "%s %s %s" s1 sym s2
+
+    let of_ptrPair (pp:PtrPair.t) (sym:string): string =
+      let (p1, p2) = pp in
+      let s1 = of_Ptr p1 in
+      let s2 = of_Ptr p2 in
+      Printf.sprintf "%s %s %s" s1 sym s2
   end
 
 module PrintExprs = struct
@@ -139,6 +170,16 @@ module PrintExprs = struct
       List.map
         (fun idt -> (sym ^ (ExprsToString.of_IdT idt)))
         (IdTSet.elements idts)
+
+    let ptrSet (ps: PtrSet.t) (sym: string): string list =
+      List.map
+        (fun p -> (sym ^ ExprsToString.of_Ptr p))
+        (PtrSet.elements ps)
+
+    let ptrPairSet (pps: PtrPairSet.t) (sym:string): string list =
+      List.map
+        (fun pp -> (ExprsToString.of_ptrPair pp sym))
+        (PtrPairSet.elements pps)
   end
                       
 module PrintHints = struct
@@ -187,8 +228,8 @@ module PrintHints = struct
         
     let unary (u:Invariant.unary): string list =
       (PrintExprs.exprPairSet (u.Invariant.lessdef) "≥") @
-        (PrintExprs.valueTPairSet (u.Invariant.noalias) "≠") @
-        (PrintExprs.idTSet (u.Invariant.allocas) "alc") @
+        (PrintExprs.ptrPairSet (u.Invariant.alias.Invariant.noalias) "≠") @
+        (PrintExprs.ptrSet (u.Invariant.allocas) "alc") @
         (PrintExprs.idTSet (u.Invariant.coq_private) "isol")
     
     let invariant (inv:Invariant.t): unit =
