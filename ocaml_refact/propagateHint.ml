@@ -114,7 +114,7 @@ module InvariantObject = struct
     type unary =
       | Lessdef of ExprPair.t
       | Noalias of PtrPair.t
-      | Allocas of Ptr.t
+      | Allocas of IdT.t
       | Private of IdT.t
 
     type t =
@@ -141,7 +141,7 @@ module InvariantObject = struct
          Maydiff (Convert.register v)
       | CoreHint_t.Alloca prop_a ->
          Unary (convert_scope prop_a.scope,
-                Allocas (Convert.pointer_id prop_a.p lfdef))
+                Allocas (Convert.register prop_a.p))
       | CoreHint_t.Private prop_a ->
          Unary (convert_scope prop_a.scope,
                 Private (Convert.register prop_a.p))
@@ -155,8 +155,8 @@ module InvariantObject = struct
               Invariant.update_lessdef (ExprPairSet.add expr_pair) unary
            | Noalias (ptr1, ptr2) ->
               Invariant.update_noalias (PtrPairSet.add (ptr1, ptr2)) unary
-           | Allocas ptr ->
-              Invariant.update_allocas (PtrSet.add ptr) unary
+           | Allocas idt ->
+              Invariant.update_allocas (IdTSet.add idt) unary
            | Private idt ->
               Invariant.update_private (IdTSet.add idt) unary
          in
