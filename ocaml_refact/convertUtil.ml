@@ -170,20 +170,8 @@ module Convert = struct
   let pointer_val (value:CoreHint_t.value) (fdef:LLVMsyntax.fdef) : Ptr.t =
     match value with
     | CoreHint_t.Id reg -> pointer_id reg fdef
-    | CoreHint_t.ConstVal constval ->
-      let (c, ty) =
-        match constval with 
-        | CoreHint_t.ConstInt ci -> 
-          begin match ci.int_type with
-            | CoreHint_t.IntType sz ->
-              (LLVMsyntax.Coq_const_int (sz, const_int ci),
-              LLVMsyntax.Coq_typ_pointer (LLVMsyntax.Coq_typ_int sz))
-          end
-        | CoreHint_t.ConstFloat cf ->
-          (LLVMsyntax.Coq_const_floatpoint (float_type cf.float_type, const_float cf),
-          LLVMsyntax.Coq_typ_pointer (LLVMsyntax.Coq_typ_floatpoint (float_type cf.float_type)))
-      in
-      (ValueT.Coq_const c, ty)
+    | CoreHint_t.ConstVal _ ->
+      failwith "ConvertUtil.pointer_val: cannot get constant(int/float/...) pointer"
 
   let constant (constval:CoreHint_t.constant): LLVMsyntax.const = 
     match constval with 
