@@ -147,6 +147,39 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
      let b = Convert.value args.b in
      let sz = Convert.size args.sz in
      Infrule.Coq_and_de_morgan (z, x, y, zprime, a, b, sz)
+  | CoreHint_t.AndMone (args:CoreHint_t.and_mone) -> 
+     let z = Convert.value args.z in
+     let x = Convert.value args.x in
+     let sz = Convert.size args.sz in
+     Infrule.Coq_and_mone (z, x, sz)
+  | CoreHint_t.AndNot (args:CoreHint_t.and_not) -> 
+     let z = Convert.value args.z in
+     let x = Convert.value args.x in
+     let y = Convert.value args.y in
+     let sz = Convert.size args.sz in
+     Infrule.Coq_and_not (z, x, y, sz)
+  | CoreHint_t.AndOr (args:CoreHint_t.and_or) -> 
+     let z = Convert.value args.z in
+     let x = Convert.value args.x in
+     let y = Convert.value args.y in
+     let a = Convert.value args.a in
+     let sz = Convert.size args.sz in
+     Infrule.Coq_and_or (z, x, y, a, sz)
+  | CoreHint_t.AndSame (args:CoreHint_t.and_same) -> 
+     let z = Convert.value args.z in
+     let x = Convert.value args.x in
+     let sz = Convert.size args.sz in
+     Infrule.Coq_and_same (z, x, sz)
+  | CoreHint_t.AndUndef (args:CoreHint_t.and_undef) -> 
+     let z = Convert.value args.z in
+     let x = Convert.value args.x in
+     let sz = Convert.size args.sz in
+     Infrule.Coq_and_undef (z, x, sz)
+  | CoreHint_t.AndZero (args:CoreHint_t.and_zero) -> 
+     let z = Convert.value args.z in
+     let x = Convert.value args.x in
+     let sz = Convert.size args.sz in
+     Infrule.Coq_and_zero (z, x, sz)
   | CoreHint_t.Bitcastptr (args:CoreHint_t.bitcastptr) ->
      let v = Convert.value args.v in
      let vprime = Convert.value args.vprime in
@@ -215,6 +248,10 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
      let vprime = Convert.value args.vprime in
      let gepinst = Convert.expr args.gepinst src_fdef tgt_fdef in
      Infrule.Coq_gepzero (v, vprime, gepinst)
+  | CoreHint_t.LessthanUndef (args:CoreHint_t.lessthan_undef) ->
+     let ty = Convert.value_type args.ty in
+     let v = Convert.value args.v in
+     Infrule.Coq_lessthan_undef (ty, v)
   | CoreHint_t.OrCommutative (args:CoreHint_t.or_commutative) ->
      let z = Convert.register args.z in
      let x = Convert.value args.x in

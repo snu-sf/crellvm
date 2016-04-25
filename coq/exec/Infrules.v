@@ -307,6 +307,32 @@ Definition apply_infrule
        $$ inv0 |- (Expr.bop bop_xor s (ValueT.id z') (ValueT.const (const_int s (INTEGER.of_Z (Size.to_Z s) (-1)%Z true)))) >=tgt (Expr.value (ValueT.id z)) $$
     then {{inv0 +++ (Expr.bop bop_and s (ValueT.id x) (ValueT.id y)) >=tgt (Expr.value (ValueT.id z))}}
     else apply_fail tt
+  | Infrule.and_mone z x s =>
+    if $$ inv0 |- (Expr.value z) >=src (Expr.bop bop_and s x (ValueT.const (const_int s (INTEGER.of_Z (Size.to_Z s) (-1)%Z true)))) $$
+    then {{inv0 +++ (Expr.value z) >=src (Expr.value x) }}
+    else apply_fail tt
+  | Infrule.and_not z x y s =>
+    if $$ inv0 |- (Expr.value z) >=src (Expr.bop bop_and s x y) $$ &&
+       $$ inv0 |- (Expr.value y) >=src (Expr.bop bop_xor s x (ValueT.const (const_int s (INTEGER.of_Z (Size.to_Z s) (-1)%Z true)))) $$
+    then {{inv0 +++ (Expr.value z) >=src (Expr.value (ValueT.const (const_int s (INTEGER.of_Z (Size.to_Z s) 0%Z true)))) }}
+    else apply_fail tt
+  | Infrule.and_or z x y a s =>
+    if $$ inv0 |- (Expr.value z) >=src (Expr.bop bop_and s x y) $$ &&
+       $$ inv0 |- (Expr.value y) >=src (Expr.bop bop_or s x a) $$
+    then {{inv0 +++ (Expr.value z) >=src (Expr.value x) }}
+    else apply_fail tt
+  | Infrule.and_same z x s =>
+    if $$ inv0 |- (Expr.value z) >=src (Expr.bop bop_and s x x) $$
+    then {{inv0 +++ (Expr.value z) >=src (Expr.value x)}}
+    else apply_fail tt
+  | Infrule.and_undef z x s =>
+    if $$ inv0 |- (Expr.value z) >=src (Expr.bop bop_and s x (ValueT.const (const_undef (typ_int s)))) $$
+    then {{inv0 +++ (Expr.value z) >=src (Expr.value (ValueT.const (const_undef (typ_int s))))}}
+    else apply_fail tt
+  | Infrule.and_zero z x s =>
+    if $$ inv0 |- (Expr.value z) >=src (Expr.bop bop_and s x (ValueT.const (const_int s (INTEGER.of_Z (Size.to_Z s) 0%Z true)))) $$
+    then {{ inv0 +++ (Expr.value z) >=src (Expr.value (ValueT.const (const_int s (INTEGER.of_Z (Size.to_Z s) 0%Z true)))) }}
+    else apply_fail tt
   | Infrule.bop_distributive_over_selectinst opcode r s t' t x y z c bopsz selty =>
     if $$ inv0 |- (Expr.bop opcode bopsz x y) >=tgt (Expr.value (ValueT.id r)) $$ &&
        $$ inv0 |- (Expr.bop opcode bopsz x z) >=tgt (Expr.value (ValueT.id s)) $$ &&
@@ -359,6 +385,8 @@ Definition apply_infrule
       let inv0 := {{inv0 +++ (Expr.value v) >=src (Expr.value v')}} in
       {{inv0 +++ (Expr.value v') >=src (Expr.value v)}}
     else apply_fail tt
+  | Infrule.lessthan_undef ty v => 
+    {{ inv0 +++ (Expr.value (ValueT.const (const_undef ty))) >=src (Expr.value v) }}
   | Infrule.sdiv_sub_srem z b a x y s =>
     if $$ inv0 |- (Expr.value (ValueT.id b)) >=src (Expr.bop bop_srem s x y) $$ &&
        $$ inv0 |- (Expr.value (ValueT.id a)) >=src (Expr.bop bop_sub s x (ValueT.id b)) $$ &&

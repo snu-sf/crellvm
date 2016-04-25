@@ -372,6 +372,45 @@ type and_de_morgan = {
   sz : size;
 }
 
+type and_mone = {
+  z : value;
+  x : value;
+  sz : size;
+}
+
+type and_not = {
+  z : value;
+  x : value;
+  y : value;
+  sz : size;
+}
+
+type and_or = {
+  z : value;
+  x : value;
+  y : value;
+  a : value;
+  sz : size;
+}
+
+type and_same = {
+  z : value;
+  x : value;
+  sz : size;
+}
+
+type and_undef = {
+  z : value;
+  x : value;
+  sz : size;
+}
+
+type and_zero = {
+  z : value;
+  x : value;
+  sz : size;
+}
+
 type bop_distributive_over_selectinst = {
   opcode : bop;
   r : register;
@@ -454,6 +493,11 @@ type intro_ghost = {
 
 type intro_eq = {
   x : value;
+}
+
+type lessthan_undef = {
+  ty : value_type;
+  v : value;
 }
 
 type mul_bool = {
@@ -734,6 +778,12 @@ type infrule = [
   | AddXorAnd of add_xor_and
   | AndCommutative of and_commutative
   | AndDeMorgan of and_de_morgan
+  | AndMone of and_mone
+  | AndNot of and_not
+  | AndOr of and_or
+  | AndSame of and_same
+  | AndUndef of and_undef
+  | AndZero of and_zero
   | Bitcastptr of bitcastptr
   | BopDistributiveOverSelectinst of bop_distributive_over_selectinst
   | BopDistributiveOverSelectinst2 of bop_distributive_over_selectinst2
@@ -741,6 +791,7 @@ type infrule = [
   | FbopDistributiveOverSelectinst of fbop_distributive_over_selectinst
   | FbopDistributiveOverSelectinst2 of fbop_distributive_over_selectinst2
   | Gepzero of gepzero
+  | LessthanUndef of lessthan_undef
   | MulAddDistributive of mul_add_distributive
   | NegVal of neg_val
   | OrCommutative of or_commutative
