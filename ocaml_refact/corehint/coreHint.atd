@@ -80,6 +80,11 @@ type bop = [ | BopAdd | BopSub | BopMul | BopUdiv
 
 type fbop = [ BopFadd | BopFsub | BopFmul | BopFdiv | BopFrem ] <ocaml repr="classic">
 
+type pointer = {
+  v : value;
+  ty : value_type;
+}
+
 type binary_operator = {
   opcode : bop;
   operandtype : value_type;
@@ -142,8 +147,14 @@ type propagate_lessdef = {
 }
 
 type propagate_noalias = {
-  lhs : register;
-  rhs : register;
+  lhs : pointer;
+  rhs : pointer;
+  scope : scope;
+}
+
+type propagate_diffblock = {
+  lhs : value;
+  rhs : value;
   scope : scope;
 }
 
@@ -160,6 +171,7 @@ type propagate_private = {
 type propagate_object = [
   | Lessdef of propagate_lessdef
   | Noalias of propagate_noalias
+  | Diffblock of propagate_diffblock
   | Alloca of propagate_alloca
   | Maydiff of register
   | Private of propagate_private
@@ -245,11 +257,6 @@ type transitivity_tgt = {
   e1 : expr;
   e2 : expr;
   e3 : expr;
-}
-
-type diffblock_global_alloca = {
-  x : register;
-  y : register;
 }
 
 type transitivity_pointer_lhs = {
@@ -550,7 +557,7 @@ type neg_val = {
   sz : size;
 }
 
-type noalias_lessthan = {
+type diffblock_lessthan = {
   x : value;
   y : value;
   xprime : value;
@@ -558,14 +565,19 @@ type noalias_lessthan = {
 }
 
 type diffblock_noalias = {
-  x : register;
-  y : register;
-  xprime : register;
-  yprime : register;
+  x : value;
+  y : value;
+  xprime : pointer;
+  yprime : pointer;
 }
 
 type diffblock_global_global = {
-  x : register;
+  gx : constant;
+  gy : constant;
+}
+
+type diffblock_global_alloca = {
+  gx : constant;
   y : register;
 }
 
@@ -787,6 +799,10 @@ type infrule = [
   | Bitcastptr of bitcastptr
   | BopDistributiveOverSelectinst of bop_distributive_over_selectinst
   | BopDistributiveOverSelectinst2 of bop_distributive_over_selectinst2
+  | DiffblockGlobalAlloca of diffblock_global_alloca
+  | DiffblockGlobalGlobal of diffblock_global_global
+  | DiffblockLessthan of diffblock_lessthan
+  | DiffblockNoalias of diffblock_noalias
   | FaddCommutativeTgt of fadd_commutative_tgt
   | FbopDistributiveOverSelectinst of fbop_distributive_over_selectinst
   | FbopDistributiveOverSelectinst2 of fbop_distributive_over_selectinst2
@@ -804,10 +820,6 @@ type infrule = [
   | MulNeg of mul_neg
   | MulCommutative of mul_commutative
   | MulShl of mul_shl
-  | DiffblockGlobalAlloca of diffblock_global_alloca
-  | DiffblockGlobalGlobal of diffblock_global_global
-  | NoaliasLessthan of noalias_lessthan
-  | DiffblockNoalias of diffblock_noalias
   | RemNeg of rem_neg
   | SdivMone of sdiv_mone
   | SdivSubSrem of sdiv_sub_srem

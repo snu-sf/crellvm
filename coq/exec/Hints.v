@@ -105,8 +105,8 @@ Module Invariant.
     end.
 
   Definition implies_alias (alias0 alias:aliasrel): bool :=
-    PtrPairSet.subset (alias.(noalias)) (alias0.(noalias)) &&
-    ValueTPairSet.subset (alias.(diffblock)) (alias0.(diffblock)).
+    PtrPairSet.subset (alias0.(noalias)) (alias.(noalias)) &&
+    ValueTPairSet.subset (alias0.(diffblock)) (alias.(diffblock)).
 
   Definition implies_unary (inv0 inv:unary): bool :=
     ExprPairSet.subset (inv.(lessdef)) (inv0.(lessdef)) &&
@@ -222,6 +222,10 @@ Module Infrule.
   | bop_distributive_over_selectinst (opcode:bop) (r:IdT.t) (s:IdT.t) (t':IdT.t) (t0:IdT.t) (x:ValueT.t) (y:ValueT.t) (z:ValueT.t) (c:ValueT.t) (bopsz:sz) (selty:typ)
   | bop_distributive_over_selectinst2 (opcode:bop) (r:IdT.t) (s:IdT.t) (t':IdT.t) (t0:IdT.t) (x:ValueT.t) (y:ValueT.t) (z:ValueT.t) (c:ValueT.t) (bopsz:sz) (selty:typ)
   | bitcastptr (v:ValueT.t) (v':ValueT.t) (bitcastinst:Expr.t)
+  | diffblock_global_alloca (gx:const) (y:IdT.t)
+  | diffblock_global_global (gx:const) (gy:const)
+  | diffblock_lessthan (x:ValueT.t) (y:ValueT.t) (x':ValueT.t) (y':ValueT.t)
+  | diffblock_noalias (x:ValueT.t) (y:ValueT.t) (x':Ptr.t) (y':Ptr.t)
   | fadd_commutative_tgt (z:IdT.t) (x:ValueT.t) (y:ValueT.t) (fty:floating_point)
   | fbop_distributive_over_selectinst (opcode:fbop) (r:IdT.t) (s:IdT.t) (t':IdT.t) (t0:IdT.t) (x:ValueT.t) (y:ValueT.t) (z:ValueT.t) (c:ValueT.t) (fbopty:floating_point) (selty:typ)
   | fbop_distributive_over_selectinst2 (opcode:fbop) (r:IdT.t) (s:IdT.t) (t':IdT.t) (t0:IdT.t) (x:ValueT.t) (y:ValueT.t) (z:ValueT.t) (c:ValueT.t) (fbopty:floating_point) (selty:typ)
@@ -253,10 +257,6 @@ Module Infrule.
   | sub_shl (z:IdT.t) (x:ValueT.t) (y:IdT.t) (mx:ValueT.t) (a:ValueT.t) (sz:sz)
   | transitivity (e1:Expr.t) (e2:Expr.t) (e3:Expr.t)
   | transitivity_tgt (e1:Expr.t) (e2:Expr.t) (e3:Expr.t)
-  | diffblock_global_alloca (x:IdT.t) (y:IdT.t)
-  | diffblock_global_global (x:IdT.t) (y:IdT.t)
-  | noalias_lessthan (x:Ptr.t) (y:Ptr.t) (x':Ptr.t) (y':Ptr.t)
-  | diffblock_noalias (x:IdT.t) (y:IdT.t) (x':Ptr.t) (y':Ptr.t)
   | transitivity_pointer_lhs (p:ValueT.t) (q:ValueT.t) (v:ValueT.t) (ty:typ) (a:align)
   | transitivity_pointer_rhs (p:ValueT.t) (q:ValueT.t) (v:ValueT.t) (ty:typ) (a:align)
   | replace_rhs (x:IdT.t) (y:ValueT.t) (e1:Expr.t) (e2:Expr.t) (e2':Expr.t)
