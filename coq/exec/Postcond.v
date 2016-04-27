@@ -693,11 +693,11 @@ Definition postcond_cmd
   let uses_tgt := AtomSetImpl_from_list (Cmd.get_ids tgt) in
 
   if negb (postcond_cmd_inject_event src tgt inv0)
-  then None
+  then failwith_None "valid_cmds: postcond_cmd returned None, Case 1" nil
   else
   if negb (AtomSetImpl.is_empty (AtomSetImpl.inter (AtomSetImpl_from_list def_src') uses_src) &&
            AtomSetImpl.is_empty (AtomSetImpl.inter (AtomSetImpl_from_list def_tgt') uses_tgt))
-  then None
+  then failwith_None "valid_cmds: postcond_cmd returned None, Case 2" nil
   else
 
   let inv1 := Forget.t def_src def_tgt inv0 in
