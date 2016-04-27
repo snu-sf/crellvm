@@ -286,6 +286,12 @@ Definition inject_expr (inv:Invariant.t) (es et:Expr.t): bool :=
                                         (list_eq_dec const_dec lc1 lc2) &&
                                         (typ_dec u1 u2) &&
                                         (Invariant.inject_value inv v1 v2)
+  | Expr.insertvalue t1 v1 t'1 v'1 lc1, Expr.insertvalue t2 v2 t'2 v'2 lc2 =>
+    (typ_dec t1 t2)
+      && (Invariant.inject_value inv v1 v2)
+      && (typ_dec t'1 t'2)
+      && (Invariant.inject_value inv v'1 v'2)
+      && (list_eq_dec const_dec lc1 lc2)
   | Expr.gep ib1 t1 v1 lsv1 u1, Expr.gep ib2 t2 v2 lsv2 u2 => 
                                         (inbounds_dec ib1 ib2) &&
                                         (typ_dec t1 t2) &&
