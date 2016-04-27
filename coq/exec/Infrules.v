@@ -359,6 +359,14 @@ Definition apply_infrule
       let inv0 := {{inv0 +++ (Expr.value v) >=src (Expr.value v')}} in
       {{inv0 +++ (Expr.value v') >=src (Expr.value v)}}
     else apply_fail tt
+  | Infrule.bitcastptr_tgt v v' bitcastinst =>
+    if $$ inv0 |- (Expr.value v) >=tgt bitcastinst $$ &&
+       $$ inv0 |- bitcastinst >=tgt (Expr.value v) $$ &&
+       cond_bitcast_ptr v' bitcastinst
+    then 
+      let inv0 := {{inv0 +++ (Expr.value v) >=tgt (Expr.value v')}} in
+      {{inv0 +++ (Expr.value v') >=tgt (Expr.value v)}}
+    else apply_fail tt
   | Infrule.fadd_commutative_tgt z x y fty =>
     if $$ inv0 |- (Expr.fbop fbop_fadd fty x y) >=tgt (Expr.value (ValueT.id z)) $$
     then {{ inv0 +++ (Expr.fbop fbop_fadd fty y x) >=tgt (Expr.value (ValueT.id z)) }}
@@ -547,7 +555,9 @@ Definition apply_infrule
     match gx with
     | const_gid gx_ty gx_id =>
       if $$ inv0 |-allocasrc y $$ then
-        {{inv0 +++ (ValueT.id y) _||_src (ValueT.const gx) }}
+        let inv1 := {{inv0 +++ (ValueT.id y) _||_src (ValueT.const gx) }} in
+        let inv2 := {{inv1 +++ (ValueT.const gx) _||_src (ValueT.id y) }} in
+        inv2
       else apply_fail tt
     | _ => apply_fail tt
     end
@@ -558,7 +568,10 @@ Definition apply_infrule
       | const_gid gy_ty gy_id =>
         if id_dec gx_id gy_id
         then debug_string "diffblock_global_global : id_dec" (apply_fail tt)
-        else {{inv0 +++ (ValueT.const (const_gid gx_ty gx_id)) _||_src (ValueT.const (const_gid gy_ty gy_id)) }}
+        else 
+          let inv1 := {{inv0 +++ (ValueT.const (const_gid gx_ty gx_id)) _||_src (ValueT.const (const_gid gy_ty gy_id)) }} in
+          let inv2 := {{inv1 +++ (ValueT.const (const_gid gy_ty gy_id)) _||_src (ValueT.const (const_gid gx_ty gx_id)) }} in
+          inv2
       | _ => debug_string "diffblock_global_global : gy not globalvar" (apply_fail tt)
       end
     | _ => debug_string "diffblock_global_global : gx not globalvar" (apply_fail tt)

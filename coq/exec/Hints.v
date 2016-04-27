@@ -222,6 +222,7 @@ Module Infrule.
   | bop_distributive_over_selectinst (opcode:bop) (r:IdT.t) (s:IdT.t) (t':IdT.t) (t0:IdT.t) (x:ValueT.t) (y:ValueT.t) (z:ValueT.t) (c:ValueT.t) (bopsz:sz) (selty:typ)
   | bop_distributive_over_selectinst2 (opcode:bop) (r:IdT.t) (s:IdT.t) (t':IdT.t) (t0:IdT.t) (x:ValueT.t) (y:ValueT.t) (z:ValueT.t) (c:ValueT.t) (bopsz:sz) (selty:typ)
   | bitcastptr (v:ValueT.t) (v':ValueT.t) (bitcastinst:Expr.t)
+  | bitcastptr_tgt (v:ValueT.t) (v':ValueT.t) (bitcastinst:Expr.t)
   | diffblock_global_alloca (gx:const) (y:IdT.t)
   | diffblock_global_global (gx:const) (gy:const)
   | diffblock_lessthan (x:ValueT.t) (y:ValueT.t) (x':ValueT.t) (y':ValueT.t)

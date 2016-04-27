@@ -50,7 +50,11 @@ type float_type = [
                    (* equivalent to Syntax.LLVMsyntax.Coq_fp_x86_fp80 in Vellvm*)
     ] <ocaml repr="classic">
 
-type value_type = [ IntValueType of int_type | FloatValueType of float_type | NamedType of string | PtrType of (int * value_type) ] <ocaml repr="classic">
+type value_type = [ IntValueType of int_type 
+        | FloatValueType of float_type 
+        | NamedType of string 
+        | PtrType of (int * value_type) 
+        | ArrayType of (int * value_type) ] <ocaml repr="classic">
 
 type const_int = {
   int_value : int;
@@ -67,7 +71,20 @@ type const_global_var_addr = {
   var_type : value_type;
 }
 
-type constant = [ ConstInt of const_int | ConstFloat of const_float | ConstUndef of value_type | ConstGlobalVarAddr of const_global_var_addr ] <ocaml repr="classic">
+type const_expr_get_element_ptr = {
+  srcelemty : value_type;
+  v : constant;
+  idxlist : constant list;
+  dstty : value_type;
+  is_inbounds : bool;
+}
+
+type constant_expr = [ ConstExprGetElementPtr of const_expr_get_element_ptr ] <ocaml repr="classic">
+
+type constant = [ ConstInt of const_int | ConstFloat of const_float 
+        | ConstUndef of value_type 
+        | ConstGlobalVarAddr of const_global_var_addr 
+        | ConstExpr of constant_expr ] <ocaml repr="classic">
 
 type value = [ Id of register | ConstVal of constant ] <ocaml repr="classic">
 
@@ -438,6 +455,12 @@ type bitcastptr = {
   bitcastinst : expr;
 }
 
+type bitcastptr_tgt = {
+  v : value;
+  vprime : value;
+  bitcastinst : expr;
+}
+
 type bop_distributive_over_selectinst2 = {
   opcode : bop;
   r : register;
@@ -797,6 +820,7 @@ type infrule = [
   | AndUndef of and_undef
   | AndZero of and_zero
   | Bitcastptr of bitcastptr
+  | BitcastptrTgt of bitcastptr_tgt
   | BopDistributiveOverSelectinst of bop_distributive_over_selectinst
   | BopDistributiveOverSelectinst2 of bop_distributive_over_selectinst2
   | DiffblockGlobalAlloca of diffblock_global_alloca

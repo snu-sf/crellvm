@@ -185,6 +185,11 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
      let vprime = Convert.value args.vprime in
      let bitcastinst = Convert.expr args.bitcastinst src_fdef tgt_fdef in
      Infrule.Coq_bitcastptr (v, vprime, bitcastinst)
+  | CoreHint_t.BitcastptrTgt (args:CoreHint_t.bitcastptr_tgt) ->
+     let v = Convert.value args.v in
+     let vprime = Convert.value args.vprime in
+     let bitcastinst = Convert.expr args.bitcastinst src_fdef tgt_fdef in
+     Infrule.Coq_bitcastptr_tgt (v, vprime, bitcastinst)
   | CoreHint_t.BopDistributiveOverSelectinst (args:CoreHint_t.bop_distributive_over_selectinst) ->
      let opcode = Convert.bop args.opcode in
      let r = Convert.register args.r in
