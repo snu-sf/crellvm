@@ -70,14 +70,16 @@ Module Previousify.
     | ValueT.const c => v
     end.
 
-  Definition ValueTPair (ep:ValueTPair.t): ValueTPair.t := (ValueT (fst ep), ValueT (snd ep)).
+  Definition ValueTPair (ep:ValueTPair.t): ValueTPair.t :=
+    (ValueT (fst ep), ValueT (snd ep)).
 
   Definition Expr (e:Expr.t): Expr.t :=
     match e with
     | Expr.bop op s v1 v2 => Expr.bop op s (ValueT v1) (ValueT v2)
     | Expr.fbop op fp v1 v2 => Expr.fbop op fp (ValueT v1) (ValueT v2)
     | Expr.extractvalue ty1 v lc ty2 => Expr.extractvalue ty1 (ValueT v) lc ty2
-    | Expr.insertvalue ty1 v1 ty2 v2 lc => Expr.insertvalue ty1 (ValueT v1) ty2 (ValueT v2) lc
+    | Expr.insertvalue ty1 v1 ty2 v2 lc =>
+      Expr.insertvalue ty1 (ValueT v1) ty2 (ValueT v2) lc
     | Expr.gep ib ty1 v1 lsv ty2 =>
       let lsvT := List.map (fun elt => (fst elt, ValueT (snd elt))) lsv in
       Expr.gep ib ty1 (ValueT v1) lsvT ty2
@@ -147,7 +149,8 @@ Module Snapshot.
 
   Definition ValueTPairSet (inv0:ValueTPairSet.t): ValueTPairSet.t :=
     let inv1 := ValueTPairSet.filter (compose negb (LiftPred.ValueTPair IdT)) inv0 in
-    let inv2 := ValueTPairSet.union inv1 (ValueTPairSet_map Previousify.ValueTPair inv1) in
+    let inv2 :=
+        ValueTPairSet.union inv1 (ValueTPairSet_map Previousify.ValueTPair inv1) in
     inv2.
 
   Definition ExprPairSet (inv0:ExprPairSet.t): ExprPairSet.t :=
@@ -172,7 +175,8 @@ Module Snapshot.
 
   Definition diffblock (inv0:ValueTPairSet.t): ValueTPairSet.t :=
     let inv1 := ValueTPairSet.filter (compose negb (LiftPred.ValueTPair IdT)) inv0 in
-    let inv2 := ValueTPairSet.union inv1 (ValueTPairSet_map Previousify.ValueTPair inv1) in
+    let inv2 :=
+        ValueTPairSet.union inv1 (ValueTPairSet_map Previousify.ValueTPair inv1) in
     inv2.
 
   Definition alias (inv0: Invariant.aliasrel): Invariant.aliasrel :=
@@ -210,21 +214,35 @@ End Snapshot.
 
 Module Forget.
   Definition alias (ids:IdTSet.t) (inv0:Invariant.aliasrel): Invariant.aliasrel :=
-    let inv1 := Invariant.update_diffblock_rel (ValueTPairSet.filter (compose negb (LiftPred.ValueTPair (flip IdTSet.mem ids)))) inv0 in
-    let inv2 := Invariant.update_noalias_rel (PtrPairSet.filter (compose negb (LiftPred.PtrPair (flip IdTSet.mem ids)))) inv1 in
+    let inv1 :=
+        Invariant.update_diffblock_rel
+          (ValueTPairSet.filter
+             (compose negb (LiftPred.ValueTPair (flip IdTSet.mem ids)))) inv0 in
+    let inv2 :=
+        Invariant.update_noalias_rel
+          (PtrPairSet.filter
+             (compose negb (LiftPred.PtrPair (flip IdTSet.mem ids)))) inv1 in
     inv2.
 
   Definition unary (ids:IdTSet.t) (inv0:Invariant.unary): Invariant.unary :=
-    let inv1 := Invariant.update_lessdef (ExprPairSet.filter (compose negb (LiftPred.ExprPair (flip IdTSet.mem ids)))) inv0 in
+    let inv1 :=
+        Invariant.update_lessdef
+          (ExprPairSet.filter
+             (compose negb (LiftPred.ExprPair (flip IdTSet.mem ids)))) inv0 in
     let inv2 := Invariant.update_alias (alias ids) inv1 in
-    let inv3 := Invariant.update_allocas (IdTSet.filter (compose negb (flip IdTSet.mem ids))) inv2 in
-    let inv4 := Invariant.update_private (IdTSet.filter (compose negb (flip IdTSet.mem ids))) inv3 in
+    let inv3 :=
+        Invariant.update_allocas
+          (IdTSet.filter (compose negb (flip IdTSet.mem ids))) inv2 in
+    let inv4 :=
+        Invariant.update_private
+          (IdTSet.filter (compose negb (flip IdTSet.mem ids))) inv3 in
     inv4.
 
   Definition t (s_src s_tgt:IdTSet.t) (inv0:Invariant.t): Invariant.t :=
     let inv1 := Invariant.update_src (unary s_src) inv0 in
     let inv2 := Invariant.update_tgt (unary s_tgt) inv1 in
-    let inv3 := Invariant.update_maydiff (IdTSet.union (IdTSet.union s_src s_tgt)) inv2 in
+    let inv3 :=
+        Invariant.update_maydiff (IdTSet.union (IdTSet.union s_src s_tgt)) inv2 in
     inv3.
 End Forget.
 
@@ -238,10 +256,12 @@ Module ForgetMemory.
       | _ => true
     end.
   
-  Definition is_noalias_ExprPair (inv:Invariant.unary) (ps:PtrSet.t) (ep:ExprPair.t): bool :=
+  Definition is_noalias_ExprPair
+             (inv:Invariant.unary) (ps:PtrSet.t) (ep:ExprPair.t): bool :=
     is_noalias_Expr inv ps (fst ep) && is_noalias_Expr inv ps (snd ep).
 
-  Definition is_noalias_PtrPair (inv: Invariant.unary) (ps:PtrSet.t) (pp:PtrPair.t): bool :=
+  Definition is_noalias_PtrPair
+             (inv: Invariant.unary) (ps:PtrSet.t) (pp:PtrPair.t): bool :=
     is_noalias_Ptr inv ps (fst pp) && is_noalias_Ptr inv ps (snd pp).
 
   Definition unary (ps:PtrSet.t) (inv0:Invariant.unary): Invariant.unary :=
@@ -272,20 +292,20 @@ Definition reduce_non_physical (inv0: Invariant.t): Invariant.t :=
 Definition inject_expr (inv:Invariant.t) (es et:Expr.t): bool :=
   match es, et with
   | Expr.bop b1 s1 v1 w1, Expr.bop b2 s2 v2 w2 => 
-                                        (bop_dec b1 b2) &&
-                                        (sz_dec s1 s2) &&
-                                        (Invariant.inject_value inv v1 v2) && 
-                                        (Invariant.inject_value inv w1 w2)
+    (bop_dec b1 b2)
+      && (sz_dec s1 s2)
+      && (Invariant.inject_value inv v1 v2)
+      && (Invariant.inject_value inv w1 w2)
   | Expr.fbop fb1 fp1 v1 w1, Expr.fbop fb2 fp2 v2 w2 => 
-                                        (fbop_dec fb1 fb2) &&
-                                        (floating_point_dec fp1 fp2) &&
-                                        (Invariant.inject_value inv v1 v2) && 
-                                        (Invariant.inject_value inv w1 w2)
+    (fbop_dec fb1 fb2)
+      && (floating_point_dec fp1 fp2)
+      && (Invariant.inject_value inv v1 v2)
+      && (Invariant.inject_value inv w1 w2)
   | Expr.extractvalue t1 v1 lc1 u1, Expr.extractvalue t2 v2 lc2 u2 => 
-                                        (typ_dec t1 t2) &&
-                                        (list_eq_dec const_dec lc1 lc2) &&
-                                        (typ_dec u1 u2) &&
-                                        (Invariant.inject_value inv v1 v2)
+    (typ_dec t1 t2)
+      && (list_eq_dec const_dec lc1 lc2)
+      && (typ_dec u1 u2)
+      && (Invariant.inject_value inv v1 v2)
   | Expr.insertvalue t1 v1 t'1 v'1 lc1, Expr.insertvalue t2 v2 t'2 v'2 lc2 =>
     (typ_dec t1 t2)
       && (Invariant.inject_value inv v1 v2)
@@ -293,65 +313,69 @@ Definition inject_expr (inv:Invariant.t) (es et:Expr.t): bool :=
       && (Invariant.inject_value inv v'1 v'2)
       && (list_eq_dec const_dec lc1 lc2)
   | Expr.gep ib1 t1 v1 lsv1 u1, Expr.gep ib2 t2 v2 lsv2 u2 => 
-                                        (inbounds_dec ib1 ib2) &&
-                                        (typ_dec t1 t2) &&
-                                        (list_eq_dec sz_dec (List.map fst lsv1) 
-                                                            (List.map fst lsv2)) &&
-                                        (List.existsb 
-                                           (fun p => List.existsb
-                                                       (fun q => Invariant.inject_value inv p q)
-                                                       (List.map snd lsv2))
-                                           (List.map snd lsv1)) &&
-                                        (typ_dec u1 u2) &&
-                                        (Invariant.inject_value inv v1 v2) 
+    (inbounds_dec ib1 ib2)
+      && (typ_dec t1 t2)
+      && (list_eq_dec sz_dec
+                      (List.map fst lsv1) 
+                      (List.map fst lsv2))
+      && (List.existsb 
+            (fun p => List.existsb
+                        (fun q => Invariant.inject_value inv p q)
+                        (List.map snd lsv2))
+            (List.map snd lsv1))
+      && (typ_dec u1 u2)
+      && (Invariant.inject_value inv v1 v2) 
   | Expr.trunc top1 t1 v1 u1, Expr.trunc top2 t2 v2 u2 => 
-                                        (truncop_dec top1 top2) &&
-                                        (typ_dec t1 t2) &&
-                                        (typ_dec u1 u2) &&
-                                        (Invariant.inject_value inv v1 v2)
+    (truncop_dec top1 top2)
+      && (typ_dec t1 t2)
+      && (typ_dec u1 u2)
+      && (Invariant.inject_value inv v1 v2)
   | Expr.ext eop1 t1 v1 u1, Expr.ext eop2 t2 v2 u2 => 
-                                        (extop_dec eop1 eop2) &&
-                                        (typ_dec t1 t2) &&
-                                        (typ_dec u1 u2) &&
-                                        (Invariant.inject_value inv v1 v2) 
+    (extop_dec eop1 eop2)
+      && (typ_dec t1 t2)
+      && (typ_dec u1 u2)
+      && (Invariant.inject_value inv v1 v2) 
   | Expr.cast cop1 t1 v1 u1, Expr.cast cop2 t2 v2 u2 => 
-                                        (castop_dec cop1 cop2) &&
-                                        (typ_dec t1 t2) &&
-                                        (typ_dec u1 u2) &&
-                                        (Invariant.inject_value inv v1 v2) 
+    (castop_dec cop1 cop2)
+      && (typ_dec t1 t2)
+      && (typ_dec u1 u2)
+      && (Invariant.inject_value inv v1 v2) 
   | Expr.icmp c1 t1 v1 w1, Expr.icmp c2 t2 v2 w2  => 
-                                        (cond_dec c1 c2) &&
-                                        (typ_dec t1 t2) &&
-                                        (Invariant.inject_value inv v1 v2) &&
-                                        (Invariant.inject_value inv w1 w2)
+    (cond_dec c1 c2)
+      && (typ_dec t1 t2)
+      && (Invariant.inject_value inv v1 v2)
+      && (Invariant.inject_value inv w1 w2)
   | Expr.fcmp fc1 fp1 v1 w1, Expr.fcmp fc2 fp2 v2 w2  => 
-                                        (fcond_dec fc1 fc2) &&
-                                        (floating_point_dec fp1 fp2) &&
-                                        (Invariant.inject_value inv v1 v2) &&
-                                        (Invariant.inject_value inv w1 w2)
+    (fcond_dec fc1 fc2)
+      && (floating_point_dec fp1 fp2)
+      && (Invariant.inject_value inv v1 v2)
+      && (Invariant.inject_value inv w1 w2)
   | Expr.select v1 t1 w1 z1, Expr.select v2 t2 w2 z2 => 
-                                        (typ_dec t1 t2) &&
-                                        (Invariant.inject_value inv v1 v2) &&
-                                        (Invariant.inject_value inv w1 w2) &&
-                                        (Invariant.inject_value inv z1 z2)
+    (typ_dec t1 t2)
+      && (Invariant.inject_value inv v1 v2)
+      && (Invariant.inject_value inv w1 w2)
+      && (Invariant.inject_value inv z1 z2)
   | Expr.value v1, Expr.value v2 => (Invariant.inject_value inv v1 v2)
   | Expr.load v1 t1 a1, Expr.load v2 t2 a2 => 
-                                        (typ_dec t1 t2) &&
-                                        (Decs.align_dec a1 a2) &&
-                                        (Invariant.inject_value inv v1 v2)
+    (typ_dec t1 t2)
+      && (Decs.align_dec a1 a2)
+      && (Invariant.inject_value inv v1 v2)
   | _, _ => false
   end.
 
 Definition reduce_maydiff (inv0:Invariant.t): Invariant.t :=
   let lessdef_src := inv0.(Invariant.src).(Invariant.lessdef) in
   let lessdef_tgt := inv0.(Invariant.tgt).(Invariant.lessdef) in
-  let inv1 := Invariant.update_maydiff
-                (IdTSet.filter
-                   (fun id => negb (ExprPairSet.exists_
-                                      (fun p => ExprPairSet.exists_
-                                                  (fun q => inject_expr inv0 (snd p) (fst q))
-                                                  (Invariant.get_lhs lessdef_tgt (fst p)))
-                                   (Invariant.get_rhs lessdef_src (Expr.value (ValueT.id id)))))) inv0 in
+  let inv1 :=
+      Invariant.update_maydiff
+        (IdTSet.filter
+           (fun id =>
+              negb (ExprPairSet.exists_
+                      (fun p => ExprPairSet.exists_
+                                  (fun q => inject_expr inv0 (snd p) (fst q))
+                                  (Invariant.get_lhs lessdef_tgt (fst p)))
+                      (Invariant.get_rhs lessdef_src
+                                         (Expr.value (ValueT.id id)))))) inv0 in
   let inv2 := reduce_non_physical inv1 in
   inv2.
 
@@ -363,11 +387,13 @@ Definition reduce_maydiff_default (inv0:Invariant.t): Invariant.t :=
                      lessdef_src in
   let inv1 := Invariant.update_maydiff
                 (IdTSet.filter
-                   (fun id => negb (ExprPairSet.exists_
-                                      (fun ep => ((Expr.eq_dec (fst ep)
-                                                               (Expr.value (ValueT.id id)))
-                                                    && Invariant.not_in_maydiff_expr inv0 (snd ep)))
-                                      equations)))
+                   (fun id =>
+                      negb (ExprPairSet.exists_
+                              (fun ep =>
+                                 ((Expr.eq_dec (fst ep)
+                                               (Expr.value (ValueT.id id)))
+                                    && Invariant.not_in_maydiff_expr inv0 (snd ep)))
+                              equations)))
                 inv0 in
   let inv2 := reduce_non_physical inv1 in
   inv2.
@@ -395,24 +421,42 @@ Module Cmd.
   Definition get_rhs (c:t): option Expr.t :=
     match c with
     | insn_nop _ => None
-    | insn_bop x b s v1 v2 => Some (Expr.bop b s (ValueT.lift Tag.physical v1) (ValueT.lift Tag.physical v2))
-    | insn_fbop x fb fp v1 v2 => Some (Expr.fbop fb fp (ValueT.lift Tag.physical v1) (ValueT.lift Tag.physical v2))
-    | insn_extractvalue x ty1 v lc ty2 => Some (Expr.extractvalue ty1 (ValueT.lift Tag.physical v) lc ty2)
-    | insn_insertvalue x ty1 v1 ty2 v2 lc => Some (Expr.insertvalue ty1 (ValueT.lift Tag.physical v1) ty2 (ValueT.lift Tag.physical v2) lc)
+    | insn_bop x b s v1 v2 =>
+      Some (Expr.bop b s (ValueT.lift Tag.physical v1) (ValueT.lift Tag.physical v2))
+    | insn_fbop x fb fp v1 v2 =>
+      Some (Expr.fbop fb fp (ValueT.lift Tag.physical v1) (ValueT.lift Tag.physical v2))
+    | insn_extractvalue x ty1 v lc ty2 =>
+      Some (Expr.extractvalue ty1 (ValueT.lift Tag.physical v) lc ty2)
+    | insn_insertvalue x ty1 v1 ty2 v2 lc =>
+      Some (Expr.insertvalue ty1 (ValueT.lift Tag.physical v1)
+                             ty2 (ValueT.lift Tag.physical v2) lc)
     | insn_malloc x ty v a => None
     | insn_free x ty v => None
     | insn_alloca x ty v a => None
     | insn_load x ty p a => Some (Expr.load (ValueT.lift Tag.physical p) ty a)
     | insn_store x ty v p a => None
     | insn_gep x ib ty1 v lsv ty2 =>
-      let lsvT := List.map (fun elt => (fst elt, ValueT.lift Tag.physical (snd elt))) lsv in
+      let lsvT :=
+          List.map (fun elt => (fst elt, ValueT.lift Tag.physical (snd elt))) lsv in
       Some (Expr.gep ib ty1 (ValueT.lift Tag.physical v) lsvT ty2)
-    | insn_trunc x trop ty1 v ty2 => Some (Expr.trunc trop ty1 (ValueT.lift Tag.physical v) ty2)
-    | insn_ext x eop ty1 v ty2 => Some (Expr.ext eop ty1 (ValueT.lift Tag.physical v) ty2)
-    | insn_cast x cop ty1 v ty2 => Some (Expr.cast cop ty1 (ValueT.lift Tag.physical v) ty2)
-    | insn_icmp x con ty v1 v2 => Some (Expr.icmp con ty (ValueT.lift Tag.physical v1) (ValueT.lift Tag.physical v2))
-    | insn_fcmp x fcon fp v1 v2 => Some (Expr.fcmp fcon fp (ValueT.lift Tag.physical v1) (ValueT.lift Tag.physical v2))
-    | insn_select x v1 ty v2 v3 => Some (Expr.select (ValueT.lift Tag.physical v1) ty (ValueT.lift Tag.physical v2) (ValueT.lift Tag.physical v3))
+    | insn_trunc x trop ty1 v ty2 =>
+      Some (Expr.trunc trop ty1 (ValueT.lift Tag.physical v) ty2)
+    | insn_ext x eop ty1 v ty2 =>
+      Some (Expr.ext eop ty1 (ValueT.lift Tag.physical v) ty2)
+    | insn_cast x cop ty1 v ty2 =>
+      Some (Expr.cast cop ty1 (ValueT.lift Tag.physical v) ty2)
+    | insn_icmp x con ty v1 v2 =>
+      Some (Expr.icmp con ty
+                      (ValueT.lift Tag.physical v1)
+                      (ValueT.lift Tag.physical v2))
+    | insn_fcmp x fcon fp v1 v2 =>
+      Some (Expr.fcmp fcon fp
+                      (ValueT.lift Tag.physical v1)
+                      (ValueT.lift Tag.physical v2))
+    | insn_select x v1 ty v2 v3 =>
+      Some (Expr.select (ValueT.lift Tag.physical v1) ty
+                        (ValueT.lift Tag.physical v2)
+                        (ValueT.lift Tag.physical v3))
     | insn_call x _ _ typ _ f params => None
     end.
 
@@ -484,7 +528,8 @@ Definition get_br_cond
       let cond_val := if (l_dec l_to l1) then 1%Z else 0%Z in
       ExprPairSet.singleton
         (Expr.value (ValueT.lift Tag.physical v),
-         Expr.value (ValueT.const (const_int sz (INTEGER.of_Z (Size.to_Z sz) cond_val true))))
+         Expr.value
+           (ValueT.const (const_int sz (INTEGER.of_Z (Size.to_Z sz) cond_val true))))
     | _ => ExprPairSet.empty
   end.
 
@@ -494,8 +539,14 @@ Definition postcond_branch
            (inv:Invariant.t): Invariant.t :=
   match lookupAL _ blocks_src l_from, lookupAL _ blocks_tgt l_from with
     | Some (stmts_intro _ _ term_src), Some (stmts_intro _ _ term_tgt) =>
-      let inv1 := Invariant.update_src (Invariant.update_lessdef (ExprPairSet.union (get_br_cond term_src l_to))) inv in
-      let inv2 := Invariant.update_tgt (Invariant.update_lessdef (ExprPairSet.union (get_br_cond term_tgt l_to))) inv1 in
+      let inv1 :=
+          Invariant.update_src
+            (Invariant.update_lessdef
+               (ExprPairSet.union (get_br_cond term_src l_to))) inv in
+      let inv2 :=
+          Invariant.update_tgt
+            (Invariant.update_lessdef
+               (ExprPairSet.union (get_br_cond term_tgt l_to))) inv1 in
       inv2
     | _, _ => inv
   end.
@@ -526,8 +577,12 @@ Definition postcond_phinodes_assigns
 
   let inv1 := Snapshot.t inv0 in
   let inv2 := Forget.t defs_src defs_tgt inv1 in
-  let inv3 := Invariant.update_src (Invariant.update_lessdef (postcond_phinodes_add_lessdef assigns_src)) inv2 in
-  let inv4 := Invariant.update_tgt (Invariant.update_lessdef (postcond_phinodes_add_lessdef assigns_tgt)) inv3 in
+  let inv3 :=
+      Invariant.update_src
+        (Invariant.update_lessdef (postcond_phinodes_add_lessdef assigns_src)) inv2 in
+  let inv4 :=
+      Invariant.update_tgt
+        (Invariant.update_lessdef (postcond_phinodes_add_lessdef assigns_tgt)) inv3 in
   let inv5 := reduce_maydiff inv4 in
   Some inv5.
 
@@ -552,14 +607,16 @@ Definition postcond_cmd_inject_event
     clattrs_dec cl1 cl2 &&
     typ_dec t1 t2 &&
     varg_dec va1 va2 &&
-    Invariant.inject_value inv (ValueT.lift Tag.physical v1) (ValueT.lift Tag.physical v2) &&
+    (Invariant.inject_value
+       inv (ValueT.lift Tag.physical v1) (ValueT.lift Tag.physical v2)) &&
     list_forallb2
       (fun p1 p2 =>
          let '(ty1, attr1, v1) := p1 in
          let '(ty2, attr2, v2) := p2 in
          typ_dec t1 t2 &&
          attributes_dec attr1 attr2 &&
-         Invariant.inject_value inv (ValueT.lift Tag.physical v1) (ValueT.lift Tag.physical v2))
+         (Invariant.inject_value
+            inv (ValueT.lift Tag.physical v1) (ValueT.lift Tag.physical v2)))
       p1 p2
   | insn_call _ _ _ _ _ _ _, _
   | _, insn_call _ _ _ _ _ _ _ => false
@@ -567,7 +624,8 @@ Definition postcond_cmd_inject_event
   | insn_store _ t1 v1 p1 a1,
     insn_store _ t2 v2 p2 a2 =>
     typ_dec t1 t2 &&
-    Invariant.inject_value inv (ValueT.lift Tag.physical v1) (ValueT.lift Tag.physical v2)
+    (Invariant.inject_value
+       inv (ValueT.lift Tag.physical v1) (ValueT.lift Tag.physical v2))
   | insn_store _ t1 v1 p1 a1, insn_nop _ =>
     Invariant.is_private inv.(Invariant.src) (ValueT.lift Tag.physical p1)
   (* | insn_store _ _ _ _ _, _ *)
@@ -575,20 +633,23 @@ Definition postcond_cmd_inject_event
 
   | insn_load x1 t1 v1 a1, insn_load x2 t2 v2 a2 =>
     typ_dec t1 t2 &&
-    Invariant.inject_value inv (ValueT.lift Tag.physical v1) (ValueT.lift Tag.physical v2) &&
+    (Invariant.inject_value
+       inv (ValueT.lift Tag.physical v1) (ValueT.lift Tag.physical v2)) &&
     align_dec a1 a2
   | _, insn_load _ _ _ _ => false
 
   | insn_free _ t1 p1, insn_free _ t2 p2 =>
     typ_dec t1 t2 &&
-    Invariant.inject_value inv (ValueT.lift Tag.physical p1) (ValueT.lift Tag.physical p2)
+    (Invariant.inject_value
+       inv (ValueT.lift Tag.physical p1) (ValueT.lift Tag.physical p2))
   | insn_free _ _ _, _
   | _, insn_free _ _ _ => false
 
   | insn_alloca x1 t1 v1 a1, insn_alloca x2 t2 v2 a2 =>
     id_dec x1 x2 &&
     typ_dec t1 t2 &&
-    Invariant.inject_value inv (ValueT.lift Tag.physical v1) (ValueT.lift Tag.physical v2) &&
+    (Invariant.inject_value
+       inv (ValueT.lift Tag.physical v1) (ValueT.lift Tag.physical v2)) &&
     align_dec a1 a2
   | insn_alloca _ _ _ _, insn_nop _ => true
   | insn_nop _, insn_alloca _ _ _ _ => true
@@ -598,7 +659,8 @@ Definition postcond_cmd_inject_event
   | insn_malloc x1 t1 v1 a1, insn_malloc x2 t2 v2 a2 =>
     id_dec x1 x2 &&
     typ_dec t1 t2 &&
-    Invariant.inject_value inv (ValueT.lift Tag.physical v1) (ValueT.lift Tag.physical v2) &&
+    (Invariant.inject_value
+       inv (ValueT.lift Tag.physical v1) (ValueT.lift Tag.physical v2)) &&
     align_dec a1 a2
   | insn_malloc _ _ _ _, _ => false
   | _, insn_malloc _ _ _ _ => false
@@ -611,16 +673,34 @@ Definition postcond_cmd_add_private_allocas
            (inv0:Invariant.t): Invariant.t :=
   match src, tgt with
   | insn_alloca aid_src _ _ _, insn_alloca aid_tgt _ _ _ =>
-    let inv1 := Invariant.update_src (Invariant.update_allocas (IdTSet.add (IdT.lift Tag.physical aid_src))) inv0 in
-    let inv2 := Invariant.update_tgt (Invariant.update_allocas (IdTSet.add (IdT.lift Tag.physical aid_tgt))) inv1 in
+    let inv1 :=
+        Invariant.update_src
+          (Invariant.update_allocas
+             (IdTSet.add (IdT.lift Tag.physical aid_src))) inv0 in
+    let inv2 :=
+        Invariant.update_tgt
+          (Invariant.update_allocas
+             (IdTSet.add (IdT.lift Tag.physical aid_tgt))) inv1 in
     inv2
   | insn_alloca aid_src _ _ _, insn_nop _ =>
-    let inv1 := Invariant.update_src (Invariant.update_allocas (IdTSet.add (IdT.lift Tag.physical aid_src))) inv0 in
-    let inv2 := Invariant.update_src (Invariant.update_private (IdTSet.add (IdT.lift Tag.physical aid_src))) inv1 in
+    let inv1 :=
+        Invariant.update_src
+          (Invariant.update_allocas
+             (IdTSet.add (IdT.lift Tag.physical aid_src))) inv0 in
+    let inv2 :=
+        Invariant.update_src
+          (Invariant.update_private
+             (IdTSet.add (IdT.lift Tag.physical aid_src))) inv1 in
     inv2
   | insn_nop _, insn_alloca aid_tgt _ _ _ =>
-    let inv1 := Invariant.update_tgt (Invariant.update_allocas (IdTSet.add (IdT.lift Tag.physical aid_tgt))) inv0 in
-    let inv2 := Invariant.update_tgt (Invariant.update_private (IdTSet.add (IdT.lift Tag.physical aid_tgt))) inv1 in
+    let inv1 :=
+        Invariant.update_tgt
+          (Invariant.update_allocas
+             (IdTSet.add (IdT.lift Tag.physical aid_tgt))) inv0 in
+    let inv2 :=
+        Invariant.update_tgt
+          (Invariant.update_private
+             (IdTSet.add (IdT.lift Tag.physical aid_tgt))) inv1 in
     inv2
   | _, _ => inv0
   end.
@@ -631,7 +711,9 @@ Definition postcond_cmd_get_lessdef
   | Some lhs, Some rhs => Some (Expr.value (IdT.lift Tag.physical lhs), rhs)
   | _, _ =>
     match c with
-    | insn_store x ty v p a => Some (Expr.load (ValueT.lift Tag.physical p) ty a, Expr.value (ValueT.lift Tag.physical v))
+    | insn_store x ty v p a =>
+      Some (Expr.load (ValueT.lift Tag.physical p) ty a,
+            Expr.value (ValueT.lift Tag.physical v))
     | _ => None
     end
   end.
@@ -655,8 +737,12 @@ Definition postcond_cmd_add_diffblock
   | insn_alloca x ty v a =>
     IdTSet.fold
       (fun alloca result0 =>
-         let result1 := ValueTPairSet.add (ValueT.id alloca, ValueT.id (IdT.lift Tag.physical x)) result0 in
-         let result2 := ValueTPairSet.add (ValueT.id (IdT.lift Tag.physical x), ValueT.id alloca) result1 in
+         let result1 :=
+             ValueTPairSet.add
+               (ValueT.id alloca, ValueT.id (IdT.lift Tag.physical x)) result0 in
+         let result2 :=
+             ValueTPairSet.add
+               (ValueT.id (IdT.lift Tag.physical x), ValueT.id alloca) result1 in
          result2)
       allocas
       inv0
@@ -695,17 +781,28 @@ Definition postcond_cmd
   if negb (postcond_cmd_inject_event src tgt inv0)
   then failwith_None "valid_cmds: postcond_cmd returned None, Case 1" nil
   else
-  if negb (AtomSetImpl.is_empty (AtomSetImpl.inter (AtomSetImpl_from_list def_src') uses_src) &&
-           AtomSetImpl.is_empty (AtomSetImpl.inter (AtomSetImpl_from_list def_tgt') uses_tgt))
+  if negb
+       ((AtomSetImpl.is_empty
+           (AtomSetImpl.inter (AtomSetImpl_from_list def_src') uses_src))
+          && (AtomSetImpl.is_empty
+                (AtomSetImpl.inter (AtomSetImpl_from_list def_tgt') uses_tgt)))
   then failwith_None "valid_cmds: postcond_cmd returned None, Case 2" nil
   else
 
   let inv1 := Forget.t def_src def_tgt inv0 in
   let inv2 := ForgetMemory.t def_memory_src def_memory_tgt inv1 in
-  let inv3 := Invariant.update_src (Invariant.update_lessdef (postcond_cmd_add_lessdef src)) inv2 in
-  let inv4 := Invariant.update_tgt (Invariant.update_lessdef (postcond_cmd_add_lessdef tgt)) inv3 in
-  let inv5 := Invariant.update_src (Invariant.update_diffblock (postcond_cmd_add_diffblock src inv4.(Invariant.src).(Invariant.allocas))) inv4 in
-  let inv6 := Invariant.update_tgt (Invariant.update_diffblock (postcond_cmd_add_diffblock tgt inv5.(Invariant.tgt).(Invariant.allocas))) inv5 in
+  let inv3 := Invariant.update_src
+                (Invariant.update_lessdef (postcond_cmd_add_lessdef src)) inv2 in
+  let inv4 := Invariant.update_tgt
+                (Invariant.update_lessdef (postcond_cmd_add_lessdef tgt)) inv3 in
+  let inv5 := Invariant.update_src
+                (Invariant.update_diffblock
+                   (postcond_cmd_add_diffblock
+                      src inv4.(Invariant.src).(Invariant.allocas))) inv4 in
+  let inv6 := Invariant.update_tgt
+                (Invariant.update_diffblock
+                   (postcond_cmd_add_diffblock
+                      tgt inv5.(Invariant.tgt).(Invariant.allocas))) inv5 in
   let inv7 := postcond_cmd_add_private_allocas src tgt inv6 in
   let inv8 := remove_def_from_maydiff src tgt inv7 in
   let inv9 := reduce_maydiff inv8 in
