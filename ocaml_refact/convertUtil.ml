@@ -251,7 +251,7 @@ module Convert = struct
     | CoreHint_t.BopXor -> LLVMsyntax.Coq_bop_xor
     | _ -> failwith "In ConvertUtil.bop : Unknown bop"
  
- let fcond (c:CoreHint_t.fcond) : LLVMsyntax.fcond = 
+ let fcond (c:CoreHint_t.fcmp) : LLVMsyntax.fcond = 
     match c with
     | CoreHint_t.CondFfalse -> LLVMsyntax.Coq_fcond_false
     | CoreHint_t.CondFoeq -> LLVMsyntax.Coq_fcond_oeq
@@ -268,21 +268,22 @@ module Convert = struct
     | CoreHint_t.CondFule -> LLVMsyntax.Coq_fcond_ule
     | CoreHint_t.CondFune -> LLVMsyntax.Coq_fcond_une
     | CoreHint_t.CondFuno -> LLVMsyntax.Coq_fcond_uno
-    | CoreHint_t.CondFtrue -> LLVMsyntax.Coq_fcond_True
+    | CoreHint_t.CondFtrue -> LLVMsyntax.Coq_fcond_true
     | _ -> failwith "In ConvertUtil. fcond : Unknown fcond"
 
- let cond (c:CoreHint_t.cond) : LLVMsyntax.cond = 
+ let cond (c:CoreHint_t.icmp) : LLVMsyntax.cond = 
    match c with
-   | CoreHint_t.Condeq -> LLVMsyntax.Coq_cond_eq
-   | CoreHint_t.Condne -> LLVMsyntax.Coq_cond_ne
-   | CoreHint_t.Condugt -> LLVMsyntax.Coq_cond_ugt
-   | CoreHint_t.Conduge -> LLVMsyntax.Coq_cond_uge
-   | CoreHint_t.Condult -> LLVMsyntax.Coq_cond_ult
-   | CoreHint_t.Condule -> LLVMsyntax.Coq_cond_ule
-   | CoreHint_t.Condsgt -> LLVMsyntax.Coq_cond_sgt
-   | CoreHint_t.Condsge -> LLVMsyntax.Coq_cond_sge
-   | CoreHint_t.Condslt -> LLVMsyntax.Coq_cond_slt
-   | CoreHint_t.Condsle -> LLVMsyntax.Coq_cond_sle
+   | CoreHint_t.CondEq -> LLVMsyntax.Coq_cond_eq
+   | CoreHint_t.CondNe -> LLVMsyntax.Coq_cond_ne
+   | CoreHint_t.CondUgt -> LLVMsyntax.Coq_cond_ugt
+   | CoreHint_t.CondUge -> LLVMsyntax.Coq_cond_uge
+   | CoreHint_t.CondUlt -> LLVMsyntax.Coq_cond_ult
+   | CoreHint_t.CondUle -> LLVMsyntax.Coq_cond_ule
+   | CoreHint_t.CondSgt -> LLVMsyntax.Coq_cond_sgt
+   | CoreHint_t.CondSge -> LLVMsyntax.Coq_cond_sge
+   | CoreHint_t.CondSlt -> LLVMsyntax.Coq_cond_slt
+   | CoreHint_t.CondSle -> LLVMsyntax.Coq_cond_sle
+   | _ -> failwith "In ConvertUtil. cond : Unknown cond"
 
   let expr (e:CoreHint_t.expr) (src_fdef:LLVMsyntax.fdef) (tgt_fdef:LLVMsyntax.fdef) : Expr.t = 
     match e with
@@ -312,17 +313,17 @@ module Convert = struct
                       value fbop_arg.operand1, value fbop_arg.operand2)
          | _ -> failwith "Only floating type is allowed")
       | CoreHint_t.ICmpInst icmp_arg ->
-          let vellvmicmp = icmp icmp_arg.opcode in
+          let vellvmicmp = cond icmp_arg.opcode in
           (match icmp_arg.operandtype with
           | IntValueType ivt ->
             (match ivt with IntType sz ->
-            Expr.Coq_icmp (vellvmicmp, sz, value icmp_arg.operand1, value icmp_arg.operand2))
+            Expr.Coq_cond (vellvmicmp, sz, value icmp_arg.operand1, value icmp_arg.operand2))
           | _ -> failwith "Only integer type is allowed")
       | CoreHint_t.FCmpInst fcmp_arg ->
-          let vellvmfcmp = fcmp fcmp_arg.opcode in 
+          let vellvmfcmp = fcond fcmp_arg.opcode in 
           (match fcmp_arg.operandtype with
           | LLVMsyntax.Coq_type_floatpoint fptype ->
-            Expr.Coq_fcmp (vellvmfcmp, fptype, 
+            Expr.Coq_fcond (vellvmfcmp, fptype, 
                        value fcmp_arg.operand1, value fcmp_arg.operand2)
           | _ -> failwith "Only floating type is allowed")
        | CoreHint_t.LoadInst li_arg ->
