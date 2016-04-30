@@ -316,14 +316,13 @@ module Convert = struct
           let vellvmicmp = cond icmp_arg.opcode in
           (match icmp_arg.operandtype with
           | IntValueType ivt ->
-            (match ivt with IntType sz ->
-            Expr.Coq_cond (vellvmicmp, sz, value icmp_arg.operand1, value icmp_arg.operand2))
+            Expr.Coq_icmp (vellvmicmp, value_type (IntValueType ivt), value icmp_arg.operand1, value icmp_arg.operand2)
           | _ -> failwith "Only integer type is allowed")
       | CoreHint_t.FCmpInst fcmp_arg ->
           let vellvmfcmp = fcond fcmp_arg.opcode in 
-          (match fcmp_arg.operandtype with
-          | LLVMsyntax.Coq_type_floatpoint fptype ->
-            Expr.Coq_fcond (vellvmfcmp, fptype, 
+          (match value_type fcmp_arg.operandtype with
+          | LLVMsyntax.Coq_typ_floatpoint fptype ->
+            Expr.Coq_fcmp (vellvmfcmp, fptype, 
                        value fcmp_arg.operand1, value fcmp_arg.operand2)
           | _ -> failwith "Only floating type is allowed")
        | CoreHint_t.LoadInst li_arg ->
