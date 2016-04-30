@@ -313,7 +313,7 @@ module Convert = struct
                       value fbop_arg.operand1, value fbop_arg.operand2)
          | _ -> failwith "Only floating type is allowed")
       | CoreHint_t.ICmpInst icmp_arg ->
-          let vellvmicmp = cond icmp_arg.opcode in
+          let vellvmicmp = cond icmp_arg.predicate in
           (match icmp_arg.operandtype with
           | IntValueType ivt ->
             Expr.Coq_icmp (vellvmicmp, value_type (IntValueType ivt), value icmp_arg.operand1, value icmp_arg.operand2)

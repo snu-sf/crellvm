@@ -100,7 +100,7 @@ type float_binary_operator = {
 }
 
 type integer_compare_instruction = {
-  opcode : icmp;
+  predicate : icmp;
   operandtype : value_type;
   operand1 : value;
   operand2 : value;
