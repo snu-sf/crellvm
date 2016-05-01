@@ -15,9 +15,17 @@ Set Implicit Arguments.
 Import ListNotations.
 
 Module Invariant.
+  (* alias relation.
+     Ptr is used because we want to use type information in alias reasoning.
+     for example, i64* ptr cannot alias with i32 memory block *)
+  Structure aliasrel := mk_aliasrel {
+    diffblock: ValueTPairSet.t; (* strong no-alias, in different logic block *)
+    noalias:  PtrPairSet.t; (* weak no-alias, maybe in the same logic block *)
+  }.
+
   Structure unary := mk_unary {
     lessdef: ExprPairSet.t;
-    noalias: ValueTPairSet.t;
+    alias: aliasrel;
     allocas: IdTSet.t;
     private: IdTSet.t;
   }.
@@ -31,28 +39,44 @@ Module Invariant.
   Definition update_lessdef (f:ExprPairSet.t -> ExprPairSet.t) (invariant:unary): unary :=
     mk_unary
       (f invariant.(lessdef))
-      invariant.(noalias)
+      invariant.(alias)
       invariant.(allocas)
       invariant.(private).
 
-  Definition update_noalias (f:ValueTPairSet.t -> ValueTPairSet.t) (invariant:unary): unary :=
+  Definition update_diffblock_rel (f:ValueTPairSet.t -> ValueTPairSet.t) (alias:aliasrel): aliasrel :=
+    mk_aliasrel
+      (f alias.(diffblock))
+      alias.(noalias).
+
+  Definition update_noalias_rel (f:PtrPairSet.t -> PtrPairSet.t) (alias:aliasrel): aliasrel :=
+    mk_aliasrel
+      alias.(diffblock)
+      (f alias.(noalias)).
+
+  Definition update_alias (f:aliasrel -> aliasrel) (invariant:unary): unary :=
     mk_unary
       invariant.(lessdef)
-      (f invariant.(noalias))
+      (f invariant.(alias))
       invariant.(allocas)
       invariant.(private).
+
+  Definition update_diffblock (f:ValueTPairSet.t -> ValueTPairSet.t) (invariant:unary): unary :=
+    update_alias (update_diffblock_rel f) invariant.
+
+  Definition update_noalias (f:PtrPairSet.t -> PtrPairSet.t) (invariant:unary): unary :=
+    update_alias (update_noalias_rel f) invariant.
 
   Definition update_allocas (f:IdTSet.t -> IdTSet.t) (invariant:unary): unary :=
     mk_unary
       invariant.(lessdef)
-      invariant.(noalias)
+      invariant.(alias)
       (f invariant.(allocas))
       invariant.(private).
 
   Definition update_private (f:IdTSet.t -> IdTSet.t) (invariant:unary): unary :=
     mk_unary
       invariant.(lessdef)
-      invariant.(noalias)
+      invariant.(alias)
       invariant.(allocas)
       (f invariant.(private)).
 
@@ -80,9 +104,13 @@ Module Invariant.
     | ValueT.const _ => false
     end.
 
+  Definition implies_alias (alias0 alias:aliasrel): bool :=
+    PtrPairSet.subset (alias0.(noalias)) (alias.(noalias)) &&
+    ValueTPairSet.subset (alias0.(diffblock)) (alias.(diffblock)).
+
   Definition implies_unary (inv0 inv:unary): bool :=
     ExprPairSet.subset (inv.(lessdef)) (inv0.(lessdef)) &&
-    ValueTPairSet.subset (inv.(noalias)) (inv0.(noalias)) &&
+    implies_alias (inv.(alias)) (inv0.(alias)) &&
     IdTSet.subset (inv.(allocas)) (inv0.(allocas)) &&
     IdTSet.subset (inv.(private)) (inv0.(private)).
 
@@ -91,10 +119,13 @@ Module Invariant.
     implies_unary (inv0.(tgt)) (inv.(tgt)) &&
     IdTSet.subset (inv0.(maydiff)) (inv.(maydiff)).
 
-  Definition is_noalias (inv:unary) (i1:IdT.t) (i2:IdT.t) :=
-    let e1 := ValueT.id i1 in
-    let e2 := ValueT.id i2 in
-    ValueTPairSet.mem (e1, e2) inv.(noalias) || ValueTPairSet.mem (e2, e1) inv.(noalias).
+  Definition is_noalias (inv:unary) (p1:Ptr.t) (p2:Ptr.t) :=
+    PtrPairSet.exists_ (fun p1p2 =>
+                         match p1p2 with
+                           | (xp1, xp2) =>
+                             (Ptr.eq_dec p1 xp1 && Ptr.eq_dec p2 xp2) ||
+                             (Ptr.eq_dec p1 xp2 && Ptr.eq_dec p2 xp1)
+                         end) inv.(alias).(noalias).
 
   Definition not_in_maydiff (inv:t) (value:ValueT.t): bool :=
     match value with
@@ -127,9 +158,13 @@ Module Invariant.
            (not_in_maydiff_expr inv y)))
        (get_rhs inv.(src).(lessdef) (Expr.value value_src))).
 
+  Definition is_empty_alias (alias:aliasrel): bool :=
+    PtrPairSet.is_empty alias.(noalias) &&
+    ValueTPairSet.is_empty alias.(diffblock).
+
   Definition is_empty_unary (inv:unary): bool :=
     ExprPairSet.is_empty inv.(lessdef) &&
-    ValueTPairSet.is_empty inv.(noalias) &&
+    is_empty_alias inv.(alias) &&
     IdTSet.is_empty inv.(allocas) &&
     IdTSet.is_empty inv.(private).
 
@@ -139,17 +174,17 @@ Module Invariant.
     IdTSet.is_empty inv.(maydiff).
 
   Definition get_idTs_unary (u: unary): list IdT.t :=
-    let (lessdef, noalias, allocas, private) := u in
+    let (lessdef, alias, allocas, private) := u in
     List.concat
       (List.map
          (fun (p: ExprPair.t) =>
             let (x, y) := p in Expr.get_idTs x ++ Expr.get_idTs y)
          (ExprPairSet.elements lessdef)) ++
-      List.concat
+    List.concat
       (List.map
-         (fun (p: ValueTPair.t) =>
-            let (x, y) := p in TODO.filter_map ValueT.get_idTs [x ; y])
-         (ValueTPairSet.elements noalias)) ++
+         (fun (pp: PtrPair.t) =>
+            let (x, y) := pp in TODO.filter_map Ptr.get_idTs [x ; y])
+         (PtrPairSet.elements (alias.(noalias)))) ++
       IdTSet.elements allocas ++ IdTSet.elements private.
 
   Definition get_idTs (inv: t): list IdT.t :=
@@ -178,13 +213,25 @@ Module Infrule.
   | add_zext_bool (x:IdT.t) (y:IdT.t) (b:ValueT.t) (c:INTEGER.t) (c':INTEGER.t) (sz:sz)
   | and_commutative (z:IdT.t) (x:ValueT.t) (y:ValueT.t) (sz:sz)
   | and_de_morgan (z:IdT.t) (x:IdT.t) (y:IdT.t) (z':IdT.t) (a:ValueT.t) (b:ValueT.t) (s:sz)
+  | and_mone (z:ValueT.t) (x:ValueT.t) (s:sz)
+  | and_not (z:ValueT.t) (x:ValueT.t) (y:ValueT.t) (s:sz)
+  | and_or (z:ValueT.t) (x:ValueT.t) (y:ValueT.t) (a:ValueT.t) (s:sz)
+  | and_same (z:ValueT.t) (x:ValueT.t) (s:sz)
+  | and_undef (z:ValueT.t) (x:ValueT.t) (s:sz)
+  | and_zero (z:ValueT.t) (x:ValueT.t) (s:sz)
   | bop_distributive_over_selectinst (opcode:bop) (r:IdT.t) (s:IdT.t) (t':IdT.t) (t0:IdT.t) (x:ValueT.t) (y:ValueT.t) (z:ValueT.t) (c:ValueT.t) (bopsz:sz) (selty:typ)
   | bop_distributive_over_selectinst2 (opcode:bop) (r:IdT.t) (s:IdT.t) (t':IdT.t) (t0:IdT.t) (x:ValueT.t) (y:ValueT.t) (z:ValueT.t) (c:ValueT.t) (bopsz:sz) (selty:typ)
   | bitcastptr (v:ValueT.t) (v':ValueT.t) (bitcastinst:Expr.t)
+  | bitcastptr_tgt (v:ValueT.t) (v':ValueT.t) (bitcastinst:Expr.t)
+  | diffblock_global_alloca (gx:const) (y:IdT.t)
+  | diffblock_global_global (gx:const) (gy:const)
+  | diffblock_lessthan (x:ValueT.t) (y:ValueT.t) (x':ValueT.t) (y':ValueT.t)
+  | diffblock_noalias (x:ValueT.t) (y:ValueT.t) (x':Ptr.t) (y':Ptr.t)
   | fadd_commutative_tgt (z:IdT.t) (x:ValueT.t) (y:ValueT.t) (fty:floating_point)
   | fbop_distributive_over_selectinst (opcode:fbop) (r:IdT.t) (s:IdT.t) (t':IdT.t) (t0:IdT.t) (x:ValueT.t) (y:ValueT.t) (z:ValueT.t) (c:ValueT.t) (fbopty:floating_point) (selty:typ)
   | fbop_distributive_over_selectinst2 (opcode:fbop) (r:IdT.t) (s:IdT.t) (t':IdT.t) (t0:IdT.t) (x:ValueT.t) (y:ValueT.t) (z:ValueT.t) (c:ValueT.t) (fbopty:floating_point) (selty:typ)
   | gepzero (v:ValueT.t) (v':ValueT.t) (gepinst:Expr.t)
+  | lessthan_undef (ty:typ) (v:ValueT.t)
   | mul_bool (z:IdT.t) (x:IdT.t) (y:IdT.t)
   | mul_commutative (z:IdT.t) (x:ValueT.t) (y:ValueT.t) (sz:sz)
   | mul_mone (z:IdT.t) (x:ValueT.t) (sz:sz)
@@ -208,6 +255,9 @@ Module Infrule.
   | rem_neg (z:IdT.t) (my:ValueT.t) (x:ValueT.t) (y:ValueT.t) (sz:sz)
   | sdiv_mone (z:IdT.t) (x:ValueT.t) (sz:sz)
   | sdiv_sub_srem (z:IdT.t) (b:IdT.t) (a:IdT.t) (x:ValueT.t) (y:ValueT.t) (sz:sz)
+  | sext_ashr (z:ValueT.t) (zprime:ValueT.t) (x:ValueT.t) (x0:ValueT.t) (y:ValueT.t) (w:ValueT.t) 
+        (c1:INTEGER.t) (c2:INTEGER.t) (sz1:sz) (sz2:sz)
+  | sext_trunc (z:ValueT.t) (x:ValueT.t) (y:ValueT.t) (c:INTEGER.t) (s1:sz) (s2:sz)
   | sub_add (z:IdT.t) (minusy:ValueT.t) (x:IdT.t) (y:ValueT.t) (s:sz)
   | sub_const_add (z:IdT.t) (y:IdT.t) (x:ValueT.t) (c1:INTEGER.t) (c2:INTEGER.t) (c3:INTEGER.t) (sz:sz)
   | sub_const_not (z:IdT.t) (y:IdT.t) (x:ValueT.t) (c1:INTEGER.t) (c2:INTEGER.t) (s:sz)
@@ -220,12 +270,6 @@ Module Infrule.
   | sub_shl (z:IdT.t) (x:ValueT.t) (y:IdT.t) (mx:ValueT.t) (a:ValueT.t) (sz:sz)
   | transitivity (e1:Expr.t) (e2:Expr.t) (e3:Expr.t)
   | transitivity_tgt (e1:Expr.t) (e2:Expr.t) (e3:Expr.t)
-  | noalias_global_alloca (x:IdT.t) (y:IdT.t)
-  | noalias_global_global (x:IdT.t) (y:IdT.t)
-  | noalias_lessthan (x:ValueT.t) (y:ValueT.t) (x':ValueT.t) (y':ValueT.t)
-  | sext_ashr (z:ValueT.t) (zprime:ValueT.t) (x:ValueT.t) (x0:ValueT.t) (y:ValueT.t) (w:ValueT.t) 
-        (c1:INTEGER.t) (c2:INTEGER.t) (sz1:sz) (sz2:sz)
-  | sext_trunc (z:ValueT.t) (x:ValueT.t) (y:ValueT.t) (c:INTEGER.t) (s1:sz) (s2:sz)
   | transitivity_pointer_lhs (p:ValueT.t) (q:ValueT.t) (v:ValueT.t) (ty:typ) (a:align)
   | transitivity_pointer_rhs (p:ValueT.t) (q:ValueT.t) (v:ValueT.t) (ty:typ) (a:align)
   | replace_rhs (x:IdT.t) (y:ValueT.t) (e1:Expr.t) (e2:Expr.t) (e2':Expr.t)
@@ -258,12 +302,6 @@ Module Infrule.
   | cmp_eq (z:IdT.t) (y:IdT.t) (a:ValueT.t) (b:ValueT.t)
   | cmp_ult (z:IdT.t) (y:IdT.t) (a:ValueT.t) (b:ValueT.t)
   | shift_undef (z:IdT.t) (s:sz) (a:ValueT.t)
-  | and_same (z:IdT.t) (s:sz) (a:ValueT.t)
-  | and_zero (z:IdT.t) (s:sz) (a:ValueT.t)
-  | and_mone (z:IdT.t) (s:sz) (a:ValueT.t)
-  | and_undef (z:IdT.t) (s:sz) (a:ValueT.t)
-  | and_not (z:IdT.t) (y:IdT.t) (s:sz) (x:ValueT.t)
-  | and_or (z:IdT.t) (y:IdT.t) (s:sz) (x:ValueT.t) (a:ValueT.t)
   | and_not_or (z:IdT.t) (x:IdT.t) (y:IdT.t) (s:sz) (a:ValueT.t) (b:ValueT.t)
   | xor_zero (z:IdT.t) (s:sz) (a:ValueT.t)
   | xor_same (z:IdT.t) (s:sz) (a:ValueT.t)

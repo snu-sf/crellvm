@@ -199,12 +199,16 @@ Notation "$$ inv |- y >=src rhs $$" := (ExprPairSet.mem (y, rhs) inv.(Invariant.
 Notation "$$ inv |- y >=tgt rhs $$" := (ExprPairSet.mem (y, rhs) inv.(Invariant.tgt).(Invariant.lessdef)) (at level 41).
 Notation "$$ inv |-allocasrc y $$" := (IdTSet.mem y inv.(Invariant.src).(Invariant.allocas)) (at level 41).
 Notation "$$ inv |-allocatgt y $$" := (IdTSet.mem y inv.(Invariant.tgt).(Invariant.allocas)) (at level 41).
-Notation "$$ inv |- x _|_src y $$" := ((ValueTPairSet.mem (x, y) inv.(Invariant.src).(Invariant.noalias)) || (ValueTPairSet.mem (y, x) inv.(Invariant.src).(Invariant.noalias))) (at level 41).
-Notation "$$ inv |- x _|_tgt y $$" := ((ValueTPairSet.mem (x, y) inv.(Invariant.tgt).(Invariant.noalias)) || (ValueTPairSet.mem (y, x) inv.(Invariant.tgt).(Invariant.noalias))) (at level 41).
+Notation "$$ inv |- x _|_src y $$" := ((PtrPairSet.mem (x, y) inv.(Invariant.src).(Invariant.alias).(Invariant.noalias)) || (PtrPairSet.mem (y, x) inv.(Invariant.src).(Invariant.alias).(Invariant.noalias))) (at level 41).
+Notation "$$ inv |- x _|_tgt y $$" := ((PtrPairSet.mem (x, y) inv.(Invariant.tgt).(Invariant.alias).(Invariant.noalias)) || (PtrPairSet.mem (y, x) inv.(Invariant.tgt).(Invariant.alias).(Invariant.noalias))) (at level 41).
+Notation "$$ inv |- x _||_src y $$" := ((ValueTPairSet.mem (x, y) inv.(Invariant.src).(Invariant.alias).(Invariant.diffblock)) || (ValueTPairSet.mem (y, x) inv.(Invariant.src).(Invariant.alias).(Invariant.diffblock))) (at level 41).
+Notation "$$ inv |- x _||_tgt y $$" := ((ValueTPairSet.mem (x, y) inv.(Invariant.tgt).(Invariant.alias).(Invariant.diffblock)) || (ValueTPairSet.mem (y, x) inv.(Invariant.tgt).(Invariant.alias).(Invariant.diffblock))) (at level 41).
 Notation "{{ inv +++ y >=src rhs }}" := (Invariant.update_src (Invariant.update_lessdef (ExprPairSet.add (y, rhs))) inv) (at level 41).
 Notation "{{ inv +++ y >=tgt rhs }}" := (Invariant.update_tgt (Invariant.update_lessdef (ExprPairSet.add (y, rhs))) inv) (at level 41).
-Notation "{{ inv +++ y _|_src x }}" := (Invariant.update_src (Invariant.update_noalias (ValueTPairSet.add (y, x))) inv) (at level 41).
-Notation "{{ inv +++ y _|_tgt x }}" := (Invariant.update_tgt (Invariant.update_noalias (ValueTPairSet.add (y, x))) inv) (at level 41).
+Notation "{{ inv +++ y _|_src x }}" := (Invariant.update_src (Invariant.update_noalias (PtrPairSet.add (y, x))) inv) (at level 41).
+Notation "{{ inv +++ y _|_tgt x }}" := (Invariant.update_tgt (Invariant.update_noalias (PtrPairSet.add (y, x))) inv) (at level 41).
+Notation "{{ inv +++ y _||_src x }}" := (Invariant.update_src (Invariant.update_diffblock (ValueTPairSet.add (y, x))) inv) (at level 41).
+Notation "{{ inv +++ y _||_tgt x }}" := (Invariant.update_tgt (Invariant.update_diffblock (ValueTPairSet.add (y, x))) inv) (at level 41).
 
 (* TODO *)
 Definition apply_infrule
@@ -303,6 +307,32 @@ Definition apply_infrule
        $$ inv0 |- (Expr.bop bop_xor s (ValueT.id z') (ValueT.const (const_int s (INTEGER.of_Z (Size.to_Z s) (-1)%Z true)))) >=tgt (Expr.value (ValueT.id z)) $$
     then {{inv0 +++ (Expr.bop bop_and s (ValueT.id x) (ValueT.id y)) >=tgt (Expr.value (ValueT.id z))}}
     else apply_fail tt
+  | Infrule.and_mone z x s =>
+    if $$ inv0 |- (Expr.value z) >=src (Expr.bop bop_and s x (ValueT.const (const_int s (INTEGER.of_Z (Size.to_Z s) (-1)%Z true)))) $$
+    then {{inv0 +++ (Expr.value z) >=src (Expr.value x) }}
+    else apply_fail tt
+  | Infrule.and_not z x y s =>
+    if $$ inv0 |- (Expr.value z) >=src (Expr.bop bop_and s x y) $$ &&
+       $$ inv0 |- (Expr.value y) >=src (Expr.bop bop_xor s x (ValueT.const (const_int s (INTEGER.of_Z (Size.to_Z s) (-1)%Z true)))) $$
+    then {{inv0 +++ (Expr.value z) >=src (Expr.value (ValueT.const (const_int s (INTEGER.of_Z (Size.to_Z s) 0%Z true)))) }}
+    else apply_fail tt
+  | Infrule.and_or z x y a s =>
+    if $$ inv0 |- (Expr.value z) >=src (Expr.bop bop_and s x y) $$ &&
+       $$ inv0 |- (Expr.value y) >=src (Expr.bop bop_or s x a) $$
+    then {{inv0 +++ (Expr.value z) >=src (Expr.value x) }}
+    else apply_fail tt
+  | Infrule.and_same z x s =>
+    if $$ inv0 |- (Expr.value z) >=src (Expr.bop bop_and s x x) $$
+    then {{inv0 +++ (Expr.value z) >=src (Expr.value x)}}
+    else apply_fail tt
+  | Infrule.and_undef z x s =>
+    if $$ inv0 |- (Expr.value z) >=src (Expr.bop bop_and s x (ValueT.const (const_undef (typ_int s)))) $$
+    then {{inv0 +++ (Expr.value z) >=src (Expr.value (ValueT.const (const_undef (typ_int s))))}}
+    else apply_fail tt
+  | Infrule.and_zero z x s =>
+    if $$ inv0 |- (Expr.value z) >=src (Expr.bop bop_and s x (ValueT.const (const_int s (INTEGER.of_Z (Size.to_Z s) 0%Z true)))) $$
+    then {{ inv0 +++ (Expr.value z) >=src (Expr.value (ValueT.const (const_int s (INTEGER.of_Z (Size.to_Z s) 0%Z true)))) }}
+    else apply_fail tt
   | Infrule.bop_distributive_over_selectinst opcode r s t' t x y z c bopsz selty =>
     if $$ inv0 |- (Expr.bop opcode bopsz x y) >=tgt (Expr.value (ValueT.id r)) $$ &&
        $$ inv0 |- (Expr.bop opcode bopsz x z) >=tgt (Expr.value (ValueT.id s)) $$ &&
@@ -328,6 +358,14 @@ Definition apply_infrule
     then 
       let inv0 := {{inv0 +++ (Expr.value v) >=src (Expr.value v')}} in
       {{inv0 +++ (Expr.value v') >=src (Expr.value v)}}
+    else apply_fail tt
+  | Infrule.bitcastptr_tgt v v' bitcastinst =>
+    if $$ inv0 |- (Expr.value v) >=tgt bitcastinst $$ &&
+       $$ inv0 |- bitcastinst >=tgt (Expr.value v) $$ &&
+       cond_bitcast_ptr v' bitcastinst
+    then 
+      let inv0 := {{inv0 +++ (Expr.value v) >=tgt (Expr.value v')}} in
+      {{inv0 +++ (Expr.value v') >=tgt (Expr.value v)}}
     else apply_fail tt
   | Infrule.fadd_commutative_tgt z x y fty =>
     if $$ inv0 |- (Expr.fbop fbop_fadd fty x y) >=tgt (Expr.value (ValueT.id z)) $$
@@ -355,6 +393,8 @@ Definition apply_infrule
       let inv0 := {{inv0 +++ (Expr.value v) >=src (Expr.value v')}} in
       {{inv0 +++ (Expr.value v') >=src (Expr.value v)}}
     else apply_fail tt
+  | Infrule.lessthan_undef ty v => 
+    {{ inv0 +++ (Expr.value (ValueT.const (const_undef ty))) >=src (Expr.value v) }}
   | Infrule.sdiv_sub_srem z b a x y s =>
     if $$ inv0 |- (Expr.value (ValueT.id b)) >=src (Expr.bop bop_srem s x y) $$ &&
        $$ inv0 |- (Expr.value (ValueT.id a)) >=src (Expr.bop bop_sub s x (ValueT.id b)) $$ &&
@@ -575,46 +615,46 @@ Definition apply_infrule
        $$ inv0 |- e2 >=tgt e3 $$
     then {{ inv0 +++ e1 >=tgt e3 }}
     else apply_fail tt
-  | Infrule.noalias_global_alloca x y =>
-    match x with
-    | (Tag.physical, x_id) =>
-      match lookupTypViaGIDFromModule m_src x_id with
-      | None => apply_fail tt
-      | Some x_type => (* x is a global variable *)
-        if $$ inv0 |-allocasrc y $$ then
-          {{inv0 +++ (ValueT.id y) _|_src (ValueT.const (const_gid x_type x_id)) }}
-        else apply_fail tt
-      end
-    | _ => apply_fail tt
-    end
   | Infrule.rem_neg z my x y s =>
     if $$ inv0 |- (Expr.value my) >=src (Expr.bop bop_sub s (ValueT.const (const_int s (INTEGER.of_Z (Size.to_Z s) 0%Z true))) y) $$ && 
        $$ inv0 |- (Expr.value (ValueT.id z)) >=src (Expr.bop bop_srem s x my) $$
     then {{inv0 +++ (Expr.value (ValueT.id z)) >=src (Expr.bop bop_srem s x y) }}
     else apply_fail tt
-  | Infrule.noalias_global_global x y =>
-    match x with 
-    | (Tag.physical, x_id) =>
-      match lookupTypViaGIDFromModule m_src x_id with
-      | Some x_type => (* x is a global variable *)
-        (match y with
-        | (Tag.physical, y_id) =>
-          match lookupTypViaGIDFromModule m_src y_id with
-          | Some y_type => 
-            {{inv0 +++ (ValueT.id y) _|_src (ValueT.const (const_gid x_type x_id)) }}
-          | None => apply_fail tt
-          end
-        | _ => apply_fail tt
-        end)
-      | None => apply_fail tt
-      end
+  | Infrule.diffblock_global_alloca gx y =>
+    match gx with
+    | const_gid gx_ty gx_id =>
+      if $$ inv0 |-allocasrc y $$ then
+        let inv1 := {{inv0 +++ (ValueT.id y) _||_src (ValueT.const gx) }} in
+        let inv2 := {{inv1 +++ (ValueT.const gx) _||_src (ValueT.id y) }} in
+        inv2
+      else apply_fail tt
     | _ => apply_fail tt
     end
-  | Infrule.noalias_lessthan x y x' y' =>
-    if $$ inv0 |- x _|_src y $$ &&
+  | Infrule.diffblock_global_global gx gy =>
+    match gx with
+    | const_gid gx_ty gx_id =>
+      match gy with
+      | const_gid gy_ty gy_id =>
+        if id_dec gx_id gy_id
+        then debug_string "diffblock_global_global : id_dec" (apply_fail tt)
+        else 
+          let inv1 := {{inv0 +++ (ValueT.const (const_gid gx_ty gx_id)) _||_src (ValueT.const (const_gid gy_ty gy_id)) }} in
+          let inv2 := {{inv1 +++ (ValueT.const (const_gid gy_ty gy_id)) _||_src (ValueT.const (const_gid gx_ty gx_id)) }} in
+          inv2
+      | _ => debug_string "diffblock_global_global : gy not globalvar" (apply_fail tt)
+      end
+    | _ => debug_string "diffblock_global_global : gx not globalvar" (apply_fail tt)
+    end
+  | Infrule.diffblock_lessthan x y x' y' =>
+    if $$ inv0 |- x _||_src y $$ &&
        $$ inv0 |- (Expr.value x) >=src (Expr.value x') $$ &&
        $$ inv0 |- (Expr.value y) >=src (Expr.value y') $$
-    then {{inv0 +++ x' _|_src y'}}
+    then {{inv0 +++ x' _||_src y'}}
+    else apply_fail tt
+  | Infrule.diffblock_noalias x y (x', x_type') (y', y_type') =>
+    if $$ inv0 |- x _||_src y $$ &&
+       ValueT.eq_dec x x' && ValueT.eq_dec y y'
+    then {{inv0 +++ (x', x_type') _|_src (y', y_type')}}
     else apply_fail tt
   | Infrule.transitivity_pointer_lhs p q v ty a =>
     if $$ inv0 |- (Expr.value p) >=src (Expr.value q) $$ &&

@@ -50,7 +50,11 @@ type float_type = [
                    (* equivalent to Syntax.LLVMsyntax.Coq_fp_x86_fp80 in Vellvm*)
     ] <ocaml repr="classic">
 
-type value_type = [ IntValueType of int_type | FloatValueType of float_type | NamedType of string | PtrType of (int * value_type) ] <ocaml repr="classic">
+type value_type = [ IntValueType of int_type 
+        | FloatValueType of float_type 
+        | NamedType of string 
+        | PtrType of (int * value_type) 
+        | ArrayType of (int * value_type) ] <ocaml repr="classic">
 
 type const_int = {
   int_value : int;
@@ -67,7 +71,20 @@ type const_global_var_addr = {
   var_type : value_type;
 }
 
-type constant = [ ConstInt of const_int | ConstFloat of const_float | ConstUndef of value_type | ConstGlobalVarAddr of const_global_var_addr ] <ocaml repr="classic">
+type const_expr_get_element_ptr = {
+  srcelemty : value_type;
+  v : constant;
+  idxlist : constant list;
+  dstty : value_type;
+  is_inbounds : bool;
+}
+
+type constant_expr = [ ConstExprGetElementPtr of const_expr_get_element_ptr ] <ocaml repr="classic">
+
+type constant = [ ConstInt of const_int | ConstFloat of const_float 
+        | ConstUndef of value_type 
+        | ConstGlobalVarAddr of const_global_var_addr 
+        | ConstExpr of constant_expr ] <ocaml repr="classic">
 
 type value = [ Id of register | ConstVal of constant ] <ocaml repr="classic">
 
@@ -79,6 +96,11 @@ type bop = [ | BopAdd | BopSub | BopMul | BopUdiv
              | BopXor ] <ocaml repr="classic">
 
 type fbop = [ BopFadd | BopFsub | BopFmul | BopFdiv | BopFrem ] <ocaml repr="classic">
+
+type pointer = {
+  v : value;
+  ty : value_type;
+}
 
 type binary_operator = {
   opcode : bop;
@@ -142,8 +164,14 @@ type propagate_lessdef = {
 }
 
 type propagate_noalias = {
-  lhs : register;
-  rhs : register;
+  lhs : pointer;
+  rhs : pointer;
+  scope : scope;
+}
+
+type propagate_diffblock = {
+  lhs : value;
+  rhs : value;
   scope : scope;
 }
 
@@ -160,6 +188,7 @@ type propagate_private = {
 type propagate_object = [
   | Lessdef of propagate_lessdef
   | Noalias of propagate_noalias
+  | Diffblock of propagate_diffblock
   | Alloca of propagate_alloca
   | Maydiff of register
   | Private of propagate_private
@@ -245,11 +274,6 @@ type transitivity_tgt = {
   e1 : expr;
   e2 : expr;
   e3 : expr;
-}
-
-type noalias_global_alloca = {
-  x : register;
-  y : register;
 }
 
 type transitivity_pointer_lhs = {
@@ -372,6 +396,45 @@ type and_de_morgan = {
   sz : size;
 }
 
+type and_mone = {
+  z : value;
+  x : value;
+  sz : size;
+}
+
+type and_not = {
+  z : value;
+  x : value;
+  y : value;
+  sz : size;
+}
+
+type and_or = {
+  z : value;
+  x : value;
+  y : value;
+  a : value;
+  sz : size;
+}
+
+type and_same = {
+  z : value;
+  x : value;
+  sz : size;
+}
+
+type and_undef = {
+  z : value;
+  x : value;
+  sz : size;
+}
+
+type and_zero = {
+  z : value;
+  x : value;
+  sz : size;
+}
+
 type bop_distributive_over_selectinst = {
   opcode : bop;
   r : register;
@@ -387,6 +450,12 @@ type bop_distributive_over_selectinst = {
 }
 
 type bitcastptr = {
+  v : value;
+  vprime : value;
+  bitcastinst : expr;
+}
+
+type bitcastptr_tgt = {
   v : value;
   vprime : value;
   bitcastinst : expr;
@@ -456,6 +525,11 @@ type intro_eq = {
   x : value;
 }
 
+type lessthan_undef = {
+  ty : value_type;
+  v : value;
+}
+
 type mul_bool = {
   z :register;
   x :register;
@@ -506,15 +580,27 @@ type neg_val = {
   sz : size;
 }
 
-type noalias_lessthan = {
+type diffblock_lessthan = {
   x : value;
   y : value;
   xprime : value;
   yprime : value;
 }
 
-type noalias_global_global = {
-  x : register;
+type diffblock_noalias = {
+  x : value;
+  y : value;
+  xprime : pointer;
+  yprime : pointer;
+}
+
+type diffblock_global_global = {
+  gx : constant;
+  gy : constant;
+}
+
+type diffblock_global_alloca = {
+  gx : constant;
   y : register;
 }
 
@@ -815,15 +901,27 @@ type infrule = [
   | AddXorAnd of add_xor_and
   | AndCommutative of and_commutative
   | AndDeMorgan of and_de_morgan
+  | AndMone of and_mone
+  | AndNot of and_not
+  | AndOr of and_or
+  | AndSame of and_same
+  | AndUndef of and_undef
+  | AndZero of and_zero
   | Bitcastptr of bitcastptr
+  | BitcastptrTgt of bitcastptr_tgt
   | BopDistributiveOverSelectinst of bop_distributive_over_selectinst
   | BopDistributiveOverSelectinst2 of bop_distributive_over_selectinst2
+  | DiffblockGlobalAlloca of diffblock_global_alloca
+  | DiffblockGlobalGlobal of diffblock_global_global
+  | DiffblockLessthan of diffblock_lessthan
+  | DiffblockNoalias of diffblock_noalias
   | FaddCommutativeTgt of fadd_commutative_tgt
   | FbopDistributiveOverSelectinst of fbop_distributive_over_selectinst
   | FbopDistributiveOverSelectinst2 of fbop_distributive_over_selectinst2
   | Gepzero of gepzero
   | IntroGhost of intro_ghost
   | IntroEq of intro_eq
+  | LessthanUndef of lessthan_undef
   | MulAddDistributive of mul_add_distributive
   | NegVal of neg_val
   | OrAnd of or_and
@@ -845,9 +943,6 @@ type infrule = [
   | MulNeg of mul_neg
   | MulCommutative of mul_commutative
   | MulShl of mul_shl
-  | NoaliasGlobalAlloca of noalias_global_alloca
-  | NoaliasGlobalGlobal of noalias_global_global
-  | NoaliasLessthan of noalias_lessthan
   | RemNeg of rem_neg
   | SdivMone of sdiv_mone
   | SdivSubSrem of sdiv_sub_srem

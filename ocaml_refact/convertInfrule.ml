@@ -147,11 +147,49 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
      let b = Convert.value args.b in
      let sz = Convert.size args.sz in
      Infrule.Coq_and_de_morgan (z, x, y, zprime, a, b, sz)
+  | CoreHint_t.AndMone (args:CoreHint_t.and_mone) -> 
+     let z = Convert.value args.z in
+     let x = Convert.value args.x in
+     let sz = Convert.size args.sz in
+     Infrule.Coq_and_mone (z, x, sz)
+  | CoreHint_t.AndNot (args:CoreHint_t.and_not) -> 
+     let z = Convert.value args.z in
+     let x = Convert.value args.x in
+     let y = Convert.value args.y in
+     let sz = Convert.size args.sz in
+     Infrule.Coq_and_not (z, x, y, sz)
+  | CoreHint_t.AndOr (args:CoreHint_t.and_or) -> 
+     let z = Convert.value args.z in
+     let x = Convert.value args.x in
+     let y = Convert.value args.y in
+     let a = Convert.value args.a in
+     let sz = Convert.size args.sz in
+     Infrule.Coq_and_or (z, x, y, a, sz)
+  | CoreHint_t.AndSame (args:CoreHint_t.and_same) -> 
+     let z = Convert.value args.z in
+     let x = Convert.value args.x in
+     let sz = Convert.size args.sz in
+     Infrule.Coq_and_same (z, x, sz)
+  | CoreHint_t.AndUndef (args:CoreHint_t.and_undef) -> 
+     let z = Convert.value args.z in
+     let x = Convert.value args.x in
+     let sz = Convert.size args.sz in
+     Infrule.Coq_and_undef (z, x, sz)
+  | CoreHint_t.AndZero (args:CoreHint_t.and_zero) -> 
+     let z = Convert.value args.z in
+     let x = Convert.value args.x in
+     let sz = Convert.size args.sz in
+     Infrule.Coq_and_zero (z, x, sz)
   | CoreHint_t.Bitcastptr (args:CoreHint_t.bitcastptr) ->
      let v = Convert.value args.v in
      let vprime = Convert.value args.vprime in
      let bitcastinst = Convert.expr args.bitcastinst src_fdef tgt_fdef in
      Infrule.Coq_bitcastptr (v, vprime, bitcastinst)
+  | CoreHint_t.BitcastptrTgt (args:CoreHint_t.bitcastptr_tgt) ->
+     let v = Convert.value args.v in
+     let vprime = Convert.value args.vprime in
+     let bitcastinst = Convert.expr args.bitcastinst src_fdef tgt_fdef in
+     Infrule.Coq_bitcastptr_tgt (v, vprime, bitcastinst)
   | CoreHint_t.BopDistributiveOverSelectinst (args:CoreHint_t.bop_distributive_over_selectinst) ->
      let opcode = Convert.bop args.opcode in
      let r = Convert.register args.r in
@@ -230,6 +268,10 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
      let b = Convert.value args.b in
      let sz = Convert.size args.sz in
     Infrule.Coq_or_and_xor (z, x, y, a, b, sz)
+  | CoreHint_t.LessthanUndef (args:CoreHint_t.lessthan_undef) ->
+     let ty = Convert.value_type args.ty in
+     let v = Convert.value args.v in
+     Infrule.Coq_lessthan_undef (ty, v)
   | CoreHint_t.OrCommutative (args:CoreHint_t.or_commutative) ->
      let z = Convert.register args.z in
      let x = Convert.value args.x in
@@ -480,20 +522,26 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
       let e2 = Convert.expr args.e2 src_fdef tgt_fdef in
       let e3 = Convert.expr args.e3 src_fdef tgt_fdef in
       Infrule.Coq_transitivity_tgt (e1, e2, e3)
-  | CoreHint_t.NoaliasGlobalAlloca (args:CoreHint_t.noalias_global_alloca) ->
-     let x = Convert.register args.x in
+  | CoreHint_t.DiffblockGlobalAlloca (args:CoreHint_t.diffblock_global_alloca) ->
+     let x = Convert.constant args.gx in
      let y = Convert.register args.y in
-     Infrule.Coq_noalias_global_alloca (x, y)
-  | CoreHint_t.NoaliasGlobalGlobal (args:CoreHint_t.noalias_global_global) ->
-     let x = Convert.register args.x in
-     let y = Convert.register args.y in
-     Infrule.Coq_noalias_global_global (x, y)
-  | CoreHint_t.NoaliasLessthan (args:CoreHint_t.noalias_lessthan) ->
+     Infrule.Coq_diffblock_global_alloca (x, y)
+  | CoreHint_t.DiffblockGlobalGlobal (args:CoreHint_t.diffblock_global_global) ->
+     let gx = Convert.constant args.gx in
+     let gy = Convert.constant args.gy in
+     Infrule.Coq_diffblock_global_global (gx, gy)
+  | CoreHint_t.DiffblockLessthan (args:CoreHint_t.diffblock_lessthan) ->
      let x = Convert.value args.x in
      let y = Convert.value args.y in
      let xprime = Convert.value args.xprime in
      let yprime = Convert.value args.yprime in
-     Infrule.Coq_noalias_lessthan (x, y, xprime, yprime)
+     Infrule.Coq_diffblock_lessthan (x, y, xprime, yprime)
+  | CoreHint_t.DiffblockNoalias (args:CoreHint_t.diffblock_noalias) ->
+     let x = Convert.value args.x in
+     let y = Convert.value args.y in
+     let xprime = Convert.pointer args.xprime in
+     let yprime = Convert.pointer args.yprime in
+     Infrule.Coq_diffblock_noalias (x, y, xprime, yprime)
   | CoreHint_t.TransitivityPointerLhs (args:CoreHint_t.transitivity_pointer_lhs) ->
      let p = Convert.value args.p in
      let q = Convert.value args.q in
