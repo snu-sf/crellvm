@@ -215,12 +215,38 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
      let vprime = Convert.value args.vprime in
      let gepinst = Convert.expr args.gepinst src_fdef tgt_fdef in
      Infrule.Coq_gepzero (v, vprime, gepinst)
+  | CoreHint_t.OrAnd (args:CoreHint_t.or_and) -> 
+     let z = Convert.value args.z in
+     let y = Convert.value args.y in
+     let x = Convert.value args.x in
+     let a = Convert.value args.a in
+     let sz = Convert.size args.sz in
+    Infrule.Coq_or_and (z, y, x, a, sz)
+  | CoreHint_t.OrAndXor (args:CoreHint_t.or_and_xor) -> 
+     let z = Convert.value args.z in
+     let x = Convert.value args.x in
+     let y = Convert.value args.y in
+     let a = Convert.value args.a in
+     let b = Convert.value args.b in
+     let sz = Convert.size args.sz in
+    Infrule.Coq_or_and_xor (z, x, y, a, b, sz)
   | CoreHint_t.OrCommutative (args:CoreHint_t.or_commutative) ->
      let z = Convert.register args.z in
      let x = Convert.value args.x in
      let y = Convert.value args.y in
      let sz = Convert.size args.sz in
      Infrule.Coq_or_commutative (z, x, y, sz)
+  | CoreHint_t.OrMone (args:CoreHint_t.or_mone) -> 
+     let z = Convert.value args.z in
+     let a = Convert.value args.a in
+     let sz = Convert.size args.sz in
+    Infrule.Coq_or_mone (z, a, sz)
+  | CoreHint_t.OrNot (args:CoreHint_t.or_not) -> 
+     let z = Convert.value args.z in
+     let y = Convert.value args.y in
+     let z = Convert.value args.z in
+     let sz = Convert.size args.sz in
+    Infrule.Coq_or_not (z, y, z, sz)
   | CoreHint_t.OrOr (args:CoreHint_t.or_or) ->
      let z = Convert.value args.z in
      let x = Convert.value args.x in
@@ -238,6 +264,16 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
      let b = Convert.value args.b in
      let sz = Convert.size args.sz in
      Infrule.Coq_or_or2 (z, x, y, yprime, a, b, sz)
+  | CoreHint_t.OrUndef (args:CoreHint_t.or_undef) -> 
+     let z = Convert.value args.z in
+     let a = Convert.value args.a in
+     let sz = Convert.size args.sz in
+    Infrule.Coq_or_undef (z, a, sz)
+  | CoreHint_t.OrSame (args:CoreHint_t.or_same) -> 
+     let z = Convert.value args.z in
+     let a = Convert.value args.a in
+     let sz = Convert.size args.sz in
+    Infrule.Coq_or_same (z, a, sz)
   | CoreHint_t.OrXor (args:CoreHint_t.or_xor) ->
      let w = Convert.value args.w in
      let z = Convert.value args.z in
@@ -257,6 +293,27 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
      let b = Convert.value args.b in
      let sz = Convert.size args.sz in
      Infrule.Coq_or_xor2 (z, x1, y1, x2, y2, a, b, sz)
+  | CoreHint_t.OrXor3 (args:CoreHint_t.or_xor3) -> 
+     let z = Convert.value args.z in
+     let y = Convert.value args.y in
+     let a = Convert.value args.a in
+     let b = Convert.value args.b in
+     let sz = Convert.size args.sz in
+     Infrule.Coq_or_xor3 (z, y, a, b, sz)
+  | CoreHint_t.OrXor4 (args:CoreHint_t.or_xor4) -> 
+     let z = Convert.value args.z in
+     let x = Convert.value args.x in
+     let y = Convert.value args.y in
+     let a = Convert.value args.a in
+     let b = Convert.value args.b in
+     let nb = Convert.value args.nb in
+     let sz = Convert.size args.sz in
+     Infrule.Coq_or_xor4 (z, x, y, a, b, nb, sz)
+  | CoreHint_t.OrZero (args:CoreHint_t.or_zero) -> 
+     let z = Convert.value args.z in
+     let a = Convert.value args.a in
+     let sz = Convert.size args.sz in
+    Infrule.Coq_or_zero (z, a, sz)
   | CoreHint_t.SdivSubSrem (args:CoreHint_t.sdiv_sub_srem) ->
      let z = Convert.register args.z in
      let b = Convert.register args.b in
@@ -328,6 +385,26 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
      let x = Convert.value args.x in
      let sz = Convert.size args.sz in
      Infrule.Coq_sdiv_mone (z, x, sz)
+  | CoreHint_t.SextAshr (args:CoreHint_t.sext_ashr) -> 
+     let z = Convert.value args.z in
+     let zprime = Convert.value args.zprime in
+     let x = Convert.value args.x in
+     let x0 = Convert.value args.x0 in
+     let y = Convert.vaue args.y in
+     let w = Convert.vlaue args.w in
+     let c1 = Convert.const_int args.c1 in
+     let c2 = Convert.const_int args.c2 in
+     let sz1 = Convert.size args.sz1 in
+     let sz2 = Convert.size args.sz2 in
+     Infrule.Coq_sext_ashr (z, zprime, x, x0, y, w, c1, c2, sz1, sz2)
+  | CoreHint_t.SextTrunc (args:CoreHint_t.sext_trunc) -> 
+     let z = Convert.value args.z in
+     let x = Convert.value args.x in
+     let y = Convert.value args.y in
+     let c = Convert.const_int args.c in
+     let sz1 = Convert.size args.sz1 in
+     let sz2 = Convert.size args.sz2 in
+     Infrule.Coq_sext_trunc (z, x, y, c, sz1, sz2)
   | CoreHint_t.SubConstAdd (args:CoreHint_t.sub_const_add) ->
      let z = Convert.register args.z in
      let y = Convert.register args.y in
