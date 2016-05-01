@@ -83,7 +83,7 @@ type fbop = [ BopFadd | BopFsub | BopFmul | BopFdiv | BopFrem ] <ocaml repr="cla
 type icmp = [ | CondEq | CondNe | CondUgt | CondUge | CondUlt 
               | CondUle | CondSgt | CondSge | CondSlt | CondSle ] <ocaml repr="classic">
 
-type fcmp = [ CondFfalse | CondFoeq | CondFogt | CondFoge | CondFolt | CondFole | CondFone | CondFord | CondFueq | CondFugt | CondFuge | CondFult | CondFule | CondFune | CondFuno | CondFtrue ] <ocaml repr="classic">
+type fcmp = [ CondFfalse | CondFoeq | CondFogt | CondFoge | CondFolt | CondFole | CondFone | CondFord | CondFuno | CondFueq | CondFugt | CondFuge | CondFult | CondFule | CondFune | CondFtrue ] <ocaml repr="classic">
 
 type binary_operator = {
   opcode : bop;

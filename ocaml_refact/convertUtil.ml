@@ -261,13 +261,13 @@ module Convert = struct
     | CoreHint_t.CondFole -> LLVMsyntax.Coq_fcond_ole
     | CoreHint_t.CondFone -> LLVMsyntax.Coq_fcond_one
     | CoreHint_t.CondFord -> LLVMsyntax.Coq_fcond_ord
+    | CoreHint_t.CondFuno -> LLVMsyntax.Coq_fcond_uno    
     | CoreHint_t.CondFueq -> LLVMsyntax.Coq_fcond_ueq
     | CoreHint_t.CondFugt -> LLVMsyntax.Coq_fcond_ugt
     | CoreHint_t.CondFuge -> LLVMsyntax.Coq_fcond_uge
     | CoreHint_t.CondFult -> LLVMsyntax.Coq_fcond_ult
     | CoreHint_t.CondFule -> LLVMsyntax.Coq_fcond_ule
     | CoreHint_t.CondFune -> LLVMsyntax.Coq_fcond_une
-    | CoreHint_t.CondFuno -> LLVMsyntax.Coq_fcond_uno
     | CoreHint_t.CondFtrue -> LLVMsyntax.Coq_fcond_true
     | _ -> failwith "In ConvertUtil. fcond : Unknown fcond"
 
