@@ -80,6 +80,11 @@ type bop = [ | BopAdd | BopSub | BopMul | BopUdiv
 
 type fbop = [ BopFadd | BopFsub | BopFmul | BopFdiv | BopFrem ] <ocaml repr="classic">
 
+type icmp_pred = [ | CondEq | CondNe | CondUgt | CondUge | CondUlt 
+              | CondUle | CondSgt | CondSge | CondSlt | CondSle ] <ocaml repr="classic">
+
+type fcmp_pred = [ CondFfalse | CondFoeq | CondFogt | CondFoge | CondFolt | CondFole | CondFone | CondFord | CondFuno | CondFueq | CondFugt | CondFuge | CondFult | CondFule | CondFune | CondFtrue ] <ocaml repr="classic">
+
 type binary_operator = {
   opcode : bop;
   operandtype : value_type;
@@ -89,6 +94,20 @@ type binary_operator = {
 
 type float_binary_operator = {
   opcode : fbop;
+  operandtype : value_type;
+  operand1 : value;
+  operand2 : value;
+}
+
+type integer_compare_inst = {
+  predicate : icmp_pred;
+  operandtype : value_type;
+  operand1 : value;
+  operand2 : value;
+}
+
+type float_compare_inst = {
+  predicate : fcmp_pred;
   operandtype : value_type;
   operand1 : value;
   operand2 : value;
@@ -118,6 +137,8 @@ type get_element_ptr_inst = {
 type instruction = [ 
   | BinaryOp of binary_operator
   | FloatBinaryOp of float_binary_operator
+  | ICmpInst of integer_compare_inst
+  | FCmpInst of float_compare_inst
   | LoadInst of load_inst
   | BitCastInst of bit_cast_inst
   | GetElementPtrInst of get_element_ptr_inst
