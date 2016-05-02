@@ -251,7 +251,7 @@ module Convert = struct
     | CoreHint_t.BopXor -> LLVMsyntax.Coq_bop_xor
     | _ -> failwith "In ConvertUtil.bop : Unknown bop"
  
- let fcond (c:CoreHint_t.fcmp) : LLVMsyntax.fcond = 
+ let fcond (c:CoreHint_t.fcmp_pred) : LLVMsyntax.fcond = 
     match c with
     | CoreHint_t.CondFfalse -> LLVMsyntax.Coq_fcond_false
     | CoreHint_t.CondFoeq -> LLVMsyntax.Coq_fcond_oeq
@@ -271,7 +271,7 @@ module Convert = struct
     | CoreHint_t.CondFtrue -> LLVMsyntax.Coq_fcond_true
     | _ -> failwith "In ConvertUtil. fcond : Unknown fcond"
 
- let cond (c:CoreHint_t.icmp) : LLVMsyntax.cond = 
+ let cond (c:CoreHint_t.icmp_pred) : LLVMsyntax.cond = 
    match c with
    | CoreHint_t.CondEq -> LLVMsyntax.Coq_cond_eq
    | CoreHint_t.CondNe -> LLVMsyntax.Coq_cond_ne
@@ -319,7 +319,7 @@ module Convert = struct
             Expr.Coq_icmp (vellvmicmp, value_type (IntValueType ivt), value icmp_arg.operand1, value icmp_arg.operand2)
           | _ -> failwith "Only integer type is allowed")
       | CoreHint_t.FCmpInst fcmp_arg ->
-          let vellvmfcmp = fcond fcmp_arg.opcode in 
+          let vellvmfcmp = fcond fcmp_arg.predicate in 
           (match value_type fcmp_arg.operandtype with
           | LLVMsyntax.Coq_typ_floatpoint fptype ->
             Expr.Coq_fcmp (vellvmfcmp, fptype, 
