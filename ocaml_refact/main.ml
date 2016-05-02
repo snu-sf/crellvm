@@ -77,6 +77,9 @@ let main filename_src filename_tgt filename_hint =
 
   let _ = debug_print "validation.." in
   let validation_result = Validator.valid_module coq_hint coq_im_src coq_im_tgt in
+
+  let _ = debug_print "description for this VU.." in
+  let _ = debug_print hint.CoreHint_t.description in
   let _ =
     if validation_result
     then prerr_endline "Validation succeeded."
