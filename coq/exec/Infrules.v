@@ -468,15 +468,15 @@ Definition apply_infrule
     if $$ inv0 |- (Expr.value y) >=src (Expr.bop bop_xor s x 
                 (ValueT.const (const_int s (INTEGER.of_Z (Size.to_Z s) (-1)%Z true)))) $$ &&
        $$ inv0 |- (Expr.value z) >=src (Expr.bop bop_or s x y) $$ 
-      then {{ inv0 +++ (Expr.value z) >=src (Expr.value 
-                (ValueT.const (const_int s (INTEGER.of_Z (Size.to_Z s) (-1)%Z true)))) }}
-      else inv0
+    then {{ inv0 +++ (Expr.value z) >=src (Expr.value 
+              (ValueT.const (const_int s (INTEGER.of_Z (Size.to_Z s) (-1)%Z true)))) }}
+    else apply_fail tt
   | Infrule.or_mone z a s =>
     if $$ inv0 |- (Expr.value z) >=src (Expr.bop bop_or s a 
                 (ValueT.const (const_int s (INTEGER.of_Z (Size.to_Z s) (-1)%Z true)))) $$
     then {{ inv0 +++ (Expr.value z) >=src (Expr.value
                 (ValueT.const (const_int s (INTEGER.of_Z (Size.to_Z s) (-1)%Z true)))) }}
-    else inv0
+    else apply_fail tt
   | Infrule.or_or z x y a b s =>
     if $$ inv0 |- (Expr.value x) >=src (Expr.bop bop_xor s a (ValueT.const (const_int s (INTEGER.of_Z (Size.to_Z s) (-1)%Z true)))) $$ &&
        $$ inv0 |- (Expr.value y) >=src (Expr.bop bop_and s x b) $$ &&
@@ -493,12 +493,12 @@ Definition apply_infrule
   | Infrule.or_same z a s =>
     if $$ inv0 |- (Expr.value z) >=src (Expr.bop bop_or s a a) $$
     then {{ inv0 +++ (Expr.value z) >=src (Expr.value a) }}
-    else inv0
+    else apply_fail tt
   | Infrule.or_undef z a s =>
     if $$ inv0 |- (Expr.value z) >=src (Expr.bop bop_or s a (ValueT.const (const_undef (typ_int s)))) $$
-      then {{ inv0 +++ (Expr.value z) >=src (Expr.value 
-                (ValueT.const (const_int s (INTEGER.of_Z (Size.to_Z s) (-1)%Z true)))) }}
-      else inv0
+    then {{ inv0 +++ (Expr.value z) >=src (Expr.value 
+              (ValueT.const (const_int s (INTEGER.of_Z (Size.to_Z s) (-1)%Z true)))) }}
+    else apply_fail tt
   | Infrule.or_xor w z x y a b s =>
     if $$ inv0 |- (Expr.value x) >=src (Expr.bop bop_xor s b (ValueT.const (const_int s (INTEGER.of_Z (Size.to_Z s) (-1)%Z true)))) $$ &&
        $$ inv0 |- (Expr.value y) >=src (Expr.bop bop_and s a x) $$ &&
@@ -532,10 +532,10 @@ Definition apply_infrule
     if $$ inv0 |- (Expr.value z) >=src (Expr.bop bop_or s a 
                 (ValueT.const (const_int s (INTEGER.of_Z (Size.to_Z s) 0%Z true)))) $$
     then {{ inv0 +++ (Expr.value z) >=src (Expr.value a) }}
-    else inv0
+    else apply_fail tt
   | Infrule.sext_ashr z zprime x x0 y w c1 c2 s1 s2 =>
-    if Nat.leb s2 s1 &&
-       cond_plus s1 (Size.to_Z (Nat.sub s1 s2)) c1 c2 &&
+    if ((Size.to_Z s2) <? (Size.to_Z s1)) &&
+       cond_plus s1 (INTEGER.of_Z (Size.to_Z s1) ((Size.to_Z s1) - (Size.to_Z s2)) true) c1 c2 &&
        $$ inv0 |- (Expr.trunc truncop_int (typ_int s1) x0 (typ_int s2)) >=tgt (Expr.value x) $$ &&
        $$ inv0 |- (Expr.bop bop_shl s2 x (ValueT.const (const_int s2 c1))) >=tgt (Expr.value y) $$ &&
        $$ inv0 |- (Expr.bop bop_ashr s2 y (ValueT.const (const_int s2 c1))) >=tgt (Expr.value w) $$ &&
@@ -544,8 +544,8 @@ Definition apply_infrule
     then {{ inv0 +++ (Expr.ext extop_s (typ_int s2) w (typ_int s1)) >=tgt (Expr.value z) }}
     else apply_fail tt
   | Infrule.sext_trunc z x y c s1 s2 =>
-    if Nat.leb s2 s1 &&
-       cond_minus s1 (Size.to_Z s1) (Size.to_Z s2) c &&
+    if ((Size.to_Z s2) <? (Size.to_Z s1)) &&
+       cond_minus s1 (INTEGER.of_Z (Size.to_Z s1) (Size.to_Z s1) true) (INTEGER.of_Z (Size.to_Z s1) (Size.to_Z s2) true) c &&
        $$ inv0 |- (Expr.value y) >=src (Expr.trunc truncop_int (typ_int s1) x (typ_int s2)) $$ &&
        $$ inv0 |- (Expr.value z) >=src (Expr.ext extop_s (typ_int s2) x (typ_int s1)) $$
     then {{ inv0 +++ (Expr.value z) >=src (Expr.bop bop_ashr s1 x (ValueT.const (const_int s1 c))) }}

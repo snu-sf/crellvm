@@ -286,9 +286,9 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
   | CoreHint_t.OrNot (args:CoreHint_t.or_not) -> 
      let z = Convert.value args.z in
      let y = Convert.value args.y in
-     let z = Convert.value args.z in
+     let x = Convert.value args.x in
      let sz = Convert.size args.sz in
-    Infrule.Coq_or_not (z, y, z, sz)
+    Infrule.Coq_or_not (z, y, x, sz)
   | CoreHint_t.OrOr (args:CoreHint_t.or_or) ->
      let z = Convert.value args.z in
      let x = Convert.value args.x in
@@ -432,8 +432,8 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
      let zprime = Convert.value args.zprime in
      let x = Convert.value args.x in
      let x0 = Convert.value args.x0 in
-     let y = Convert.vaue args.y in
-     let w = Convert.vlaue args.w in
+     let y = Convert.value args.y in
+     let w = Convert.value args.w in
      let c1 = Convert.const_int args.c1 in
      let c2 = Convert.const_int args.c2 in
      let sz1 = Convert.size args.sz1 in
