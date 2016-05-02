@@ -359,6 +359,14 @@ Definition apply_infrule
       let inv0 := {{inv0 +++ (Expr.value v) >=src (Expr.value v')}} in
       {{inv0 +++ (Expr.value v') >=src (Expr.value v)}}
     else apply_fail tt
+  | Infrule.bitcastptr_tgt v v' bitcastinst =>
+    if $$ inv0 |- (Expr.value v) >=tgt bitcastinst $$ &&
+       $$ inv0 |- bitcastinst >=tgt (Expr.value v) $$ &&
+       cond_bitcast_ptr v' bitcastinst
+    then 
+      let inv0 := {{inv0 +++ (Expr.value v) >=tgt (Expr.value v')}} in
+      {{inv0 +++ (Expr.value v') >=tgt (Expr.value v)}}
+    else apply_fail tt
   | Infrule.fadd_commutative_tgt z x y fty =>
     if $$ inv0 |- (Expr.fbop fbop_fadd fty x y) >=tgt (Expr.value (ValueT.id z)) $$
     then {{ inv0 +++ (Expr.fbop fbop_fadd fty y x) >=tgt (Expr.value (ValueT.id z)) }}
@@ -538,50 +546,45 @@ Definition apply_infrule
        $$ inv0 |- e2 >=tgt e3 $$
     then {{ inv0 +++ e1 >=tgt e3 }}
     else apply_fail tt
-  | Infrule.diffblock_global_alloca x y =>
-    match x with
-    | (Tag.physical, x_id) =>
-      match lookupTypViaGIDFromModule m_src x_id with
-      | None => apply_fail tt
-      | Some x_type => (* x is a global variable *)
-        if $$ inv0 |-allocasrc y $$ then
-          {{inv0 +++ (ValueT.id y) _||_src (ValueT.const (const_gid x_type x_id)) }}
-        else apply_fail tt
-      end
-    | _ => apply_fail tt
-    end
   | Infrule.rem_neg z my x y s =>
     if $$ inv0 |- (Expr.value my) >=src (Expr.bop bop_sub s (ValueT.const (const_int s (INTEGER.of_Z (Size.to_Z s) 0%Z true))) y) $$ && 
        $$ inv0 |- (Expr.value (ValueT.id z)) >=src (Expr.bop bop_srem s x my) $$
     then {{inv0 +++ (Expr.value (ValueT.id z)) >=src (Expr.bop bop_srem s x y) }}
     else apply_fail tt
-  | Infrule.diffblock_global_global x y =>
-    match x with 
-    | (Tag.physical, x_id) =>
-      match lookupTypViaGIDFromModule m_src x_id with
-      | Some x_type => (* x is a global variable *)
-        (match y with
-        | (Tag.physical, y_id) =>
-          match lookupTypViaGIDFromModule m_src y_id with
-          | Some y_type => 
-            {{inv0 +++ (ValueT.const (const_gid y_type y_id)) _||_src (ValueT.const (const_gid x_type x_id)) }}
-          | None => apply_fail tt
-          end
-        | _ => apply_fail tt
-        end)
-      | None => apply_fail tt
-      end
+  | Infrule.diffblock_global_alloca gx y =>
+    match gx with
+    | const_gid gx_ty gx_id =>
+      if $$ inv0 |-allocasrc y $$ then
+        let inv1 := {{inv0 +++ (ValueT.id y) _||_src (ValueT.const gx) }} in
+        let inv2 := {{inv1 +++ (ValueT.const gx) _||_src (ValueT.id y) }} in
+        inv2
+      else apply_fail tt
     | _ => apply_fail tt
     end
-  | Infrule.noalias_lessthan (x, x_type) (y, y_type) (x', x_type') (y', y_type') =>
-    if $$ inv0 |- (x, x_type) _|_src (y, y_type) $$ &&
+  | Infrule.diffblock_global_global gx gy =>
+    match gx with
+    | const_gid gx_ty gx_id =>
+      match gy with
+      | const_gid gy_ty gy_id =>
+        if id_dec gx_id gy_id
+        then debug_string "diffblock_global_global : id_dec" (apply_fail tt)
+        else 
+          let inv1 := {{inv0 +++ (ValueT.const (const_gid gx_ty gx_id)) _||_src (ValueT.const (const_gid gy_ty gy_id)) }} in
+          let inv2 := {{inv1 +++ (ValueT.const (const_gid gy_ty gy_id)) _||_src (ValueT.const (const_gid gx_ty gx_id)) }} in
+          inv2
+      | _ => debug_string "diffblock_global_global : gy not globalvar" (apply_fail tt)
+      end
+    | _ => debug_string "diffblock_global_global : gx not globalvar" (apply_fail tt)
+    end
+  | Infrule.diffblock_lessthan x y x' y' =>
+    if $$ inv0 |- x _||_src y $$ &&
        $$ inv0 |- (Expr.value x) >=src (Expr.value x') $$ &&
        $$ inv0 |- (Expr.value y) >=src (Expr.value y') $$
-    then {{inv0 +++ (x', x_type') _|_src (y', y_type')}}
+    then {{inv0 +++ x' _||_src y'}}
     else apply_fail tt
   | Infrule.diffblock_noalias x y (x', x_type') (y', y_type') =>
-    if $$ inv0 |- (ValueT.id x) _||_src (ValueT.id y) $$ &&
-       ValueT.eq_dec (ValueT.id x) x' && ValueT.eq_dec (ValueT.id y) y'
+    if $$ inv0 |- x _||_src y $$ &&
+       ValueT.eq_dec x x' && ValueT.eq_dec y y'
     then {{inv0 +++ (x', x_type') _|_src (y', y_type')}}
     else apply_fail tt
   | Infrule.transitivity_pointer_lhs p q v ty a =>

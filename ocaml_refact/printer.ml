@@ -201,6 +201,9 @@ module PrintHints = struct
       | Infrule.Coq_add_shift _ -> "add_shift"
       | Infrule.Coq_add_signbit _ -> "add_signbit"
       | Infrule.Coq_add_zext_bool _ -> "add_zext_bool"
+      | Infrule.Coq_diffblock_global_global _ -> "diffblock_global_global"
+      | Infrule.Coq_diffblock_global_alloca _ -> "diffblock_global_alloca"
+      | Infrule.Coq_intro_eq v -> "intro_eq : " ^ ExprsToString.of_expr(Expr.Coq_value v)
       | Infrule.Coq_transitivity (a, b, c) -> "transitivity : " ^
                                                 ExprsToString.of_expr a ^ " ≥ " ^
                                                   ExprsToString.of_expr b ^ " ≥ " ^
@@ -229,6 +232,7 @@ module PrintHints = struct
     let unary (u:Invariant.unary): string list =
       (PrintExprs.exprPairSet (u.Invariant.lessdef) "≥") @
         (PrintExprs.ptrPairSet (u.Invariant.alias.Invariant.noalias) "≠") @
+        (PrintExprs.valueTPairSet (u.Invariant.alias.Invariant.diffblock) "_||_") @
         (PrintExprs.idTSet (u.Invariant.allocas) "alc") @
         (PrintExprs.idTSet (u.Invariant.coq_private) "isol")
     

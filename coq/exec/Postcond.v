@@ -252,7 +252,7 @@ Module ForgetMemory.
 
   Definition is_noalias_Expr (inv:Invariant.unary) (ps:PtrSet.t) (e:Expr.t): bool :=
     match e with
-      | Expr.load v ty al => is_noalias_Ptr inv ps (v, ty)
+      | Expr.load v ty al => is_noalias_Ptr inv ps (v, typ_pointer ty)
       | _ => true
     end.
   

@@ -106,6 +106,9 @@ module Convert = struct
   let register (register:CoreHint_t.register) : IdT.t =
     (tag register.tag, register.name)
 
+  let register (register:CoreHint_t.register) : IdT.t =
+    (tag register.tag, register.name)
+  
   let float_type (ft:CoreHint_t.float_type): LLVMsyntax.floating_point =
     match ft with
     | CoreHint_t.HalfType -> failwith "Vellvm has no Halftype" 
@@ -125,6 +128,8 @@ module Convert = struct
         (match addrspace with
         | 0 -> LLVMsyntax.Coq_typ_pointer (value_type ptrtype)
         | _ -> failwith "Vellvm does not support pointer address with address space larger than 0")
+    | CoreHint_t.ArrayType (arrsize, elemtype) ->
+        LLVMsyntax.Coq_typ_array (arrsize, value_type elemtype)
  
   let const_int (const_int:CoreHint_t.const_int): INTEGER.t =
     let IntType sz = const_int.int_type in
@@ -163,17 +168,8 @@ module Convert = struct
     | CoreHint_t.PPC_FP128Type -> LLVMsyntax.Coq_fp_ppc_fp128
     | CoreHint_t.X86_FP80Type -> LLVMsyntax.Coq_fp_x86_fp80
 
-  let pointer_id (register:CoreHint_t.register) (fdef:LLVMsyntax.fdef) : Ptr.t =
-    let typ = TODOCAML.get (LLVMinfra.lookupTypViaIDFromFdef fdef register.name) in
-    (ValueT.Coq_id (tag register.tag, register.name), typ)
 
-  let pointer_val (value:CoreHint_t.value) (fdef:LLVMsyntax.fdef) : Ptr.t =
-    match value with
-    | CoreHint_t.Id reg -> pointer_id reg fdef
-    | CoreHint_t.ConstVal _ ->
-      failwith "ConvertUtil.pointer_val: cannot get constant(int/float/...) pointer"
-
-  let constant (constval:CoreHint_t.constant): LLVMsyntax.const = 
+  let rec constant (constval:CoreHint_t.constant): LLVMsyntax.const = 
     match constval with 
     | CoreHint_t.ConstInt ci -> 
        LLVMsyntax.Coq_const_int 
@@ -186,11 +182,24 @@ module Convert = struct
        LLVMsyntax.Coq_const_gid (value_type cgva.var_type, cgva.var_id)
     | CoreHint_t.ConstUndef vt ->
        LLVMsyntax.Coq_const_undef (value_type vt)
-   
+    | CoreHint_t.ConstExpr ce ->
+       constant_expr ce
+  
+  and constant_expr (ce:CoreHint_t.constant_expr) : LLVMsyntax.const = 
+    match ce with
+    | CoreHint_t.ConstExprGetElementPtr cegep ->
+       LLVMsyntax.Coq_const_gep (cegep.is_inbounds, 
+                constant cegep.v, 
+                List.map (fun v -> constant v) cegep.idxlist)
+    | _ -> failwith "convertUtil.constant_expr : Unknown constant expression"
+
   let value (value:CoreHint_t.value): ValueT.t = 
     match value with
     | CoreHint_t.Id reg -> ValueT.Coq_id (register reg)
     | CoreHint_t.ConstVal constval -> ValueT.Coq_const (constant constval)
+
+  let pointer (ptr:CoreHint_t.pointer) : Ptr.t = 
+    (value ptr.v, value_type ptr.ty)
 
   let rhs_of (register:CoreHint_t.register) (fdef:LLVMsyntax.fdef) : Expr.t =
     let register_id = register.name in
