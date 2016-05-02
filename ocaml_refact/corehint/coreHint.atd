@@ -625,6 +625,14 @@ type diffblock_global_alloca = {
   y : register;
 }
 
+type or_and = {
+  z : value;
+  y : value;
+  x : value;
+  a : value;
+  sz : size;
+}
+
 type or_and_xor = {
   z : value;
   x : value;
@@ -638,6 +646,26 @@ type or_commutative = {
   z : register;
   x : value;
   y : value;
+  sz : size;
+}
+
+type or_commutative_tgt = {
+  z : register;
+  x : value;
+  y : value;
+  sz : size;
+}
+
+type or_mone = {
+  z : value;
+  a : value;
+  sz : size;
+}
+
+type or_not = {
+  z : value;
+  y : value;
+  x : value;
   sz : size;
 }
 
@@ -657,6 +685,18 @@ type or_or2 = {
   yprime : value;
   a : value;
   b : value;
+  sz : size;
+}
+
+type or_same = {
+  z : value;
+  a : value;
+  sz : size;
+}
+
+type or_undef = {
+  z : value;
+  a : value;
   sz : size;
 }
 
@@ -696,6 +736,12 @@ type or_xor4 = {
   a : value;
   b : value;
   nb : value;
+  sz : size;
+}
+
+type or_zero = {
+  z : value;
+  a : value;
   sz : size;
 }
 
@@ -864,44 +910,14 @@ type xor_commutative = {
   sz : size;
 }
 
-type or_and = {
-  z : value;
-  y : value;
+type xor_commutative_tgt = {
+  z : register;
   x : value;
-  a : value;
-  sz : size;
-}
-
-type or_mone = {
-  z : value;
-  a : value;
-  sz : size;
-}
-
-type or_not = {
-  z : value;
   y : value;
-  x : value;
   sz : size;
 }
 
-type or_same = {
-  z : value;
-  a : value;
-  sz : size;
-}
 
-type or_undef = {
-  z : value;
-  a : value;
-  sz : size;
-}
-
-type or_zero = {
-  z : value;
-  a : value;
-  sz : size;
-}
 
 
 type infrule = [
@@ -948,6 +964,7 @@ type infrule = [
   | OrAnd of or_and
   | OrAndXor of or_and_xor
   | OrCommutative of or_commutative
+  | OrCommutativeTgt of or_commutative_tgt
   | OrMone of or_mone
   | OrNot of or_not
   | OrOr of or_or
@@ -967,8 +984,6 @@ type infrule = [
   | RemNeg of rem_neg
   | SdivMone of sdiv_mone
   | SdivSubSrem of sdiv_sub_srem
-  | SextAshr of sext_ashr
-  | SextTrunc of sext_trunc
   | SubAdd of sub_add
   | SubConstAdd of sub_const_add
   | SubConstNot of sub_const_not
@@ -989,6 +1004,7 @@ type infrule = [
   | ReplaceRhs of replace_rhs
   | ReplaceRhsOpt of replace_rhs_opt
   | XorCommutative of xor_commutative
+  | XorCommutativeTgt of xor_commutative_tgt
   ] <ocaml repr="classic">
 
 type hint_command = [

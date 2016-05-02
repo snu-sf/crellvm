@@ -278,6 +278,12 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
      let y = Convert.value args.y in
      let sz = Convert.size args.sz in
      Infrule.Coq_or_commutative (z, x, y, sz)
+  | CoreHint_t.OrCommutativeTgt (args:CoreHint_t.or_commutative_tgt) ->
+     let z = Convert.register args.z in
+     let x = Convert.value args.x in
+     let y = Convert.value args.y in
+     let sz = Convert.size args.sz in
+     Infrule.Coq_or_commutative_tgt (z, x, y, sz)
   | CoreHint_t.OrMone (args:CoreHint_t.or_mone) -> 
      let z = Convert.value args.z in
      let a = Convert.value args.a in
@@ -427,26 +433,6 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
      let x = Convert.value args.x in
      let sz = Convert.size args.sz in
      Infrule.Coq_sdiv_mone (z, x, sz)
-  | CoreHint_t.SextAshr (args:CoreHint_t.sext_ashr) -> 
-     let z = Convert.value args.z in
-     let zprime = Convert.value args.zprime in
-     let x = Convert.value args.x in
-     let x0 = Convert.value args.x0 in
-     let y = Convert.value args.y in
-     let w = Convert.value args.w in
-     let c1 = Convert.const_int args.c1 in
-     let c2 = Convert.const_int args.c2 in
-     let sz1 = Convert.size args.sz1 in
-     let sz2 = Convert.size args.sz2 in
-     Infrule.Coq_sext_ashr (z, zprime, x, x0, y, w, c1, c2, sz1, sz2)
-  | CoreHint_t.SextTrunc (args:CoreHint_t.sext_trunc) -> 
-     let z = Convert.value args.z in
-     let x = Convert.value args.x in
-     let y = Convert.value args.y in
-     let c = Convert.const_int args.c in
-     let sz1 = Convert.size args.sz1 in
-     let sz2 = Convert.size args.sz2 in
-     Infrule.Coq_sext_trunc (z, x, y, c, sz1, sz2)
   | CoreHint_t.SubConstAdd (args:CoreHint_t.sub_const_add) ->
      let z = Convert.register args.z in
      let y = Convert.register args.y in
@@ -611,5 +597,11 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
      let y = Convert.value args.y in
      let sz = Convert.size args.sz in
      Infrule.Coq_xor_commutative (z, x, y, sz)
-  | _ ->
+   | CoreHint_t.XorCommutativeTgt (args:CoreHint_t.xor_commutative_tgt) ->
+     let z = Convert.register args.z in
+     let x = Convert.value args.x in
+     let y = Convert.value args.y in
+     let sz = Convert.size args.sz in
+     Infrule.Coq_xor_commutative_tgt (z, x, y, sz)
+ | _ ->
      failwith "convert_infrule does not deal with this inferece rule"
