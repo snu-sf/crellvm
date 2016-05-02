@@ -59,7 +59,7 @@ Definition cond_mask_up (s:sz) (c1i c2i:INTEGER.t) : bool :=
   let c1 := (Int.repr ws (INTEGER.to_Z c1i)) in
   let mc1 := (Int.sub ws (Int.zero ws) c1) in
   let c2 := (Int.repr ws (INTEGER.to_Z c2i)) in
-   let c1up := (Int.not ws (Int.sub ws (Int.and ws c1 mc1) (Int.one ws))) in
+  let c1up := (Int.not ws (Int.sub ws (Int.and ws c1 mc1) (Int.one ws))) in
     (Int.eq_dec ws) (Int.and ws c1up c2) c1up.
 
 

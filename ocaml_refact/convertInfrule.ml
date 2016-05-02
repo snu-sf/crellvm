@@ -597,11 +597,11 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
      let y = Convert.value args.y in
      let sz = Convert.size args.sz in
      Infrule.Coq_xor_commutative (z, x, y, sz)
-   | CoreHint_t.XorCommutativeTgt (args:CoreHint_t.xor_commutative_tgt) ->
+  | CoreHint_t.XorCommutativeTgt (args:CoreHint_t.xor_commutative_tgt) ->
      let z = Convert.register args.z in
      let x = Convert.value args.x in
      let y = Convert.value args.y in
      let sz = Convert.size args.sz in
      Infrule.Coq_xor_commutative_tgt (z, x, y, sz)
- | _ ->
+  | _ ->
      failwith "convert_infrule does not deal with this inferece rule"
