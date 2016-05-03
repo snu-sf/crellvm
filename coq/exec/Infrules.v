@@ -195,14 +195,14 @@ Definition cond_pointertyp (t:typ) : bool :=
   end.
 
 
-Notation "$$ inv |- y >=src rhs $$" := (ExprPairSet.mem (y, rhs) inv.(Invariant.src).(Invariant.lessdef)) (at level 41).
-Notation "$$ inv |- y >=tgt rhs $$" := (ExprPairSet.mem (y, rhs) inv.(Invariant.tgt).(Invariant.lessdef)) (at level 41).
+Notation "$$ inv |-src y >= rhs $$" := (ExprPairSet.mem (y, rhs) inv.(Invariant.src).(Invariant.lessdef)) (at level 41).
+Notation "$$ inv |-tgt y >= rhs $$" := (ExprPairSet.mem (y, rhs) inv.(Invariant.tgt).(Invariant.lessdef)) (at level 41).
 Notation "$$ inv |-allocasrc y $$" := (IdTSet.mem y inv.(Invariant.src).(Invariant.allocas)) (at level 41).
 Notation "$$ inv |-allocatgt y $$" := (IdTSet.mem y inv.(Invariant.tgt).(Invariant.allocas)) (at level 41).
-Notation "$$ inv |- x _|_src y $$" := ((PtrPairSet.mem (x, y) inv.(Invariant.src).(Invariant.alias).(Invariant.noalias)) || (PtrPairSet.mem (y, x) inv.(Invariant.src).(Invariant.alias).(Invariant.noalias))) (at level 41).
-Notation "$$ inv |- x _|_tgt y $$" := ((PtrPairSet.mem (x, y) inv.(Invariant.tgt).(Invariant.alias).(Invariant.noalias)) || (PtrPairSet.mem (y, x) inv.(Invariant.tgt).(Invariant.alias).(Invariant.noalias))) (at level 41).
-Notation "$$ inv |- x _||_src y $$" := ((ValueTPairSet.mem (x, y) inv.(Invariant.src).(Invariant.alias).(Invariant.diffblock)) || (ValueTPairSet.mem (y, x) inv.(Invariant.src).(Invariant.alias).(Invariant.diffblock))) (at level 41).
-Notation "$$ inv |- x _||_tgt y $$" := ((ValueTPairSet.mem (x, y) inv.(Invariant.tgt).(Invariant.alias).(Invariant.diffblock)) || (ValueTPairSet.mem (y, x) inv.(Invariant.tgt).(Invariant.alias).(Invariant.diffblock))) (at level 41).
+Notation "$$ inv |-src x _|_ y $$" := ((PtrPairSet.mem (x, y) inv.(Invariant.src).(Invariant.alias).(Invariant.noalias)) || (PtrPairSet.mem (y, x) inv.(Invariant.src).(Invariant.alias).(Invariant.noalias))) (at level 41).
+Notation "$$ inv |-tgt x _|_ y $$" := ((PtrPairSet.mem (x, y) inv.(Invariant.tgt).(Invariant.alias).(Invariant.noalias)) || (PtrPairSet.mem (y, x) inv.(Invariant.tgt).(Invariant.alias).(Invariant.noalias))) (at level 41).
+Notation "$$ inv |-src x _||_ y $$" := ((ValueTPairSet.mem (x, y) inv.(Invariant.src).(Invariant.alias).(Invariant.diffblock)) || (ValueTPairSet.mem (y, x) inv.(Invariant.src).(Invariant.alias).(Invariant.diffblock))) (at level 41).
+Notation "$$ inv |-tgt x _||_ y $$" := ((ValueTPairSet.mem (x, y) inv.(Invariant.tgt).(Invariant.alias).(Invariant.diffblock)) || (ValueTPairSet.mem (y, x) inv.(Invariant.tgt).(Invariant.alias).(Invariant.diffblock))) (at level 41).
 Notation "{{ inv +++ y >=src rhs }}" := (Invariant.update_src (Invariant.update_lessdef (ExprPairSet.add (y, rhs))) inv) (at level 41).
 Notation "{{ inv +++ y >=tgt rhs }}" := (Invariant.update_tgt (Invariant.update_lessdef (ExprPairSet.add (y, rhs))) inv) (at level 41).
 Notation "{{ inv +++ y _|_src x }}" := (Invariant.update_src (Invariant.update_noalias (PtrPairSet.add (y, x))) inv) (at level 41).
@@ -221,83 +221,83 @@ Definition apply_infrule
                                                     (debug_print2 infrule_printer infrule inv0)) in
   match infrule with
   | Infrule.add_associative x y z c1 c2 c3 s =>
-    if $$ inv0 |- (Expr.value y) >=src (Expr.bop bop_add s x (const_int s c1)) $$ &&
-       $$ inv0 |- (Expr.value z) >=src (Expr.bop bop_add s y (const_int s c2)) $$ &&
+    if $$ inv0 |-src (Expr.value y) >= (Expr.bop bop_add s x (const_int s c1)) $$ &&
+       $$ inv0 |-src (Expr.value z) >= (Expr.bop bop_add s y (const_int s c2)) $$ &&
        cond_plus s c1 c2 c3
     then {{inv0 +++ (Expr.value z) >=src (Expr.bop bop_add s x (const_int s c3))}}
     else apply_fail tt
   | Infrule.add_const_not z y x c1 c2 s =>
-    if $$ inv0 |- (Expr.value (ValueT.id y)) >=src (Expr.bop bop_xor s x (ValueT.const (const_int s (INTEGER.of_Z (Size.to_Z s) (-1)%Z true)))) $$ &&
-       $$ inv0 |- (Expr.value (ValueT.id z)) >=src (Expr.bop bop_add s (ValueT.id y) (ValueT.const (const_int s c1))) $$ &&
+    if $$ inv0 |-src (Expr.value (ValueT.id y)) >= (Expr.bop bop_xor s x (ValueT.const (const_int s (INTEGER.of_Z (Size.to_Z s) (-1)%Z true)))) $$ &&
+       $$ inv0 |-src (cExpr.value (ValueT.id z)) >= (Expr.bop bop_add s (ValueT.id y) (ValueT.const (const_int s c1))) $$ &&
        cond_minus s c1 (INTEGER.of_Z (Size.to_Z s) 1%Z true) c2
     then {{inv0 +++ (Expr.value (ValueT.id z)) >=src (Expr.bop bop_sub s (ValueT.const (const_int s c2)) x)}}
     else apply_fail tt
   | Infrule.add_dist_sub z minusx minusy w x y s =>
-    if $$ inv0 |- (Expr.value (ValueT.id minusx)) 
-                  >=tgt (Expr.bop bop_sub s (ValueT.const (const_int s (INTEGER.of_Z (Size.to_Z s) 0%Z true))) x) $$
-        && $$ inv0 |- (Expr.value minusy)
-                      >=tgt (Expr.bop bop_sub s (ValueT.const (const_int s (INTEGER.of_Z (Size.to_Z s) 0%Z true))) y) $$
-        && $$ inv0 |- (Expr.bop bop_add s x y) 
-                      >=tgt (Expr.value (ValueT.id w)) $$ 
-        && $$ inv0 |- (Expr.bop bop_sub s (ValueT.const (const_int s (INTEGER.of_Z (Size.to_Z s) 0%Z true))) (ValueT.id w))
-                      >=tgt (Expr.value (ValueT.id z)) $$  
+    if $$ inv0 |-tgt (Expr.value (ValueT.id minusx)) 
+                  >= (Expr.bop bop_sub s (ValueT.const (const_int s (INTEGER.of_Z (Size.to_Z s) 0%Z true))) x) $$
+        && $$ inv0 |-tgt (Expr.value minusy)
+                      >= (Expr.bop bop_sub s (ValueT.const (const_int s (INTEGER.of_Z (Size.to_Z s) 0%Z true))) y) $$
+        && $$ inv0 |-tgt (Expr.bop bop_add s x y) 
+                      >= (Expr.value (ValueT.id w)) $$ 
+        && $$ inv0 |-tgt (Expr.bop bop_sub s (ValueT.const (const_int s (INTEGER.of_Z (Size.to_Z s) 0%Z true))) (ValueT.id w))
+                      >= (Expr.value (ValueT.id z)) $$  
     then {{inv0 +++ (Expr.bop bop_add s (ValueT.id minusx) minusy) >=tgt (Expr.value (ValueT.id z))}}  
     else apply_fail tt
   | Infrule.add_sub z minusy x y s =>
-    if $$ inv0 |- (Expr.value minusy) >=src (Expr.bop bop_sub s (const_int s (INTEGER.of_Z (Size.to_Z s) 0%Z true)) y) $$ &&
-       $$ inv0 |- (Expr.value z) >=src (Expr.bop bop_add s x minusy) $$
+    if $$ inv0 |-src (Expr.value minusy) >= (Expr.bop bop_sub s (const_int s (INTEGER.of_Z (Size.to_Z s) 0%Z true)) y) $$ &&
+       $$ inv0 |-src (Expr.value z) >= (Expr.bop bop_add s x minusy) $$
     then {{inv0 +++ (Expr.value z) >=src (Expr.bop bop_sub s x y)}}
     else apply_fail tt
   | Infrule.add_commutative z x y s =>
-    if $$ inv0 |- (Expr.value z) >=src (Expr.bop bop_add s x y) $$
+    if $$ inv0 |-src (Expr.value z) >= (Expr.bop bop_add s x y) $$
     then {{inv0 +++ (Expr.value z) >=src (Expr.bop bop_add s y x)}}
     else apply_fail tt
   | Infrule.add_commutative_tgt z x y s =>
-    if $$ inv0 |- (Expr.bop bop_add s x y) >=tgt (Expr.value z) $$
+    if $$ inv0 |-tgt (Expr.bop bop_add s x y) >= (Expr.value z) $$
     then {{inv0 +++ (Expr.bop bop_add s y x) >=tgt (Expr.value z) }}
     else apply_fail tt
   | Infrule.add_mask z y y' x c1 c2 s =>
-      if $$ inv0 |- (Expr.bop bop_and s x (ValueT.const (const_int s c2))) >=tgt (Expr.value (ValueT.id y)) $$ &&
-         $$ inv0 |- (Expr.bop bop_add s x (ValueT.const (const_int s c1))) >=tgt (Expr.value (ValueT.id y')) $$ &&
-         $$ inv0 |- (Expr.bop bop_and s (ValueT.id y') (ValueT.const (const_int s c2))) >=tgt (Expr.value (ValueT.id z)) $$ &&
+      if $$ inv0 |-tgt (Expr.bop bop_and s x (ValueT.const (const_int s c2))) >= (Expr.value (ValueT.id y)) $$ &&
+         $$ inv0 |-tgt (Expr.bop bop_add s x (ValueT.const (const_int s c1))) >= (Expr.value (ValueT.id y')) $$ &&
+         $$ inv0 |-tgt (Expr.bop bop_and s (ValueT.id y') (ValueT.const (const_int s c2))) >= (Expr.value (ValueT.id z)) $$ &&
          cond_mask_up s c1 c2
       then {{inv0 +++ (Expr.bop bop_add s (ValueT.id y) (ValueT.const (const_int s c1))) >=tgt (Expr.value (ValueT.id z)) }}
       else apply_fail tt
   | Infrule.add_select_zero z x y c n a s =>
-      if $$ inv0 |- (Expr.value (ValueT.id x)) >=src (Expr.bop bop_sub s n a) $$ &&
-         $$ inv0 |- (Expr.value (ValueT.id y)) >=src (Expr.select c (typ_int s) (ValueT.id x) (ValueT.const (const_int s (INTEGER.of_Z (Size.to_Z s) 0%Z true)))) $$ &&
-         $$ inv0 |- (Expr.value (ValueT.id z)) >=src (Expr.bop bop_add s (ValueT.id y) a) $$
+      if $$ inv0 |-src (Expr.value (ValueT.id x)) >= (Expr.bop bop_sub s n a) $$ &&
+         $$ inv0 |-src (Expr.value (ValueT.id y)) >= (Expr.select c (typ_int s) (ValueT.id x) (ValueT.const (const_int s (INTEGER.of_Z (Size.to_Z s) 0%Z true)))) $$ &&
+         $$ inv0 |-src (Expr.value (ValueT.id z)) >= (Expr.bop bop_add s (ValueT.id y) a) $$
       then {{inv0 +++ (Expr.value (ValueT.id z)) >=src (Expr.select c (typ_int s) n a) }}
       else apply_fail tt
   | Infrule.add_select_zero2 z x y c n a s =>
-      if $$ inv0 |- (Expr.value (ValueT.id x)) >=src (Expr.bop bop_sub s n a) $$ &&
-         $$ inv0 |- (Expr.value (ValueT.id y)) >=src (Expr.select c (typ_int s) (ValueT.const (const_int s (INTEGER.of_Z (Size.to_Z s) 0%Z true))) (ValueT.id x)) $$ &&
-         $$ inv0 |- (Expr.value (ValueT.id z)) >=src (Expr.bop bop_add s (ValueT.id y) a) $$
+      if $$ inv0 |-src (Expr.value (ValueT.id x)) >= (Expr.bop bop_sub s n a) $$ &&
+         $$ inv0 |-src (Expr.value (ValueT.id y)) >= (Expr.select c (typ_int s) (ValueT.const (const_int s (INTEGER.of_Z (Size.to_Z s) 0%Z true))) (ValueT.id x)) $$ &&
+         $$ inv0 |-src (Expr.value (ValueT.id z)) >= (Expr.bop bop_add s (ValueT.id y) a) $$
       then {{inv0 +++ (Expr.value (ValueT.id z)) >=src (Expr.select c (typ_int s) a n) }}
       else apply_fail tt
   | Infrule.add_shift y v s =>
-    if $$ inv0 |- (Expr.value y) >=src (Expr.bop bop_add s v v) $$
+    if $$ inv0 |-src (Expr.value y) >= (Expr.bop bop_add s v v) $$
     then {{inv0 +++ (Expr.value y) >=src (Expr.bop bop_shl s v (const_int s (INTEGER.of_Z (Size.to_Z s) 1%Z true)))}}
     else apply_fail tt
   | Infrule.add_signbit x e1 e2 s =>
-    if $$ inv0 |- (Expr.value x) >=src (Expr.bop bop_add s e1 e2) $$ &&
+    if $$ inv0 |-src (Expr.value x) >= (Expr.bop bop_add s e1 e2) $$ &&
        cond_signbit s e2
     then {{inv0 +++ (Expr.value x) >=src (Expr.bop bop_xor s e1 e2)}}
     else apply_fail tt
   | Infrule.add_xor_and z a b x y s =>
-    if $$ inv0 |- (Expr.value (ValueT.id x)) >=src (Expr.bop bop_xor s a b) $$ &&
-       $$ inv0 |- (Expr.value (ValueT.id y)) >=src (Expr.bop bop_and s a b) $$ &&
-       $$ inv0 |- (Expr.value (ValueT.id z)) >=src (Expr.bop bop_add s (ValueT.id x) (ValueT.id y)) $$
+    if $$ inv0 |-src (Expr.value (ValueT.id x)) >= (Expr.bop bop_xor s a b) $$ &&
+       $$ inv0 |-src (Expr.value (ValueT.id y)) >= (Expr.bop bop_and s a b) $$ &&
+       $$ inv0 |-src (Expr.value (ValueT.id z)) >= (Expr.bop bop_add s (ValueT.id x) (ValueT.id y)) $$
     then {{inv0 +++ (Expr.value (ValueT.id z)) >=src (Expr.bop bop_or s a b)}}
     else apply_fail tt
   | Infrule.add_or_and z a b x y s =>
-    if $$ inv0 |- (Expr.value (ValueT.id x)) >=src (Expr.bop bop_or s a b) $$ &&
-       $$ inv0 |- (Expr.value (ValueT.id y)) >=src (Expr.bop bop_and s a b) $$ &&
-       $$ inv0 |- (Expr.value (ValueT.id z)) >=src (Expr.bop bop_add s (ValueT.id x) (ValueT.id y)) $$
+    if $$ inv0 |-src (Expr.value (ValueT.id x)) >= (Expr.bop bop_or s a b) $$ &&
+       $$ inv0 |-src (Expr.value (ValueT.id y)) >= (Expr.bop bop_and s a b) $$ &&
+       $$ inv0 |-src (Expr.value (ValueT.id z)) >= (Expr.bop bop_add s (ValueT.id x) (ValueT.id y)) $$
     then {{inv0 +++ (Expr.value (ValueT.id z)) >=src (Expr.bop bop_add s a b)}}
     else apply_fail tt
   | Infrule.and_commutative z x y s =>
-    if $$ inv0 |- (Expr.value (ValueT.id z)) >=src (Expr.bop bop_and s x y) $$
+    if $$ inv0 |-src (Expr.value (ValueT.id z)) >= (Expr.bop bop_and s x y) $$
     then {{inv0 +++ (Expr.value (ValueT.id z)) >=src (Expr.bop bop_and s y x)}}
     else apply_fail tt
   | Infrule.and_de_morgan z x y z' a b s =>
