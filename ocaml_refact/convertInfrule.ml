@@ -603,5 +603,12 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
      let y = Convert.value args.y in
      let sz = Convert.size args.sz in
      Infrule.Coq_xor_commutative_tgt (z, x, y, sz)
+  | CoreHint_t.IcmpInverse (args:CoreHint_t.icmp_inverse) ->
+     let c = Convert.cond args.predicate in
+     let ty = Convert.value_type args.ty in
+     let x = Convert.value args.x in
+     let y = Convert.value args.y in
+     let b = Convert.const_int args.boolean in
+     Infrule.Coq_icmp_inverse (c, ty, x, y, b)
   | _ ->
      failwith "convert_infrule does not deal with this inferece rule"
