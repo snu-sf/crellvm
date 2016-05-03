@@ -917,6 +917,13 @@ type xor_commutative_tgt = {
   sz : size;
 }
 
+type icmp_inverse = {
+  predicate : icmp_pred;
+  ty : value_type;
+  x : value;
+  y : value;
+  boolean : const_int;
+}
 
 
 
@@ -1005,6 +1012,7 @@ type infrule = [
   | ReplaceRhsOpt of replace_rhs_opt
   | XorCommutative of xor_commutative
   | XorCommutativeTgt of xor_commutative_tgt
+  | IcmpInverse of icmp_inverse
   ] <ocaml repr="classic">
 
 type hint_command = [
