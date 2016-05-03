@@ -191,7 +191,10 @@ module PrintHints = struct
       | Infrule.Coq_add_const_not (x, y, v, c1, c2, sz) ->
          "add_const_not"
       | Infrule.Coq_add_sub _ -> "add_sub"
-      | Infrule.Coq_add_commutative _ -> "add_commutative"
+      | Infrule.Coq_add_commutative (z, x, y, s) -> "add_commutative : " ^ 
+                                                ExprsToString.of_expr(Expr.Coq_value (ValueT.Coq_id z)) ^ " ≥ " ^
+                                                ExprsToString.of_expr(Expr.Coq_value x) ^ " + " ^
+                                                ExprsToString.of_expr(Expr.Coq_value y) ^ " to commutate"
       | Infrule.Coq_sub_add _ -> "sub_add"
       | Infrule.Coq_neg_val _ -> "neg_val"
       | Infrule.Coq_add_mask _ -> "add_mask"
@@ -204,6 +207,15 @@ module PrintHints = struct
       | Infrule.Coq_diffblock_global_global _ -> "diffblock_global_global"
       | Infrule.Coq_diffblock_global_alloca _ -> "diffblock_global_alloca"
       | Infrule.Coq_intro_eq v -> "intro_eq : " ^ ExprsToString.of_expr(Expr.Coq_value v)
+      | Infrule.Coq_or_commutative (z, x, y, s) -> "or_commutative : " ^ 
+                                                ExprsToString.of_expr(Expr.Coq_value (ValueT.Coq_id z)) ^ " ≥ " ^
+                                                ExprsToString.of_expr(Expr.Coq_value x) ^ " | " ^
+                                                ExprsToString.of_expr(Expr.Coq_value y) ^ " to commutate"
+      | Infrule.Coq_or_xor3 (z, y, a, b, s) -> "or_xor3 : " ^ 
+                                                ExprsToString.of_expr(Expr.Coq_value y) ^ " ≥ "
+                                                        ^ ExprsToString.of_expr(Expr.Coq_value a) ^ " ^ "
+                                                        ^ ExprsToString.of_expr(Expr.Coq_value b) ^ " -> " ^
+                                                ExprsToString.of_expr(Expr.Coq_value z)
       | Infrule.Coq_transitivity (a, b, c) -> "transitivity : " ^
                                                 ExprsToString.of_expr a ^ " ≥ " ^
                                                   ExprsToString.of_expr b ^ " ≥ " ^

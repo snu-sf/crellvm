@@ -625,10 +625,47 @@ type diffblock_global_alloca = {
   y : register;
 }
 
+type or_and = {
+  z : value;
+  y : value;
+  x : value;
+  a : value;
+  sz : size;
+}
+
+type or_and_xor = {
+  z : value;
+  x : value;
+  y : value;
+  a : value;
+  b : value;
+  sz : size;
+}
+
 type or_commutative = {
   z : register;
   x : value;
   y : value;
+  sz : size;
+}
+
+type or_commutative_tgt = {
+  z : register;
+  x : value;
+  y : value;
+  sz : size;
+}
+
+type or_mone = {
+  z : value;
+  a : value;
+  sz : size;
+}
+
+type or_not = {
+  z : value;
+  y : value;
+  x : value;
   sz : size;
 }
 
@@ -648,6 +685,18 @@ type or_or2 = {
   yprime : value;
   a : value;
   b : value;
+  sz : size;
+}
+
+type or_same = {
+  z : value;
+  a : value;
+  sz : size;
+}
+
+type or_undef = {
+  z : value;
+  a : value;
   sz : size;
 }
 
@@ -672,12 +721,58 @@ type or_xor2 = {
   sz : size;
 }
 
+type or_xor3 = {
+  z : value;
+  y : value;
+  a : value;
+  b : value;
+  sz : size;
+}
+
+type or_xor4 = {
+  z : value;
+  x : value;
+  y : value;
+  a : value;
+  b : value;
+  nb : value;
+  sz : size;
+}
+
+type or_zero = {
+  z : value;
+  a : value;
+  sz : size;
+}
+
 type rem_neg = {
   z : register;
   my : value;
   x : value;
   y : value;
   sz : size;
+}
+
+type sext_ashr = {
+  z : value;
+  zprime : value;
+  x : value;
+  x0 : value;
+  y : value;
+  w : value;
+  c1 : const_int;
+  c2 : const_int;
+  sz1 : size;
+  sz2 : size;
+}
+
+type sext_trunc = {
+  z : value;
+  x : value;
+  y : value;
+  c : const_int;
+  sz1 : size;
+  sz2 : size;
 }
 
 type sub_add = {
@@ -815,6 +910,15 @@ type xor_commutative = {
   sz : size;
 }
 
+type xor_commutative_tgt = {
+  z : register;
+  x : value;
+  y : value;
+  sz : size;
+}
+
+
+
 
 type infrule = [
   | AddAssociative of add_associative
@@ -852,14 +956,26 @@ type infrule = [
   | FbopDistributiveOverSelectinst of fbop_distributive_over_selectinst
   | FbopDistributiveOverSelectinst2 of fbop_distributive_over_selectinst2
   | Gepzero of gepzero
+  | IntroGhost of intro_ghost
+  | IntroEq of intro_eq
   | LessthanUndef of lessthan_undef
   | MulAddDistributive of mul_add_distributive
   | NegVal of neg_val
+  | OrAnd of or_and
+  | OrAndXor of or_and_xor
   | OrCommutative of or_commutative
+  | OrCommutativeTgt of or_commutative_tgt
+  | OrMone of or_mone
+  | OrNot of or_not
   | OrOr of or_or
   | OrOr2 of or_or2
+  | OrUndef of or_undef
+  | OrSame of or_same
   | OrXor of or_xor
   | OrXor2 of or_xor2
+  | OrXor3 of or_xor3
+  | OrXor4 of or_xor4
+  | OrZero of or_zero
   | MulBool of mul_bool
   | MulMone of mul_mone
   | MulNeg of mul_neg
@@ -887,9 +1003,8 @@ type infrule = [
   | TransitivityPointerRhs of transitivity_pointer_rhs
   | ReplaceRhs of replace_rhs
   | ReplaceRhsOpt of replace_rhs_opt
-  | IntroGhost of intro_ghost
-  | IntroEq of intro_eq
   | XorCommutative of xor_commutative
+  | XorCommutativeTgt of xor_commutative_tgt
   ] <ocaml repr="classic">
 
 type hint_command = [
