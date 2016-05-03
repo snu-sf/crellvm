@@ -194,6 +194,25 @@ Definition cond_pointertyp (t:typ) : bool :=
   | _ => false
   end.
 
+(* getInversePredicate in lib/IR/Instructions.cpp *)
+Definition get_inverse_icmp_cond (c:cond) : cond :=
+  match c with
+    | cond_eq => cond_ne
+    | cond_ne => cond_eq
+    | cond_ugt => cond_ule
+    | cond_uge => cond_ult
+    | cond_ult => cond_uge
+    | cond_ule => cond_ugt
+    | cond_sgt => cond_sle
+    | cond_sge => cond_slt
+    | cond_slt => cond_sge
+    | cond_sle => cond_sgt
+  end.
+
+Definition get_inverse_boolean_Int (b:INTEGER.t) : INTEGER.t :=
+  if (Z.eq_dec (INTEGER.to_Z b) 0)
+  then INTEGER.of_Z 1 1 true
+  else INTEGER.of_Z 1 0 true.
 
 Notation "$$ inv |-src y >= rhs $$" := (ExprPairSet.mem (y, rhs) inv.(Invariant.src).(Invariant.lessdef)) (at level 41).
 Notation "$$ inv |-tgt y >= rhs $$" := (ExprPairSet.mem (y, rhs) inv.(Invariant.tgt).(Invariant.lessdef)) (at level 41).
@@ -708,6 +727,13 @@ Definition apply_infrule
   | Infrule.xor_commutative_tgt z x y s =>
     if $$ inv0 |- (Expr.bop bop_xor s x y) >=tgt (Expr.value z) $$
     then {{inv0 +++ (Expr.bop bop_xor s y x) >=tgt (Expr.value z)}}
+    else apply_fail tt
+  | Infrule.icmp_inverse c ty x y b =>
+    if $$ inv0 |- (Expr.icmp c ty x y) >=src (Expr.value (ValueT.const (const_int Size.One b))) $$
+    then
+      let c' := get_inverse_icmp_cond c in
+      let b' := get_inverse_boolean_Int b in
+      {{inv0 +++ (Expr.icmp c' ty x y) >=src (Expr.value (ValueT.const (const_int Size.One b')))}}
     else apply_fail tt
   | _ => no_match_fail tt (* TODO *)
   end.
