@@ -182,6 +182,11 @@ module Convert = struct
        LLVMsyntax.Coq_const_gid (value_type cgva.var_type, cgva.var_id)
     | CoreHint_t.ConstUndef vt ->
        LLVMsyntax.Coq_const_undef (value_type vt)
+    | CoreHint_t.ConstNull (addrspace, vt) ->
+       (match addrspace with
+        | 0 -> LLVMsyntax.Coq_const_null (value_type vt)
+        | _ -> failwith "Vellvm does not support pointer address with address space larger than 0")
+         
     | CoreHint_t.ConstExpr ce ->
        constant_expr ce
   
