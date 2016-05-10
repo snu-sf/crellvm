@@ -734,6 +734,22 @@ Definition apply_infrule
       let b' := get_inverse_boolean_Int b in
       {{inv0 +++src (Expr.icmp c' ty x y) >= (Expr.value (ValueT.const (const_int Size.One b')))}}
     else apply_fail tt
+  | Infrule.icmp_eq_same ty x y =>
+    let Int_one := INTEGER.of_Z 1 1 true in
+    if $$ inv0 |-src (Expr.value (ValueT.const (const_int Size.One Int_one))) >= (Expr.icmp cond_eq ty x y) $$
+    then {{
+             {{inv0 +++src (Expr.value x) >= (Expr.value y)}}
+               +++src (Expr.value y) >= (Expr.value x)
+         }}
+    else apply_fail tt
+  | Infrule.icmp_neq_same ty x y =>
+    let Int_zero := INTEGER.of_Z 1 0 true in
+    if $$ inv0 |-src (Expr.value (ValueT.const (const_int Size.One Int_zero))) >= (Expr.icmp cond_ne ty x y) $$
+    then {{
+             {{inv0 +++src (Expr.value x) >= (Expr.value y)}}
+               +++src (Expr.value y) >= (Expr.value x)
+         }}
+    else apply_fail tt
   | _ => no_match_fail tt (* TODO *)
   end.
 

@@ -526,10 +526,12 @@ Definition get_br_cond
   match term with
     | insn_br _ v l1 l2 =>
       let cond_val := if (l_dec l_to l1) then 1%Z else 0%Z in
-      ExprPairSet.singleton
-        (Expr.value (ValueT.lift Tag.physical v),
-         Expr.value
-           (ValueT.const (const_int sz (INTEGER.of_Z (Size.to_Z sz) cond_val true))))
+      let expr1 := Expr.value (ValueT.lift Tag.physical v) in
+      let expr2 := Expr.value
+                     (ValueT.const (const_int sz (INTEGER.of_Z (Size.to_Z sz) cond_val true))) in
+      ExprPairSet.add
+        (expr1, expr2)
+        (ExprPairSet.singleton (expr2, expr1))
     | _ => ExprPairSet.empty
   end.
 
