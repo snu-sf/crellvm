@@ -81,11 +81,14 @@ type const_expr_get_element_ptr = {
 
 type constant_expr = [ ConstExprGetElementPtr of const_expr_get_element_ptr ] <ocaml repr="classic">
 
-type constant = [ ConstInt of const_int | ConstFloat of const_float
-        | ConstNull of (int * value_type)
-        | ConstUndef of value_type 
-        | ConstGlobalVarAddr of const_global_var_addr 
-        | ConstExpr of constant_expr ] <ocaml repr="classic">
+type constant = [
+  | ConstInt of const_int
+  | ConstFloat of const_float
+  | ConstNull of (int * value_type)
+  | ConstUndef of value_type 
+  | ConstGlobalVarAddr of const_global_var_addr 
+  | ConstExpr of constant_expr
+  ] <ocaml repr="classic">
 
 type value = [ Id of register | ConstVal of constant ] <ocaml repr="classic">
 
