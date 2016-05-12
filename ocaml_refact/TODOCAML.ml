@@ -2,6 +2,8 @@ open Printexc
 
 let flip f = fun x y -> f y x
 
+let compose f g x = f (g x)
+
 let rec filter_map f l =
   match l with
   | [] -> []
