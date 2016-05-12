@@ -23,6 +23,12 @@ Module Invariant.
     noalias:  PtrPairSet.t; (* weak no-alias, maybe in the same logic block *)
   }.
 
+  Definition false_encoding: ExprPair.t :=
+    let wrap_Z x :=
+        Expr.value (ValueT.const
+                      (const_int Size.SixtyFour (INTEGER.of_Z 64%Z x%Z true)))
+    in (wrap_Z 0, wrap_Z 42).
+
   Structure unary := mk_unary {
     lessdef: ExprPairSet.t;
     alias: aliasrel;
