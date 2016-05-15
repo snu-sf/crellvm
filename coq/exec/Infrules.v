@@ -352,6 +352,16 @@ Definition apply_infrule
     if $$ inv0 |-src (Expr.value z) >= (Expr.bop bop_and s x (ValueT.const (const_int s (INTEGER.of_Z (Size.to_Z s) 0%Z true)))) $$
     then {{ inv0 +++src (Expr.value z) >= (Expr.value (ValueT.const (const_int s (INTEGER.of_Z (Size.to_Z s) 0%Z true)))) }}
     else apply_fail tt
+  | Infrule.bitcast_bitcast src mid dst srcty midty dstty =>
+    if $$ inv0 |-src (Expr.value mid) >= (Expr.cast castop_bitcast srcty src midty) $$ &&
+       $$ inv0 |-src (Expr.value dst) >= (Expr.cast castop_bitcast midty mid dstty) $$
+    then {{ inv0 +++src (Expr.value dst) >= (Expr.cast castop_bitcast srcty src dstty) }}
+    else apply_fail tt
+  | Infrule.bitcast_inttoptr src mid dst srcty midty dstty =>
+    if $$ inv0 |-src (Expr.value mid) >= (Expr.cast castop_inttoptr srcty src midty) $$ &&
+       $$ inv0 |-src (Expr.value dst) >= (Expr.cast castop_bitcast midty mid dstty) $$ 
+    then {{ inv0 +++src (Expr.value dst) >= (Expr.cast castop_inttoptr srcty src dstty) }}
+    else apply_fail tt
   | Infrule.bop_distributive_over_selectinst opcode r s t' t x y z c bopsz selty =>
     if $$ inv0 |-tgt (Expr.bop opcode bopsz x y) >= (Expr.value (ValueT.id r)) $$ &&
        $$ inv0 |-tgt (Expr.bop opcode bopsz x z) >= (Expr.value (ValueT.id s)) $$ &&
@@ -404,6 +414,21 @@ Definition apply_infrule
        $$ inv0 |-tgt (Expr.fbop fbopcode fbopty t' x) >= (Expr.value (ValueT.id t)) $$
      then {{ inv0 +++tgt (Expr.select c (typ_floatpoint fbopty) (ValueT.id r) (ValueT.id s)) >= (Expr.value (ValueT.id t)) }}
     else apply_fail tt
+  | Infrule.fpext_fpext src mid dst srcty midty dstty =>
+    if $$ inv0 |-src (Expr.value mid) >= (Expr.ext extop_fp srcty src midty) $$ &&
+       $$ inv0 |-src (Expr.value dst) >= (Expr.ext extop_fp midty mid dstty) $$
+    then {{ inv0 +++src (Expr.value dst) >= (Expr.ext extop_fp srcty src dstty) }}
+    else apply_fail tt
+  | Infrule.fptosi_fpext src mid dst srcty midty dstty =>
+    if $$ inv0 |-src (Expr.value mid) >= (Expr.ext extop_fp srcty src midty) $$ &&
+       $$ inv0 |-src (Expr.value dst) >= (Expr.cast castop_fptosi midty mid dstty) $$
+    then {{ inv0 +++src (Expr.value dst) >= (Expr.cast castop_fptosi srcty src dstty) }}
+    else apply_fail tt
+  | Infrule.fptoui_fpext src mid dst srcty midty dstty =>
+    if $$ inv0 |-src (Expr.value mid) >= (Expr.ext extop_fp srcty src midty) $$ &&
+       $$ inv0 |-src (Expr.value dst) >= (Expr.cast castop_fptoui midty mid dstty) $$
+    then {{ inv0 +++src (Expr.value dst) >= (Expr.cast castop_fptoui srcty src dstty) }}
+    else apply_fail tt
   | Infrule.gepzero v v' gepinst =>
     if $$ inv0 |-src (Expr.value v) >= gepinst $$ &&
        $$ inv0 |-src gepinst >= (Expr.value v) $$ &&
@@ -411,6 +436,11 @@ Definition apply_infrule
     then 
       let inv0 := {{inv0 +++src (Expr.value v) >= (Expr.value v')}} in
       {{inv0 +++src (Expr.value v') >= (Expr.value v)}}
+    else apply_fail tt
+  | Infrule.inttoptr_zext src mid dst srcty midty dstty =>
+    if $$ inv0 |-src (Expr.value mid) >= (Expr.ext extop_z srcty src midty) $$ &&
+       $$ inv0 |-src (Expr.value dst) >= (Expr.cast castop_inttoptr midty mid dstty) $$
+    then {{ inv0 +++src (Expr.value dst) >= (Expr.cast castop_inttoptr srcty src dstty) }}
     else apply_fail tt
   | Infrule.lessthan_undef ty v => 
     {{ inv0 +++src (Expr.value (ValueT.const (const_undef ty))) >= (Expr.value v) }}
@@ -555,6 +585,11 @@ Definition apply_infrule
                 (ValueT.const (const_int s (INTEGER.of_Z (Size.to_Z s) 0%Z true)))) $$
     then {{ inv0 +++src (Expr.value z) >= (Expr.value a) }}
     else apply_fail tt
+  | Infrule.ptrtoint_bitcast src mid dst srcty midty dstty =>
+    if $$ inv0 |-src (Expr.value mid) >= (Expr.cast castop_bitcast srcty src midty) $$ &&
+       $$ inv0 |-src (Expr.value dst) >= (Expr.cast castop_ptrtoint midty mid dstty) $$
+    then {{ inv0 +++src (Expr.value dst) >= (Expr.cast castop_ptrtoint srcty src dstty) }}
+    else apply_fail tt
   | Infrule.sub_const_add z y x c1 c2 c3 s =>
     if $$ inv0 |-src (Expr.value (ValueT.id y)) >= (Expr.bop bop_add s x (ValueT.const (const_int s c1))) $$ &&
        $$ inv0 |-src (Expr.value (ValueT.id z)) >= (Expr.bop bop_sub s (ValueT.const (const_int s c2)) (ValueT.id y)) $$ &&
@@ -610,6 +645,16 @@ Definition apply_infrule
        cond_plus sz c (INTEGER.of_Z (Size.to_Z sz) 1%Z true) c'
     then {{ inv0 +++src (Expr.value (ValueT.id y)) >= (Expr.select b (typ_int sz) (ValueT.const (const_int sz c')) (ValueT.const (const_int sz c))) }}
     else apply_fail tt
+  | Infrule.sext_sext src mid dst srcty midty dstty =>
+    if $$ inv0 |-src (Expr.value mid) >= (Expr.ext extop_s srcty src midty) $$ &&
+       $$ inv0 |-src (Expr.value dst) >= (Expr.ext extop_s midty mid dstty) $$
+    then {{ inv0 +++src (Expr.value dst) >= (Expr.ext extop_s srcty src dstty) }}
+    else apply_fail tt
+  | Infrule.sitofp_sext src mid dst srcty midty dstty =>
+    if $$ inv0 |-src (Expr.value mid) >= (Expr.ext extop_s srcty src midty) $$ &&
+       $$ inv0 |-src (Expr.value dst) >= (Expr.cast castop_sitofp midty mid dstty) $$
+    then {{ inv0 +++src (Expr.value dst) >= (Expr.cast castop_sitofp srcty src dstty) }}
+    else apply_fail tt
   | Infrule.transitivity e1 e2 e3 =>
     if $$ inv0 |-src e1 >= e2 $$ &&
        $$ inv0 |-src e2 >= e3 $$ 
@@ -619,6 +664,11 @@ Definition apply_infrule
     if $$ inv0 |-tgt e1 >= e2 $$ &&
        $$ inv0 |-tgt e2 >= e3 $$
     then {{ inv0 +++tgt e1 >= e3 }}
+    else apply_fail tt
+  | Infrule.trunc_ptrtoint src mid dst srcty midty dstty =>
+    if $$ inv0 |-src (Expr.value mid) >= (Expr.cast castop_ptrtoint srcty src midty) $$ &&
+       $$ inv0 |-src (Expr.value dst) >= (Expr.trunc truncop_int midty mid dstty) $$
+    then {{ inv0 +++src (Expr.value dst) >= (Expr.cast castop_ptrtoint srcty src dstty) }}
     else apply_fail tt
   | Infrule.rem_neg z my x y s =>
     if $$ inv0 |-src (Expr.value my) >= (Expr.bop bop_sub s (ValueT.const (const_int s (INTEGER.of_Z (Size.to_Z s) 0%Z true))) y) $$ && 
@@ -671,7 +721,12 @@ Definition apply_infrule
        $$ inv0 |-src (Expr.value v) >= (Expr.load p ty a) $$
     then {{inv0 +++src (Expr.value v) >= (Expr.load q ty a)}}
     else apply_fail tt
-    | Infrule.replace_rhs x y e1 e2 e2' =>
+  | Infrule.trunc_trunc src mid dst srcty midty dstty =>
+    if $$ inv0 |-src (Expr.value mid) >= (Expr.trunc truncop_int srcty src midty) $$ &&
+       $$ inv0 |-src (Expr.value dst) >= (Expr.trunc truncop_int midty mid dstty) $$
+    then {{inv0 +++src (Expr.value dst) >= (Expr.trunc truncop_int srcty src dstty)}}
+    else apply_fail tt
+  | Infrule.replace_rhs x y e1 e2 e2' =>
     if $$ inv0 |-src (Expr.value x) >= (Expr.value y) $$ &&
        $$ inv0 |-src e1 >= e2 $$ &&
        cond_replace_lessdef x y e2 e2'
@@ -683,12 +738,22 @@ Definition apply_infrule
        cond_replace_lessdef x y e2 e2'
     then {{inv0 +++tgt e1 >= e2'}}
     else apply_fail tt
+  | Infrule.sext_zext src mid dst srcty midty dstty =>
+    if $$ inv0 |-src (Expr.value mid) >= (Expr.ext extop_z srcty src midty) $$ &&
+       $$ inv0 |-src (Expr.value dst) >= (Expr.ext extop_s midty mid dstty) $$
+    then {{ inv0 +++src (Expr.value dst) >= (Expr.ext extop_z srcty src dstty) }}
+    else apply_fail tt
   | Infrule.udiv_zext z x y k a b s1 s2 =>
     if $$ inv0 |-tgt (Expr.ext extop_z (typ_int s1) a (typ_int s2)) >= (Expr.value (ValueT.id x)) $$ &&
        $$ inv0 |-tgt (Expr.ext extop_z (typ_int s1) b (typ_int s2)) >= (Expr.value (ValueT.id y)) $$ &&
        $$ inv0 |-tgt (Expr.bop bop_udiv s1 a b) >= (Expr.value (ValueT.id k)) $$ &&
        $$ inv0 |-tgt (Expr.ext extop_z (typ_int s1) (ValueT.id k) (typ_int s2)) >= (Expr.value (ValueT.id z)) $$
     then {{ inv0 +++tgt (Expr.bop bop_udiv s2 (ValueT.id x) (ValueT.id y)) >= (Expr.value (ValueT.id z)) }}
+    else apply_fail tt
+  | Infrule.uitofp_zext src mid dst srcty midty dstty =>
+    if $$ inv0 |-src (Expr.value mid) >= (Expr.ext extop_z srcty src midty) $$ &&
+       $$ inv0 |-src (Expr.value dst) >= (Expr.cast castop_uitofp midty mid dstty) $$
+    then {{ inv0 +++src (Expr.value dst) >= (Expr.cast castop_uitofp srcty src dstty) }}
     else apply_fail tt
   | Infrule.urem_zext z x y k a b s1 s2 =>
     if $$ inv0 |-tgt (Expr.ext extop_z (typ_int s1) a (typ_int s2)) >= (Expr.value (ValueT.id x)) $$ &&
@@ -733,6 +798,11 @@ Definition apply_infrule
       let c' := get_inverse_icmp_cond c in
       let b' := get_inverse_boolean_Int b in
       {{inv0 +++src (Expr.icmp c' ty x y) >= (Expr.value (ValueT.const (const_int Size.One b')))}}
+    else apply_fail tt
+  | Infrule.zext_zext src mid dst srcty midty dstty =>
+    if $$ inv0 |-src (Expr.value mid) >= (Expr.ext extop_z srcty src midty) $$ &&
+       $$ inv0 |-src (Expr.value dst) >= (Expr.ext extop_z midty mid dstty) $$
+    then {{ inv0 +++src (Expr.value dst) >= (Expr.ext extop_z srcty src dstty) }}
     else apply_fail tt
   | _ => no_match_fail tt (* TODO *)
   end.

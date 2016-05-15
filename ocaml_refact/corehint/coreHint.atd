@@ -460,6 +460,15 @@ type and_zero = {
   sz : size;
 }
 
+type bitcast_bitcast = {
+    src : value;
+    mid : value;
+    dst : value;
+    srcty : value_type;
+    midty : value_type;
+    dstty : value_type;
+}
+
 type bop_distributive_over_selectinst = {
   opcode : bop;
   r : register;
@@ -484,6 +493,15 @@ type bitcastptr_tgt = {
   v : value;
   vprime : value;
   bitcastinst : expr;
+}
+
+type bitcast_inttoptr = {
+    src : value;
+    mid : value;
+    dst : value;
+    srcty : value_type;
+    midty : value_type;
+    dstty : value_type;
 }
 
 type bop_distributive_over_selectinst2 = {
@@ -535,6 +553,33 @@ type fbop_distributive_over_selectinst2 = {
   selty : value_type;
 }
 
+type fpext_fpext = {
+    src : value;
+    mid : value;
+    dst : value;
+    srcty : value_type;
+    midty : value_type;
+    dstty : value_type;
+}
+
+type fptosi_fpext = {
+    src : value;
+    mid : value;
+    dst : value;
+    srcty : value_type;
+    midty : value_type;
+    dstty : value_type;
+}
+
+type fptoui_fpext = {
+    src : value;
+    mid : value;
+    dst : value;
+    srcty : value_type;
+    midty : value_type;
+    dstty : value_type;
+}
+
 type gepzero = {
   v : value;
   vprime : value;
@@ -548,6 +593,15 @@ type intro_ghost = {
 
 type intro_eq = {
   x : value;
+}
+
+type inttoptr_zext = {
+    src : value;
+    mid : value;
+    dst : value;
+    srcty : value_type;
+    midty : value_type;
+    dstty : value_type;
 }
 
 type lessthan_undef = {
@@ -749,6 +803,15 @@ type or_zero = {
   sz : size;
 }
 
+type ptrtoint_bitcast = {
+    src : value;
+    mid : value;
+    dst : value;
+    srcty : value_type;
+    midty : value_type;
+    dstty : value_type;
+}
+
 type rem_neg = {
   z : register;
   my : value;
@@ -777,6 +840,15 @@ type sext_trunc = {
   c : const_int;
   sz1 : size;
   sz2 : size;
+}
+
+type sitofp_sext = {
+  src : value;
+  mid : value;
+  dst : value;
+  srcty : value_type;
+  midty : value_type;
+  dstty : value_type;
 }
 
 type sub_add = {
@@ -876,6 +948,42 @@ type sdiv_sub_srem = {
   sz : size;
 }
 
+type sext_sext = {
+  src : value;
+  mid : value;
+  dst : value;
+  srcty : value_type;
+  midty : value_type;
+  dstty : value_type;
+}
+
+type sext_zext = {
+  src : value;
+  mid : value;
+  dst : value;
+  srcty : value_type;
+  midty : value_type;
+  dstty : value_type;
+}
+
+type trunc_ptrtoint = {
+  src : value;
+  mid : value;
+  dst : value;
+  srcty : value_type;
+  midty : value_type;
+  dstty : value_type;
+}
+
+type trunc_trunc = {
+  src : value;
+  mid : value;
+  dst : value;
+  srcty : value_type;
+  midty : value_type;
+  dstty : value_type;
+}
+
 type udiv_sub_urem = {
   z : register;
   b : register;
@@ -894,6 +1002,15 @@ type udiv_zext = {
   b : value;
   sz1 : size;
   sz2 : size;
+}
+
+type uitofp_zext = {
+  src : value;
+  mid : value;
+  dst : value;
+  srcty : value_type;
+  midty : value_type;
+  dstty : value_type;
 }
 
 type urem_zext = {
@@ -929,6 +1046,16 @@ type icmp_inverse = {
   boolean : const_int;
 }
 
+type zext_zext = {
+  src : value;
+  mid : value;
+  dst : value;
+  srcty : value_type;
+  midty : value_type;
+  dstty : value_type;
+}
+
+
 
 
 type infrule = [
@@ -955,6 +1082,8 @@ type infrule = [
   | AndSame of and_same
   | AndUndef of and_undef
   | AndZero of and_zero
+  | BitcastBitcast of bitcast_bitcast
+  | BitcastInttoptr of bitcast_inttoptr
   | Bitcastptr of bitcastptr
   | BitcastptrTgt of bitcastptr_tgt
   | BopDistributiveOverSelectinst of bop_distributive_over_selectinst
@@ -966,9 +1095,13 @@ type infrule = [
   | FaddCommutativeTgt of fadd_commutative_tgt
   | FbopDistributiveOverSelectinst of fbop_distributive_over_selectinst
   | FbopDistributiveOverSelectinst2 of fbop_distributive_over_selectinst2
+  | FpextFpext of fpext_fpext
+  | FptosiFpext of fptosi_fpext
+  | FptouiFpext of fptoui_fpext
   | Gepzero of gepzero
   | IntroGhost of intro_ghost
   | IntroEq of intro_eq
+  | InttoptrZext of inttoptr_zext
   | LessthanUndef of lessthan_undef
   | MulAddDistributive of mul_add_distributive
   | NegVal of neg_val
@@ -987,14 +1120,20 @@ type infrule = [
   | OrXor3 of or_xor3
   | OrXor4 of or_xor4
   | OrZero of or_zero
+  | PtrtointBitcast of ptrtoint_bitcast
   | MulBool of mul_bool
   | MulMone of mul_mone
   | MulNeg of mul_neg
   | MulCommutative of mul_commutative
   | MulShl of mul_shl
   | RemNeg of rem_neg
+  | ReplaceRhs of replace_rhs
+  | ReplaceRhsOpt of replace_rhs_opt
   | SdivMone of sdiv_mone
   | SdivSubSrem of sdiv_sub_srem
+  | SextSext of sext_sext
+  | SextZext of sext_zext
+  | SitofpSext of sitofp_sext
   | SubAdd of sub_add
   | SubConstAdd of sub_const_add
   | SubConstNot of sub_const_not
@@ -1005,18 +1144,20 @@ type infrule = [
   | SubShl of sub_shl
   | SubOrXor of sub_or_xor
   | SubSub of sub_sub
-  | UdivSubUrem of udiv_sub_urem
-  | UdivZext of udiv_zext
-  | UremZext of urem_zext
   | Transitivity of transitivity
   | TransitivityTgt of transitivity_tgt
   | TransitivityPointerLhs of transitivity_pointer_lhs
   | TransitivityPointerRhs of transitivity_pointer_rhs
-  | ReplaceRhs of replace_rhs
-  | ReplaceRhsOpt of replace_rhs_opt
+  | TruncPtrtoint of trunc_ptrtoint
+  | TruncTrunc of trunc_trunc
+  | UdivSubUrem of udiv_sub_urem
+  | UdivZext of udiv_zext
+  | UitofpZext of uitofp_zext
+  | UremZext of urem_zext
   | XorCommutative of xor_commutative
   | XorCommutativeTgt of xor_commutative_tgt
   | IcmpInverse of icmp_inverse
+  | ZextZext of zext_zext
   ] <ocaml repr="classic">
 
 type hint_command = [
