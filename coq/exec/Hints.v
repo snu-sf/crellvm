@@ -23,6 +23,12 @@ Module Invariant.
     noalias:  PtrPairSet.t; (* weak no-alias, maybe in the same logic block *)
   }.
 
+  Definition false_encoding: ExprPair.t :=
+    let wrap_Z x :=
+        Expr.value (ValueT.const
+                      (const_int Size.SixtyFour (INTEGER.of_Z 64%Z x%Z true)))
+    in (wrap_Z 0, wrap_Z 42).
+
   Structure unary := mk_unary {
     lessdef: ExprPairSet.t;
     alias: aliasrel;
@@ -115,9 +121,10 @@ Module Invariant.
     IdTSet.subset (inv.(private)) (inv0.(private)).
 
   Definition implies (inv0 inv:t): bool :=
-    implies_unary (inv0.(src)) (inv.(src)) &&
-    implies_unary (inv0.(tgt)) (inv.(tgt)) &&
-    IdTSet.subset (inv0.(maydiff)) (inv.(maydiff)).
+    (ExprPairSet.mem false_encoding inv0.(src).(lessdef))
+    || ((implies_unary (inv0.(src)) (inv.(src)))
+          && implies_unary (inv0.(tgt)) (inv.(tgt))
+          && IdTSet.subset (inv0.(maydiff)) (inv.(maydiff))).
 
   Definition is_noalias (inv:unary) (p1:Ptr.t) (p2:Ptr.t) :=
     PtrPairSet.exists_ (fun p1p2 =>
