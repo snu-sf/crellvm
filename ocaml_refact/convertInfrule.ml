@@ -707,6 +707,27 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
      let y = Convert.value args.y in
      let sz = Convert.size args.sz in
      Infrule.Coq_xor_commutative_tgt (z, x, y, sz)
+  | CoreHint_t.XorNot (args:CoreHint_t.xor_not) -> 
+     let z = Convert.value args.z in
+     let y = Convert.value args.y in
+     let x = Convert.value args.x in
+     let s = Convert.size args.s in
+     Infrule.Coq_xor_not (z, y, x, s)
+  | CoreHint_t.XorSame (args:CoreHint_t.xor_same) -> 
+     let z = Convert.value args.z in
+     let a = Convert.value args.a in
+     let s = Convert.size args.s in
+     Infrule.Coq_xor_same (z, a, s)
+  | CoreHint_t.XorUndef (args:CoreHint_t.xor_undef) -> 
+     let z = Convert.value args.z in
+     let a = Convert.value args.a in
+     let s = Convert.size args.s in
+     Infrule.Coq_xor_undef (z, a, s)
+  | CoreHint_t.XorZero (args:CoreHint_t.xor_zero) -> 
+     let z = Convert.value args.z in
+     let a = Convert.value args.a in
+     let s = Convert.size args.s in
+     Infrule.Coq_xor_zero (z, a, s)
   | CoreHint_t.IcmpInverse (args:CoreHint_t.icmp_inverse) ->
      let c = Convert.cond args.predicate in
      let ty = Convert.value_type args.ty in
