@@ -287,6 +287,8 @@ Module Infrule.
   | xor_commutative (z:IdT.t) (x:ValueT.t) (y:ValueT.t) (sz:sz)
   | xor_commutative_tgt (z:IdT.t) (x:ValueT.t) (y:ValueT.t) (sz:sz)
   | icmp_inverse (c:cond) (ty:typ) (x:ValueT.t) (y:ValueT.t) (v:INTEGER.t)
+  | icmp_eq_same (ty:typ) (x:ValueT.t) (y:ValueT.t)
+  | icmp_neq_same (ty:typ) (x:ValueT.t) (y:ValueT.t)
 
 (* Updated semantics of rules should be located above this line *)
 

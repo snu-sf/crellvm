@@ -929,6 +929,17 @@ type icmp_inverse = {
   boolean : const_int;
 }
 
+type icmp_eq_same = {
+  ty : value_type;
+  x : value;
+  y : value;
+}
+
+type icmp_neq_same = {
+  ty : value_type;
+  x : value;
+  y : value;
+}
 
 
 type infrule = [
@@ -1017,6 +1028,8 @@ type infrule = [
   | XorCommutative of xor_commutative
   | XorCommutativeTgt of xor_commutative_tgt
   | IcmpInverse of icmp_inverse
+  | IcmpEqSame of icmp_eq_same
+  | IcmpNeqSame of icmp_neq_same
   ] <ocaml repr="classic">
 
 type hint_command = [
