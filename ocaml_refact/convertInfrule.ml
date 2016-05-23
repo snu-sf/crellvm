@@ -614,5 +614,15 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
      let c1 = Convert.constant args.c1 in
      let c2 = Convert.constant args.c2 in
      Infrule.Coq_implies_false(c1, c2)
+  | CoreHint_t.IcmpEqSame (args:CoreHint_t.icmp_eq_same) ->
+     let ty = Convert.value_type args.ty in
+     let x = Convert.value args.x in
+     let y = Convert.value args.y in
+     Infrule.Coq_icmp_eq_same (ty, x, y)
+  | CoreHint_t.IcmpNeqSame (args:CoreHint_t.icmp_neq_same) ->
+     let ty = Convert.value_type args.ty in
+     let x = Convert.value args.x in
+     let y = Convert.value args.y in
+     Infrule.Coq_icmp_neq_same (ty, x, y)
   | _ ->
      failwith "convert_infrule does not deal with this inferece rule"

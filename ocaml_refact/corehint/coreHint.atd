@@ -934,6 +934,18 @@ type implies_false = {
   c2 : constant;
 }
 
+type icmp_eq_same = {
+  ty : value_type;
+  x : value;
+  y : value;
+}
+
+type icmp_neq_same = {
+  ty : value_type;
+  x : value;
+  y : value;
+}
+
 
 type infrule = [
   | AddAssociative of add_associative
@@ -1022,6 +1034,8 @@ type infrule = [
   | XorCommutativeTgt of xor_commutative_tgt
   | IcmpInverse of icmp_inverse
   | ImpliesFalse of implies_false
+  | IcmpEqSame of icmp_eq_same
+  | IcmpNeqSame of icmp_neq_same
   ] <ocaml repr="classic">
 
 type hint_command = [
