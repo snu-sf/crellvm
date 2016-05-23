@@ -22,6 +22,7 @@ Parameter cmd_printer : cmd -> unit.
 Parameter cmd_pair_printer : (cmd * cmd) -> unit.
 Parameter idT_printer : IdT.t -> unit.
 Parameter infrule_printer : Infrule.t -> unit.
+Parameter invariant_printer : Invariant.t -> unit.
 
 Definition debug_print_validation_process
            (infrules: list Infrule.t)
