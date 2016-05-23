@@ -199,7 +199,7 @@ Definition valid_fdef
 Definition valid_product (hint:ValidationHint.products) (m_src m_tgt:module) (src tgt:product): bool :=
   match src, tgt with
   | product_gvar gvar_src, product_gvar gvar_tgt =>
-    if negb (gvar_dec gvar_src gvar_tgt)
+    if negb (Decs.my_gvar_dec gvar_src gvar_tgt)
     then failwith_false "valid_product: global variables not matched" ((getGvarID gvar_src)::(getGvarID gvar_tgt)::nil)
     else true
   | product_fdec fdec_src, product_fdec fdec_tgt =>
