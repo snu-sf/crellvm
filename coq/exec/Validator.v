@@ -27,6 +27,7 @@ Fixpoint valid_cmds
   | (infrules, inv)::hint, cmd_src::src, cmd_tgt::tgt =>
     let (cmd_src, cmd_tgt) :=
         (debug_print cmd_pair_printer (cmd_src, cmd_tgt)) in
+    if (Invariant.has_false inv0) then valid_cmds m_src m_tgt src tgt hint inv else
     match postcond_cmd cmd_src cmd_tgt inv0 with
     | None => failwith_None "valid_cmds: postcond_cmd returned None" nil
     | Some inv1 =>
@@ -59,6 +60,7 @@ Definition valid_phinodes
     match postcond_phinodes l_from phinodes_src phinodes_tgt inv1 with
       | None => failwith_false "valid_phinodes: postcond_phinodes returned None at phinode" (l_from::l_to::nil)
       | Some inv2 =>
+        if (Invariant.has_false inv2) then true else
         let inv3 := apply_infrules m_src m_tgt infrules inv2 in
         let inv4 := reduce_maydiff inv3 in
         let inv := hint_stmts.(ValidationHint.invariant_after_phinodes) in
@@ -77,6 +79,7 @@ Definition valid_terminator
            (blocks_src blocks_tgt:blocks)
            (bid:l)
            (src tgt:terminator): bool :=
+  if (Invariant.has_false inv0) then true else
   match src, tgt with
   | insn_return_void _, insn_return_void _ => true
   | insn_return _ ty_src val_src, insn_return _ ty_tgt val_tgt =>

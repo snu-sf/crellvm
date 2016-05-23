@@ -734,6 +734,12 @@ Definition apply_infrule
       let b' := get_inverse_boolean_Int b in
       {{inv0 +++src (Expr.icmp c' ty x y) >= (Expr.value (ValueT.const (const_int Size.One b')))}}
     else apply_fail tt
+  | Infrule.implies_false c1 c2 =>
+    if $$ inv0 |-src (Expr.value c1) >= (Expr.value c2) $$
+       && (negb (constEqB c1 c2))
+    then {{inv0 +++src fst (Invariant.false_encoding) >=
+           snd (Invariant.false_encoding)}}
+    else apply_fail tt
   | _ => no_match_fail tt (* TODO *)
   end.
 
