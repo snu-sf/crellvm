@@ -780,7 +780,7 @@ Definition postcond_cmd
   let uses_src := AtomSetImpl_from_list (Cmd.get_ids src) in
   let uses_tgt := AtomSetImpl_from_list (Cmd.get_ids tgt) in
 
-  if negb (postcond_cmd_inject_event src tgt inv0) && negb (Invariant.has_false inv0)
+  if negb (postcond_cmd_inject_event src tgt inv0)
   then failwith_None "valid_cmds: postcond_cmd returned None, Case 1" nil
   else
   if negb

@@ -60,7 +60,6 @@ Definition valid_phinodes
     match postcond_phinodes l_from phinodes_src phinodes_tgt inv1 with
       | None => failwith_false "valid_phinodes: postcond_phinodes returned None at phinode" (l_from::l_to::nil)
       | Some inv2 =>
-        if (Invariant.has_false inv2) then true else
         let inv3 := apply_infrules m_src m_tgt infrules inv2 in
         let inv4 := reduce_maydiff inv3 in
         let inv := hint_stmts.(ValidationHint.invariant_after_phinodes) in
