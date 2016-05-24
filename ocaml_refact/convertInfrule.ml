@@ -743,4 +743,15 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
      let midty = Convert.value_type args.midty in
      let dstty = Convert.value_type args.dstty in
      Infrule.Coq_zext_zext (src, mid, dst, srcty, midty, dstty)  | _ ->
+  | CoreHint_t.IcmpEqSame (args:CoreHint_t.icmp_eq_same) ->
+     let ty = Convert.value_type args.ty in
+     let x = Convert.value args.x in
+     let y = Convert.value args.y in
+     Infrule.Coq_icmp_eq_same (ty, x, y)
+  | CoreHint_t.IcmpNeqSame (args:CoreHint_t.icmp_neq_same) ->
+     let ty = Convert.value_type args.ty in
+     let x = Convert.value args.x in
+     let y = Convert.value args.y in
+     Infrule.Coq_icmp_neq_same (ty, x, y)
+  | _ ->
      failwith "convert_infrule does not deal with this inferece rule"
