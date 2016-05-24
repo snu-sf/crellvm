@@ -728,13 +728,6 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
      let a = Convert.value args.a in
      let s = Convert.size args.s in
      Infrule.Coq_xor_zero (z, a, s)
-  | CoreHint_t.IcmpInverse (args:CoreHint_t.icmp_inverse) ->
-     let c = Convert.cond args.predicate in
-     let ty = Convert.value_type args.ty in
-     let x = Convert.value args.x in
-     let y = Convert.value args.y in
-     let b = Convert.const_int args.boolean in
-     Infrule.Coq_icmp_inverse (c, ty, x, y, b)
   | CoreHint_t.ZextZext (args:CoreHint_t.zext_zext) -> 
      let src = Convert.value args.src in
      let mid = Convert.value args.mid in
@@ -742,7 +735,14 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
      let srcty = Convert.value_type args.srcty in
      let midty = Convert.value_type args.midty in
      let dstty = Convert.value_type args.dstty in
-     Infrule.Coq_zext_zext (src, mid, dst, srcty, midty, dstty)  | _ ->
+     Infrule.Coq_zext_zext (src, mid, dst, srcty, midty, dstty)
+  | CoreHint_t.IcmpInverse (args:CoreHint_t.icmp_inverse) ->
+     let c = Convert.cond args.predicate in
+     let ty = Convert.value_type args.ty in
+     let x = Convert.value args.x in
+     let y = Convert.value args.y in
+     let b = Convert.const_int args.boolean in
+     Infrule.Coq_icmp_inverse (c, ty, x, y, b)
   | CoreHint_t.IcmpEqSame (args:CoreHint_t.icmp_eq_same) ->
      let ty = Convert.value_type args.ty in
      let x = Convert.value args.x in

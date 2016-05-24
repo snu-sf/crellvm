@@ -1195,13 +1195,10 @@ type infrule = [
   | XorSame of xor_same
   | XorUndef of xor_undef
   | XorZero of xor_zero
-  | IcmpInverse of icmp_inverse
-<<<<<<< HEAD
   | ZextZext of zext_zext
-=======
+  | IcmpInverse of icmp_inverse
   | IcmpEqSame of icmp_eq_same
   | IcmpNeqSame of icmp_neq_same
->>>>>>> c863396dc4673d3c580056226bffc359ba968df9
   ] <ocaml repr="classic">
 
 type hint_command = [
