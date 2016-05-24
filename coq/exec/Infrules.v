@@ -736,7 +736,7 @@ Definition apply_infrule
     else apply_fail tt
   | Infrule.implies_false c1 c2 =>
     if $$ inv0 |-src (Expr.value c1) >= (Expr.value c2) $$
-       && (negb (constEqB c1 c2))
+       && (negb (const_eqb c1 c2))
     then {{inv0 +++src fst (Invariant.false_encoding) >=
            snd (Invariant.false_encoding)}}
     else apply_fail tt
