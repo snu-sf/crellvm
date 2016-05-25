@@ -120,8 +120,11 @@ Module Invariant.
     IdTSet.subset (inv.(allocas)) (inv0.(allocas)) &&
     IdTSet.subset (inv.(private)) (inv0.(private)).
 
+  Definition has_false (inv: t): bool :=
+    (ExprPairSet.mem false_encoding inv.(src).(lessdef)).
+
   Definition implies (inv0 inv:t): bool :=
-    (ExprPairSet.mem false_encoding inv0.(src).(lessdef))
+    (has_false inv0)
     || ((implies_unary (inv0.(src)) (inv.(src)))
           && implies_unary (inv0.(tgt)) (inv.(tgt))
           && IdTSet.subset (inv0.(maydiff)) (inv.(maydiff))).
@@ -359,6 +362,7 @@ Module Infrule.
   | cmp_ne_srem2 (z:IdT.t) (y:IdT.t) (s:sz) (a:ValueT.t) (b:ValueT.t)
   | cmp_eq_xor (z:IdT.t) (x:IdT.t) (y:IdT.t) (s:sz) (a:ValueT.t) (b:ValueT.t) (c:ValueT.t)
   | cmp_ne_xor (z:IdT.t) (x:IdT.t) (y:IdT.t) (s:sz) (a:ValueT.t) (b:ValueT.t) (c:ValueT.t)
+  | implies_false (x:const) (y:const)
   .
 End Infrule.
 
