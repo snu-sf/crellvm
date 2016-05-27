@@ -78,7 +78,7 @@ Definition cond_replace_lessdef_value (x:IdT.t) (y:ValueT.t) (v v':ValueT.t) : b
   match v, v' with
   | ValueT.id a, _ =>
     (IdT.eq_dec a x && ValueT.eq_dec v' y) || (ValueT.eq_dec v v')
-  | ValueT.const c1, ValueT.const c2 => const_dec c1 c2 (* How about the case, c1 == undef? *)
+  | ValueT.const c1, ValueT.const c2 => const_eqb c1 c2 (* How about the case, c1 == undef? *)
   | _,_ => false
   end.
 
@@ -100,14 +100,14 @@ Definition cond_replace_lessdef (x:IdT.t) (y:ValueT.t) (e e':Expr.t) : bool :=
   | Expr.extractvalue t1 v1 lc1 u1, Expr.extractvalue t2 v2 lc2 u2 =>
     typ_dec t1 t2 &&
     cond_replace_lessdef_value x y v1 v2 &&
-    list_const_dec lc1 lc2 &&
+    list_forallb2 const_eqb lc1 lc2 &&
     typ_dec u1 u2
   | Expr.insertvalue t1 v1 u1 w1 lc1, Expr.insertvalue t2 v2 u2 w2 lc2 =>
     typ_dec t1 t2 &&
     cond_replace_lessdef_value x y v1 v2 &&
     typ_dec u1 u2 &&
     cond_replace_lessdef_value x y w1 w2 &&
-    list_const_dec lc1 lc2
+    list_forallb2 const_eqb lc1 lc2
   | Expr.gep ib1 t1 v1 lsv1 u1, Expr.gep ib2 t2 v2 lsv2 u2 =>
     inbounds_dec ib1 ib2 &&
     typ_dec t1 t2 &&
@@ -166,7 +166,7 @@ Definition cond_gep_zero (v':ValueT.t) (e:Expr.t) : bool :=
           match idx with 
           | (ValueT.const (const_int sz_i i)) => 
             sz_dec sz sz_i &&
-            const_dec (const_int sz_i i) (const_int sz_i (INTEGER.of_Z (Size.to_Z sz_i) 0%Z true))
+            const_eqb (const_int sz_i i) (const_int sz_i (INTEGER.of_Z (Size.to_Z sz_i) 0%Z true))
           | _ => false
           end
         end)
@@ -792,6 +792,11 @@ Definition apply_infrule
     if $$ inv0 |-tgt (Expr.bop bop_xor s x y) >= (Expr.value z) $$
     then {{inv0 +++tgt (Expr.bop bop_xor s y x) >= (Expr.value z)}}
     else apply_fail tt
+  | Infrule.zext_zext src mid dst srcty midty dstty =>
+    if $$ inv0 |-src (Expr.value mid) >= (Expr.ext extop_z srcty src midty) $$ &&
+       $$ inv0 |-src (Expr.value dst) >= (Expr.ext extop_z midty mid dstty) $$
+    then {{ inv0 +++src (Expr.value dst) >= (Expr.ext extop_z srcty src dstty) }}
+    else apply_fail tt
   | Infrule.icmp_inverse c ty x y b =>
     if $$ inv0 |-src (Expr.icmp c ty x y) >= (Expr.value (ValueT.const (const_int Size.One b))) $$
     then
@@ -799,10 +804,27 @@ Definition apply_infrule
       let b' := get_inverse_boolean_Int b in
       {{inv0 +++src (Expr.icmp c' ty x y) >= (Expr.value (ValueT.const (const_int Size.One b')))}}
     else apply_fail tt
-  | Infrule.zext_zext src mid dst srcty midty dstty =>
-    if $$ inv0 |-src (Expr.value mid) >= (Expr.ext extop_z srcty src midty) $$ &&
-       $$ inv0 |-src (Expr.value dst) >= (Expr.ext extop_z midty mid dstty) $$
-    then {{ inv0 +++src (Expr.value dst) >= (Expr.ext extop_z srcty src dstty) }}
+  | Infrule.implies_false c1 c2 =>
+    if $$ inv0 |-src (Expr.value c1) >= (Expr.value c2) $$
+       && (negb (const_eqb c1 c2))
+    then {{inv0 +++src fst (Invariant.false_encoding) >=
+           snd (Invariant.false_encoding)}}
+    else apply_fail tt
+  | Infrule.icmp_eq_same ty x y =>
+    let Int_one := INTEGER.of_Z 1 1 true in
+    if $$ inv0 |-src (Expr.value (ValueT.const (const_int Size.One Int_one))) >= (Expr.icmp cond_eq ty x y) $$
+    then {{
+             {{inv0 +++src (Expr.value x) >= (Expr.value y)}}
+               +++src (Expr.value y) >= (Expr.value x)
+         }}
+    else apply_fail tt
+  | Infrule.icmp_neq_same ty x y =>
+    let Int_zero := INTEGER.of_Z 1 0 true in
+    if $$ inv0 |-src (Expr.value (ValueT.const (const_int Size.One Int_zero))) >= (Expr.icmp cond_ne ty x y) $$
+    then {{
+             {{inv0 +++src (Expr.value x) >= (Expr.value y)}}
+               +++src (Expr.value y) >= (Expr.value x)
+         }}
     else apply_fail tt
   | _ => no_match_fail tt (* TODO *)
   end.

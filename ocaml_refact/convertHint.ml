@@ -130,6 +130,43 @@ let apply_corehint_command
      let infrule = convert_infrule infrule lfdef rfdef in
      add_infrule pos infrule hint_fdef
 
+let add_false_to_dead_block hint_fdef lfdef =
+  let live_blocks =
+    (* meaning of succs? *)
+    (* A map from an id to its successors. *)
+    (* Variable successors: T.t (list T.elt).*)
+    (* cfg.v 57 line *)
+    (* dfs spec = impl : dfs.v 1498 *)
+    let entry_label = TODOCAML.get (LLVMinfra.getEntryLabel lfdef) in
+    let po =
+      let succs = Cfg.successors lfdef in
+      Dfs.dfs succs entry_label BinNums.Coq_xH in
+    (Dfs.coq_PO_a2p po) in
+
+  let fill_with_false { ValidationHint.phinodes = phis;
+                        ValidationHint.invariant_after_phinodes = iphis;
+                        ValidationHint.cmds = cs } =
+    let update_src_lessdef =
+      TODOCAML.compose Invariant.update_src Invariant.update_lessdef in
+    let insert_false =
+      (fun y -> ExprPairSet.add Invariant.false_encoding y) in
+    { ValidationHint.phinodes = phis ;
+      ValidationHint.invariant_after_phinodes =
+        update_src_lessdef insert_false iphis ;
+      ValidationHint.cmds =
+        List.map
+          (fun (x, invariant) -> (x, update_src_lessdef insert_false invariant))
+          cs } in
+
+  let hint_fdef: Hints.ValidationHint.fdef =
+    let f = (fun i -> (fun (x: ValidationHint.stmts) ->
+                       let is_live = Maps_ext.ATree.get i live_blocks in
+                       match is_live with
+                       | Some _ -> x
+                       | None -> fill_with_false x)) in
+    TODO.mapiAL f hint_fdef in
+  hint_fdef
+
 let convert
       (lm:LLVMsyntax.coq_module)
       (rm:LLVMsyntax.coq_module)
@@ -144,8 +181,8 @@ let convert
   let hint_fdef = EmptyHint.fdef_hint lfdef in
   let hint_fdef = List.fold_left
                     (TODOCAML.flip (apply_corehint_command lfdef rfdef dtree_lfdef core_hint.CoreHint_t.nop_positions))
-                    hint_fdef core_hint.CoreHint_t.commands
-  in
+                    hint_fdef core_hint.CoreHint_t.commands in
+  let hint_fdef = add_false_to_dead_block hint_fdef lfdef in
 
   let hint_module = EmptyHint.module_hint lm in
   (* let hint_module = noret hint_module in *) (*TODO*)

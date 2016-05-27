@@ -1038,14 +1038,6 @@ type xor_commutative_tgt = {
   sz : size;
 }
 
-type icmp_inverse = {
-  predicate : icmp_pred;
-  ty : value_type;
-  x : value;
-  y : value;
-  boolean : const_int;
-}
-
 type zext_zext = {
   src : value;
   mid : value;
@@ -1055,7 +1047,30 @@ type zext_zext = {
   dstty : value_type;
 }
 
+type icmp_inverse = {
+  predicate : icmp_pred;
+  ty : value_type;
+  x : value;
+  y : value;
+  boolean : const_int;
+}
 
+type implies_false = {
+  c1 : constant;
+  c2 : constant;
+}
+
+type icmp_eq_same = {
+  ty : value_type;
+  x : value;
+  y : value;
+}
+
+type icmp_neq_same = {
+  ty : value_type;
+  x : value;
+  y : value;
+}
 
 
 type infrule = [
@@ -1156,8 +1171,11 @@ type infrule = [
   | UremZext of urem_zext
   | XorCommutative of xor_commutative
   | XorCommutativeTgt of xor_commutative_tgt
-  | IcmpInverse of icmp_inverse
   | ZextZext of zext_zext
+  | IcmpInverse of icmp_inverse
+  | ImpliesFalse of implies_false
+  | IcmpEqSame of icmp_eq_same
+  | IcmpNeqSame of icmp_neq_same
   ] <ocaml repr="classic">
 
 type hint_command = [

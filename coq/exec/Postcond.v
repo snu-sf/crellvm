@@ -303,7 +303,7 @@ Definition inject_expr (inv:Invariant.t) (es et:Expr.t): bool :=
       && (Invariant.inject_value inv w1 w2)
   | Expr.extractvalue t1 v1 lc1 u1, Expr.extractvalue t2 v2 lc2 u2 => 
     (typ_dec t1 t2)
-      && (list_eq_dec const_dec lc1 lc2)
+      && (list_forallb2 const_eqb lc1 lc2)
       && (typ_dec u1 u2)
       && (Invariant.inject_value inv v1 v2)
   | Expr.insertvalue t1 v1 t'1 v'1 lc1, Expr.insertvalue t2 v2 t'2 v'2 lc2 =>
@@ -311,7 +311,7 @@ Definition inject_expr (inv:Invariant.t) (es et:Expr.t): bool :=
       && (Invariant.inject_value inv v1 v2)
       && (typ_dec t'1 t'2)
       && (Invariant.inject_value inv v'1 v'2)
-      && (list_eq_dec const_dec lc1 lc2)
+      && (list_forallb2 const_eqb lc1 lc2)
   | Expr.gep ib1 t1 v1 lsv1 u1, Expr.gep ib2 t2 v2 lsv2 u2 => 
     (inbounds_dec ib1 ib2)
       && (typ_dec t1 t2)
@@ -526,10 +526,12 @@ Definition get_br_cond
   match term with
     | insn_br _ v l1 l2 =>
       let cond_val := if (l_dec l_to l1) then 1%Z else 0%Z in
-      ExprPairSet.singleton
-        (Expr.value (ValueT.lift Tag.physical v),
-         Expr.value
-           (ValueT.const (const_int sz (INTEGER.of_Z (Size.to_Z sz) cond_val true))))
+      let expr1 := Expr.value (ValueT.lift Tag.physical v) in
+      let expr2 := Expr.value
+                     (ValueT.const (const_int sz (INTEGER.of_Z (Size.to_Z sz) cond_val true))) in
+      ExprPairSet.add
+        (expr1, expr2)
+        (ExprPairSet.singleton (expr2, expr1))
     | _ => ExprPairSet.empty
   end.
 

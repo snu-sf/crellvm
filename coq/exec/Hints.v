@@ -23,6 +23,12 @@ Module Invariant.
     noalias:  PtrPairSet.t; (* weak no-alias, maybe in the same logic block *)
   }.
 
+  Definition false_encoding: ExprPair.t :=
+    let wrap_Z x :=
+        Expr.value (ValueT.const
+                      (const_int Size.SixtyFour (INTEGER.of_Z 64%Z x%Z true)))
+    in (wrap_Z 0, wrap_Z 42).
+
   Structure unary := mk_unary {
     lessdef: ExprPairSet.t;
     alias: aliasrel;
@@ -114,10 +120,14 @@ Module Invariant.
     IdTSet.subset (inv.(allocas)) (inv0.(allocas)) &&
     IdTSet.subset (inv.(private)) (inv0.(private)).
 
+  Definition has_false (inv: t): bool :=
+    (ExprPairSet.mem false_encoding inv.(src).(lessdef)).
+
   Definition implies (inv0 inv:t): bool :=
-    implies_unary (inv0.(src)) (inv.(src)) &&
-    implies_unary (inv0.(tgt)) (inv.(tgt)) &&
-    IdTSet.subset (inv0.(maydiff)) (inv.(maydiff)).
+    (has_false inv0)
+    || ((implies_unary (inv0.(src)) (inv.(src)))
+          && implies_unary (inv0.(tgt)) (inv.(tgt))
+          && IdTSet.subset (inv0.(maydiff)) (inv.(maydiff))).
 
   Definition is_noalias (inv:unary) (p1:Ptr.t) (p2:Ptr.t) :=
     PtrPairSet.exists_ (fun p1p2 =>
@@ -293,8 +303,10 @@ Module Infrule.
   | intro_eq (x:ValueT.t)
   | xor_commutative (z:IdT.t) (x:ValueT.t) (y:ValueT.t) (sz:sz)
   | xor_commutative_tgt (z:IdT.t) (x:ValueT.t) (y:ValueT.t) (sz:sz)
-  | icmp_inverse (c:cond) (ty:typ) (x:ValueT.t) (y:ValueT.t) (v:INTEGER.t)
   | zext_zext (src:ValueT.t) (mid:ValueT.t) (dst:ValueT.t) (srcty:typ) (midty:typ) (dstty:typ)
+  | icmp_inverse (c:cond) (ty:typ) (x:ValueT.t) (y:ValueT.t) (v:INTEGER.t)
+  | icmp_eq_same (ty:typ) (x:ValueT.t) (y:ValueT.t)
+  | icmp_neq_same (ty:typ) (x:ValueT.t) (y:ValueT.t)
 
 (* Updated semantics of rules should be located above this line *)
 
@@ -356,6 +368,7 @@ Module Infrule.
   | cmp_ne_srem2 (z:IdT.t) (y:IdT.t) (s:sz) (a:ValueT.t) (b:ValueT.t)
   | cmp_eq_xor (z:IdT.t) (x:IdT.t) (y:IdT.t) (s:sz) (a:ValueT.t) (b:ValueT.t) (c:ValueT.t)
   | cmp_ne_xor (z:IdT.t) (x:IdT.t) (y:IdT.t) (s:sz) (a:ValueT.t) (b:ValueT.t) (c:ValueT.t)
+  | implies_false (x:const) (y:const)
   .
 End Infrule.
 
