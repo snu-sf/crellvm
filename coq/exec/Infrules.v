@@ -824,11 +824,6 @@ Definition apply_infrule
       let b' := get_inverse_boolean_Int b in
       {{inv0 +++src (Expr.icmp c' ty x y) >= (Expr.value (ValueT.const (const_int Size.One b')))}}
     else apply_fail tt
-  | Infrule.zext_zext src mid dst srcty midty dstty =>
-    if $$ inv0 |-src (Expr.value mid) >= (Expr.ext extop_z srcty src midty) $$ &&
-       $$ inv0 |-src (Expr.value dst) >= (Expr.ext extop_z midty mid dstty) $$
-    then {{ inv0 +++src (Expr.value dst) >= (Expr.ext extop_z srcty src dstty) }}
-    else apply_fail tt
   | Infrule.implies_false c1 c2 =>
     if $$ inv0 |-src (Expr.value c1) >= (Expr.value c2) $$
        && (negb (const_eqb c1 c2))
