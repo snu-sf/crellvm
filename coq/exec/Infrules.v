@@ -812,6 +812,11 @@ Definition apply_infrule
                 (ValueT.const (const_int s (INTEGER.of_Z (Size.to_Z s) 0%Z true)))) $$
     then {{ inv0 +++src (Expr.value z) >= (Expr.value a) }}
     else apply_fail tt
+  | Infrule.zext_zext src mid dst srcty midty dstty =>
+    if $$ inv0 |-src (Expr.value mid) >= (Expr.ext extop_z srcty src midty) $$ &&
+       $$ inv0 |-src (Expr.value dst) >= (Expr.ext extop_z midty mid dstty) $$
+    then {{ inv0 +++src (Expr.value dst) >= (Expr.ext extop_z srcty src dstty) }}
+    else apply_fail tt
   | Infrule.icmp_inverse c ty x y b =>
     if $$ inv0 |-src (Expr.icmp c ty x y) >= (Expr.value (ValueT.const (const_int Size.One b))) $$
     then
@@ -823,6 +828,12 @@ Definition apply_infrule
     if $$ inv0 |-src (Expr.value mid) >= (Expr.ext extop_z srcty src midty) $$ &&
        $$ inv0 |-src (Expr.value dst) >= (Expr.ext extop_z midty mid dstty) $$
     then {{ inv0 +++src (Expr.value dst) >= (Expr.ext extop_z srcty src dstty) }}
+    else apply_fail tt
+  | Infrule.implies_false c1 c2 =>
+    if $$ inv0 |-src (Expr.value c1) >= (Expr.value c2) $$
+       && (negb (const_eqb c1 c2))
+    then {{inv0 +++src fst (Invariant.false_encoding) >=
+           snd (Invariant.false_encoding)}}
     else apply_fail tt
   | Infrule.icmp_eq_same ty x y =>
     let Int_one := INTEGER.of_Z 1 1 true in

@@ -1080,6 +1080,11 @@ type icmp_inverse = {
   boolean : const_int;
 }
 
+type implies_false = {
+  c1 : constant;
+  c2 : constant;
+}
+
 type icmp_eq_same = {
   ty : value_type;
   x : value;
@@ -1197,6 +1202,7 @@ type infrule = [
   | XorZero of xor_zero
   | ZextZext of zext_zext
   | IcmpInverse of icmp_inverse
+  | ImpliesFalse of implies_false
   | IcmpEqSame of icmp_eq_same
   | IcmpNeqSame of icmp_neq_same
   ] <ocaml repr="classic">

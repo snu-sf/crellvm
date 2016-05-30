@@ -30,6 +30,7 @@ Extract Constant cmd_pair_printer => "Printer.cmd_pair_printer".
 Extract Constant atom_printer => "Printer.atom_printer".
 Extract Constant idT_printer => "Printer.idT_printer".
 Extract Constant infrule_printer => "Printer.infrule_printer".
+Extract Constant invariant_printer => "Printer.PrintHints.invariant".
 
 Extract Constant power_sz => "(fun x ->
   if x = 0 then Coq_xH else Coq_xO (power_sz (x-1)))".
