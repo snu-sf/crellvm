@@ -792,6 +792,26 @@ Definition apply_infrule
     if $$ inv0 |-tgt (Expr.bop bop_xor s x y) >= (Expr.value z) $$
     then {{inv0 +++tgt (Expr.bop bop_xor s y x) >= (Expr.value z)}}
     else apply_fail tt
+  | Infrule.xor_not z y x s =>
+    if $$ inv0 |-src (Expr.value y) >= (Expr.bop bop_xor s x 
+                (ValueT.const (const_int s (INTEGER.of_Z (Size.to_Z s) (-1)%Z true)))) $$ &&
+       $$ inv0 |-src (Expr.value z) >= (Expr.bop bop_xor s x y) $$ 
+    then {{ inv0 +++src (Expr.value z) >= (Expr.value 
+              (ValueT.const (const_int s (INTEGER.of_Z (Size.to_Z s) (-1)%Z true)))) }}
+    else apply_fail tt
+  | Infrule.xor_same z a s =>
+    if $$ inv0 |-src (Expr.value z) >= (Expr.bop bop_xor s a a) $$
+    then {{ inv0 +++src (Expr.value z) >= (Expr.value (ValueT.const (const_int s (INTEGER.of_Z (Size.to_Z s) 0%Z true)))) }}
+    else apply_fail tt
+  | Infrule.xor_undef z a s =>
+    if $$ inv0 |-src (Expr.value z) >= (Expr.bop bop_xor s a (ValueT.const (const_undef (typ_int s)))) $$
+    then {{ inv0 +++src (Expr.value z) >= (Expr.value (ValueT.const (const_undef (typ_int s)))) }}
+    else apply_fail tt
+  | Infrule.xor_zero z a s =>
+    if $$ inv0 |-src (Expr.value z) >= (Expr.bop bop_xor s a 
+                (ValueT.const (const_int s (INTEGER.of_Z (Size.to_Z s) 0%Z true)))) $$
+    then {{ inv0 +++src (Expr.value z) >= (Expr.value a) }}
+    else apply_fail tt
   | Infrule.zext_zext src mid dst srcty midty dstty =>
     if $$ inv0 |-src (Expr.value mid) >= (Expr.ext extop_z srcty src midty) $$ &&
        $$ inv0 |-src (Expr.value dst) >= (Expr.ext extop_z midty mid dstty) $$

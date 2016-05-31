@@ -1038,6 +1038,31 @@ type xor_commutative_tgt = {
   sz : size;
 }
 
+type xor_same = {
+    z : value;
+    a : value;
+    s : size;
+}
+
+type xor_undef = {
+    z : value;
+    a : value;
+    s : size;
+}
+
+type xor_zero = {
+    z : value;
+    a : value;
+    s : size;
+}
+
+type xor_not = {
+    z : value;
+    y : value;
+    x : value;
+    s : size;
+}
+
 type zext_zext = {
   src : value;
   mid : value;
@@ -1171,6 +1196,10 @@ type infrule = [
   | UremZext of urem_zext
   | XorCommutative of xor_commutative
   | XorCommutativeTgt of xor_commutative_tgt
+  | XorNot of xor_not
+  | XorSame of xor_same
+  | XorUndef of xor_undef
+  | XorZero of xor_zero
   | ZextZext of zext_zext
   | IcmpInverse of icmp_inverse
   | ImpliesFalse of implies_false
