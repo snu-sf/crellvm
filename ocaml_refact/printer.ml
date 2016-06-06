@@ -86,7 +86,7 @@ module ExprsToString = struct
                         (of_ValueT vt2)
                         (string_of_list_constant cl)
       | Expr.Coq_gep (inb, ty1, vt, svl, ty2) ->
-         Printf.sprintf "getelementptr %s %s %s (%s) %s"
+         Printf.sprintf "gep %s %s %s (%s) %s"
                         (string_of_bool inb)
                         (string_of_typ ty1)
                         (of_ValueT vt)
