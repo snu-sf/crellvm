@@ -315,6 +315,12 @@ type transitivity_pointer_rhs = {
   loadp : expr;
 }
 
+type substitute = {
+  x : register;
+  y : value;
+  e : expr;
+}
+
 type replace_rhs = {
   x : register;
   y : value;
@@ -1167,6 +1173,7 @@ type infrule = [
   | MulCommutative of mul_commutative
   | MulShl of mul_shl
   | RemNeg of rem_neg
+  | Substitute of substitute
   | ReplaceRhs of replace_rhs
   | ReplaceRhsOpt of replace_rhs_opt
   | SdivMone of sdiv_mone
