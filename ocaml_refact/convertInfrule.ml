@@ -635,6 +635,11 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
      let y = Convert.value args.y in
      let e = Convert.expr args.e src_fdef tgt_fdef in
      Infrule.Coq_substitute (x, y, e)
+  | CoreHint_t.SubstituteRev (args:CoreHint_t.substitute_rev) ->
+     let x = Convert.register args.x in
+     let y = Convert.value args.y in
+     let e = Convert.expr args.e src_fdef tgt_fdef in
+     Infrule.Coq_substitute_rev (x, y, e)
   | CoreHint_t.ReplaceRhs (args:CoreHint_t.replace_rhs) ->
       let x = Convert.register args.x in
       let y = Convert.value args.y in

@@ -729,12 +729,22 @@ Definition apply_infrule
   | Infrule.substitute x y e =>
     if $$ inv0 |-src (Expr.value x) >= (Expr.value y) $$
     then
-      let subster := (fun v =>
-                  match v with
-                  | ValueT.id i => if(IdT.eq_dec x i) then y else v
-                  | _ => v
-                  end) in
-      {{inv0 +++src e >= (Expr.map_valueTs e subster)}}
+      let x_to_y := (fun v =>
+                       match v with
+                       | ValueT.id i => if(IdT.eq_dec x i) then y else v
+                       | _ => v
+                       end) in
+      {{inv0 +++src e >= (Expr.map_valueTs e x_to_y)}}
+    else apply_fail tt
+  | Infrule.substitute_rev x y e =>
+    if $$ inv0 |-src (Expr.value y) >= (Expr.value x) $$
+    then
+      let x_to_y := (fun v =>
+                       match v with
+                       | ValueT.id i => if(IdT.eq_dec x i) then y else v
+                       | _ => v
+                       end) in
+      {{inv0 +++src (Expr.map_valueTs e x_to_y) >= e}}
     else apply_fail tt
   | Infrule.replace_rhs x y e1 e2 e2' =>
     if $$ inv0 |-src (Expr.value x) >= (Expr.value y) $$ &&

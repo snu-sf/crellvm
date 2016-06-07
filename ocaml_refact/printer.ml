@@ -220,6 +220,16 @@ module PrintHints = struct
                                                 ExprsToString.of_expr a ^ " ≥ " ^
                                                   ExprsToString.of_expr b ^ " ≥ " ^
                                                     ExprsToString.of_expr c
+      | Infrule.Coq_substitute (x, y, e) ->
+         "substitute : "
+         ^ ExprsToString.of_expr e ^ " ≥ ([ "
+         ^ ExprsToString.of_IdT x ^ " := " ^ ExprsToString.of_ValueT y ^ " ] "
+         ^ ExprsToString.of_expr e ^ ")"
+      | Infrule.Coq_substitute_rev (x, y, e) ->
+         "substitute_rev : "
+         ^ "([ " ^ ExprsToString.of_IdT x ^ " := " ^ ExprsToString.of_ValueT y ^ " ] "
+         ^ ExprsToString.of_expr e ^ ")"
+         ^ " ≥ " ^ ExprsToString.of_expr e
       | Infrule.Coq_replace_rhs _ -> "replace_rhs"
       | Infrule.Coq_transitivity_pointer_lhs (p, q, v, ty, a) -> "transitivity_pointer_lhs : " ^
                                                 ExprsToString.of_expr(Expr.Coq_value p) ^ " ≥ " ^
