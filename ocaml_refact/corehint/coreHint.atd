@@ -495,7 +495,103 @@ type bitcastptr_tgt = {
   bitcastinst : expr;
 }
 
+type bitcast_fpext = {
+    src : value;
+    mid : value;
+    dst : value;
+    srcty : value_type;
+    midty : value_type;
+    dstty : value_type;
+}
+
+type bitcast_fptosi = {
+    src : value;
+    mid : value;
+    dst : value;
+    srcty : value_type;
+    midty : value_type;
+    dstty : value_type;
+}
+
+type bitcast_fptoui = {
+    src : value;
+    mid : value;
+    dst : value;
+    srcty : value_type;
+    midty : value_type;
+    dstty : value_type;
+}
+
+type bitcast_fptrunc = {
+    src : value;
+    mid : value;
+    dst : value;
+    srcty : value_type;
+    midty : value_type;
+    dstty : value_type;
+}
+
 type bitcast_inttoptr = {
+    src : value;
+    mid : value;
+    dst : value;
+    srcty : value_type;
+    midty : value_type;
+    dstty : value_type;
+}
+
+type bitcast_ptrtoint = {
+    src : value;
+    mid : value;
+    dst : value;
+    srcty : value_type;
+    midty : value_type;
+    dstty : value_type;
+}
+
+type bitcast_sext = {
+    src : value;
+    mid : value;
+    dst : value;
+    srcty : value_type;
+    midty : value_type;
+    dstty : value_type;
+}
+
+type bitcast_sametype = {
+    src : value;
+    dst : value;
+    tty : value_type;
+}
+
+type bitcast_sitofp = {
+    src : value;
+    mid : value;
+    dst : value;
+    srcty : value_type;
+    midty : value_type;
+    dstty : value_type;
+}
+
+type bitcast_trunc = {
+    src : value;
+    mid : value;
+    dst : value;
+    srcty : value_type;
+    midty : value_type;
+    dstty : value_type;
+}
+
+type bitcast_uitofp = {
+    src : value;
+    mid : value;
+    dst : value;
+    srcty : value_type;
+    midty : value_type;
+    dstty : value_type;
+}
+
+type bitcast_zext = {
     src : value;
     mid : value;
     dst : value;
@@ -562,6 +658,24 @@ type fpext_fpext = {
     dstty : value_type;
 }
 
+type fpext_bitcast = {
+    src : value;
+    mid : value;
+    dst : value;
+    srcty : value_type;
+    midty : value_type;
+    dstty : value_type;
+}
+
+type fptosi_bitcast = {
+    src : value;
+    mid : value;
+    dst : value;
+    srcty : value_type;
+    midty : value_type;
+    dstty : value_type;
+}
+
 type fptosi_fpext = {
     src : value;
     mid : value;
@@ -571,7 +685,34 @@ type fptosi_fpext = {
     dstty : value_type;
 }
 
+type fptoui_bitcast = {
+    src : value;
+    mid : value;
+    dst : value;
+    srcty : value_type;
+    midty : value_type;
+    dstty : value_type;
+}
+
 type fptoui_fpext = {
+    src : value;
+    mid : value;
+    dst : value;
+    srcty : value_type;
+    midty : value_type;
+    dstty : value_type;
+}
+
+type fptrunc_bitcast = {
+    src : value;
+    mid : value;
+    dst : value;
+    srcty : value_type;
+    midty : value_type;
+    dstty : value_type;
+}
+
+type fptrunc_fpext = {
     src : value;
     mid : value;
     dst : value;
@@ -593,6 +734,24 @@ type intro_ghost = {
 
 type intro_eq = {
   x : value;
+}
+
+type inttoptr_bitcast = {
+    src : value;
+    mid : value;
+    dst : value;
+    srcty : value_type;
+    midty : value_type;
+    dstty : value_type;
+}
+
+type inttoptr_ptrtoint = {
+    src : value;
+    mid : value;
+    dst : value;
+    srcty : value_type;
+    midty : value_type;
+    dstty : value_type;
 }
 
 type inttoptr_zext = {
@@ -833,6 +992,15 @@ type sext_ashr = {
   sz2 : size;
 }
 
+type sext_bitcast = {
+    src : value;
+    mid : value;
+    dst : value;
+    srcty : value_type;
+    midty : value_type;
+    dstty : value_type;
+}
+
 type sext_trunc = {
   z : value;
   x : value;
@@ -842,6 +1010,15 @@ type sext_trunc = {
   sz2 : size;
 }
 
+type sitofp_bitcast = {
+    src : value;
+    mid : value;
+    dst : value;
+    srcty : value_type;
+    midty : value_type;
+    dstty : value_type;
+}
+
 type sitofp_sext = {
   src : value;
   mid : value;
@@ -849,6 +1026,15 @@ type sitofp_sext = {
   srcty : value_type;
   midty : value_type;
   dstty : value_type;
+}
+
+type sitofp_zext = {
+    src : value;
+    mid : value;
+    dst : value;
+    srcty : value_type;
+    midty : value_type;
+    dstty : value_type;
 }
 
 type sub_add = {
@@ -966,6 +1152,15 @@ type sext_zext = {
   dstty : value_type;
 }
 
+type trunc_bitcast = {
+    src : value;
+    mid : value;
+    dst : value;
+    srcty : value_type;
+    midty : value_type;
+    dstty : value_type;
+}
+
 type trunc_ptrtoint = {
   src : value;
   mid : value;
@@ -973,6 +1168,24 @@ type trunc_ptrtoint = {
   srcty : value_type;
   midty : value_type;
   dstty : value_type;
+}
+
+type trunc_sext = {
+    src : value;
+    mid : value;
+    dst : value;
+    srcty : value_type;
+    midty : value_type;
+    dstty : value_type;
+}
+
+type trunc_zext = {
+    src : value;
+    mid : value;
+    dst : value;
+    srcty : value_type;
+    midty : value_type;
+    dstty : value_type;
 }
 
 type trunc_trunc = {
@@ -1002,6 +1215,15 @@ type udiv_zext = {
   b : value;
   sz1 : size;
   sz2 : size;
+}
+
+type uitofp_bitcast = {
+    src : value;
+    mid : value;
+    dst : value;
+    srcty : value_type;
+    midty : value_type;
+    dstty : value_type;
 }
 
 type uitofp_zext = {
@@ -1061,6 +1283,15 @@ type xor_not = {
     y : value;
     x : value;
     s : size;
+}
+
+type zext_bitcast = {
+    src : value;
+    mid : value;
+    dst : value;
+    srcty : value_type;
+    midty : value_type;
+    dstty : value_type;
 }
 
 type zext_zext = {
@@ -1123,7 +1354,18 @@ type infrule = [
   | AndUndef of and_undef
   | AndZero of and_zero
   | BitcastBitcast of bitcast_bitcast
+  | BitcastFpext of bitcast_fpext
+  | BitcastFptosi of bitcast_fptosi
+  | BitcastFptoui of bitcast_fptoui
+  | BitcastFptrunc of bitcast_fptrunc
   | BitcastInttoptr of bitcast_inttoptr
+  | BitcastPtrtoint of bitcast_ptrtoint
+  | BitcastSext of bitcast_sext
+  | BitcastSametype of bitcast_sametype
+  | BitcastSitofp of bitcast_sitofp
+  | BitcastTrunc of bitcast_trunc
+  | BitcastUitofp of bitcast_uitofp
+  | BitcastZext of bitcast_zext
   | Bitcastptr of bitcastptr
   | BitcastptrTgt of bitcastptr_tgt
   | BopDistributiveOverSelectinst of bop_distributive_over_selectinst
@@ -1135,12 +1377,19 @@ type infrule = [
   | FaddCommutativeTgt of fadd_commutative_tgt
   | FbopDistributiveOverSelectinst of fbop_distributive_over_selectinst
   | FbopDistributiveOverSelectinst2 of fbop_distributive_over_selectinst2
+  | FpextBitcast of fpext_bitcast
   | FpextFpext of fpext_fpext
+  | FptosiBitcast of fptosi_bitcast
   | FptosiFpext of fptosi_fpext
+  | FptouiBitcast of fptoui_bitcast
   | FptouiFpext of fptoui_fpext
+  | FptruncBitcast of fptrunc_bitcast
+  | FptruncFpext of fptrunc_fpext
   | Gepzero of gepzero
   | IntroGhost of intro_ghost
   | IntroEq of intro_eq
+  | InttoptrBitcast of inttoptr_bitcast
+  | InttoptrPtrtoint of inttoptr_ptrtoint
   | InttoptrZext of inttoptr_zext
   | LessthanUndef of lessthan_undef
   | MulAddDistributive of mul_add_distributive
@@ -1171,9 +1420,12 @@ type infrule = [
   | ReplaceRhsOpt of replace_rhs_opt
   | SdivMone of sdiv_mone
   | SdivSubSrem of sdiv_sub_srem
+  | SextBitcast of sext_bitcast
   | SextSext of sext_sext
   | SextZext of sext_zext
+  | SitofpBitcast of sitofp_bitcast
   | SitofpSext of sitofp_sext
+  | SitofpZext of sitofp_zext
   | SubAdd of sub_add
   | SubConstAdd of sub_const_add
   | SubConstNot of sub_const_not
@@ -1188,10 +1440,14 @@ type infrule = [
   | TransitivityTgt of transitivity_tgt
   | TransitivityPointerLhs of transitivity_pointer_lhs
   | TransitivityPointerRhs of transitivity_pointer_rhs
+  | TruncBitcast of trunc_bitcast
   | TruncPtrtoint of trunc_ptrtoint
+  | TruncSext of trunc_sext
   | TruncTrunc of trunc_trunc
+  | TruncZext of trunc_zext
   | UdivSubUrem of udiv_sub_urem
   | UdivZext of udiv_zext
+  | UitofpBitcast of uitofp_bitcast
   | UitofpZext of uitofp_zext
   | UremZext of urem_zext
   | XorCommutative of xor_commutative
@@ -1200,6 +1456,7 @@ type infrule = [
   | XorSame of xor_same
   | XorUndef of xor_undef
   | XorZero of xor_zero
+  | ZextBitcast of zext_bitcast
   | ZextZext of zext_zext
   | IcmpInverse of icmp_inverse
   | ImpliesFalse of implies_false
