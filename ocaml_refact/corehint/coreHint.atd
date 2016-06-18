@@ -305,14 +305,16 @@ type transitivity_pointer_lhs = {
   p : value;
   q : value;
   v : value;
-  loadq : expr;
+  typ : value_type;
+  align : size;
 }
 
 type transitivity_pointer_rhs = {
   p : value;
   q : value;
   v : value;
-  loadp : expr;
+  typ : value_type;
+  align : size;
 }
 
 type replace_rhs = {
@@ -469,6 +471,15 @@ type bitcast_bitcast = {
     dstty : value_type;
 }
 
+type bitcast_load = {
+    ptr : value;
+    ptrty : value_type;
+    ptrty2 : value_type;
+    v1 : value;
+    v2 : value;
+    a : size;
+}
+
 type bop_distributive_over_selectinst = {
   opcode : bop;
   r : register;
@@ -484,12 +495,6 @@ type bop_distributive_over_selectinst = {
 }
 
 type bitcastptr = {
-  v : value;
-  vprime : value;
-  bitcastinst : expr;
-}
-
-type bitcastptr_tgt = {
   v : value;
   vprime : value;
   bitcastinst : expr;
@@ -592,6 +597,10 @@ type intro_ghost = {
 }
 
 type intro_eq = {
+  x : value;
+}
+
+type intro_eq_tgt = {
   x : value;
 }
 
@@ -1123,9 +1132,9 @@ type infrule = [
   | AndUndef of and_undef
   | AndZero of and_zero
   | BitcastBitcast of bitcast_bitcast
+  | BitcastLoad of bitcast_load
   | BitcastInttoptr of bitcast_inttoptr
   | Bitcastptr of bitcastptr
-  | BitcastptrTgt of bitcastptr_tgt
   | BopDistributiveOverSelectinst of bop_distributive_over_selectinst
   | BopDistributiveOverSelectinst2 of bop_distributive_over_selectinst2
   | DiffblockGlobalAlloca of diffblock_global_alloca
@@ -1141,6 +1150,7 @@ type infrule = [
   | Gepzero of gepzero
   | IntroGhost of intro_ghost
   | IntroEq of intro_eq
+  | IntroEqTgt of intro_eq_tgt
   | InttoptrZext of inttoptr_zext
   | LessthanUndef of lessthan_undef
   | MulAddDistributive of mul_add_distributive

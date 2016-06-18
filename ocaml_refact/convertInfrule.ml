@@ -188,6 +188,14 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
      let midty = Convert.value_type args.midty in
      let dstty = Convert.value_type args.dstty in
      Infrule.Coq_bitcast_bitcast (src, mid, dst, srcty, midty, dstty)
+  | CoreHint_t.BitcastLoad (args:CoreHint_t.bitcast_load) -> 
+     let ptr = Convert.value args.src in
+     let ptrty = Convert.value_type args.srcty in
+     let ptrty2 = Convert.value_type args.midty in
+     let v1 = Convert.value args.mid in
+     let v2 = Convert.value args.dst in
+     let a = Convert.size args.a in 
+     Infrule.Coq_bitcast_load (ptr, ptrty, ptrty2, v1, v2, a)
   | CoreHint_t.BitcastInttoptr (args:CoreHint_t.bitcast_inttoptr) -> 
      let src = Convert.value args.src in
      let mid = Convert.value args.mid in
@@ -201,11 +209,6 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
      let vprime = Convert.value args.vprime in
      let bitcastinst = Convert.expr args.bitcastinst src_fdef tgt_fdef in
      Infrule.Coq_bitcastptr (v, vprime, bitcastinst)
-  | CoreHint_t.BitcastptrTgt (args:CoreHint_t.bitcastptr_tgt) ->
-     let v = Convert.value args.v in
-     let vprime = Convert.value args.vprime in
-     let bitcastinst = Convert.expr args.bitcastinst src_fdef tgt_fdef in
-     Infrule.Coq_bitcastptr_tgt (v, vprime, bitcastinst)
   | CoreHint_t.BopDistributiveOverSelectinst (args:CoreHint_t.bop_distributive_over_selectinst) ->
      let opcode = Convert.bop args.opcode in
      let r = Convert.register args.r in
@@ -695,6 +698,9 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
   | CoreHint_t.IntroEq (args:CoreHint_t.intro_eq) ->
       let x = Convert.value args.x in
       Infrule.Coq_intro_eq x
+  | CoreHint_t.IntroEqTgt (args:CoreHint_t.intro_eq_tgt) ->
+      let x = Convert.value args.x in
+      Infrule.Coq_intro_eq_tgt x
   | CoreHint_t.XorCommutative (args:CoreHint_t.xor_commutative) ->
      let z = Convert.register args.z in
      let x = Convert.value args.x in

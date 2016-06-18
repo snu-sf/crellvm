@@ -357,6 +357,11 @@ Definition apply_infrule
        $$ inv0 |-src (Expr.value dst) >= (Expr.cast castop_bitcast midty mid dstty) $$
     then {{ inv0 +++src (Expr.value dst) >= (Expr.cast castop_bitcast srcty src dstty) }}
     else apply_fail tt
+  | Infrule.bitcast_load ptr ptrty v1 ptrty2 v2 a =>
+    if $$ inv0 |-src (Expr.load ptr ptrty a) >= (Expr.value v1) $$ &&
+       $$ inv0 |-src (Expr.cast castop_bitcast ptrty v1 ptrty2) >= (Expr.value v2) $$
+    then {{inv0 +++src (Expr.load ptr ptrty2 a) >= (Expr.value v2)}}
+    else apply_fail tt
   | Infrule.bitcast_inttoptr src mid dst srcty midty dstty =>
     if $$ inv0 |-src (Expr.value mid) >= (Expr.cast castop_inttoptr srcty src midty) $$ &&
        $$ inv0 |-src (Expr.value dst) >= (Expr.cast castop_bitcast midty mid dstty) $$ 
@@ -387,14 +392,6 @@ Definition apply_infrule
     then 
       let inv0 := {{inv0 +++src (Expr.value v) >= (Expr.value v')}} in
       {{inv0 +++src (Expr.value v') >= (Expr.value v)}}
-    else apply_fail tt
-  | Infrule.bitcastptr_tgt v v' bitcastinst =>
-    if $$ inv0 |-tgt (Expr.value v) >= bitcastinst $$ &&
-       $$ inv0 |-tgt bitcastinst >= (Expr.value v) $$ &&
-       cond_bitcast_ptr v' bitcastinst
-    then 
-      let inv0 := {{inv0 +++tgt (Expr.value v) >= (Expr.value v')}} in
-      {{inv0 +++tgt (Expr.value v') >= (Expr.value v)}}
     else apply_fail tt
   | Infrule.fadd_commutative_tgt z x y fty =>
     if $$ inv0 |-tgt (Expr.fbop fbop_fadd fty x y) >= (Expr.value (ValueT.id z)) $$
@@ -695,7 +692,9 @@ Definition apply_infrule
         else 
           let inv1 := {{inv0 +++src (ValueT.const (const_gid gx_ty gx_id)) _||_ (ValueT.const (const_gid gy_ty gy_id)) }} in
           let inv2 := {{inv1 +++src (ValueT.const (const_gid gy_ty gy_id)) _||_ (ValueT.const (const_gid gx_ty gx_id)) }} in
-          inv2
+          let inv3 := {{inv2 +++tgt (ValueT.const (const_gid gx_ty gx_id)) _||_ (ValueT.const (const_gid gy_ty gy_id)) }} in
+          let inv4 := {{inv3 +++tgt (ValueT.const (const_gid gy_ty gy_id)) _||_ (ValueT.const (const_gid gx_ty gx_id)) }} in
+          inv4
       | _ => debug_string "diffblock_global_global : gy not globalvar" (apply_fail tt)
       end
     | _ => debug_string "diffblock_global_global : gx not globalvar" (apply_fail tt)
@@ -764,25 +763,43 @@ Definition apply_infrule
     else apply_fail tt
   | Infrule.intro_eq x => 
     {{ inv0 +++src (Expr.value x) >= (Expr.value x) }}
-  | Infrule.intro_ghost x g =>
-    if Invariant.not_in_maydiff inv0 x
-    then if (negb (IdTSet.mem (Tag.ghost, g) (IdTSet_from_list (Invariant.get_idTs inv0))))
-         then {{
-          {{ inv0 +++src (Expr.value x) >= (Expr.value (ValueT.id (Tag.ghost, g))) }}
-                  +++tgt (Expr.value (ValueT.id (Tag.ghost, g))) >= (Expr.value x)
-         }}
-         else
-          (Invariant.update_src (Invariant.update_lessdef 
-            (ExprPairSet.add ((Expr.value x), (Expr.value (ValueT.id (Tag.ghost, g))))))
-          (Invariant.update_tgt (Invariant.update_lessdef 
-            (ExprPairSet.add ((Expr.value (ValueT.id (Tag.ghost, g))), (Expr.value x))))
-          (Invariant.update_src (Invariant.update_lessdef 
+  | Infrule.intro_eq_tgt x => 
+    {{ inv0 +++tgt (Expr.value x) >= (Expr.value x) }}
+  | Infrule.intro_ghost expr g =>
+    if List.forallb (fun x => Invariant.not_in_maydiff inv0 x)
+      (match expr with
+        | Expr.bop _ _ v w => [v; w]
+        | Expr.fbop _ _ v w => [v; w]
+        | Expr.extractvalue _ v _ _ => [v]
+        | Expr.insertvalue _ v _ w _ => [v; w]
+        | Expr.gep _ _ v _ _ => [v]
+        | Expr.trunc _ _ v _ => [v]
+        | Expr.ext _ _ v _ => [v]
+        | Expr.cast _ _ v _ => [v]
+        | Expr.icmp _ _ v w => [v; w]
+        | Expr.fcmp _ _ v w => [v; w]
+        | Expr.select _ _ v w => [v; w]
+        | Expr.value v => [v]
+        | Expr.load v _ _ => []) &&
+      (match expr with | Expr.load _ _ _ => false | _ => true)
+    then 
+      if (negb (IdTSet.mem (Tag.ghost, g) (IdTSet_from_list (Invariant.get_idTs inv0))))
+        then {{
+          {{ inv0 +++src x >= (Expr.value (ValueT.id (Tag.ghost, g))) }}
+                  +++tgt (Expr.value (ValueT.id (Tag.ghost, g))) >= x
+          }}
+        else
+          let inv1 = (Invariant.update_src (Invariant.update_lessdef 
             (ExprPairSet.filter
-              (fun (p: ExprPair.t) => negb (Expr.eq_dec (Expr.value (ValueT.id (Tag.ghost, g))) (snd p)))))
-          (Invariant.update_tgt (Invariant.update_lessdef 
+              (fun (p: ExprPair.t) => negb (Expr.eq_dec (Expr.value (ValueT.id (Tag.ghost, g))) (snd p))))) 
+              inv0) in
+          let inv2 = (Invariant.update_tgt (Invariant.update_lessdef 
             (ExprPairSet.filter
               (fun (p: ExprPair.t) => negb (Expr.eq_dec (Expr.value (ValueT.id (Tag.ghost, g))) (fst p)))))
-           inv0))))
+              inv1) in
+          let inv3 = {{ inv2 +++src x >= (Expr.value (ValueT.id (Tag.ghost g))) }} in
+          let inv4 = {{ inv3 +++tgt (Expr.value (ValueT.id (Tag.ghost g))) >= x }} in
+          inv4
     else apply_fail tt
   | Infrule.xor_commutative z x y s =>
     if $$ inv0 |-src (Expr.value z) >= (Expr.bop bop_xor s x y) $$
