@@ -788,37 +788,38 @@ Definition apply_infrule
   | Infrule.intro_ghost expr g =>
     if List.forallb (fun x => Invariant.not_in_maydiff inv0 x)
       (match expr with
-        | Expr.bop _ _ v w => [v; w]
-        | Expr.fbop _ _ v w => [v; w]
+        | Expr.bop _ _ v w => [v] ++ [w]
+        | Expr.fbop _ _ v w => [v] ++ [w]
         | Expr.extractvalue _ v _ _ => [v]
-        | Expr.insertvalue _ v _ w _ => [v; w]
+        | Expr.insertvalue _ v _ w _ => [v] ++ [w]
         | Expr.gep _ _ v _ _ => [v]
         | Expr.trunc _ _ v _ => [v]
         | Expr.ext _ _ v _ => [v]
         | Expr.cast _ _ v _ => [v]
-        | Expr.icmp _ _ v w => [v; w]
-        | Expr.fcmp _ _ v w => [v; w]
-        | Expr.select _ _ v w => [v; w]
+        | Expr.icmp _ _ v w => [v] ++ [w]
+        | Expr.fcmp _ _ v w => [v] ++ [w]
+        | Expr.select _ _ v w => [v] ++ [w]
         | Expr.value v => [v]
-        | Expr.load v _ _ => []) &&
-      (match expr with | Expr.load _ _ _ => false | _ => true)
+        | Expr.load v _ _ => nil
+       end) &&
+      (match expr with | Expr.load _ _ _ => false | _ => true end)
     then 
       if (negb (IdTSet.mem (Tag.ghost, g) (IdTSet_from_list (Invariant.get_idTs inv0))))
         then {{
-          {{ inv0 +++src x >= (Expr.value (ValueT.id (Tag.ghost, g))) }}
-                  +++tgt (Expr.value (ValueT.id (Tag.ghost, g))) >= x
+          {{ inv0 +++src expr >= (Expr.value (ValueT.id (Tag.ghost, g))) }}
+                  +++tgt (Expr.value (ValueT.id (Tag.ghost, g))) >= expr
           }}
         else
-          let inv1 = (Invariant.update_src (Invariant.update_lessdef 
+          let inv1 := (Invariant.update_src (Invariant.update_lessdef 
             (ExprPairSet.filter
               (fun (p: ExprPair.t) => negb (Expr.eq_dec (Expr.value (ValueT.id (Tag.ghost, g))) (snd p))))) 
               inv0) in
-          let inv2 = (Invariant.update_tgt (Invariant.update_lessdef 
+          let inv2 := (Invariant.update_tgt (Invariant.update_lessdef 
             (ExprPairSet.filter
               (fun (p: ExprPair.t) => negb (Expr.eq_dec (Expr.value (ValueT.id (Tag.ghost, g))) (fst p)))))
               inv1) in
-          let inv3 = {{ inv2 +++src x >= (Expr.value (ValueT.id (Tag.ghost g))) }} in
-          let inv4 = {{ inv3 +++tgt (Expr.value (ValueT.id (Tag.ghost g))) >= x }} in
+          let inv3 := {{ inv2 +++src expr >= (Expr.value (ValueT.id (Tag.ghost, g))) }} in
+          let inv4 := {{ inv3 +++tgt (Expr.value (ValueT.id (Tag.ghost, g))) >= expr }} in
           inv4
     else apply_fail tt
   | Infrule.xor_commutative z x y s =>

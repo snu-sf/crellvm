@@ -486,8 +486,8 @@ type bitcast_bitcast = {
 type bitcast_load = {
     ptr : value;
     ptrty : value_type;
-    ptrty2 : value_type;
     v1 : value;
+    ptrty2 : value_type;
     v2 : value;
     a : size;
 }
@@ -604,7 +604,7 @@ type gepzero = {
 }
 
 type intro_ghost = {
-  x : value;
+  x : expr;
   g : register;
 }
 

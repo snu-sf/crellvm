@@ -189,13 +189,13 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
      let dstty = Convert.value_type args.dstty in
      Infrule.Coq_bitcast_bitcast (src, mid, dst, srcty, midty, dstty)
   | CoreHint_t.BitcastLoad (args:CoreHint_t.bitcast_load) -> 
-     let ptr = Convert.value args.src in
-     let ptrty = Convert.value_type args.srcty in
-     let ptrty2 = Convert.value_type args.midty in
-     let v1 = Convert.value args.mid in
-     let v2 = Convert.value args.dst in
+     let ptr = Convert.value args.ptr in
+     let ptrty = Convert.value_type args.ptrty in
+     let v1 = Convert.value args.v1 in
+     let ptrty2 = Convert.value_type args.ptrty2 in
+     let v2 = Convert.value args.v2 in
      let a = Convert.size args.a in 
-     Infrule.Coq_bitcast_load (ptr, ptrty, ptrty2, v1, v2, a)
+     Infrule.Coq_bitcast_load (ptr, ptrty, v1, ptrty2, v2, a)
   | CoreHint_t.BitcastInttoptr (args:CoreHint_t.bitcast_inttoptr) -> 
      let src = Convert.value args.src in
      let mid = Convert.value args.mid in
@@ -615,24 +615,16 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
      let p = Convert.value args.p in
      let q = Convert.value args.q in
      let v = Convert.value args.v in
-     let loadq = Convert.expr args.loadq src_fdef tgt_fdef in
-     (match loadq with
-     | Exprs.Expr.Coq_load (vq, typ, align) ->
-        (* We should assert that vq == q. *)
-        Infrule.Coq_transitivity_pointer_lhs (p, q, v, typ, align)
-     | _ -> failwith "loadq must be load instruction."
-     )
+     let typ = Convert.value_type args.typ in
+     let align = Convert.size args.align in
+     Infrule.Coq_transitivity_pointer_lhs (p, q, v, typ, align)
   | CoreHint_t.TransitivityPointerRhs (args:CoreHint_t.transitivity_pointer_rhs) ->
-      let p = Convert.value args.p in
-      let q = Convert.value args.q in
-      let v = Convert.value args.v in
-      let loadp = Convert.expr args.loadp src_fdef tgt_fdef in
-      (match loadp with
-      | Exprs.Expr.Coq_load (vp, typ, align) ->
-         (* We should assert that vp == p. *)
-         Infrule.Coq_transitivity_pointer_rhs (p, q, v, typ, align)
-      | _ -> failwith "loadq must be load instruction."
-      )
+     let p = Convert.value args.p in
+     let q = Convert.value args.q in
+     let v = Convert.value args.v in
+     let typ = Convert.value_type args.typ in
+     let align = Convert.size args.align in
+     Infrule.Coq_transitivity_pointer_rhs (p, q, v, typ, align)
   | CoreHint_t.Substitute (args:CoreHint_t.substitute) ->
      let x = Convert.register args.x in
      let y = Convert.value args.y in
@@ -702,7 +694,7 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
      let sz2 = Convert.size args.sz2 in
      Infrule.Coq_urem_zext (z, x, y, k, a, b, sz1, sz2)
   | CoreHint_t.IntroGhost (args:CoreHint_t.intro_ghost) ->
-      let x = Convert.value args.x in
+      let x = Convert.expr args.x src_fdef tgt_fdef in
       let g = args.g.name in
       Infrule.Coq_intro_ghost (x, g)
   | CoreHint_t.IntroEq (args:CoreHint_t.intro_eq) ->
