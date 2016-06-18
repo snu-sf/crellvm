@@ -725,6 +725,26 @@ Definition apply_infrule
        $$ inv0 |-src (Expr.value dst) >= (Expr.trunc truncop_int midty mid dstty) $$
     then {{inv0 +++src (Expr.value dst) >= (Expr.trunc truncop_int srcty src dstty)}}
     else apply_fail tt
+  | Infrule.substitute x y e =>
+    if $$ inv0 |-src (Expr.value x) >= (Expr.value y) $$
+    then
+      let x_to_y := (fun v =>
+                       match v with
+                       | ValueT.id i => if(IdT.eq_dec x i) then y else v
+                       | _ => v
+                       end) in
+      {{inv0 +++src e >= (Expr.map_valueTs e x_to_y)}}
+    else apply_fail tt
+  | Infrule.substitute_rev x y e =>
+    if $$ inv0 |-src (Expr.value y) >= (Expr.value x) $$
+    then
+      let x_to_y := (fun v =>
+                       match v with
+                       | ValueT.id i => if(IdT.eq_dec x i) then y else v
+                       | _ => v
+                       end) in
+      {{inv0 +++src (Expr.map_valueTs e x_to_y) >= e}}
+    else apply_fail tt
   | Infrule.replace_rhs x y e1 e2 e2' =>
     if $$ inv0 |-src (Expr.value x) >= (Expr.value y) $$ &&
        $$ inv0 |-src e1 >= e2 $$ &&

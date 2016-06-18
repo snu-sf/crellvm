@@ -86,7 +86,7 @@ module ExprsToString = struct
                         (of_ValueT vt2)
                         (string_of_list_constant cl)
       | Expr.Coq_gep (inb, ty1, vt, svl, ty2) ->
-         Printf.sprintf "getelementptr %s %s %s (%s) %s"
+         Printf.sprintf "gep %s %s %s (%s) %s"
                         (string_of_bool inb)
                         (string_of_typ ty1)
                         (of_ValueT vt)
@@ -220,6 +220,16 @@ module PrintHints = struct
                                                 ExprsToString.of_expr a ^ " ≥ " ^
                                                   ExprsToString.of_expr b ^ " ≥ " ^
                                                     ExprsToString.of_expr c
+      | Infrule.Coq_substitute (x, y, e) ->
+         "substitute : "
+         ^ ExprsToString.of_expr e ^ " ≥ ([ "
+         ^ ExprsToString.of_IdT x ^ " := " ^ ExprsToString.of_ValueT y ^ " ] "
+         ^ ExprsToString.of_expr e ^ ")"
+      | Infrule.Coq_substitute_rev (x, y, e) ->
+         "substitute_rev : "
+         ^ "([ " ^ ExprsToString.of_IdT x ^ " := " ^ ExprsToString.of_ValueT y ^ " ] "
+         ^ ExprsToString.of_expr e ^ ")"
+         ^ " ≥ " ^ ExprsToString.of_expr e
       | Infrule.Coq_replace_rhs _ -> "replace_rhs"
       | Infrule.Coq_transitivity_pointer_lhs (p, q, v, ty, a) -> "transitivity_pointer_lhs : " ^
                                                 ExprsToString.of_expr(Expr.Coq_value p) ^ " ≥ " ^
@@ -359,6 +369,11 @@ let infrule_printer (x: Infrule.t): unit =
   debug_run(
       fun _ ->
       debug_print (PrintHints.infrule_to_string x))
+
+let expr_printer (x: Expr.t): unit =
+  debug_run(
+      fun _ ->
+      debug_print (ExprsToString.of_expr x))
 
 let debug_string (x: char list) (y: 'a) =
   let _ = debug_run(fun _ -> debug_print (string_of_char_list x))
