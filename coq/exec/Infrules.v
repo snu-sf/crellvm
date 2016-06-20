@@ -215,6 +215,29 @@ Definition cond_same_bitsize (ty1:typ) (ty2:typ) (m_src:module) : bool :=
   | _ => false
   end.
 
+(* NOTE : pointer type in Vellvm does not remember address space *)
+Definition cond_sameaddrspace (t1:typ) (t2:typ) : bool :=
+  match (t1,t2) with
+  | (typ_pointer _, typ_pointer _) => true
+  | _ => false
+  end.
+
+(* NOTE : Vellvm does not support vector type *)
+Definition cond_vectortyp (t:typ) : bool :=
+  false.
+
+Definition cond_inttyp (t:typ): bool :=
+  match t with
+  | typ_int _ => true
+  | _ => false
+  end.
+
+Definition cond_floatpointtyp (t:typ) : bool :=
+  match t with
+  | typ_floatpoint _ => true
+  | _ => false
+  end.
+
 (* getInversePredicate in lib/IR/Instructions.cpp *)
 Definition get_inverse_icmp_cond (c:cond) : cond :=
   match c with
@@ -283,6 +306,10 @@ Definition apply_infrule
                       >= (Expr.value (ValueT.id z)) $$  
     then {{inv0 +++tgt (Expr.bop bop_add s (ValueT.id minusx) minusy) >= (Expr.value (ValueT.id z))}}  
     else apply_fail tt
+  | Infrule.add_onebit z x y =>
+    if $$ inv0 |-src (Expr.value (ValueT.id z)) >= (Expr.bop bop_add Size.One x y) $$
+    then {{inv0 +++src (Expr.value (ValueT.id z)) >= (Expr.bop bop_xor Size.One x y)}}
+    else apply_fail tt
   | Infrule.add_sub z minusy x y s =>
     if $$ inv0 |-src (Expr.value minusy) >= (Expr.bop bop_sub s (const_int s (INTEGER.of_Z (Size.to_Z s) 0%Z true)) y) $$ &&
        $$ inv0 |-src (Expr.value z) >= (Expr.bop bop_add s x minusy) $$
@@ -303,6 +330,12 @@ Definition apply_infrule
          cond_mask_up s c1 c2
       then {{inv0 +++tgt (Expr.bop bop_add s (ValueT.id y) (ValueT.const (const_int s c1))) >= (Expr.value (ValueT.id z)) }}
       else apply_fail tt
+  | Infrule.add_or_and z a b x y s =>
+    if $$ inv0 |-src (Expr.value (ValueT.id x)) >= (Expr.bop bop_or s a b) $$ &&
+       $$ inv0 |-src (Expr.value (ValueT.id y)) >= (Expr.bop bop_and s a b) $$ &&
+       $$ inv0 |-src (Expr.value (ValueT.id z)) >= (Expr.bop bop_add s (ValueT.id x) (ValueT.id y)) $$
+    then {{inv0 +++src (Expr.value (ValueT.id z)) >= (Expr.bop bop_add s a b)}}
+    else apply_fail tt
   | Infrule.add_select_zero z x y c n a s =>
       if $$ inv0 |-src (Expr.value (ValueT.id x)) >= (Expr.bop bop_sub s n a) $$ &&
          $$ inv0 |-src (Expr.value (ValueT.id y)) >= (Expr.select c (typ_int s) (ValueT.id x) (ValueT.const (const_int s (INTEGER.of_Z (Size.to_Z s) 0%Z true)))) $$ &&
@@ -330,11 +363,11 @@ Definition apply_infrule
        $$ inv0 |-src (Expr.value (ValueT.id z)) >= (Expr.bop bop_add s (ValueT.id x) (ValueT.id y)) $$
     then {{inv0 +++src (Expr.value (ValueT.id z)) >= (Expr.bop bop_or s a b)}}
     else apply_fail tt
-  | Infrule.add_or_and z a b x y s =>
-    if $$ inv0 |-src (Expr.value (ValueT.id x)) >= (Expr.bop bop_or s a b) $$ &&
-       $$ inv0 |-src (Expr.value (ValueT.id y)) >= (Expr.bop bop_and s a b) $$ &&
-       $$ inv0 |-src (Expr.value (ValueT.id z)) >= (Expr.bop bop_add s (ValueT.id x) (ValueT.id y)) $$
-    then {{inv0 +++src (Expr.value (ValueT.id z)) >= (Expr.bop bop_add s a b)}}
+  | Infrule.add_zext_bool x y b c c' sz =>
+    if $$ inv0 |-src (Expr.value (ValueT.id x)) >= (Expr.ext extop_z (typ_int Size.One) b (typ_int sz)) $$ &&
+       $$ inv0 |-src (Expr.value (ValueT.id y)) >= (Expr.bop bop_add sz (ValueT.id x) (ValueT.const (const_int sz c))) $$ &&
+       cond_plus sz c (INTEGER.of_Z (Size.to_Z sz) 1%Z true) c'
+    then {{ inv0 +++src (Expr.value (ValueT.id y)) >= (Expr.select b (typ_int sz) (ValueT.const (const_int sz c')) (ValueT.const (const_int sz c))) }}
     else apply_fail tt
   | Infrule.and_commutative z x y s =>
     if $$ inv0 |-src (Expr.value (ValueT.id z)) >= (Expr.bop bop_and s x y) $$
@@ -414,6 +447,70 @@ Definition apply_infrule
       let inv0 := {{inv0 +++src (Expr.value v) >= (Expr.value v')}} in
       {{inv0 +++src (Expr.value v') >= (Expr.value v)}}
     else apply_fail tt
+  | Infrule.bitcast_fpext src mid dst srcty midty dstty =>
+    if $$ inv0 |-src (Expr.value mid) >= (Expr.ext extop_fp srcty src midty) $$ &&
+       $$ inv0 |-src (Expr.value dst) >= (Expr.cast castop_bitcast midty mid dstty) $$ &&
+       cond_floatpointtyp dstty
+    then {{ inv0 +++src (Expr.value dst) >= (Expr.ext extop_fp srcty src dstty) }}
+    else apply_fail tt
+  | Infrule.bitcast_fptosi src mid dst srcty midty dstty =>
+    if $$ inv0 |-src (Expr.value mid) >= (Expr.cast castop_fptosi srcty src midty) $$ &&
+       $$ inv0 |-src (Expr.value dst) >= (Expr.cast castop_bitcast midty mid dstty) $$ &&
+       negb (cond_vectortyp srcty) && cond_inttyp dstty
+    then {{ inv0 +++src (Expr.value dst) >= (Expr.cast castop_fptosi srcty src dstty) }}
+    else apply_fail tt
+  | Infrule.bitcast_fptoui src mid dst srcty midty dstty =>
+    if $$ inv0 |-src (Expr.value mid) >= (Expr.cast castop_fptoui srcty src midty) $$ &&
+       $$ inv0 |-src (Expr.value dst) >= (Expr.cast castop_bitcast midty mid dstty) $$ &&
+       negb (cond_vectortyp srcty) && cond_inttyp dstty
+    then {{ inv0 +++src (Expr.value dst) >= (Expr.cast castop_fptoui srcty src dstty) }}
+    else apply_fail tt
+  | Infrule.bitcast_fptrunc src mid dst srcty midty dstty =>
+    if $$ inv0 |-src (Expr.value mid) >= (Expr.trunc truncop_fp srcty src midty) $$ &&
+       $$ inv0 |-src (Expr.value dst) >= (Expr.cast castop_bitcast midty mid dstty) $$ &&
+       cond_floatpointtyp dstty
+    then {{ inv0 +++src (Expr.value dst) >= (Expr.trunc truncop_fp srcty src dstty) }}
+    else apply_fail tt
+  | Infrule.bitcast_ptrtoint src mid dst srcty midty dstty => 
+    if $$ inv0 |-src (Expr.value mid) >= (Expr.cast castop_ptrtoint srcty src midty) $$ &&
+       $$ inv0 |-src (Expr.value dst) >= (Expr.cast castop_bitcast midty mid dstty) $$ &&
+       negb(cond_vectortyp srcty) && cond_inttyp dstty
+    then {{ inv0 +++src (Expr.value dst) >= (Expr.cast castop_ptrtoint srcty src dstty) }}
+    else apply_fail tt
+  | Infrule.bitcast_sext src mid dst srcty midty dstty =>
+    if $$ inv0 |-src (Expr.value mid) >= (Expr.ext extop_s srcty src midty) $$ &&
+       $$ inv0 |-src (Expr.value dst) >= (Expr.cast castop_bitcast midty mid dstty) $$ &&
+       negb(cond_vectortyp srcty) && cond_inttyp dstty
+    then {{ inv0 +++src (Expr.value dst) >= (Expr.ext extop_s srcty src dstty) }}
+    else apply_fail tt
+  | Infrule.bitcast_sametype src dst tty =>
+    if $$ inv0 |-src (Expr.value dst) >= (Expr.cast castop_bitcast tty src tty) $$
+    then {{ inv0 +++src (Expr.value dst) >= (Expr.value src) }}
+    else apply_fail tt
+  | Infrule.bitcast_sitofp src mid dst srcty midty dstty =>
+    if $$ inv0 |-src (Expr.value mid) >= (Expr.cast castop_sitofp srcty src midty) $$ &&
+       $$ inv0 |-src (Expr.value dst) >= (Expr.cast castop_bitcast midty mid dstty) $$ &&
+       cond_floatpointtyp dstty
+    then {{ inv0 +++src (Expr.value dst) >= (Expr.cast castop_sitofp srcty src dstty) }}
+    else apply_fail tt
+  | Infrule.bitcast_trunc src mid dst srcty midty dstty =>
+    if $$ inv0 |-src (Expr.value mid) >= (Expr.trunc truncop_int srcty src midty) $$ &&
+       $$ inv0 |-src (Expr.value dst) >= (Expr.cast castop_bitcast midty mid dstty) $$ &&
+       negb(cond_vectortyp srcty) && cond_inttyp dstty
+    then {{ inv0 +++src (Expr.value dst) >= (Expr.trunc truncop_int srcty src dstty) }}
+    else apply_fail tt
+  | Infrule.bitcast_uitofp src mid dst srcty midty dstty =>
+    if $$ inv0 |-src (Expr.value mid) >= (Expr.cast castop_uitofp srcty src midty) $$ &&
+       $$ inv0 |-src (Expr.value dst) >= (Expr.cast castop_bitcast midty mid dstty) $$ &&
+       cond_floatpointtyp dstty
+    then {{ inv0 +++src (Expr.value dst) >= (Expr.cast castop_uitofp srcty src dstty) }}
+    else apply_fail tt
+  | Infrule.bitcast_zext src mid dst srcty midty dstty =>
+    if $$ inv0 |-src (Expr.value mid) >= (Expr.ext extop_z srcty src midty) $$ &&
+       $$ inv0 |-src (Expr.value dst) >= (Expr.cast castop_bitcast midty mid dstty) $$ &&
+       negb(cond_vectortyp srcty) && cond_inttyp dstty
+    then {{ inv0 +++src (Expr.value dst) >= (Expr.ext extop_z srcty src dstty) }}
+    else apply_fail tt
   | Infrule.fadd_commutative_tgt z x y fty =>
     if $$ inv0 |-tgt (Expr.fbop fbop_fadd fty x y) >= (Expr.value (ValueT.id z)) $$
     then {{ inv0 +++tgt (Expr.fbop fbop_fadd fty y x) >= (Expr.value (ValueT.id z)) }}
@@ -432,10 +529,28 @@ Definition apply_infrule
        $$ inv0 |-tgt (Expr.fbop fbopcode fbopty t' x) >= (Expr.value (ValueT.id t)) $$
      then {{ inv0 +++tgt (Expr.select c (typ_floatpoint fbopty) (ValueT.id r) (ValueT.id s)) >= (Expr.value (ValueT.id t)) }}
     else apply_fail tt
+  | Infrule.fpext_bitcast src mid dst srcty midty dstty =>
+    if $$ inv0 |-src (Expr.value mid) >= (Expr.cast castop_bitcast srcty src midty) $$ &&
+       $$ inv0 |-src (Expr.value dst) >= (Expr.ext extop_fp midty mid dstty) $$ &&
+       cond_floatpointtyp dstty
+    then {{ inv0 +++src (Expr.value dst) >= (Expr.ext extop_fp srcty src dstty) }}
+    else apply_fail tt
   | Infrule.fpext_fpext src mid dst srcty midty dstty =>
     if $$ inv0 |-src (Expr.value mid) >= (Expr.ext extop_fp srcty src midty) $$ &&
        $$ inv0 |-src (Expr.value dst) >= (Expr.ext extop_fp midty mid dstty) $$
     then {{ inv0 +++src (Expr.value dst) >= (Expr.ext extop_fp srcty src dstty) }}
+    else apply_fail tt
+  | Infrule.fptosi_bitcast src mid dst srcty midty dstty =>
+    if $$ inv0 |-src (Expr.value mid) >= (Expr.cast castop_bitcast srcty src midty) $$ &&
+       $$ inv0 |-src (Expr.value dst) >= (Expr.cast castop_fptosi midty mid dstty) $$ &&
+       cond_floatpointtyp srcty
+    then {{ inv0 +++src (Expr.value dst) >= (Expr.cast castop_fptosi srcty src dstty) }}
+    else apply_fail tt
+  | Infrule.fptoui_bitcast src mid dst srcty midty dstty =>
+    if $$ inv0 |-src (Expr.value mid) >= (Expr.cast castop_bitcast srcty src midty) $$ &&
+       $$ inv0 |-src (Expr.value dst) >= (Expr.cast castop_fptoui midty mid dstty) $$ &&
+       cond_floatpointtyp srcty
+    then {{ inv0 +++src (Expr.value dst) >= (Expr.cast castop_fptoui srcty src dstty) }}
     else apply_fail tt
   | Infrule.fptosi_fpext src mid dst srcty midty dstty =>
     if $$ inv0 |-src (Expr.value mid) >= (Expr.ext extop_fp srcty src midty) $$ &&
@@ -446,6 +561,18 @@ Definition apply_infrule
     if $$ inv0 |-src (Expr.value mid) >= (Expr.ext extop_fp srcty src midty) $$ &&
        $$ inv0 |-src (Expr.value dst) >= (Expr.cast castop_fptoui midty mid dstty) $$
     then {{ inv0 +++src (Expr.value dst) >= (Expr.cast castop_fptoui srcty src dstty) }}
+    else apply_fail tt
+  | Infrule.fptrunc_bitcast src mid dst srcty midty dstty =>
+    if $$ inv0 |-src (Expr.value mid) >= (Expr.cast castop_bitcast srcty src midty) $$ &&
+       $$ inv0 |-src (Expr.value dst) >= (Expr.trunc truncop_fp midty mid dstty) $$ &&
+       cond_floatpointtyp srcty
+    then {{ inv0 +++src (Expr.value dst) >= (Expr.trunc truncop_fp srcty src dstty) }}
+    else apply_fail tt
+  | Infrule.fptrunc_fpext src mid dst srcty midty dstty =>
+    if $$ inv0 |-src (Expr.value mid) >= (Expr.ext extop_fp srcty src midty) $$ &&
+       $$ inv0 |-src (Expr.value dst) >= (Expr.trunc truncop_fp midty mid dstty) $$ &&
+       typ_dec srcty dstty
+    then {{ inv0 +++src (Expr.value dst) >= (Expr.cast castop_bitcast srcty src dstty) }}
     else apply_fail tt
   | Infrule.gepzero v v' gepinst =>
     if $$ inv0 |-src (Expr.value v) >= gepinst $$ &&
@@ -461,6 +588,12 @@ Definition apply_infrule
       {{inv0 +++src (Expr.gep true t v lsv u) >= (Expr.gep false t v lsv u) }}
     | _ => apply_fail tt
     end
+  | Infrule.inttoptr_bitcast src mid dst srcty midty dstty =>
+    if $$ inv0 |-src (Expr.value mid) >= (Expr.cast castop_bitcast srcty src midty) $$ &&
+       $$ inv0 |-src (Expr.value dst) >= (Expr.cast castop_inttoptr midty mid dstty) $$ &&
+       cond_inttyp srcty
+    then {{ inv0 +++src (Expr.value dst) >= (Expr.cast castop_inttoptr srcty src dstty) }} 
+    else apply_fail tt
   | Infrule.inttoptr_zext src mid dst srcty midty dstty =>
     if $$ inv0 |-src (Expr.value mid) >= (Expr.ext extop_z srcty src midty) $$ &&
        $$ inv0 |-src (Expr.value dst) >= (Expr.cast castop_inttoptr midty mid dstty) $$
@@ -626,6 +759,29 @@ Definition apply_infrule
        cond_same_bitsize intty ptrty m_src
     then {{ inv0 +++src (Expr.load ptr intty a) >= (Expr.value v2) }}
     else apply_fail tt
+  | Infrule.inttoptr_ptrtoint src mid dst srcty midty dstty =>
+    if $$ inv0 |-src (Expr.value mid) >= (Expr.cast castop_ptrtoint srcty src midty) $$ &&
+       $$ inv0 |-src (Expr.value dst) >= (Expr.cast castop_inttoptr midty mid dstty) $$ &&
+       cond_sameaddrspace srcty dstty
+    then {{ inv0 +++src (Expr.value dst) >= (Expr.cast castop_bitcast srcty src dstty) }}
+    else apply_fail tt
+  | Infrule.sext_bitcast src mid dst srcty midty dstty =>
+    if $$ inv0 |-src (Expr.value mid) >= (Expr.cast castop_bitcast srcty src midty) $$ &&
+       $$ inv0 |-src (Expr.value dst) >= (Expr.ext extop_s midty mid dstty) $$ &&
+       cond_inttyp srcty
+    then {{ inv0 +++src (Expr.value dst) >= (Expr.ext extop_s srcty src dstty) }}
+    else apply_fail tt
+  | Infrule.sitofp_bitcast src mid dst srcty midty dstty =>
+    if $$ inv0 |-src (Expr.value mid) >= (Expr.cast castop_bitcast srcty src midty) $$ &&
+       $$ inv0 |-src (Expr.value dst) >= (Expr.cast castop_sitofp midty mid dstty) $$ &&
+       cond_inttyp srcty
+    then {{ inv0 +++src (Expr.value dst) >= (Expr.cast castop_sitofp srcty src dstty) }}
+    else apply_fail tt
+  | Infrule.sitofp_zext src mid dst srcty midty dstty =>
+    if $$ inv0 |-src (Expr.value mid) >= (Expr.ext extop_z srcty src midty) $$ &&
+       $$ inv0 |-src (Expr.value dst) >= (Expr.cast castop_sitofp midty mid dstty) $$ 
+    then {{ inv0 +++src (Expr.value dst) >= (Expr.cast castop_uitofp srcty src dstty) }}
+    else apply_fail tt
   | Infrule.sub_const_add z y x c1 c2 c3 s =>
     if $$ inv0 |-src (Expr.value (ValueT.id y)) >= (Expr.bop bop_add s x (ValueT.const (const_int s c1))) $$ &&
        $$ inv0 |-src (Expr.value (ValueT.id z)) >= (Expr.bop bop_sub s (ValueT.const (const_int s c2)) (ValueT.id y)) $$ &&
@@ -671,16 +827,6 @@ Definition apply_infrule
        cond_minus sz (INTEGER.of_Z (Size.to_Z sz) 0%Z true) c c'
     then {{inv0 +++src (Expr.value (ValueT.id z)) >= (Expr.bop bop_sdiv sz x (ValueT.const (const_int sz c'))) }}
     else apply_fail tt
-  | Infrule.add_onebit z x y =>
-    if $$ inv0 |-src (Expr.value (ValueT.id z)) >= (Expr.bop bop_add Size.One x y) $$
-    then {{inv0 +++src (Expr.value (ValueT.id z)) >= (Expr.bop bop_xor Size.One x y)}}
-    else apply_fail tt
-  | Infrule.add_zext_bool x y b c c' sz =>
-    if $$ inv0 |-src (Expr.value (ValueT.id x)) >= (Expr.ext extop_z (typ_int Size.One) b (typ_int sz)) $$ &&
-       $$ inv0 |-src (Expr.value (ValueT.id y)) >= (Expr.bop bop_add sz (ValueT.id x) (ValueT.const (const_int sz c))) $$ &&
-       cond_plus sz c (INTEGER.of_Z (Size.to_Z sz) 1%Z true) c'
-    then {{ inv0 +++src (Expr.value (ValueT.id y)) >= (Expr.select b (typ_int sz) (ValueT.const (const_int sz c')) (ValueT.const (const_int sz c))) }}
-    else apply_fail tt
   | Infrule.sext_sext src mid dst srcty midty dstty =>
     if $$ inv0 |-src (Expr.value mid) >= (Expr.ext extop_s srcty src midty) $$ &&
        $$ inv0 |-src (Expr.value dst) >= (Expr.ext extop_s midty mid dstty) $$
@@ -701,10 +847,48 @@ Definition apply_infrule
        $$ inv0 |-tgt e2 >= e3 $$
     then {{ inv0 +++tgt e1 >= e3 }}
     else apply_fail tt
+  | Infrule.trunc_bitcast src mid dst srcty midty dstty =>
+    if $$ inv0 |-src (Expr.value mid) >= (Expr.cast castop_bitcast srcty src midty) $$ &&
+       $$ inv0 |-src (Expr.value dst) >= (Expr.trunc truncop_int midty mid dstty) $$ &&
+       cond_inttyp srcty
+    then {{ inv0 +++src (Expr.value dst) >= (Expr.trunc truncop_int srcty src dstty) }}
+    else apply_fail tt
   | Infrule.trunc_ptrtoint src mid dst srcty midty dstty =>
     if $$ inv0 |-src (Expr.value mid) >= (Expr.cast castop_ptrtoint srcty src midty) $$ &&
        $$ inv0 |-src (Expr.value dst) >= (Expr.trunc truncop_int midty mid dstty) $$
     then {{ inv0 +++src (Expr.value dst) >= (Expr.cast castop_ptrtoint srcty src dstty) }}
+    else apply_fail tt
+  | Infrule.trunc_sext src mid dst srcty midty dstty =>
+    if $$ inv0 |-src (Expr.value mid) >= (Expr.ext extop_s srcty src midty) $$ &&
+       $$ inv0 |-src (Expr.value dst) >= (Expr.trunc truncop_int midty mid dstty) $$ 
+    then
+      match (srcty, dstty) with
+      | (typ_int srcsz, typ_int dstsz) => 
+        if Z.ltb (Size.to_Z srcsz) (Size.to_Z dstsz) then 
+          {{ inv0 +++src (Expr.value dst) >= (Expr.ext extop_s srcty src dstty) }}
+        else if sz_dec srcsz dstsz then
+          {{ inv0 +++src (Expr.value dst) >= (Expr.cast castop_bitcast srcty src dstty) }}
+        else if Z.ltb (Size.to_Z dstsz) (Size.to_Z srcsz) then
+          {{ inv0 +++src (Expr.value dst) >= (Expr.trunc truncop_int srcty src dstty) }}
+        else apply_fail tt
+      | _ => apply_fail tt
+      end
+    else apply_fail tt
+  | Infrule.trunc_zext src mid dst srcty midty dstty =>
+    if $$ inv0 |-src (Expr.value mid) >= (Expr.ext extop_z srcty src midty) $$ &&
+       $$ inv0 |-src (Expr.value dst) >= (Expr.trunc truncop_int midty mid dstty) $$ 
+    then
+      match (srcty, dstty) with
+      | (typ_int srcsz, typ_int dstsz) => 
+        if Z.ltb (Size.to_Z srcsz) (Size.to_Z dstsz) then 
+          {{ inv0 +++src (Expr.value dst) >= (Expr.ext extop_z srcty src dstty) }}
+        else if sz_dec srcsz dstsz then
+          {{ inv0 +++src (Expr.value dst) >= (Expr.cast castop_bitcast srcty src dstty) }}
+        else if Z.ltb (Size.to_Z dstsz) (Size.to_Z srcsz) then
+          {{ inv0 +++src (Expr.value dst) >= (Expr.trunc truncop_int srcty src dstty) }}
+        else apply_fail tt
+      | _ => apply_fail tt
+      end
     else apply_fail tt
   | Infrule.rem_neg z my x y s =>
     if $$ inv0 |-src (Expr.value my) >= (Expr.bop bop_sub s (ValueT.const (const_int s (INTEGER.of_Z (Size.to_Z s) 0%Z true))) y) $$ && 
@@ -808,6 +992,12 @@ Definition apply_infrule
        $$ inv0 |-tgt (Expr.ext extop_z (typ_int s1) (ValueT.id k) (typ_int s2)) >= (Expr.value (ValueT.id z)) $$
     then {{ inv0 +++tgt (Expr.bop bop_udiv s2 (ValueT.id x) (ValueT.id y)) >= (Expr.value (ValueT.id z)) }}
     else apply_fail tt
+  | Infrule.uitofp_bitcast src mid dst srcty midty dstty =>
+    if $$ inv0 |-src (Expr.value mid) >= (Expr.cast castop_bitcast srcty src midty) $$ &&
+       $$ inv0 |-src (Expr.value dst) >= (Expr.cast castop_uitofp midty mid dstty) $$ &&
+       cond_inttyp srcty
+    then {{ inv0 +++src (Expr.value dst) >= (Expr.cast castop_uitofp srcty src dstty) }}
+    else apply_fail tt
   | Infrule.uitofp_zext src mid dst srcty midty dstty =>
     if $$ inv0 |-src (Expr.value mid) >= (Expr.ext extop_z srcty src midty) $$ &&
        $$ inv0 |-src (Expr.value dst) >= (Expr.cast castop_uitofp midty mid dstty) $$
@@ -888,6 +1078,12 @@ Definition apply_infrule
     if $$ inv0 |-src (Expr.value z) >= (Expr.bop bop_xor s a 
                 (ValueT.const (const_int s (INTEGER.of_Z (Size.to_Z s) 0%Z true)))) $$
     then {{ inv0 +++src (Expr.value z) >= (Expr.value a) }}
+    else apply_fail tt
+  | Infrule.zext_bitcast src mid dst srcty midty dstty =>
+    if $$ inv0 |-src (Expr.value mid) >= (Expr.cast castop_bitcast srcty src midty) $$ &&
+       $$ inv0 |-src (Expr.value dst) >= (Expr.ext extop_z midty mid dstty) $$ &&
+       cond_inttyp srcty
+    then {{ inv0 +++src (Expr.value dst) >= (Expr.ext extop_z srcty src dstty) }}
     else apply_fail tt
   | Infrule.zext_zext src mid dst srcty midty dstty =>
     if $$ inv0 |-src (Expr.value mid) >= (Expr.ext extop_z srcty src midty) $$ &&
