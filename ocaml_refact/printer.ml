@@ -67,7 +67,7 @@ module ExprsToString = struct
       match e with
       | Expr.Coq_bop (b, s, vt1, vt2) ->
          Printf.sprintf "bop %s %s %s %s"
-                       (string_of_bop b) (of_sz s) (of_ValueT vt1) (of_ValueT vt2)
+                        (string_of_bop b) (of_sz s) (of_ValueT vt1) (of_ValueT vt2)
       | Expr.Coq_fbop (fb, fp, vt1, vt2) ->
          Printf.sprintf "fbop %s %s %s %s"
                         (string_of_fbop fb) (string_of_floating_point fp)
@@ -195,6 +195,14 @@ module PrintHints = struct
                                                 ExprsToString.of_expr(Expr.Coq_value (ValueT.Coq_id z)) ^ " ≥ " ^
                                                 ExprsToString.of_expr(Expr.Coq_value x) ^ " + " ^
                                                 ExprsToString.of_expr(Expr.Coq_value y) ^ " to commutate"
+      | Infrule.Coq_bitcast_load (ptr, ptrty, v1, ptrty2, v2, a) ->
+         "bitcast_load " ^ 
+             (ExprsToString.of_ValueT ptr) ^ " " ^
+             (string_of_typ ptrty) ^ " " ^
+             (ExprsToString.of_ValueT v1) ^ " " ^
+             (string_of_typ ptrty2) ^ " " ^
+             (ExprsToString.of_ValueT v2) ^ " " ^ 
+             (ExprsToString.of_align a)
       | Infrule.Coq_sub_add _ -> "sub_add"
       | Infrule.Coq_neg_val _ -> "neg_val"
       | Infrule.Coq_add_mask _ -> "add_mask"

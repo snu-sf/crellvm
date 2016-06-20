@@ -296,6 +296,17 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
      let vprime = Convert.value args.vprime in
      let gepinst = Convert.expr args.gepinst src_fdef tgt_fdef in
      Infrule.Coq_gepzero (v, vprime, gepinst)
+  | CoreHint_t.GepInboundsRemove (args:CoreHint_t.gep_inbounds_remove) ->
+     let gepinst = Convert.expr args.gepinst src_fdef tgt_fdef in
+     Infrule.Coq_gep_inbounds_remove (gepinst)
+  | CoreHint_t.InttoptrLoad (args:CoreHint_t.inttoptr_load) -> 
+     let ptr = Convert.value args.ptr in
+     let intty = Convert.value_type args.intty in
+     let v1 = Convert.value args.v1 in
+     let ptrty = Convert.value_type args.ptrty in
+     let v2 = Convert.value args.v2 in
+     let a = Convert.size args.a in
+     Infrule.Coq_inttoptr_load (ptr, intty, v1, ptrty, v2, a)
   | CoreHint_t.InttoptrZext (args:CoreHint_t.inttoptr_zext) -> 
      let src = Convert.value args.src in
      let mid = Convert.value args.mid in
@@ -421,6 +432,14 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
      let midty = Convert.value_type args.midty in
      let dstty = Convert.value_type args.dstty in
      Infrule.Coq_ptrtoint_bitcast (src, mid, dst, srcty, midty, dstty)
+  | CoreHint_t.PtrtointLoad (args:CoreHint_t.ptrtoint_load) -> 
+     let ptr = Convert.value args.ptr in
+     let ptrty = Convert.value_type args.ptrty in
+     let v1 = Convert.value args.v1 in
+     let intty = Convert.value_type args.intty in
+     let v2 = Convert.value args.v2 in
+     let a = Convert.size args.a in
+     Infrule.Coq_ptrtoint_load (ptr, ptrty, v1, intty, v2, a)
   | CoreHint_t.NegVal (args:CoreHint_t.neg_val) ->
      let c1 = Convert.const_int args.c1 in
      let c2 = Convert.const_int args.c2 in

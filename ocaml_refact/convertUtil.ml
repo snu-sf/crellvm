@@ -341,15 +341,21 @@ module Convert = struct
           | _ -> failwith "Only floating type is allowed")
        | CoreHint_t.LoadInst li_arg ->
          Expr.Coq_load (value li_arg.ptrvalue, value_type li_arg.valtype, li_arg.align)
-       | CoreHint_t.BitCastInst bci_arg ->
-         Expr.Coq_cast (LLVMsyntax.Coq_castop_bitcast, value_type bci_arg.fromty, 
-                value bci_arg.v, value_type bci_arg.toty)
+       | CoreHint_t.BitCastInst arg ->
+         Expr.Coq_cast (LLVMsyntax.Coq_castop_bitcast, value_type arg.fromty, 
+                value arg.v, value_type arg.toty)
+       | CoreHint_t.IntToPtrInst arg ->
+         Expr.Coq_cast (LLVMsyntax.Coq_castop_inttoptr, value_type arg.fromty, 
+                value arg.v, value_type arg.toty)
+       | CoreHint_t.PtrToIntInst arg ->
+         Expr.Coq_cast (LLVMsyntax.Coq_castop_ptrtoint, value_type arg.fromty, 
+                value arg.v, value_type arg.toty)
        | CoreHint_t.GetElementPtrInst gepi_arg ->
          Expr.Coq_gep (gepi_arg.is_inbounds, 
                 value_type gepi_arg.ty, 
                 value gepi_arg.ptr,
                 List.map (fun szv -> (size (fst szv), value (snd szv))) gepi_arg.indexes,
-                value_type gepi_arg.ptrty)
+                value_type gepi_arg.retty)
        | _ -> failwith "Unknown instruction type"
        )
 end

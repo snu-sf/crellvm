@@ -194,6 +194,27 @@ Definition cond_pointertyp (t:typ) : bool :=
   | _ => false
   end.
 
+Definition cond_same_bitsize (ty1:typ) (ty2:typ) (m_src:module) : bool :=
+  match (ty1, ty2) with
+  | (typ_int sz1, typ_int sz2) => sz_dec sz1 sz2
+  | (typ_int sz1, typ_pointer _) => 
+    sz_dec sz1 
+      (match m_src with
+       | module_intro ls _ _ =>
+         (fix f (ls:layouts) :=
+           match ls with
+           | h::t =>
+             (match h with
+             | layout_ptr sz _ _ => sz
+             | _ => (f t)
+             end)
+           | nil => Size.from_Z 0%Z
+           end) 
+         ls
+       end)
+  | _ => false
+  end.
+
 (* getInversePredicate in lib/IR/Instructions.cpp *)
 Definition get_inverse_icmp_cond (c:cond) : cond :=
   match c with
@@ -434,10 +455,22 @@ Definition apply_infrule
       let inv0 := {{inv0 +++src (Expr.value v) >= (Expr.value v')}} in
       {{inv0 +++src (Expr.value v') >= (Expr.value v)}}
     else apply_fail tt
+  | Infrule.gep_inbounds_remove gepinst =>
+    match gepinst with
+    | Expr.gep ib t v lsv u =>
+      {{inv0 +++src (Expr.gep true t v lsv u) >= (Expr.gep false t v lsv u) }}
+    | _ => apply_fail tt
+    end
   | Infrule.inttoptr_zext src mid dst srcty midty dstty =>
     if $$ inv0 |-src (Expr.value mid) >= (Expr.ext extop_z srcty src midty) $$ &&
        $$ inv0 |-src (Expr.value dst) >= (Expr.cast castop_inttoptr midty mid dstty) $$
     then {{ inv0 +++src (Expr.value dst) >= (Expr.cast castop_inttoptr srcty src dstty) }}
+    else apply_fail tt
+  | Infrule.inttoptr_load ptr intty v1 ptrty v2 a =>
+    if $$ inv0 |-src (Expr.load ptr intty a) >= (Expr.value v1) $$ &&
+       $$ inv0 |-src (Expr.cast castop_inttoptr intty v1 ptrty) >= (Expr.value v2) $$ &&
+       cond_same_bitsize intty ptrty m_src
+    then {{ inv0 +++src (Expr.load ptr ptrty a) >= (Expr.value v2) }}
     else apply_fail tt
   | Infrule.lessthan_undef ty v => 
     {{ inv0 +++src (Expr.value (ValueT.const (const_undef ty))) >= (Expr.value v) }}
@@ -586,6 +619,12 @@ Definition apply_infrule
     if $$ inv0 |-src (Expr.value mid) >= (Expr.cast castop_bitcast srcty src midty) $$ &&
        $$ inv0 |-src (Expr.value dst) >= (Expr.cast castop_ptrtoint midty mid dstty) $$
     then {{ inv0 +++src (Expr.value dst) >= (Expr.cast castop_ptrtoint srcty src dstty) }}
+    else apply_fail tt
+  | Infrule.ptrtoint_load ptr ptrty v1 intty v2 a =>
+    if $$ inv0 |-src (Expr.load ptr ptrty a) >= (Expr.value v1) $$ &&
+       $$ inv0 |-src (Expr.cast castop_ptrtoint ptrty v1 intty) >= (Expr.value v2) $$ &&
+       cond_same_bitsize intty ptrty m_src
+    then {{ inv0 +++src (Expr.load ptr intty a) >= (Expr.value v2) }}
     else apply_fail tt
   | Infrule.sub_const_add z y x c1 c2 c3 s =>
     if $$ inv0 |-src (Expr.value (ValueT.id y)) >= (Expr.bop bop_add s x (ValueT.const (const_int s c1))) $$ &&

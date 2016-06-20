@@ -154,10 +154,22 @@ type bit_cast_inst = {
 
 type get_element_ptr_inst = {
   ty : value_type;
-  ptrty : value_type;
+  retty : value_type;
   ptr : value;
   indexes : (size * value) list;
   is_inbounds : bool;
+}
+
+type int_to_ptr_inst = {
+  fromty : value_type;
+  v : value;
+  toty : value_type;
+}
+
+type ptr_to_int_inst = {
+  fromty : value_type;
+  v : value;
+  toty : value_type;
 }
 
 type instruction = [ 
@@ -168,6 +180,8 @@ type instruction = [
   | LoadInst of load_inst
   | BitCastInst of bit_cast_inst
   | GetElementPtrInst of get_element_ptr_inst
+  | IntToPtrInst of int_to_ptr_inst
+  | PtrToIntInst of ptr_to_int_inst
 ] <ocaml repr="classic">
 
 type expr = [
@@ -603,6 +617,10 @@ type gepzero = {
   gepinst : expr;
 }
 
+type gep_inbounds_remove = {
+  gepinst : expr;
+}
+
 type intro_ghost = {
   x : expr;
   g : register;
@@ -614,6 +632,15 @@ type intro_eq = {
 
 type intro_eq_tgt = {
   x : value;
+}
+
+type inttoptr_load = {
+    ptr : value;
+    intty : value_type;
+    v1 : value;
+    ptrty : value_type;
+    v2 : value;
+    a : size;
 }
 
 type inttoptr_zext = {
@@ -831,6 +858,15 @@ type ptrtoint_bitcast = {
     srcty : value_type;
     midty : value_type;
     dstty : value_type;
+}
+
+type ptrtoint_load = {
+    ptr : value;
+    ptrty : value_type;
+    v1 : value;
+    intty : value_type;
+    v2 : value;
+    a : size;
 }
 
 type rem_neg = {
@@ -1160,9 +1196,11 @@ type infrule = [
   | FptosiFpext of fptosi_fpext
   | FptouiFpext of fptoui_fpext
   | Gepzero of gepzero
+  | GepInboundsRemove of gep_inbounds_remove
   | IntroGhost of intro_ghost
   | IntroEq of intro_eq
   | IntroEqTgt of intro_eq_tgt
+  | InttoptrLoad of inttoptr_load
   | InttoptrZext of inttoptr_zext
   | LessthanUndef of lessthan_undef
   | MulAddDistributive of mul_add_distributive
@@ -1183,6 +1221,7 @@ type infrule = [
   | OrXor4 of or_xor4
   | OrZero of or_zero
   | PtrtointBitcast of ptrtoint_bitcast
+  | PtrtointLoad of ptrtoint_load
   | MulBool of mul_bool
   | MulMone of mul_mone
   | MulNeg of mul_neg
