@@ -50,12 +50,12 @@ type float_type = [
                    (* equivalent to Syntax.LLVMsyntax.Coq_fp_x86_fp80 in Vellvm*)
     ] <ocaml repr="classic">
 
-type value_type = [ 
+type value_type = [
     | VoidType
-    | IntValueType of int_type 
-    | FloatValueType of float_type 
-    | NamedType of string 
-    | PtrType of (int * value_type) 
+    | IntValueType of int_type
+    | FloatValueType of float_type
+    | NamedType of string
+    | PtrType of (int * value_type)
     | ArrayType of (int * value_type)
     | FunctionType of (value_type * (value_type list) * bool * int) (* (return-type, argument-type, is-var-arg, arg-size) *)
     ] <ocaml repr="classic">
@@ -88,8 +88,8 @@ type const_expr_bitcast = {
   dstty : value_type;
 }
 
-type constant_expr = [ 
-  | ConstExprGetElementPtr of const_expr_get_element_ptr 
+type constant_expr = [
+  | ConstExprGetElementPtr of const_expr_get_element_ptr
   | ConstExprBitcast of const_expr_bitcast ] <ocaml repr="classic">
 
 type constant = [

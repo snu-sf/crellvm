@@ -132,8 +132,8 @@ module Convert = struct
     | CoreHint_t.ArrayType (arrsize, elemtype) ->
         LLVMsyntax.Coq_typ_array (arrsize, value_type elemtype)
     | CoreHint_t.FunctionType (retty, argtylist, isvararg, varargsize) ->
-        LLVMsyntax.Coq_typ_function (value_type retty, 
-        List.map (fun argty -> (value_type argty)) argtylist,
+        LLVMsyntax.Coq_typ_function (value_type retty,
+        List.map value_type argtylist,
         if isvararg then Some varargsize else None)
  
   let const_int (const_int:CoreHint_t.const_int): INTEGER.t =

@@ -201,16 +201,12 @@ Definition cond_same_bitsize (ty1:typ) (ty2:typ) (m_src:module) : bool :=
     sz_dec sz1 
       (match m_src with
        | module_intro ls _ _ =>
-         (fix f (ls:layouts) :=
-           match ls with
-           | h::t =>
-             (match h with
-             | layout_ptr sz _ _ => sz
-             | _ => (f t)
-             end)
-           | nil => Size.from_Z 0%Z
-           end) 
-         ls
+         match (List.find 
+            (fun h => match h with| layout_ptr _ _ _ => true | _ => false end) ls) with
+         | None => Size.from_Z 0%Z
+         | Some (layout_ptr sz _ _) => sz
+         | Some _ => Size.from_Z 0%Z
+         end
        end)
   | _ => false
   end.
@@ -1015,41 +1011,20 @@ Definition apply_infrule
   | Infrule.intro_eq_tgt x => 
     {{ inv0 +++tgt (Expr.value x) >= (Expr.value x) }}
   | Infrule.intro_ghost expr g =>
-    if List.forallb (fun x => Invariant.not_in_maydiff inv0 x)
-      (match expr with
-        | Expr.bop _ _ v w => [v] ++ [w]
-        | Expr.fbop _ _ v w => [v] ++ [w]
-        | Expr.extractvalue _ v _ _ => [v]
-        | Expr.insertvalue _ v _ w _ => [v] ++ [w]
-        | Expr.gep _ _ v _ _ => [v]
-        | Expr.trunc _ _ v _ => [v]
-        | Expr.ext _ _ v _ => [v]
-        | Expr.cast _ _ v _ => [v]
-        | Expr.icmp _ _ v w => [v] ++ [w]
-        | Expr.fcmp _ _ v w => [v] ++ [w]
-        | Expr.select _ _ v w => [v] ++ [w]
-        | Expr.value v => [v]
-        | Expr.load v _ _ => nil
-       end) &&
+    if List.forallb (fun x => Invariant.not_in_maydiff inv0 x) (Expr.get_valueTs expr) &&
       (match expr with | Expr.load _ _ _ => false | _ => true end)
     then 
-      if (negb (IdTSet.mem (Tag.ghost, g) (IdTSet_from_list (Invariant.get_idTs inv0))))
-        then {{
-          {{ inv0 +++src expr >= (Expr.value (ValueT.id (Tag.ghost, g))) }}
-                  +++tgt (Expr.value (ValueT.id (Tag.ghost, g))) >= expr
-          }}
-        else
-          let inv1 := (Invariant.update_src (Invariant.update_lessdef 
-            (ExprPairSet.filter
-              (fun (p: ExprPair.t) => negb (Expr.eq_dec (Expr.value (ValueT.id (Tag.ghost, g))) (snd p))))) 
-              inv0) in
-          let inv2 := (Invariant.update_tgt (Invariant.update_lessdef 
-            (ExprPairSet.filter
-              (fun (p: ExprPair.t) => negb (Expr.eq_dec (Expr.value (ValueT.id (Tag.ghost, g))) (fst p)))))
-              inv1) in
-          let inv3 := {{ inv2 +++src expr >= (Expr.value (ValueT.id (Tag.ghost, g))) }} in
-          let inv4 := {{ inv3 +++tgt (Expr.value (ValueT.id (Tag.ghost, g))) >= expr }} in
-          inv4
+      let inv1 := (Invariant.update_src (Invariant.update_lessdef 
+        (ExprPairSet.filter
+          (fun (p: ExprPair.t) => negb (Expr.eq_dec (Expr.value (ValueT.id (Tag.ghost, g))) (snd p))))) 
+          inv0) in
+      let inv2 := (Invariant.update_tgt (Invariant.update_lessdef 
+        (ExprPairSet.filter
+          (fun (p: ExprPair.t) => negb (Expr.eq_dec (Expr.value (ValueT.id (Tag.ghost, g))) (fst p)))))
+          inv1) in
+      let inv3 := {{ inv2 +++src expr >= (Expr.value (ValueT.id (Tag.ghost, g))) }} in
+      let inv4 := {{ inv3 +++tgt (Expr.value (ValueT.id (Tag.ghost, g))) >= expr }} in
+      inv4
     else apply_fail tt
   | Infrule.xor_commutative z x y s =>
     if $$ inv0 |-src (Expr.value z) >= (Expr.bop bop_xor s x y) $$
