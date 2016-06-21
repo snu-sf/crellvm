@@ -120,6 +120,7 @@ module Convert = struct
 
   let rec value_type (vt:CoreHint_t.value_type): LLVMsyntax.typ = 
     match vt with
+    | CoreHint_t.VoidType -> LLVMsyntax.Coq_typ_void
     | CoreHint_t.IntValueType ciarg -> 
       (match ciarg with IntType sz -> LLVMsyntax.Coq_typ_int sz)
     | CoreHint_t.FloatValueType cfarg -> LLVMsyntax.Coq_typ_floatpoint (float_type cfarg)
@@ -130,6 +131,10 @@ module Convert = struct
         | _ -> failwith "Vellvm does not support pointer address with address space larger than 0")
     | CoreHint_t.ArrayType (arrsize, elemtype) ->
         LLVMsyntax.Coq_typ_array (arrsize, value_type elemtype)
+    | CoreHint_t.FunctionType (retty, argtylist, isvararg, varargsize) ->
+        LLVMsyntax.Coq_typ_function (value_type retty, 
+        List.map (fun argty -> (value_type argty)) argtylist,
+        if isvararg then Some varargsize else None)
  
   let const_int (const_int:CoreHint_t.const_int): INTEGER.t =
     let IntType sz = const_int.int_type in
@@ -196,6 +201,8 @@ module Convert = struct
        LLVMsyntax.Coq_const_gep (cegep.is_inbounds, 
                 constant cegep.v, 
                 List.map (fun v -> constant v) cegep.idxlist)
+    | CoreHint_t.ConstExprBitcast ceb ->
+       LLVMsyntax.Coq_const_castop (LLVMsyntax.Coq_castop_bitcast, (constant ceb.v), (value_type ceb.dstty))
     | _ -> failwith "convertUtil.constant_expr : Unknown constant expression"
 
   let value (value:CoreHint_t.value): ValueT.t = 
