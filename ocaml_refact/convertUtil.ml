@@ -120,6 +120,7 @@ module Convert = struct
 
   let rec value_type (vt:CoreHint_t.value_type): LLVMsyntax.typ = 
     match vt with
+    | CoreHint_t.VoidType -> LLVMsyntax.Coq_typ_void
     | CoreHint_t.IntValueType ciarg -> 
       (match ciarg with IntType sz -> LLVMsyntax.Coq_typ_int sz)
     | CoreHint_t.FloatValueType cfarg -> LLVMsyntax.Coq_typ_floatpoint (float_type cfarg)
@@ -130,6 +131,10 @@ module Convert = struct
         | _ -> failwith "Vellvm does not support pointer address with address space larger than 0")
     | CoreHint_t.ArrayType (arrsize, elemtype) ->
         LLVMsyntax.Coq_typ_array (arrsize, value_type elemtype)
+    | CoreHint_t.FunctionType (retty, argtylist, isvararg, varargsize) ->
+        LLVMsyntax.Coq_typ_function (value_type retty,
+        List.map value_type argtylist,
+        if isvararg then Some varargsize else None)
  
   let const_int (const_int:CoreHint_t.const_int): INTEGER.t =
     let IntType sz = const_int.int_type in
@@ -196,6 +201,8 @@ module Convert = struct
        LLVMsyntax.Coq_const_gep (cegep.is_inbounds, 
                 constant cegep.v, 
                 List.map (fun v -> constant v) cegep.idxlist)
+    | CoreHint_t.ConstExprBitcast ceb ->
+       LLVMsyntax.Coq_const_castop (LLVMsyntax.Coq_castop_bitcast, (constant ceb.v), (value_type ceb.dstty))
     | _ -> failwith "convertUtil.constant_expr : Unknown constant expression"
 
   let value (value:CoreHint_t.value): ValueT.t = 
@@ -341,15 +348,21 @@ module Convert = struct
           | _ -> failwith "Only floating type is allowed")
        | CoreHint_t.LoadInst li_arg ->
          Expr.Coq_load (value li_arg.ptrvalue, value_type li_arg.valtype, li_arg.align)
-       | CoreHint_t.BitCastInst bci_arg ->
-         Expr.Coq_cast (LLVMsyntax.Coq_castop_bitcast, value_type bci_arg.fromty, 
-                value bci_arg.v, value_type bci_arg.toty)
+       | CoreHint_t.BitCastInst arg ->
+         Expr.Coq_cast (LLVMsyntax.Coq_castop_bitcast, value_type arg.fromty, 
+                value arg.v, value_type arg.toty)
+       | CoreHint_t.IntToPtrInst arg ->
+         Expr.Coq_cast (LLVMsyntax.Coq_castop_inttoptr, value_type arg.fromty, 
+                value arg.v, value_type arg.toty)
+       | CoreHint_t.PtrToIntInst arg ->
+         Expr.Coq_cast (LLVMsyntax.Coq_castop_ptrtoint, value_type arg.fromty, 
+                value arg.v, value_type arg.toty)
        | CoreHint_t.GetElementPtrInst gepi_arg ->
          Expr.Coq_gep (gepi_arg.is_inbounds, 
                 value_type gepi_arg.ty, 
                 value gepi_arg.ptr,
                 List.map (fun szv -> (size (fst szv), value (snd szv))) gepi_arg.indexes,
-                value_type gepi_arg.ptrty)
+                value_type gepi_arg.retty)
        | _ -> failwith "Unknown instruction type"
        )
 end

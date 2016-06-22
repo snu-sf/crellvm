@@ -188,6 +188,14 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
      let midty = Convert.value_type args.midty in
      let dstty = Convert.value_type args.dstty in
      Infrule.Coq_bitcast_bitcast (src, mid, dst, srcty, midty, dstty)
+  | CoreHint_t.BitcastLoad (args:CoreHint_t.bitcast_load) -> 
+     let ptr = Convert.value args.ptr in
+     let ptrty = Convert.value_type args.ptrty in
+     let v1 = Convert.value args.v1 in
+     let ptrty2 = Convert.value_type args.ptrty2 in
+     let v2 = Convert.value args.v2 in
+     let a = Convert.size args.a in 
+     Infrule.Coq_bitcast_load (ptr, ptrty, v1, ptrty2, v2, a)
   | CoreHint_t.BitcastFpext (args:CoreHint_t.bitcast_fpext) -> 
      let src = Convert.value args.src in
      let mid = Convert.value args.mid in
@@ -286,11 +294,6 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
      let vprime = Convert.value args.vprime in
      let bitcastinst = Convert.expr args.bitcastinst src_fdef tgt_fdef in
      Infrule.Coq_bitcastptr (v, vprime, bitcastinst)
-  | CoreHint_t.BitcastptrTgt (args:CoreHint_t.bitcastptr_tgt) ->
-     let v = Convert.value args.v in
-     let vprime = Convert.value args.vprime in
-     let bitcastinst = Convert.expr args.bitcastinst src_fdef tgt_fdef in
-     Infrule.Coq_bitcastptr_tgt (v, vprime, bitcastinst)
   | CoreHint_t.BopDistributiveOverSelectinst (args:CoreHint_t.bop_distributive_over_selectinst) ->
      let opcode = Convert.bop args.opcode in
      let r = Convert.register args.r in
@@ -418,6 +421,17 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
      let vprime = Convert.value args.vprime in
      let gepinst = Convert.expr args.gepinst src_fdef tgt_fdef in
      Infrule.Coq_gepzero (v, vprime, gepinst)
+  | CoreHint_t.GepInboundsRemove (args:CoreHint_t.gep_inbounds_remove) ->
+     let gepinst = Convert.expr args.gepinst src_fdef tgt_fdef in
+     Infrule.Coq_gep_inbounds_remove (gepinst)
+  | CoreHint_t.InttoptrLoad (args:CoreHint_t.inttoptr_load) -> 
+     let ptr = Convert.value args.ptr in
+     let intty = Convert.value_type args.intty in
+     let v1 = Convert.value args.v1 in
+     let ptrty = Convert.value_type args.ptrty in
+     let v2 = Convert.value args.v2 in
+     let a = Convert.size args.a in
+     Infrule.Coq_inttoptr_load (ptr, intty, v1, ptrty, v2, a)
   | CoreHint_t.InttoptrBitcast (args:CoreHint_t.inttoptr_bitcast) -> 
      let src = Convert.value args.src in
      let mid = Convert.value args.mid in
@@ -559,6 +573,14 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
      let midty = Convert.value_type args.midty in
      let dstty = Convert.value_type args.dstty in
      Infrule.Coq_ptrtoint_bitcast (src, mid, dst, srcty, midty, dstty)
+  | CoreHint_t.PtrtointLoad (args:CoreHint_t.ptrtoint_load) -> 
+     let ptr = Convert.value args.ptr in
+     let ptrty = Convert.value_type args.ptrty in
+     let v1 = Convert.value args.v1 in
+     let intty = Convert.value_type args.intty in
+     let v2 = Convert.value args.v2 in
+     let a = Convert.size args.a in
+     Infrule.Coq_ptrtoint_load (ptr, ptrty, v1, intty, v2, a)
   | CoreHint_t.NegVal (args:CoreHint_t.neg_val) ->
      let c1 = Convert.const_int args.c1 in
      let c2 = Convert.const_int args.c2 in
@@ -777,24 +799,26 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
      let p = Convert.value args.p in
      let q = Convert.value args.q in
      let v = Convert.value args.v in
-     let loadq = Convert.expr args.loadq src_fdef tgt_fdef in
-     (match loadq with
-     | Exprs.Expr.Coq_load (vq, typ, align) ->
-        (* We should assert that vq == q. *)
-        Infrule.Coq_transitivity_pointer_lhs (p, q, v, typ, align)
-     | _ -> failwith "loadq must be load instruction."
-     )
+     let typ = Convert.value_type args.typ in
+     let align = Convert.size args.align in
+     Infrule.Coq_transitivity_pointer_lhs (p, q, v, typ, align)
   | CoreHint_t.TransitivityPointerRhs (args:CoreHint_t.transitivity_pointer_rhs) ->
-      let p = Convert.value args.p in
-      let q = Convert.value args.q in
-      let v = Convert.value args.v in
-      let loadp = Convert.expr args.loadp src_fdef tgt_fdef in
-      (match loadp with
-      | Exprs.Expr.Coq_load (vp, typ, align) ->
-         (* We should assert that vp == p. *)
-         Infrule.Coq_transitivity_pointer_rhs (p, q, v, typ, align)
-      | _ -> failwith "loadq must be load instruction."
-      )
+     let p = Convert.value args.p in
+     let q = Convert.value args.q in
+     let v = Convert.value args.v in
+     let typ = Convert.value_type args.typ in
+     let align = Convert.size args.align in
+     Infrule.Coq_transitivity_pointer_rhs (p, q, v, typ, align)
+  | CoreHint_t.Substitute (args:CoreHint_t.substitute) ->
+     let x = Convert.register args.x in
+     let y = Convert.value args.y in
+     let e = Convert.expr args.e src_fdef tgt_fdef in
+     Infrule.Coq_substitute (x, y, e)
+  | CoreHint_t.SubstituteRev (args:CoreHint_t.substitute_rev) ->
+     let x = Convert.register args.x in
+     let y = Convert.value args.y in
+     let e = Convert.expr args.e src_fdef tgt_fdef in
+     Infrule.Coq_substitute_rev (x, y, e)
   | CoreHint_t.ReplaceRhs (args:CoreHint_t.replace_rhs) ->
       let x = Convert.register args.x in
       let y = Convert.value args.y in
@@ -886,12 +910,15 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
      let sz2 = Convert.size args.sz2 in
      Infrule.Coq_urem_zext (z, x, y, k, a, b, sz1, sz2)
   | CoreHint_t.IntroGhost (args:CoreHint_t.intro_ghost) ->
-      let x = Convert.value args.x in
+      let x = Convert.expr args.x src_fdef tgt_fdef in
       let g = args.g.name in
       Infrule.Coq_intro_ghost (x, g)
   | CoreHint_t.IntroEq (args:CoreHint_t.intro_eq) ->
       let x = Convert.value args.x in
       Infrule.Coq_intro_eq x
+  | CoreHint_t.IntroEqTgt (args:CoreHint_t.intro_eq_tgt) ->
+      let x = Convert.value args.x in
+      Infrule.Coq_intro_eq_tgt x
   | CoreHint_t.XorCommutative (args:CoreHint_t.xor_commutative) ->
      let z = Convert.register args.z in
      let x = Convert.value args.x in

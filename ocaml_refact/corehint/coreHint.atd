@@ -50,11 +50,15 @@ type float_type = [
                    (* equivalent to Syntax.LLVMsyntax.Coq_fp_x86_fp80 in Vellvm*)
     ] <ocaml repr="classic">
 
-type value_type = [ IntValueType of int_type 
-        | FloatValueType of float_type 
-        | NamedType of string 
-        | PtrType of (int * value_type) 
-        | ArrayType of (int * value_type) ] <ocaml repr="classic">
+type value_type = [
+    | VoidType
+    | IntValueType of int_type
+    | FloatValueType of float_type
+    | NamedType of string
+    | PtrType of (int * value_type)
+    | ArrayType of (int * value_type)
+    | FunctionType of (value_type * (value_type list) * bool * int) (* (return-type, argument-type, is-var-arg, arg-size) *)
+    ] <ocaml repr="classic">
 
 type const_int = {
   int_value : int;
@@ -79,7 +83,14 @@ type const_expr_get_element_ptr = {
   is_inbounds : bool;
 }
 
-type constant_expr = [ ConstExprGetElementPtr of const_expr_get_element_ptr ] <ocaml repr="classic">
+type const_expr_bitcast = {
+  v : constant;
+  dstty : value_type;
+}
+
+type constant_expr = [
+  | ConstExprGetElementPtr of const_expr_get_element_ptr
+  | ConstExprBitcast of const_expr_bitcast ] <ocaml repr="classic">
 
 type constant = [
   | ConstInt of const_int
@@ -154,10 +165,22 @@ type bit_cast_inst = {
 
 type get_element_ptr_inst = {
   ty : value_type;
-  ptrty : value_type;
+  retty : value_type;
   ptr : value;
   indexes : (size * value) list;
   is_inbounds : bool;
+}
+
+type int_to_ptr_inst = {
+  fromty : value_type;
+  v : value;
+  toty : value_type;
+}
+
+type ptr_to_int_inst = {
+  fromty : value_type;
+  v : value;
+  toty : value_type;
 }
 
 type instruction = [ 
@@ -168,6 +191,8 @@ type instruction = [
   | LoadInst of load_inst
   | BitCastInst of bit_cast_inst
   | GetElementPtrInst of get_element_ptr_inst
+  | IntToPtrInst of int_to_ptr_inst
+  | PtrToIntInst of ptr_to_int_inst
 ] <ocaml repr="classic">
 
 type expr = [
@@ -305,14 +330,28 @@ type transitivity_pointer_lhs = {
   p : value;
   q : value;
   v : value;
-  loadq : expr;
+  typ : value_type;
+  align : size;
 }
 
 type transitivity_pointer_rhs = {
   p : value;
   q : value;
   v : value;
-  loadp : expr;
+  typ : value_type;
+  align : size;
+}
+
+type substitute = {
+  x : register;
+  y : value;
+  e : expr;
+}
+
+type substitute_rev = {
+  x : register;
+  y : value;
+  e : expr;
 }
 
 type replace_rhs = {
@@ -467,6 +506,15 @@ type bitcast_bitcast = {
     srcty : value_type;
     midty : value_type;
     dstty : value_type;
+}
+
+type bitcast_load = {
+    ptr : value;
+    ptrty : value_type;
+    v1 : value;
+    ptrty2 : value_type;
+    v2 : value;
+    a : size;
 }
 
 type bop_distributive_over_selectinst = {
@@ -727,13 +775,30 @@ type gepzero = {
   gepinst : expr;
 }
 
+type gep_inbounds_remove = {
+  gepinst : expr;
+}
+
 type intro_ghost = {
-  x : value;
+  x : expr;
   g : register;
 }
 
 type intro_eq = {
   x : value;
+}
+
+type intro_eq_tgt = {
+  x : value;
+}
+
+type inttoptr_load = {
+    ptr : value;
+    intty : value_type;
+    v1 : value;
+    ptrty : value_type;
+    v2 : value;
+    a : size;
 }
 
 type inttoptr_bitcast = {
@@ -969,6 +1034,15 @@ type ptrtoint_bitcast = {
     srcty : value_type;
     midty : value_type;
     dstty : value_type;
+}
+
+type ptrtoint_load = {
+    ptr : value;
+    ptrty : value_type;
+    v1 : value;
+    intty : value_type;
+    v2 : value;
+    a : size;
 }
 
 type rem_neg = {
@@ -1354,6 +1428,7 @@ type infrule = [
   | AndUndef of and_undef
   | AndZero of and_zero
   | BitcastBitcast of bitcast_bitcast
+  | BitcastLoad of bitcast_load
   | BitcastFpext of bitcast_fpext
   | BitcastFptosi of bitcast_fptosi
   | BitcastFptoui of bitcast_fptoui
@@ -1367,7 +1442,6 @@ type infrule = [
   | BitcastUitofp of bitcast_uitofp
   | BitcastZext of bitcast_zext
   | Bitcastptr of bitcastptr
-  | BitcastptrTgt of bitcastptr_tgt
   | BopDistributiveOverSelectinst of bop_distributive_over_selectinst
   | BopDistributiveOverSelectinst2 of bop_distributive_over_selectinst2
   | DiffblockGlobalAlloca of diffblock_global_alloca
@@ -1386,8 +1460,11 @@ type infrule = [
   | FptruncBitcast of fptrunc_bitcast
   | FptruncFpext of fptrunc_fpext
   | Gepzero of gepzero
+  | GepInboundsRemove of gep_inbounds_remove
   | IntroGhost of intro_ghost
   | IntroEq of intro_eq
+  | IntroEqTgt of intro_eq_tgt
+  | InttoptrLoad of inttoptr_load
   | InttoptrBitcast of inttoptr_bitcast
   | InttoptrPtrtoint of inttoptr_ptrtoint
   | InttoptrZext of inttoptr_zext
@@ -1410,12 +1487,15 @@ type infrule = [
   | OrXor4 of or_xor4
   | OrZero of or_zero
   | PtrtointBitcast of ptrtoint_bitcast
+  | PtrtointLoad of ptrtoint_load
   | MulBool of mul_bool
   | MulMone of mul_mone
   | MulNeg of mul_neg
   | MulCommutative of mul_commutative
   | MulShl of mul_shl
   | RemNeg of rem_neg
+  | Substitute of substitute
+  | SubstituteRev of substitute_rev
   | ReplaceRhs of replace_rhs
   | ReplaceRhsOpt of replace_rhs_opt
   | SdivMone of sdiv_mone

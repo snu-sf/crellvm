@@ -203,6 +203,38 @@ Module Expr <: UsualDecidableType.
 
   Definition get_idTs (e: t): list IdT.t :=
     TODO.filter_map ValueT.get_idTs (get_valueTs e).
+
+  Definition map_valueTs (e: t) (f: ValueT.t -> ValueT.t): t :=
+    match e with
+    | (Expr.bop _blah _blah2 v1 v2) =>
+      Expr.bop _blah _blah2 (f v1) (f v2)
+    | (Expr.fbop _blah _blah2 v1 v2) =>
+      Expr.fbop _blah _blah2 (f v1) (f v2)
+    | (Expr.extractvalue _blah v _blah2 _blah3) =>
+      (Expr.extractvalue _blah (f v) _blah2 _blah3)
+    | (Expr.insertvalue _blah v1 _blah2 v2 _blah3) =>
+      (Expr.insertvalue _blah (f v1) _blah2 (f v2) _blah3)
+    | (Expr.gep _blah _blah2 v vl _blah3) =>
+      (Expr.gep _blah _blah2 (f v)
+                (List.map (fun x => (fst x, (f (snd x)))) vl) _blah3)
+    | (Expr.trunc _blah _blah2 v _blah3) =>
+      (Expr.trunc _blah _blah2 (f v) _blah3)
+    | (Expr.ext _blah _blah2 v _blah3) =>
+      (Expr.ext _blah _blah2 (f v) _blah3)
+    | (Expr.cast _blah _blah2 v _blah3) =>
+      (Expr.cast _blah _blah2 (f v) _blah3)
+    | (Expr.icmp _blah _blah2 v1 v2) =>
+      (Expr.icmp _blah _blah2 (f v1) (f v2))
+    | (Expr.fcmp _blah _blah2 v1 v2) =>
+      (Expr.fcmp _blah _blah2 (f v1) (f v2))
+    | (Expr.select v1 _blah v2 v3) =>
+      (Expr.select (f v1) _blah (f v2) (f v3))
+    | (Expr.value v) =>
+      (Expr.value (f v))
+    | (Expr.load v _blah _blah2) =>
+      (Expr.load (f v) _blah _blah2)
+    end.
+
 End Expr.
 Hint Resolve Expr.eq_dec: EqDecDb.
 Coercion Expr.value: ValueT.t >-> Expr.t_.
