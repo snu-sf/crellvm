@@ -843,6 +843,14 @@ Definition apply_infrule
        $$ inv0 |-tgt e2 >= e3 $$
     then {{ inv0 +++tgt e1 >= e3 }}
     else apply_fail tt
+  | Infrule.trunc_onebit z x y orgsz =>
+    if $$ inv0 |-tgt (Expr.bop bop_and orgsz x (ValueT.const (const_int orgsz (INTEGER.of_Z (Size.to_Z orgsz) 1%Z true))))
+          >= (Expr.value y) $$ &&
+       $$ inv0 |-tgt (Expr.icmp cond_ne (typ_int orgsz) y 
+            (ValueT.const (const_int orgsz (INTEGER.of_Z (Size.to_Z orgsz) 0%Z true)))) 
+          >= (Expr.value z) $$
+    then {{ inv0 +++tgt (Expr.trunc truncop_int (typ_int orgsz) x (typ_int (Size.from_Z 1))) >= (Expr.value z) }}
+    else apply_fail tt
   | Infrule.trunc_bitcast src mid dst srcty midty dstty =>
     if $$ inv0 |-src (Expr.value mid) >= (Expr.cast castop_bitcast srcty src midty) $$ &&
        $$ inv0 |-src (Expr.value dst) >= (Expr.trunc truncop_int midty mid dstty) $$ &&
@@ -1059,6 +1067,45 @@ Definition apply_infrule
        $$ inv0 |-src (Expr.value dst) >= (Expr.ext extop_z midty mid dstty) $$ &&
        cond_inttyp srcty
     then {{ inv0 +++src (Expr.value dst) >= (Expr.ext extop_z srcty src dstty) }}
+    else apply_fail tt
+  | Infrule.zext_trunc_and z x y w c s s' =>
+    if $$ inv0 |-src (Expr.value y) >= (Expr.trunc truncop_int (typ_int s) x (typ_int s')) $$ &&
+       $$ inv0 |-src (Expr.value w) >= (Expr.bop bop_and s' y (ValueT.const c)) $$ &&
+       $$ inv0 |-src (Expr.value z) >= (Expr.ext extop_z (typ_int s') w (typ_int s)) $$
+    then 
+      match c with
+      | const_int s'' iv => 
+        let iv_extended := INTEGER.of_Z (Size.to_Z s) (INTEGER.to_Z iv) false in
+        {{ inv0 +++src (Expr.value z) >= (Expr.bop bop_and s x (ValueT.const (const_int s iv_extended))) }}
+      | _ => {{ inv0 +++src (Expr.value z) >= (Expr.bop bop_and s x (ValueT.const (const_extop extop_z c (typ_int s)))) }}
+      end
+    else apply_fail tt
+  | Infrule.zext_trunc_and_xor z x v w y y' c s s' =>
+    if $$ inv0 |-tgt (Expr.trunc truncop_int (typ_int s) x (typ_int s')) >= (Expr.value v) $$ &&
+       $$ inv0 |-tgt (Expr.bop bop_and s' v (ValueT.const c)) >= (Expr.value w) $$ &&
+       $$ inv0 |-tgt (Expr.bop bop_xor s' w (ValueT.const c)) >= (Expr.value y) $$ &&
+       (match c with
+       | const_int s'' iv => 
+         let iv_extended := INTEGER.of_Z (Size.to_Z s) (INTEGER.to_Z iv) false in
+         $$ inv0 |-tgt (Expr.bop bop_and s x (ValueT.const (const_int s iv_extended))) >= (Expr.value y') $$ &&
+         $$ inv0 |-tgt (Expr.bop bop_xor s y' (ValueT.const (const_int s iv_extended))) >= (Expr.value z) $$
+       | _ => 
+         $$ inv0 |-tgt (Expr.bop bop_and s x (ValueT.const (const_extop extop_z c (typ_int s)))) >= (Expr.value y') $$ &&
+         $$ inv0 |-tgt (Expr.bop bop_xor s y' (ValueT.const (const_extop extop_z c (typ_int s)))) >= (Expr.value z) $$
+       end)
+    then {{ inv0 +++tgt (Expr.ext extop_z (typ_int s') y (typ_int s)) >= (Expr.value z) }}
+    else apply_fail tt
+  | Infrule.zext_xor z y y' x =>
+    if $$ inv0 |-tgt (Expr.bop bop_xor (Size.from_Z 1) x 
+          (ValueT.const (const_int (Size.from_Z 1) (INTEGER.of_Z 1 1%Z true)))) 
+        >= (Expr.value y) $$ &&
+       $$ inv0 |-tgt (Expr.ext extop_z (typ_int (Size.from_Z 1)) x (typ_int (Size.from_Z 32))) 
+        >= (Expr.value y') $$ &&
+       $$ inv0 |-tgt (Expr.bop bop_xor (Size.from_Z 32) y' 
+          (ValueT.const (const_int (Size.from_Z 32) (INTEGER.of_Z 32 1%Z true)))) 
+        >= (Expr.value z) $$
+    then {{ inv0 +++tgt (Expr.ext extop_z (typ_int (Size.from_Z 1)) y (typ_int (Size.from_Z 32))) 
+        >= (Expr.value z) }}
     else apply_fail tt
   | Infrule.zext_zext src mid dst srcty midty dstty =>
     if $$ inv0 |-src (Expr.value mid) >= (Expr.ext extop_z srcty src midty) $$ &&

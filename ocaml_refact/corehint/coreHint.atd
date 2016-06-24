@@ -1235,6 +1235,13 @@ type trunc_bitcast = {
     dstty : value_type;
 }
 
+type trunc_onebit = {
+    z : value;
+    x : value;
+    y : value;
+    orgsz : size;
+}
+
 type trunc_ptrtoint = {
   src : value;
   mid : value;
@@ -1366,6 +1373,35 @@ type zext_bitcast = {
     srcty : value_type;
     midty : value_type;
     dstty : value_type;
+}
+
+type zext_trunc_and = {
+    z : value;
+    x : value;
+    y : value;
+    w : value;
+    c : constant;
+    s : size;
+    sprime : size;
+}
+
+type zext_trunc_and_xor = {
+    z : value;
+    x : value;
+    v : value;
+    w : value;
+    y : value;
+    yprime : value;
+    c : constant;
+    s : size;
+    sprime : size;
+}
+
+type zext_xor = {
+    z : value;
+    y : value;
+    yprime : value;
+    x : value;
 }
 
 type zext_zext = {
@@ -1521,6 +1557,7 @@ type infrule = [
   | TransitivityPointerLhs of transitivity_pointer_lhs
   | TransitivityPointerRhs of transitivity_pointer_rhs
   | TruncBitcast of trunc_bitcast
+  | TruncOnebit of trunc_onebit
   | TruncPtrtoint of trunc_ptrtoint
   | TruncSext of trunc_sext
   | TruncTrunc of trunc_trunc
@@ -1537,6 +1574,9 @@ type infrule = [
   | XorUndef of xor_undef
   | XorZero of xor_zero
   | ZextBitcast of zext_bitcast
+  | ZextTruncAnd of zext_trunc_and
+  | ZextTruncAndXor of zext_trunc_and_xor
+  | ZextXor of zext_xor
   | ZextZext of zext_zext
   | IcmpInverse of icmp_inverse
   | ImpliesFalse of implies_false
