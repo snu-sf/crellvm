@@ -183,6 +183,18 @@ type ptr_to_int_inst = {
   toty : value_type;
 }
 
+type fpext_inst = {
+  fromty : value_type;
+  v : value;
+  toty : value_type;
+}
+
+type fptrunc_inst = {
+  fromty : value_type;
+  v : value;
+  toty : value_type;
+}
+
 type instruction = [ 
   | BinaryOp of binary_operator
   | FloatBinaryOp of float_binary_operator
@@ -193,6 +205,8 @@ type instruction = [
   | GetElementPtrInst of get_element_ptr_inst
   | IntToPtrInst of int_to_ptr_inst
   | PtrToIntInst of ptr_to_int_inst
+  | FpextInst of fpext_inst
+  | FptruncInst of fptrunc_inst
 ] <ocaml repr="classic">
 
 type expr = [
