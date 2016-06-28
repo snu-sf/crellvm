@@ -365,6 +365,12 @@ module Convert = struct
                 value gepi_arg.ptr,
                 List.map (fun szv -> (size (fst szv), value (snd szv))) gepi_arg.indexes,
                 value_type gepi_arg.retty)
+       | CoreHint_t.FpextInst arg ->
+         Expr.Coq_ext (LLVMsyntax.Coq_extop_fp, value_type arg.fromty, 
+                value arg.v, value_type arg.toty)
+       | CoreHint_t.FptruncInst arg ->
+         Expr.Coq_trunc (LLVMsyntax.Coq_truncop_fp, value_type arg.fromty, 
+                value arg.v, value_type arg.toty)
        | _ -> failwith "Unknown instruction type"
        )
 end
