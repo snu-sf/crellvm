@@ -58,6 +58,7 @@ type value_type = [
     | PtrType of (int * value_type)
     | ArrayType of (int * value_type)
     | FunctionType of (value_type * (value_type list) * bool * int) (* (return-type, argument-type, is-var-arg, arg-size) *)
+    | VectorType of (int * value_type)
     ] <ocaml repr="classic">
 
 type const_int = {
