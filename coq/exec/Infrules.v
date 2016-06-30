@@ -234,6 +234,12 @@ Definition cond_floatpointtyp (t:typ) : bool :=
   | _ => false
   end.
 
+Definition cond_onebit (s:sz) : bool :=
+  sz_dec s (Size.One).
+
+Definition const_mone (s:sz) : const := 
+  (const_int s (INTEGER.of_Z (Size.to_Z s) (-1)%Z true)).
+
 (* getInversePredicate in lib/IR/Instructions.cpp *)
 Definition get_inverse_icmp_cond (c:cond) : cond :=
   match c with
@@ -253,6 +259,21 @@ Definition get_inverse_boolean_Int (b:INTEGER.t) : INTEGER.t :=
   if (Z.eq_dec (INTEGER.to_Z b) 0)
   then INTEGER.of_Z 1 1 true
   else INTEGER.of_Z 1 0 true.
+
+(* getSwappedPredicate in lib/IR/Instructions.cpp *)
+Definition get_swapped_icmp_cond (c:cond) : cond :=
+  match c with
+    | cond_eq => cond_eq
+    | cond_ne => cond_ne
+    | cond_ugt => cond_ult
+    | cond_uge => cond_ule
+    | cond_ult => cond_ugt
+    | cond_ule => cond_uge
+    | cond_sgt => cond_slt
+    | cond_sge => cond_sle
+    | cond_slt => cond_sgt
+    | cond_sle => cond_sge
+  end.
 
 Notation "$$ inv |-src y >= rhs $$" := (ExprPairSet.mem (y, rhs) inv.(Invariant.src).(Invariant.lessdef)) (at level 41, inv, y, rhs at level 41).
 Notation "$$ inv |-tgt y >= rhs $$" := (ExprPairSet.mem (y, rhs) inv.(Invariant.tgt).(Invariant.lessdef)) (at level 41, inv, y, rhs at level 41).
@@ -1072,6 +1093,12 @@ Definition apply_infrule
       let b' := get_inverse_boolean_Int b in
       {{inv0 +++src (Expr.icmp c' ty x y) >= (Expr.value (ValueT.const (const_int Size.One b')))}}
     else apply_fail tt
+  | Infrule.icmp_swap_operands c ty x y z =>
+    if $$ inv0 |-src (Expr.value z) >= (Expr.icmp c ty x y) $$
+    then
+      let c' := get_swapped_icmp_cond c in
+      {{inv0 +++src (Expr.value z) >= (Expr.icmp c' ty y x) }}
+    else apply_fail tt
   | Infrule.implies_false c1 c2 =>
     if $$ inv0 |-src (Expr.value c1) >= (Expr.value c2) $$
        && (negb (const_eqb c1 c2))
@@ -1086,6 +1113,19 @@ Definition apply_infrule
                +++src (Expr.value y) >= (Expr.value x)
          }}
     else apply_fail tt
+  | Infrule.icmp_eq_xor_not z z' a b s =>
+    if $$ inv0 |-tgt (Expr.bop bop_xor s a b) >= (Expr.value z') $$ &&
+       $$ inv0 |-tgt (Expr.bop bop_xor s z' (ValueT.const (const_mone s))) >= (Expr.value z) $$ &&
+       cond_onebit s
+    then
+      {{inv0 +++tgt (Expr.icmp cond_eq (typ_int s) a b) >= (Expr.value z) }}
+    else apply_fail tt
+  | Infrule.icmp_ne_xor z a b s =>
+    if $$ inv0 |-src (Expr.value z) >= (Expr.icmp cond_ne (typ_int s) a b) $$ &&
+       cond_onebit s
+    then
+      {{inv0 +++src (Expr.value z) >= (Expr.bop bop_xor s a b) }}
+    else apply_fail tt
   | Infrule.icmp_neq_same ty x y =>
     let Int_zero := INTEGER.of_Z 1 0 true in
     if $$ inv0 |-src (Expr.value (ValueT.const (const_int Size.One Int_zero))) >= (Expr.icmp cond_ne ty x y) $$
@@ -1093,6 +1133,62 @@ Definition apply_infrule
              {{inv0 +++src (Expr.value x) >= (Expr.value y)}}
                +++src (Expr.value y) >= (Expr.value x)
          }}
+    else apply_fail tt
+  | Infrule.icmp_sge_or_not z z' a b s =>
+    if $$ inv0 |-tgt (Expr.bop bop_xor s (ValueT.const (const_mone s)) a) >= (Expr.value z') $$ &&
+       $$ inv0 |-tgt (Expr.bop bop_or s z' b) >= (Expr.value z) $$ &&
+       cond_onebit s
+    then
+      {{ inv0 +++tgt (Expr.icmp cond_sge (typ_int s) a b) >= (Expr.value z) }}
+    else apply_fail tt
+  | Infrule.icmp_sgt_and_not z z' a b s =>
+    if $$ inv0 |-tgt (Expr.bop bop_xor s (ValueT.const (const_mone s)) a) >= (Expr.value z') $$ &&
+       $$ inv0 |-tgt (Expr.bop bop_and s z' b) >= (Expr.value z) $$ &&
+       cond_onebit s
+    then
+      {{ inv0 +++tgt (Expr.icmp cond_sgt (typ_int s) a b) >= (Expr.value z) }}
+    else apply_fail tt
+  | Infrule.icmp_sle_or_not z z' a b s =>
+    if $$ inv0 |-tgt (Expr.bop bop_xor s (ValueT.const (const_mone s)) b) >= (Expr.value z') $$ &&
+       $$ inv0 |-tgt (Expr.bop bop_or s z' a) >= (Expr.value z) $$ &&
+       cond_onebit s
+    then
+      {{ inv0 +++tgt (Expr.icmp cond_sle (typ_int s) a b) >= (Expr.value z) }}
+    else apply_fail tt
+  | Infrule.icmp_slt_and_not z z' a b s =>
+    if $$ inv0 |-tgt (Expr.bop bop_xor s (ValueT.const (const_mone s)) b) >= (Expr.value z') $$ &&
+       $$ inv0 |-tgt (Expr.bop bop_and s z' a) >= (Expr.value z) $$ &&
+       cond_onebit s
+    then
+      {{ inv0 +++tgt (Expr.icmp cond_slt (typ_int s) a b) >= (Expr.value z) }}
+    else apply_fail tt
+  | Infrule.icmp_ule_or_not z z' a b s =>
+    if $$ inv0 |-tgt (Expr.bop bop_xor s (ValueT.const (const_mone s)) a) >= (Expr.value z') $$ &&
+       $$ inv0 |-tgt (Expr.bop bop_or s z' b) >= (Expr.value z) $$ &&
+       cond_onebit s
+    then
+      {{ inv0 +++tgt (Expr.icmp cond_ule (typ_int s) a b) >= (Expr.value z) }}
+    else apply_fail tt
+  | Infrule.icmp_ult_and_not z z' a b s =>
+    if $$ inv0 |-tgt (Expr.bop bop_xor s (ValueT.const (const_mone s)) a) >= (Expr.value z') $$ &&
+       $$ inv0 |-tgt (Expr.bop bop_and s z' b) >= (Expr.value z) $$ &&
+       cond_onebit s
+    then
+      {{ inv0 +++tgt (Expr.icmp cond_ult (typ_int s) a b) >= (Expr.value z) }}
+    else apply_fail tt
+  | Infrule.icmp_uge_or_not z z' a b s =>
+    if $$ inv0 |-tgt (Expr.bop bop_xor s (ValueT.const (const_mone s)) b) >= (Expr.value z') $$ &&
+       $$ inv0 |-tgt (Expr.bop bop_or s z' a) >= (Expr.value z) $$ &&
+       cond_onebit s
+    then
+      {{ inv0 +++tgt (Expr.icmp cond_uge (typ_int s) a b) >= (Expr.value z) }}
+    else apply_fail tt
+  | Infrule.icmp_ugt_and_not z z' a b s =>
+    if $$ inv0 |-tgt (Expr.bop bop_xor s (ValueT.const (const_mone s)) b) >= (Expr.value z') $$ &&
+       $$ inv0 |-tgt (Expr.bop bop_and s z' a) >= (Expr.value z) $$ &&
+       cond_onebit s
+    then
+      {{ inv0 +++tgt (Expr.icmp cond_ugt (typ_int s) a b) >= (Expr.value z) }}
     else apply_fail tt
   | _ => no_match_fail tt (* TODO *)
   end.
