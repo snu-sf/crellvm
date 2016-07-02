@@ -32,11 +32,16 @@
     + It also builds sflib and paco.
 
 - `make opt`
-    + It only builds "opt" executable in .build/llvm-obj/bin
+    + It *only* builds "opt" executable in `.build/llvm-obj/bin`.
 
-- `make exec`
+- `make refact`
+    + It builds ocaml_refact/main.native, our current validator.
 
 - `make proof`
+    + *Ignore* this command for now. It builds ocaml/main.native, our old validator.
+
+- `make proof`
+    + *Ignore* this command for now. It tries to compile old proof, which is not updated to current Coq version.
 
 ### Debugging ###
 
