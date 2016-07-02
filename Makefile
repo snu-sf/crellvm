@@ -4,7 +4,7 @@ COQEXTRACT    := $(wildcard coq/extraction/*.v)
 COQPROOF      := $(filter-out $(COQEXTRACT), $(filter-out $(COQDEFINITION), $(wildcard coq/*/*.v)))
 COQTHEORIES   := $(COQDEFINITION) $(COQEXTRACT) $(COQPROOF)
 
-JOBS=8
+JOBS=24
 ROOT=`pwd`
 LLVM_SRCDIR=${ROOT}/lib/llvm
 LLVM_OBJDIR=${ROOT}/.build/llvm-obj
@@ -19,6 +19,8 @@ init:
 	git clone git@github.com:snu-sf/simplberry-tests.git simplberry-tests
 	git clone git@github.com:snu-sf/llvm.git lib/llvm
 	git clone git@github.com:snu-sf/cereal.git lib/llvm/include/llvm/cereal
+	./script/llvm-build.sh $(JOBS)
+	./script/llvm-install.sh $(JOBS)
 	git clone git@github.com:snu-sf/paco.git lib/paco
 	git clone git@github.com:snu-sf/sflib.git lib/sflib
 	git clone git@github.com:snu-sf/vellvm-legacy.git lib/vellvm
@@ -35,9 +37,8 @@ Makefile.coq: Makefile $(COQTHEORIES)
    echo $(COQTHEORIES)) > _CoqProject
 	coq_makefile -f _CoqProject -o Makefile.coq
 
-llvm: lib/llvm
-	./script/llvm-build.sh $(JOBS)
-	./script/llvm-install.sh $(JOBS)
+opt:
+	cd .build/llvm-obj; cmake --build . -- opt -j24
 
 lib: lib/sflib lib/paco/src lib/vellvm
 	$(MAKE) -C lib/sflib
