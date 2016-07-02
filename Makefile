@@ -16,18 +16,13 @@ all: exec proof
 
 init:
 	opam install menhir ott batteries biniou atdgen cppo easy-format ctypes coq.8.5.0~camlp4
-
-	rm -rf simplberry-tests
-	rm -rf lib/llvm
-	rm -rf lib/paco
-	rm -rf lib/vellvm
-	rm -rf .build
-	rm -rf build
-
-	git submodule init
-	git submodule update
-	$(MAKE) -C lib/vellvm init
+	git clone git@github.com:snu-sf/simplberry-tests.git simplberry-tests
+	git clone git@github.com:snu-sf/llvm.git lib/llvm
 	cd lib/llvm; git submodule init; git submodule update
+	git clone git@github.com:snu-sf/paco.git lib/paco
+	git clone git@github.com:snu-sf/sflib.git lib/sflib
+	git clone git@github.com:snu-sf/vellvm-legacy.git lib/vellvm
+	$(MAKE) -C lib/vellvm init
 
 Makefile.coq: Makefile $(COQTHEORIES)
 	(echo "-R coq $(COQMODULE)"; \
