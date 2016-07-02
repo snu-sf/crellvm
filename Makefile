@@ -16,9 +16,10 @@ all: exec proof
 
 init:
 	opam install menhir ott batteries biniou atdgen cppo easy-format ctypes coq.8.5.0~camlp4
+	git checkout refactoring
 	git clone git@github.com:snu-sf/simplberry-tests.git simplberry-tests
 	git clone git@github.com:snu-sf/llvm.git lib/llvm
-	cd lib/llvm; git submodule init; git submodule update
+	cd lib/llvm; git checkout refactoring; git submodule init; git submodule update
 	git clone git@github.com:snu-sf/paco.git lib/paco
 	git clone git@github.com:snu-sf/sflib.git lib/sflib
 	git clone git@github.com:snu-sf/vellvm-legacy.git lib/vellvm
