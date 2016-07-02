@@ -8,7 +8,7 @@ JOBS=24
 ROOT=`pwd`
 LLVM_SRCDIR=${ROOT}/lib/llvm
 LLVM_OBJDIR=${ROOT}/.build/llvm-obj
-LLVM_LOCALDIR=${ROOT}/build
+LLVM_LOCALDIR=${ROOT}/install
 
 .PHONY: all init Makefile.coq llvm llvm-install lib definition extract exec proof test clean
 
@@ -70,7 +70,7 @@ proof: definition $(COQPROOF)
 
 test:
 	rm -rf results-opt
-	python ./simplberry-tests/test.py -e ./build/bin/opt -v ./ocaml_refact/main.native -r "-instcombine" -o -i "./simplberry-tests/inputs_full"
+	python ./simplberry-tests/test.py -e ./install/bin/opt -v ./ocaml_refact/main.native -r "-instcombine" -o -i "./simplberry-tests/inputs_full"
 	python ./simplberry-tests/listfails.py -f results-opt
 	python ./simplberry-tests/statistics.py -f results-opt -o
 
