@@ -29,6 +29,7 @@
     + It builds `vellvm-legacy`.  See `https://github.com/snu-sf/vellvm-legacy` for more details.
     + `lib/vellvm/src/` will contain `.vo` files.
     + `lib/vellvm/src/Extraction` will contain extracted `.ml`, `.mli` files.
+    + It also builds sflib and paco.
 
 - `make opt`
     + It only builds "opt" executable in .build/llvm-obj/bin
