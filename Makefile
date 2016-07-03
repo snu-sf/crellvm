@@ -9,7 +9,7 @@ ROOT=`pwd`
 LLVM_SRCDIR=${ROOT}/lib/llvm
 LLVM_OBJDIR=${ROOT}/.build/llvm-obj
 
-.PHONY: all init Makefile.coq llvm lib definition extract exec proof test clean
+.PHONY: all init Makefile.coq opt lib definition extract exec proof test clean
 
 all: exec proof
 
