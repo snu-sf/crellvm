@@ -13,7 +13,7 @@ Makefile.coq
 /coq/extraction_new/*.mli
 
 /.build
-/build
+/install
 
 /ocaml/_build/
 /ocaml/corehint/*
