@@ -57,6 +57,7 @@ exec: extract
 
 # TODO: remove this after refactoring
 extract_refact: definition
+	$(MAKE) -C lib/vellvm extract
 	$(MAKE) -C coq/extraction_new
 
 refact: extract_refact
