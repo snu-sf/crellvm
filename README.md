@@ -31,6 +31,11 @@
     + `lib/vellvm/src/Extraction` will contain extracted `.ml`, `.mli` files.
     + It also builds sflib and paco.
 
+- `make llvm`
+    + You may want to alter "JOBS" variable, default is 24.
+    + `script/llvm-build.sh`
+    + `.build/llvm-obj` will contain llvm object files.
+
 - `make opt`
     + It *only* builds "opt" executable in `.build/llvm-obj/bin`.
 
