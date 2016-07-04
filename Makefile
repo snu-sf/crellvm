@@ -9,7 +9,7 @@ ROOT=`pwd`
 LLVM_SRCDIR=${ROOT}/lib/llvm
 LLVM_OBJDIR=${ROOT}/.build/llvm-obj
 
-.PHONY: all init Makefile.coq opt lib definition extract exec proof test clean
+.PHONY: all init Makefile.coq opt llvm lib definition extract exec proof test clean
 
 all: exec proof
 
@@ -18,7 +18,6 @@ init:
 	git clone git@github.com:snu-sf/simplberry-tests.git simplberry-tests
 	git clone git@github.com:snu-sf/llvm.git lib/llvm
 	git clone git@github.com:snu-sf/cereal.git lib/llvm/include/llvm/cereal
-	./script/llvm-build.sh $(JOBS)
 	git clone git@github.com:snu-sf/paco.git lib/paco
 	git clone git@github.com:snu-sf/sflib.git lib/sflib
 	git clone git@github.com:snu-sf/vellvm-legacy.git lib/vellvm
@@ -36,7 +35,10 @@ Makefile.coq: Makefile $(COQTHEORIES)
 	coq_makefile -f _CoqProject -o Makefile.coq
 
 opt:
-	cd .build/llvm-obj; cmake --build . -- opt -j24
+	cd .build/llvm-obj; cmake --build . -- opt -j$(JOBS)
+
+llvm:
+	./script/llvm-build.sh $(JOBS)
 
 lib: lib/sflib lib/paco/src lib/vellvm
 	$(MAKE) -C lib/sflib
