@@ -4,7 +4,7 @@ JOBS=${1-1}
 ROOT=`pwd`
 SRCDIR=$ROOT/lib/llvm
 OBJDIR=$ROOT/.build/llvm-obj
-LOCALDIR=$ROOT/build
+LOCALDIR=$ROOT/install
 
 cd $OBJDIR
 mkdir $LOCALDIR
