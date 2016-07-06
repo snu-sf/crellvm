@@ -135,6 +135,8 @@ module Convert = struct
         LLVMsyntax.Coq_typ_function (value_type retty,
         List.map value_type argtylist,
         if isvararg then Some varargsize else None)
+    | CoreHint_t.VectorType (arrsize, elemtype) ->
+      failwith "Vellvm does not support vector type"
  
   let const_int (const_int:CoreHint_t.const_int): INTEGER.t =
     let IntType sz = const_int.int_type in
