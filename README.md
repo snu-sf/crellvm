@@ -42,7 +42,7 @@
 - `make refact`
     + It builds ocaml_refact/main.native, our current validator.
 
-- `make proof`
+- `make exec`
     + *Ignore* this command for now. It builds ocaml/main.native, our old validator.
 
 - `make proof`
