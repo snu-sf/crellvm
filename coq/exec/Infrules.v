@@ -1075,7 +1075,7 @@ Definition apply_infrule
     then 
       match c with
       | const_int s'' iv => 
-        let iv_extended := INTEGER.of_Z (Size.to_Z s) (INTEGER.to_Z iv) false in
+        let iv_extended := INTEGER.of_Z (Size.to_Z s) (INTEGER.to_Z iv) true in
         {{ inv0 +++src (Expr.value z) >= (Expr.bop bop_and s x (ValueT.const (const_int s iv_extended))) }}
       | _ => {{ inv0 +++src (Expr.value z) >= (Expr.bop bop_and s x (ValueT.const (const_extop extop_z c (typ_int s)))) }}
       end
@@ -1086,7 +1086,7 @@ Definition apply_infrule
        $$ inv0 |-tgt (Expr.bop bop_xor s' w (ValueT.const c)) >= (Expr.value y) $$ &&
        (match c with
        | const_int s'' iv => 
-         let iv_extended := INTEGER.of_Z (Size.to_Z s) (INTEGER.to_Z iv) false in
+         let iv_extended := INTEGER.of_Z (Size.to_Z s) (INTEGER.to_Z iv) true in
          $$ inv0 |-tgt (Expr.bop bop_and s x (ValueT.const (const_int s iv_extended))) >= (Expr.value y') $$ &&
          $$ inv0 |-tgt (Expr.bop bop_xor s y' (ValueT.const (const_int s iv_extended))) >= (Expr.value z) $$
        | _ => 
