@@ -1,6 +1,6 @@
 ROOT = `pwd`/..
-LLVM_OCAML_LIB = $(ROOT)/build/lib/ocaml
-LLVM_LIB = $(ROOT)/build/lib
+LLVM_OCAML_LIB = $(ROOT)/.build/llvm-obj/bindings/ocaml
+LLVM_LIB = $(ROOT)/.build/llvm-obj/lib/ocaml
 
 LIB_FILES = llvm.cmxa,llvm_analysis.cmxa,llvm_target.cmxa,llvm_bitreader.cmxa,llvm_bitwriter.cmxa,llvm_scalar_opts.cmxa
 

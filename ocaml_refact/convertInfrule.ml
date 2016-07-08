@@ -841,6 +841,12 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
      let midty = Convert.value_type args.midty in
      let dstty = Convert.value_type args.dstty in
      Infrule.Coq_trunc_bitcast (src, mid, dst, srcty, midty, dstty)
+  | CoreHint_t.TruncOnebit (args:CoreHint_t.trunc_onebit) -> 
+     let z = Convert.value args.z in
+     let x = Convert.value args.x in
+     let y = Convert.value args.y in
+     let orgsz = Convert.size args.orgsz in
+     Infrule.Coq_trunc_onebit (z, x, y, orgsz)
   | CoreHint_t.TruncPtrtoint (args:CoreHint_t.trunc_ptrtoint) -> 
      let src = Convert.value args.src in
      let mid = Convert.value args.mid in
@@ -883,6 +889,15 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
      let sz1 = Convert.size args.sz1 in
      let sz2 = Convert.size args.sz2 in
      Infrule.Coq_udiv_zext (z, x, y, k, a, b, sz1, sz2)
+  | CoreHint_t.UdivZextConst (args:CoreHint_t.udiv_zext_const) ->
+     let z = Convert.register args.z in
+     let x = Convert.register args.x in
+     let c = Convert.const_int args.c in
+     let k = Convert.register args.k in
+     let a = Convert.value args.a in
+     let sz1 = Convert.size args.sz1 in
+     let sz2 = Convert.size args.sz2 in
+     Infrule.Coq_udiv_zext_const (z, x, c, k, a, sz1, sz2)
   | CoreHint_t.UitofpBitcast (args:CoreHint_t.uitofp_bitcast) -> 
      let src = Convert.value args.src in
      let mid = Convert.value args.mid in
@@ -909,6 +924,15 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
      let sz1 = Convert.size args.sz1 in
      let sz2 = Convert.size args.sz2 in
      Infrule.Coq_urem_zext (z, x, y, k, a, b, sz1, sz2)
+  | CoreHint_t.UremZextConst (args:CoreHint_t.urem_zext_const) ->
+     let z = Convert.register args.z in
+     let x = Convert.register args.x in
+     let c = Convert.const_int args.c in
+     let k = Convert.register args.k in
+     let a = Convert.value args.a in
+     let sz1 = Convert.size args.sz1 in
+     let sz2 = Convert.size args.sz2 in
+     Infrule.Coq_urem_zext_const (z, x, c, k, a, sz1, sz2)
   | CoreHint_t.IntroGhost (args:CoreHint_t.intro_ghost) ->
       let x = Convert.expr args.x src_fdef tgt_fdef in
       let g = args.g.name in
@@ -960,6 +984,32 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
      let midty = Convert.value_type args.midty in
      let dstty = Convert.value_type args.dstty in
      Infrule.Coq_zext_bitcast (src, mid, dst, srcty, midty, dstty)
+  | CoreHint_t.ZextTruncAnd (args:CoreHint_t.zext_trunc_and) -> 
+     let z = Convert.value args.z in
+     let x = Convert.value args.x in
+     let y = Convert.value args.y in
+     let w = Convert.value args.w in
+     let c = Convert.constant args.c in
+     let s = Convert.size args.s in
+     let sprime = Convert.size args.sprime in
+     Infrule.Coq_zext_trunc_and (z, x, y, w, c, s, sprime)
+  | CoreHint_t.ZextTruncAndXor (args:CoreHint_t.zext_trunc_and_xor) -> 
+     let z = Convert.value args.z in
+     let x = Convert.value args.x in
+     let v = Convert.value args.v in
+     let w = Convert.value args.w in
+     let y = Convert.value args.y in
+     let yprime = Convert.value args.yprime in
+     let c = Convert.constant args.c in
+     let s = Convert.size args.s in
+     let sprime = Convert.size args.sprime in
+     Infrule.Coq_zext_trunc_and_xor (z, x, v, w, y, yprime, c, s, sprime)
+  | CoreHint_t.ZextXor (args:CoreHint_t.zext_xor) -> 
+     let z = Convert.value args.z in
+     let y = Convert.value args.y in
+     let yprime = Convert.value args.yprime in
+     let x = Convert.value args.x in
+     Infrule.Coq_zext_xor (z, y, yprime, x)
   | CoreHint_t.ZextZext (args:CoreHint_t.zext_zext) -> 
      let src = Convert.value args.src in
      let mid = Convert.value args.mid in

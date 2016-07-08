@@ -1250,6 +1250,13 @@ type trunc_bitcast = {
     dstty : value_type;
 }
 
+type trunc_onebit = {
+    z : value;
+    x : value;
+    y : value;
+    orgsz : size;
+}
+
 type trunc_ptrtoint = {
   src : value;
   mid : value;
@@ -1306,6 +1313,16 @@ type udiv_zext = {
   sz2 : size;
 }
 
+type udiv_zext_const = {
+  z : register;
+  x : register;
+  c : const_int;
+  k : register;
+  a : value;
+  sz1 : size;
+  sz2 : size;
+}
+
 type uitofp_bitcast = {
     src : value;
     mid : value;
@@ -1331,6 +1348,16 @@ type urem_zext = {
   k : register;
   a : value;
   b : value;
+  sz1 : size;
+  sz2 : size;
+}
+
+type urem_zext_const = {
+  z : register;
+  x : register;
+  c : const_int;
+  k : register;
+  a : value;
   sz1 : size;
   sz2 : size;
 }
@@ -1381,6 +1408,35 @@ type zext_bitcast = {
     srcty : value_type;
     midty : value_type;
     dstty : value_type;
+}
+
+type zext_trunc_and = {
+    z : value;
+    x : value;
+    y : value;
+    w : value;
+    c : constant;
+    s : size;
+    sprime : size;
+}
+
+type zext_trunc_and_xor = {
+    z : value;
+    x : value;
+    v : value;
+    w : value;
+    y : value;
+    yprime : value;
+    c : constant;
+    s : size;
+    sprime : size;
+}
+
+type zext_xor = {
+    z : value;
+    y : value;
+    yprime : value;
+    x : value;
 }
 
 type zext_zext = {
@@ -1623,15 +1679,18 @@ type infrule = [
   | TransitivityPointerLhs of transitivity_pointer_lhs
   | TransitivityPointerRhs of transitivity_pointer_rhs
   | TruncBitcast of trunc_bitcast
+  | TruncOnebit of trunc_onebit
   | TruncPtrtoint of trunc_ptrtoint
   | TruncSext of trunc_sext
   | TruncTrunc of trunc_trunc
   | TruncZext of trunc_zext
   | UdivSubUrem of udiv_sub_urem
   | UdivZext of udiv_zext
+  | UdivZextConst of udiv_zext_const
   | UitofpBitcast of uitofp_bitcast
   | UitofpZext of uitofp_zext
   | UremZext of urem_zext
+  | UremZextConst of urem_zext_const
   | XorCommutative of xor_commutative
   | XorCommutativeTgt of xor_commutative_tgt
   | XorNot of xor_not
@@ -1639,6 +1698,9 @@ type infrule = [
   | XorUndef of xor_undef
   | XorZero of xor_zero
   | ZextBitcast of zext_bitcast
+  | ZextTruncAnd of zext_trunc_and
+  | ZextTruncAndXor of zext_trunc_and_xor
+  | ZextXor of zext_xor
   | ZextZext of zext_zext
   | IcmpInverse of icmp_inverse
   | IcmpSwapOperands of icmp_swap_operands

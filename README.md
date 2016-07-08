@@ -18,24 +18,35 @@
 
 - `make init`
     + It installs Coq & OCaml libraries.
-    + It (recursively) downloads submodules.
+    + It (recursively) clones repositories including llvm, vellvm to lib/ dir, and also clones simplberry-tests repository.
     + If above commands do not work, check format of `url` in `.gitmodules` starts with `git@github.com:snu-sf/`.
-    + If you meet `permission denied (publickey)` error when perform `git submodule update`, do `git submodule sync` && `git submodule update`
+    + It also buildss & installs llvm.
+    + `.build/llvm-obj` will contain llvm object files.
+    + `install/bin` will contain llvm installation.
+    + You may want to alter "JOBS" variable, default is 8.
 
 - `make lib`
     + It builds `vellvm-legacy`.  See `https://github.com/snu-sf/vellvm-legacy` for more details.
     + `lib/vellvm/src/` will contain `.vo` files.
     + `lib/vellvm/src/Extraction` will contain extracted `.ml`, `.mli` files.
+    + It also builds sflib and paco.
 
 - `make llvm`
+    + You may want to alter "JOBS" variable, default is 24.
     + `script/llvm-build.sh`
     + `.build/llvm-obj` will contain llvm object files.
-    + `build/bin` will contain llvm installation.
-    + You may want to alter "JOBS" variable, default is 8.
+
+- `make opt`
+    + It *only* builds "opt" executable in `.build/llvm-obj/bin`.
+
+- `make refact`
+    + It builds ocaml_refact/main.native, our current validator.
 
 - `make exec`
+    + *Ignore* this command for now. It builds ocaml/main.native, our old validator.
 
 - `make proof`
+    + *Ignore* this command for now. It tries to compile old proof, which is not updated to current Coq version.
 
 ### Debugging ###
 

@@ -13,7 +13,7 @@ Makefile.coq
 /coq/extraction_new/*.mli
 
 /.build
-/build
+/install
 
 /ocaml/_build/
 /ocaml/corehint/*
@@ -26,3 +26,6 @@ Makefile.coq
 /ocaml_refact/main.native
 
 /results-opt
+
+lib/*
+simplberry-tests
