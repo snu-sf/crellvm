@@ -1313,6 +1313,16 @@ type udiv_zext = {
   sz2 : size;
 }
 
+type udiv_zext_const = {
+  z : register;
+  x : register;
+  c : const_int;
+  k : register;
+  a : value;
+  sz1 : size;
+  sz2 : size;
+}
+
 type uitofp_bitcast = {
     src : value;
     mid : value;
@@ -1338,6 +1348,16 @@ type urem_zext = {
   k : register;
   a : value;
   b : value;
+  sz1 : size;
+  sz2 : size;
+}
+
+type urem_zext_const = {
+  z : register;
+  x : register;
+  c : const_int;
+  k : register;
+  a : value;
   sz1 : size;
   sz2 : size;
 }
@@ -1579,9 +1599,11 @@ type infrule = [
   | TruncZext of trunc_zext
   | UdivSubUrem of udiv_sub_urem
   | UdivZext of udiv_zext
+  | UdivZextConst of udiv_zext_const
   | UitofpBitcast of uitofp_bitcast
   | UitofpZext of uitofp_zext
   | UremZext of urem_zext
+  | UremZextConst of urem_zext_const
   | XorCommutative of xor_commutative
   | XorCommutativeTgt of xor_commutative_tgt
   | XorNot of xor_not

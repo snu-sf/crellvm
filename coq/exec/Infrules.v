@@ -16,6 +16,7 @@ Require Import TODO.
 
 Require Import Decs.
 Require Import Debug.
+Require Import String.
 Set Implicit Arguments.
 
 (* Copied from validator/basic_aux.v because ocaml-extracted version of this code cannot find validator/basic_aux.v *)
@@ -36,6 +37,9 @@ Definition is_ghost (g:IdT.t) :=
   match g with
   | (tag, _) => if Tag.eq_dec tag Tag.ghost then true else false
   end.
+
+Definition cond_uint_fitinsize (s:sz) (c:INTEGER.t) : bool :=
+  Z.leb 0%Z (INTEGER.to_Z c) && Z.ltb (INTEGER.to_Z c) (Zpos (power_sz s)).
 
 Definition cond_fresh (g:IdT.t) (inv:Invariant.t) : bool :=
   negb (List.existsb (fun x => IdT.eq_dec g x) (Invariant.get_idTs inv)).
@@ -996,6 +1000,20 @@ Definition apply_infrule
        $$ inv0 |-tgt (Expr.ext extop_z (typ_int s1) (ValueT.id k) (typ_int s2)) >= (Expr.value (ValueT.id z)) $$
     then {{ inv0 +++tgt (Expr.bop bop_udiv s2 (ValueT.id x) (ValueT.id y)) >= (Expr.value (ValueT.id z)) }}
     else apply_fail tt
+  | Infrule.udiv_zext_const z x c k a s1 s2 =>
+    let c1 := INTEGER.of_Z (Size.to_Z s1) (INTEGER.to_Z c) false in
+    let c2 := INTEGER.of_Z (Size.to_Z s2) (INTEGER.to_Z c) false in
+    if $$ inv0 |-tgt (Expr.ext extop_z (typ_int s1) a (typ_int s2)) >= (Expr.value (ValueT.id x)) $$ &&
+       $$ inv0 |-tgt (Expr.bop bop_udiv s1 a (ValueT.const (const_int s1 c1)))
+                     >= (Expr.value (ValueT.id k)) $$ &&
+       $$ inv0 |-tgt (Expr.ext extop_z (typ_int s1) (ValueT.id k) (typ_int s2))
+                     >= (Expr.value (ValueT.id z)) $$ &&
+       cond_uint_fitinsize s1 c 
+    then
+      {{ inv0 +++tgt (Expr.bop bop_udiv s2 (ValueT.id x) (ValueT.const (const_int s2 c2))) 
+                     >= (Expr.value (ValueT.id z)) }}
+    else 
+      apply_fail tt
   | Infrule.uitofp_bitcast src mid dst srcty midty dstty =>
     if $$ inv0 |-src (Expr.value mid) >= (Expr.cast castop_bitcast srcty src midty) $$ &&
        $$ inv0 |-src (Expr.value dst) >= (Expr.cast castop_uitofp midty mid dstty) $$ &&
@@ -1014,6 +1032,20 @@ Definition apply_infrule
        $$ inv0 |-tgt (Expr.ext extop_z (typ_int s1) (ValueT.id k) (typ_int s2)) >= (Expr.value (ValueT.id z)) $$
     then {{ inv0 +++tgt (Expr.bop bop_urem s2 (ValueT.id x) (ValueT.id y)) >= (Expr.value (ValueT.id z)) }}
     else apply_fail tt
+  | Infrule.urem_zext_const z x c k a s1 s2 =>
+    let c1 := INTEGER.of_Z (Size.to_Z s1) (INTEGER.to_Z c) false in
+    let c2 := INTEGER.of_Z (Size.to_Z s2) (INTEGER.to_Z c) false in
+    if $$ inv0 |-tgt (Expr.ext extop_z (typ_int s1) a (typ_int s2)) >= (Expr.value (ValueT.id x)) $$ &&
+       $$ inv0 |-tgt (Expr.bop bop_urem s1 a (ValueT.const (const_int s1 c1)))
+                     >= (Expr.value (ValueT.id k)) $$ &&
+       $$ inv0 |-tgt (Expr.ext extop_z (typ_int s1) (ValueT.id k) (typ_int s2))
+                     >= (Expr.value (ValueT.id z)) $$ &&
+       cond_uint_fitinsize s1 c 
+    then
+      {{ inv0 +++tgt (Expr.bop bop_urem s2 (ValueT.id x) (ValueT.const
+                        (const_int s2 c))) >= (Expr.value (ValueT.id z)) }}
+    else 
+      apply_fail tt
   | Infrule.intro_eq x => 
     {{ inv0 +++src (Expr.value x) >= (Expr.value x) }}
   | Infrule.intro_eq_tgt x => 
