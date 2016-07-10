@@ -5,16 +5,6 @@ open Syntax.LLVMsyntax
 open Printer
 open CoreHint_j
 
-let out_channel = ref stderr
-
-let debug_run f =
-  if !Globalstates.debug
-  then f ()
-  else ()
-
-let debug_print s =
-  debug_run (fun _ -> Printf.fprintf !out_channel "DEBUG: %s\n" s)
-
 let read_im filename =
   let _ = debug_print "read_im.." in
 
