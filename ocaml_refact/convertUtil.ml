@@ -137,6 +137,8 @@ module Convert = struct
         if isvararg then Some varargsize else None)
     | CoreHint_t.VectorType (arrsize, elemtype) ->
       failwith "Vellvm does not support vector type"
+    | CoreHint_t.StructType (elemtylist) ->
+        LLVMsyntax.Coq_typ_struct (List.map value_type elemtylist)
  
   let const_int (const_int:CoreHint_t.const_int): INTEGER.t =
     let IntType sz = const_int.int_type in
@@ -205,6 +207,10 @@ module Convert = struct
                 List.map (fun v -> constant v) cegep.idxlist)
     | CoreHint_t.ConstExprBitcast ceb ->
        LLVMsyntax.Coq_const_castop (LLVMsyntax.Coq_castop_bitcast, (constant ceb.v), (value_type ceb.dstty))
+    | CoreHint_t.ConstExprInttoptr cei ->
+       LLVMsyntax.Coq_const_castop (LLVMsyntax.Coq_castop_inttoptr, (constant cei.v), (value_type cei.dstty))
+    | CoreHint_t.ConstExprPtrtoint cep ->
+       LLVMsyntax.Coq_const_castop (LLVMsyntax.Coq_castop_ptrtoint, (constant cep.v), (value_type cep.dstty))
     | _ -> failwith "convertUtil.constant_expr : Unknown constant expression"
 
   let value (value:CoreHint_t.value): ValueT.t = 
