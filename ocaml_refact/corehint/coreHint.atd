@@ -59,6 +59,7 @@ type value_type = [
     | ArrayType of (int * value_type)
     | FunctionType of (value_type * (value_type list) * bool * int) (* (return-type, argument-type, is-var-arg, arg-size) *)
     | VectorType of (int * value_type)
+    | StructType of (value_type list) (* list of elements *)
     ] <ocaml repr="classic">
 
 type const_int = {
@@ -89,9 +90,22 @@ type const_expr_bitcast = {
   dstty : value_type;
 }
 
+type const_expr_inttoptr = {
+  v : constant;
+  dstty : value_type;
+}
+
+type const_expr_ptrtoint = {
+  v : constant;
+  dstty : value_type;
+}
+
 type constant_expr = [
   | ConstExprGetElementPtr of const_expr_get_element_ptr
-  | ConstExprBitcast of const_expr_bitcast ] <ocaml repr="classic">
+  | ConstExprBitcast of const_expr_bitcast 
+  | ConstExprInttoptr of const_expr_inttoptr
+  | ConstExprPtrtoint of const_expr_ptrtoint
+  ] <ocaml repr="classic">
 
 type constant = [
   | ConstInt of const_int
