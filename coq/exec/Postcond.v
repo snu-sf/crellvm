@@ -728,7 +728,21 @@ Definition postcond_cmd_add_lessdef
   | Some (lhs, rhs) =>
     let inv1 := ExprPairSet.add (lhs, rhs) inv0 in
     let inv2 := ExprPairSet.add (rhs, lhs) inv1 in
-    inv2
+    match (lhs, rhs) with
+    | (Expr.load v ty a, _) =>
+      if (align_dec a Align.One)
+      then inv2
+      else let inv3 := ExprPairSet.add (Expr.load v ty Align.One, rhs) inv2 in
+           let inv4 := ExprPairSet.add (rhs, Expr.load v ty Align.One) inv3 in
+      inv4
+    | (_, Expr.load v ty a) =>
+      if (align_dec a Align.One)
+      then inv2
+      else let inv3 := ExprPairSet.add (lhs, Expr.load v ty Align.One) inv2 in
+           let inv4 := ExprPairSet.add (Expr.load v ty Align.One, lhs) inv3 in
+      inv4
+    | (_, _) => inv2
+    end
   end.
 
 Definition postcond_cmd_add_diffblock

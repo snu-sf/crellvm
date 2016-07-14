@@ -838,13 +838,47 @@ Definition apply_infrule
     then {{ inv0 +++src (Expr.value dst) >= (Expr.cast castop_sitofp srcty src dstty) }}
     else apply_fail tt
   | Infrule.transitivity e1 e2 e3 =>
-    if $$ inv0 |-src e1 >= e2 $$ &&
-       $$ inv0 |-src e2 >= e3 $$ 
+    let e1' :=
+      match e1 with
+      | Expr.load v ty a => Expr.load v ty Align.One
+      | _ => e1
+      end in
+    let e2' :=
+      match e2 with
+      | Expr.load v ty a => Expr.load v ty Align.One
+      | _ => e2
+      end in
+    let e3' :=
+      match e3 with
+      | Expr.load v ty a => Expr.load v ty Align.One
+      | _ => e3
+      end in
+    if ($$ inv0 |-src e1 >= e2 $$ || $$ inv0 |-src e1 >= e2' $$ ||
+        $$ inv0 |-src e1' >= e2 $$ || $$ inv0 |-src e1' >= e2' $$) &&
+       ($$ inv0 |-src e2 >= e3 $$ || $$ inv0 |-src e2 >= e3' $$ ||
+        $$ inv0 |-src e2' >= e3 $$ || $$ inv0 |-src e2' >= e3' $$)
     then {{ inv0 +++src e1 >= e3 }}
     else apply_fail tt
   | Infrule.transitivity_tgt e1 e2 e3 =>
-    if $$ inv0 |-tgt e1 >= e2 $$ &&
-       $$ inv0 |-tgt e2 >= e3 $$
+    let e1' :=
+      match e1 with
+      | Expr.load v ty a => Expr.load v ty Align.One
+      | _ => e1
+      end in
+    let e2' :=
+      match e2 with
+      | Expr.load v ty a => Expr.load v ty Align.One
+      | _ => e2
+      end in
+    let e3' :=
+      match e3 with
+      | Expr.load v ty a => Expr.load v ty Align.One
+      | _ => e3
+      end in
+    if ($$ inv0 |-tgt e1 >= e2 $$ || $$ inv0 |-tgt e1 >= e2' $$ ||
+        $$ inv0 |-tgt e1' >= e2 $$ || $$ inv0 |-tgt e1' >= e2' $$) &&
+       ($$ inv0 |-tgt e2 >= e3 $$ || $$ inv0 |-tgt e2 >= e3' $$ ||
+        $$ inv0 |-tgt e2' >= e3 $$ || $$ inv0 |-tgt e2' >= e3' $$)
     then {{ inv0 +++tgt e1 >= e3 }}
     else apply_fail tt
   | Infrule.trunc_onebit z x y orgsz =>
