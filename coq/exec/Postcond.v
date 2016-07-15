@@ -248,7 +248,8 @@ End Forget.
 
 Module ForgetMemory.
   Definition is_noalias_Ptr (inv:Invariant.unary) (ps:PtrSet.t) (p:Ptr.t): bool :=
-    PtrSet.for_all (Invariant.is_noalias inv p) ps.
+    PtrSet.for_all (Invariant.is_noalias inv p) ps ||
+    PtrSet.for_all (Invariant.is_diffblock inv p) ps.
 
   Definition is_noalias_Expr (inv:Invariant.unary) (ps:PtrSet.t) (e:Expr.t): bool :=
     match e with
@@ -806,19 +807,19 @@ Definition postcond_cmd
   else
 
   let inv1 := Forget.t def_src def_tgt inv0 in
-  let inv2 := ForgetMemory.t def_memory_src def_memory_tgt inv1 in
-  let inv3 := Invariant.update_src
-                (Invariant.update_lessdef (postcond_cmd_add_lessdef src)) inv2 in
-  let inv4 := Invariant.update_tgt
-                (Invariant.update_lessdef (postcond_cmd_add_lessdef tgt)) inv3 in
+  let inv2 := Invariant.update_src
+                (Invariant.update_diffblock
+                   (postcond_cmd_add_diffblock
+                      src inv1.(Invariant.src).(Invariant.allocas))) inv1 in
+  let inv3 := Invariant.update_tgt
+                (Invariant.update_diffblock
+                   (postcond_cmd_add_diffblock
+                      tgt inv2.(Invariant.tgt).(Invariant.allocas))) inv2 in
+  let inv4 := ForgetMemory.t def_memory_src def_memory_tgt inv3 in
   let inv5 := Invariant.update_src
-                (Invariant.update_diffblock
-                   (postcond_cmd_add_diffblock
-                      src inv4.(Invariant.src).(Invariant.allocas))) inv4 in
+                (Invariant.update_lessdef (postcond_cmd_add_lessdef src)) inv4 in
   let inv6 := Invariant.update_tgt
-                (Invariant.update_diffblock
-                   (postcond_cmd_add_diffblock
-                      tgt inv5.(Invariant.tgt).(Invariant.allocas))) inv5 in
+                (Invariant.update_lessdef (postcond_cmd_add_lessdef tgt)) inv5 in
   let inv7 := postcond_cmd_add_private_allocas src tgt inv6 in
   let inv8 := remove_def_from_maydiff src tgt inv7 in
   let inv9 := reduce_maydiff inv8 in
