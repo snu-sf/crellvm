@@ -5,10 +5,15 @@ open Coq_pretty_printer
 open Printf
 open List
        
-let out_channel = ref stdout
+let out_channel = ref stderr
 
-let debug_print (msg:string): unit =
-  Printf.fprintf !out_channel "DEBUG: %s\n" msg
+let debug_run f =
+  if !Globalstates.debug
+  then f ()
+  else ()
+
+let debug_print s =
+  debug_run (fun _ -> Printf.fprintf !out_channel "DEBUG: %s\n" s)
 
 module ExprsToString = struct
     let of_Tag (t:Tag.t): string =

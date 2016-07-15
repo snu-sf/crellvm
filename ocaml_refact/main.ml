@@ -5,16 +5,6 @@ open Syntax.LLVMsyntax
 open Printer
 open CoreHint_j
 
-let out_channel = ref stdout
-
-let debug_run f =
-  if !Globalstates.debug
-  then f ()
-  else ()
-
-let debug_print s =
-  debug_run (fun _ -> Printf.fprintf !out_channel "DEBUG: %s\n" s)
-
 let read_im filename =
   let _ = debug_print "read_im.." in
 
@@ -82,8 +72,8 @@ let main filename_src filename_tgt filename_hint =
   let _ = debug_print hint.CoreHint_t.description in
   let _ =
     if validation_result
-    then prerr_endline "Validation succeeded."
-    else (prerr_endline "Validation failed."; exit 1)
+    then print_endline "Validation succeeded."
+    else (print_endline "Validation failed."; exit 1)
   in
 
   ()
