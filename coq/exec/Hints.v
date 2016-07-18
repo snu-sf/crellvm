@@ -137,6 +137,19 @@ Module Invariant.
                              (Ptr.eq_dec p1 xp2 && Ptr.eq_dec p2 xp1)
                          end) inv.(alias).(noalias).
 
+  Definition is_diffblock (inv:unary) (p1:Ptr.t) (p2:Ptr.t) :=
+    let (v1, t1) := p1 in
+    let (v2, t2) := p2 in
+    ValueTPairSet.exists_
+      (fun v1v2 =>
+        match v1v2 with
+        | (xv1, xv2) =>
+            (ValueT.eq_dec v1 xv1 &&
+             ValueT.eq_dec v2 xv2) ||
+            (ValueT.eq_dec v1 xv2 &&
+             ValueT.eq_dec v2 xv1)
+        end) inv.(alias).(diffblock).
+
   Definition not_in_maydiff (inv:t) (value:ValueT.t): bool :=
     match value with
     | ValueT.id id =>
