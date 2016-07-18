@@ -371,11 +371,29 @@ module Convert = struct
                 value gepi_arg.ptr,
                 List.map (fun szv -> (size (fst szv), value (snd szv))) gepi_arg.indexes,
                 value_type gepi_arg.retty)
+       | CoreHint_t.SelectInst arg ->
+         Expr.Coq_select (value arg.cond, value_type arg.valty,
+                value arg.trueval, value arg.falseval)
        | CoreHint_t.FpextInst arg ->
          Expr.Coq_ext (LLVMsyntax.Coq_extop_fp, value_type arg.fromty, 
                 value arg.v, value_type arg.toty)
        | CoreHint_t.FptruncInst arg ->
          Expr.Coq_trunc (LLVMsyntax.Coq_truncop_fp, value_type arg.fromty, 
+                value arg.v, value_type arg.toty)
+       | CoreHint_t.ZextInst arg ->
+         Expr.Coq_ext (LLVMsyntax.Coq_extop_z, value_type arg.fromty,
+                value arg.v, value_type arg.toty)
+       | CoreHint_t.SextInst arg ->
+         Expr.Coq_ext (LLVMsyntax.Coq_extop_s, value_type arg.fromty,
+                value arg.v, value_type arg.toty)
+       | CoreHint_t.TruncInst arg ->
+         Expr.Coq_trunc (LLVMsyntax.Coq_truncop_int, value_type arg.fromty,
+                value arg.v, value_type arg.toty)
+       | CoreHint_t.SitofpInst arg ->
+         Expr.Coq_cast (LLVMsyntax.Coq_castop_sitofp, value_type arg.fromty,
+                value arg.v, value_type arg.toty)
+       | CoreHint_t.UitofpInst arg ->
+         Expr.Coq_cast (LLVMsyntax.Coq_castop_uitofp, value_type arg.fromty,
                 value arg.v, value_type arg.toty)
        | _ -> failwith "Unknown instruction type"
        )

@@ -210,6 +210,43 @@ type fptrunc_inst = {
   toty : value_type;
 }
 
+type zext_inst = {
+  fromty : value_type;
+  v : value;
+  toty : value_type;
+}
+
+type sext_inst = {
+  fromty : value_type;
+  v : value;
+  toty : value_type;
+}
+
+type trunc_inst = {
+  fromty : value_type;
+  v : value;
+  toty : value_type;
+}
+
+type sitofp_inst = {
+  fromty : value_type;
+  v : value;
+  toty : value_type;
+}
+
+type uitofp_inst = {
+  fromty : value_type;
+  v : value;
+  toty : value_type;
+}
+
+type select_inst = {
+  cond : value;
+  valty : value_type;
+  trueval : value;
+  falseval : value;
+}
+
 type instruction = [ 
   | BinaryOp of binary_operator
   | FloatBinaryOp of float_binary_operator
@@ -218,10 +255,16 @@ type instruction = [
   | LoadInst of load_inst
   | BitCastInst of bit_cast_inst
   | GetElementPtrInst of get_element_ptr_inst
+  | SelectInst of select_inst
   | IntToPtrInst of int_to_ptr_inst
   | PtrToIntInst of ptr_to_int_inst
   | FpextInst of fpext_inst
   | FptruncInst of fptrunc_inst
+  | ZextInst of zext_inst
+  | SextInst of sext_inst
+  | TruncInst of trunc_inst
+  | SitofpInst of sitofp_inst
+  | UitofpInst of uitofp_inst
 ] <ocaml repr="classic">
 
 type expr = [
