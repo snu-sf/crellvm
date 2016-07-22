@@ -1025,6 +1025,13 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
      let y = Convert.value args.y in
      let b = Convert.const_int args.boolean in
      Infrule.Coq_icmp_inverse (c, ty, x, y, b)
+  | CoreHint_t.IcmpSwapOperands (args:CoreHint_t.icmp_swap_operands) ->
+     let c = Convert.cond args.predicate in
+     let ty = Convert.value_type args.ty in
+     let x = Convert.value args.x in
+     let y = Convert.value args.y in
+     let z = Convert.value args.z in
+     Infrule.Coq_icmp_swap_operands (c, ty, x, y, z)
   | CoreHint_t.ImpliesFalse (args:CoreHint_t.implies_false) ->
      let c1 = Convert.constant args.c1 in
      let c2 = Convert.constant args.c2 in
@@ -1034,10 +1041,78 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
      let x = Convert.value args.x in
      let y = Convert.value args.y in
      Infrule.Coq_icmp_eq_same (ty, x, y)
+  | CoreHint_t.IcmpEqXorNot (args:CoreHint_t.icmp_eq_xor_not) -> 
+     let z = Convert.value args.z in
+     let zprime = Convert.value args.zprime in
+     let a = Convert.value args.a in
+     let b = Convert.value args.b in
+     let s = Convert.size args.s in
+     Infrule.Coq_icmp_eq_xor_not (z, zprime, a, b, s)
+  | CoreHint_t.IcmpNeXor (args:CoreHint_t.icmp_ne_xor) -> 
+     let z = Convert.value args.z in
+     let a = Convert.value args.a in
+     let b = Convert.value args.b in
+     let s = Convert.size args.s in
+     Infrule.Coq_icmp_ne_xor (z, a, b, s)
   | CoreHint_t.IcmpNeqSame (args:CoreHint_t.icmp_neq_same) ->
      let ty = Convert.value_type args.ty in
      let x = Convert.value args.x in
      let y = Convert.value args.y in
      Infrule.Coq_icmp_neq_same (ty, x, y)
-  | _ ->
+  | CoreHint_t.IcmpSgeOrNot (args:CoreHint_t.icmp_sge_or_not) -> 
+     let z = Convert.value args.z in
+     let zprime = Convert.value args.zprime in
+     let a = Convert.value args.a in
+     let b = Convert.value args.b in
+     let s = Convert.size args.s in
+     Infrule.Coq_icmp_sge_or_not (z, zprime, a, b, s)
+  | CoreHint_t.IcmpSgtAndNot (args:CoreHint_t.icmp_sgt_and_not) -> 
+     let z = Convert.value args.z in
+     let zprime = Convert.value args.zprime in
+     let a = Convert.value args.a in
+     let b = Convert.value args.b in
+     let s = Convert.size args.s in
+     Infrule.Coq_icmp_sgt_and_not (z, zprime, a, b, s)
+  | CoreHint_t.IcmpSleOrNot (args:CoreHint_t.icmp_sle_or_not) -> 
+     let z = Convert.value args.z in
+     let zprime = Convert.value args.zprime in
+     let a = Convert.value args.a in
+     let b = Convert.value args.b in
+     let s = Convert.size args.s in
+     Infrule.Coq_icmp_sle_or_not (z, zprime, a, b, s)
+  | CoreHint_t.IcmpSltAndNot (args:CoreHint_t.icmp_slt_and_not) -> 
+     let z = Convert.value args.z in
+     let zprime = Convert.value args.zprime in
+     let a = Convert.value args.a in
+     let b = Convert.value args.b in
+     let s = Convert.size args.s in
+     Infrule.Coq_icmp_slt_and_not (z, zprime, a, b, s)
+  | CoreHint_t.IcmpUgeOrNot (args:CoreHint_t.icmp_uge_or_not) -> 
+     let z = Convert.value args.z in
+     let zprime = Convert.value args.zprime in
+     let a = Convert.value args.a in
+     let b = Convert.value args.b in
+     let s = Convert.size args.s in
+     Infrule.Coq_icmp_uge_or_not (z, zprime, a, b, s)
+  | CoreHint_t.IcmpUgtAndNot (args:CoreHint_t.icmp_ugt_and_not) -> 
+     let z = Convert.value args.z in
+     let zprime = Convert.value args.zprime in
+     let a = Convert.value args.a in
+     let b = Convert.value args.b in
+     let s = Convert.size args.s in
+     Infrule.Coq_icmp_ugt_and_not (z, zprime, a, b, s)
+  | CoreHint_t.IcmpUleOrNot (args:CoreHint_t.icmp_ule_or_not) -> 
+     let z = Convert.value args.z in
+     let zprime = Convert.value args.zprime in
+     let a = Convert.value args.a in
+     let b = Convert.value args.b in
+     let s = Convert.size args.s in
+     Infrule.Coq_icmp_ule_or_not (z, zprime, a, b, s)
+  | CoreHint_t.IcmpUltAndNot (args:CoreHint_t.icmp_ult_and_not) -> 
+     let z = Convert.value args.z in
+     let zprime = Convert.value args.zprime in
+     let a = Convert.value args.a in
+     let b = Convert.value args.b in
+     let s = Convert.size args.s in
+     Infrule.Coq_icmp_ult_and_not (z, zprime, a, b, s)  | _ ->
      failwith "convert_infrule does not deal with this inferece rule"

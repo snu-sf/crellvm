@@ -210,6 +210,43 @@ type fptrunc_inst = {
   toty : value_type;
 }
 
+type zext_inst = {
+  fromty : value_type;
+  v : value;
+  toty : value_type;
+}
+
+type sext_inst = {
+  fromty : value_type;
+  v : value;
+  toty : value_type;
+}
+
+type trunc_inst = {
+  fromty : value_type;
+  v : value;
+  toty : value_type;
+}
+
+type sitofp_inst = {
+  fromty : value_type;
+  v : value;
+  toty : value_type;
+}
+
+type uitofp_inst = {
+  fromty : value_type;
+  v : value;
+  toty : value_type;
+}
+
+type select_inst = {
+  cond : value;
+  valty : value_type;
+  trueval : value;
+  falseval : value;
+}
+
 type instruction = [ 
   | BinaryOp of binary_operator
   | FloatBinaryOp of float_binary_operator
@@ -218,10 +255,16 @@ type instruction = [
   | LoadInst of load_inst
   | BitCastInst of bit_cast_inst
   | GetElementPtrInst of get_element_ptr_inst
+  | SelectInst of select_inst
   | IntToPtrInst of int_to_ptr_inst
   | PtrToIntInst of ptr_to_int_inst
   | FpextInst of fpext_inst
   | FptruncInst of fptrunc_inst
+  | ZextInst of zext_inst
+  | SextInst of sext_inst
+  | TruncInst of trunc_inst
+  | SitofpInst of sitofp_inst
+  | UitofpInst of uitofp_inst
 ] <ocaml repr="classic">
 
 type expr = [
@@ -1470,6 +1513,14 @@ type icmp_inverse = {
   boolean : const_int;
 }
 
+type icmp_swap_operands = {
+  predicate : icmp_pred;
+  ty : value_type;
+  x : value;
+  y : value;
+  z : value;
+}
+
 type implies_false = {
   c1 : constant;
   c2 : constant;
@@ -1481,10 +1532,89 @@ type icmp_eq_same = {
   y : value;
 }
 
+type icmp_eq_xor_not = {
+    z : value;
+    zprime : value;
+    a : value;
+    b : value;
+    s : size;
+}
+
 type icmp_neq_same = {
   ty : value_type;
   x : value;
   y : value;
+}
+
+type icmp_ne_xor = {
+    z : value;
+    a : value;
+    b : value;
+    s : size;
+}
+
+type icmp_sge_or_not = {
+    z : value;
+    zprime : value;
+    a : value;
+    b : value;
+    s : size;
+}
+
+type icmp_sgt_and_not = {
+    z : value;
+    zprime : value;
+    a : value;
+    b : value;
+    s : size;
+}
+
+type icmp_sle_or_not = {
+    z : value;
+    zprime : value;
+    a : value;
+    b : value;
+    s : size;
+}
+
+type icmp_slt_and_not = {
+    z : value;
+    zprime : value;
+    a : value;
+    b : value;
+    s : size;
+}
+
+type icmp_uge_or_not = {
+    z : value;
+    zprime : value;
+    a : value;
+    b : value;
+    s : size;
+}
+
+type icmp_ugt_and_not = {
+    z : value;
+    zprime : value;
+    a : value;
+    b : value;
+    s : size;
+}
+
+type icmp_ule_or_not = {
+    z : value;
+    zprime : value;
+    a : value;
+    b : value;
+    s : size;
+}
+
+type icmp_ult_and_not = {
+    z : value;
+    zprime : value;
+    a : value;
+    b : value;
+    s : size;
 }
 
 
@@ -1630,9 +1760,20 @@ type infrule = [
   | ZextXor of zext_xor
   | ZextZext of zext_zext
   | IcmpInverse of icmp_inverse
+  | IcmpSwapOperands of icmp_swap_operands
   | ImpliesFalse of implies_false
   | IcmpEqSame of icmp_eq_same
+  | IcmpEqXorNot of icmp_eq_xor_not
   | IcmpNeqSame of icmp_neq_same
+  | IcmpNeXor of icmp_ne_xor
+  | IcmpSgeOrNot of icmp_sge_or_not
+  | IcmpSgtAndNot of icmp_sgt_and_not
+  | IcmpSleOrNot of icmp_sle_or_not
+  | IcmpSltAndNot of icmp_slt_and_not
+  | IcmpUgeOrNot of icmp_uge_or_not
+  | IcmpUgtAndNot of icmp_ugt_and_not
+  | IcmpUleOrNot of icmp_ule_or_not
+  | IcmpUltAndNot of icmp_ult_and_not
   ] <ocaml repr="classic">
 
 type hint_command = [
