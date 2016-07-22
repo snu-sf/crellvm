@@ -570,6 +570,11 @@ type and_same = {
   sz : size;
 }
 
+type and_true_bool = {
+  x : value;
+  y : value;
+}
+
 type and_undef = {
   z : value;
   x : value;
@@ -1021,6 +1026,12 @@ type or_commutative = {
 
 type or_commutative_tgt = {
   z : register;
+  x : value;
+  y : value;
+  sz : size;
+}
+
+type or_false = {
   x : value;
   y : value;
   sz : size;
@@ -1657,6 +1668,7 @@ type infrule = [
   | AndOr of and_or
   | AndOrConst2 of and_or_const2
   | AndSame of and_same
+  | AndTrueBool of and_true_bool
   | AndUndef of and_undef
   | AndZero of and_zero
   | BitcastBitcast of bitcast_bitcast
@@ -1708,6 +1720,7 @@ type infrule = [
   | OrAndXor of or_and_xor
   | OrCommutative of or_commutative
   | OrCommutativeTgt of or_commutative_tgt
+  | OrFalse of or_false
   | OrMone of or_mone
   | OrNot of or_not
   | OrOr of or_or

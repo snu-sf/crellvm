@@ -180,6 +180,10 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
      let x = Convert.value args.x in
      let sz = Convert.size args.sz in
      Infrule.Coq_and_same (z, x, sz)
+  | CoreHint_t.AndTrueBool (args:CoreHint_t.and_true_bool) ->
+     let x = Convert.value args.x in
+     let y = Convert.value args.y in
+     Infrule.Coq_and_true_bool (x, y)
   | CoreHint_t.AndUndef (args:CoreHint_t.and_undef) -> 
      let z = Convert.value args.z in
      let x = Convert.value args.x in
@@ -501,6 +505,11 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
      let y = Convert.value args.y in
      let sz = Convert.size args.sz in
      Infrule.Coq_or_commutative_tgt (z, x, y, sz)
+  | CoreHint_t.OrFalse (args:CoreHint_t.or_false) ->
+     let x = Convert.value args.x in
+     let y = Convert.value args.y in
+     let sz = Convert.size args.sz in
+     Infrule.Coq_or_false (x, y, sz)
   | CoreHint_t.OrMone (args:CoreHint_t.or_mone) -> 
      let z = Convert.value args.z in
      let a = Convert.value args.a in
