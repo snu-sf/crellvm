@@ -71,9 +71,13 @@ let main filename_src filename_tgt filename_hint =
   let _ = debug_print "description for this VU.." in
   let _ = debug_print hint.CoreHint_t.description in
   let _ =
-    if validation_result
-    then print_endline "Validation succeeded."
-    else (print_endline "Validation failed."; exit 1)
+    match hint.CoreHint_t.validation_result with
+    | 1 -> print_endline "Set to admitted."
+    | 2 -> print_endline "Set to fail."
+    | _ ->
+       if validation_result
+       then print_endline "Validation succeeded."
+       else (print_endline "Validation failed."; exit 1)
   in
 
   ()
