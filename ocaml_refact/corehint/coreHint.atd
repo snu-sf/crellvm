@@ -113,6 +113,7 @@ type constant = [
   | ConstNull of (int * value_type)
   | ConstUndef of value_type 
   | ConstGlobalVarAddr of const_global_var_addr 
+  | ConstDataVector of (value_type * constant list)
   | ConstExpr of constant_expr
   ] <ocaml repr="classic">
 
