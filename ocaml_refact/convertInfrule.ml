@@ -165,6 +165,16 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
      let a = Convert.value args.a in
      let sz = Convert.size args.sz in
      Infrule.Coq_and_or (z, x, y, a, sz)
+  | CoreHint_t.AndOrConst2 (args:CoreHint_t.and_or_const2) ->
+     let z = Convert.register args.z in
+     let y = Convert.register args.y in
+     let yprime = Convert.register args.yprime in
+     let x = Convert.value args.x in
+     let c1 = Convert.const_int args.c1 in
+     let c2 = Convert.const_int args.c2 in
+     let c3 = Convert.const_int args.c3 in
+     let sz = Convert.size args.sz in
+     Infrule.Coq_and_or_const2 (z, y, yprime, x, c1, c2, c3, sz)
   | CoreHint_t.AndSame (args:CoreHint_t.and_same) -> 
      let z = Convert.value args.z in
      let x = Convert.value args.x in

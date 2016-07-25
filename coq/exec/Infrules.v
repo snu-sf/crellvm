@@ -58,6 +58,13 @@ Definition cond_minus (s:sz) (c1 c2 c3: INTEGER.t) : bool :=
     (Int.repr (Size.to_nat s - 1) (INTEGER.to_Z c1))
     (Int.repr (Size.to_nat s - 1) (INTEGER.to_Z c2))).
 
+Definition cond_xor (s:sz) (c1 c2 c3: INTEGER.t) : bool :=
+  (Int.eq_dec (Size.to_nat s - 1))
+  (Int.repr (Size.to_nat s - 1) (INTEGER.to_Z c3))
+  (Int.xor (Size.to_nat s - 1)
+    (Int.repr (Size.to_nat s - 1) (INTEGER.to_Z c1))
+    (Int.repr (Size.to_nat s - 1) (INTEGER.to_Z c2))).
+ 
 Definition cond_mask_up (s:sz) (c1i c2i:INTEGER.t) : bool :=
   let ws := (Size.to_nat s - 1)%nat in
   let c1 := (Int.repr ws (INTEGER.to_Z c1i)) in
@@ -414,6 +421,13 @@ Definition apply_infrule
     if $$ inv0 |-src (Expr.value z) >= (Expr.bop bop_and s x y) $$ &&
        $$ inv0 |-src (Expr.value y) >= (Expr.bop bop_or s x a) $$
     then {{inv0 +++src (Expr.value z) >= (Expr.value x) }}
+    else apply_fail tt
+  | Infrule.and_or_const2 z y y' x c1 c2 c3 s =>
+    if $$ inv0 |-tgt (Expr.bop bop_or s x (const_int s c1)) >= (Expr.value (ValueT.id y')) $$ &&
+       $$ inv0 |-tgt (Expr.bop bop_and s x (const_int s c3)) >= (Expr.value (ValueT.id y)) $$ &&
+       $$ inv0 |-tgt (Expr.bop bop_or s y (const_int s c1)) >= (Expr.value (ValueT.id z)) $$ &&
+       cond_xor s c1 c2 c3
+    then {{inv0 +++tgt (Expr.bop bop_and s y' (const_int s c2)) >= (Expr.value (ValueT.id z)) }}
     else apply_fail tt
   | Infrule.and_same z x s =>
     if $$ inv0 |-src (Expr.value z) >= (Expr.bop bop_and s x x) $$
