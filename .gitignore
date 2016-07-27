@@ -6,11 +6,8 @@
 _CoqProject
 Makefile.coq
 
-/coq/extraction/*.ml
-/coq/extraction/*.mli
-
-/coq/extraction_new/*.ml
-/coq/extraction_new/*.mli
+/coq/extract/*.ml
+/coq/extract/*.mli
 
 /.build
 /install
@@ -19,11 +16,6 @@ Makefile.coq
 /ocaml/corehint/*
 !/ocaml/corehint/*.atd
 /ocaml/main.native
-
-/ocaml_refact/_build/
-/ocaml_refact/corehint/*
-!/ocaml_refact/corehint/*.atd
-/ocaml_refact/main.native
 
 /results-opt
 

@@ -39,14 +39,11 @@
 - `make opt`
     + It *only* builds "opt" executable in `.build/llvm-obj/bin`.
 
-- `make refact`
-    + It builds ocaml_refact/main.native, our current validator.
-
 - `make exec`
-    + *Ignore* this command for now. It builds ocaml/main.native, our old validator.
+    + It builds `ocaml/main.native`, the validator.
 
 - `make proof`
-    + *Ignore* this command for now. It tries to compile old proof, which is not updated to current Coq version.
+    + It compiles proof code, which is not yet implemented.
 
 ### Debugging ###
 
@@ -55,4 +52,5 @@
 
 ### TODO ###
 
+- `before_refact` branch represents the branch before refactoring, containing old proof codes.
 - `src/main.ml:70`: Currently we don't free memory spaces.
