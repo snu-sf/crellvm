@@ -58,6 +58,9 @@ Definition cond_minus (s:sz) (c1 c2 c3: INTEGER.t) : bool :=
     (Int.repr (Size.to_nat s - 1) (INTEGER.to_Z c1))
     (Int.repr (Size.to_nat s - 1) (INTEGER.to_Z c2))).
 
+Definition cond_le (s:sz) (c1 c2: INTEGER.t) : bool :=
+  Z.leb (INTEGER.to_Z c1) (INTEGER.to_Z c2).
+
 Definition cond_xor (s:sz) (c1 c2 c3: INTEGER.t) : bool :=
   (Int.eq_dec (Size.to_nat s - 1))
   (Int.repr (Size.to_nat s - 1) (INTEGER.to_Z c3))
@@ -248,8 +251,14 @@ Definition cond_floatpointtyp (t:typ) : bool :=
 Definition cond_onebit (s:sz) : bool :=
   sz_dec s (Size.One).
 
+Definition const_newint (s:sz) (i:INTEGER.t) : const := 
+  (const_int s (INTEGER.of_Z (Size.to_Z s) (INTEGER.to_Z i) true)).
+
 Definition const_mone (s:sz) : const := 
   (const_int s (INTEGER.of_Z (Size.to_Z s) (-1)%Z true)).
+
+Definition const_zero (s:sz) : const := 
+  (const_int s (INTEGER.of_Z (Size.to_Z s) (0)%Z true)).
 
 (* getInversePredicate in lib/IR/Instructions.cpp *)
 Definition get_inverse_icmp_cond (c:cond) : cond :=
@@ -805,6 +814,44 @@ Definition apply_infrule
        $$ inv0 |-src (Expr.value dst) >= (Expr.ext extop_s midty mid dstty) $$ &&
        cond_inttyp srcty
     then {{ inv0 +++src (Expr.value dst) >= (Expr.ext extop_s srcty src dstty) }}
+    else apply_fail tt
+  | Infrule.shift_undef1 z y s =>
+    let vundef := ValueT.const (const_undef (typ_int s)) in
+    if $$ inv0 |-src (Expr.value z) >= (Expr.bop bop_shl s y vundef) $$ ||
+       $$ inv0 |-src (Expr.value z) >= (Expr.bop bop_ashr s y vundef) $$ ||
+       $$ inv0 |-src (Expr.value z) >= (Expr.bop bop_lshr s y vundef) $$
+    then
+      let inv1 := {{ inv0 +++src (Expr.value z) >= (Expr.value vundef) }} in
+      {{ inv1 +++src (Expr.value vundef) >= (Expr.value z) }}
+    else apply_fail tt
+  | Infrule.shift_undef2 z y c s =>
+    let vc := ValueT.const (const_newint s c) in
+    let vundef := ValueT.const (const_undef (typ_int s)) in
+    if ($$ inv0 |-src (Expr.value z) >= (Expr.bop bop_shl s y vc) $$ ||
+       $$ inv0 |-src (Expr.value z) >= (Expr.bop bop_ashr s y vc) $$ ||
+       $$ inv0 |-src (Expr.value z) >= (Expr.bop bop_lshr s y vc) $$) &&
+       cond_le s (INTEGER.of_Z (Size.to_Z s) (Size.to_Z s) true) c
+    then
+      let inv1 := {{ inv0 +++src (Expr.value z) >= (Expr.value vundef) }} in
+      {{ inv1 +++src (Expr.value vundef) >= (Expr.value z) }}
+    else apply_fail tt
+  | Infrule.shift_zero1 z y s =>
+    let vc0 := ValueT.const (const_zero s) in
+    if $$ inv0 |-src (Expr.value z) >= (Expr.bop bop_shl s vc0 y) $$ ||
+       $$ inv0 |-src (Expr.value z) >= (Expr.bop bop_ashr s vc0 y) $$ ||
+       $$ inv0 |-src (Expr.value z) >= (Expr.bop bop_lshr s vc0 y) $$
+    then
+      let inv1 := {{ inv0 +++src (Expr.value z) >= (Expr.value vc0) }} in
+      {{ inv1 +++src (Expr.value vc0) >= (Expr.value z) }}
+    else apply_fail tt
+  | Infrule.shift_zero2 z y s =>
+    let vc0 := ValueT.const (const_zero s) in
+    if $$ inv0 |-src (Expr.value z) >= (Expr.bop bop_shl s y vc0) $$ ||
+       $$ inv0 |-src (Expr.value z) >= (Expr.bop bop_ashr s y vc0) $$ ||
+       $$ inv0 |-src (Expr.value z) >= (Expr.bop bop_lshr s y vc0) $$
+    then
+      let inv1 := {{ inv0 +++src (Expr.value z) >= (Expr.value y) }} in
+      {{ inv1 +++src (Expr.value y) >= (Expr.value z) }}
     else apply_fail tt
   | Infrule.sitofp_bitcast src mid dst srcty midty dstty =>
     if $$ inv0 |-src (Expr.value mid) >= (Expr.cast castop_bitcast srcty src midty) $$ &&
