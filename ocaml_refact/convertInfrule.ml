@@ -688,7 +688,7 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
   | CoreHint_t.SubAdd (args:CoreHint_t.sub_add) ->
      let z = Convert.register args.z in
      let my = Convert.value args.my in
-     let x = Convert.register args.x in
+     let x = Convert.value args.x in
      let y = Convert.value args.y in
      let sz = Convert.size args.sz in
      Infrule.Coq_sub_add (z, my, x, y, sz)
