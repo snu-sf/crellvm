@@ -40,7 +40,7 @@
     + It *only* builds "opt" executable in `.build/llvm-obj/bin`.
 
 - `make exec`
-    + It builds ocaml/main.native, the validator.
+    + It builds `ocaml/main.native`, the validator.
 
 - `make proof`
     + It compiles proof code, which is not yet implemented.
@@ -52,4 +52,5 @@
 
 ### TODO ###
 
+- `before_refact` branch represents the branch before refactoring, containing old proof codes.
 - `src/main.ml:70`: Currently we don't free memory spaces.
