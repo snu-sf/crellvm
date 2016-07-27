@@ -27,6 +27,8 @@ Makefile.coq: Makefile $(COQTHEORIES)
    echo $(COQTHEORIES)) > _CoqProject
 	rm -f extract_validator.vo
 	rm -f extract_defs.vo
+	rm -f extract_validator.vio
+	rm -f extract_defs.vio
 	coq_makefile -f _CoqProject -o Makefile.coq
 
 clean: Makefile.coq

@@ -12,6 +12,7 @@ Makefile.coq
 
 /.build
 /install
+/.proof_build
 
 /ocaml/_build/
 /ocaml/corehint/*

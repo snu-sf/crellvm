@@ -62,9 +62,9 @@ extract: def $(COQEXTRACT)
 	$(MAKE) -C lib/vellvm extract
 	$(MAKE) -C coq/extract
 
-extract-quick: definition-quick $(COQEXTRACT)
+extract-quick: def-quick $(COQEXTRACT)
 	$(MAKE) -C lib/vellvm extract-quick
-	$(MAKE) -C coq/extraction quick
+	$(MAKE) -C coq/extract quick
 
 exec: extract
 	$(MAKE) -C ocaml
@@ -75,7 +75,7 @@ exec-quick: extract-quick
 proof: def $(COQPROOF)
 	$(MAKE) -f Makefile.coq $(patsubst %.v,%.vo,$(COQPROOF))
 
-proof-quick: definition-quick $(COQPROOF)
+proof-quick: def-quick $(COQPROOF)
 	$(MAKE) -f Makefile.coq $(patsubst %.v,%.vio,$(COQPROOF)) quick
 
 %.vo: Makefile.coq
