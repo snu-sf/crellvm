@@ -28,7 +28,7 @@ module Reachable = struct
      - reachable from f
      - without passing through t
    *)
-  let _filtered (f:atom) (ids:AtomSetImpl.t) (succs:LLVMsyntax.ls Maps_ext.ATree.t) : bool * AtomSetImpl.t =
+  let _filtered (f:atom) (t:atom) (ids:AtomSetImpl.t) (succs:LLVMsyntax.ls Maps_ext.ATree.t) : bool * AtomSetImpl.t =
     let visit_f = ref false in
     let rec r (worklist:atom list) (visit:AtomSetImpl.t) : bool * AtomSetImpl.t =
       match worklist with
@@ -46,7 +46,7 @@ module Reachable = struct
                        visit_f := true
                      else ()
                    in
-                   if AtomSetImpl.mem succ visit || not (AtomSetImpl.mem succ ids)
+                   if succ = t || AtomSetImpl.mem succ visit || not (AtomSetImpl.mem succ ids)
                    then (worklist, visit)
                    else (succ::worklist, AtomSetImpl.add succ visit))
                  (worklist, visit)
@@ -84,12 +84,12 @@ module Reachable = struct
     r [f] AtomSetImpl.empty
 
   (* the set of nodes that is reachable to "t" without visiting "f" in "fd". *)
-  let to_block (t:atom) (ids:AtomSetImpl.t) (fd:LLVMsyntax.fdef) : bool * AtomSetImpl.t =
+  let to_block (f:atom) (t:atom) (ids:AtomSetImpl.t) (fd:LLVMsyntax.fdef) : bool * AtomSetImpl.t =
         if not (AtomSetImpl.mem t ids)
         then (false, AtomSetImpl.empty)
         else
           let predecessors = Cfg.predecessors fd in
-          _filtered t ids predecessors
+          _filtered t f ids predecessors
 
   (* the set of nodes that is reachable from "f". *)
   let from_block (block_id_from:atom) (fdef:LLVMsyntax.fdef) : AtomSetImpl.t =
@@ -102,7 +102,7 @@ module Reachable = struct
         (dtree:atom coq_DTree)
       : bool * AtomSetImpl.t =
     let dominated_by_from = dom_by bid_from dtree in
-    to_block bid_to dominated_by_from fdef
+    to_block bid_from bid_to dominated_by_from fdef
 end
 
 (* object for propagation *)

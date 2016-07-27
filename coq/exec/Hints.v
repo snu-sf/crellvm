@@ -239,6 +239,7 @@ Module Infrule.
   | and_mone (z:ValueT.t) (x:ValueT.t) (s:sz)
   | and_not (z:ValueT.t) (x:ValueT.t) (y:ValueT.t) (s:sz)
   | and_or (z:ValueT.t) (x:ValueT.t) (y:ValueT.t) (a:ValueT.t) (s:sz)
+  | and_or_const2 (z:IdT.t) (y:IdT.t) (y':IdT.t) (x:ValueT.t) (c1:INTEGER.t) (c2:INTEGER.t) (c3:INTEGER.t) (sz:sz)
   | and_same (z:ValueT.t) (x:ValueT.t) (s:sz)
   | and_undef (z:ValueT.t) (x:ValueT.t) (s:sz)
   | and_zero (z:ValueT.t) (x:ValueT.t) (s:sz)

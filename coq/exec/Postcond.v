@@ -717,6 +717,9 @@ Definition postcond_cmd_get_lessdef
     | insn_store x ty v p a =>
       Some (Expr.load (ValueT.lift Tag.physical p) ty a,
             Expr.value (ValueT.lift Tag.physical v))
+    | insn_alloca x ty v a =>
+      Some (Expr.load (ValueT.id (IdT.lift Tag.physical x)) ty a,
+            Expr.value (ValueT.const (const_undef ty)))
     | _ => None
     end
   end.
