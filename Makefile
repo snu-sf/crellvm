@@ -1,6 +1,6 @@
 COQMODULE     := LLVMBerry
 COQDEF := $(wildcard coq/def/*.v)
-COQEXTRACT    := $(wildcard coq/extraction/*.v)
+COQEXTRACT    := $(wildcard coq/extract/*.v)
 COQPROOF      := $(filter-out $(COQEXTRACT), $(filter-out $(COQDEF), $(wildcard coq/*/*.v)))
 COQTHEORIES   := $(COQDEF) $(COQEXTRACT) $(COQPROOF)
 
@@ -50,7 +50,7 @@ def: Makefile.coq lib $(COQDEF)
 
 extract: def
 	$(MAKE) -C lib/vellvm extract
-	$(MAKE) -C coq/extraction
+	$(MAKE) -C coq/extract
 
 exec: extract
 	$(MAKE) -C ocaml

@@ -6,7 +6,7 @@ LIB_FILES = llvm.cmxa,llvm_analysis.cmxa,llvm_target.cmxa,llvm_bitreader.cmxa,ll
 
 OCAMLBUILD = ocamlbuild
 OCAMLBUILD_OPT = -r \
-	-I extraction \
+	-I extract \
 	-I corehint \
 	-I vellvm \
 	-use-ocamlfind -pkg atdgen \

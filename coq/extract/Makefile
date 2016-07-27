@@ -1,12 +1,12 @@
 COQMODULE     := LLVMBerry
-COQTHEORIES := extraction_defs.v extraction_validator.v $(wildcard ../exec/*.v)
+COQTHEORIES := extract_defs.v extract_validator.v $(wildcard ../exec/*.v)
 
-all: extraction
+all: extract
 	echo $(COQTHEORIES)
 
-extraction: Makefile.coq
-	$(MAKE) -f Makefile.coq extraction_defs.vo
-	$(MAKE) -f Makefile.coq extraction_validator.vo
+extract: Makefile.coq
+	$(MAKE) -f Makefile.coq extract_defs.vo
+	$(MAKE) -f Makefile.coq extract_validator.vo
 
 Makefile.coq: Makefile $(COQTHEORIES)
 	(echo "-install none"; \
@@ -18,8 +18,8 @@ Makefile.coq: Makefile $(COQTHEORIES)
    echo "-R ../../lib/vellvm/lib/cpdtlib Cpdt"; \
    echo "-R ../../lib/vellvm/lib/compcert-2.4 compcert"; \
    echo $(COQTHEORIES)) > _CoqProject
-	rm -f extraction_validator.vo
-	rm -f extraction_defs.vo
+	rm -f extract_validator.vo
+	rm -f extract_defs.vo
 	coq_makefile -f _CoqProject -o Makefile.coq
 
 clean: Makefile.coq
