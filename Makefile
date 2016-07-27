@@ -1,5 +1,5 @@
 COQMODULE     := LLVMBerry
-COQDEFINITION := $(wildcard coq/exec/*.v coq/validator/*.v)
+COQDEFINITION := $(wildcard coq/exec/*.v)
 COQEXTRACT    := $(wildcard coq/extraction/*.v)
 COQPROOF      := $(filter-out $(COQEXTRACT), $(filter-out $(COQDEFINITION), $(wildcard coq/*/*.v)))
 COQTHEORIES   := $(COQDEFINITION) $(COQEXTRACT) $(COQPROOF)
@@ -48,20 +48,12 @@ lib: lib/sflib lib/paco/src lib/vellvm
 definition: Makefile.coq lib $(COQDEFINITION)
 	$(MAKE) -f Makefile.coq $(patsubst %.v,%.vo,$(COQDEFINITION))
 
-extract: definition $(COQEXTRACT)
+extract: definition
 	$(MAKE) -C lib/vellvm extract
 	$(MAKE) -C coq/extraction
 
 exec: extract
 	$(MAKE) -C ocaml
-
-# TODO: remove this after refactoring
-extract_refact: definition
-	$(MAKE) -C lib/vellvm extract
-	$(MAKE) -C coq/extraction_new
-
-refact: extract_refact
-	$(MAKE) -C ocaml_refact
 
 proof: definition $(COQPROOF)
 	$(MAKE) -f Makefile.coq $(patsubst %.v,%.vo,$(COQPROOF))
@@ -71,7 +63,7 @@ proof: definition $(COQPROOF)
 
 test:
 	rm -rf results-opt
-	python ./simplberry-tests/test.py -e ./.build/llvm-obj/bin/opt -v ./ocaml_refact/main.native -r "-O2" -o -i "./simplberry-tests/inputs_full"
+	python ./simplberry-tests/test.py -e ./.build/llvm-obj/bin/opt -v ./ocaml/main.native -r "-O2" -o -i "./simplberry-tests/inputs_full"
 	python ./simplberry-tests/listfails.py -f results-opt
 	python ./simplberry-tests/statistics.py -f results-opt -o
 
