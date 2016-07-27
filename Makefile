@@ -1,15 +1,15 @@
 COQMODULE     := LLVMBerry
-COQDEFINITION := $(wildcard coq/exec/*.v)
+COQDEF := $(wildcard coq/def/*.v)
 COQEXTRACT    := $(wildcard coq/extraction/*.v)
-COQPROOF      := $(filter-out $(COQEXTRACT), $(filter-out $(COQDEFINITION), $(wildcard coq/*/*.v)))
-COQTHEORIES   := $(COQDEFINITION) $(COQEXTRACT) $(COQPROOF)
+COQPROOF      := $(filter-out $(COQEXTRACT), $(filter-out $(COQDEF), $(wildcard coq/*/*.v)))
+COQTHEORIES   := $(COQDEF) $(COQEXTRACT) $(COQPROOF)
 
 JOBS=24
 ROOT=`pwd`
 LLVM_SRCDIR=${ROOT}/lib/llvm
 LLVM_OBJDIR=${ROOT}/.build/llvm-obj
 
-.PHONY: all init Makefile.coq opt llvm lib definition extract exec proof test clean
+.PHONY: all init Makefile.coq opt llvm lib def extract exec proof test clean
 
 all: exec proof
 
@@ -45,17 +45,17 @@ lib: lib/sflib lib/paco/src lib/vellvm
 	$(MAKE) -C lib/paco/src
 	$(MAKE) -C lib/vellvm
 
-definition: Makefile.coq lib $(COQDEFINITION)
-	$(MAKE) -f Makefile.coq $(patsubst %.v,%.vo,$(COQDEFINITION))
+def: Makefile.coq lib $(COQDEF)
+	$(MAKE) -f Makefile.coq $(patsubst %.v,%.vo,$(COQDEF))
 
-extract: definition
+extract: def
 	$(MAKE) -C lib/vellvm extract
 	$(MAKE) -C coq/extraction
 
 exec: extract
 	$(MAKE) -C ocaml
 
-proof: definition $(COQPROOF)
+proof: def $(COQPROOF)
 	$(MAKE) -f Makefile.coq $(patsubst %.v,%.vo,$(COQPROOF))
 
 %.vo: Makefile.coq
