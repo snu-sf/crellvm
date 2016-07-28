@@ -485,6 +485,10 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
      let ty = Convert.value_type args.ty in
      let v = Convert.value args.v in
      Infrule.Coq_lessthan_undef (ty, v)
+  | CoreHint_t.LessthanUndefTgt (args:CoreHint_t.lessthan_undef_tgt) ->
+     let ty = Convert.value_type args.ty in
+     let v = Convert.value args.v in
+     Infrule.Coq_lessthan_undef_tgt (ty, v)
   | CoreHint_t.OrCommutative (args:CoreHint_t.or_commutative) ->
      let z = Convert.register args.z in
      let x = Convert.value args.x in
