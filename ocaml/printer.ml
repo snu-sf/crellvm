@@ -15,11 +15,6 @@ let debug_run f =
 let debug_print s =
   debug_run (fun _ -> Printf.fprintf !out_channel "DEBUG: %s\n" s)
 
-let debug_run f =
-  if !Globalstates.debug
-  then f ()
-  else ()
-
 let debug_bool (b:bool) (msg:string): bool =
   let _ =
     debug_run
