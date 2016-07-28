@@ -8,7 +8,7 @@ open Llvm
 open Arg
 open Syntax
 open MetatheoryAtom
-open Extraction_defs
+open Extract_defs
 open Dom_list
 open Dom_tree
 open CoreHint_t

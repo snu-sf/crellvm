@@ -13,7 +13,7 @@ open Datatype_base
 open Syntax
 open BinInt
 open BinPos
-open Extraction_defs
+open Extract_defs
 open AddInfrule
 open CoreHint_t
 open ConvertUtil
