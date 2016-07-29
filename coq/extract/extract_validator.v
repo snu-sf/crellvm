@@ -1,5 +1,5 @@
 Require Import syntax.
-Require Import extraction_defs.
+Require Import extract_defs.
 Require Import Validator.
 Require Import Infrules.
 Require Import Hints.
@@ -52,7 +52,7 @@ Extract Constant signbit_of => "(fun x ->
 
 
 Extraction Library FMapWeakList.
-Extraction Library extraction_defs.
+Extraction Library extract_defs.
 Extraction Library TODO.
 Extraction Library Exprs.
 Extraction Library Hints.

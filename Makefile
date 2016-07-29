@@ -48,7 +48,7 @@ lib: lib/sflib lib/paco/src lib/vellvm
 def: Makefile.coq lib $(COQDEF)
 	$(MAKE) -f Makefile.coq $(patsubst %.v,%.vo,$(COQDEF))
 
-extract: def
+extract: def $(COQEXTRACT)
 	$(MAKE) -C lib/vellvm extract
 	$(MAKE) -C coq/extract
 

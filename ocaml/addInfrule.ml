@@ -9,7 +9,7 @@ open Arg
 open Hints
 open Syntax
 open MetatheoryAtom
-open Extraction_defs
+open Extract_defs
 open CoreHint_t
 open ConvertUtil
 open Printexc

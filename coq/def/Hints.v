@@ -282,6 +282,7 @@ Module Infrule.
   | inttoptr_zext (src:ValueT.t) (mid:ValueT.t) (dst:ValueT.t) (srcty:typ) (midty:typ) (dstty:typ)
   | inttoptr_load (ptr:ValueT.t) (intty:typ) (v1:ValueT.t) (ptrty:typ) (v2:ValueT.t) (a:align)
   | lessthan_undef (ty:typ) (v:ValueT.t)
+  | lessthan_undef_tgt (ty:typ) (v:ValueT.t)
   | mul_bool (z:IdT.t) (x:IdT.t) (y:IdT.t)
   | mul_commutative (z:IdT.t) (x:ValueT.t) (y:ValueT.t) (sz:sz)
   | mul_mone (z:IdT.t) (x:ValueT.t) (sz:sz)

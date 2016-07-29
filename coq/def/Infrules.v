@@ -61,6 +61,13 @@ Definition cond_minus (s:sz) (c1 c2 c3: INTEGER.t) : bool :=
 Definition cond_le (s:sz) (c1 c2: INTEGER.t) : bool :=
   Z.leb (INTEGER.to_Z c1) (INTEGER.to_Z c2).
 
+Definition cond_and (s:sz) (c1 c2 c3: INTEGER.t) : bool :=
+  (Int.eq_dec (Size.to_nat s - 1))
+  (Int.repr (Size.to_nat s - 1) (INTEGER.to_Z c3))
+  (Int.and (Size.to_nat s - 1)
+    (Int.repr (Size.to_nat s - 1) (INTEGER.to_Z c1))
+    (Int.repr (Size.to_nat s - 1) (INTEGER.to_Z c2))).
+ 
 Definition cond_xor (s:sz) (c1 c2 c3: INTEGER.t) : bool :=
   (Int.eq_dec (Size.to_nat s - 1))
   (Int.repr (Size.to_nat s - 1) (INTEGER.to_Z c3))
@@ -435,7 +442,7 @@ Definition apply_infrule
     if $$ inv0 |-tgt (Expr.bop bop_or s x (const_int s c1)) >= (Expr.value (ValueT.id y')) $$ &&
        $$ inv0 |-tgt (Expr.bop bop_and s x (const_int s c3)) >= (Expr.value (ValueT.id y)) $$ &&
        $$ inv0 |-tgt (Expr.bop bop_or s y (const_int s c1)) >= (Expr.value (ValueT.id z)) $$ &&
-       cond_xor s c1 c2 c3
+       cond_xor s c1 c2 c3 && cond_and s c1 c2 c1
     then {{inv0 +++tgt (Expr.bop bop_and s y' (const_int s c2)) >= (Expr.value (ValueT.id z)) }}
     else apply_fail tt
   | Infrule.and_same z x s =>
@@ -651,6 +658,8 @@ Definition apply_infrule
     else apply_fail tt
   | Infrule.lessthan_undef ty v => 
     {{ inv0 +++src (Expr.value (ValueT.const (const_undef ty))) >= (Expr.value v) }}
+  | Infrule.lessthan_undef_tgt ty v => 
+    {{ inv0 +++tgt (Expr.value (ValueT.const (const_undef ty))) >= (Expr.value v) }}
   | Infrule.sdiv_sub_srem z b a x y s =>
     if $$ inv0 |-src (Expr.value (ValueT.id b)) >= (Expr.bop bop_srem s x y) $$ &&
        $$ inv0 |-src (Expr.value (ValueT.id a)) >= (Expr.bop bop_sub s x (ValueT.id b)) $$ &&
