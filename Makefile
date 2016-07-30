@@ -14,7 +14,7 @@ LLVM_OBJDIR=${ROOT}/.build/llvm-obj
 
 all: exec proof
 
-quick: exec-with-rsync proof-quick
+quick: exec-rsync proof-quick
 
 init:
 	opam install menhir ott batteries biniou atdgen cppo easy-format ctypes coq.8.5.2~camlp4
@@ -72,12 +72,12 @@ extract: def $(COQEXTRACT)
 exec: extract
 	$(MAKE) -C ocaml
 
-exec-with-rsync: rsync-send
+exec-rsync: rsync-send
 	$(MAKE) -C $(PROOF_BUILD_DIR) extract
 	$(MAKE) rsync-receive
 	$(MAKE) -C ocaml
 
-proof-with-rsync: rsync-send
+proof-rsync: rsync-send
 	$(MAKE) -C $(PROOF_BUILD_DIR) proof
 
 proof: def $(COQPROOF)

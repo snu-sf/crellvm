@@ -47,14 +47,14 @@
 
 - Currently, the Makefile supports one possible workflow.
 
-- `make exec-with-rsync`
+- `make exec-rsync`
     + Create `.proof_build` directory, copying *minimal complete* files needed for coq compile in this directory recursively.
     + Extract `*.ml`, `*.mli` files inside `.proof_build` by compiling coq code without `-quick` option.
     + Pull extracted `*.ml`, `*.mli` files back to current directory.
     + This is done with `rsync`.
 
 - `make proof-with-rysnc`
-    + Similar to `make exec-with-rsync`, it executes same rsync scripts to copy current coq files into `.proof_build` directory.
+    + Similar to `make exec-rsync`, it executes same rsync scripts to copy current coq files into `.proof_build` directory.
     + Compile proof code without `-quick` option inside `.proof_build`.
 
 - The desire behind this design decision is: User may only want to read/update codes inside current directory, and do not care `.proof_build` directory at all.
