@@ -25,12 +25,6 @@
     + `install/bin` will contain llvm installation.
     + You may want to alter "JOBS" variable, default is 24.
 
-- `make lib`
-    + It builds `vellvm-legacy`.  See `https://github.com/snu-sf/vellvm-legacy` for more details.
-    + `lib/vellvm/src/` will contain `.vo` files.
-    + `lib/vellvm/src/Extraction` will contain extracted `.ml`, `.mli` files.
-    + It also builds sflib and paco.
-
 - `make llvm`
     + You may want to alter "JOBS" variable, default is 24.
     + `script/llvm-build.sh`
@@ -39,38 +33,29 @@
 - `make opt`
     + It *only* builds "opt" executable in `.build/llvm-obj/bin`.
 
-- `make`
-    + It executes `make exec` and `make proof`
-
-- `make exec`
-    + It builds `ocaml/main.native`, the validator.
-
-- `make proof`
-    + It compiles proof code, which is not yet implemented.
-
-- `make def`, `make extract`
-    + You might not need this command often.
-    + `definition` only compiles Coq codes in `exec` directory, which are needed for validator execution.
-    + `extract` only compiles Coq codes in `extraction` directory, which actually extracts Coq code to OCaml code that valiidator needs.
-
 ### Quick Build ###
 
-- `make quick`, `make lib-quick`, `make def-quick`, `make proof-quick`
-    + Same with make without `quick`, but compiles coq files with `-quick` option. It produces `*.vio` instead of `*.vo`. For more information, refer to [this](https://coq.inria.fr/refman/Reference-Manual031.html).
-    + It needs separate copy of whole repository, so one is for `*.vo` and the other is for `*.vio`. For more information, refer to [this](https://github.com/snu-sf/simplberry/pull/247). What you need to know is do *NOT* compile with/without quick option inside same directory.
++ Compiles coq files with `-quick` option. It produces `*.vio` instead of `*.vo`. For more information, refer to [this](https://coq.inria.fr/refman/Reference-Manual031.html).
++ It needs separate copy of whole repository, so one is for `*.vo` and the other is for `*.vio`. For more information, refer to [this](https://github.com/snu-sf/simplberry/pull/247). What you need to know is do *NOT* compile with/without quick option inside same directory.
++ There is *NO* `make extract-quick`, as `-quick` option ignores extraction. Therefore, there is no `make exec-quick` neither. For more information, refer to [this](https://github.com/snu-sf/simplberry/issues/236#issuecomment-235553528).
 
-- `make extract-quick`, `make exec-quick`,
-    + There is *NO* `make extract-quick`, as `-quick` option ignores extraction. Therefore, there is no `make exec-quick` neither. For more information, refer to [this](https://github.com/snu-sf/simplberry/issues/236#issuecomment-235553528).
+- `make proof-quick`
+    + It compiles proof code with `-quick` option.
+    + Compiling proof code requires compiling all other coq codes, so it also do that.
 
 #### Rsync ####
 
 - Currently, the Makefile supports one possible workflow.
 
 - `make exec-with-rsync`
-    + This creates `.proof_build` directory, copying *minimal complete* files needed for coq compile in this directory recursively. It do `make extract` inside `.proof_build`, and pull extracted `*.ml`, `*.mli` files back to current directory. This is done with `rsync`.
+    + Create `.proof_build` directory, copying *minimal complete* files needed for coq compile in this directory recursively.
+    + Extract `*.ml`, `*.mli` files inside `.proof_build` by compiling coq code without `-quick` option.
+    + Pull extracted `*.ml`, `*.mli` files back to current directory.
+    + This is done with `rsync`.
 
 - `make proof-with-rysnc`
-    + Similar to `make exec-with-rsync`, it executes same rsync scripts to copy *minimal complete* files needed for coq compile in this directory, and then execute `make proof` inside `.proof_build`.
+    + Similar to `make exec-with-rsync`, it executes same rsync scripts to copy current coq files into `.proof_build` directory.
+    + Compile proof code without `-quick` option inside `.proof_build`.
 
 - The desire behind this design decision is: User may only want to read/update codes inside current directory, and do not care `.proof_build` directory at all.
 
