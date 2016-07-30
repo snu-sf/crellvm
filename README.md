@@ -15,6 +15,7 @@
     + `sudo yum install cmake`
 
 ### Build ###
+- You may want to alter "JOBS" variable, default is 24.
 
 - `make init`
     + It installs Coq & OCaml libraries.
@@ -23,10 +24,8 @@
     + It also buildss & installs llvm.
     + `.build/llvm-obj` will contain llvm object files.
     + `install/bin` will contain llvm installation.
-    + You may want to alter "JOBS" variable, default is 24.
 
 - `make llvm`
-    + You may want to alter "JOBS" variable, default is 24.
     + `script/llvm-build.sh`
     + `.build/llvm-obj` will contain llvm object files.
 
