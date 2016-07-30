@@ -55,19 +55,17 @@
 
 ### Quick Build ###
 
-- `make quick`, `make lib-quick`, `make def-quick`, `make extract-quick`, `make exec-quick`, `make proof-quick`
+- `make quick`, `make lib-quick`, `make def-quick`, `make proof-quick`
     + Same with make without `quick`, but compiles coq files with `-quick` option. It produces `*.vio` instead of `*.vo`. For more information, refer to [this](https://coq.inria.fr/refman/Reference-Manual031.html).
-    + You might need to separate repository, one for `*.vo` and the other for `*.vio`. For more information, refer to [this](https://github.com/snu-sf/simplberry/pull/247).
-    + Recommended way to separate repository and keep sync is using `unison`.
-    + You may use original repository for `*.vio` files, only running `make` with `quick`.
-    + You may add the following line in `~/.unison/default.prf`, and then execute `run_unison.sh` to keep sync.
-    + You may use copied repository for `*.vo` files, only running `make` without `quick`.
-        + You may not be able to run `make exec`, because it needs OCaml binding from .build directory.
-        + However, `make proof` should be sufficient.
-    + You may need to clear `~/.unison` correspondingly when you delete copied repository.
-~~~
-ignore = Name {.git,.build,simplberry-tests,*.vo,*.vio,*.zip,_CoqProject,Makefile.coq}
-~~~
+    + It needs separate copy of whole repository, so one is for `*.vo` and the other is for `*.vio`. For more information, refer to [this](https://github.com/snu-sf/simplberry/pull/247). What you need to know is do *NOT* compile with/without quick option inside same directory.
+
+- `make extract-quick`, `make exec-quick`,
+    + There is *NO* `make extract-quick`, as `-quick` option ignores extraction. Therefore, there is no `make exec-quick` neither. For more information, refer to [this](https://github.com/snu-sf/simplberry/issues/236#issuecomment-235553528).
+
+- `make exec-quick-with-rsync`
+    + Currently, the Makefile supports one possible workflow.
+    + This creates `.proof_build` directory, copying *minimal complete* files in this directory recursively. It do `make extract` inside `.proof_build`, and pull extracted `*.ml`, `*.mli` files back to current directory. This is done with `rsync`.
+    + These are the desire between this design decision: User may only want to read/update codes inside current directory, and do not care `.proof_build` directory at all.
 
 ### Debugging ###
 
