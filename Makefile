@@ -3,6 +3,7 @@ COQDEF := $(wildcard coq/def/*.v)
 COQEXTRACT    := $(wildcard coq/extract/*.v)
 COQPROOF      := $(filter-out $(COQEXTRACT), $(filter-out $(COQDEF), $(wildcard coq/*/*.v)))
 COQTHEORIES   := $(COQDEF) $(COQEXTRACT) $(COQPROOF)
+PROOF_BUILD_DIR=.proof_build
 
 JOBS=24
 ROOT=`pwd`
@@ -13,7 +14,7 @@ LLVM_OBJDIR=${ROOT}/.build/llvm-obj
 
 all: exec proof
 
-quick: exec-quick proof-quick
+quick: exec-quick-with-rsync proof-quick
 
 init:
 	opam install menhir ott batteries biniou atdgen cppo easy-format ctypes coq.8.5.2~camlp4
@@ -42,6 +43,12 @@ opt:
 llvm:
 	./script/llvm-build.sh $(JOBS)
 
+rsync-send:
+	sh script/rsync-send.sh
+
+rsync-receive:
+	sh script/rsync-receive.sh
+
 lib: lib/sflib lib/paco/src lib/vellvm
 	$(MAKE) -C lib/sflib
 	$(MAKE) -C lib/paco/src
@@ -62,14 +69,12 @@ extract: def $(COQEXTRACT)
 	$(MAKE) -C lib/vellvm extract
 	$(MAKE) -C coq/extract
 
-extract-quick: def-quick $(COQEXTRACT)
-	$(MAKE) -C lib/vellvm extract-quick
-	$(MAKE) -C coq/extract quick
-
 exec: extract
 	$(MAKE) -C ocaml
 
-exec-quick: extract-quick
+exec-quick-with-rsync: rsync-send
+	$(MAKE) -C $(PROOF_BUILD_DIR) extract
+	$(MAKE) rsync-receive
 	$(MAKE) -C ocaml
 
 proof: def $(COQPROOF)
