@@ -23,7 +23,7 @@
     + It also buildss & installs llvm.
     + `.build/llvm-obj` will contain llvm object files.
     + `install/bin` will contain llvm installation.
-    + You may want to alter "JOBS" variable, default is 8.
+    + You may want to alter "JOBS" variable, default is 24.
 
 - `make lib`
     + It builds `vellvm-legacy`.  See `https://github.com/snu-sf/vellvm-legacy` for more details.
