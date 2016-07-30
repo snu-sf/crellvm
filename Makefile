@@ -77,6 +77,9 @@ exec-with-rsync: rsync-send
 	$(MAKE) rsync-receive
 	$(MAKE) -C ocaml
 
+proof-with-rsync: rsync-send
+	$(MAKE) -C $(PROOF_BUILD_DIR) proof
+
 proof: def $(COQPROOF)
 	$(MAKE) -f Makefile.coq $(patsubst %.v,%.vo,$(COQPROOF))
 
