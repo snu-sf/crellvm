@@ -302,30 +302,6 @@ module PrintHints = struct
       ()
   end
 
-let debug_run f =
-  if !Globalstates.debug
-  then f ()
-  else ()
-
-let debug_bool (b:bool) (msg:string): bool =
-  let _ =
-    debug_run
-      (fun _ ->
-       if not b
-       then debug_print msg
-       else ())
-  in b
-
-let debug_option (o:'a option) (msg:string): 'a option =
-  let _ =
-    debug_run
-      (fun _ ->
-       match o with
-         | None -> debug_print msg
-         | Some _ -> ()
-      )
-  in o
-
 let debug_print_validation_process (infrules: Infrule.t list)
                                    (inv0: Invariant.t)
                                    (inv1: Invariant.t)
