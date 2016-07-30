@@ -1,5 +1,6 @@
 *.vo
 *.v.d
+*.vio
 *.glob
 *.aux
 
@@ -11,6 +12,7 @@ Makefile.coq
 
 /.build
 /install
+/.proof_build
 
 /ocaml/_build/
 /ocaml/corehint/*
