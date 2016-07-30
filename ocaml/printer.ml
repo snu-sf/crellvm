@@ -15,25 +15,6 @@ let debug_run f =
 let debug_print s =
   debug_run (fun _ -> Printf.fprintf !out_channel "DEBUG: %s\n" s)
 
-let debug_bool (b:bool) (msg:string): bool =
-  let _ =
-    debug_run
-      (fun _ ->
-       if not b
-       then debug_print msg
-       else ())
-  in b
-
-let debug_option (o:'a option) (msg:string): 'a option =
-  let _ =
-    debug_run
-      (fun _ ->
-       match o with
-         | None -> debug_print msg
-         | Some _ -> ()
-      )
-  in o
-
 module ExprsToString = struct
     let of_Tag (t:Tag.t): string =
       match t with
