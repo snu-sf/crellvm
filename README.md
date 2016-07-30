@@ -62,7 +62,7 @@
 - `make extract-quick`, `make exec-quick`,
     + There is *NO* `make extract-quick`, as `-quick` option ignores extraction. Therefore, there is no `make exec-quick` neither. For more information, refer to [this](https://github.com/snu-sf/simplberry/issues/236#issuecomment-235553528).
 
-- `make exec-quick-with-rsync`
+- `make exec-with-rsync`
     + Currently, the Makefile supports one possible workflow.
     + This creates `.proof_build` directory, copying *minimal complete* files in this directory recursively. It do `make extract` inside `.proof_build`, and pull extracted `*.ml`, `*.mli` files back to current directory. This is done with `rsync`.
     + These are the desire between this design decision: User may only want to read/update codes inside current directory, and do not care `.proof_build` directory at all.
