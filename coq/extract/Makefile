@@ -4,16 +4,9 @@ COQTHEORIES := extract_defs.v extract_validator.v $(wildcard ../exec/*.v)
 all: extract
 	echo $(COQTHEORIES)
 
-quick: extract-quick
-	echo $(COQTHEORIES)
-
 extract: Makefile.coq
 	$(MAKE) -f Makefile.coq extract_defs.vo
 	$(MAKE) -f Makefile.coq extract_validator.vo
-
-extract-quick: Makefile.coq
-	$(MAKE) -f Makefile.coq extract_defs.vio quick
-	$(MAKE) -f Makefile.coq extract_validator.vio quick
 
 Makefile.coq: Makefile $(COQTHEORIES)
 	(echo "-install none"; \
