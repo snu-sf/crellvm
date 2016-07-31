@@ -66,7 +66,6 @@ let main filename_src filename_tgt filename_hint =
   let coq_hint = ConvertHint.convert coq_im_src coq_im_tgt hint in
 
   let _ = debug_print "validation.." in
-  let validation_result = Validator.valid_module coq_hint coq_im_src coq_im_tgt in
 
   let _ = debug_print "description for this VU.." in
   let _ = debug_print hint.CoreHint_t.description in
@@ -75,6 +74,7 @@ let main filename_src filename_tgt filename_hint =
     | 1 -> print_endline "Set to admitted."
     | 2 -> print_endline "Set to fail."
     | _ ->
+       let validation_result = Validator.valid_module coq_hint coq_im_src coq_im_tgt in
        if validation_result
        then print_endline "Validation succeeded."
        else (print_endline "Validation failed."; exit 1)
