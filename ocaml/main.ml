@@ -71,7 +71,7 @@ let main filename_src filename_tgt filename_hint =
   let _ = debug_print "description for this VU.." in
   let _ = debug_print hint.CoreHint_t.description in
   let _ =
-    match hint.CoreHint_t.validation_result with
+    match hint.CoreHint_t.return_code with
     | 1 -> print_endline "Set to admitted."
     | 2 -> print_endline "Set to fail."
     | _ ->

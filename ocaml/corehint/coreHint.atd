@@ -1804,7 +1804,7 @@ type hints = {
   function_id : string;
   opt_name : string;
   ~description : string;
-  ~validation_result : int;
+  ~return_code : int;
   nop_positions: position list; (* insert after position *)
 
   commands : hint_command list;
