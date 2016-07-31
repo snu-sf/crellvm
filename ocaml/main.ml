@@ -54,19 +54,6 @@ let main filename_src filename_tgt filename_hint =
   let coq_im_tgt = read_im filename_tgt in
   let hint = read_hint filename_hint in
 
-  let (src_nop_positions, tgt_nop_positions) =
-    List.partition (fun (nop:CoreHint_t.position) ->
-                    nop.CoreHint_t.scope = CoreHint_t.Source) hint.CoreHint_t.nop_positions in
-  
-  let coq_im_src = ConvertHint.insert_nop hint.function_id
-                     coq_im_src src_nop_positions in
-  let coq_im_tgt = ConvertHint.insert_nop hint.function_id
-                     coq_im_tgt tgt_nop_positions in
-
-  let coq_hint = ConvertHint.convert coq_im_src coq_im_tgt hint in
-
-  let _ = debug_print "validation.." in
-
   let _ = debug_print "description for this VU.." in
   let _ = debug_print hint.CoreHint_t.description in
   let _ =
@@ -74,7 +61,21 @@ let main filename_src filename_tgt filename_hint =
     | 1 -> print_endline "Set to admitted."
     | 2 -> print_endline "Set to fail."
     | _ ->
-       let validation_result = Validator.valid_module coq_hint coq_im_src coq_im_tgt in
+       let (src_nop_positions, tgt_nop_positions) =
+         List.partition
+           (fun (nop:CoreHint_t.position) -> nop.CoreHint_t.scope = CoreHint_t.Source)
+           hint.CoreHint_t.nop_positions in
+
+       let coq_im_src = ConvertHint.insert_nop hint.function_id
+                                               coq_im_src src_nop_positions in
+       let coq_im_tgt = ConvertHint.insert_nop hint.function_id
+                                               coq_im_tgt tgt_nop_positions in
+
+       let coq_hint = ConvertHint.convert coq_im_src coq_im_tgt hint in
+
+       let _ = debug_print "validation.." in
+       let validation_result =
+         Validator.valid_module coq_hint coq_im_src coq_im_tgt in
        if validation_result
        then print_endline "Validation succeeded."
        else (print_endline "Validation failed."; exit 1)
