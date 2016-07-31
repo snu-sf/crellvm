@@ -1794,6 +1794,8 @@ type infrule = [
   | IcmpUltAndNot of icmp_ult_and_not
   ] <ocaml repr="classic">
 
+type return_code_type = [ACTUAL | ADMITTED | FAIL] <ocaml repr="classic">
+
 type hint_command = [
   | Propagate of propagate
   | Infrule of (position * infrule)
@@ -1804,7 +1806,7 @@ type hints = {
   function_id : string;
   opt_name : string;
   ~description : string;
-  ~return_code : int;
+  return_code : return_code_type;
   nop_positions: position list; (* insert after position *)
 
   commands : hint_command list;

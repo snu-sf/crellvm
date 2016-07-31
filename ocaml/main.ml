@@ -58,9 +58,9 @@ let main filename_src filename_tgt filename_hint =
   let _ = debug_print hint.CoreHint_t.description in
   let _ =
     match hint.CoreHint_t.return_code with
-    | 1 -> print_endline "Set to admitted."
-    | 2 -> print_endline "Set to fail."
-    | _ ->
+    | ADMITTED -> print_endline "Set to admitted."
+    | FAIL -> print_endline "Set to fail."
+    | ACTUAL ->
        let (src_nop_positions, tgt_nop_positions) =
          List.partition
            (fun (nop:CoreHint_t.position) -> nop.CoreHint_t.scope = CoreHint_t.Source)
