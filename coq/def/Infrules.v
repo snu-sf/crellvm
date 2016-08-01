@@ -440,6 +440,20 @@ Definition apply_infrule
     if $$ inv0 |-src (Expr.value z) >= (Expr.bop bop_and s x x) $$
     then {{inv0 +++src (Expr.value z) >= (Expr.value x)}}
     else apply_fail tt
+  | Infrule.and_true_bool x y =>
+    let true_expr := Expr.value (ValueT.const (const_int Size.One (INTEGER.of_Z (Size.to_Z Size.One) (-1)%Z true))) in
+    if $$ inv0 |-src true_expr >= (Expr.bop bop_and Size.One x y) $$
+    then {{
+             {{
+                 {{
+                     {{inv0 +++src true_expr >= (Expr.value x)}}
+                       +++src (Expr.value x) >= true_expr
+                 }}
+                   +++src true_expr >= (Expr.value y)
+             }}
+               +++src (Expr.value y) >= true_expr
+         }}
+    else apply_fail tt
   | Infrule.and_undef z x s =>
     if $$ inv0 |-src (Expr.value z) >= (Expr.bop bop_and s x (ValueT.const (const_undef (typ_int s)))) $$
     then {{inv0 +++src (Expr.value z) >= (Expr.value (ValueT.const (const_undef (typ_int s))))}}
@@ -758,6 +772,20 @@ Definition apply_infrule
   | Infrule.or_same z a s =>
     if $$ inv0 |-src (Expr.value z) >= (Expr.bop bop_or s a a) $$
     then {{ inv0 +++src (Expr.value z) >= (Expr.value a) }}
+    else apply_fail tt
+  | Infrule.or_false x y sz =>
+    let false_expr := Expr.value (ValueT.const (const_int sz (INTEGER.of_Z (Size.to_Z sz) 0%Z true))) in
+    if $$ inv0 |-src false_expr >= (Expr.bop bop_or sz x y) $$
+    then {{
+             {{
+                 {{
+                     {{inv0 +++src false_expr >= (Expr.value x)}}
+                       +++src (Expr.value x) >= false_expr
+                 }}
+                   +++src false_expr >= (Expr.value y)
+             }}
+               +++src (Expr.value y) >= false_expr
+         }}
     else apply_fail tt
   | Infrule.or_undef z a s =>
     if $$ inv0 |-src (Expr.value z) >= (Expr.bop bop_or s a (ValueT.const (const_undef (typ_int s)))) $$
