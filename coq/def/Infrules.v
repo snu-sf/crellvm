@@ -448,6 +448,12 @@ Definition apply_infrule
     if $$ inv0 |-src (Expr.value z) >= (Expr.bop bop_and s x (ValueT.const (const_int s (INTEGER.of_Z (Size.to_Z s) 0%Z true)))) $$
     then {{ inv0 +++src (Expr.value z) >= (Expr.value (ValueT.const (const_int s (INTEGER.of_Z (Size.to_Z s) 0%Z true)))) }}
     else apply_fail tt
+  | Infrule.and_or_not1 z x y a b s =>
+    if $$ inv0 |-tgt (Expr.bop bop_xor s b (ValueT.const (const_int s (INTEGER.of_Z (Size.to_Z s) (-1)%Z true)))) >= (Expr.value (ValueT.id x)) $$ &&
+       $$ inv0 |-tgt (Expr.bop bop_or s (ValueT.id x) a) >= (Expr.value (ValueT.id y)) $$ &&
+       $$ inv0 |-tgt (Expr.bop bop_and s a b) >= (Expr.value (ValueT.id z)) $$
+    then {{ inv0 +++tgt (Expr.bop bop_and s y b) >= (Expr.value (ValueT.id z)) }}
+    else apply_fail tt
   | Infrule.bitcast_bitcast src mid dst srcty midty dstty =>
     if $$ inv0 |-src (Expr.value mid) >= (Expr.cast castop_bitcast srcty src midty) $$ &&
        $$ inv0 |-src (Expr.value dst) >= (Expr.cast castop_bitcast midty mid dstty) $$

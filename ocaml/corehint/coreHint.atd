@@ -582,6 +582,15 @@ type and_zero = {
   sz : size;
 }
 
+type and_or_not1 = {
+  z : register;
+  x : register;
+  y : register;
+  a : value;
+  b : value;
+  sz : size;
+}
+
 type bitcast_bitcast = {
     src : value;
     mid : value;
@@ -1659,6 +1668,7 @@ type infrule = [
   | AndSame of and_same
   | AndUndef of and_undef
   | AndZero of and_zero
+  | AndOrNot1 of and_or_not1
   | BitcastBitcast of bitcast_bitcast
   | BitcastLoad of bitcast_load
   | BitcastFpext of bitcast_fpext
