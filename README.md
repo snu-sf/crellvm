@@ -63,6 +63,11 @@
 - For those who participate in this project, there are some useful techniques to track a program flow of validator or identify cause of a bug.
     + `export OCAMLRUNPARAM='b'` lets validator show call stack when it aborts
 
+### Related Projects ###
+
+- [atdtocpp](https://github.com/aqjune/atdtocpp) automatically converts `.atd` file to `.cpp`/`.h` file. This may not be suitable for whole file conversion, but it may be sufficient to support simple inference rule conversions. You may need to convert the whole `.atd` file, and then just excerpt wanted part from it.
+- [parallel testing](https://github.com/alxest/simplberry-tests-parallel) You may just copy `src/main/scala/main.scala` and use it. `scala main.scala -h` should give sufficient information. You may need to run with `-J-Xmx64g` or something, to manually set JVM memory limit. Required scala version or more detailed information will be in that repository.
+
 ### TODO ###
 
 - `before_refact` branch represents the branch before refactoring, containing old proof codes.
