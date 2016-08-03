@@ -1,20 +1,23 @@
 COQMODULE     := LLVMBerry
-COQDEFINITION := $(wildcard coq/exec/*.v coq/validator/*.v)
-COQEXTRACT    := $(wildcard coq/extraction/*.v)
-COQPROOF      := $(filter-out $(COQEXTRACT), $(filter-out $(COQDEFINITION), $(wildcard coq/*/*.v)))
-COQTHEORIES   := $(COQDEFINITION) $(COQEXTRACT) $(COQPROOF)
+COQDEF := $(wildcard coq/def/*.v)
+COQEXTRACT    := $(wildcard coq/extract/*.v)
+COQPROOF      := $(filter-out $(COQEXTRACT), $(filter-out $(COQDEF), $(wildcard coq/*/*.v)))
+COQTHEORIES   := $(COQDEF) $(COQEXTRACT) $(COQPROOF)
+PROOF_BUILD_DIR=.proof_build
 
 JOBS=24
 ROOT=`pwd`
 LLVM_SRCDIR=${ROOT}/lib/llvm
 LLVM_OBJDIR=${ROOT}/.build/llvm-obj
 
-.PHONY: all init Makefile.coq opt llvm lib definition extract exec proof test clean
+.PHONY: all init Makefile.coq opt llvm lib def extract exec proof test clean
 
 all: exec proof
 
+quick: exec-rsync proof-quick
+
 init:
-	opam install menhir ott batteries biniou atdgen cppo easy-format ctypes coq.8.5.0~camlp4
+	opam install menhir ott batteries biniou atdgen cppo easy-format ctypes coq.8.5.2~camlp4
 	git clone git@github.com:snu-sf/simplberry-tests.git simplberry-tests
 	git clone git@github.com:snu-sf/llvm.git lib/llvm
 	git clone git@github.com:snu-sf/cereal.git lib/llvm/include/llvm/cereal
@@ -40,38 +43,58 @@ opt:
 llvm:
 	./script/llvm-build.sh $(JOBS)
 
+rsync-send:
+	sh script/rsync-send.sh
+
+rsync-receive:
+	sh script/rsync-receive.sh
+
 lib: lib/sflib lib/paco/src lib/vellvm
 	$(MAKE) -C lib/sflib
 	$(MAKE) -C lib/paco/src
 	$(MAKE) -C lib/vellvm
 
-definition: Makefile.coq lib $(COQDEFINITION)
-	$(MAKE) -f Makefile.coq $(patsubst %.v,%.vo,$(COQDEFINITION))
+lib-quick: lib/sflib lib/paco/src lib/vellvm
+	$(MAKE) -C lib/sflib quick
+	$(MAKE) -C lib/paco/src quick
+	$(MAKE) -C lib/vellvm quick
 
-extract: definition $(COQEXTRACT)
+def: Makefile.coq lib $(COQDEF)
+	$(MAKE) -f Makefile.coq $(patsubst %.v,%.vo,$(COQDEF))
+
+def-quick: Makefile.coq lib-quick $(COQDEF)
+	$(MAKE) -f Makefile.coq $(patsubst %.v,%.vio,$(COQDEF)) quick
+
+extract: def $(COQEXTRACT)
 	$(MAKE) -C lib/vellvm extract
-	$(MAKE) -C coq/extraction
+	$(MAKE) -C coq/extract
 
 exec: extract
 	$(MAKE) -C ocaml
 
-# TODO: remove this after refactoring
-extract_refact: definition
-	$(MAKE) -C lib/vellvm extract
-	$(MAKE) -C coq/extraction_new
+exec-rsync: rsync-send
+	$(MAKE) -C $(PROOF_BUILD_DIR) extract
+	$(MAKE) rsync-receive
+	$(MAKE) -C ocaml
 
-refact: extract_refact
-	$(MAKE) -C ocaml_refact
+proof-rsync: rsync-send
+	$(MAKE) -C $(PROOF_BUILD_DIR) proof
 
-proof: definition $(COQPROOF)
+proof: def $(COQPROOF)
 	$(MAKE) -f Makefile.coq $(patsubst %.v,%.vo,$(COQPROOF))
+
+proof-quick: def-quick $(COQPROOF)
+	$(MAKE) -f Makefile.coq $(patsubst %.v,%.vio,$(COQPROOF)) quick
 
 %.vo: Makefile.coq
 	$(MAKE) -f Makefile.coq "$@"
 
+%.vio: Makefile.coq
+	$(MAKE) -f Makefile.coq "$@" quick
+
 test:
 	rm -rf results-opt
-	python ./simplberry-tests/test.py -e ./.build/llvm-obj/bin/opt -v ./ocaml_refact/main.native -r "-O2" -o -i "./simplberry-tests/inputs_full"
+	python ./simplberry-tests/test.py -e ./.build/llvm-obj/bin/opt -v ./ocaml/main.native -r "-O2" -o -i "./simplberry-tests/inputs_full"
 	python ./simplberry-tests/listfails.py -f results-opt
 	python ./simplberry-tests/statistics.py -f results-opt -o
 

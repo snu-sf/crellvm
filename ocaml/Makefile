@@ -1,14 +1,13 @@
 ROOT = `pwd`/..
-LLVM_OCAML_LIB = $(ROOT)/build/lib/ocaml
-LLVM_LIB = $(ROOT)/build/lib
+LLVM_OCAML_LIB = $(ROOT)/.build/llvm-obj/bindings/ocaml
+LLVM_LIB = $(ROOT)/.build/llvm-obj/lib/ocaml
 
 LIB_FILES = llvm.cmxa,llvm_analysis.cmxa,llvm_target.cmxa,llvm_bitreader.cmxa,llvm_bitwriter.cmxa,llvm_scalar_opts.cmxa
 
 OCAMLBUILD = ocamlbuild
 OCAMLBUILD_OPT = -r \
-	-I extraction \
+	-I extract \
 	-I corehint \
-	-I appliers \
 	-I vellvm \
 	-use-ocamlfind -pkg atdgen \
 	-cflags -I,$(LLVM_OCAML_LIB) \
@@ -22,18 +21,10 @@ OCAMLBUILD_OPT = -r \
 	-lflags -cclib,-lLLVMBitWriter \
 	-lflags $(LIB_FILES)
 
-MLS = extraction/FMapWeakList.ml extraction/FMapWeakList.mli\
-	extraction/extraction_defs.ml extraction/extraction_defs.mli\
-	extraction/decs.ml extraction/decs.mli\
-	extraction/hints.ml extraction/hints.mli\
-	extraction/syntax_ext.ml extraction/syntax_ext.mli\
-	extraction/validator_aux.ml extraction/validator_aux.mli\
-	extraction/validator.ml extraction/validator.mli\
-	corehint/coreHint_j.ml corehint/coreHint_j.mli\
-	corehint/coreHint_t.ml corehint/coreHint_t.mli\
-	coq2ml.ml coreHintUtil.ml translateCoreHint.ml\
-	main.ml utility.ml propagateHints.ml addInferenceHints.ml microHints.ml commandArg.ml tt.ml printHints.ml \
-	appliers/*
+MLS =  corehint/coreHint_j.ml corehint/coreHint_j.mli \
+			 corehint/coreHint_t.ml corehint/coreHint_t.mli \
+			 $(shell find *.ml*) \
+			 $(shell find */*.ml*)
 
 all: main.native
 
@@ -48,9 +39,18 @@ corehint/coreHint_j.ml: corehint/coreHint.atd
 	atdgen -t ./corehint/coreHint.atd
 	atdgen -j ./corehint/coreHint.atd
 
+corehint/coreHint_t.mli: corehint/coreHint.atd
+	atdgen -t ./corehint/coreHint.atd
+	atdgen -j ./corehint/coreHint.atd
+
+corehint/coreHint_j.mli: corehint/coreHint.atd
+	atdgen -t ./corehint/coreHint.atd
+	atdgen -j ./corehint/coreHint.atd
+
 clean:
 	rm ./corehint/coreHint_j.mli
 	rm ./corehint/coreHint_t.mli
 	rm ./corehint/coreHint_j.ml
 	rm ./corehint/coreHint_t.ml
 	$(OCAMLBUILD) -clean
+
