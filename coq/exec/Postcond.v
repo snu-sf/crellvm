@@ -636,26 +636,18 @@ Definition postcond_cmd_inject_event
 
   | insn_load x1 t1 v1 a1, insn_load x2 t2 v2 a2 =>
     typ_dec t1 t2 &&
-            (Invariant.inject_value
-               inv (ValueT.lift Tag.physical v1) (ValueT.lift Tag.physical v2)) &&
-            align_dec a1 a2
+    (Invariant.inject_value
+       inv (ValueT.lift Tag.physical v1) (ValueT.lift Tag.physical v2)) &&
+    align_dec a1 a2
   | insn_nop _, insn_load x t v a =>
-    orb (ExprPairSet.exists_ 
-           (fun e_pair =>
-              match e_pair with
-              | (_, e) =>  
-                if (Expr.eq_dec e 
-                                (Expr.load (ValueT.lift Tag.physical v) t a)) 
-                then true 
-                else false end) inv.(Invariant.src).(Invariant.lessdef))
-        (ExprPairSet.exists_ 
-           (fun e_pair =>
-              match e_pair with  
-              | (e, _) =>
-                if (Expr.eq_dec e 
-                                (Expr.load (ValueT.lift Tag.physical v) t a)) 
-                then true 
-                else false end) inv.(Invariant.src).(Invariant.lessdef))                    
+    ExprPairSet.exists_ 
+        (fun e_pair =>
+           match e_pair with
+           | (e1, e2) =>  
+             orb 
+             (Expr.eq_dec e1 (Expr.load (ValueT.lift Tag.physical v) t a)) 
+             (Expr.eq_dec e2 (Expr.load (ValueT.lift Tag.physical v) t a)) 
+           end) inv.(Invariant.src).(Invariant.lessdef)
   | _, insn_load _ _ _ _ => false
 
   | insn_free _ t1 p1, insn_free _ t2 p2 =>
