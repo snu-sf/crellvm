@@ -180,6 +180,10 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
      let x = Convert.value args.x in
      let sz = Convert.size args.sz in
      Infrule.Coq_and_same (z, x, sz)
+  | CoreHint_t.AndTrueBool (args:CoreHint_t.and_true_bool) ->
+     let x = Convert.value args.x in
+     let y = Convert.value args.y in
+     Infrule.Coq_and_true_bool (x, y)
   | CoreHint_t.AndUndef (args:CoreHint_t.and_undef) -> 
      let z = Convert.value args.z in
      let x = Convert.value args.x in
@@ -190,6 +194,14 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
      let x = Convert.value args.x in
      let sz = Convert.size args.sz in
      Infrule.Coq_and_zero (z, x, sz)
+  | CoreHint_t.AndOrNot1 (args:CoreHint_t.and_or_not1) -> 
+     let z = Convert.register args.z in
+     let x = Convert.register args.x in
+     let y = Convert.register args.y in
+     let a = Convert.value args.a in
+     let b = Convert.value args.b in
+     let sz = Convert.size args.sz in
+     Infrule.Coq_and_or_not1 (z, x, y, a, b, sz)
   | CoreHint_t.BitcastBitcast (args:CoreHint_t.bitcast_bitcast) -> 
      let src = Convert.value args.src in
      let mid = Convert.value args.mid in
@@ -501,6 +513,11 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
      let y = Convert.value args.y in
      let sz = Convert.size args.sz in
      Infrule.Coq_or_commutative_tgt (z, x, y, sz)
+  | CoreHint_t.OrFalse (args:CoreHint_t.or_false) ->
+     let x = Convert.value args.x in
+     let y = Convert.value args.y in
+     let sz = Convert.size args.sz in
+     Infrule.Coq_or_false (x, y, sz)
   | CoreHint_t.OrMone (args:CoreHint_t.or_mone) -> 
      let z = Convert.value args.z in
      let a = Convert.value args.a in

@@ -639,6 +639,15 @@ Definition postcond_cmd_inject_event
     (Invariant.inject_value
        inv (ValueT.lift Tag.physical v1) (ValueT.lift Tag.physical v2)) &&
     align_dec a1 a2
+  | insn_nop _, insn_load x t v a =>
+    ExprPairSet.exists_ 
+        (fun e_pair =>
+           match e_pair with
+           | (e1, e2) =>  
+             orb 
+             (Expr.eq_dec e1 (Expr.load (ValueT.lift Tag.physical v) t a)) 
+             (Expr.eq_dec e2 (Expr.load (ValueT.lift Tag.physical v) t a)) 
+           end) inv.(Invariant.src).(Invariant.lessdef)
   | _, insn_load _ _ _ _ => false
 
   | insn_free _ t1 p1, insn_free _ t2 p2 =>
