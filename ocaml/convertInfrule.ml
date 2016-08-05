@@ -692,6 +692,27 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
      let y = Convert.value args.y in
      let sz = Convert.size args.sz in
      Infrule.Coq_sdiv_sub_srem (z, b, a, x, y, sz)
+  | CoreHint_t.ShiftUndef1 (args:CoreHint_t.shift_undef1) -> 
+     let z = Convert.value args.z in
+     let y = Convert.value args.y in
+     let s = Convert.size args.s in
+     Infrule.Coq_shift_undef1 (z, y, s)
+  | CoreHint_t.ShiftUndef2 (args:CoreHint_t.shift_undef2) -> 
+     let z = Convert.value args.z in
+     let y = Convert.value args.y in
+     let c = Convert.const_int args.c in
+     let s = Convert.size args.s in
+     Infrule.Coq_shift_undef2 (z, y, c, s)
+  | CoreHint_t.ShiftZero1 (args:CoreHint_t.shift_zero1) -> 
+     let z = Convert.value args.z in
+     let y = Convert.value args.y in
+     let s = Convert.size args.s in
+     Infrule.Coq_shift_zero1 (z, y, s)
+  | CoreHint_t.ShiftZero2 (args:CoreHint_t.shift_zero2) -> 
+     let z = Convert.value args.z in
+     let y = Convert.value args.y in
+     let s = Convert.size args.s in
+     Infrule.Coq_shift_zero2 (z, y, s)
   | CoreHint_t.SitofpBitcast (args:CoreHint_t.sitofp_bitcast) -> 
      let src = Convert.value args.src in
      let mid = Convert.value args.mid in
@@ -719,7 +740,7 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
   | CoreHint_t.SubAdd (args:CoreHint_t.sub_add) ->
      let z = Convert.register args.z in
      let my = Convert.value args.my in
-     let x = Convert.register args.x in
+     let x = Convert.value args.x in
      let y = Convert.value args.y in
      let sz = Convert.size args.sz in
      Infrule.Coq_sub_add (z, my, x, y, sz)

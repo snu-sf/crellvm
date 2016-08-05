@@ -195,7 +195,8 @@ module Convert = struct
        (match addrspace with
         | 0 -> LLVMsyntax.Coq_const_null (value_type vt)
         | _ -> failwith "Vellvm does not support pointer address with address space larger than 0")
-         
+    | CoreHint_t.ConstDataVector (elemty, elements) ->
+       failwith "Vellvm does not support vector type"
     | CoreHint_t.ConstExpr ce ->
        constant_expr ce
   
