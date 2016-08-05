@@ -581,6 +581,17 @@ type and_undef = {
   sz : size;
 }
 
+type and_xor_const = {
+  z : register;
+  y : register;
+  yprime : register;
+  x : value;
+  c1 : const_int;
+  c2 : const_int;
+  c3 : const_int;
+  sz : size;
+}
+
 type and_zero = {
   z : value;
   x : value;
@@ -1679,6 +1690,7 @@ type infrule = [
   | AndSame of and_same
   | AndTrueBool of and_true_bool
   | AndUndef of and_undef
+  | AndXorConst of and_xor_const
   | AndZero of and_zero
   | AndOrNot1 of and_or_not1
   | BitcastBitcast of bitcast_bitcast
