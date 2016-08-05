@@ -4,6 +4,7 @@
 *.glob
 *.aux
 
+.dir-locals.el
 _CoqProject
 Makefile.coq
 
