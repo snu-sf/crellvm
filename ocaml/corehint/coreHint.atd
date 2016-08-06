@@ -113,6 +113,7 @@ type constant = [
   | ConstNull of (int * value_type)
   | ConstUndef of value_type 
   | ConstGlobalVarAddr of const_global_var_addr 
+  | ConstDataVector of (value_type * constant list)
   | ConstExpr of constant_expr
   ] <ocaml repr="classic">
 
@@ -1192,6 +1193,31 @@ type sext_trunc = {
   sz2 : size;
 }
 
+type shift_undef1 = {
+    z : value;
+    y : value;
+    s : size;
+}
+
+type shift_undef2 = {
+    z : value;
+    y : value;
+    c : const_int;
+    s : size;
+}
+
+type shift_zero1 = {
+    z : value;
+    y : value;
+    s : size;
+}
+
+type shift_zero2 = {
+    z : value;
+    y : value;
+    s : size;
+}
+
 type sitofp_bitcast = {
     src : value;
     mid : value;
@@ -1222,7 +1248,7 @@ type sitofp_zext = {
 type sub_add = {
   z : register;
   my : value;
-  x : register;
+  x : value;
   y : value;
   sz : size;
 }
@@ -1759,6 +1785,10 @@ type infrule = [
   | SextBitcast of sext_bitcast
   | SextSext of sext_sext
   | SextZext of sext_zext
+  | ShiftUndef1 of shift_undef1
+  | ShiftUndef2 of shift_undef2
+  | ShiftZero1 of shift_zero1
+  | ShiftZero2 of shift_zero2
   | SitofpBitcast of sitofp_bitcast
   | SitofpSext of sitofp_sext
   | SitofpZext of sitofp_zext
