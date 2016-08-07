@@ -63,7 +63,7 @@ type value_type = [
     ] <ocaml repr="classic">
 
 type const_int = {
-  int_value : int;
+  int_value : string;
   int_type : int_type;
 }
 
