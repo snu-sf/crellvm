@@ -607,7 +607,7 @@ Definition apply_infrule
       in
       if cond_func_result
       then 
-        {{inv0 +++src (Expr.value z) >= (Expr.bop bop_add s x (const_int s c3))}}
+        {{inv0 +++src (Expr.value z) >= (Expr.bop opcode s x (const_int s c3))}}
       else apply_fail tt
     else apply_fail tt
   | Infrule.fadd_commutative_tgt z x y fty =>
