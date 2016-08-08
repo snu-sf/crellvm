@@ -115,7 +115,19 @@ Module Invariant.
     ValueTPairSet.subset (alias0.(diffblock)) (alias.(diffblock)).
 
   Definition implies_unary (inv0 inv:unary): bool :=
-    ExprPairSet.subset (inv.(lessdef)) (inv0.(lessdef)) &&
+    ExprPairSet.for_all
+          (fun p => ExprPairSet.exists_
+                      (fun q =>
+                        (if (Expr.eq_dec (fst p) (fst q))
+                         then ((Expr.eq_dec (snd p) (snd q)) ||
+                               (match (snd p), (snd q) with
+                                | Expr.value v, 
+                                  Expr.value (ValueT.const (const_undef ty)) => true
+                                | _, _ => false
+                                end))
+                         else false))
+                      inv0.(lessdef))
+    inv.(lessdef) &&
     implies_alias (inv.(alias)) (inv0.(alias)) &&
     IdTSet.subset (inv.(allocas)) (inv0.(allocas)) &&
     IdTSet.subset (inv.(private)) (inv0.(private)).
