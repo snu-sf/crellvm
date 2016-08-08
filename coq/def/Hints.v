@@ -243,6 +243,7 @@ Module Infrule.
   | and_same (z:ValueT.t) (x:ValueT.t) (s:sz)
   | and_true_bool (x:ValueT.t) (y:ValueT.t)
   | and_undef (z:ValueT.t) (x:ValueT.t) (s:sz)
+  | and_xor_const (z:IdT.t) (y:IdT.t) (y':IdT.t) (x:ValueT.t) (c1:INTEGER.t) (c2:INTEGER.t) (c3:INTEGER.t) (sz:sz)
   | and_zero (z:ValueT.t) (x:ValueT.t) (s:sz)
   | and_or_not1 (z:IdT.t) (x:IdT.t) (y:IdT.t) (a:ValueT.t) (b:ValueT.t) (s:sz)
   | bop_distributive_over_selectinst (opcode:bop) (r:IdT.t) (s:IdT.t) (t':IdT.t) (t0:IdT.t) (x:ValueT.t) (y:ValueT.t) (z:ValueT.t) (c:ValueT.t) (bopsz:sz) (selty:typ)
