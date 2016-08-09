@@ -120,6 +120,30 @@ Definition valid_terminator
     then failwith_false "valid_terminator: valid_phinodes of unconditional branches failed at block" [bid]
     else true
     
+  | insn_switch _ typ_src val_src l0_src ls_src,
+    insn_switch _ typ_tgt val_tgt l0_tgt ls_tgt =>
+    if negb (typ_dec typ_src typ_tgt)
+    then failwith_false "valid_terminator: types of switch conditions failed at block" [bid]
+    else
+      if negb (Invariant.inject_value
+               inv0
+               (ValueT.lift Tag.physical val_src)
+               (ValueT.lift Tag.physical val_tgt))
+      then failwith_false "valid_terminator: value of switch conditions failed at block" [bid]
+      else
+        if negb (l_dec l0_src l0_tgt)
+        then failwith_false "valid_terminator: default labels of switch failed at block" [bid]
+        else
+          if negb (forallb (fun clpair =>
+                              match clpair with
+                              | ((c_src, l_src), (c_tgt, l_tgt)) =>
+                                andb (const_dec c_src c_tgt)
+                                     (l_dec l_src l_tgt)
+                              end)
+                           (combine ls_src ls_tgt))
+          then failwith_false "valid_terminator: other labels conditions failed at block" [bid]
+          else true
+
   | insn_unreachable _, insn_unreachable _ => true
   | _, _ => failwith_false "valid_terminator: types of terminators not matched at block" [bid]
   end.

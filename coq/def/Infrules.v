@@ -475,6 +475,13 @@ Definition apply_infrule
     if $$ inv0 |-src (Expr.value z) >= (Expr.bop bop_and s x (ValueT.const (const_undef (typ_int s)))) $$
     then {{inv0 +++src (Expr.value z) >= (Expr.value (ValueT.const (const_undef (typ_int s))))}}
     else apply_fail tt
+  | Infrule.and_xor_const z y y' x c1 c2 c3 s =>
+    if $$ inv0 |-tgt (Expr.bop bop_xor s x (const_int s c1)) >= (Expr.value (ValueT.id y')) $$ &&
+       $$ inv0 |-tgt (Expr.bop bop_and s x (const_int s c2)) >= (Expr.value (ValueT.id y)) $$ &&
+       $$ inv0 |-tgt (Expr.bop bop_xor s y (const_int s c3)) >= (Expr.value (ValueT.id z)) $$ &&
+       cond_and s c1 c2 c3
+    then {{inv0 +++tgt (Expr.bop bop_and s y' (const_int s c2)) >= (Expr.value (ValueT.id z)) }}
+    else apply_fail tt
   | Infrule.and_zero z x s =>
     if $$ inv0 |-src (Expr.value z) >= (Expr.bop bop_and s x (ValueT.const (const_int s (INTEGER.of_Z (Size.to_Z s) 0%Z true)))) $$
     then {{ inv0 +++src (Expr.value z) >= (Expr.value (ValueT.const (const_int s (INTEGER.of_Z (Size.to_Z s) 0%Z true)))) }}
