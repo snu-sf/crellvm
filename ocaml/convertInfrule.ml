@@ -20,15 +20,6 @@ open ConvertUtil
 
 let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt_fdef:LLVMsyntax.fdef) : Infrule.t =
   match infrule with
-  | CoreHint_t.AddAssociative (args:CoreHint_t.add_associative) ->
-     let x = Convert.register args.x in
-     let y = Convert.register args.y in
-     let z = Convert.register args.z in
-     let c1 = Convert.const_int args.c1 in
-     let c2 = Convert.const_int args.c2 in
-     let c3 = Convert.const_int args.c3 in
-     let sz = Convert.size args.sz in
-     Infrule.Coq_add_associative (x, y, z, c1, c2, c3, sz)
   | CoreHint_t.AddConstNot (args:CoreHint_t.add_const_not) ->
      let z = Convert.register args.z in
      let y = Convert.register args.y in
@@ -326,6 +317,16 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
      let vprime = Convert.value args.vprime in
      let bitcastinst = Convert.expr args.bitcastinst src_fdef tgt_fdef in
      Infrule.Coq_bitcastptr (v, vprime, bitcastinst)
+  | CoreHint_t.BopAssociative (args:CoreHint_t.bop_associative) ->
+     let x = Convert.register args.x in
+     let y = Convert.register args.y in
+     let z = Convert.register args.z in
+     let bop = Convert.bop args.bop in
+     let c1 = Convert.const_int args.c1 in
+     let c2 = Convert.const_int args.c2 in
+     let c3 = Convert.const_int args.c3 in
+     let sz = Convert.size args.sz in
+     Infrule.Coq_bop_associative (x, y, z, bop, c1, c2, c3, sz)
   | CoreHint_t.BopDistributiveOverSelectinst (args:CoreHint_t.bop_distributive_over_selectinst) ->
      let opcode = Convert.bop args.opcode in
      let r = Convert.register args.r in
@@ -1098,11 +1099,43 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
      let c1 = Convert.constant args.c1 in
      let c2 = Convert.constant args.c2 in
      Infrule.Coq_implies_false(c1, c2)
+  | CoreHint_t.IcmpEqAddAdd (args:CoreHint_t.icmp_eq_add_add) -> 
+     let z = Convert.value args.z in
+     let w = Convert.value args.w in
+     let x = Convert.value args.x in
+     let y = Convert.value args.y in
+     let a = Convert.value args.a in
+     let b = Convert.value args.b in
+     let s = Convert.size args.s in
+     Infrule.Coq_icmp_eq_add_add (z, w, x, y, a, b, s)
   | CoreHint_t.IcmpEqSame (args:CoreHint_t.icmp_eq_same) ->
      let ty = Convert.value_type args.ty in
      let x = Convert.value args.x in
      let y = Convert.value args.y in
      Infrule.Coq_icmp_eq_same (ty, x, y)
+  | CoreHint_t.IcmpEqSrem (args:CoreHint_t.icmp_eq_srem) -> 
+     let z = Convert.value args.z in
+     let w = Convert.value args.w in
+     let x = Convert.value args.x in
+     let y = Convert.value args.y in
+     let s = Convert.size args.s in
+     Infrule.Coq_icmp_eq_srem (z, w, x, y, s)
+  | CoreHint_t.IcmpEqSub (args:CoreHint_t.icmp_eq_sub) -> 
+     let z = Convert.value args.z in
+     let x = Convert.value args.x in
+     let a = Convert.value args.a in
+     let b = Convert.value args.b in
+     let s = Convert.size args.s in
+     Infrule.Coq_icmp_eq_sub (z, x, a, b, s)
+  | CoreHint_t.IcmpEqSubSub (args:CoreHint_t.icmp_eq_sub_sub) -> 
+     let z = Convert.value args.z in
+     let w = Convert.value args.w in
+     let x = Convert.value args.x in
+     let y = Convert.value args.y in
+     let a = Convert.value args.a in
+     let b = Convert.value args.b in
+     let s = Convert.size args.s in
+     Infrule.Coq_icmp_eq_sub_sub (z, w, x, y, a, b, s)
   | CoreHint_t.IcmpEqXorNot (args:CoreHint_t.icmp_eq_xor_not) -> 
      let z = Convert.value args.z in
      let zprime = Convert.value args.zprime in
@@ -1110,12 +1143,62 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
      let b = Convert.value args.b in
      let s = Convert.size args.s in
      Infrule.Coq_icmp_eq_xor_not (z, zprime, a, b, s)
+  | CoreHint_t.IcmpEqXorXor (args:CoreHint_t.icmp_eq_xor_xor) -> 
+     let z = Convert.value args.z in
+     let w = Convert.value args.w in
+     let x = Convert.value args.x in
+     let y = Convert.value args.y in
+     let a = Convert.value args.a in
+     let b = Convert.value args.b in
+     let s = Convert.size args.s in
+     Infrule.Coq_icmp_eq_xor_xor (z, w, x, y, a, b, s)
+  | CoreHint_t.IcmpNeAddAdd (args:CoreHint_t.icmp_ne_add_add) -> 
+     let z = Convert.value args.z in
+     let w = Convert.value args.w in
+     let x = Convert.value args.x in
+     let y = Convert.value args.y in
+     let a = Convert.value args.a in
+     let b = Convert.value args.b in
+     let s = Convert.size args.s in
+     Infrule.Coq_icmp_ne_add_add (z, w, x, y, a, b, s)
+  | CoreHint_t.IcmpNeSrem (args:CoreHint_t.icmp_ne_srem) -> 
+     let z = Convert.value args.z in
+     let w = Convert.value args.w in
+     let x = Convert.value args.x in
+     let y = Convert.value args.y in
+     let s = Convert.size args.s in
+     Infrule.Coq_icmp_ne_srem (z, w, x, y, s)
+  | CoreHint_t.IcmpNeSub (args:CoreHint_t.icmp_ne_sub) -> 
+     let z = Convert.value args.z in
+     let x = Convert.value args.x in
+     let a = Convert.value args.a in
+     let b = Convert.value args.b in
+     let s = Convert.size args.s in
+     Infrule.Coq_icmp_ne_sub (z, x, a, b, s)
+  | CoreHint_t.IcmpNeSubSub (args:CoreHint_t.icmp_ne_sub_sub) -> 
+     let z = Convert.value args.z in
+     let w = Convert.value args.w in
+     let x = Convert.value args.x in
+     let y = Convert.value args.y in
+     let a = Convert.value args.a in
+     let b = Convert.value args.b in
+     let s = Convert.size args.s in
+     Infrule.Coq_icmp_ne_sub_sub (z, w, x, y, a, b, s)
   | CoreHint_t.IcmpNeXor (args:CoreHint_t.icmp_ne_xor) -> 
      let z = Convert.value args.z in
      let a = Convert.value args.a in
      let b = Convert.value args.b in
      let s = Convert.size args.s in
      Infrule.Coq_icmp_ne_xor (z, a, b, s)
+  | CoreHint_t.IcmpNeXorXor (args:CoreHint_t.icmp_ne_xor_xor) -> 
+     let z = Convert.value args.z in
+     let w = Convert.value args.w in
+     let x = Convert.value args.x in
+     let y = Convert.value args.y in
+     let a = Convert.value args.a in
+     let b = Convert.value args.b in
+     let s = Convert.size args.s in
+     Infrule.Coq_icmp_ne_xor_xor (z, w, x, y, a, b, s)
   | CoreHint_t.IcmpNeqSame (args:CoreHint_t.icmp_neq_same) ->
      let ty = Convert.value_type args.ty in
      let x = Convert.value args.x in

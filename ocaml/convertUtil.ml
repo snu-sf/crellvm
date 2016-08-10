@@ -142,7 +142,7 @@ module Convert = struct
  
   let const_int (const_int:CoreHint_t.const_int): INTEGER.t =
     let IntType sz = const_int.int_type in
-    APInt.of_int64 sz (Int64.of_int const_int.int_value) true
+    APInt.of_int64 sz (Int64.of_string const_int.int_value) true
 
   let const_float (const_float:CoreHint_t.const_float): FLOAT.t = 
     let cxt:Llvm.llcontext = Llvm.create_context () in 

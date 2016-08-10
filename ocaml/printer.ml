@@ -191,8 +191,6 @@ module PrintHints = struct
     let infrule_to_string (inf:Infrule.t): string =
       (* TODO: print args *)
       match inf with
-      | Infrule.Coq_add_associative (x, y, z, c1, c2, c3, sz) ->
-         "add_assoc"
       | Infrule.Coq_add_const_not (x, y, v, c1, c2, sz) ->
          "add_const_not"
       | Infrule.Coq_add_sub _ -> "add_sub"
@@ -200,6 +198,8 @@ module PrintHints = struct
                                                 ExprsToString.of_expr(Expr.Coq_value (ValueT.Coq_id z)) ^ " ≥ " ^
                                                 ExprsToString.of_expr(Expr.Coq_value x) ^ " + " ^
                                                 ExprsToString.of_expr(Expr.Coq_value y) ^ " to commutate"
+      | Infrule.Coq_bop_associative (x, y, z, bop, c1, c2, c3, sz) ->
+         "bop_assoc " ^ (string_of_bop bop)
       | Infrule.Coq_bitcast_load (ptr, ptrty, v1, ptrty2, v2, a) ->
          "bitcast_load " ^ 
              (ExprsToString.of_ValueT ptr) ^ " " ^
