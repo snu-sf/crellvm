@@ -4,6 +4,13 @@
 *.glob
 *.aux
 
+# tag files
+tags
+TAGS
+GTAGS
+GRTAGS
+GPATH
+
 .dir-locals.el
 _CoqProject
 Makefile.coq
