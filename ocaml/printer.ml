@@ -268,7 +268,7 @@ module PrintHints = struct
       (PrintExprs.exprPairSet (u.Invariant.lessdef) "≥") @
         (PrintExprs.ptrPairSet (u.Invariant.alias.Invariant.noalias) "≠") @
         (PrintExprs.valueTPairSet (u.Invariant.alias.Invariant.diffblock) "_||_") @
-        (PrintExprs.idTSet (u.Invariant.allocas) "alc") @
+        (PrintExprs.idTSet (u.Invariant.fresh) "fr") @
         (PrintExprs.idTSet (u.Invariant.coq_private) "isol")
     
     let invariant (inv:Invariant.t): unit =
