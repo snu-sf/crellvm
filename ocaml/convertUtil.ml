@@ -156,7 +156,6 @@ module Convert = struct
         | CoreHint_t.PPC_FP128Type -> Llvm.ppc_fp128_type cxt
         | CoreHint_t.X86_FP80Type -> Llvm.x86fp80_type cxt)
         cxt in
-    let _ = Llvm.dispose_context cxt in
     let lval:Llvm.llvalue = Llvm.const_float ty (const_float.float_value) in
     Llvm.APFloat.const_float_get_value lval
 
@@ -347,6 +346,8 @@ module Convert = struct
           (match icmp_arg.operandtype with
           | IntValueType ivt ->
             Expr.Coq_icmp (vellvmicmp, value_type (IntValueType ivt), value icmp_arg.operand1, value icmp_arg.operand2)
+          | PtrType pt -> 
+            Expr.Coq_icmp (vellvmicmp, value_type (PtrType pt), value icmp_arg.operand1, value icmp_arg.operand2)  
           | _ -> failwith "Only integer type is allowed")
       | CoreHint_t.FCmpInst fcmp_arg ->
           let vellvmfcmp = fcond fcmp_arg.predicate in 
