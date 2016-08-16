@@ -809,12 +809,13 @@ Definition postcond_cmd
   else
 
   let inv1 := Forget.t def_src def_tgt inv0 in
-  let inv2 := ForgetMemory.t def_memory_src def_memory_tgt inv1 in
-  let inv3 := Invariant.update_src
-                (Invariant.update_lessdef (postcond_cmd_add_lessdef src)) inv2 in
-  let inv4 := Invariant.update_tgt
-                (Invariant.update_lessdef (postcond_cmd_add_lessdef tgt)) inv3 in
-  let inv5 := postcond_cmd_add_private_allocas src tgt inv4 in
+  let inv2 := postcond_cmd_add_private_allocas src tgt inv1 in
+  let inv3 := ForgetMemory.t def_memory_src def_memory_tgt inv2 in
+  let inv4 := Invariant.update_src
+                (Invariant.update_lessdef (postcond_cmd_add_lessdef src)) inv3 in
+  let inv5 := Invariant.update_tgt
+                (Invariant.update_lessdef (postcond_cmd_add_lessdef tgt)) inv4 in
+
   let inv6 := remove_def_from_maydiff src tgt inv5 in
   let inv7 := reduce_maydiff inv6 in
   Some inv7.
