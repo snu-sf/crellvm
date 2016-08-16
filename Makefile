@@ -63,7 +63,7 @@ def: Makefile.coq lib $(COQDEF)
 	$(MAKE) -f Makefile.coq $(patsubst %.v,%.vo,$(COQDEF))
 
 def-quick: Makefile.coq lib-quick $(COQDEF)
-	$(MAKE) -f Makefile.coq $(patsubst %.v,%.vio,$(COQDEF)) quick
+	$(MAKE) -f Makefile.coq $(patsubst %.v,%.vio,$(COQDEF))
 
 extract: def $(COQEXTRACT)
 	$(MAKE) -C lib/vellvm extract
@@ -84,13 +84,13 @@ proof: def $(COQPROOF)
 	$(MAKE) -f Makefile.coq $(patsubst %.v,%.vo,$(COQPROOF))
 
 proof-quick: def-quick $(COQPROOF)
-	$(MAKE) -f Makefile.coq $(patsubst %.v,%.vio,$(COQPROOF)) quick
+	$(MAKE) -f Makefile.coq $(patsubst %.v,%.vio,$(COQPROOF))
 
 %.vo: Makefile.coq
 	$(MAKE) -f Makefile.coq "$@"
 
 %.vio: Makefile.coq
-	$(MAKE) -f Makefile.coq "$@" quick
+	$(MAKE) -f Makefile.coq "$@"
 
 test:
 	rm -rf results-opt
