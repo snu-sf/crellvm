@@ -346,7 +346,7 @@ module Convert = struct
           (match icmp_arg.operandtype with
           | IntValueType ivt ->
             Expr.Coq_icmp (vellvmicmp, value_type (IntValueType ivt), value icmp_arg.operand1, value icmp_arg.operand2)
-          | PtrType pt -> 
+          | PtrType pt ->
             Expr.Coq_icmp (vellvmicmp, value_type (PtrType pt), value icmp_arg.operand1, value icmp_arg.operand2)  
           | _ -> failwith "Only integer type is allowed")
       | CoreHint_t.FCmpInst fcmp_arg ->
