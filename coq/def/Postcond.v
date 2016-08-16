@@ -265,7 +265,17 @@ Module ForgetMemory.
              (inv: Invariant.unary) (ps:PtrSet.t) (pp:PtrPair.t): bool :=
     is_noalias_Ptr inv ps (fst pp) && is_noalias_Ptr inv ps (snd pp).
 
+  Definition filter_fresh (ps:PtrSet.t) (frs:IdTSet.t): PtrSet.t :=
+    PtrSet.filter
+      (fun p =>
+         match (fst p) with
+         | ValueT.id i => negb (IdTSet.mem i frs)
+         | _ => true
+         end)
+      ps.
+
   Definition unary (ps:PtrSet.t) (inv0:Invariant.unary): Invariant.unary :=
+    let ps := filter_fresh ps inv0.(Invariant.fresh) in
     Invariant.update_lessdef (ExprPairSet.filter (is_noalias_ExprPair inv0 ps)) inv0.
 
   Definition t (s_src s_tgt:PtrSet.t) (inv0:Invariant.t): Invariant.t :=
