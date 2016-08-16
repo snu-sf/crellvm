@@ -1587,6 +1587,14 @@ type icmp_inverse = {
   boolean : const_int;
 }
 
+type icmp_inverse_rhs = {
+  predicate : icmp_pred;
+  ty : value_type;
+  x : value;
+  y : value;
+  boolean : const_int;
+}
+
 type icmp_swap_operands = {
   predicate : icmp_pred;
   ty : value_type;
@@ -1936,6 +1944,7 @@ type infrule = [
   | ZextXor of zext_xor
   | ZextZext of zext_zext
   | IcmpInverse of icmp_inverse
+  | IcmpInverseRhs of icmp_inverse_rhs
   | IcmpSwapOperands of icmp_swap_operands
   | ImpliesFalse of implies_false
   | IcmpEqAddAdd of icmp_eq_add_add
