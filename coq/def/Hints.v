@@ -119,21 +119,21 @@ Module Invariant.
   Definition is_fresh_ptr (fr:IdTSet.t) (ptr:Ptr.t): bool :=
     is_fresh_value fr (fst ptr).
 
-  Definition implies_noalias (fr:IdTSet.t) (na1 na2:PtrPairSet.t): bool :=
+  Definition implies_noalias (fr:IdTSet.t) (na0 na:PtrPairSet.t): bool :=
     PtrPairSet.for_all
       (fun pp =>
-         ((Ptr.eq_dec (fst pp) (snd pp)) &&
+         (negb (Ptr.eq_dec (fst pp) (snd pp)) &&
            is_fresh_ptr fr (fst pp) || is_fresh_ptr fr (snd pp)) ||
-         (PtrPairSet.mem pp na1)
-      ) na2.
+         (PtrPairSet.mem pp na0)
+      ) na.
 
-  Definition implies_diffblock (fr:IdTSet.t) (db1 db2:ValueTPairSet.t): bool :=
+  Definition implies_diffblock (fr:IdTSet.t) (db0 db:ValueTPairSet.t): bool :=
     ValueTPairSet.for_all
       (fun vp =>
-         ((ValueT.eq_dec (fst vp) (snd vp)) &&
+         (negb (ValueT.eq_dec (fst vp) (snd vp)) &&
            is_fresh_value fr (fst vp) || is_fresh_value fr (snd vp)) ||
-         (ValueTPairSet.mem vp db1)
-      ) db2.
+         (ValueTPairSet.mem vp db0)
+      ) db.
 
   Definition implies_alias (fr:IdTSet.t) (alias0 alias:aliasrel): bool :=
     implies_noalias fr (alias0.(noalias)) (alias.(noalias)) &&
@@ -153,7 +153,7 @@ Module Invariant.
                          else false))
                       inv0.(lessdef))
     inv.(lessdef) &&
-    implies_alias (inv.(fresh)) (inv.(alias)) (inv0.(alias)) &&
+    implies_alias (inv0.(fresh)) (inv0.(alias)) (inv.(alias)) &&
     IdTSet.subset (inv.(fresh)) (inv0.(fresh)) &&
     IdTSet.subset (inv.(private)) (inv0.(private)).
 
