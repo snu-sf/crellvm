@@ -212,7 +212,6 @@ module Convert = struct
        LLVMsyntax.Coq_const_castop (LLVMsyntax.Coq_castop_inttoptr, (constant cei.v), (value_type cei.dstty))
     | CoreHint_t.ConstExprPtrtoint cep ->
        LLVMsyntax.Coq_const_castop (LLVMsyntax.Coq_castop_ptrtoint, (constant cep.v), (value_type cep.dstty))
-    | _ -> failwith "convertUtil.constant_expr : Unknown constant expression"
 
   let value (value:CoreHint_t.value): ValueT.t = 
     match value with
@@ -262,7 +261,6 @@ module Convert = struct
     | CoreHint_t.BopFmul -> LLVMsyntax.Coq_fbop_fmul
     | CoreHint_t.BopFdiv -> LLVMsyntax.Coq_fbop_fdiv
     | CoreHint_t.BopFrem -> LLVMsyntax.Coq_fbop_frem
-    | _ -> failwith "In ConvertUtil.fbop : unknown fbop"
 
   let bop (b:CoreHint_t.bop) : LLVMsyntax.bop = 
     match b with
@@ -279,7 +277,6 @@ module Convert = struct
     | CoreHint_t.BopAnd -> LLVMsyntax.Coq_bop_and
     | CoreHint_t.BopOr -> LLVMsyntax.Coq_bop_or
     | CoreHint_t.BopXor -> LLVMsyntax.Coq_bop_xor
-    | _ -> failwith "In ConvertUtil.bop : Unknown bop"
  
  let fcond (c:CoreHint_t.fcmp_pred) : LLVMsyntax.fcond = 
     match c with
@@ -299,7 +296,6 @@ module Convert = struct
     | CoreHint_t.CondFule -> LLVMsyntax.Coq_fcond_ule
     | CoreHint_t.CondFune -> LLVMsyntax.Coq_fcond_une
     | CoreHint_t.CondFtrue -> LLVMsyntax.Coq_fcond_true
-    | _ -> failwith "In ConvertUtil. fcond : Unknown fcond"
 
  let cond (c:CoreHint_t.icmp_pred) : LLVMsyntax.cond = 
    match c with
@@ -313,7 +309,6 @@ module Convert = struct
    | CoreHint_t.CondSge -> LLVMsyntax.Coq_cond_sge
    | CoreHint_t.CondSlt -> LLVMsyntax.Coq_cond_slt
    | CoreHint_t.CondSle -> LLVMsyntax.Coq_cond_sle
-   | _ -> failwith "In ConvertUtil. cond : Unknown cond"
 
   let expr (e:CoreHint_t.expr) (src_fdef:LLVMsyntax.fdef) (tgt_fdef:LLVMsyntax.fdef) : Expr.t = 
     match e with
@@ -396,6 +391,5 @@ module Convert = struct
        | CoreHint_t.UitofpInst arg ->
          Expr.Coq_cast (LLVMsyntax.Coq_castop_uitofp, value_type arg.fromty,
                 value arg.v, value_type arg.toty)
-       | _ -> failwith "Unknown instruction type"
        )
 end
