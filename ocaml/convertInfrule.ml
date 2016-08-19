@@ -1072,7 +1072,8 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
      let y = Convert.value args.y in
      let yprime = Convert.value args.yprime in
      let x = Convert.value args.x in
-     Infrule.Coq_zext_xor (z, y, yprime, x)
+     let s = Convert.size args.s in
+     Infrule.Coq_zext_xor (z, y, yprime, x, s)
   | CoreHint_t.ZextZext (args:CoreHint_t.zext_zext) -> 
      let src = Convert.value args.src in
      let mid = Convert.value args.mid in

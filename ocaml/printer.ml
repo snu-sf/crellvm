@@ -200,6 +200,8 @@ module PrintHints = struct
                                                 ExprsToString.of_expr(Expr.Coq_value y) ^ " to commutate"
       | Infrule.Coq_bop_associative (x, y, z, bop, c1, c2, c3, sz) ->
          "bop_assoc " ^ (string_of_bop bop)
+      | Infrule.Coq_bop_distributive_over_selectinst(pcode, r, s, t', t, x, y, z, c, bopsz, selty) -> 
+                                                "BopDistributiveOverSelectInst"
       | Infrule.Coq_bitcast_load (ptr, ptrty, v1, ptrty2, v2, a) ->
          "bitcast_load " ^ 
              (ExprsToString.of_ValueT ptr) ^ " " ^
@@ -224,6 +226,10 @@ module PrintHints = struct
                                                 ExprsToString.of_expr(Expr.Coq_value (ValueT.Coq_id z)) ^ " ≥ " ^
                                                 ExprsToString.of_expr(Expr.Coq_value x) ^ " | " ^
                                                 ExprsToString.of_expr(Expr.Coq_value y) ^ " to commutate"
+      | Infrule.Coq_or_commutative_tgt (z, x, y, s) -> "or_commutative_tgt : " ^ 
+                                                ExprsToString.of_expr(Expr.Coq_value x) ^ " | " ^
+                                                ExprsToString.of_expr(Expr.Coq_value y) ^
+                                                ExprsToString.of_expr(Expr.Coq_value (ValueT.Coq_id z)) ^ " ≥ " ^ " to commutate"
       | Infrule.Coq_or_xor3 (z, y, a, b, s) -> "or_xor3 : " ^ 
                                                 ExprsToString.of_expr(Expr.Coq_value y) ^ " ≥ "
                                                         ^ ExprsToString.of_expr(Expr.Coq_value a) ^ " ^ "

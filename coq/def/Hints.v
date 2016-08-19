@@ -375,7 +375,7 @@ Module Infrule.
   | zext_bitcast (src:ValueT.t) (mid:ValueT.t) (dst:ValueT.t) (srcty:typ) (midty:typ) (dstty:typ)
   | zext_trunc_and (z:ValueT.t) (x:ValueT.t) (y:ValueT.t) (w:ValueT.t) (c:const) (s:sz) (s':sz)
   | zext_trunc_and_xor (z:ValueT.t) (x:ValueT.t) (v:ValueT.t) (w:ValueT.t) (y:ValueT.t) (y':ValueT.t) (c:const) (s:sz) (s':sz)
-  | zext_xor (z:ValueT.t) (y:ValueT.t) (y':ValueT.t) (x:ValueT.t)
+  | zext_xor (z:ValueT.t) (y:ValueT.t) (y':ValueT.t) (x:ValueT.t) (s:sz)
   | zext_zext (src:ValueT.t) (mid:ValueT.t) (dst:ValueT.t) (srcty:typ) (midty:typ) (dstty:typ)
   | intro_ghost (x:Expr.t) (g:id)
   | intro_eq (x:ValueT.t)

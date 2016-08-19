@@ -1321,16 +1321,16 @@ Definition apply_infrule
        end)
     then {{ inv0 +++tgt (Expr.ext extop_z (typ_int s') y (typ_int s)) >= (Expr.value z) }}
     else apply_fail tt
-  | Infrule.zext_xor z y y' x =>
-    if $$ inv0 |-tgt (Expr.bop bop_xor (Size.from_Z 1) x 
-          (ValueT.const (const_int (Size.from_Z 1) (INTEGER.of_Z 1 1%Z true)))) 
+  | Infrule.zext_xor z y y' x sz =>
+    if $$ inv0 |-tgt (Expr.bop bop_xor (Size.One) x 
+          (ValueT.const (const_int (Size.One) (INTEGER.of_Z 1 1%Z true)))) 
         >= (Expr.value y) $$ &&
-       $$ inv0 |-tgt (Expr.ext extop_z (typ_int (Size.from_Z 1)) x (typ_int (Size.from_Z 32))) 
+       $$ inv0 |-tgt (Expr.ext extop_z (typ_int (Size.One)) x (typ_int sz)) 
         >= (Expr.value y') $$ &&
-       $$ inv0 |-tgt (Expr.bop bop_xor (Size.from_Z 32) y' 
-          (ValueT.const (const_int (Size.from_Z 32) (INTEGER.of_Z 32 1%Z true)))) 
+       $$ inv0 |-tgt (Expr.bop bop_xor sz y' 
+          (ValueT.const (const_int sz (INTEGER.of_Z (Size.to_Z sz) 1%Z true)))) 
         >= (Expr.value z) $$
-    then {{ inv0 +++tgt (Expr.ext extop_z (typ_int (Size.from_Z 1)) y (typ_int (Size.from_Z 32))) 
+    then {{ inv0 +++tgt (Expr.ext extop_z (typ_int (Size.One)) y (typ_int sz)) 
         >= (Expr.value z) }}
     else apply_fail tt
   | Infrule.zext_zext src mid dst srcty midty dstty =>

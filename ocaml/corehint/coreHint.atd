@@ -1568,6 +1568,7 @@ type zext_xor = {
     y : value;
     yprime : value;
     x : value;
+    s : size;
 }
 
 type zext_zext = {
