@@ -417,6 +417,12 @@ type substitute_rev = {
   e : expr;
 }
 
+type substitute_tgt = {
+  x : register;
+  y : value;
+  e : expr;
+}
+
 type replace_rhs = {
   x : register;
   y : value;
@@ -1174,6 +1180,152 @@ type rem_neg = {
   sz : size;
 }
 
+type select_icmp_eq = {
+    z : value;
+    y : value;
+    x : value;
+    v : value;
+    c : constant;
+    cty : value_type;
+}
+
+type select_icmp_eq_xor1 = {
+    z : value;
+    zprime : value;
+    v : value;
+    x : value;
+    u : value;
+    w : value;
+    c : const_int;
+    cprime : const_int;
+    s : size;
+}
+
+type select_icmp_eq_xor2 = {
+    z : value;
+    zprime : value;
+    v : value;
+    x : value;
+    u : value;
+    w : value;
+    c : const_int;
+    s : size;
+}
+
+type select_icmp_ne = {
+    z : value;
+    y : value;
+    x : value;
+    v : value;
+    c : constant;
+    cty : value_type;
+}
+
+type select_icmp_ne_xor1 = {
+    z : value;
+    zprime : value;
+    v : value;
+    x : value;
+    u : value;
+    w : value;
+    c : const_int;
+    cprime : const_int;
+    s : size;
+}
+
+type select_icmp_ne_xor2 = {
+    z : value;
+    zprime : value;
+    v : value;
+    x : value;
+    u : value;
+    w : value;
+    c : const_int;
+    s : size;
+}
+
+type select_icmp_sgt_const = {
+    z : register;
+    y : value;
+    x : value;
+    c : const_int;
+    cprime : const_int;
+    selcomm : bool;
+    s : size;
+}
+
+type select_icmp_sgt_xor1 = {
+    z : value;
+    zprime : value;
+    v : value;
+    x : value;
+    u : value;
+    c : const_int;
+    cprime : const_int;
+    s : size;
+}
+
+type select_icmp_sgt_xor2 = {
+    z : value;
+    zprime : value;
+    v : value;
+    x : value;
+    u : value;
+    c : const_int;
+    s : size;
+}
+
+type select_icmp_slt_const = {
+    z : register;
+    y : value;
+    x : value;
+    c : const_int;
+    cprime : const_int;
+    selcomm : bool;
+    s : size;
+}
+
+type select_icmp_slt_xor1 = {
+    z : value;
+    zprime : value;
+    v : value;
+    x : value;
+    u : value;
+    c : const_int;
+    cprime : const_int;
+    s : size;
+}
+
+type select_icmp_slt_xor2 = {
+    z : value;
+    zprime : value;
+    v : value;
+    x : value;
+    u : value;
+    c : const_int;
+    s : size;
+}
+
+type select_icmp_ugt_const = {
+    z : register;
+    y : value;
+    x : value;
+    c : const_int;
+    cprime : const_int;
+    selcomm : bool;
+    s : size;
+}
+
+type select_icmp_ult_const = {
+    z : register;
+    y : value;
+    x : value;
+    c : const_int;
+    cprime : const_int;
+    selcomm : bool;
+    s : size;
+}
+
 type sext_ashr = {
   z : value;
   zprime : value;
@@ -1884,10 +2036,25 @@ type infrule = [
   | RemNeg of rem_neg
   | Substitute of substitute
   | SubstituteRev of substitute_rev
+  | SubstituteTgt of substitute_tgt
   | ReplaceRhs of replace_rhs
   | ReplaceRhsOpt of replace_rhs_opt
   | SdivMone of sdiv_mone
   | SdivSubSrem of sdiv_sub_srem
+  | SelectIcmpEq of select_icmp_eq
+  | SelectIcmpEqXor1 of select_icmp_eq_xor1
+  | SelectIcmpEqXor2 of select_icmp_eq_xor2
+  | SelectIcmpNe of select_icmp_ne
+  | SelectIcmpNeXor1 of select_icmp_ne_xor1
+  | SelectIcmpNeXor2 of select_icmp_ne_xor2
+  | SelectIcmpSgtConst of select_icmp_sgt_const
+  | SelectIcmpSgtXor1 of select_icmp_sgt_xor1
+  | SelectIcmpSgtXor2 of select_icmp_sgt_xor2
+  | SelectIcmpSltXor1 of select_icmp_slt_xor1
+  | SelectIcmpSltXor2 of select_icmp_slt_xor2
+  | SelectIcmpSltConst of select_icmp_slt_const
+  | SelectIcmpUgtConst of select_icmp_ugt_const
+  | SelectIcmpUltConst of select_icmp_ult_const
   | SextBitcast of sext_bitcast
   | SextSext of sext_sext
   | SextZext of sext_zext
