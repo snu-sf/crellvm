@@ -627,6 +627,14 @@ type bop_associative = {
   sz : size;
 }
 
+type bop_commutative = {
+  e : expr;
+  bop : bop;
+  x : value;
+  y : value;
+  sz : size;
+}
+
 type bop_distributive_over_selectinst = {
   opcode : bop;
   r : register;
@@ -1827,6 +1835,7 @@ type infrule = [
   | BitcastZext of bitcast_zext
   | Bitcastptr of bitcastptr
   | BopAssociative of bop_associative
+  | BopCommutative of bop_commutative
   | BopDistributiveOverSelectinst of bop_distributive_over_selectinst
   | BopDistributiveOverSelectinst2 of bop_distributive_over_selectinst2
   | DiffblockGlobalAlloca of diffblock_global_alloca

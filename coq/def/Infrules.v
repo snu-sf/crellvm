@@ -316,6 +316,12 @@ Definition get_swapped_icmp_cond (c:cond) : cond :=
     | cond_sle => cond_sge
   end.
 
+Definition is_commutative_bop (opcode:bop) :=
+  match opcode with
+  | bop_add | bop_mul | bop_and | bop_or | bop_xor => true
+  | _ => false
+  end.
+
 Notation "$$ inv |-src y >= rhs $$" := (ExprPairSet.mem (y, rhs) inv.(Invariant.src).(Invariant.lessdef)) (at level 41, inv, y, rhs at level 41).
 Notation "$$ inv |-tgt y >= rhs $$" := (ExprPairSet.mem (y, rhs) inv.(Invariant.tgt).(Invariant.lessdef)) (at level 41, inv, y, rhs at level 41).
 Notation "$$ inv |-src y 'alloca' $$" := (IdTSet.mem y inv.(Invariant.src).(Invariant.allocas)) (at level 41, inv, y at level 41).
@@ -616,6 +622,12 @@ Definition apply_infrule
       then 
         {{inv0 +++src (Expr.value z) >= (Expr.bop opcode s x (const_int s c3))}}
       else apply_fail tt
+    else apply_fail tt
+  | Infrule.bop_commutative e opcode x y s =>
+    if $$ inv0 |-src e >= (Expr.bop opcode s x y) $$ &&
+      (is_commutative_bop opcode)
+    then
+      {{ inv0 +++src e >= (Expr.bop opcode s y x) }}
     else apply_fail tt
   | Infrule.fadd_commutative_tgt z x y fty =>
     if $$ inv0 |-tgt (Expr.fbop fbop_fadd fty x y) >= (Expr.value (ValueT.id z)) $$

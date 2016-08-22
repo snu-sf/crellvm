@@ -327,6 +327,13 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
      let c3 = Convert.const_int args.c3 in
      let sz = Convert.size args.sz in
      Infrule.Coq_bop_associative (x, y, z, bop, c1, c2, c3, sz)
+  | CoreHint_t.BopCommutative (args:CoreHint_t.bop_commutative) ->
+     let e = Convert.expr args.e src_fdef tgt_fdef in
+     let bop = Convert.bop args.bop in
+     let x = Convert.value args.x in
+     let y = Convert.value args.y in
+     let sz = Convert.size args.sz in
+     Infrule.Coq_bop_commutative (e, bop, x, y, sz)
   | CoreHint_t.BopDistributiveOverSelectinst (args:CoreHint_t.bop_distributive_over_selectinst) ->
      let opcode = Convert.bop args.opcode in
      let r = Convert.register args.r in
