@@ -618,8 +618,7 @@ Definition apply_infrule
   | Infrule.bop_commutative e opcode x y s =>
     if $$ inv0 |-src e >= (Expr.bop opcode s x y) $$ &&
       (is_commutative_bop opcode)
-    then
-      {{ inv0 +++src e >= (Expr.bop opcode s y x) }}
+    then {{ inv0 +++src e >= (Expr.bop opcode s y x) }}
     else apply_fail tt
   | Infrule.fadd_commutative_tgt z x y fty =>
     if $$ inv0 |-tgt (Expr.fbop fbop_fadd fty x y) >= (Expr.value (ValueT.id z)) $$
