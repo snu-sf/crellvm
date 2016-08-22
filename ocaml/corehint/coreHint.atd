@@ -339,13 +339,6 @@ type add_sub = {
   sz : size;
 }
 
-type add_commutative = {
-  z : register;
-  x : value;
-  y : value;
-  sz : size;
-}
-
 type add_commutative_tgt = {
   z : register;
   x : value;
@@ -503,13 +496,6 @@ type add_or_and = {
   b : value;
   x : register;
   y : register;
-  sz : size;
-}
-
-type and_commutative = {
-  z : register;
-  x : value;
-  y : value;
   sz : size;
 }
 
@@ -977,13 +963,6 @@ type mul_neg = {
   sz : size;
 }
 
-type mul_commutative = {
-  z : register;
-  x : value;
-  y : value;
-  sz : size;
-}
-
 type mul_shl = {
   z : register;
   y : register;
@@ -1044,13 +1023,6 @@ type or_and_xor = {
   y : value;
   a : value;
   b : value;
-  sz : size;
-}
-
-type or_commutative = {
-  z : register;
-  x : value;
-  y : value;
   sz : size;
 }
 
@@ -1501,13 +1473,6 @@ type urem_zext_const = {
   sz2 : size;
 }
 
-type xor_commutative = {
-  z : register;
-  x : value;
-  y : value;
-  sz : size;
-}
-
 type xor_commutative_tgt = {
   z : register;
   x : value;
@@ -1794,7 +1759,6 @@ type icmp_ult_and_not = {
 
 type infrule = [
   | AddSub of add_sub
-  | AddCommutative of add_commutative
   | AddCommutativeTgt of add_commutative_tgt
   | AddShift of add_shift
   | AddSignbit of add_signbit
@@ -1807,7 +1771,6 @@ type infrule = [
   | AddSelectZero2 of add_select_zero2
   | AddDistSub of add_dist_sub
   | AddXorAnd of add_xor_and
-  | AndCommutative of and_commutative
   | AndDeMorgan of and_de_morgan
   | AndMone of and_mone
   | AndNot of and_not
@@ -1868,7 +1831,6 @@ type infrule = [
   | NegVal of neg_val
   | OrAnd of or_and
   | OrAndXor of or_and_xor
-  | OrCommutative of or_commutative
   | OrCommutativeTgt of or_commutative_tgt
   | OrFalse of or_false
   | OrMone of or_mone
@@ -1887,7 +1849,6 @@ type infrule = [
   | MulBool of mul_bool
   | MulMone of mul_mone
   | MulNeg of mul_neg
-  | MulCommutative of mul_commutative
   | MulShl of mul_shl
   | RemNeg of rem_neg
   | Substitute of substitute
@@ -1933,7 +1894,6 @@ type infrule = [
   | UitofpZext of uitofp_zext
   | UremZext of urem_zext
   | UremZextConst of urem_zext_const
-  | XorCommutative of xor_commutative
   | XorCommutativeTgt of xor_commutative_tgt
   | XorNot of xor_not
   | XorSame of xor_same

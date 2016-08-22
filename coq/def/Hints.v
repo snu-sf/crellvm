@@ -231,7 +231,6 @@ End Invariant.
 
 Module Infrule.
   Inductive t :=
-  | add_commutative (z:IdT.t) (x:ValueT.t) (y:ValueT.t) (s:sz)
   | add_commutative_tgt (z:IdT.t) (x:ValueT.t) (y:ValueT.t) (s:sz)
   | add_const_not (z:IdT.t) (y:IdT.t) (x:ValueT.t) (c1:INTEGER.t) (c2:INTEGER.t) (s:sz)
   | add_dist_sub (z:IdT.t) (minusx:IdT.t) (minusy:ValueT.t) (w:IdT.t) (x:ValueT.t) (y:ValueT.t) (s:sz)
@@ -245,7 +244,6 @@ Module Infrule.
   | add_signbit (x:IdT.t) (e1:ValueT.t) (e2:ValueT.t) (s:sz)
   | add_xor_and (z:IdT.t) (a:ValueT.t) (b:ValueT.t) (x:IdT.t) (y:IdT.t) (s:sz)
   | add_zext_bool (x:IdT.t) (y:IdT.t) (b:ValueT.t) (c:INTEGER.t) (c':INTEGER.t) (sz:sz)
-  | and_commutative (z:IdT.t) (x:ValueT.t) (y:ValueT.t) (sz:sz)
   | and_de_morgan (z:IdT.t) (x:IdT.t) (y:IdT.t) (z':IdT.t) (a:ValueT.t) (b:ValueT.t) (s:sz)
   | and_mone (z:ValueT.t) (x:ValueT.t) (s:sz)
   | and_not (z:ValueT.t) (x:ValueT.t) (y:ValueT.t) (s:sz)
@@ -300,14 +298,12 @@ Module Infrule.
   | lessthan_undef (ty:typ) (v:ValueT.t)
   | lessthan_undef_tgt (ty:typ) (v:ValueT.t)
   | mul_bool (z:IdT.t) (x:IdT.t) (y:IdT.t)
-  | mul_commutative (z:IdT.t) (x:ValueT.t) (y:ValueT.t) (sz:sz)
   | mul_mone (z:IdT.t) (x:ValueT.t) (sz:sz)
   | mul_neg (z:IdT.t) (mx:ValueT.t) (my:ValueT.t) (x:ValueT.t) (y:ValueT.t) (s:sz)  
   | mul_shl (z:IdT.t) (y:IdT.t) (x:ValueT.t) (a:ValueT.t) (sz:sz)
   | neg_val (c1:INTEGER.t) (c2:INTEGER.t) (s:sz)
   | or_and (z:ValueT.t) (y:ValueT.t) (x:ValueT.t) (a:ValueT.t) (s:sz)
   | or_and_xor (z:ValueT.t) (x:ValueT.t) (y:ValueT.t) (a:ValueT.t) (b:ValueT.t) (s:sz)
-  | or_commutative (z:IdT.t) (x:ValueT.t) (y:ValueT.t) (sz:sz)
   | or_commutative_tgt (z:IdT.t) (x:ValueT.t) (y:ValueT.t) (sz:sz)
   | or_false (x:ValueT.t) (y:ValueT.t) (sz:sz)
   | or_mone (z:ValueT.t) (a:ValueT.t) (s:sz)
@@ -367,7 +363,6 @@ Module Infrule.
   | uitofp_zext (src:ValueT.t) (mid:ValueT.t) (dst:ValueT.t) (srcty:typ) (midty:typ) (dstty:typ)
   | urem_zext (z:IdT.t) (x:IdT.t) (y:IdT.t) (k:IdT.t) (a:ValueT.t) (b:ValueT.t) (sz1:sz) (sz2:sz)
   | urem_zext_const (z:IdT.t) (x:IdT.t) (c:INTEGER.t) (k:IdT.t) (a:ValueT.t) (sz1:sz) (sz2:sz)
-  | xor_commutative (z:IdT.t) (x:ValueT.t) (y:ValueT.t) (sz:sz)
   | xor_commutative_tgt (z:IdT.t) (x:ValueT.t) (y:ValueT.t) (sz:sz)
   | xor_not (z:ValueT.t) (y:ValueT.t) (x:ValueT.t) (s:sz)
   | xor_same (z:ValueT.t) (a:ValueT.t) (s:sz)
