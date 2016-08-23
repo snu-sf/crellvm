@@ -253,7 +253,9 @@ module PrintHints = struct
                                                 ExprsToString.of_expr(Expr.Coq_value p) ^ " ≥ " ^
                                                 ExprsToString.of_expr(Expr.Coq_value q) ^ " && " ^
                                                 ExprsToString.of_expr(Expr.Coq_value v) ^ " ≥ " ^
-                                                ExprsToString.of_expr(Expr.Coq_load (p, ty, a) )      
+                                                ExprsToString.of_expr(Expr.Coq_load (p, ty, a) )
+      | Infrule.Coq_gep_inbounds_remove (gepinst) ->
+         "gep inbounds remove: " ^ (ExprsToString.of_expr gepinst)
       | _ -> "infrule(TODO)"
 
     let infrules (infs:Infrule.t list): unit =

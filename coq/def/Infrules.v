@@ -690,7 +690,7 @@ Definition apply_infrule
     else apply_fail tt
   | Infrule.gep_inbounds_remove gepinst =>
     match gepinst with
-    | Expr.gep ib t v lsv u =>
+    | Expr.gep _ t v lsv u =>
       {{inv0 +++src (Expr.gep true t v lsv u) >= (Expr.gep false t v lsv u) }}
     | _ => apply_fail tt
     end
