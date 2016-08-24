@@ -160,6 +160,65 @@ Proof.
   - destruct c; ss.
 Qed.
 
+Lemma nop_cmds_pop_both x src tgt
+      (NOPCMDS: nop_cmds (x :: src) (x :: tgt)):
+  nop_cmds src tgt.
+Proof.
+  inv NOPCMDS.
+  unfold compose in *.
+  destruct (negb (is_nop x)) eqn:T; ss.
+  inv H0. auto.
+Qed.
+
+Lemma nop_cmds_pop_src_nop nop src tgt
+      (ISNOP: is_nop nop = true)
+      (NOPCMDS: nop_cmds (nop :: src) tgt):
+  nop_cmds src tgt.
+Proof.
+  inv NOPCMDS.
+  unfold compose in *.
+  rewrite ISNOP in *. ss.
+Qed.
+
+Lemma nop_cmds_pop_tgt_nop nop src tgt
+      (ISNOP: is_nop nop = true)
+      (NOPCMDS: nop_cmds src (nop :: tgt)):
+  nop_cmds src tgt.
+Proof.
+  apply nop_cmds_commutes in NOPCMDS.
+  apply nop_cmds_commutes.
+  eapply nop_cmds_pop_src_nop; eauto.
+Qed.
+
+Lemma nop_cmds_tgt_non_nop src non_nop tgt_tail
+      (NONNOP: (is_nop non_nop) = false)
+      (NOPCMDS: nop_cmds src (non_nop :: tgt_tail)):
+  exists nops src_tail, src = nops ++ non_nop :: src_tail /\
+                        List.forallb is_nop nops = true /\
+                        nop_cmds src_tail tgt_tail.
+Proof.
+  generalize dependent src.
+  generalize dependent tgt_tail.
+  induction src; ii.
+  - red in NOPCMDS. unfold compose in NOPCMDS. ss.
+    rewrite NONNOP in NOPCMDS. ss.
+  - destruct (is_nop a) eqn:T.
+    + exploit IHsrc; eauto.
+      eapply nop_cmds_pop_src_nop; eauto.
+      ii. des.
+      exists (a :: nops), src_tail.
+      splits; auto.
+      rewrite x.
+      rewrite app_comm_cons. auto.
+      ss. rewrite T. auto.
+    + subst.
+      exists [], src.
+      inv NOPCMDS.
+      unfold compose in *. rewrite T in *. rewrite NONNOP in *. ss.
+      inv H0.
+      splits; eauto.
+Qed.
+
 (* TODO
  - tgt cmds =           [non-nop] ++ .. =>
    src cmds = [nops] ++ [non-nop] ++ .. & src, tgt related
