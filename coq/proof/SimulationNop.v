@@ -190,43 +190,28 @@ Proof.
   eapply nop_cmds_pop_src_nop; eauto.
 Qed.
 
-Lemma nop_cmds_tgt_non_nop src non_nop tgt_tail
-      (NONNOP: (is_nop non_nop) = false)
-      (NOPCMDS: nop_cmds src (non_nop :: tgt_tail)):
-  exists nops src_tail, src = nops ++ non_nop :: src_tail /\
-                        List.forallb is_nop nops = true /\
-                        nop_cmds src_tail tgt_tail.
+Lemma nop_cmds_tgt_non_nop src head tail_tgt
+      (NONNOP: is_nop head = false)
+      (NOPCMDS: nop_cmds src (head :: tail_tgt)):
+  exists nops src_tail,
+    <<SRC: src = nops ++ head :: src_tail>> /\
+    <<NOPSRC: List.forallb is_nop nops>> /\
+    <<NOPCMDS': nop_cmds src_tail tail_tgt>>.
 Proof.
-  generalize dependent src.
-  generalize dependent tgt_tail.
-  induction src; ii.
+  revert NOPCMDS. induction src; i.
   - red in NOPCMDS. unfold compose in NOPCMDS. ss.
     rewrite NONNOP in NOPCMDS. ss.
-  - destruct (is_nop a) eqn:T.
+  - destruct (is_nop a) eqn:NOP.
     + exploit IHsrc; eauto.
-      eapply nop_cmds_pop_src_nop; eauto.
-      ii. des.
+      { eapply nop_cmds_pop_src_nop; eauto. }
+      i. des. subst.
       exists (a :: nops), src_tail.
-      splits; auto.
-      rewrite x.
-      rewrite app_comm_cons. auto.
-      ss. rewrite T. auto.
-    + subst.
-      exists [], src.
-      inv NOPCMDS.
-      unfold compose in *. rewrite T in *. rewrite NONNOP in *. ss.
-      inv H0.
-      splits; eauto.
+      splits; ss. rewrite NOP, NOPSRC. ss.
+    + exists [], src. ss.
+      red in NOPCMDS. unfold compose in NOPCMDS. ss.
+      rewrite NONNOP in NOPCMDS. ss.
+      rewrite NOP in *. ss. inv NOPCMDS; ss.
 Qed.
-
-(* TODO
- - tgt cmds =           [non-nop] ++ .. =>
-   src cmds = [nops] ++ [non-nop] ++ .. & src, tgt related
- - tgt cmds = [nop] ++ ..(A) =>
-    + tgt proceeds, src waits
-    + index decr by 1
-    + src cmds & A related
- *)
 
 Lemma nop_step:
   nop_state_sim <8= sim_local.
@@ -245,11 +230,41 @@ Proof.
   - (* call *)
     exploit get_status_call_inv; eauto. i. des.
     inv SIM. ss. subst.
+    exploit nop_cmds_tgt_non_nop; eauto; ss. i. des. subst.
+    (* TODO: use exploit to get tgt f lookup *)
+    (* TODO: eapply _sim_local_call; try apply SOP_STAR; eauto. *)
     eapply _sim_local_call.
-    + econs 1.
+    + (* TODO: nops implies sop_star *)
+      instantiate (1 :=
+                     {|
+                       EC := {|
+                              CurFunction := fdef_src;
+                              CurBB := (l0, s_src);
+                              CurCmds := insn_call id0 noret0 attrs ty varg0 f args0
+                                                   :: src_tail;
+                              Terminator := term;
+                              Locals := locals_src;
+                              Allocas := allocas_src |};
+                       ECS := ecs_src;
+                       Mem := mem_src |}).                     
+      admit.
     + ss.
-
-admit.
+    + ss.
+    + ss.
+    + ss.
+    + ss.
+    + ss.
+    + (* [nonstuck => tgt f lookup], [tgt f lookup => src f lookup] *)
+      ss. admit.
+    + (* nonstuck => tgt f lookup *)
+      admit.
+    + (* f related *)
+      admit.
+    + admit. (* params tgt *)
+    + admit. (* params src *)
+    + admit. (* params related *)
+    + ss.
+    + ss. i. esplits. right. eapply CIH. econs; ss.
   - (* return *)
     admit.
   - (* return_void *)
