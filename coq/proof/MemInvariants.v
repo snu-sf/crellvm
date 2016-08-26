@@ -59,8 +59,8 @@ Module Unary.
   Inductive sem_noalias (conf:Config) (st:State) (aux:t) (vs:PtrPair.t): Prop :=
   .
 
-  (* TODO: see `eq_reg_sem_old_alloca` *)
-  Inductive sem_alloca (conf:Config) (st:State) (aux:t) (a:IdT.t): Prop :=
+  (* TODO *)
+  Inductive sem_unique (conf:Config) (st:State) (aux:t) (a:IdT.t): Prop :=
   .
 
   (* TODO: see `isolated_sem` *)
@@ -71,7 +71,7 @@ Module Unary.
   | sem_intro
       (LESSDEF: ExprPairSet.For_all (sem_lessdef conf st aux) inv.(Invariant.lessdef))
       (NOALIAS: PtrPairSet.For_all (sem_noalias conf st aux) inv.(Invariant.alias).(Invariant.noalias))
-      (ALLOCAS: IdTSet.For_all (sem_alloca conf st aux) inv.(Invariant.allocas))
+      (UNIQUE: IdTSet.For_all (sem_unique conf st aux) inv.(Invariant.unique))
       (PRIVATE: IdTSet.For_all (sem_private conf st aux) inv.(Invariant.private))
   .
 End Unary.
