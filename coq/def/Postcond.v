@@ -247,11 +247,14 @@ Module Forget.
 End Forget.
 
 Module ForgetMemory.
-  Definition is_noalias_Ptr (inv:Invariant.unary) (ps:PtrSet.t) (p:Ptr.t): bool :=
+  Definition is_noalias_Ptr
+             (inv:Invariant.unary) (ps:PtrSet.t) (p:Ptr.t): bool :=
+    Invariant.is_unique_ptr inv p ||
     PtrSet.for_all (Invariant.is_noalias inv p) ps ||
     PtrSet.for_all (Invariant.is_diffblock inv p) ps.
 
-  Definition is_noalias_Expr (inv:Invariant.unary) (ps:PtrSet.t) (e:Expr.t): bool :=
+  Definition is_noalias_Expr
+             (inv:Invariant.unary) (ps:PtrSet.t) (e:Expr.t): bool :=
     match e with
       | Expr.load v ty al => is_noalias_Ptr inv ps (v, typ_pointer ty)
       | _ => true
@@ -261,21 +264,12 @@ Module ForgetMemory.
              (inv:Invariant.unary) (ps:PtrSet.t) (ep:ExprPair.t): bool :=
     is_noalias_Expr inv ps (fst ep) && is_noalias_Expr inv ps (snd ep).
 
-  Definition is_noalias_PtrPair
-             (inv: Invariant.unary) (ps:PtrSet.t) (pp:PtrPair.t): bool :=
-    is_noalias_Ptr inv ps (fst pp) && is_noalias_Ptr inv ps (snd pp).
-
-  Definition filter_unique (ps:PtrSet.t) (frs:IdTSet.t): PtrSet.t :=
+  Definition filter_unique (ps:PtrSet.t) (inv:Invariant.unary): PtrSet.t :=
     PtrSet.filter
-      (fun p =>
-         match (fst p) with
-         | ValueT.id i => negb (IdTSet.mem i frs)
-         | _ => true
-         end)
-      ps.
+      (compose negb (Invariant.is_unique_ptr inv)) ps.
 
   Definition unary (ps:PtrSet.t) (inv0:Invariant.unary): Invariant.unary :=
-    let ps := filter_unique ps inv0.(Invariant.unique) in
+    let ps := filter_unique ps inv0 in
     Invariant.update_lessdef (ExprPairSet.filter (is_noalias_ExprPair inv0 ps)) inv0.
 
   Definition t (s_src s_tgt:PtrSet.t) (inv0:Invariant.t): Invariant.t :=
@@ -786,7 +780,7 @@ Definition remove_def_from_maydiff (src tgt:cmd) (inv:Invariant.t): Invariant.t 
 Definition filter_leaked
            (c:cmd) (uniq0:IdTSet.t): IdTSet.t :=
   let uses := IdTSet_from_list (List.map (IdT.lift Tag.physical) (Cmd.get_ids c)) in
-  let excs := 
+  let excs :=
       match c with
       | insn_load _ _ (value_id i) _ => IdTSet.singleton (Tag.physical, i)
       | insn_store _ _ _ (value_id i) _ => IdTSet.singleton (Tag.physical, i)
@@ -794,7 +788,8 @@ Definition filter_leaked
       end
   in
   let leaked := IdTSet.diff uses excs in
-  uniq0.
+  let uniq := IdTSet.diff uniq0 leaked in
+  uniq.
 
 Definition postcond_unique_leakage
            (src tgt:cmd)

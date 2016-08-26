@@ -110,34 +110,34 @@ Module Invariant.
     | ValueT.const _ => false
     end.
 
-  Definition is_unique_value (fr:IdTSet.t) (value:ValueT.t): bool :=
+  Definition is_unique_value (inv0:unary) (value:ValueT.t): bool :=
     match value with
-    | ValueT.id id => IdTSet.mem id fr
+    | ValueT.id id => IdTSet.mem id inv0.(unique)
     | _ => false
     end.
 
-  Definition is_unique_ptr (fr:IdTSet.t) (ptr:Ptr.t): bool :=
-    is_unique_value fr (fst ptr).
+  Definition is_unique_ptr (inv0:unary) (ptr:Ptr.t): bool :=
+    is_unique_value inv0 (fst ptr).
 
-  Definition implies_noalias (fr:IdTSet.t) (na0 na:PtrPairSet.t): bool :=
+  Definition implies_noalias (inv0:unary) (na0 na:PtrPairSet.t): bool :=
     PtrPairSet.for_all
       (fun pp =>
          (negb (Ptr.eq_dec (fst pp) (snd pp)) &&
-           is_unique_ptr fr (fst pp) || is_unique_ptr fr (snd pp)) ||
+           is_unique_ptr inv0 (fst pp) || is_unique_ptr inv0 (snd pp)) ||
          (PtrPairSet.mem pp na0)
       ) na.
 
-  Definition implies_diffblock (fr:IdTSet.t) (db0 db:ValueTPairSet.t): bool :=
+  Definition implies_diffblock (inv0:unary) (db0 db:ValueTPairSet.t): bool :=
     ValueTPairSet.for_all
       (fun vp =>
          (negb (ValueT.eq_dec (fst vp) (snd vp)) &&
-           is_unique_value fr (fst vp) || is_unique_value fr (snd vp)) ||
+           is_unique_value inv0 (fst vp) || is_unique_value inv0 (snd vp)) ||
          (ValueTPairSet.mem vp db0)
       ) db.
 
-  Definition implies_alias (fr:IdTSet.t) (alias0 alias:aliasrel): bool :=
-    implies_noalias fr (alias0.(noalias)) (alias.(noalias)) &&
-    implies_diffblock fr (alias0.(diffblock)) (alias.(diffblock)).
+  Definition implies_alias inv0 (alias0 alias:aliasrel): bool :=
+    implies_noalias inv0 (alias0.(noalias)) (alias.(noalias)) &&
+    implies_diffblock inv0 (alias0.(diffblock)) (alias.(diffblock)).
 
   Definition implies_unary (inv0 inv:unary): bool :=
     ExprPairSet.for_all
@@ -153,7 +153,7 @@ Module Invariant.
                          else false))
                       inv0.(lessdef))
     inv.(lessdef) &&
-    implies_alias (inv0.(unique)) (inv0.(alias)) (inv.(alias)) &&
+    implies_alias inv0 (inv0.(alias)) (inv.(alias)) &&
     IdTSet.subset (inv.(unique)) (inv0.(unique)) &&
     IdTSet.subset (inv.(private)) (inv0.(private)).
 
