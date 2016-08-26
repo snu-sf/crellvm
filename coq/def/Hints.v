@@ -32,7 +32,7 @@ Module Invariant.
   Structure unary := mk_unary {
     lessdef: ExprPairSet.t;
     alias: aliasrel;
-    allocas: IdTSet.t;
+    unique: IdTSet.t;
     private: IdTSet.t;
   }.
 
@@ -46,7 +46,7 @@ Module Invariant.
     mk_unary
       (f invariant.(lessdef))
       invariant.(alias)
-      invariant.(allocas)
+      invariant.(unique)
       invariant.(private).
 
   Definition update_diffblock_rel (f:ValueTPairSet.t -> ValueTPairSet.t) (alias:aliasrel): aliasrel :=
@@ -63,7 +63,7 @@ Module Invariant.
     mk_unary
       invariant.(lessdef)
       (f invariant.(alias))
-      invariant.(allocas)
+      invariant.(unique)
       invariant.(private).
 
   Definition update_diffblock (f:ValueTPairSet.t -> ValueTPairSet.t) (invariant:unary): unary :=
@@ -72,18 +72,18 @@ Module Invariant.
   Definition update_noalias (f:PtrPairSet.t -> PtrPairSet.t) (invariant:unary): unary :=
     update_alias (update_noalias_rel f) invariant.
 
-  Definition update_allocas (f:IdTSet.t -> IdTSet.t) (invariant:unary): unary :=
+  Definition update_unique (f:IdTSet.t -> IdTSet.t) (invariant:unary): unary :=
     mk_unary
       invariant.(lessdef)
       invariant.(alias)
-      (f invariant.(allocas))
+      (f invariant.(unique))
       invariant.(private).
 
   Definition update_private (f:IdTSet.t -> IdTSet.t) (invariant:unary): unary :=
     mk_unary
       invariant.(lessdef)
       invariant.(alias)
-      invariant.(allocas)
+      invariant.(unique)
       (f invariant.(private)).
 
   Definition update_src (f:unary -> unary) (invariant:t): t :=
@@ -110,9 +110,34 @@ Module Invariant.
     | ValueT.const _ => false
     end.
 
-  Definition implies_alias (alias0 alias:aliasrel): bool :=
-    PtrPairSet.subset (alias0.(noalias)) (alias.(noalias)) &&
-    ValueTPairSet.subset (alias0.(diffblock)) (alias.(diffblock)).
+  Definition is_unique_value (fr:IdTSet.t) (value:ValueT.t): bool :=
+    match value with
+    | ValueT.id id => IdTSet.mem id fr
+    | _ => false
+    end.
+
+  Definition is_unique_ptr (fr:IdTSet.t) (ptr:Ptr.t): bool :=
+    is_unique_value fr (fst ptr).
+
+  Definition implies_noalias (fr:IdTSet.t) (na0 na:PtrPairSet.t): bool :=
+    PtrPairSet.for_all
+      (fun pp =>
+         (negb (Ptr.eq_dec (fst pp) (snd pp)) &&
+           is_unique_ptr fr (fst pp) || is_unique_ptr fr (snd pp)) ||
+         (PtrPairSet.mem pp na0)
+      ) na.
+
+  Definition implies_diffblock (fr:IdTSet.t) (db0 db:ValueTPairSet.t): bool :=
+    ValueTPairSet.for_all
+      (fun vp =>
+         (negb (ValueT.eq_dec (fst vp) (snd vp)) &&
+           is_unique_value fr (fst vp) || is_unique_value fr (snd vp)) ||
+         (ValueTPairSet.mem vp db0)
+      ) db.
+
+  Definition implies_alias (fr:IdTSet.t) (alias0 alias:aliasrel): bool :=
+    implies_noalias fr (alias0.(noalias)) (alias.(noalias)) &&
+    implies_diffblock fr (alias0.(diffblock)) (alias.(diffblock)).
 
   Definition implies_unary (inv0 inv:unary): bool :=
     ExprPairSet.for_all
@@ -128,8 +153,8 @@ Module Invariant.
                          else false))
                       inv0.(lessdef))
     inv.(lessdef) &&
-    implies_alias (inv.(alias)) (inv0.(alias)) &&
-    IdTSet.subset (inv.(allocas)) (inv0.(allocas)) &&
+    implies_alias (inv0.(unique)) (inv0.(alias)) (inv.(alias)) &&
+    IdTSet.subset (inv.(unique)) (inv0.(unique)) &&
     IdTSet.subset (inv.(private)) (inv0.(private)).
 
   Definition has_false (inv: t): bool :=
@@ -200,7 +225,7 @@ Module Invariant.
   Definition is_empty_unary (inv:unary): bool :=
     ExprPairSet.is_empty inv.(lessdef) &&
     is_empty_alias inv.(alias) &&
-    IdTSet.is_empty inv.(allocas) &&
+    IdTSet.is_empty inv.(unique) &&
     IdTSet.is_empty inv.(private).
 
   Definition is_empty (inv:t): bool :=
@@ -209,7 +234,7 @@ Module Invariant.
     IdTSet.is_empty inv.(maydiff).
 
   Definition get_idTs_unary (u: unary): list IdT.t :=
-    let (lessdef, alias, allocas, private) := u in
+    let (lessdef, alias, unique, private) := u in
     List.concat
       (List.map
          (fun (p: ExprPair.t) =>
@@ -220,7 +245,7 @@ Module Invariant.
          (fun (pp: PtrPair.t) =>
             let (x, y) := pp in TODO.filter_map Ptr.get_idTs [x ; y])
          (PtrPairSet.elements (alias.(noalias)))) ++
-      IdTSet.elements allocas ++ IdTSet.elements private.
+      IdTSet.elements unique ++ IdTSet.elements private.
 
   Definition get_idTs (inv: t): list IdT.t :=
     let (src, tgt, maydiff) := inv in
