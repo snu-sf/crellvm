@@ -115,6 +115,7 @@ module InvariantObject = struct
       | Lessdef of ExprPair.t
       | Noalias of PtrPair.t
       | Diffblock of ValueTPair.t
+      | Unique of IdT.t
       | Private of IdT.t
 
     type t =
@@ -139,6 +140,9 @@ module InvariantObject = struct
                          Convert.pointer prop_na.rhs))
       | CoreHint_t.Maydiff v ->
          Maydiff (Convert.register v)
+      | CoreHint_t.Unique prop_a ->
+         Unary (convert_scope prop_a.scope,
+                Unique (Convert.register prop_a.p))
       | CoreHint_t.Private prop_a ->
          Unary (convert_scope prop_a.scope,
                 Private (Convert.register prop_a.p))
@@ -157,6 +161,8 @@ module InvariantObject = struct
               Invariant.update_noalias (PtrPairSet.add (ptr1, ptr2)) unary
            | Diffblock (v1, v2) ->
               Invariant.update_diffblock (ValueTPairSet.add (v1, v2)) unary
+           | Unique idt ->
+              Invariant.update_unique (IdTSet.add idt) unary
            | Private idt ->
               Invariant.update_private (IdTSet.add idt) unary
          in
