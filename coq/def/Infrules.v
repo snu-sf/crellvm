@@ -41,7 +41,7 @@ Definition is_ghost (g:IdT.t) :=
 Definition cond_uint_fitinsize (s:sz) (c:INTEGER.t) : bool :=
   Z.leb 0%Z (INTEGER.to_Z c) && Z.ltb (INTEGER.to_Z c) (Zpos (power_sz s)).
 
-Definition cond_fresh (g:IdT.t) (inv:Invariant.t) : bool :=
+Definition cond_unique (g:IdT.t) (inv:Invariant.t) : bool :=
   negb (List.existsb (fun x => IdT.eq_dec g x) (Invariant.get_idTs inv)).
 
 Definition cond_plus (s:sz) (c1 c2 c3: INTEGER.t) : bool :=
@@ -318,8 +318,8 @@ Definition get_swapped_icmp_cond (c:cond) : cond :=
 
 Notation "$$ inv |-src y >= rhs $$" := (ExprPairSet.mem (y, rhs) inv.(Invariant.src).(Invariant.lessdef)) (at level 41, inv, y, rhs at level 41).
 Notation "$$ inv |-tgt y >= rhs $$" := (ExprPairSet.mem (y, rhs) inv.(Invariant.tgt).(Invariant.lessdef)) (at level 41, inv, y, rhs at level 41).
-Notation "$$ inv |-src y 'fresh' $$" := (IdTSet.mem y inv.(Invariant.src).(Invariant.fresh)) (at level 41, inv, y at level 41).
-Notation "$$ inv |-tgt y 'fresh' $$" := (IdTSet.mem y inv.(Invariant.tgt).(Invariant.fresh)) (at level 41, inv, y at level 41).
+Notation "$$ inv |-src y 'unique' $$" := (IdTSet.mem y inv.(Invariant.src).(Invariant.unique)) (at level 41, inv, y at level 41).
+Notation "$$ inv |-tgt y 'unique' $$" := (IdTSet.mem y inv.(Invariant.tgt).(Invariant.unique)) (at level 41, inv, y at level 41).
 Notation "$$ inv |-src x _|_ y $$" := ((PtrPairSet.mem (x, y) inv.(Invariant.src).(Invariant.alias).(Invariant.noalias)) || (PtrPairSet.mem (y, x) inv.(Invariant.src).(Invariant.alias).(Invariant.noalias))) (at level 41, inv, x, y at level 41).
 Notation "$$ inv |-tgt x _|_ y $$" := ((PtrPairSet.mem (x, y) inv.(Invariant.tgt).(Invariant.alias).(Invariant.noalias)) || (PtrPairSet.mem (y, x) inv.(Invariant.tgt).(Invariant.alias).(Invariant.noalias))) (at level 41, inv, x, y at level 41).
 Notation "$$ inv |-src x _||_ y $$" := ((ValueTPairSet.mem (x, y) inv.(Invariant.src).(Invariant.alias).(Invariant.diffblock)) || (ValueTPairSet.mem (y, x) inv.(Invariant.src).(Invariant.alias).(Invariant.diffblock))) (at level 41, inv, x, y at level 41).
@@ -1100,7 +1100,7 @@ Definition apply_infrule
   | Infrule.diffblock_global_alloca gx y =>
     match gx with
     | const_gid gx_ty gx_id =>
-      if $$ inv0 |-src y fresh $$ then
+      if $$ inv0 |-src y unique $$ then
         let inv1 := {{inv0 +++src (ValueT.id y) _||_ (ValueT.const gx) }} in
         let inv2 := {{inv1 +++src (ValueT.const gx) _||_ (ValueT.id y) }} in
         inv2

@@ -198,7 +198,7 @@ Module Snapshot.
   Definition unary (inv0:Invariant.unary): Invariant.unary :=
     let inv1 := Invariant.update_lessdef ExprPairSet inv0 in
     let inv2 := Invariant.update_alias alias inv1 in
-    let inv3 := Invariant.update_fresh IdTSet inv2 in
+    let inv3 := Invariant.update_unique IdTSet inv2 in
     let inv4 := Invariant.update_private IdTSet inv3 in
     let inv5 := Invariant.update_lessdef
                   (ExprPairSet.union
@@ -231,7 +231,7 @@ Module Forget.
              (compose negb (LiftPred.ExprPair (flip IdTSet.mem ids)))) inv0 in
     let inv2 := Invariant.update_alias (alias ids) inv1 in
     let inv3 :=
-        Invariant.update_fresh
+        Invariant.update_unique
           (IdTSet.filter (compose negb (flip IdTSet.mem ids))) inv2 in
     let inv4 :=
         Invariant.update_private
@@ -265,7 +265,7 @@ Module ForgetMemory.
              (inv: Invariant.unary) (ps:PtrSet.t) (pp:PtrPair.t): bool :=
     is_noalias_Ptr inv ps (fst pp) && is_noalias_Ptr inv ps (snd pp).
 
-  Definition filter_fresh (ps:PtrSet.t) (frs:IdTSet.t): PtrSet.t :=
+  Definition filter_unique (ps:PtrSet.t) (frs:IdTSet.t): PtrSet.t :=
     PtrSet.filter
       (fun p =>
          match (fst p) with
@@ -275,7 +275,7 @@ Module ForgetMemory.
       ps.
 
   Definition unary (ps:PtrSet.t) (inv0:Invariant.unary): Invariant.unary :=
-    let ps := filter_fresh ps inv0.(Invariant.fresh) in
+    let ps := filter_unique ps inv0.(Invariant.unique) in
     Invariant.update_lessdef (ExprPairSet.filter (is_noalias_ExprPair inv0 ps)) inv0.
 
   Definition t (s_src s_tgt:PtrSet.t) (inv0:Invariant.t): Invariant.t :=
@@ -697,17 +697,17 @@ Definition postcond_cmd_add_private_allocas
   | insn_alloca aid_src _ _ _, insn_alloca aid_tgt _ _ _ =>
     let inv1 :=
         Invariant.update_src
-          (Invariant.update_fresh
+          (Invariant.update_unique
              (IdTSet.add (IdT.lift Tag.physical aid_src))) inv0 in
     let inv2 :=
         Invariant.update_tgt
-          (Invariant.update_fresh
+          (Invariant.update_unique
              (IdTSet.add (IdT.lift Tag.physical aid_tgt))) inv1 in
     inv2
   | insn_alloca aid_src _ _ _, insn_nop _ =>
     let inv1 :=
         Invariant.update_src
-          (Invariant.update_fresh
+          (Invariant.update_unique
              (IdTSet.add (IdT.lift Tag.physical aid_src))) inv0 in
     let inv2 :=
         Invariant.update_src
@@ -717,7 +717,7 @@ Definition postcond_cmd_add_private_allocas
   | insn_nop _, insn_alloca aid_tgt _ _ _ =>
     let inv1 :=
         Invariant.update_tgt
-          (Invariant.update_fresh
+          (Invariant.update_unique
              (IdTSet.add (IdT.lift Tag.physical aid_tgt))) inv0 in
     let inv2 :=
         Invariant.update_tgt
@@ -783,6 +783,28 @@ Definition remove_def_from_maydiff (src tgt:cmd) (inv:Invariant.t): Invariant.t 
     | _, _ => inv
   end.
 
+Definition filter_leaked
+           (c:cmd) (uniq0:IdTSet.t): IdTSet.t :=
+  let uses := IdTSet_from_list (List.map (IdT.lift Tag.physical) (Cmd.get_ids c)) in
+  let excs := 
+      match c with
+      | insn_load _ _ (value_id i) _ => IdTSet.singleton (Tag.physical, i)
+      | insn_store _ _ _ (value_id i) _ => IdTSet.singleton (Tag.physical, i)
+      | _ => IdTSet.empty
+      end
+  in
+  let leaked := IdTSet.diff uses excs in
+  uniq0.
+
+Definition postcond_unique_leakage
+           (src tgt:cmd)
+           (inv0:Invariant.t): Invariant.t :=
+  let inv1 := Invariant.update_src
+                (Invariant.update_unique (filter_leaked src)) inv0 in
+  let inv2 := Invariant.update_tgt
+                (Invariant.update_unique (filter_leaked tgt)) inv1 in
+  inv2.
+
 Definition postcond_cmd
            (src tgt:cmd)
            (inv0:Invariant.t): option Invariant.t :=
@@ -809,13 +831,14 @@ Definition postcond_cmd
   else
 
   let inv1 := Forget.t def_src def_tgt inv0 in
-  let inv2 := postcond_cmd_add_private_allocas src tgt inv1 in
-  let inv3 := ForgetMemory.t def_memory_src def_memory_tgt inv2 in
-  let inv4 := Invariant.update_src
-                (Invariant.update_lessdef (postcond_cmd_add_lessdef src)) inv3 in
-  let inv5 := Invariant.update_tgt
-                (Invariant.update_lessdef (postcond_cmd_add_lessdef tgt)) inv4 in
+  let inv2 := postcond_unique_leakage src tgt inv1 in
+  let inv3 := postcond_cmd_add_private_allocas src tgt inv2 in
+  let inv4 := ForgetMemory.t def_memory_src def_memory_tgt inv3 in
+  let inv5 := Invariant.update_src
+                (Invariant.update_lessdef (postcond_cmd_add_lessdef src)) inv4 in
+  let inv6 := Invariant.update_tgt
+                (Invariant.update_lessdef (postcond_cmd_add_lessdef tgt)) inv5 in
 
-  let inv6 := remove_def_from_maydiff src tgt inv5 in
-  let inv7 := reduce_maydiff inv6 in
-  Some inv7.
+  let inv7 := remove_def_from_maydiff src tgt inv6 in
+  let inv8 := reduce_maydiff inv7 in
+  Some inv8.
