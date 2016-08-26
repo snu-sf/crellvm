@@ -32,7 +32,7 @@ Module Invariant.
   Structure unary := mk_unary {
     lessdef: ExprPairSet.t;
     alias: aliasrel;
-    unique: IdTSet.t;
+    unique: atoms;
     private: IdTSet.t;
   }.
 
@@ -72,7 +72,7 @@ Module Invariant.
   Definition update_noalias (f:PtrPairSet.t -> PtrPairSet.t) (invariant:unary): unary :=
     update_alias (update_noalias_rel f) invariant.
 
-  Definition update_unique (f:IdTSet.t -> IdTSet.t) (invariant:unary): unary :=
+  Definition update_unique (f:atoms -> atoms) (invariant:unary): unary :=
     mk_unary
       invariant.(lessdef)
       invariant.(alias)
@@ -112,7 +112,9 @@ Module Invariant.
 
   Definition is_unique_value (inv0:unary) (value:ValueT.t): bool :=
     match value with
-    | ValueT.id id => IdTSet.mem id inv0.(unique)
+    | ValueT.id idt =>
+      (Tag.eq_dec (fst idt) Tag.physical) &&
+      (AtomSetImpl.mem (snd idt) inv0.(unique))
     | _ => false
     end.
 
@@ -154,7 +156,7 @@ Module Invariant.
                       inv0.(lessdef))
     inv.(lessdef) &&
     implies_alias inv0 (inv0.(alias)) (inv.(alias)) &&
-    IdTSet.subset (inv.(unique)) (inv0.(unique)) &&
+    AtomSetImpl.subset (inv.(unique)) (inv0.(unique)) &&
     IdTSet.subset (inv.(private)) (inv0.(private)).
 
   Definition has_false (inv: t): bool :=
@@ -225,7 +227,7 @@ Module Invariant.
   Definition is_empty_unary (inv:unary): bool :=
     ExprPairSet.is_empty inv.(lessdef) &&
     is_empty_alias inv.(alias) &&
-    IdTSet.is_empty inv.(unique) &&
+    AtomSetImpl.is_empty inv.(unique) &&
     IdTSet.is_empty inv.(private).
 
   Definition is_empty (inv:t): bool :=
@@ -233,8 +235,17 @@ Module Invariant.
     is_empty_unary inv.(tgt) &&
     IdTSet.is_empty inv.(maydiff).
 
+  Definition IdTlist_of_unique
+             (uniq0:atoms): list IdT.t :=
+    List.map (IdT.lift Tag.physical) (AtomSetImpl.elements uniq0).
+
+  Definition IdTSet_of_unique
+             (uniq0:atoms): IdTSet.t :=
+    IdTSet_from_list (IdTlist_of_unique uniq0).
+
   Definition get_idTs_unary (u: unary): list IdT.t :=
     let (lessdef, alias, unique, private) := u in
+    let unique_idt_list := IdTlist_of_unique unique in
     List.concat
       (List.map
          (fun (p: ExprPair.t) =>
@@ -245,7 +256,7 @@ Module Invariant.
          (fun (pp: PtrPair.t) =>
             let (x, y) := pp in TODO.filter_map Ptr.get_idTs [x ; y])
          (PtrPairSet.elements (alias.(noalias)))) ++
-      IdTSet.elements unique ++ IdTSet.elements private.
+      unique_idt_list ++ IdTSet.elements private.
 
   Definition get_idTs (inv: t): list IdT.t :=
     let (src, tgt, maydiff) := inv in

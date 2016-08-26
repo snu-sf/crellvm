@@ -115,7 +115,7 @@ module InvariantObject = struct
       | Lessdef of ExprPair.t
       | Noalias of PtrPair.t
       | Diffblock of ValueTPair.t
-      | Unique of IdT.t
+      | Unique of atom
       | Private of IdT.t
 
     type t =
@@ -142,7 +142,7 @@ module InvariantObject = struct
          Maydiff (Convert.register v)
       | CoreHint_t.Unique prop_a ->
          Unary (convert_scope prop_a.scope,
-                Unique (Convert.register prop_a.p))
+                Unique prop_a.register_name)
       | CoreHint_t.Private prop_a ->
          Unary (convert_scope prop_a.scope,
                 Private (Convert.register prop_a.p))
@@ -162,7 +162,7 @@ module InvariantObject = struct
            | Diffblock (v1, v2) ->
               Invariant.update_diffblock (ValueTPairSet.add (v1, v2)) unary
            | Unique idt ->
-              Invariant.update_unique (IdTSet.add idt) unary
+              Invariant.update_unique (AtomSetImpl.add idt) unary
            | Private idt ->
               Invariant.update_private (IdTSet.add idt) unary
          in

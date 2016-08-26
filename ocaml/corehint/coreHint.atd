@@ -299,7 +299,7 @@ type propagate_diffblock = {
 }
 
 type propagate_unique = {
-  p : register;
+  register_name : string;
   scope : scope;
 }
 
