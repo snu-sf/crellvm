@@ -277,7 +277,7 @@ Module Invariant.
   Definition deep_lessdef_expr (e: (Expr.t * Expr.t)) (lessdef: ExprPairSet.t): bool :=
     let f data v1 v2 := ExprPairSet.mem (v1, v2) data in
     let (e1, e2) := e in
-    deep_check_expr f lessdef e1 e2.
+    ExprPairSet.mem e lessdef || deep_check_expr f lessdef e1 e2.
 
   Definition is_empty_alias (alias:aliasrel): bool :=
     PtrPairSet.is_empty alias.(noalias) &&
