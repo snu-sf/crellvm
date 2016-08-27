@@ -316,8 +316,8 @@ Definition get_swapped_icmp_cond (c:cond) : cond :=
     | cond_sle => cond_sge
   end.
 
-Notation "$$ inv |-src y >= rhs $$" := (ExprPairSet.mem (y, rhs) inv.(Invariant.src).(Invariant.lessdef)) (at level 41, inv, y, rhs at level 41).
-Notation "$$ inv |-tgt y >= rhs $$" := (ExprPairSet.mem (y, rhs) inv.(Invariant.tgt).(Invariant.lessdef)) (at level 41, inv, y, rhs at level 41).
+Notation "$$ inv |-src y >= rhs $$" := (Invariant.deep_lessdef_expr (y, rhs) inv.(Invariant.src).(Invariant.lessdef)) (at level 41, inv, y, rhs at level 41).
+Notation "$$ inv |-tgt y >= rhs $$" := (Invariant.deep_lessdef_expr (y, rhs) inv.(Invariant.tgt).(Invariant.lessdef)) (at level 41, inv, y, rhs at level 41).
 Notation "$$ inv |-src y 'alloca' $$" := (IdTSet.mem y inv.(Invariant.src).(Invariant.allocas)) (at level 41, inv, y at level 41).
 Notation "$$ inv |-tgt y 'alloca' $$" := (IdTSet.mem y inv.(Invariant.tgt).(Invariant.allocas)) (at level 41, inv, y at level 41).
 Notation "$$ inv |-src x _|_ y $$" := ((PtrPairSet.mem (x, y) inv.(Invariant.src).(Invariant.alias).(Invariant.noalias)) || (PtrPairSet.mem (y, x) inv.(Invariant.src).(Invariant.alias).(Invariant.noalias))) (at level 41, inv, x, y at level 41).

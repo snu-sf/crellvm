@@ -274,8 +274,9 @@ Module Invariant.
   Definition inject_expr (inv: Invariant.t) (es et:Expr.t): bool :=
     deep_check_expr Invariant.inject_value inv es et.
 
-  Definition deep_lessdef_expr (e1 e2:Expr.t) (lessdef: ExprPairSet.t): bool :=
+  Definition deep_lessdef_expr (e: (Expr.t * Expr.t)) (lessdef: ExprPairSet.t): bool :=
     let f data v1 v2 := ExprPairSet.mem (v1, v2) data in
+    let (e1, e2) := e in
     deep_check_expr f lessdef e1 e2.
 
   Definition is_empty_alias (alias:aliasrel): bool :=
