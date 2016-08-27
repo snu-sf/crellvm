@@ -9,6 +9,8 @@ Import LLVMsyntax.
 Import LLVMinfra.
 
 Require Import Exprs.
+Require Import Decs.
+Require Import TODO.
 
 Set Implicit Arguments.
 
@@ -192,6 +194,89 @@ Module Invariant.
           ((ExprPairSet.mem (y, Expr.value value_tgt) inv.(tgt).(lessdef)) &&
            (not_in_maydiff_expr inv y)))
        (get_rhs inv.(src).(lessdef) (Expr.value value_src))).
+
+  Definition deep_check_expr
+             {A: Type} (f: A -> ValueT.t -> ValueT.t -> bool)
+             (data: A) (e1 e2:Expr.t): bool :=
+    match e1, e2 with
+    | Expr.bop b1 s1 v1 w1, Expr.bop b2 s2 v2 w2 =>
+      (bop_dec b1 b2)
+        && (sz_dec s1 s2)
+        && (f data v1 v2)
+        && (f data w1 w2)
+    | Expr.fbop fb1 fp1 v1 w1, Expr.fbop fb2 fp2 v2 w2 =>
+      (fbop_dec fb1 fb2)
+        && (floating_point_dec fp1 fp2)
+        && (f data v1 v2)
+        && (f data w1 w2)
+    | Expr.extractvalue t1 v1 lc1 u1, Expr.extractvalue t2 v2 lc2 u2 =>
+      (typ_dec t1 t2)
+        && (list_forallb2 const_eqb lc1 lc2)
+        && (typ_dec u1 u2)
+        && (f data v1 v2)
+    | Expr.insertvalue t1 v1 t'1 v'1 lc1, Expr.insertvalue t2 v2 t'2 v'2 lc2 =>
+      (typ_dec t1 t2)
+        && (f data v1 v2)
+        && (typ_dec t'1 t'2)
+        && (f data v'1 v'2)
+        && (list_forallb2 const_eqb lc1 lc2)
+    | Expr.gep ib1 t1 v1 lsv1 u1, Expr.gep ib2 t2 v2 lsv2 u2 =>
+      (inbounds_dec ib1 ib2)
+        && (typ_dec t1 t2)
+        && (list_eq_dec sz_dec
+                        (List.map fst lsv1)
+                        (List.map fst lsv2))
+        && (List.existsb
+              (fun p => List.existsb
+                          (fun q => f data p q)
+                          (List.map snd lsv2))
+              (List.map snd lsv1))
+        && (typ_dec u1 u2)
+        && (f data v1 v2)
+    | Expr.trunc top1 t1 v1 u1, Expr.trunc top2 t2 v2 u2 =>
+      (truncop_dec top1 top2)
+        && (typ_dec t1 t2)
+        && (typ_dec u1 u2)
+        && (f data v1 v2)
+    | Expr.ext eop1 t1 v1 u1, Expr.ext eop2 t2 v2 u2 =>
+      (extop_dec eop1 eop2)
+        && (typ_dec t1 t2)
+        && (typ_dec u1 u2)
+        && (f data v1 v2)
+    | Expr.cast cop1 t1 v1 u1, Expr.cast cop2 t2 v2 u2 =>
+      (castop_dec cop1 cop2)
+        && (typ_dec t1 t2)
+        && (typ_dec u1 u2)
+        && (f data v1 v2)
+    | Expr.icmp c1 t1 v1 w1, Expr.icmp c2 t2 v2 w2  =>
+      (cond_dec c1 c2)
+        && (typ_dec t1 t2)
+        && (f data v1 v2)
+        && (f data w1 w2)
+    | Expr.fcmp fc1 fp1 v1 w1, Expr.fcmp fc2 fp2 v2 w2  =>
+      (fcond_dec fc1 fc2)
+        && (floating_point_dec fp1 fp2)
+        && (f data v1 v2)
+        && (f data w1 w2)
+    | Expr.select v1 t1 w1 z1, Expr.select v2 t2 w2 z2 =>
+      (typ_dec t1 t2)
+        && (f data v1 v2)
+        && (f data w1 w2)
+        && (f data z1 z2)
+    | Expr.value v1, Expr.value v2 => (f data v1 v2)
+    | Expr.load v1 t1 a1, Expr.load v2 t2 a2 =>
+      (typ_dec t1 t2)
+        && (Decs.align_dec a1 a2)
+        && (f data v1 v2)
+    | _, _ => false
+    end.
+
+  Definition inject_expr (inv: Invariant.t) (es et:Expr.t): bool :=
+    deep_check_expr Invariant.inject_value inv es et.
+
+  Definition deep_lessdef_expr (e1 e2:Expr.t) (lessdef: ExprPairSet.t): bool :=
+    let f data v1 v2 := ExprPairSet.mem (v1, v2) data in
+    deep_check_expr f lessdef e1 e2.
 
   Definition is_empty_alias (alias:aliasrel): bool :=
     PtrPairSet.is_empty alias.(noalias) &&
