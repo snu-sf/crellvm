@@ -101,8 +101,8 @@ Proof.
     ss. des. subst.
     econs; eauto.
     + econs; eauto.
-    + admit.
-    + admit.
+    + admit. (* LOCALS *)
+    + admit. (* ALLOCAS *)
 Admitted.
 
 Inductive status :=
@@ -213,6 +213,32 @@ Proof.
       rewrite NOP in *. ss. inv NOPCMDS; ss.
 Qed.
 
+Lemma nop_cmds_tgt_nil src
+      (NOPCMDS: nop_cmds src []):
+  List.forallb is_nop src.
+Proof.
+  revert NOPCMDS. induction src; ss. i.
+  red in NOPCMDS. unfold compose in NOPCMDS. ss.
+  destruct (is_nop a) eqn:NOP; ss. apply IHsrc. eauto.
+Qed.
+
+Lemma nops_sop_star
+      conf fdef bb cmds_nop cmds term locals allocas ecs mem
+      (NOPS: List.forallb is_nop cmds_nop):
+  sop_star
+    conf
+    (mkState (mkEC fdef bb (cmds_nop ++ cmds) term locals allocas) ecs mem)
+    (mkState (mkEC fdef bb cmds term locals allocas) ecs mem)
+    events.E0.
+Proof.
+  move cmds_nop at top. revert_until conf.
+  induction cmds_nop; ss. i.
+  apply andb_true_iff in NOPS. des.
+  rewrite <- events.E0_left. econs; cycle 1.
+  - eapply IHcmds_nop. ss.
+  - destruct a; inv NOPS. destruct conf. econs.
+Qed.
+
 Lemma nop_step:
   nop_state_sim <8= sim_local.
 Proof.
@@ -231,31 +257,11 @@ Proof.
     exploit get_status_call_inv; eauto. i. des.
     inv SIM. ss. subst.
     exploit nop_cmds_tgt_non_nop; eauto; ss. i. des. subst.
-    (* TODO: use exploit to get tgt f lookup *)
-    (* TODO: eapply _sim_local_call; try apply SOP_STAR; eauto. *)
-    eapply _sim_local_call.
-    + (* TODO: nops implies sop_star *)
-      instantiate (1 :=
-                     {|
-                       EC := {|
-                              CurFunction := fdef_src;
-                              CurBB := (l0, s_src);
-                              CurCmds := insn_call id0 noret0 attrs ty varg0 f args0
-                                                   :: src_tail;
-                              Terminator := term;
-                              Locals := locals_src;
-                              Allocas := allocas_src |};
-                       ECS := ecs_src;
-                       Mem := mem_src |}).                     
-      admit.
-    + ss.
-    + ss.
-    + ss.
-    + ss.
-    + ss.
-    + ss.
+    exploit nops_sop_star; eauto. intro STEPS.
+    (* TODO: use exploit to get tgt func & params lookup *)
+    eapply _sim_local_call; try apply STEPS; ss; try reflexivity; eauto.
     + (* [nonstuck => tgt f lookup], [tgt f lookup => src f lookup] *)
-      ss. admit.
+      admit.
     + (* nonstuck => tgt f lookup *)
       admit.
     + (* f related *)
@@ -263,39 +269,28 @@ Proof.
     + admit. (* params tgt *)
     + admit. (* params src *)
     + admit. (* params related *)
-    + ss.
     + ss. i. esplits. right. eapply CIH. econs; ss.
   - (* return *)
-    admit.
-  - (* return_void *)
-    admit.
+    exploit get_status_return_inv; eauto. i. des.
+    inv SIM. ss. subst.
+    exploit nop_cmds_tgt_nil; eauto. intro NOPS.
+    exploit nops_sop_star; eauto. rewrite <- app_nil_end. intro STEPS.
+    eapply _sim_local_return; try apply STEPS; ss.
+    + admit. (* retval tgt *)
+    + admit. (* retval src *)
+    + admit. (* retval related *)
+  - (* return void *)
+    exploit get_status_return_void_inv; eauto. i. des.
+    inv SIM. ss. subst.
+    exploit nop_cmds_tgt_nil; eauto. intro NOPS.
+    exploit nops_sop_star; eauto. rewrite <- app_nil_end. intro STEPS.
+    eapply _sim_local_return_void; try apply STEPS; ss.
   - (* step *)
+    
+    exploit get_status_step_inv; eauto. i. des.
     admit.
-
-(* inv EC_INJECT. simpl in *. subst. *)
-(*     apply get_status_call_inv in TGT. des. simpl in *. subst. *)
-(*     exploit identity_step_call_function; ii; eauto. *)
-(*     des. *)
-(*     exploit identity_step_call_parameter; ii; eauto. *)
-(*     des. *)
-(*     eapply _sim_local_call; *)
-(*       repeat (simpl in *; eauto). *)
-(*     + i. eexists. right. apply CIH. *)
-(*       econs; simpl; eauto. *)
-(*       econs; eauto. *)
-(*   - *)
-(*     inv EC_INJECT; simpl in *; auto. *)
-(*     symmetry in H, H0. simpl in *; subst. *)
-(*     eapply get_status_return_inv in TGT. des. simpl in *. *)
-(*     exploit identity_step_return; eauto; ii; des; subst. *)
-(*     eapply _sim_local_return; repeat (simpl in *; eauto). *)
-(*     + admit. *)
-(*   - inv EC_INJECT. *)
-(*     symmetry in H. symmetry in H0. *)
-(*     simpl in *; subst. *)
-(*     eapply get_status_return_void_inv in TGT; des. *)
-(*     eapply _sim_local_return_void; repeat (simpl in *; eauto). *)
-(*   - *)
+Admitted.
+(* step case *)
 (*     destruct conf_src. *)
 (*     eapply _sim_local_step; simpl in *; eauto. *)
 (*     ii. *)
@@ -351,7 +346,6 @@ Proof.
     (*     simpl; auto. *)
     (*     inv STEP; simpl; auto; inv TGT. *)
     (* } *)
-Admitted.
 
 Lemma nop_sim
       conf_src conf_tgt
@@ -363,113 +357,9 @@ Lemma nop_sim
 Proof.
   ii.
   exploit nop_init; eauto.
-  { admit. }
-  { admit. }
+  { admit. (* MEM_TODO *) }
+  { admit. (* CONF_TODO *) }
   i. des.
   esplits; eauto.
   apply nop_step. eauto.
 Admitted.
-
-Lemma identity_step_call_function
-      conf_src conf_tgt mem_src mem_tgt inv
-      CurTargetData
-      locals_tgt locals_src
-      allocas_tgt
-      fdef_tgt block_tgt
-      ecs_tgt
-      id noret attrs ty varg f args
-      cmds terminator
-      (LOCALS : LOCALS_TODO)
-      (ALLOCAS : ALLOCAS_TODO)
-      (MEM_INJECT : Relational.sem conf_src conf_tgt mem_src mem_tgt inv)
-      (NO_ERROR :
-         ~(stuck_state
-             conf_tgt
-             {|
-               EC := {|
-                  CurFunction := fdef_tgt;
-                  CurBB := block_tgt;
-                  CurCmds := insn_call id noret attrs ty varg f args
-                             :: cmds;
-                  Terminator := terminator;
-                  Locals := locals_tgt;
-                  Allocas := allocas_tgt |};
-            ECS := ecs_tgt;
-            Mem := mem_tgt |})):
-  exists funval_src funval_tgt,
-    getOperandValue (CurTargetData conf_tgt) f locals_tgt
-                    (Globals conf_tgt) = Some funval_tgt /\
-     getOperandValue (CurTargetData conf_src) f locals_src
-                    (Globals conf_src) = Some funval_src /\
-     GVs.inject (Relational.inject inv) funval_src funval_tgt.
-Proof.
-Admitted.
-
-Lemma identity_step_call_parameter
-      conf_src conf_tgt mem_src mem_tgt inv
-      CurTargetData
-      locals_tgt locals_src
-      allocas_tgt
-      fdef_tgt block_tgt
-      ecs_tgt
-      id noret attrs ty varg f args
-      cmds terminator
-      (LOCALS : True)
-      (ALLOCAS : True)
-      (MEM_INJECT : Relational.sem conf_src conf_tgt mem_src mem_tgt inv)
-      (NO_ERROR :
-         ~(stuck_state
-             conf_tgt
-             {|
-               EC := {|
-                      CurFunction := fdef_tgt;
-                      CurBB := block_tgt;
-                      CurCmds := insn_call id noret attrs ty varg f args
-                                           :: cmds;
-                      Terminator := terminator;
-                      Locals := locals_tgt;
-                      Allocas := allocas_tgt |};
-               ECS := ecs_tgt;
-               Mem := mem_tgt |})):
-  exists args_src args_tgt,
-    params2GVs (CurTargetData conf_src) args locals_src (Globals conf_src) =
-    Some args_src /\
-    params2GVs (CurTargetData conf_tgt) args locals_tgt (Globals conf_tgt) =
-    Some args_tgt /\
-    list_forall2 (GVs.inject (Relational.inject inv)) args_src args_tgt.
-  Admitted.
-
-Lemma identity_step_return
-      inv
-      mem_src conf_src
-      ecs_tgt mem_tgt conf_tgt
-      (* (fdef_src : fdef) *)
-      (* (block_src : blocks) *)
-      (* cmds_src terminator_src locals_src allocas_src *)
-      fdef_tgt block_tgt cmds_tgt terminator_tgt locals_tgt allocas_tgt
-      ec_src
-      id typ value
-      (MEM_INJECT : Relational.sem conf_src conf_tgt mem_src mem_tgt inv)
-      (LOCALS : True)
-      (ALLOCALS : True)
-      (NO_ERROR :
-         ~(stuck_state
-             conf_tgt
-             {|
-               EC := {|
-                      CurFunction := fdef_tgt;
-                      CurBB := block_tgt;
-                      CurCmds := cmds_tgt;
-                      Terminator := terminator_tgt;
-                      Locals := locals_tgt;
-                      Allocas := allocas_tgt |};
-               ECS := ecs_tgt;
-               Mem := mem_tgt |}))
-      (TGT : terminator_tgt = insn_return id typ value):
-  exists retval_src retval_tgt,
-    getOperandValue (CurTargetData conf_src) value (Locals ec_src)
-                    (Globals conf_src) = Some retval_src /\
-    getOperandValue (CurTargetData conf_tgt) value locals_tgt
-                    (Globals conf_tgt) = Some retval_tgt /\
-    GVs.inject (Relational.inject inv) retval_src retval_tgt.
-  Admitted.
