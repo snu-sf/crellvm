@@ -369,6 +369,10 @@ Definition deep_check_expr
 Definition inject_expr (inv: Invariant.t) (es et:Expr.t): bool :=
   deep_check_expr Invariant.inject_value inv es et.
 
+Definition deep_lessdef_expr (e1 e2:Expr.t) (lessdef: ExprPairSet.t): bool :=
+  let f data v1 v2 := ExprPairSet.mem (v1, v2) data in
+  deep_check_expr f lessdef e1 e2.
+
 Definition reduce_maydiff (inv0:Invariant.t): Invariant.t :=
   let lessdef_src := inv0.(Invariant.src).(Invariant.lessdef) in
   let lessdef_tgt := inv0.(Invariant.tgt).(Invariant.lessdef) in
