@@ -228,7 +228,7 @@ Module Invariant.
                         (List.map fst lsv2))
         && (List.existsb
               (fun p => List.existsb
-                          (fun q => f data p q)
+                          (f data p)
                           (List.map snd lsv2))
               (List.map snd lsv1))
         && (typ_dec u1 u2)
@@ -274,7 +274,7 @@ Module Invariant.
   Definition inject_expr (inv: Invariant.t) (es et:Expr.t): bool :=
     deep_check_expr Invariant.inject_value inv es et.
 
-  Definition deep_lessdef_expr (e: (Expr.t * Expr.t)) (lessdef: ExprPairSet.t): bool :=
+  Definition lessdef_expr (e: (Expr.t * Expr.t)) (lessdef: ExprPairSet.t): bool :=
     let f data v1 v2 := ExprPairSet.mem (v1, v2) data in
     let (e1, e2) := e in
     ExprPairSet.mem e lessdef || deep_check_expr f lessdef e1 e2.
