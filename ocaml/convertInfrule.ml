@@ -1088,6 +1088,13 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
      let y = Convert.value args.y in
      let b = Convert.const_int args.boolean in
      Infrule.Coq_icmp_inverse (c, ty, x, y, b)
+  | CoreHint_t.IcmpInverseRhs (args:CoreHint_t.icmp_inverse_rhs) ->
+     let c = Convert.cond args.predicate in
+     let ty = Convert.value_type args.ty in
+     let x = Convert.value args.x in
+     let y = Convert.value args.y in
+     let b = Convert.const_int args.boolean in
+     Infrule.Coq_icmp_inverse_rhs (c, ty, x, y, b)
   | CoreHint_t.IcmpSwapOperands (args:CoreHint_t.icmp_swap_operands) ->
      let c = Convert.cond args.predicate in
      let ty = Convert.value_type args.ty in

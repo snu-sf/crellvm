@@ -1345,6 +1345,15 @@ Definition apply_infrule
       let b' := get_inverse_boolean_Int b in
       {{inv0 +++src (Expr.icmp c' ty x y) >= (Expr.value (ValueT.const (const_int Size.One b')))}}
     else apply_fail tt
+  | Infrule.icmp_inverse_rhs c ty x y b =>
+    if $$ inv0 |-src (Expr.value (ValueT.const (const_int Size.One b))) >= (Expr.icmp c ty x y) $$
+    then
+      let c' := get_inverse_icmp_cond c in
+      let b' := get_inverse_boolean_Int b in
+      let inv1 :=
+          {{inv0 +++src (Expr.value (ValueT.const (const_int Size.One b'))) >= (Expr.icmp c' ty x y)}}
+      in {{inv1 +++src (Expr.icmp c' ty x y) >= (Expr.value (ValueT.const (const_int Size.One b')))}}
+    else apply_fail tt
   | Infrule.icmp_swap_operands c ty x y z =>
     if $$ inv0 |-src (Expr.value z) >= (Expr.icmp c ty x y) $$
     then
