@@ -274,8 +274,8 @@ module PrintHints = struct
       (PrintExprs.exprPairSet (u.Invariant.lessdef) "≥") @
         (PrintExprs.ptrPairSet (u.Invariant.alias.Invariant.noalias) "≠") @
         (PrintExprs.valueTPairSet (u.Invariant.alias.Invariant.diffblock) "_||_") @
-        (PrintExprs.idSet (u.Invariant.unique) "unq") @
-        (PrintExprs.idTSet (u.Invariant.coq_private) "prv")
+        (PrintExprs.idSet (u.Invariant.unique) "uniq") @
+        (PrintExprs.idTSet (u.Invariant.coq_private) "prvt")
     
     let invariant (inv:Invariant.t): unit =
       (* print_bar(), print_sum() should be function *)
