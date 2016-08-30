@@ -198,7 +198,6 @@ Module Snapshot.
   Definition unary (inv0:Invariant.unary): Invariant.unary :=
     let inv1 := Invariant.update_lessdef ExprPairSet inv0 in
     let inv2 := Invariant.update_alias alias inv1 in
-    (* let inv3 := Invariant.update_unique unique inv2 in *)
     let inv3 := Invariant.update_private IdTSet inv2 in
     let inv4 := Invariant.update_lessdef
                   (ExprPairSet.union
@@ -689,7 +688,7 @@ Definition postcond_cmd_inject_event
   | _, _ => true
   end.
 
-Definition postcond_cmd_add_private_allocas
+Definition postcond_cmd_add_private_unique
            (src tgt:cmd)
            (inv0:Invariant.t): Invariant.t :=
   match src, tgt with
@@ -833,7 +832,7 @@ Definition postcond_cmd
 
   let inv1 := Forget.t def_src def_tgt inv0 in
   let inv2 := postcond_unique_leakage src tgt inv1 in
-  let inv3 := postcond_cmd_add_private_allocas src tgt inv2 in
+  let inv3 := postcond_cmd_add_private_unique src tgt inv2 in
   let inv4 := ForgetMemory.t def_memory_src def_memory_tgt inv3 in
   let inv5 := Invariant.update_src
                 (Invariant.update_lessdef (postcond_cmd_add_lessdef src)) inv4 in

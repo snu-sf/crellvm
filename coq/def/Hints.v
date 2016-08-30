@@ -113,29 +113,29 @@ Module Invariant.
   Definition is_unique_value (inv0:unary) (value:ValueT.t): bool :=
     match value with
     | ValueT.id idt =>
-      (Tag.eq_dec (fst idt) Tag.physical) &&
-      (AtomSetImpl.mem (snd idt) inv0.(unique))
+      (Tag.eq_dec idt.(fst) Tag.physical) &&
+      (AtomSetImpl.mem idt.(snd) inv0.(unique))
     | _ => false
     end.
 
   Definition is_unique_ptr (inv0:unary) (ptr:Ptr.t): bool :=
-    is_unique_value inv0 (fst ptr).
+    is_unique_value inv0 ptr.(fst).
 
   Definition implies_noalias (inv0:unary) (na0 na:PtrPairSet.t): bool :=
-    PtrPairSet.for_all
+    flip PtrPairSet.for_all na
       (fun pp =>
-         (negb (Ptr.eq_dec (fst pp) (snd pp)) &&
-           is_unique_ptr inv0 (fst pp) || is_unique_ptr inv0 (snd pp)) ||
+         (negb (Ptr.eq_dec pp.(fst) pp.(snd)) &&
+           is_unique_ptr inv0 pp.(fst) || is_unique_ptr inv0 pp.(snd)) ||
          (PtrPairSet.mem pp na0)
-      ) na.
+      ).
 
   Definition implies_diffblock (inv0:unary) (db0 db:ValueTPairSet.t): bool :=
-    ValueTPairSet.for_all
+    flip ValueTPairSet.for_all db
       (fun vp =>
-         (negb (ValueT.eq_dec (fst vp) (snd vp)) &&
-           is_unique_value inv0 (fst vp) || is_unique_value inv0 (snd vp)) ||
+         (negb (ValueT.eq_dec vp.(fst) vp.(snd)) &&
+           is_unique_value inv0 vp.(fst) || is_unique_value inv0 vp.(snd)) ||
          (ValueTPairSet.mem vp db0)
-      ) db.
+      ).
 
   Definition implies_alias inv0 (alias0 alias:aliasrel): bool :=
     implies_noalias inv0 (alias0.(noalias)) (alias.(noalias)) &&
@@ -145,9 +145,9 @@ Module Invariant.
     ExprPairSet.for_all
           (fun p => ExprPairSet.exists_
                       (fun q =>
-                        (if (Expr.eq_dec (fst p) (fst q))
-                         then ((Expr.eq_dec (snd p) (snd q)) ||
-                               (match (snd p), (snd q) with
+                        (if (Expr.eq_dec p.(fst) q.(fst))
+                         then ((Expr.eq_dec p.(snd) q.(snd)) ||
+                               (match p.(snd), q.(snd) with
                                 | Expr.value v, 
                                   Expr.value (ValueT.const (const_undef ty)) => true
                                 | _, _ => false
@@ -169,25 +169,18 @@ Module Invariant.
           && IdTSet.subset (inv0.(maydiff)) (inv.(maydiff))).
 
   Definition is_noalias (inv:unary) (p1:Ptr.t) (p2:Ptr.t) :=
-    PtrPairSet.exists_ (fun p1p2 =>
-                         match p1p2 with
-                           | (xp1, xp2) =>
-                             (Ptr.eq_dec p1 xp1 && Ptr.eq_dec p2 xp2) ||
-                             (Ptr.eq_dec p1 xp2 && Ptr.eq_dec p2 xp1)
-                         end) inv.(alias).(noalias).
+    flip PtrPairSet.exists_
+         inv.(alias).(noalias)
+      (fun pp =>
+           (Ptr.eq_dec p1 pp.(fst) && Ptr.eq_dec p2 pp.(snd)) ||
+           (Ptr.eq_dec p1 pp.(snd) && Ptr.eq_dec p2 pp.(fst))).
 
   Definition is_diffblock (inv:unary) (p1:Ptr.t) (p2:Ptr.t) :=
-    let (v1, t1) := p1 in
-    let (v2, t2) := p2 in
-    ValueTPairSet.exists_
-      (fun v1v2 =>
-        match v1v2 with
-        | (xv1, xv2) =>
-            (ValueT.eq_dec v1 xv1 &&
-             ValueT.eq_dec v2 xv2) ||
-            (ValueT.eq_dec v1 xv2 &&
-             ValueT.eq_dec v2 xv1)
-        end) inv.(alias).(diffblock).
+    flip ValueTPairSet.exists_
+         inv.(alias).(diffblock)
+      (fun vp =>
+         (ValueT.eq_dec p1.(fst) vp.(fst) && ValueT.eq_dec p2.(fst) vp.(snd)) ||
+         (ValueT.eq_dec p1.(fst) vp.(snd) && ValueT.eq_dec p2.(fst) vp.(fst))).
 
   Definition not_in_maydiff (inv:t) (value:ValueT.t): bool :=
     match value with
@@ -200,14 +193,12 @@ Module Invariant.
     List.forallb (not_in_maydiff inv) (Expr.get_valueTs expr).
 
   Definition get_lhs (inv:ExprPairSet.t) (rhs:Expr.t): ExprPairSet.t :=
-    ExprPairSet.filter
-       (fun (p: ExprPair.t) => Expr.eq_dec rhs (snd p))
-       inv.
+    flip ExprPairSet.filter inv
+         (fun (p: ExprPair.t) => Expr.eq_dec rhs p.(snd)).
       
   Definition get_rhs (inv:ExprPairSet.t) (lhs:Expr.t): ExprPairSet.t :=
-    ExprPairSet.filter
-       (fun (p: ExprPair.t) => Expr.eq_dec lhs (fst p))
-       inv.
+    flip ExprPairSet.filter inv
+       (fun (p: ExprPair.t) => Expr.eq_dec lhs p.(fst)).
 
   Definition inject_value (inv:t) (value_src value_tgt:ValueT.t): bool :=
     (ValueT.eq_dec value_src value_tgt && not_in_maydiff inv value_src) ||
@@ -215,9 +206,8 @@ Module Invariant.
     (ExprPairSet.mem (Expr.value value_src, Expr.value value_tgt) inv.(src).(lessdef) && not_in_maydiff inv value_tgt) ||
     (ExprPairSet.exists_
        (fun (p: ExprPair.t) => 
-          let (x, y) := p in 
-          ((ExprPairSet.mem (y, Expr.value value_tgt) inv.(tgt).(lessdef)) &&
-           (not_in_maydiff_expr inv y)))
+          ((ExprPairSet.mem (p.(snd), Expr.value value_tgt) inv.(tgt).(lessdef)) &&
+           (not_in_maydiff_expr inv p.(snd))))
        (get_rhs inv.(src).(lessdef) (Expr.value value_src))).
 
   Definition is_empty_alias (alias:aliasrel): bool :=
@@ -235,34 +225,24 @@ Module Invariant.
     is_empty_unary inv.(tgt) &&
     IdTSet.is_empty inv.(maydiff).
 
-  Definition IdTlist_of_unique
-             (uniq0:atoms): list IdT.t :=
-    List.map (IdT.lift Tag.physical) (AtomSetImpl.elements uniq0).
-
-  Definition IdTSet_of_unique
-             (uniq0:atoms): IdTSet.t :=
-    IdTSet_from_list (IdTlist_of_unique uniq0).
-
   Definition get_idTs_unary (u: unary): list IdT.t :=
-    let (lessdef, alias, unique, private) := u in
-    let unique_idt_list := IdTlist_of_unique unique in
     List.concat
       (List.map
          (fun (p: ExprPair.t) =>
-            let (x, y) := p in Expr.get_idTs x ++ Expr.get_idTs y)
-         (ExprPairSet.elements lessdef)) ++
+            Expr.get_idTs p.(fst) ++ Expr.get_idTs p.(snd))
+         (ExprPairSet.elements u.(lessdef))) ++
     List.concat
       (List.map
          (fun (pp: PtrPair.t) =>
-            let (x, y) := pp in TODO.filter_map Ptr.get_idTs [x ; y])
-         (PtrPairSet.elements (alias.(noalias)))) ++
-      unique_idt_list ++ IdTSet.elements private.
+            TODO.filter_map Ptr.get_idTs [pp.(fst) ; pp.(snd)])
+         (PtrPairSet.elements (u.(alias).(noalias)))) ++
+      (List.map (IdT.lift Tag.physical) (AtomSetImpl.elements u.(unique))) ++
+      IdTSet.elements u.(private).
 
   Definition get_idTs (inv: t): list IdT.t :=
-    let (src, tgt, maydiff) := inv in
-    (get_idTs_unary src)
-      ++ (get_idTs_unary tgt)
-      ++ (IdTSet.elements maydiff).
+    (get_idTs_unary inv.(src))
+      ++ (get_idTs_unary inv.(tgt))
+      ++ (IdTSet.elements inv.(maydiff)).
 End Invariant.
 
 Module Infrule.
