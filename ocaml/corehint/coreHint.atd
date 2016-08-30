@@ -298,8 +298,8 @@ type propagate_diffblock = {
   scope : scope;
 }
 
-type propagate_alloca = {
-  p : register;
+type propagate_unique = {
+  register_name : string;
   scope : scope;
 }
 
@@ -312,8 +312,8 @@ type propagate_object = [
   | Lessdef of propagate_lessdef
   | Noalias of propagate_noalias
   | Diffblock of propagate_diffblock
-  | Alloca of propagate_alloca
   | Maydiff of register
+  | Unique of propagate_unique
   | Private of propagate_private
   ] <ocaml repr="classic">
 

@@ -4,6 +4,7 @@ open Syntax
 open Coq_pretty_printer
 open Printf
 open List
+open MetatheoryAtom
        
 let out_channel = ref stderr
 
@@ -171,6 +172,11 @@ module PrintExprs = struct
         (fun vtp -> (ExprsToString.of_valueTPair vtp sym))
         (ValueTPairSet.elements vtps)
 
+    let idSet (ids: AtomSetImpl.t) (sym: string): string list =
+      List.map
+        (fun id -> (sym ^ " " ^ id))
+        (AtomSetImpl.elements ids)
+
     let idTSet (idts: IdTSet.t) (sym: string): string list =
       List.map
         (fun idt -> (sym ^ (ExprsToString.of_IdT idt)))
@@ -268,8 +274,8 @@ module PrintHints = struct
       (PrintExprs.exprPairSet (u.Invariant.lessdef) "≥") @
         (PrintExprs.ptrPairSet (u.Invariant.alias.Invariant.noalias) "≠") @
         (PrintExprs.valueTPairSet (u.Invariant.alias.Invariant.diffblock) "_||_") @
-        (PrintExprs.idTSet (u.Invariant.allocas) "alc") @
-        (PrintExprs.idTSet (u.Invariant.coq_private) "isol")
+        (PrintExprs.idSet (u.Invariant.unique) "uniq") @
+        (PrintExprs.idTSet (u.Invariant.coq_private) "prvt")
     
     let invariant (inv:Invariant.t): unit =
       (* print_bar(), print_sum() should be function *)
