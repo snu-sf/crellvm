@@ -313,6 +313,12 @@ Definition get_swapped_icmp_cond (c:cond) : cond :=
     | cond_sle => cond_sge
   end.
 
+Definition is_commutative_bop (opcode:bop) :=
+  match opcode with
+  | bop_add | bop_mul | bop_and | bop_or | bop_xor => true
+  | _ => false
+  end.
+
 Notation "$$ inv |-src y >= rhs $$" := (ExprPairSet.mem (y, rhs) inv.(Invariant.src).(Invariant.lessdef)) (at level 41, inv, y, rhs at level 41).
 Notation "$$ inv |-tgt y >= rhs $$" := (ExprPairSet.mem (y, rhs) inv.(Invariant.tgt).(Invariant.lessdef)) (at level 41, inv, y, rhs at level 41).
 Notation "$$ inv |-src y 'unique' $$" :=
@@ -368,10 +374,6 @@ Definition apply_infrule
        $$ inv0 |-src (Expr.value z) >= (Expr.bop bop_add s x minusy) $$
     then {{inv0 +++src (Expr.value z) >= (Expr.bop bop_sub s x y)}}
     else apply_fail tt
-  | Infrule.add_commutative z x y s =>
-    if $$ inv0 |-src (Expr.value z) >= (Expr.bop bop_add s x y) $$
-    then {{inv0 +++src (Expr.value z) >= (Expr.bop bop_add s y x)}}
-    else apply_fail tt
   | Infrule.add_commutative_tgt z x y s =>
     if $$ inv0 |-tgt (Expr.bop bop_add s x y) >= (Expr.value z) $$
     then {{inv0 +++tgt (Expr.bop bop_add s y x) >= (Expr.value z) }}
@@ -421,10 +423,6 @@ Definition apply_infrule
        $$ inv0 |-src (Expr.value (ValueT.id y)) >= (Expr.bop bop_add sz (ValueT.id x) (ValueT.const (const_int sz c))) $$ &&
        cond_plus sz c (INTEGER.of_Z (Size.to_Z sz) 1%Z true) c'
     then {{ inv0 +++src (Expr.value (ValueT.id y)) >= (Expr.select b (typ_int sz) (ValueT.const (const_int sz c')) (ValueT.const (const_int sz c))) }}
-    else apply_fail tt
-  | Infrule.and_commutative z x y s =>
-    if $$ inv0 |-src (Expr.value (ValueT.id z)) >= (Expr.bop bop_and s x y) $$
-    then {{inv0 +++src (Expr.value (ValueT.id z)) >= (Expr.bop bop_and s y x)}}
     else apply_fail tt
   | Infrule.and_de_morgan z x y z' a b s =>
     if $$ inv0 |-tgt (Expr.bop bop_xor s a (ValueT.const (const_int s (INTEGER.of_Z (Size.to_Z s) (-1)%Z true)))) >= (Expr.value (ValueT.id x)) $$ &&
@@ -618,6 +616,11 @@ Definition apply_infrule
         {{inv0 +++src (Expr.value z) >= (Expr.bop opcode s x (const_int s c3))}}
       else apply_fail tt
     else apply_fail tt
+  | Infrule.bop_commutative e opcode x y s =>
+    if $$ inv0 |-src e >= (Expr.bop opcode s x y) $$ &&
+      (is_commutative_bop opcode)
+    then {{ inv0 +++src e >= (Expr.bop opcode s y x) }}
+    else apply_fail tt
   | Infrule.fadd_commutative_tgt z x y fty =>
     if $$ inv0 |-tgt (Expr.fbop fbop_fadd fty x y) >= (Expr.value (ValueT.id z)) $$
     then {{ inv0 +++tgt (Expr.fbop fbop_fadd fty y x) >= (Expr.value (ValueT.id z)) }}
@@ -760,10 +763,6 @@ Definition apply_infrule
     if $$ inv0 |-src (Expr.value z) >= (Expr.bop bop_mul Size.One x y) $$
     then {{inv0 +++src (Expr.value z) >= (Expr.bop bop_and Size.One x y) }}
     else apply_fail tt
-  | Infrule.mul_commutative z x y s =>
-    if $$ inv0 |-src (Expr.value (ValueT.id z)) >= (Expr.bop bop_mul s x y) $$
-    then {{inv0 +++src (Expr.value (ValueT.id z)) >= (Expr.bop bop_mul s y x)}}
-    else apply_fail tt
   | Infrule.mul_shl z y x a s =>
     if $$ inv0 |-src (Expr.value (ValueT.id y)) >= (Expr.bop bop_shl s (ValueT.const (const_int s (INTEGER.of_Z (Size.to_Z s) 1%Z true))) a) $$ &&
        $$ inv0 |-src (Expr.value (ValueT.id z)) >= (Expr.bop bop_mul s (ValueT.id y) x) $$
@@ -779,10 +778,6 @@ Definition apply_infrule
        $$ inv0 |-src (Expr.value y) >= (Expr.bop bop_xor s a b) $$ &&
        $$ inv0 |-src (Expr.value z) >= (Expr.bop bop_or s x y) $$
     then {{ inv0 +++src (Expr.value z) >= (Expr.bop bop_or s a b) }}
-    else apply_fail tt
-  | Infrule.or_commutative z x y s =>
-    if $$ inv0 |-src (Expr.value (ValueT.id z)) >= (Expr.bop bop_or s x y) $$
-    then {{inv0 +++src (Expr.value (ValueT.id z)) >= (Expr.bop bop_or s y x)}}
     else apply_fail tt
   | Infrule.or_commutative_tgt z x y s =>
     if $$ inv0 |-tgt (Expr.bop bop_or s x y) >= (Expr.value (ValueT.id z)) $$
@@ -1260,10 +1255,6 @@ Definition apply_infrule
       let inv3 := {{ inv2 +++src expr >= (Expr.value (ValueT.id (Tag.ghost, g))) }} in
       let inv4 := {{ inv3 +++tgt (Expr.value (ValueT.id (Tag.ghost, g))) >= expr }} in
       inv4
-    else apply_fail tt
-  | Infrule.xor_commutative z x y s =>
-    if $$ inv0 |-src (Expr.value z) >= (Expr.bop bop_xor s x y) $$
-    then {{inv0 +++src (Expr.value z) >= (Expr.bop bop_xor s y x)}}
     else apply_fail tt
   | Infrule.xor_commutative_tgt z x y s =>
     if $$ inv0 |-tgt (Expr.bop bop_xor s x y) >= (Expr.value z) $$

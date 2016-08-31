@@ -200,12 +200,12 @@ module PrintHints = struct
       | Infrule.Coq_add_const_not (x, y, v, c1, c2, sz) ->
          "add_const_not"
       | Infrule.Coq_add_sub _ -> "add_sub"
-      | Infrule.Coq_add_commutative (z, x, y, s) -> "add_commutative : " ^ 
-                                                ExprsToString.of_expr(Expr.Coq_value (ValueT.Coq_id z)) ^ " ≥ " ^
-                                                ExprsToString.of_expr(Expr.Coq_value x) ^ " + " ^
-                                                ExprsToString.of_expr(Expr.Coq_value y) ^ " to commutate"
       | Infrule.Coq_bop_associative (x, y, z, bop, c1, c2, c3, sz) ->
          "bop_assoc " ^ (string_of_bop bop)
+      | Infrule.Coq_bop_commutative (e, bop, x, y, s) -> "bop_commutative : " ^ 
+                                                ExprsToString.of_expr(e) ^ " ≥ " ^
+                                                ExprsToString.of_expr(Expr.Coq_value x) ^ (string_of_bop bop) ^
+                                                ExprsToString.of_expr(Expr.Coq_value y) ^ " to commutate"
       | Infrule.Coq_bitcast_load (ptr, ptrty, v1, ptrty2, v2, a) ->
          "bitcast_load " ^ 
              (ExprsToString.of_ValueT ptr) ^ " " ^
@@ -226,10 +226,6 @@ module PrintHints = struct
       | Infrule.Coq_diffblock_global_global _ -> "diffblock_global_global"
       | Infrule.Coq_diffblock_global_alloca _ -> "diffblock_global_alloca"
       | Infrule.Coq_intro_eq v -> "intro_eq : " ^ ExprsToString.of_expr(Expr.Coq_value v)
-      | Infrule.Coq_or_commutative (z, x, y, s) -> "or_commutative : " ^ 
-                                                ExprsToString.of_expr(Expr.Coq_value (ValueT.Coq_id z)) ^ " ≥ " ^
-                                                ExprsToString.of_expr(Expr.Coq_value x) ^ " | " ^
-                                                ExprsToString.of_expr(Expr.Coq_value y) ^ " to commutate"
       | Infrule.Coq_or_xor3 (z, y, a, b, s) -> "or_xor3 : " ^ 
                                                 ExprsToString.of_expr(Expr.Coq_value y) ^ " ≥ "
                                                         ^ ExprsToString.of_expr(Expr.Coq_value a) ^ " ^ "

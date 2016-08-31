@@ -53,12 +53,6 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
      let y = Convert.value args.y in
      let sz = Convert.size args.sz in
      Infrule.Coq_add_sub (z, minusy, x, y, sz)
-  | CoreHint_t.AddCommutative (args:CoreHint_t.add_commutative) ->
-     let z = Convert.register args.z in
-     let x = Convert.value args.x in
-     let y = Convert.value args.y in
-     let sz = Convert.size args.sz in
-     Infrule.Coq_add_commutative (z, x, y, sz)
   | CoreHint_t.AddCommutativeTgt (args:CoreHint_t.add_commutative_tgt) ->
      let z = Convert.register args.z in
      let x = Convert.value args.x in
@@ -123,12 +117,6 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
      let y = Convert.register args.y in
      let sz = Convert.size args.sz in
      Infrule.Coq_add_xor_and (z, a, b, x, y, sz)
-  | CoreHint_t.AndCommutative (args:CoreHint_t.and_commutative) ->
-     let z = Convert.register args.z in
-     let x = Convert.value args.x in
-     let y = Convert.value args.y in
-     let sz = Convert.size args.sz in
-     Infrule.Coq_and_commutative (z, x, y, sz)
   | CoreHint_t.AndDeMorgan (args:CoreHint_t.and_de_morgan) ->
      let z = Convert.register args.z in
      let x = Convert.register args.x in
@@ -327,6 +315,13 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
      let c3 = Convert.const_int args.c3 in
      let sz = Convert.size args.sz in
      Infrule.Coq_bop_associative (x, y, z, bop, c1, c2, c3, sz)
+  | CoreHint_t.BopCommutative (args:CoreHint_t.bop_commutative) ->
+     let e = Convert.expr args.e src_fdef tgt_fdef in
+     let bop = Convert.bop args.bop in
+     let x = Convert.value args.x in
+     let y = Convert.value args.y in
+     let sz = Convert.size args.sz in
+     Infrule.Coq_bop_commutative (e, bop, x, y, sz)
   | CoreHint_t.BopDistributiveOverSelectinst (args:CoreHint_t.bop_distributive_over_selectinst) ->
      let opcode = Convert.bop args.opcode in
      let r = Convert.register args.r in
@@ -512,12 +507,6 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
      let ty = Convert.value_type args.ty in
      let v = Convert.value args.v in
      Infrule.Coq_lessthan_undef_tgt (ty, v)
-  | CoreHint_t.OrCommutative (args:CoreHint_t.or_commutative) ->
-     let z = Convert.register args.z in
-     let x = Convert.value args.x in
-     let y = Convert.value args.y in
-     let sz = Convert.size args.sz in
-     Infrule.Coq_or_commutative (z, x, y, sz)
   | CoreHint_t.OrCommutativeTgt (args:CoreHint_t.or_commutative_tgt) ->
      let z = Convert.register args.z in
      let x = Convert.value args.x in
@@ -633,12 +622,6 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
      let x = Convert.register args.x in
      let y = Convert.register args.y in
      Infrule.Coq_mul_bool (z, x, y) 
-  | CoreHint_t.MulCommutative (args:CoreHint_t.mul_commutative) ->
-     let z = Convert.register args.z in
-     let x = Convert.value args.x in
-     let y = Convert.value args.y in
-     let sz = Convert.size args.sz in
-     Infrule.Coq_mul_commutative (z, x, y, sz)
   | CoreHint_t.MulNeg (args:CoreHint_t.mul_neg) ->
      let z = Convert.register args.z in
      let mx = Convert.value args.mx in
@@ -1006,12 +989,6 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
   | CoreHint_t.IntroEqTgt (args:CoreHint_t.intro_eq_tgt) ->
       let x = Convert.value args.x in
       Infrule.Coq_intro_eq_tgt x
-  | CoreHint_t.XorCommutative (args:CoreHint_t.xor_commutative) ->
-     let z = Convert.register args.z in
-     let x = Convert.value args.x in
-     let y = Convert.value args.y in
-     let sz = Convert.size args.sz in
-     Infrule.Coq_xor_commutative (z, x, y, sz)
   | CoreHint_t.XorCommutativeTgt (args:CoreHint_t.xor_commutative_tgt) ->
      let z = Convert.register args.z in
      let x = Convert.value args.x in
