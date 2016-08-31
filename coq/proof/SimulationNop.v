@@ -16,9 +16,10 @@ Import Opsem.
 
 Require Import TODO.
 Require Import GenericValues.
-Require Import InvariantMem.
 Require Import Nop.
 Require Import SimulationLocal.
+Require InvMem.
+Require InvState.
 
 Definition LOCALS_TODO: Prop. Admitted.
 Definition ALLOCAS_TODO: Prop. Admitted.
@@ -28,7 +29,7 @@ Definition CONF_TODO: Prop. Admitted.
 Inductive nop_state_sim
           (conf_src conf_tgt:Config)
           (stack0_src stack0_tgt:ECStack)
-          (inv:Relational.t):
+          (inv:InvMem.Rel.t):
   forall (idx:nat) (st_src st_tgt:State), Prop :=
 | nop_state_sim_intro
     fdef_src fdef_tgt
@@ -39,7 +40,7 @@ Inductive nop_state_sim
     (CMDS: nop_cmds cmds_src cmds_tgt)
     (LOCALS: LOCALS_TODO)
     (ALLOCAS: ALLOCAS_TODO)
-    (MEM: Relational.sem conf_src conf_tgt mem_src mem_tgt inv):
+    (MEM: InvMem.Rel.sem conf_src conf_tgt mem_src mem_tgt inv):
     nop_state_sim
       conf_src conf_tgt
       stack0_src stack0_tgt inv
@@ -59,7 +60,7 @@ Lemma locals_init
     args_src args_tgt
     conf_src conf_tgt
     (CONF: CONF_TODO)
-    (ARGS: list_forall2 (GVs.inject inv.(Relational.inject)) args_src args_tgt)
+    (ARGS: list_forall2 (GVs.inject inv.(InvMem.Rel.inject)) args_src args_tgt)
     (LOCALS : initLocals (CurTargetData conf_tgt) la args_tgt = Some gvs_tgt) :
   initLocals (CurTargetData conf_src) la args_src =
   initLocals (CurTargetData conf_tgt) la args_tgt.
@@ -78,7 +79,7 @@ Lemma nop_init
       (NOP_FDEF: nop_fdef (fdef_intro header blocks_src)
                           (fdef_intro header blocks_tgt))
       (NOP_FIRST_MATCHES: option_map fst (hd_error blocks_src) = option_map fst (hd_error blocks_tgt))
-      (ARGS: list_forall2 (GVs.inject inv.(Relational.inject)) args_src args_tgt)
+      (ARGS: list_forall2 (GVs.inject inv.(InvMem.Rel.inject)) args_src args_tgt)
       (MEM: MEM_TODO)
       (CONF: CONF_TODO)
       (INIT: init_fdef conf_tgt (fdef_intro header blocks_tgt) args_tgt ec_tgt):
@@ -245,7 +246,7 @@ Proof.
   intros conf_src conf_tgt stack0_src stack0_tgt.
   pcofix CIH.
   intros inv0 idx0 st_src st_tgt SIM. pfold.
-  generalize (classic (stuck_state conf_tgt st_tgt)). intro STUCK. des.
+  generalize (classic (error_state conf_tgt st_tgt)). intro ERROR. des.
   { inv SIM. eapply _sim_local_error.
     - econs 1.
     - admit. (* tgt stuck -> src stuck *)
@@ -286,8 +287,6 @@ Proof.
     exploit nops_sop_star; eauto. rewrite <- app_nil_end. intro STEPS.
     eapply _sim_local_return_void; try apply STEPS; ss.
   - (* step *)
-    
-    exploit get_status_step_inv; eauto. i. des.
     admit.
 Admitted.
 (* step case *)
