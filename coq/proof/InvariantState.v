@@ -14,33 +14,28 @@ Require Import GenericValues.
 
 Set Implicit Arguments.
 
+
 (* For TODOs, see `coq/hint/hint_sem.v` *)
 Module Unary.
   Structure t := mk {
     previous: GVMap;
     ghost: GVMap;
-    global_max: positive;
-    private: list mblock;
   }.
 
-  Definition sem_Tag (st:State) (aux:t) (tag:Tag.t): GVsMap :=
+  Definition sem_tag (st:State) (aux:t) (tag:Tag.t): GVsMap :=
     match tag with
     | Tag.physical => st.(EC).(Locals)
     | Tag.previous => aux.(previous)
     | Tag.ghost => aux.(ghost)
     end.
 
-  Definition sem_IdT (st:State) (aux:t) (id:IdT.t): option GenericValue :=
-    lookupAL _ (sem_Tag st aux id.(fst)) id.(snd).
+  Definition sem_idT (st:State) (aux:t) (id:IdT.t): option GenericValue :=
+    lookupAL _ (sem_tag st aux id.(fst)) id.(snd).
 
-  Definition sem_ValueT (conf:Config) (st:State) (aux:t) (v:ValueT.t): option GenericValue :=
+  Definition sem_valueT (conf:Config) (st:State) (aux:t) (v:ValueT.t): option GenericValue :=
     match v with
-    | ValueT.id id => sem_IdT st aux id
-    | ValueT.const c =>
-      const2GV
-        conf.(CurTargetData)
-        conf.(Globals)
-        c
+    | ValueT.id id => sem_idT st aux id
+    | ValueT.const c => const2GV conf.(CurTargetData) conf.(Globals) c
     end.
 
   (* TODO *)
@@ -80,13 +75,12 @@ Module Relational.
   Structure t := mk {
     src: Unary.t;
     tgt: Unary.t;
-    alpha: meminj;
   }.
 
   (* TODO *)
   Definition sem_maydiff (st_src st_tgt:State) (aux:t) (id:IdT.t): Prop :=
-    match Unary.sem_IdT st_src aux.(src) id, Unary.sem_IdT st_src aux.(src) id with
-    | Some v1, Some v2 => GVs.inject aux.(alpha) v1 v2
+    match Unary.sem_idT st_src aux.(src) id, Unary.sem_idT st_src aux.(src) id with
+    | Some v1, Some v2 => GVs.inject aux.(inject) v1 v2
     | _, _ => False (* TODO: we have to take care of None cases *)
     end.
 
@@ -96,12 +90,4 @@ Module Relational.
       (TGT: Unary.sem conf_tgt st_tgt aux.(tgt) inv.(Invariant.tgt))
       (MAYDIFF: IdTSet.For_all (sem_maydiff st_src st_tgt aux) inv.(Invariant.maydiff))
   .
-
-  Inductive le (lhs rhs:t): Prop :=
-  | le_intro
-      (INCR: inject_incr lhs.(alpha) rhs.(alpha))
-      (TODO: False)
-  .
-
-  (* TODO: le_public? *)
 End Relational.

@@ -16,7 +16,7 @@ Import Opsem.
 
 Require Import TODO.
 Require Import GenericValues.
-Require Import MemInv.
+Require Import InvariantMem.
 Require Import Nop.
 Require Import SimulationLocal.
 

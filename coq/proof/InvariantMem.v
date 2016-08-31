@@ -14,25 +14,23 @@ Require Import GenericValues.
 
 Set Implicit Arguments.
 
-(* TODO: global, le_public *)
+Definition GLOBAL_MAX_TODO: Prop. Admitted.
 
+(* For TODOs, see `coq/hint/hint_sem.v` *)
 Module Unary.
   Structure t := mk {
-    global: mblock;
     private: list mblock;
     private_parent: list mblock;
   }.
 
   Inductive sem (conf:Config) (shared:mblock -> Prop) (inv:t): Prop :=
   | sem_intro
-      (GLOBAL: True)
       (PRIVATE: forall b (IN: In b inv.(private)), ~ shared b)
       (PRIVATE_PARENT: forall b (IN: In b inv.(private_parent)), ~ shared b)
   .
 
   Inductive le (lhs rhs:t): Prop :=
   | le_intro
-      (GLOBAL: lhs.(global) = rhs.(global))
       (PARENT: lhs.(private_parent) = rhs.(private_parent))
   .
 End Unary.
@@ -63,4 +61,6 @@ Module Relational.
       (TGT: Unary.le lhs.(tgt) rhs.(tgt))
       (INJECT: inject_incr lhs.(inject) rhs.(inject))
   .
+
+  (* TODO: le_public? *)
 End Relational.

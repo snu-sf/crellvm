@@ -12,7 +12,7 @@ Require Import sflib.
 Require Import paco.
 
 Require Import GenericValues.
-Require Import MemInv.
+Require Import InvariantMem.
 
 Set Implicit Arguments.
 
