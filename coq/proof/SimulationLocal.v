@@ -67,7 +67,7 @@ Section SimulationLocal.
       (MEM: InvMem.Rel.sem conf_src conf_tgt st2_src.(Mem) st1_tgt.(Mem) inv1)
       (RET_SRC: getOperandValue conf_src.(CurTargetData) ret2_src st2_src.(EC).(Locals) conf_src.(Globals) = Some retval2_src)
       (RET_TGT: getOperandValue conf_tgt.(CurTargetData) ret1_tgt st1_tgt.(EC).(Locals) conf_tgt.(Globals) = Some retval1_tgt)
-      (RETVAL: GVs.inject inv1.(InvMem.Rel.inject) retval2_src retval1_tgt)
+      (RETVAL: genericvalues_inject.gv_inject inv1.(InvMem.Rel.inject) retval2_src retval1_tgt)
 
   (* TODO: seems duplicate of _sim_local_return. Change semantics? *)
   | _sim_local_return_void
@@ -98,17 +98,17 @@ Section SimulationLocal.
       (VARG: varg2_src = varg1_tgt)
       (FUN_SRC: getOperandValue conf_src.(CurTargetData) fun2_src st2_src.(EC).(Locals) conf_src.(Globals) = Some funval2_src)
       (FUN_TGT: getOperandValue conf_tgt.(CurTargetData) fun1_tgt st1_tgt.(EC).(Locals) conf_tgt.(Globals) = Some funval1_tgt)
-      (FUNVAL: GVs.inject inv1.(InvMem.Rel.inject) funval2_src funval1_tgt)
+      (FUNVAL: genericvalues_inject.gv_inject inv1.(InvMem.Rel.inject) funval2_src funval1_tgt)
       (PARAMS_SRC: params2GVs conf_src.(CurTargetData) params2_src st2_src.(EC).(Locals) conf_src.(Globals) = Some args2_src)
       (PARAMS_TGT: params2GVs conf_tgt.(CurTargetData) params1_tgt st1_tgt.(EC).(Locals) conf_tgt.(Globals) = Some args1_tgt)
-      (ARGS: list_forall2 (GVs.inject inv1.(InvMem.Rel.inject)) args2_src args1_tgt)
+      (ARGS: list_forall2 (genericvalues_inject.gv_inject inv1.(InvMem.Rel.inject)) args2_src args1_tgt)
       (MEM: InvMem.Rel.sem conf_src conf_tgt st2_src.(Mem) st1_tgt.(Mem) inv1)
       (RETURN:
          forall inv3 mem3_src mem3_tgt retval3_src retval3_tgt
            (INCR: InvMem.Rel.le inv1 inv3)
            (MEM: InvMem.Rel.sem conf_src conf_tgt mem3_src mem3_tgt inv3)
            (RET: noret2_src = false)
-           (RETVAL: GVs.inject inv3.(InvMem.Rel.inject) retval3_src retval3_tgt),
+           (RETVAL: genericvalues_inject.gv_inject inv3.(InvMem.Rel.inject) retval3_src retval3_tgt),
          exists idx3,
            sim_local
              stack0_src stack0_tgt inv3 idx3
@@ -174,12 +174,12 @@ Section SimulationLocalFunc.
   Definition sim_func (fdef_src fdef_tgt:fdef): Prop :=
     forall inv0 stack0_src stack0_tgt mem0_src mem0_tgt
       args_src args_tgt
-      ec0_tgt
+      ec0_src
       (MEM: InvMem.Rel.sem conf_src conf_tgt mem0_src mem0_tgt inv0)
-      (ARGS: list_forall2 (GVs.inject inv0.(InvMem.Rel.inject)) args_src args_tgt)
-      (TGT: init_fdef conf_tgt fdef_tgt args_tgt ec0_tgt),
-    exists ec0_src idx0,
-      init_fdef conf_src fdef_src args_src ec0_src /\
+      (ARGS: list_forall2 (genericvalues_inject.gv_inject inv0.(InvMem.Rel.inject)) args_src args_tgt)
+      (SRC: init_fdef conf_src fdef_src args_src ec0_src),
+    exists ec0_tgt idx0,
+      init_fdef conf_tgt fdef_tgt args_tgt ec0_tgt /\
       sim_local conf_src conf_tgt stack0_src stack0_tgt inv0 idx0
                 (mkState ec0_src stack0_src mem0_src)
                 (mkState ec0_tgt stack0_tgt mem0_tgt).

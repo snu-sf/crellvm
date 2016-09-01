@@ -58,6 +58,10 @@
 
 - The desire behind this design decision is: User may only want to read/update codes inside current directory, and do not care `.proof_build` directory at all.
 
+### Proof Status ###
+
+`./status_proof.sh` to grep (admit|Admitted|TODO) in all the Coq files.
+
 ### Debugging ###
 
 - For those who participate in this project, there are some useful techniques to track a program flow of validator or identify cause of a bug.
