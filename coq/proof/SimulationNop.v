@@ -20,10 +20,37 @@ Require Import MemInv.
 Require Import Nop.
 Require Import SimulationLocal.
 
-Definition LOCALS_TODO: Prop. Admitted.
-Definition ALLOCAS_TODO: Prop. Admitted.
-Definition MEM_TODO: Prop. Admitted.
+(* TODO: (1) name, (2) location *)
+Definition inject_locals
+           (inv:Relational.t)
+           (locals_src locals_tgt:GVsMap): Prop :=
+  forall (i:id) (gv_src:GenericValue) (LU_SRC: lookupAL _ locals_src i = Some gv_src),
+  exists gv_tgt,
+    <<LU_TGT: lookupAL _ locals_tgt i = Some gv_tgt>> /\
+    <<INJECT: genericvalues_inject.gv_inject inv.(Relational.inject) gv_src gv_tgt>>.
+
+Definition inject_allocas
+           (inv:Relational.t)
+           (alc_src alc_tgt:list mblock): Prop :=
+  list_forall2
+    (fun a_src a_tgt => inv.(Relational.inject) a_src = Some (a_tgt, 0))
+    alc_src alc_tgt.
+
 Definition CONF_TODO: Prop. Admitted.
+
+Lemma TargetData_dec
+      (TD_src TD_tgt:TargetData):
+  { TD_src = TD_tgt } + { ~ TD_src = TD_tgt }.
+Proof.
+  decide equality.
+  - apply namedts_dec.
+  - apply layouts_dec.
+Qed.
+(* TODO*)
+(* Definition nop_conf *)
+(*            (conf_src conf_tgt:Config): Prop := *)
+(*   TargetData_dec (CurTargetData conf_src) (CurTargetData conf_tgt) /\ *)
+(*   GVsMap_dec *)
 
 Inductive nop_state_sim
           (conf_src conf_tgt:Config)
@@ -35,10 +62,11 @@ Inductive nop_state_sim
     l s_src s_tgt
     cmds_src cmds_tgt term locals_src locals_tgt allocas_src allocas_tgt
     mem_src mem_tgt
+    (* (CONF: nop_conf conf_src conf_tgt) *)
     (FDEF: nop_fdef fdef_src fdef_tgt)
     (CMDS: nop_cmds cmds_src cmds_tgt)
-    (LOCALS: LOCALS_TODO)
-    (ALLOCAS: ALLOCAS_TODO)
+    (LOCALS: inject_locals inv locals_src locals_tgt)
+    (ALLOCAS: inject_allocas inv allocas_src allocas_tgt)
     (MEM: Relational.sem conf_src conf_tgt mem_src mem_tgt inv):
     nop_state_sim
       conf_src conf_tgt
@@ -55,15 +83,22 @@ Inductive nop_state_sim
 .
 
 Lemma locals_init
-      inv la gvs_tgt
-    args_src args_tgt
-    conf_src conf_tgt
-    (CONF: CONF_TODO)
-    (ARGS: list_forall2 (GVs.inject inv.(Relational.inject)) args_src args_tgt)
-    (LOCALS : initLocals (CurTargetData conf_tgt) la args_tgt = Some gvs_tgt) :
-  initLocals (CurTargetData conf_src) la args_src =
-  initLocals (CurTargetData conf_tgt) la args_tgt.
+      inv la gvs_src
+      args_src args_tgt
+      conf_src conf_tgt
+      (CONF: CONF_TODO)
+      (ARGS: list_forall2 (genericvalues_inject.gv_inject inv.(Relational.inject)) args_src args_tgt)
+      (LOCALS_SRC : initLocals (CurTargetData conf_src) la args_src = Some gvs_src) :
+  exists gvs_tgt,
+    << LOCALS_TGT : initLocals (CurTargetData conf_tgt) la args_tgt = Some gvs_tgt >> /\
+    << INJECT: inject_locals inv gvs_src gvs_tgt >>.
 Proof.
+  unfold initLocals in *.
+  revert gvs_src LOCALS_SRC. induction ARGS; ss.
+  - i. destruct la; cycle 1.
+    { admit. }
+    ss. inv LOCALS_SRC. esplits; eauto. ss.
+  - admit.
 Admitted.
 
 Lemma nop_init
@@ -74,16 +109,16 @@ Lemma nop_init
       args_src args_tgt
       mem_src mem_tgt
       inv
-      ec_tgt
+      ec_src
       (NOP_FDEF: nop_fdef (fdef_intro header blocks_src)
                           (fdef_intro header blocks_tgt))
       (NOP_FIRST_MATCHES: option_map fst (hd_error blocks_src) = option_map fst (hd_error blocks_tgt))
-      (ARGS: list_forall2 (GVs.inject inv.(Relational.inject)) args_src args_tgt)
-      (MEM: MEM_TODO)
+      (ARGS: list_forall2 (genericvalues_inject.gv_inject inv.(Relational.inject)) args_src args_tgt)
+      (MEM: Relational.sem conf_src conf_tgt mem_src mem_tgt inv)
       (CONF: CONF_TODO)
-      (INIT: init_fdef conf_tgt (fdef_intro header blocks_tgt) args_tgt ec_tgt):
-  exists ec_src idx,
-    init_fdef conf_src (fdef_intro header blocks_src) args_src ec_src /\
+      (INIT: init_fdef conf_src (fdef_intro header blocks_src) args_src ec_src):
+  exists ec_tgt idx,
+    init_fdef conf_tgt (fdef_intro header blocks_tgt) args_tgt ec_tgt /\
     nop_state_sim
       conf_src conf_tgt
       stack0_src stack0_tgt
@@ -92,18 +127,17 @@ Lemma nop_init
       (mkState ec_tgt stack0_tgt mem_tgt).
 Proof.
   inv INIT. inv NOP_FDEF. inv FDEF.
-  destruct blocks_src, lb; inv NOP_FIRST_MATCHES; try inv ENTRY.
+  destruct blocks_tgt, lb; inv NOP_FIRST_MATCHES; try inv ENTRY.
   destruct b. ss. subst. destruct s.
+  exploit locals_init; eauto. i. des.
   esplits.
-  - econs; ss. rewrite <- LOCALS. eapply locals_init; eauto.
-  - generalize (BLOCKS l'). intro B. ss.
-    destruct (_ == _) in B; [|done].
-    ss. des. subst.
-    econs; eauto.
-    + econs; eauto.
-    + admit. (* LOCALS *)
-    + admit. (* ALLOCAS *)
-Admitted.
+  - econs; eauto. ss.
+  - generalize (BLOCKS l0). s.
+    match goal with
+    | [|- context[if ?c then _ else _]] => destruct c
+    end; [|done]. ss. i. des. subst.
+    econs; ss. econs.
+Qed.
 
 Inductive status :=
 | status_call
@@ -239,17 +273,148 @@ Proof.
   - destruct a; inv NOPS. destruct conf. econs.
 Qed.
 
-Lemma nop_step:
-  nop_state_sim <8= sim_local.
+(* TODO: position *)
+Lemma inject_locals_getOperandValue
+      inv val
+      conf_src locals_src gval_src
+      conf_tgt locals_tgt gval_tgt
+      (CONF: CONF_TODO)
+      (INJECT: inject_locals inv locals_src locals_tgt)
+      (SRC: getOperandValue (CurTargetData conf_src) val locals_src (Globals conf_src) = Some gval_src)
+      (TGT: getOperandValue (CurTargetData conf_tgt) val locals_tgt (Globals conf_tgt) = Some gval_tgt):
+  genericvalues_inject.gv_inject inv.(Relational.inject) gval_src gval_tgt.
 Proof.
-  intros conf_src conf_tgt stack0_src stack0_tgt.
+  destruct val; ss.
+  - exploit INJECT; eauto. i. des.
+    rewrite TGT in LU_TGT. inv LU_TGT. ss.
+  - admit. (* CONF_TODO *)
+Admitted.
+
+Lemma params2GVs_inject
+      inv0 args0
+      conf_src locals_src gvs_param_src
+      conf_tgt locals_tgt gvs_param_tgt
+      (CONF: CONF_TODO)
+      (INJECT: inject_locals inv0 locals_src locals_tgt)
+      (PARAM_SRC:params2GVs (CurTargetData conf_src) args0 locals_src (Globals conf_src) = Some gvs_param_src)
+      (PARAM_TGT:params2GVs (CurTargetData conf_tgt) args0 locals_tgt (Globals conf_tgt) = Some gvs_param_tgt):
+  list_forall2 (genericvalues_inject.gv_inject (Relational.inject inv0)) gvs_param_src gvs_param_tgt.
+Proof.
+  revert gvs_param_src PARAM_SRC.
+  revert gvs_param_tgt PARAM_TGT.
+  induction args0.
+  - i. ss. inv PARAM_SRC. inv PARAM_TGT. econs.
+  - i. ss.
+    destruct a as ((ty_a & attr_a) & v_a).
+    revert PARAM_TGT. revert PARAM_SRC.
+    (* TODO: make a tactic *)
+    repeat
+      (match goal with
+       | [|- context[match ?c with | Some _ => _ | None => _ end]] =>
+         let COND := fresh "COND" in
+         destruct c eqn:COND
+       end; ss).
+    i. inv PARAM_SRC. inv PARAM_TGT.
+    econs.
+    + eapply inject_locals_getOperandValue; eauto.
+    + eauto.
+Qed.
+
+(* TODO: position *)
+Lemma _sim_local_src_progress
+      conf_src conf_tgt sim_local ecs_src ecs_tgt
+      inv index
+      st_src st_tgt
+      (XX: forall (PROGRESS_SRC: ~ stuck_state conf_src st_src),
+          _sim_local conf_src conf_tgt sim_local ecs_src ecs_tgt
+                     inv index
+                     st_src st_tgt):
+  _sim_local conf_src conf_tgt sim_local ecs_src ecs_tgt
+             inv index
+             st_src st_tgt.
+Proof.
+  destruct (classic (stuck_state conf_src st_src)); eauto.
+Qed.
+
+(* TODO: position *)
+Lemma _sim_local_src_nops
+      conf_src conf_tgt sim_local ecs0_src ecs0_tgt
+      inv index
+      nops
+      fdef_src b_src cmds_src term_src locals_src allocas_src ecs_src mem_src
+      st_tgt
+      (NOPS: forallb is_nop nops)
+      (SIM:
+         _sim_local conf_src conf_tgt sim_local ecs0_src ecs0_tgt
+                    inv index
+                    (mkState (mkEC fdef_src b_src cmds_src term_src locals_src allocas_src) ecs_src mem_src)
+                    st_tgt):
+  _sim_local conf_src conf_tgt sim_local ecs0_src ecs0_tgt
+             inv index
+             (mkState (mkEC fdef_src b_src (nops ++ cmds_src) term_src locals_src allocas_src) ecs_src mem_src)
+             st_tgt.
+Proof.
+  inv SIM.
+  - econs 1; cycle 1; try exact MEM; eauto.
+    rewrite <- events.E0_left.
+    eapply opsem_props.OpsemProps.sop_star_trans; [|eauto].
+    apply nops_sop_star. ss.
+  - econs 2; cycle 1; try exact MEM; eauto.
+    rewrite <- events.E0_left.
+    eapply opsem_props.OpsemProps.sop_star_trans; [|eauto].
+    apply nops_sop_star. ss.
+  - econs 3; cycle 1; try exact MEM; eauto.
+    rewrite <- events.E0_left.
+    eapply opsem_props.OpsemProps.sop_star_trans; [|eauto].
+    apply nops_sop_star. ss.
+  - econs 4; cycle 1; try exact MEM; eauto.
+    rewrite <- events.E0_left.
+    eapply opsem_props.OpsemProps.sop_star_trans; [|eauto].
+    apply nops_sop_star. ss.
+  - econs 5; ss. i. exploit STEP; eauto. i. des.
+    esplits; cycle 1; eauto.
+    rewrite <- events.E0_left.
+    eapply opsem_props.OpsemProps.sop_star_trans; [|eauto].
+    apply nops_sop_star. ss.
+Qed.
+
+Lemma inject_locals_inj_incr
+      inv0 inv1
+      locals_src locals_tgt
+      (INJECT: inject_locals inv0 locals_src locals_tgt)
+      (INCR: Relational.le inv0 inv1):
+  inject_locals inv1 locals_src locals_tgt.
+Proof.
+  ii. exploit INJECT; eauto. i. des.
+  esplits; eauto.
+  eapply genericvalues_inject.gv_inject_incr; try apply INCR; eauto.
+Qed.
+
+Lemma inject_allocas_inj_incr
+      inv0 inv1
+      allocas_src allocas_tgt
+      (INJECT: inject_allocas inv0 allocas_src allocas_tgt)
+      (INCR: Relational.le inv0 inv1):
+  inject_allocas inv1 allocas_src allocas_tgt.
+Proof.
+  eapply list_forall2_imply; eauto. s. i.
+  apply INCR. auto.
+Qed.
+
+Lemma nop_step
+      conf_src conf_tgt
+      (CONF: CONF_TODO):
+  (nop_state_sim conf_src conf_tgt) <6= (sim_local conf_src conf_tgt).
+Proof.
+  intros stack0_src stack0_tgt.
   pcofix CIH.
   intros inv0 idx0 st_src st_tgt SIM. pfold.
-  generalize (classic (stuck_state conf_tgt st_tgt)). intro STUCK. des.
+  generalize (classic (stuck_state conf_tgt st_tgt)). intro STUCK_TGT. des.
   { inv SIM. eapply _sim_local_error.
     - econs 1.
-    - admit. (* tgt stuck -> src stuck *)
+    - admit. (* tgt stuck -> src stuck; old simplberry *)
   }
+  apply NNPP in STUCK_TGT. destruct STUCK_TGT as (st'_tgt & tr_tgt & PROGRESS_TGT).
   destruct st_src as [ec_src ecs_src mem_src].
   destruct st_tgt as [ec_tgt ecs_tgt mem_tgt].
   destruct (get_status ec_tgt) eqn:TGT.
@@ -257,28 +422,37 @@ Proof.
     exploit get_status_call_inv; eauto. i. des.
     inv SIM. ss. subst.
     exploit nop_cmds_tgt_non_nop; eauto; ss. i. des. subst.
-    exploit nops_sop_star; eauto. intro STEPS.
-    (* TODO: use exploit to get tgt func & params lookup *)
-    eapply _sim_local_call; try apply STEPS; ss; try reflexivity; eauto.
-    + (* [nonstuck => tgt f lookup], [tgt f lookup => src f lookup] *)
-      admit.
-    + (* nonstuck => tgt f lookup *)
-      admit.
-    + (* f related *)
-      admit.
-    + admit. (* params tgt *)
-    + admit. (* params src *)
-    + admit. (* params related *)
+    apply _sim_local_src_nops; ss.
+    apply _sim_local_src_progress. i.
+    apply NNPP in PROGRESS_SRC. destruct PROGRESS_SRC as (st'_src & tr_src & PROGRESS_SRC).
+    assert (FUNC_SRC: exists func_src, getOperandValue (CurTargetData conf_src) f locals_src (Globals conf_src) = Some func_src).
+    { inv PROGRESS_SRC; eauto. }
+    assert (FUNC_TGT: exists func_tgt, getOperandValue (CurTargetData conf_tgt) f locals_tgt (Globals conf_tgt) = Some func_tgt).
+    { inv PROGRESS_TGT; eauto. }
+    assert (PARAM_SRC: exists gvs_param_src, params2GVs (CurTargetData conf_src) args0 locals_src (Globals conf_src) = Some gvs_param_src).
+    { inv PROGRESS_SRC; eauto. }
+    assert (PARAM_TGT: exists gvs_param_tgt, params2GVs (CurTargetData conf_tgt) args0 locals_tgt (Globals conf_tgt) = Some gvs_param_tgt).
+    { inv PROGRESS_TGT; eauto. }
+    des. exploit inject_locals_getOperandValue; eauto. i.
+    eapply _sim_local_call; try apply STEPS; try eexact x0; ss; try reflexivity; eauto.
+    + eapply params2GVs_inject; eauto.
     + ss. i. esplits. right. eapply CIH. econs; ss.
+      * eapply inject_locals_inj_incr; eauto.
+      * eapply inject_allocas_inj_incr; eauto.
   - (* return *)
     exploit get_status_return_inv; eauto. i. des.
     inv SIM. ss. subst.
     exploit nop_cmds_tgt_nil; eauto. intro NOPS.
-    exploit nops_sop_star; eauto. rewrite <- app_nil_end. intro STEPS.
-    eapply _sim_local_return; try apply STEPS; ss.
-    + admit. (* retval tgt *)
-    + admit. (* retval src *)
-    + admit. (* retval related *)
+    rewrite (app_nil_end cmds_src).
+    apply _sim_local_src_nops; ss.
+    apply _sim_local_src_progress. i.
+    apply NNPP in PROGRESS_SRC. destruct PROGRESS_SRC as (st'_src & tr_src & PROGRESS_SRC).
+    assert (RETVAL_SRC: exists retval_src, getOperandValue (CurTargetData conf_src) value0 locals_src (Globals conf_src) = Some retval_src).
+    { inv PROGRESS_SRC; eauto. unfold returnUpdateLocals in H13. destruct (getOperandValue TD value0 locals_src gl) eqn:X; inv H13. ss. eauto. }
+    assert (RETVAL_TGT: exists retval_tgt, getOperandValue (CurTargetData conf_tgt) value0 locals_tgt (Globals conf_tgt) = Some retval_tgt).
+    { inv PROGRESS_TGT; eauto. unfold returnUpdateLocals in H13. destruct (getOperandValue TD value0 locals_tgt gl) eqn:X; inv H13. ss. eauto. }
+    des. exploit inject_locals_getOperandValue; eauto. i.
+    eapply _sim_local_return; try apply x0; eauto; ss.
   - (* return void *)
     exploit get_status_return_void_inv; eauto. i. des.
     inv SIM. ss. subst.
@@ -286,9 +460,8 @@ Proof.
     exploit nops_sop_star; eauto. rewrite <- app_nil_end. intro STEPS.
     eapply _sim_local_return_void; try apply STEPS; ss.
   - (* step *)
-    
-    exploit get_status_step_inv; eauto. i. des.
     admit.
+    (* exploit get_status_step_inv; eauto. i. des. *)
 Admitted.
 (* step case *)
 (*     destruct conf_src. *)
@@ -351,15 +524,13 @@ Lemma nop_sim
       conf_src conf_tgt
       header
       blocks_src blocks_tgt
+      (CONF: CONF_TODO)
       (NOP: nop_fdef (fdef_intro header blocks_src) (fdef_intro header blocks_tgt))
       (NOP_FIRST_MATCHES: option_map fst (hd_error blocks_src) = option_map fst (hd_error blocks_tgt)):
   sim_func conf_src conf_tgt (fdef_intro header blocks_src) (fdef_intro header blocks_tgt).
 Proof.
   ii.
-  exploit nop_init; eauto.
-  { admit. (* MEM_TODO *) }
-  { admit. (* CONF_TODO *) }
-  i. des.
+  exploit nop_init; eauto. i. des.
   esplits; eauto.
-  apply nop_step. eauto.
-Admitted.
+  apply nop_step; eauto.
+Qed.
