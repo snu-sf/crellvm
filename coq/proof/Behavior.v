@@ -10,7 +10,8 @@ Import Opsem.
 CoInductive observation : Set :=
 | obs_done
 | obs_inftau
-| obs_event (evt:event) (obs:observation).
+| obs_event (evt:event) (obs:observation)
+.
 
 Definition trace_observation (tr:trace) (obs:observation) : observation :=
   fold_right obs_event obs tr.

@@ -17,7 +17,7 @@ Require Import SimulationLocal.
 Set Implicit Arguments.
 
 
-Section Simulation.
+Section Sim.
   Variable (conf_src conf_tgt:Config).
 
   Inductive _sim
@@ -61,11 +61,11 @@ Section Simulation.
 
   Definition sim: _ -> _ -> _ -> Prop :=
     paco3 _sim bot3.
-End Simulation.
+End Sim.
 Hint Resolve _sim_mon: paco.
 
 
-Section SimulationSystem.
+Section SimSystem.
   Variable (system_src system_tgt:system).
 
   Definition sim_system: Prop :=
@@ -75,7 +75,71 @@ Section SimulationSystem.
     exists conf_tgt st_tgt idx,
       s_genInitState system_tgt main args Mem.empty = Some (conf_tgt, st_tgt) /\
       sim conf_src conf_tgt idx st_src st_tgt.
-End SimulationSystem.
+End SimSystem.
 
 
-(* TODO: Lemma sim_local_sim *)
+Inductive sim_local_stack
+          (conf_src conf_tgt:Config):
+  forall (ecs_src ecs_tgt: ECStack) (inv:InvMem.Rel.t), Prop :=
+| sim_local_stack_nil
+    inv:
+    sim_local_stack conf_src conf_tgt nil nil inv
+| sim_local_stack_cons
+    ecs0_src ecs0_tgt inv0
+    inv
+    func_src b_src cmds_src term_src locals_src allocas_src ecs_src
+    func_tgt b_tgt cmds_tgt term_tgt locals_tgt allocas_tgt ecs_tgt
+    (STACK: sim_local_stack conf_src conf_tgt ecs0_src ecs0_tgt inv0)
+    (LE0: InvMem.Rel.le inv0 inv)
+    (LOCAL:
+       forall inv' mem'_src mem'_tgt retval'_src retval'_tgt
+         (LE: InvMem.Rel.le inv inv')
+         (MEM: InvMem.Rel.sem conf_src conf_tgt mem'_src mem'_tgt inv')
+         (NORET: noret = false)
+         (RETVAL: GVs.inject inv'.(InvMem.Rel.inject) retval'_src retval'_tgt),
+       exists idx',
+         sim_local
+           conf_src conf_tgt ecs0_src ecs0_tgt
+           inv' idx'
+           (mkState
+              (mkEC func_src b_src cmds_src term_src locals_src allocas_src)
+              ecs_src
+              mem'_src)
+           (mkState
+              (mkEC func_tgt b_tgt cmds_tgt term_tgt locals_tgt allocas_tgt)
+              ecs_tgt
+              mem'_tgt)):
+    sim_local_stack
+      conf_src conf_tgt
+      ((mkEC func_src b_src cmds_src term_src locals_src allocas_src) :: ecs_src)
+      ((mkEC func_tgt b_tgt cmds_tgt term_tgt locals_tgt allocas_tgt) :: ecs_tgt)
+      inv
+.
+
+Inductive sim_local_lift
+          (conf_src conf_tgt:Config)
+          (idx:nat) (st_src st_tgt: State): Prop :=
+| sim_local_lift_intro
+    ecs0_src ecs0_tgt inv0
+    inv
+    (STACK: sim_local_stack conf_src conf_tgt ecs0_src ecs0_tgt inv0)
+    (LOCAL: sim_local conf_src conf_tgt ecs0_src ecs0_tgt
+                      inv idx st_src st_tgt)
+    (LE0: InvMem.Rel.le inv0 inv)
+.
+
+Lemma sim_local_lift_sim:
+  sim_local_lift <5= sim.
+Proof.
+  s. intros conf_src conf_tgt. pcofix CIH. intros idx st_src st_tgt SIM. inv SIM.
+  pfold. punfold LOCAL. inv LOCAL.
+  - econs 1; eauto.
+  - admit. (* return *)
+  - admit. (* return_void *)
+  - admit. (* call *)
+  - econs 3; ss. i. exploit STEP; eauto. i. des.
+    inv x2; [|done].
+    esplits; eauto. right.
+    apply CIH. econs; eauto.
+    admit. (* InvMem.Rel.le trans *)
+Admitted.

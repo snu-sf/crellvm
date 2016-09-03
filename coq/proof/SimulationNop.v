@@ -18,40 +18,12 @@ Require Import TODO.
 Require Import GenericValues.
 Require Import Nop.
 Require Import SimulationLocal.
+Require Import Inject.
 Require InvMem.
 Require InvState.
 
-(* TODO: (1) name, (2) location *)
-Definition inject_locals
-           (inv:InvMem.Rel.t)
-           (locals_src locals_tgt:GVsMap): Prop :=
-  forall (i:id) (gv_src:GenericValue) (LU_SRC: lookupAL _ locals_src i = Some gv_src),
-  exists gv_tgt,
-    <<LU_TGT: lookupAL _ locals_tgt i = Some gv_tgt>> /\
-    <<INJECT: genericvalues_inject.gv_inject inv.(InvMem.Rel.inject) gv_src gv_tgt>>.
+Set Implicit Arguments.
 
-Definition inject_allocas
-           (inv:InvMem.Rel.t)
-           (alc_src alc_tgt:list mblock): Prop :=
-  list_forall2
-    (fun a_src a_tgt => inv.(InvMem.Rel.inject) a_src = Some (a_tgt, 0))
-    alc_src alc_tgt.
-
-Definition CONF_TODO: Prop. Admitted.
-
-Lemma TargetData_dec
-      (TD_src TD_tgt:TargetData):
-  { TD_src = TD_tgt } + { ~ TD_src = TD_tgt }.
-Proof.
-  decide equality.
-  - apply namedts_dec.
-  - apply layouts_dec.
-Qed.
-(* TODO*)
-(* Definition nop_conf *)
-(*            (conf_src conf_tgt:Config): Prop := *)
-(*   TargetData_dec (CurTargetData conf_src) (CurTargetData conf_tgt) /\ *)
-(*   GVsMap_dec *)
 
 Inductive nop_state_sim
           (conf_src conf_tgt:Config)
@@ -403,7 +375,7 @@ Proof.
   apply INCR. auto.
 Qed.
 
-Lemma nop_step
+Lemma nop_sim
       conf_src conf_tgt
       (CONF: CONF_TODO):
   (nop_state_sim conf_src conf_tgt) <6= (sim_local conf_src conf_tgt).
@@ -524,7 +496,7 @@ Admitted.
     (*     inv STEP; simpl; auto; inv TGT. *)
     (* } *)
 
-Lemma nop_sim
+Lemma nop_sim_func
       conf_src conf_tgt
       header
       blocks_src blocks_tgt
@@ -536,5 +508,5 @@ Proof.
   ii.
   exploit nop_init; eauto. i. des.
   esplits; eauto.
-  apply nop_step; eauto.
+  apply nop_sim; eauto.
 Qed.

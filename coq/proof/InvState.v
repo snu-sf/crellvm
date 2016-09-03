@@ -73,7 +73,7 @@ Module Unary.
   .
 End Unary.
 
-Module Relational.
+Module Rel.
   Structure t := mk {
     src: Unary.t;
     tgt: Unary.t;
@@ -94,4 +94,4 @@ Module Relational.
          forall id (NOTIN: IdTSet.mem id inv.(Invariant.maydiff)),
            sem_inject st_src st_tgt invst invmem.(InvMem.Rel.inject) id)
   .
-End Relational.
+End Rel.

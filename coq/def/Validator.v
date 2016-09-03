@@ -264,9 +264,3 @@ Definition valid_module (hint:ValidationHint.module) (src tgt:module): bool :=
   if negb (valid_products hint src tgt products_src products_tgt)
   then failwith_false "valid_module: valid_products failed" nil
   else true.
-
-Definition valid_modules (hint:ValidationHint.modules) (src tgt:modules): bool :=
-  list_forallb3 valid_module hint src tgt.
-
-Definition valid_system (hint:ValidationHint.system) (src tgt:system): bool :=
-  valid_modules hint src tgt.

@@ -38,7 +38,7 @@ Inductive sInsn_indexed (conf:Config):
     sInsn_indexed conf st st idx1 idx2 E0
 .
 
-Section SimulationLocal.
+Section SimLocal.
   Variable (conf_src conf_tgt:Config).
   Variable (inv0:InvMem.Rel.t).
 
@@ -151,7 +151,7 @@ Section SimulationLocal.
 
   Definition sim_local: _ -> _ -> _ -> _ -> _ -> _ -> Prop :=
     paco6 _sim_local bot6.
-End SimulationLocal.
+End SimLocal.
 Hint Constructors _sim_local.
 Hint Resolve _sim_local_mon: paco.
 
@@ -168,7 +168,7 @@ Inductive init_fdef (conf:Config) (f:fdef) (args:list GenericValue): forall (ec:
 .
 
 
-Section SimulationLocalFunc.
+Section SimLocalFunc.
   Variable (conf_src conf_tgt:Config).
 
   Definition sim_func (fdef_src fdef_tgt:fdef): Prop :=
@@ -183,4 +183,4 @@ Section SimulationLocalFunc.
       sim_local conf_src conf_tgt stack0_src stack0_tgt inv0 idx0
                 (mkState ec0_src stack0_src mem0_src)
                 (mkState ec0_tgt stack0_tgt mem0_tgt).
-End SimulationLocalFunc.
+End SimLocalFunc.
