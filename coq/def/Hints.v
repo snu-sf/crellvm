@@ -222,9 +222,10 @@ Module Invariant.
     deep_check_expr Invariant.inject_value inv es et.
 
   Definition lessdef_expr (e: (Expr.t * Expr.t)) (lessdef: ExprPairSet.t): bool :=
-    let f data v1 v2 := ExprPairSet.mem (v1, v2) data in
-    let (e1, e2) := e in
-    ExprPairSet.mem e lessdef || deep_check_expr f lessdef e1 e2.
+    ExprPairSet.mem e lessdef
+    || (deep_check_expr
+          (fun data v1 v2 => ExprPairSet.mem (Expr.value v1, Expr.value v2) data)
+          lessdef e.(fst) e.(snd)).
 
   Definition is_empty_alias (alias:aliasrel): bool :=
     PtrPairSet.is_empty alias.(noalias) &&
