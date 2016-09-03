@@ -319,8 +319,10 @@ Definition is_commutative_bop (opcode:bop) :=
   | _ => false
   end.
 
-Notation "$$ inv |-src y >= rhs $$" := (ExprPairSet.mem (y, rhs) inv.(Invariant.src).(Invariant.lessdef)) (at level 41, inv, y, rhs at level 41).
-Notation "$$ inv |-tgt y >= rhs $$" := (ExprPairSet.mem (y, rhs) inv.(Invariant.tgt).(Invariant.lessdef)) (at level 41, inv, y, rhs at level 41).
+Notation "$$ inv |-src y >= rhs $$" := (Invariant.lessdef_expr (y, rhs) inv.(Invariant.src).(Invariant.lessdef)) (at level 41, inv, y, rhs at level 41).
+Notation "$$ inv |-tgt y >= rhs $$" := (Invariant.lessdef_expr (y, rhs) inv.(Invariant.tgt).(Invariant.lessdef)) (at level 41, inv, y, rhs at level 41).
+Notation "$$ inv |-src y 'alloca' $$" := (IdTSet.mem y inv.(Invariant.src).(Invariant.allocas)) (at level 41, inv, y at level 41).
+Notation "$$ inv |-tgt y 'alloca' $$" := (IdTSet.mem y inv.(Invariant.tgt).(Invariant.allocas)) (at level 41, inv, y at level 41).
 Notation "$$ inv |-src y 'unique' $$" :=
   ((Tag.eq_dec (fst y) Tag.physical) &&
    (AtomSetImpl.mem (snd y) inv.(Invariant.src).(Invariant.unique))) (at level 41, inv, y at level 41).

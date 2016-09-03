@@ -9,6 +9,8 @@ Import LLVMsyntax.
 Import LLVMinfra.
 
 Require Import Exprs.
+Require Import Decs.
+Require Import TODO.
 
 Set Implicit Arguments.
 
@@ -209,6 +211,36 @@ Module Invariant.
           ((ExprPairSet.mem (p.(snd), Expr.value value_tgt) inv.(tgt).(lessdef)) &&
            (not_in_maydiff_expr inv p.(snd))))
        (get_rhs inv.(src).(lessdef) (Expr.value value_src))).
+
+  (* On the definition of Expr.same_modulo_value *)
+  (* There was a debate between @alxest and @jeehoonkang *)
+  (* [here](https://github.com/snu-sf/llvmberry/pull/295#discussion_r76530070). *)
+  (* I, @alxest, insist current form is much more readable. *)
+  (* Expr.same_modulo_value only requires expr, and reader do not need to care *)
+  (* about what f or data is and how it appears inside definition. *)
+  (* Also, the name same_module_value very explicitly shows what it do. *)
+  (* Actually, during this separation, I found a bug on original code's gep case. *)
+  (* @jeehoonkang's concern was that there should be a provable spec for every definition. *)
+  (* I think it is ok because its spec clearly appears on namee, *)
+  (* and requiring all primitive definitions to have such spec is impossible. *)
+  (* Also, all usage of this primitive definition is deep_check_expr, *)
+  (* so this change does not increase definition spilled out without provable spec *)
+  (* The conclusion was, keep this form and if we meet any difficulty during proving, *)
+  (* come back then *)
+  Definition deep_check_expr
+             {A: Type} (f: A -> ValueT.t -> ValueT.t -> bool)
+             (data: A) (e1 e2:Expr.t): bool :=
+    (Expr.same_modulo_value e1 e2)
+      && (list_forallb2 (f data) (Expr.get_valueTs e1) (Expr.get_valueTs e2)).
+
+  Definition inject_expr (inv: Invariant.t) (es et:Expr.t): bool :=
+    deep_check_expr Invariant.inject_value inv es et.
+
+  Definition lessdef_expr (e: (Expr.t * Expr.t)) (lessdef: ExprPairSet.t): bool :=
+    ExprPairSet.mem e lessdef
+    || (deep_check_expr
+          (fun data v1 v2 => ExprPairSet.mem (Expr.value v1, Expr.value v2) data)
+          lessdef e.(fst) e.(snd)).
 
   Definition is_empty_alias (alias:aliasrel): bool :=
     PtrPairSet.is_empty alias.(noalias) &&
