@@ -15,8 +15,6 @@ Require Import GenericValues.
 
 Set Implicit Arguments.
 
-Definition GLOBAL_MAX_TODO: Prop. Admitted.
-
 (* For TODOs, see `coq/hint/hint_sem.v` *)
 Module Unary.
   Structure t := mk {
@@ -90,4 +88,5 @@ Module Rel.
   Qed.
 
   (* TODO: le_public? *)
+  (* TODO: global_max? *)
 End Rel.

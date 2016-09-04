@@ -17,14 +17,20 @@ Import Opsem.
 Require Import TODO.
 Require Import GenericValues.
 Require Import Nop.
-Require Import SimulationLocal.
 Require InvMem.
-Require InvState.
 
 Set Implicit Arguments.
 
 
-Definition CONF_TODO: Prop. Admitted.
+(* TODO: position *)
+Lemma targetdata_dec
+      (TD_src TD_tgt:TargetData):
+  {TD_src = TD_tgt} + {TD_src <> TD_tgt}.
+Proof.
+  decide equality.
+  - apply namedts_dec.
+  - apply layouts_dec.
+Qed.
 
 (* TODO: name *)
 Definition inject_locals
@@ -34,6 +40,12 @@ Definition inject_locals
   exists gv_tgt,
     <<LU_TGT: lookupAL _ locals_tgt i = Some gv_tgt>> /\
     <<INJECT: genericvalues_inject.gv_inject inv.(InvMem.Rel.inject) gv_src gv_tgt>>.
+
+Inductive inject_conf (conf_src conf_tgt:Config): Prop :=
+| inject_conf_intro
+    (TARGETDATA: conf_src.(CurTargetData) = conf_tgt.(CurTargetData))
+    (GLOBALS: conf_src.(Globals) = conf_tgt.(Globals))
+.
 
 Definition inject_allocas
            (inv:InvMem.Rel.t)
@@ -46,24 +58,25 @@ Lemma inject_locals_getOperandValue
       inv val
       conf_src locals_src gval_src
       conf_tgt locals_tgt gval_tgt
-      (CONF: CONF_TODO)
-      (INJECT: inject_locals inv locals_src locals_tgt)
-      (SRC: getOperandValue (CurTargetData conf_src) val locals_src (Globals conf_src) = Some gval_src)
-      (TGT: getOperandValue (CurTargetData conf_tgt) val locals_tgt (Globals conf_tgt) = Some gval_tgt):
+      (CONF: inject_conf conf_src conf_tgt)
+      (LOCALS: inject_locals inv locals_src locals_tgt)
+      (SRC: getOperandValue conf_src.(CurTargetData) val locals_src (Globals conf_src) = Some gval_src)
+      (TGT: getOperandValue conf_tgt.(CurTargetData) val locals_tgt (Globals conf_tgt) = Some gval_tgt):
   genericvalues_inject.gv_inject inv.(InvMem.Rel.inject) gval_src gval_tgt.
 Proof.
   destruct val; ss.
-  - exploit INJECT; eauto. i. des.
+  - exploit LOCALS; eauto. i. des.
     rewrite TGT in LU_TGT. inv LU_TGT. ss.
-  - admit. (* CONF_TODO *)
+  - inv CONF. rewrite TARGETDATA, GLOBALS, SRC in *. inv TGT.
+    admit. (* const2GV inject refl *)
 Admitted.
 
 Lemma inject_locals_params2GVs
       inv0 args0
       conf_src locals_src gvs_param_src
       conf_tgt locals_tgt gvs_param_tgt
-      (CONF: CONF_TODO)
-      (INJECT: inject_locals inv0 locals_src locals_tgt)
+      (CONF: inject_conf conf_src conf_tgt)
+      (LOCALS: inject_locals inv0 locals_src locals_tgt)
       (PARAM_SRC:params2GVs (CurTargetData conf_src) args0 locals_src (Globals conf_src) = Some gvs_param_src)
       (PARAM_TGT:params2GVs (CurTargetData conf_tgt) args0 locals_tgt (Globals conf_tgt) = Some gvs_param_tgt):
   list_forall2 (genericvalues_inject.gv_inject (InvMem.Rel.inject inv0)) gvs_param_src gvs_param_tgt.
@@ -88,14 +101,33 @@ Proof.
     + eauto.
 Qed.
 
+Lemma locals_init
+      inv la gvs_src
+      args_src args_tgt
+      conf_src conf_tgt
+      (CONF: inject_conf conf_src conf_tgt)
+      (ARGS: list_forall2 (genericvalues_inject.gv_inject inv.(InvMem.Rel.inject)) args_src args_tgt)
+      (LOCALS_SRC : initLocals (CurTargetData conf_src) la args_src = Some gvs_src) :
+  exists gvs_tgt,
+    << LOCALS_TGT : initLocals (CurTargetData conf_tgt) la args_tgt = Some gvs_tgt >> /\
+    << LOCALS: inject_locals inv gvs_src gvs_tgt >>.
+Proof.
+  unfold initLocals in *.
+  revert gvs_src LOCALS_SRC. induction ARGS; ss.
+  - i. destruct la; cycle 1.
+    { admit. }
+    ss. inv LOCALS_SRC. esplits; eauto. ss.
+  - admit.
+Admitted.
+
 Lemma inject_locals_inj_incr
       inv0 inv1
       locals_src locals_tgt
-      (INJECT: inject_locals inv0 locals_src locals_tgt)
+      (LOCALS: inject_locals inv0 locals_src locals_tgt)
       (INCR: InvMem.Rel.le inv0 inv1):
   inject_locals inv1 locals_src locals_tgt.
 Proof.
-  ii. exploit INJECT; eauto. i. des.
+  ii. exploit LOCALS; eauto. i. des.
   esplits; eauto.
   eapply genericvalues_inject.gv_inject_incr; try apply INCR; eauto.
 Qed.
@@ -103,20 +135,10 @@ Qed.
 Lemma inject_allocas_inj_incr
       inv0 inv1
       allocas_src allocas_tgt
-      (INJECT: inject_allocas inv0 allocas_src allocas_tgt)
+      (ALLOCAS: inject_allocas inv0 allocas_src allocas_tgt)
       (INCR: InvMem.Rel.le inv0 inv1):
   inject_allocas inv1 allocas_src allocas_tgt.
 Proof.
   eapply list_forall2_imply; eauto. s. i.
   apply INCR. auto.
-Qed.
-
-(* TODO: position *)
-Lemma targetdata_dec
-      (TD_src TD_tgt:TargetData):
-  {TD_src = TD_tgt} + {TD_src <> TD_tgt}.
-Proof.
-  decide equality.
-  - apply namedts_dec.
-  - apply layouts_dec.
 Qed.

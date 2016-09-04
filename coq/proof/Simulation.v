@@ -77,6 +77,30 @@ Section SimModule.
       sim conf_src conf_tgt idx st_src st_tgt.
 End SimModule.
 
+Definition return_locals
+           (TD:TargetData)
+           (c:cmd) (retval:option GenericValue) (lc:GVMap): option GVsMap :=
+  match c, retval with
+  | insn_call id0 false _ ct _ _ _, Some retval =>
+    match (fit_gv TD ct) retval with
+    | Some retval' => Some (updateAddAL _ lc id0 retval')
+    | _ => None
+    end
+  | insn_call _ _ _ _ _ _ _, _ => Some lc
+  | _, _ => None
+  end.
+
+Lemma returnUpdateLocals_spec
+      TD c' Result lc lc' gl:
+  returnUpdateLocals TD c' Result lc lc' gl =
+  match getOperandValue TD Result lc gl with
+  | Some retval => return_locals TD c' (Some retval) lc'
+  | None => None
+  end.
+Proof.
+  unfold returnUpdateLocals.
+  destruct (getOperandValue TD Result lc gl); ss.
+Qed.
 
 Inductive sim_local_stack
           (conf_src conf_tgt:Config):
@@ -87,32 +111,36 @@ Inductive sim_local_stack
 | sim_local_stack_cons
     ecs0_src ecs0_tgt inv0
     inv
-    func_src b_src cmds_src term_src locals_src allocas_src ecs_src
-    func_tgt b_tgt cmds_tgt term_tgt locals_tgt allocas_tgt ecs_tgt
+    func_src b_src cmd_src cmds_src term_src locals_src allocas_src ecs_src
+    func_tgt b_tgt cmd_tgt cmds_tgt term_tgt locals_tgt allocas_tgt ecs_tgt
     (STACK: sim_local_stack conf_src conf_tgt ecs0_src ecs0_tgt inv0)
     (LE0: InvMem.Rel.le inv0 inv)
+    (CALL_SRC: Instruction.isCallInst cmd_src)
+    (ID: getCmdID cmd_src = getCmdID cmd_tgt)
     (LOCAL:
-       forall inv' mem'_src mem'_tgt retval'_src retval'_tgt
+       forall inv' mem'_src mem'_tgt retval'_src retval'_tgt locals'_tgt
          (LE: InvMem.Rel.le inv inv')
          (MEM: InvMem.Rel.sem conf_src conf_tgt mem'_src mem'_tgt inv')
-         (NORET: noret = false)
-         (RETVAL: GVs.inject inv'.(InvMem.Rel.inject) retval'_src retval'_tgt),
-       exists idx',
-         sim_local
-           conf_src conf_tgt ecs0_src ecs0_tgt
-           inv' idx'
-           (mkState
-              (mkEC func_src b_src cmds_src term_src locals_src allocas_src)
-              ecs_src
-              mem'_src)
-           (mkState
-              (mkEC func_tgt b_tgt cmds_tgt term_tgt locals_tgt allocas_tgt)
-              ecs_tgt
-              mem'_tgt)):
+         (RETVAL: TODO.lift2_option (genericvalues_inject.gv_inject inv'.(InvMem.Rel.inject)) retval'_src retval'_tgt)
+         (RETURN_TGT: return_locals conf_tgt.(CurTargetData) cmd_tgt retval'_tgt locals_tgt = Some locals'_tgt),
+       exists idx' locals'_src,
+         <<RETURN_SRC: return_locals conf_src.(CurTargetData) cmd_src retval'_src locals_src = Some locals'_src>> /\
+         <<SIM:
+           sim_local
+             conf_src conf_tgt ecs0_src ecs0_tgt
+             inv' idx'
+             (mkState
+                (mkEC func_src b_src cmds_src term_src locals'_src allocas_src)
+                ecs_src
+                mem'_src)
+             (mkState
+                (mkEC func_tgt b_tgt cmds_tgt term_tgt locals'_tgt allocas_tgt)
+                ecs_tgt
+                mem'_tgt)>>):
     sim_local_stack
       conf_src conf_tgt
-      ((mkEC func_src b_src cmds_src term_src locals_src allocas_src) :: ecs_src)
-      ((mkEC func_tgt b_tgt cmds_tgt term_tgt locals_tgt allocas_tgt) :: ecs_tgt)
+      ((mkEC func_src b_src (cmd_src::cmds_src) term_src locals_src allocas_src) :: ecs_src)
+      ((mkEC func_tgt b_tgt (cmd_tgt::cmds_tgt) term_tgt locals_tgt allocas_tgt) :: ecs_tgt)
       inv
 .
 
@@ -134,9 +162,48 @@ Proof.
   s. intros conf_src conf_tgt. pcofix CIH. intros idx st_src st_tgt SIM. inv SIM.
   pfold. punfold LOCAL. inv LOCAL.
   - econs 1; eauto.
-  - admit. (* return *)
-  - admit. (* return_void *)
-  - admit. (* call *)
+  - (* return *)
+    destruct st2_src, st_tgt. ss.
+    destruct EC0, EC1. ss. subst.
+    inv STACK.
+    + (* final *)
+      admit.
+    + (* return *)
+      econs 3; ss.
+      { admit. (* tgt not stuck *) }
+      i. inv STEP0. rewrite returnUpdateLocals_spec in *. ss.
+      rewrite RET_TGT in *.
+      exploit LOCAL; eauto.
+      { instantiate (1 := Some _). ss. eauto. }
+      i. des.
+      esplits; eauto.
+      * econs 1. destruct conf_src. ss. econs; eauto.
+        { admit. (* free_allocas *) }
+        { rewrite returnUpdateLocals_spec, RET_SRC. eauto. }
+      * right. apply CIH. econs; eauto.
+        etransitivity; eauto.
+  - (* return_void *)
+    destruct st2_src, st_tgt. ss.
+    destruct EC0, EC1. ss. subst.
+    inv STACK.
+    + (* final *)
+      admit.
+    + (* return *)
+      econs 3; ss.
+      { admit. (* tgt not stuck *) }
+      i. inv STEP0.
+      destruct cmd_tgt; ss. destruct noret5; ss.
+      destruct cmd_src; ss. destruct noret5; ss.
+      exploit LOCAL; eauto.
+      { instantiate (1 := None). instantiate (1 := None). ss. }
+      i. des. inv RETURN_SRC.
+      esplits; eauto.
+      * econs 1. destruct conf_src. econs; eauto.
+        admit. (* free_allocas *)
+      * right. apply CIH. econs; eauto.
+        etransitivity; eauto.
+  - (* call *)
+    admit.
   - econs 3; ss. i. exploit STEP; eauto. i. des.
     inv x2; [|done].
     esplits; eauto. right.

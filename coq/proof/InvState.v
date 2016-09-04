@@ -12,6 +12,7 @@ Import Opsem.
 Require Import Exprs.
 Require Import Hints.
 Require Import GenericValues.
+Require Import Inject.
 Require InvMem.
 
 Set Implicit Arguments.
@@ -71,6 +72,19 @@ Module Unary.
       (UNIQUE: AtomSetImpl.For_all (sem_unique conf st invst) inv.(Invariant.unique))
       (PRIVATE: IdTSet.For_all (sem_private conf st invst invmem.(InvMem.Unary.private)) inv.(Invariant.private))
   .
+
+  Lemma sem_empty
+        conf st invst invmem inv
+        (EMPTY: Invariant.is_empty_unary inv):
+    sem conf st invst invmem inv.
+  Proof.
+  Admitted.
+
+  Lemma sem_valueT_physical
+        conf st inv val:
+    sem_valueT conf st inv (Exprs.ValueT.lift Exprs.Tag.physical val) =
+    getOperandValue conf.(CurTargetData) val st.(EC).(Locals) conf.(Globals).
+  Proof. destruct val; ss. Qed.
 End Unary.
 
 Module Rel.
@@ -90,7 +104,45 @@ Module Rel.
       (SRC: Unary.sem conf_src st_src invst.(src) invmem.(InvMem.Rel.src) inv.(Invariant.src))
       (TGT: Unary.sem conf_tgt st_tgt invst.(tgt) invmem.(InvMem.Rel.tgt) inv.(Invariant.tgt))
       (MAYDIFF:
-         forall id (NOTIN: IdTSet.mem id inv.(Invariant.maydiff)),
+         forall id (NOTIN: ~ IdTSet.mem id inv.(Invariant.maydiff)),
            sem_inject st_src st_tgt invst invmem.(InvMem.Rel.inject) id)
   .
+
+  Lemma sem_empty
+        conf_src ec_src ecs_src mem_src
+        conf_tgt ec_tgt ecs_tgt mem_tgt
+        invmem inv
+        (SRC: Hints.Invariant.is_empty_unary inv.(Invariant.src))
+        (TGT: Hints.Invariant.is_empty_unary inv.(Invariant.tgt))
+        (LOCALS: inject_locals invmem ec_src.(Locals) ec_tgt.(Locals)):
+    exists invst,
+      sem conf_src conf_tgt
+          (mkState ec_src ecs_src mem_src)
+          (mkState ec_tgt ecs_tgt mem_tgt)
+          invst invmem inv.
+  Proof.
+    exists (mk (Unary.mk [] []) (Unary.mk [] [])).
+    econs.
+    - apply Unary.sem_empty. ss.
+    - apply Unary.sem_empty. ss.
+    - ii. unfold Unary.sem_idT, Unary.sem_tag in *.
+      destruct id0. destruct t0; ss.
+      exploit LOCALS; eauto. i. des.
+      esplits; eauto. admit. (* easy *)
+  Admitted.
+
+  Lemma inject_value_spec
+        conf_src st_src val_src
+        conf_tgt st_tgt val_tgt
+        invst invmem inv
+        gval_src
+        (STATE: sem conf_src conf_tgt st_src st_tgt invst invmem inv)
+        (MEM: InvMem.Rel.sem conf_src conf_tgt st_src.(Mem) st_tgt.(Mem) invmem)
+        (INJECT: Hints.Invariant.inject_value inv val_src val_tgt)
+        (VAL_SRC: Unary.sem_valueT conf_src st_src invst.(src) val_src = Some gval_src):
+    exists gval_tgt,
+      <<VAL_TGT: Unary.sem_valueT conf_tgt st_tgt invst.(tgt) val_tgt = Some gval_tgt>> /\
+      <<INJECT: genericvalues_inject.gv_inject invmem.(InvMem.Rel.inject) gval_src gval_tgt>>.
+  Proof.
+  Admitted.
 End Rel.

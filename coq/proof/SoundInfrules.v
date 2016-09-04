@@ -31,7 +31,7 @@ Lemma apply_infrule_sound
       conf_tgt st_tgt
       invst0 invmem0 inv0
       infrule
-      (CONF: CONF_TODO) (* m_src, m_tgt, conf_src, conf_tgt *)
+      (CONF: valid_conf m_src m_tgt conf_src conf_tgt)
       (STATE: InvState.Rel.sem conf_src conf_tgt st_src st_tgt invst0 invmem0 inv0)
       (MEM: InvMem.Rel.sem conf_src conf_tgt st_src.(Mem) st_tgt.(Mem) invmem0):
   exists invst1 invmem1,
@@ -48,7 +48,7 @@ Lemma apply_infrules_sound
       conf_tgt st_tgt
       invst0 invmem0 inv0
       infrules
-      (CONF: CONF_TODO) (* m_src, m_tgt, conf_src, conf_tgt *)
+      (CONF: valid_conf m_src m_tgt conf_src conf_tgt)
       (STATE: InvState.Rel.sem conf_src conf_tgt st_src st_tgt invst0 invmem0 inv0)
       (MEM: InvMem.Rel.sem conf_src conf_tgt st_src.(Mem) st_tgt.(Mem) invmem0):
   exists invst1 invmem1,
@@ -63,6 +63,5 @@ Proof.
   - exploit IHl0; eauto. i. des.
     exploit apply_infrule_sound; eauto. i. des.
     esplits; eauto.
-    + ss. eauto.
-    + etransitivity; eauto.
+    etransitivity; eauto.
 Qed.

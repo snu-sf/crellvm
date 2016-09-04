@@ -55,25 +55,6 @@ Inductive nop_state_sim
          mem_tgt)
 .
 
-Lemma locals_init
-      inv la gvs_src
-      args_src args_tgt
-      conf_src conf_tgt
-      (CONF: CONF_TODO)
-      (ARGS: list_forall2 (genericvalues_inject.gv_inject inv.(InvMem.Rel.inject)) args_src args_tgt)
-      (LOCALS_SRC : initLocals (CurTargetData conf_src) la args_src = Some gvs_src) :
-  exists gvs_tgt,
-    << LOCALS_TGT : initLocals (CurTargetData conf_tgt) la args_tgt = Some gvs_tgt >> /\
-    << INJECT: inject_locals inv gvs_src gvs_tgt >>.
-Proof.
-  unfold initLocals in *.
-  revert gvs_src LOCALS_SRC. induction ARGS; ss.
-  - i. destruct la; cycle 1.
-    { admit. }
-    ss. inv LOCALS_SRC. esplits; eauto. ss.
-  - admit.
-Admitted.
-
 Lemma nop_init
       conf_src conf_tgt
       stack0_src stack0_tgt
@@ -88,7 +69,7 @@ Lemma nop_init
       (NOP_FIRST_MATCHES: option_map fst (hd_error blocks_src) = option_map fst (hd_error blocks_tgt))
       (ARGS: list_forall2 (genericvalues_inject.gv_inject inv.(InvMem.Rel.inject)) args_src args_tgt)
       (MEM: InvMem.Rel.sem conf_src conf_tgt mem_src mem_tgt inv)
-      (CONF: CONF_TODO)
+      (CONF: inject_conf conf_src conf_tgt)
       (INIT: init_fdef conf_src (fdef_intro header blocks_src) args_src ec_src):
   exists ec_tgt idx,
     init_fdef conf_tgt (fdef_intro header blocks_tgt) args_tgt ec_tgt /\
@@ -289,7 +270,7 @@ Qed.
 
 Lemma nop_sim
       conf_src conf_tgt
-      (CONF: CONF_TODO):
+      (CONF: inject_conf conf_src conf_tgt):
   (nop_state_sim conf_src conf_tgt) <6= (sim_local conf_src conf_tgt).
 Proof.
   intros stack0_src stack0_tgt.
@@ -412,7 +393,7 @@ Lemma nop_sim_fdef
       conf_src conf_tgt
       header
       blocks_src blocks_tgt
-      (CONF: CONF_TODO)
+      (CONF: inject_conf conf_src conf_tgt)
       (NOP: nop_fdef (fdef_intro header blocks_src) (fdef_intro header blocks_tgt))
       (NOP_FIRST_MATCHES: option_map fst (hd_error blocks_src) = option_map fst (hd_error blocks_tgt)):
   sim_fdef conf_src conf_tgt (fdef_intro header blocks_src) (fdef_intro header blocks_tgt).
