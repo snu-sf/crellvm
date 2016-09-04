@@ -15,7 +15,7 @@ Require Import GenericValues.
 
 Set Implicit Arguments.
 
-(* For TODOs, see `coq/hint/hint_sem.v` *)
+
 Module Unary.
   Structure t := mk {
     private: list mblock;
@@ -29,8 +29,9 @@ Module Unary.
       (PRIVATE: forall b (IN: In b inv.(private)), ~ shared b)
       (PRIVATE_PARENT: forall b (IN: In b inv.(private_parent)), ~ shared b)
       (MEM_PARENT: forall b (IN: In b inv.(private_parent)),
-          forall chunk i,
-            Mem.load chunk inv.(mem_parent) b i = Mem.load chunk m b i)
+          forall mc o,
+            mload_aux inv.(mem_parent) mc b o =
+            mload_aux m mc b o)
   .
 
   Inductive le (lhs rhs:t): Prop :=
@@ -88,5 +89,5 @@ Module Rel.
   Qed.
 
   (* TODO: le_public? *)
-  (* TODO: global_max? *)
+  (* TODO: global_max? cf. `gmax` in https://github.com/snu-sf/llvmberry/blob/before_refact/coq/hint/hint_sem.v *)
 End Rel.

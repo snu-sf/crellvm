@@ -18,7 +18,6 @@ Require InvMem.
 Set Implicit Arguments.
 
 
-(* For TODOs, see `coq/hint/hint_sem.v` *)
 Module Unary.
   Structure t := mk {
     previous: GVMap;
@@ -32,34 +31,66 @@ Module Unary.
     | Tag.ghost => invst.(ghost)
     end.
 
-  Definition sem_idT (st:State) (aux:t) (id:IdT.t): option GenericValue :=
-    lookupAL _ (sem_tag st aux id.(fst)) id.(snd).
+  Definition sem_idT (st:State) (invst:t) (id:IdT.t): option GenericValue :=
+    lookupAL _ (sem_tag st invst id.(fst)) id.(snd).
 
-  Definition sem_valueT (conf:Config) (st:State) (aux:t) (v:ValueT.t): option GenericValue :=
+  Definition sem_valueT (conf:Config) (st:State) (invst:t) (v:ValueT.t): option GenericValue :=
     match v with
-    | ValueT.id id => sem_idT st aux id
+    | ValueT.id id => sem_idT st invst id
     | ValueT.const c => const2GV conf.(CurTargetData) conf.(Globals) c
     end.
 
-  Definition sem_expr (conf:Config) (st:State) (aux:t) (e:Expr.t): option GenericValue. Admitted.
+  (* TODO. cf. old's `coq/hint/hint_sem.v` *)
+  Definition sem_expr (conf:Config) (st:State) (invst:t) (e:Expr.t): option GenericValue.
+  Admitted.
 
-  Definition sem_lessdef (conf:Config) (st:State) (aux:t) (es:ExprPair.t): Prop :=
-    forall val2 (VAL2: sem_expr conf st aux es.(snd) = Some val2),
+  Definition sem_lessdef (conf:Config) (st:State) (invst:t) (es:ExprPair.t): Prop :=
+    forall val2 (VAL2: sem_expr conf st invst es.(snd) = Some val2),
     exists val1,
-      <<VAL1: sem_expr conf st aux es.(fst) = Some val1>> /\
+      <<VAL1: sem_expr conf st invst es.(fst) = Some val1>> /\
       <<VAL: GVs.lessdef val1 val2>>.
 
-  (* TODO *)
-  Inductive sem_alias (conf:Config) (st:State) (aux:t) (arel:Invariant.aliasrel): Prop :=
+  Definition sem_diffblock (conf:Config) (val1 val2:GenericValue): Prop :=
+    match GV2ptr conf.(CurTargetData) (getPointerSize conf.(CurTargetData)) val1,
+          GV2ptr conf.(CurTargetData) (getPointerSize conf.(CurTargetData)) val2 with
+    | Some (Vptr b1 _), Some (Vptr b2 _) => b1 <> b2
+    | _, _ => True
+    end.
+
+  (* TODO (NOALIAS): (gptr1, ptr1.(snd)) is not aliased with (gptr2, ptr2.(snd)). *)
+  Inductive sem_alias (conf:Config) (st:State) (invst:t) (arel:Invariant.aliasrel): Prop :=
+  | sem_alias_intro
+      (DIFFBLOCK:
+         forall val1 gval1
+           val2 gval2
+           (MEM: ValueTPairSet.mem (val1, val2) arel.(Invariant.diffblock))
+           (VAL1: sem_valueT conf st invst val1 = Some gval1)
+           (VAL2: sem_valueT conf st invst val2 = Some gval2),
+           sem_diffblock conf gval1 gval2)
+      (NOALIAS:
+         forall ptr1 gptr1
+           ptr2 gptr2
+           (MEM: PtrPairSet.mem (ptr1, ptr2) arel.(Invariant.noalias))
+           (VAL1: sem_valueT conf st invst ptr1.(fst) = Some gptr1)
+           (VAL2: sem_valueT conf st invst ptr2.(fst) = Some gptr2),
+           False)
   .
 
-  (* TODO *)
-  Inductive sem_unique (conf:Config) (st:State) (aux:t) (a:atom): Prop :=
+  Inductive sem_unique (conf:Config) (st:State) (invst:t) (a:atom): Prop :=
+  | sem_unique_intro
+      val
+      (VAL: lookupAL _ st.(EC).(Locals) a = Some val)
+      (LOCALS: forall reg val'
+                 (REG: a <> reg)
+                 (VAL': lookupAL _ st.(EC).(Locals) reg = Some val'),
+          sem_diffblock conf val val')
+      (MEM: forall mptr typ align val'
+              (LOAD: mload conf.(CurTargetData) st.(Mem) mptr typ align = Some val'),
+          sem_diffblock conf val val')
   .
 
-  (* TODO: see `isolated_sem` *)
-  Definition sem_private (conf:Config) (st:State) (aux:t) (private:list mblock) (a:IdT.t): Prop :=
-    forall val (VAL: sem_idT st aux a = Some val),
+  Definition sem_private (conf:Config) (st:State) (invst:t) (private:list mblock) (a:IdT.t): Prop :=
+    forall val (VAL: sem_idT st invst a = Some val),
       match GV2ptr conf.(CurTargetData) (getPointerSize conf.(CurTargetData)) val with
       | ret Vptr b _ => In b private
       | _ => False
