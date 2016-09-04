@@ -246,71 +246,6 @@ Proof.
   - destruct a; inv NOPS. destruct conf. econs.
 Qed.
 
-(* TODO: position *)
-Lemma inject_locals_getOperandValue
-      inv val
-      conf_src locals_src gval_src
-      conf_tgt locals_tgt gval_tgt
-      (CONF: CONF_TODO)
-      (INJECT: inject_locals inv locals_src locals_tgt)
-      (SRC: getOperandValue (CurTargetData conf_src) val locals_src (Globals conf_src) = Some gval_src)
-      (TGT: getOperandValue (CurTargetData conf_tgt) val locals_tgt (Globals conf_tgt) = Some gval_tgt):
-  genericvalues_inject.gv_inject inv.(InvMem.Rel.inject) gval_src gval_tgt.
-Proof.
-  destruct val; ss.
-  - exploit INJECT; eauto. i. des.
-    rewrite TGT in LU_TGT. inv LU_TGT. ss.
-  - admit. (* CONF_TODO *)
-Admitted.
-
-Lemma params2GVs_inject
-      inv0 args0
-      conf_src locals_src gvs_param_src
-      conf_tgt locals_tgt gvs_param_tgt
-      (CONF: CONF_TODO)
-      (INJECT: inject_locals inv0 locals_src locals_tgt)
-      (PARAM_SRC:params2GVs (CurTargetData conf_src) args0 locals_src (Globals conf_src) = Some gvs_param_src)
-      (PARAM_TGT:params2GVs (CurTargetData conf_tgt) args0 locals_tgt (Globals conf_tgt) = Some gvs_param_tgt):
-  list_forall2 (genericvalues_inject.gv_inject (InvMem.Rel.inject inv0)) gvs_param_src gvs_param_tgt.
-Proof.
-  revert gvs_param_src PARAM_SRC.
-  revert gvs_param_tgt PARAM_TGT.
-  induction args0.
-  - i. ss. inv PARAM_SRC. inv PARAM_TGT. econs.
-  - i. ss.
-    destruct a as ((ty_a & attr_a) & v_a).
-    revert PARAM_TGT. revert PARAM_SRC.
-    (* TODO: make a tactic *)
-    repeat
-      (match goal with
-       | [|- context[match ?c with | Some _ => _ | None => _ end]] =>
-         let COND := fresh "COND" in
-         destruct c eqn:COND
-       end; ss).
-    i. inv PARAM_SRC. inv PARAM_TGT.
-    econs.
-    + eapply inject_locals_getOperandValue; eauto.
-    + eauto.
-Qed.
-
-(* TODO: position *)
-Lemma _sim_local_src_progress
-      conf_src conf_tgt sim_local ecs_src ecs_tgt
-      inv index
-      st_src st_tgt
-      (XX: forall (PROGRESS_SRC: ~ stuck_state conf_src st_src),
-          _sim_local conf_src conf_tgt sim_local ecs_src ecs_tgt
-                     inv index
-                     st_src st_tgt):
-  _sim_local conf_src conf_tgt sim_local ecs_src ecs_tgt
-             inv index
-             st_src st_tgt.
-Proof.
-  destruct (classic (stuck_state conf_src st_src)); eauto.
-  admit. (* final state *)
-Admitted.
-
-(* TODO: position *)
 Lemma _sim_local_src_nops
       conf_src conf_tgt sim_local ecs0_src ecs0_tgt
       inv index
@@ -352,29 +287,6 @@ Proof.
     apply nops_sop_star. ss.
 Qed.
 
-Lemma inject_locals_inj_incr
-      inv0 inv1
-      locals_src locals_tgt
-      (INJECT: inject_locals inv0 locals_src locals_tgt)
-      (INCR: InvMem.Rel.le inv0 inv1):
-  inject_locals inv1 locals_src locals_tgt.
-Proof.
-  ii. exploit INJECT; eauto. i. des.
-  esplits; eauto.
-  eapply genericvalues_inject.gv_inject_incr; try apply INCR; eauto.
-Qed.
-
-Lemma inject_allocas_inj_incr
-      inv0 inv1
-      allocas_src allocas_tgt
-      (INJECT: inject_allocas inv0 allocas_src allocas_tgt)
-      (INCR: InvMem.Rel.le inv0 inv1):
-  inject_allocas inv1 allocas_src allocas_tgt.
-Proof.
-  eapply list_forall2_imply; eauto. s. i.
-  apply INCR. auto.
-Qed.
-
 Lemma nop_sim
       conf_src conf_tgt
       (CONF: CONF_TODO):
@@ -411,7 +323,7 @@ Proof.
     { inv PROGRESS_TGT; eauto. }
     des. exploit inject_locals_getOperandValue; eauto. i.
     eapply _sim_local_call; try apply STEPS; try eexact x0; ss; try reflexivity; eauto.
-    + eapply params2GVs_inject; eauto.
+    + eapply inject_locals_params2GVs; eauto.
     + ss. i. esplits. right. eapply CIH. econs; ss.
       * eapply inject_locals_inj_incr; eauto.
       * eapply inject_allocas_inj_incr; eauto.

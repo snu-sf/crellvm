@@ -2,6 +2,7 @@ Require Import syntax.
 Require Import alist.
 Require Import FMapWeakList.
 
+Require Import Classical.
 Require Import Coqlib.
 Require Import infrastructure.
 Require Import Metatheory.
@@ -12,6 +13,7 @@ Require Import sflib.
 Require Import paco.
 
 Require Import GenericValues.
+Require Import Nop.
 Require InvMem.
 Require InvState.
 
@@ -184,3 +186,19 @@ Section SimLocalFunc.
                 (mkState ec0_src stack0_src mem0_src)
                 (mkState ec0_tgt stack0_tgt mem0_tgt).
 End SimLocalFunc.
+
+Lemma _sim_local_src_progress
+      conf_src conf_tgt sim_local ecs_src ecs_tgt
+      inv index
+      st_src st_tgt
+      (XX: forall (PROGRESS_SRC: ~ stuck_state conf_src st_src),
+          _sim_local conf_src conf_tgt sim_local ecs_src ecs_tgt
+                     inv index
+                     st_src st_tgt):
+  _sim_local conf_src conf_tgt sim_local ecs_src ecs_tgt
+             inv index
+             st_src st_tgt.
+Proof.
+  destruct (classic (stuck_state conf_src st_src)); eauto.
+  admit. (* final state *)
+Admitted.

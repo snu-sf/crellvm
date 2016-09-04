@@ -20,12 +20,14 @@ Require Import GenericValues.
 Require Import SimulationLocal.
 Require InvMem.
 Require InvState.
-
+Require Import SoundBase.
+Require Import SoundImplies.
+Require Import SoundPostcond.
+Require Import SoundInfrules.
+Require Import SoundReduceMaydiff.
 
 Set Implicit Arguments.
 
-
-Definition CONF_TODO: Prop. Admitted.
 
 (* TODO: position *)
 Definition get_blocks (f:fdef): blocks :=
@@ -116,107 +118,6 @@ Ltac condtac :=
      unfold Debug.debug_print_validation_process in *;
      subst; ss).
 
-(* TODO: position *)
-Lemma has_false_False
-      conf_src conf_tgt st_src st_tgt invst invmem inv
-      (HAS_FALSE: Hints.Invariant.has_false inv)
-      (SEM: InvState.Rel.sem conf_src conf_tgt st_src st_tgt invst invmem inv):
-  False.
-Proof.
-Admitted.
-
-(* TODO: position *)
-Lemma postcond_cmd_sound
-      conf_src st0_src cmd_src cmds_src
-      conf_tgt st0_tgt cmd_tgt cmds_tgt
-      invst0 invmem0 inv0
-      st1_tgt evt inv1
-      (CMDS_SRC: st0_src.(EC).(CurCmds) = cmd_src :: cmds_src)
-      (CMDS_TGT: st0_tgt.(EC).(CurCmds) = cmd_tgt :: cmds_tgt)
-      (POSTCOND: Postcond.postcond_cmd cmd_src cmd_tgt inv0 = Some inv1)
-      (STATE: InvState.Rel.sem conf_src conf_tgt st0_src st0_tgt invst0 invmem0 inv0)
-      (MEM: InvMem.Rel.sem conf_src conf_tgt st0_src.(Mem) st0_tgt.(Mem) invmem0)
-      (STEP_TGT: sInsn conf_tgt st0_tgt st1_tgt evt):
-  exists st1_src invst1 invmem1,
-    <<STEP_SRC: sInsn conf_src st0_src st1_src evt>> /\
-    <<STATE: InvState.Rel.sem conf_src conf_tgt st1_src st1_tgt invst1 invmem1 inv1>>/\
-    <<MEM: InvMem.Rel.sem conf_src conf_tgt st1_src.(Mem) st1_tgt.(Mem) invmem1>> /\
-    <<MEMLE: InvMem.Rel.le invmem0 invmem1>>.
-Proof.
-Admitted.
-
-(* TODO: position *)
-Lemma apply_infrule_sound
-      m_src m_tgt
-      conf_src st_src
-      conf_tgt st_tgt
-      invst0 invmem0 inv0
-      infrule
-      (CONF: CONF_TODO) (* m_src, m_tgt, conf_src, conf_tgt *)
-      (STATE: InvState.Rel.sem conf_src conf_tgt st_src st_tgt invst0 invmem0 inv0)
-      (MEM: InvMem.Rel.sem conf_src conf_tgt st_src.(Mem) st_tgt.(Mem) invmem0):
-  exists invst1 invmem1,
-    <<STATE: InvState.Rel.sem conf_src conf_tgt st_src st_tgt invst1 invmem1
-                              (Infrules.apply_infrule m_src m_tgt infrule inv0)>> /\
-    <<MEM: InvMem.Rel.sem conf_src conf_tgt st_src.(Mem) st_tgt.(Mem) invmem1>> /\
-    <<MEMLE: InvMem.Rel.le invmem0 invmem1>>.
-Proof.
-Admitted.
-
-(* TODO: position *)
-Lemma apply_infrules_sound
-      m_src m_tgt
-      conf_src st_src
-      conf_tgt st_tgt
-      invst0 invmem0 inv0
-      infrules
-      (CONF: CONF_TODO) (* m_src, m_tgt, conf_src, conf_tgt *)
-      (STATE: InvState.Rel.sem conf_src conf_tgt st_src st_tgt invst0 invmem0 inv0)
-      (MEM: InvMem.Rel.sem conf_src conf_tgt st_src.(Mem) st_tgt.(Mem) invmem0):
-  exists invst1 invmem1,
-    <<STATE: InvState.Rel.sem conf_src conf_tgt st_src st_tgt invst1 invmem1
-                              (Infrules.apply_infrules m_src m_tgt infrules inv0)>> /\
-    <<MEM: InvMem.Rel.sem conf_src conf_tgt st_src.(Mem) st_tgt.(Mem) invmem1>> /\
-    <<MEMLE: InvMem.Rel.le invmem0 invmem1>>.
-Proof.
-  unfold Infrules.apply_infrules. rewrite <- fold_left_rev_right.
-  move infrules at top. revert_until infrules. induction (rev infrules); i.
-  - esplits; eauto.
-    admit. (* InvMem.Rel.le refl *)
-  - exploit IHl0; eauto. i. des.
-    exploit apply_infrule_sound; eauto. i. des.
-    esplits; eauto.
-    + ss. eauto.
-    + admit. (* InvMem.Rel.le trans *)
-Admitted.
-
-(* TODO: position *)
-Lemma reduce_maydiff_sound
-      conf_src st_src
-      conf_tgt st_tgt
-      invst invmem inv
-      (CONF: CONF_TODO) (* m_src, m_tgt, conf_src, conf_tgt *)
-      (STATE: InvState.Rel.sem conf_src conf_tgt st_src st_tgt invst invmem inv)
-      (MEM: InvMem.Rel.sem conf_src conf_tgt st_src.(Mem) st_tgt.(Mem) invmem):
-  <<STATE: InvState.Rel.sem conf_src conf_tgt st_src st_tgt invst invmem
-                            (Postcond.reduce_maydiff inv)>> /\
-  <<MEM: InvMem.Rel.sem conf_src conf_tgt st_src.(Mem) st_tgt.(Mem) invmem>>.
-Proof.
-Admitted.
-
-(* TODO: position *)
-Lemma implies_sound
-      conf_src st_src
-      conf_tgt st_tgt
-      invst invmem inv0 inv1
-      (CONF: CONF_TODO) (* m_src, m_tgt, conf_src, conf_tgt *)
-      (IMPLIES: Hints.Invariant.implies inv0 inv1)
-      (STATE: InvState.Rel.sem conf_src conf_tgt st_src st_tgt invst invmem inv0)
-      (MEM: InvMem.Rel.sem conf_src conf_tgt st_src.(Mem) st_tgt.(Mem) invmem):
-  <<STATE: InvState.Rel.sem conf_src conf_tgt st_src st_tgt invst invmem inv1>> /\
-  <<MEM: InvMem.Rel.sem conf_src conf_tgt st_src.(Mem) st_tgt.(Mem) invmem>>.
-Proof.
-Admitted.
 
 (* TODO: position *)
 Lemma inject_value_sound
