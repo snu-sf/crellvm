@@ -75,7 +75,7 @@ Ltac simtac :=
            let COND := fresh "COND" in
            destruct c eqn:COND
          end;
-     unfold Debug.debug_print_validation_process in *;
+     unfold Debug.debug_print_validation_process, Debug.debug_print in *;
      try subst; ss).
 
 (* TODO: position *)
@@ -173,6 +173,62 @@ Proof.
     rewrite COND0, COND1, COND2, COND3, COND4. ss.
 Qed.
 
+(* TODO: position *)
+Lemma if_f
+      A B (c:bool) (f:A -> B) a b:
+  (if c then f a else f b) = f (if c then a else b).
+Proof. destruct c; ss. Qed.
+
+(* TODO: position *)
+Definition ite A (c:bool) (a b:A): A :=
+  if c then a else b.
+Lemma ite_spec A c (a b:A):
+  ite c a b = if c then a else b.
+Proof. ss. Qed.
+Opaque ite.
+
+(* TODO: position *)
+Lemma inject_decide_nonzero
+      TD inv
+      val_src decision_src
+      val_tgt decision_tgt
+      (INJECT: genericvalues_inject.gv_inject inv val_src val_tgt)
+      (SRC: decide_nonzero TD val_src decision_src)
+      (TGT: decide_nonzero TD val_tgt decision_tgt):
+  decision_src = decision_tgt.
+Proof.
+  inv SRC. inv TGT. unfold GV2int in *.
+  destruct val_src; ss. destruct p, v, val_src; ss.
+  destruct val_tgt; ss. destruct p, v, val_tgt; ss.
+  simtac. inv INJECT. inv H1.
+  apply inj_pair2 in H2. apply inj_pair2 in H4. subst. ss.
+Qed.
+
+(* TODO: position *)
+Lemma sInsn_non_call
+      conf fdef bb cmd cmds term locals1 allocas1 ecs mem1
+      st2 event
+      (NONCALL: ~ Instruction.isCallInst cmd)
+      (STEP: sInsn
+               conf
+               (mkState (mkEC fdef bb (cmd::cmds) term locals1 allocas1) ecs mem1)
+               st2
+               event):
+  exists locals2 allocas2 mem2,
+    st2 = mkState (mkEC fdef bb cmds term locals2 allocas2) ecs mem2.
+Proof.
+  inv STEP; eauto. ss. congruence.
+Qed.
+
+(* TODO: position *)
+Lemma postcond_cmd_is_call
+      c_src c_tgt inv1 inv2
+      (POSTCOND: Postcond.postcond_cmd c_src c_tgt inv1 = Some inv2):
+  Instruction.isCallInst c_src = Instruction.isCallInst c_tgt.
+Proof.
+  destruct c_src, c_tgt; ss.
+Qed.
+
 Lemma valid_sim
       conf_src conf_tgt:
   (valid_state_sim conf_src conf_tgt) <6= (sim_local conf_src conf_tgt).
@@ -196,34 +252,50 @@ Proof.
     simtac;
       (try by exfalso; eapply has_false_False; eauto).
     apply NNPP in STUCK_SRC. des.
-    inv STUCK_SRC; destruct Terminator1; simtac.
+    inv STUCK_SRC; destruct Terminator1; ss.
     (* TODO: switch case *)
     + (* return *)
+      simtac.
       unfold returnUpdateLocals in *. simtac.
       exploit InvState.Rel.inject_value_spec; eauto.
       { rewrite InvState.Unary.sem_valueT_physical. eauto. }
       rewrite InvState.Unary.sem_valueT_physical. s. i. des.
       eapply _sim_local_return; eauto; ss.
     + (* return_void *)
+      simtac.
       eapply _sim_local_return_void; eauto; ss.
     + (* br *)
+      rewrite <- (ite_spec decision l1 l2) in *. simtac. rewrite ite_spec in *.
       exploit InvState.Rel.inject_value_spec; eauto.
       { rewrite InvState.Unary.sem_valueT_physical. eauto. }
       rewrite InvState.Unary.sem_valueT_physical. s. i. des.
       eapply _sim_local_step.
       { admit. (* tgt not stuck *) }
       i. inv STEP. ss.
+      rewrite VAL_TGT in H16. inv H16.
+      inv CONF. inv INJECT0. ss. subst.
+      exploit inject_decide_nonzero; eauto. i. subst.
+      assert (PHINODES:
+                valid_phinodes fdef_hint inv_term m_src m_tgt
+                               (get_blocks CurFunction0) (get_blocks CurFunction1)
+                               (fst CurBB0) (if decision0 then l0 else l3))
+        by (destruct decision0; ss).
+      clear COND1 COND2.
+      unfold valid_phinodes in *.
+      rewrite <- (ite_spec decision0 l0 l3) in *.
+      simtac. unfold Postcond.postcond_phinodes in *. simtac.
+      rewrite ite_spec in *.
+      (* TODO: Lemma sound_postcond_phinodes *)
       esplits; eauto.
-      { econs 1. econs; eauto. rewrite COND3. eauto. }
+      { econs 1. econs; eauto. }
       { reflexivity. }
       right. apply CIH.
-      instantiate (1 := mkState _ _ _). econs; eauto; ss.
-      * admit. (* valid_fdef *)
+      instantiate (1 := mkState _ _ _).
+      instantiate (3 := mkEC _ _ _ _ _ _).
+      econs; ss; eauto.
       * admit. (* valid_cmds *)
       * admit. (* valid_terminator *)
       * admit. (* InvState.Rel.sem *)
-    + (* br, bogus: see https://github.com/snu-sf/llvmberry/issues/310 *)
-      admit.
     + (* br_uncond *)
       eapply _sim_local_step.
       { admit. (* tgt not stuck *) }
@@ -232,28 +304,31 @@ Proof.
       { econs 1. econs; eauto. }
       { reflexivity. }
       right. apply CIH.
-      instantiate (1 := mkState _ _ _). econs; eauto; ss.
-      * admit. (* valid_fdef *)
+      instantiate (1 := mkState _ _ _).
+      instantiate (3 := mkEC _ _ _ _ _ _).
+      econs; ss; eauto.
       * admit. (* valid_cmds *)
       * admit. (* valid_terminator *)
       * admit. (* InvState.Rel.sem *)
   - (* cmd *)
-    eapply _sim_local_step.
-    { (* tgt not stuck *)
+    destruct (Instruction.isCallInst c) eqn:CALL.
+    + (* call *)
       admit.
-    }
-    i.
-    (* TODO: call is ignored! *)
-    exploit postcond_cmd_sound; eauto; ss. i. des.
-    exploit apply_infrules_sound; eauto; ss. i. des.
-    exploit reduce_maydiff_sound; eauto; ss. i. des.
-    exploit implies_sound; eauto; ss. i. des.
-    esplits; eauto.
-    + econs 1. eauto.
-    + right. apply CIH. econs; eauto.
-      * admit. (* valid_fdef *)
-      * admit. (* valid_cmds *)
-      * admit. (* valid_terminator *)
+    + (* non-call *)
+      eapply _sim_local_step.
+      { admit. (* tgt not stuck *) }
+      i.
+      exploit postcond_cmd_is_call; eauto. i. rewrite CALL in x0.
+      exploit sInsn_non_call; eauto; try congruence. i. des. subst. ss.
+      exploit postcond_cmd_sound; eauto; ss; try congruence. i. des.
+      exploit sInsn_non_call; eauto; try congruence. i. des. subst. ss.
+      exploit apply_infrules_sound; eauto; ss. i. des.
+      exploit reduce_maydiff_sound; eauto; ss. i. des.
+      exploit implies_sound; eauto; ss. i. des.
+      esplits; (try by etransitivity; eauto); eauto.
+      { econs 1. eauto. }
+      instantiate (1 := mkState (mkEC _ _ _ _ _ _) _ _).
+      right. apply CIH. econs; ss; eauto.
 Admitted.
 
 Lemma valid_sim_fdef

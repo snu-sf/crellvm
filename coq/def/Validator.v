@@ -42,6 +42,12 @@ Fixpoint valid_cmds
   | _, _, _ => None
   end.
 
+Definition lookup_phinodes_infrules hint_stmts l_from :=
+  match lookupAL _ hint_stmts.(ValidationHint.phinodes) l_from with
+  | None => nil
+  | Some infrules => infrules
+  end.
+
 Definition valid_phinodes
            (hint_fdef:ValidationHint.fdef)
            (inv0:Invariant.t)
@@ -52,10 +58,7 @@ Definition valid_phinodes
   let l_to := (debug_print atom_printer l_to) in
   match lookupAL _ hint_fdef l_to, lookupAL _ blocks_src l_to, lookupAL _ blocks_tgt l_to with
   | Some hint_stmts, Some (stmts_intro phinodes_src _ _), Some (stmts_intro phinodes_tgt _ _) =>
-    let infrules := match lookupAL _ hint_stmts.(ValidationHint.phinodes) l_from with
-                        | None => nil
-                        | Some infrules => infrules
-                    end in
+    let infrules := lookup_phinodes_infrules hint_stmts l_from in
     let inv1 := postcond_branch blocks_src blocks_tgt l_from l_to inv0 in
     match postcond_phinodes l_from phinodes_src phinodes_tgt inv1 with
       | None => failwith_false "valid_phinodes: postcond_phinodes returned None at phinode" (l_from::l_to::nil)
