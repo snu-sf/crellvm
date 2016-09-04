@@ -60,6 +60,6 @@ Proof.
 Qed.
 Hint Resolve behave_mon: paco.
 
-Definition behave_system system main args obs: Prop :=
-  forall conf st (INIT: s_genInitState system main args Mem.empty = Some (conf, st)),
+Definition behave_module module main args obs: Prop :=
+  forall conf st (INIT: s_genInitState [module] main args Mem.empty = Some (conf, st)),
     behave conf st obs.

@@ -408,14 +408,14 @@ Admitted.
     (*     inv STEP; simpl; auto; inv TGT. *)
     (* } *)
 
-Lemma nop_sim_func
+Lemma nop_sim_fdef
       conf_src conf_tgt
       header
       blocks_src blocks_tgt
       (CONF: CONF_TODO)
       (NOP: nop_fdef (fdef_intro header blocks_src) (fdef_intro header blocks_tgt))
       (NOP_FIRST_MATCHES: option_map fst (hd_error blocks_src) = option_map fst (hd_error blocks_tgt)):
-  sim_func conf_src conf_tgt (fdef_intro header blocks_src) (fdef_intro header blocks_tgt).
+  sim_fdef conf_src conf_tgt (fdef_intro header blocks_src) (fdef_intro header blocks_tgt).
 Proof.
   ii.
   exploit nop_init; eauto. i. des.

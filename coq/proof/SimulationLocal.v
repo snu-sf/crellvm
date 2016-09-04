@@ -170,10 +170,10 @@ Inductive init_fdef (conf:Config) (f:fdef) (args:list GenericValue): forall (ec:
 .
 
 
-Section SimLocalFunc.
+Section SimLocalFdef.
   Variable (conf_src conf_tgt:Config).
 
-  Definition sim_func (fdef_src fdef_tgt:fdef): Prop :=
+  Definition sim_fdef (fdef_src fdef_tgt:fdef): Prop :=
     forall inv0 stack0_src stack0_tgt mem0_src mem0_tgt
       args_src args_tgt
       ec0_src
@@ -185,7 +185,7 @@ Section SimLocalFunc.
       sim_local conf_src conf_tgt stack0_src stack0_tgt inv0 idx0
                 (mkState ec0_src stack0_src mem0_src)
                 (mkState ec0_tgt stack0_tgt mem0_tgt).
-End SimLocalFunc.
+End SimLocalFdef.
 
 Lemma _sim_local_src_progress
       conf_src conf_tgt sim_local ecs_src ecs_tgt

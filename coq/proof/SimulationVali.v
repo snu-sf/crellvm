@@ -18,6 +18,7 @@ Require Import TODO.
 Require Import Validator.
 Require Import GenericValues.
 Require Import SimulationLocal.
+Require Import Simulation.
 Require InvMem.
 Require InvState.
 Require Import SoundBase.
@@ -91,6 +92,24 @@ Ltac condtac :=
   repeat
     (try match goal with
          | [H: ?a = ?a |- _] => clear H
+         | [H: is_true true |- _] => clear H
+         | [H: Some _ = Some _ |- _] => inv H
+         | [H: context[let (_, _) := ?p in _] |- _] => destruct p
+         | [H: negb _ = false |- _] =>
+           apply negb_false_iff in H
+
+         | [H: proj_sumbool (id_dec ?a ?b) = true |- _] =>
+           destruct (id_dec a b)
+         | [H: proj_sumbool (typ_dec ?a ?b) = true |- _] =>
+           destruct (typ_dec a b)
+         | [H: proj_sumbool (l_dec ?a ?b) = true |- _] =>
+           destruct (l_dec a b)
+         | [H: proj_sumbool (fheader_dec ?a ?b) = true |- _] =>
+           destruct (fheader_dec a b)
+         | [H: proj_sumbool (layouts_dec ?a ?b) = true |- _] => destruct (layouts_dec a b)
+         | [H: proj_sumbool (namedts_dec ?a ?b) = true |- _] => destruct (namedts_dec a b)
+         | [H: productInModuleB_dec ?a ?b = left _ |- _] => destruct (productInModuleB_dec a b)
+
          | [H: context[match ?c with
                        | [] => _
                        | _::_ => _
@@ -106,17 +125,9 @@ Ltac condtac :=
          | [H: context[if ?c then _ else _] |- _] =>
            let COND := fresh "COND" in
            destruct c eqn:COND
-         | [H: Some _ = Some _ |- _] => inv H
-         | [H: context[let (_, _) := ?p in _] |- _] => destruct p
-         | [H: negb _ = false |- _] =>
-           apply negb_false_iff in H
-         | [H: proj_sumbool (typ_dec ?a ?b) = true |- _] =>
-           destruct (typ_dec a b)
-         | [H: proj_sumbool (l_dec ?a ?b) = true |- _] =>
-           destruct (l_dec a b)
          end;
      unfold Debug.debug_print_validation_process in *;
-     subst; ss).
+     try subst; ss).
 
 
 (* TODO: position *)
@@ -143,8 +154,7 @@ Lemma sem_valueT_physical
 Proof. destruct val; ss. Qed.
 
 Lemma vali_sim
-      conf_src conf_tgt
-      (CONF: CONF_TODO):
+      conf_src conf_tgt:
   (vali_state_sim conf_src conf_tgt) <6= (sim_local conf_src conf_tgt).
 Proof.
   intros stack0_src stack0_tgt.
@@ -184,7 +194,7 @@ Proof.
       { admit. (* tgt not stuck *) }
       i. inv STEP. ss.
       esplits; eauto.
-      { econs 1. econs; eauto. rewrite COND5. eauto. }
+      { econs 1. econs; eauto. rewrite COND3. eauto. }
       { admit. (* InvMem.Rel.le refl *) }
       right. apply CIH.
       instantiate (1 := mkState _ _ _). econs; eauto; ss.
@@ -226,17 +236,78 @@ Proof.
       * admit. (* valid_terminator *)
 Admitted.
 
-Lemma vali_sim_func
+Lemma vali_sim_fdef
       m_src m_tgt
       conf_src conf_tgt
       fdef_src fdef_tgt
       fdef_hint
       (CONF: CONF_TODO)
       (FDEF: valid_fdef m_src m_tgt fdef_src fdef_tgt fdef_hint):
-  sim_func conf_src conf_tgt fdef_src fdef_tgt.
+  sim_fdef conf_src conf_tgt fdef_src fdef_tgt.
 Proof.
   ii.
   exploit vali_init; eauto. i. des.
   esplits; eauto.
   apply vali_sim; eauto.
 Qed.
+
+Lemma valid_products_lookupFdefViaIDFromProducts
+      m_hint m_src m_tgt
+      products_src products_tgt
+      f fdef_src
+      (PRODUCTS: valid_products m_hint m_src m_tgt products_src products_tgt)
+      (SRC: lookupFdefViaIDFromProducts products_src f = Some fdef_src):
+  exists fdef_tgt,
+    <<TGT: lookupFdefViaIDFromProducts products_tgt f = Some fdef_tgt>> /\
+    <<FDEF: valid_product m_hint m_src m_tgt (product_fdef fdef_src) (product_fdef fdef_tgt)>>.
+Proof.
+  revert products_tgt PRODUCTS SRC.
+  induction products_src; [done|].
+  i. destruct products_tgt; [done|].
+  unfold valid_products in PRODUCTS. s in PRODUCTS. apply andb_true_iff in PRODUCTS. des.
+  s in SRC. condtac.
+  - destruct a, p; condtac. esplits; eauto.
+    + destruct (getFdefID fdef0 == getFdefID fdef_src); eauto. congruence.
+    + destruct (id_dec (getFdefID fdef_src) (getFdefID fdef0)); ss.
+      destruct (valid_fdef m_src m_tgt fdef_src fdef0 f0) eqn:FDEF; ss. congruence.
+  - destruct a, p; condtac. congruence.
+  - exploit IHproducts_src; eauto. i. des.
+    esplits; eauto.
+    destruct (lookupFdefViaIDFromProduct p f) eqn:HD; ss.
+    destruct a, p; condtac.
+  - exploit IHproducts_src; eauto. i. des.
+    esplits; eauto.
+    destruct (lookupFdefViaIDFromProduct p f) eqn:HD; ss.
+    destruct a, p; condtac.
+Qed.
+
+Lemma vali_sim_module m_hint:
+  (valid_module m_hint) <2= sim_module.
+Proof.
+  s. intros module_src module_tgt MODULE.
+  unfold valid_module in MODULE. condtac.
+  ii. unfold s_genInitState in SRC. condtac.
+  clear COND0 e0. apply infrastructure_props.InProductsB_In in e.
+  exploit valid_products_lookupFdefViaIDFromProducts; eauto. i. des. condtac.
+  destruct fheader5. inv e0. ss.
+  esplits.
+  - unfold s_genInitState. ss. rewrite TGT.
+    match goal with
+    | [|- context [productInModuleB_dec ?a ?b]] => destruct (productInModuleB_dec a b)
+    end; condtac; cycle 1.
+    { admit. (* lookupFdefViaIDFromProducts -> InProductsB *) }
+    (* TODO: Lemma valid_products_genGlobalAndInitMem *)
+    rewrite COND3.
+    admit.
+  - apply sim_local_lift_sim. econs.
+    + econs 1.
+    + apply vali_sim. econs; ss.
+      * admit. (* CONF_TODO *)
+      * admit. (* tgt ECS = nil *)
+      * admit. (* fdef *)
+      * admit. (* cmds *)
+      * admit. (* term *)
+      * admit. (* state *)
+      * admit. (* mem *)
+    + admit. (* invmem rel le *)
+Admitted.

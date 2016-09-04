@@ -2,6 +2,7 @@ Require Import syntax.
 Require Import alist.
 Require Import FMapWeakList.
 
+Require Import sflib.
 Require Import Coqlib.
 Require Import infrastructure.
 Require Import Metatheory.
@@ -41,12 +42,11 @@ Module Unary.
 
   Definition sem_expr (conf:Config) (st:State) (aux:t) (e:Expr.t): option GenericValue. Admitted.
 
-  (* TODO: <<a: True>> notation *)
   Definition sem_lessdef (conf:Config) (st:State) (aux:t) (es:ExprPair.t): Prop :=
-    forall v2 (V2: sem_expr conf st aux es.(snd) = Some v2),
-    exists v1,
-      sem_expr conf st aux es.(fst) = Some v1 /\
-      GVs.lessdef v1 v2.
+    forall val2 (VAL2: sem_expr conf st aux es.(snd) = Some val2),
+    exists val1,
+      <<VAL1: sem_expr conf st aux es.(fst) = Some val1>> /\
+      <<VAL: GVs.lessdef val1 val2>>.
 
   (* TODO *)
   Inductive sem_alias (conf:Config) (st:State) (aux:t) (arel:Invariant.aliasrel): Prop :=
@@ -79,12 +79,11 @@ Module Rel.
     tgt: Unary.t;
   }.
 
-  (* TODO: <<a: True>> notation *)
   Definition sem_inject (st_src st_tgt:State) (invst:t) (inject:meminj) (id:IdT.t): Prop :=
     forall val_src (VAL_SRC: Unary.sem_idT st_src invst.(src) id = Some val_src),
     exists val_tgt,
-      Unary.sem_idT st_tgt invst.(tgt) id = Some val_tgt /\
-      GVs.inject inject val_src val_tgt.
+      <<VAL_TGT: Unary.sem_idT st_tgt invst.(tgt) id = Some val_tgt>> /\
+      <<VAL: GVs.inject inject val_src val_tgt>>.
 
   Inductive sem (conf_src conf_tgt:Config) (st_src st_tgt:State) (invst:t) (invmem:InvMem.Rel.t) (inv:Invariant.t): Prop :=
   | sem_intro

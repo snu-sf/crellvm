@@ -65,17 +65,17 @@ End Sim.
 Hint Resolve _sim_mon: paco.
 
 
-Section SimSystem.
-  Variable (system_src system_tgt:system).
+Section SimModule.
+  Variable (module_src module_tgt:module).
 
-  Definition sim_system: Prop :=
+  Definition sim_module: Prop :=
     forall main args
       conf_src st_src
-      (SRC: s_genInitState system_src main args Mem.empty = Some (conf_src, st_src)),
+      (SRC: s_genInitState [module_src] main args Mem.empty = Some (conf_src, st_src)),
     exists conf_tgt st_tgt idx,
-      s_genInitState system_tgt main args Mem.empty = Some (conf_tgt, st_tgt) /\
+      s_genInitState [module_tgt] main args Mem.empty = Some (conf_tgt, st_tgt) /\
       sim conf_src conf_tgt idx st_src st_tgt.
-End SimSystem.
+End SimModule.
 
 
 Inductive sim_local_stack
