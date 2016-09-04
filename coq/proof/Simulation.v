@@ -141,5 +141,5 @@ Proof.
     inv x2; [|done].
     esplits; eauto. right.
     apply CIH. econs; eauto.
-    admit. (* InvMem.Rel.le trans *)
+    etransitivity; eauto.
 Admitted.

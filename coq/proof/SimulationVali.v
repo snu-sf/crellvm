@@ -15,6 +15,7 @@ Require Import paco.
 Import Opsem.
 
 Require Import TODO.
+Require Import Decs.
 Require Import Validator.
 Require Import GenericValues.
 Require Import SimulationLocal.
@@ -95,8 +96,11 @@ Ltac condtac :=
          | [H: is_true true |- _] => clear H
          | [H: Some _ = Some _ |- _] => inv H
          | [H: context[let (_, _) := ?p in _] |- _] => destruct p
+         | [H: negb _ = true |- _] =>
+           apply negb_true_iff in H
          | [H: negb _ = false |- _] =>
            apply negb_false_iff in H
+         | [H: andb _ _ = true |- _] => apply andb_true_iff in H; destruct H
 
          | [H: proj_sumbool (id_dec ?a ?b) = true |- _] =>
            destruct (id_dec a b)
@@ -195,7 +199,7 @@ Proof.
       i. inv STEP. ss.
       esplits; eauto.
       { econs 1. econs; eauto. rewrite COND3. eauto. }
-      { admit. (* InvMem.Rel.le refl *) }
+      { reflexivity. }
       right. apply CIH.
       instantiate (1 := mkState _ _ _). econs; eauto; ss.
       * admit. (* valid_fdef *)
@@ -210,7 +214,7 @@ Proof.
       i. inv STEP. ss.
       esplits; eauto.
       { econs 1. econs; eauto. }
-      { admit. (* InvMem.Rel.le refl *) }
+      { reflexivity. }
       right. apply CIH.
       instantiate (1 := mkState _ _ _). econs; eauto; ss.
       * admit. (* valid_fdef *)
@@ -281,6 +285,36 @@ Proof.
     destruct a, p; condtac.
 Qed.
 
+Lemma valid_products_genGlobalAndInitMem
+      layouts namedts
+      hint
+      products0_src products_src
+      products0_tgt products_tgt
+      globals locals mem
+      (PRODUCTS: valid_products
+                   hint
+                   (module_intro layouts namedts products0_src)
+                   (module_intro layouts namedts products0_tgt)
+                   products_src products_tgt):
+  genGlobalAndInitMem (layouts, namedts) products_src globals locals mem =
+  genGlobalAndInitMem (layouts, namedts) products_tgt globals locals mem.
+Proof.
+  revert products_tgt globals locals mem PRODUCTS.
+  induction products_src; i; destruct products_tgt; ss.
+  unfold valid_products in PRODUCTS. ss. apply andb_true_iff in PRODUCTS. des.
+  destruct a, p; condtac.
+  - apply Decs.gvar_eqb_spec in COND. subst.
+    destruct gvar0; ss.
+    + destruct (initGlobal (layouts, namedts) globals mem0 id5 typ5 const5 align5) as [[]|]; eauto.
+    + destruct (getExternalGlobal mem0 id5); eauto.
+  - eqbtac.
+    destruct fdec0. destruct fheader5.
+    destruct (initFunTable mem0 id5); eauto.
+  - destruct fdef5, fdef0; ss.
+    destruct fheader5, fheader0; ss. subst.
+    destruct (initFunTable mem0 id0); eauto.
+Qed.
+
 Lemma vali_sim_module m_hint:
   (valid_module m_hint) <2= sim_module.
 Proof.
@@ -295,19 +329,42 @@ Proof.
     match goal with
     | [|- context [productInModuleB_dec ?a ?b]] => destruct (productInModuleB_dec a b)
     end; condtac; cycle 1.
-    { admit. (* lookupFdefViaIDFromProducts -> InProductsB *) }
-    (* TODO: Lemma valid_products_genGlobalAndInitMem *)
-    rewrite COND3.
-    admit.
+    { eadmit. (* lookupFdefViaIDFromProducts -> InProductsB *) }
+    unfold initTargetData in *.
+    erewrite <- valid_products_genGlobalAndInitMem; eauto. rewrite COND2.
+    rewrite COND3. eauto.
   - apply sim_local_lift_sim. econs.
     + econs 1.
-    + apply vali_sim. econs; ss.
+    + generalize H0. i.
+      unfold forallb2AL in H1. ss. apply andb_true_iff in H1. des. condtac.
+      apply vali_sim. econs; eauto.
       * admit. (* CONF_TODO *)
-      * admit. (* tgt ECS = nil *)
-      * admit. (* fdef *)
-      * admit. (* cmds *)
-      * admit. (* term *)
+      * (* TODO: reorganize tactics *)
+        repeat
+          (try match goal with
+               | [|- is_true (if ?c then _ else _)] =>
+                 let COND := fresh "COND" in
+                 destruct c eqn:COND
+               end;
+           condtac).
+        { match goal with
+          | [H: proj_sumbool (fheader_dec ?a ?a) = false |- _] => destruct (fheader_dec a a); ss
+          end.
+        }
+        apply andb_true_iff. splits; [|by eauto].
+        repeat
+          (try match goal with
+               | [|- (if ?c then _ else _) = true] =>
+                 let COND := fresh "COND" in
+                 destruct c eqn:COND
+               end;
+           condtac).
+        { match goal with
+          | [H: proj_sumbool (id_dec ?a ?a) = false |- _] => destruct (id_dec a a); ss
+          end.
+        }
+        rewrite COND5, COND6, COND7, COND8, COND9. ss.
       * admit. (* state *)
       * admit. (* mem *)
-    + admit. (* invmem rel le *)
+    + reflexivity.
 Admitted.

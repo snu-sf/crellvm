@@ -2,6 +2,7 @@ Require Import syntax.
 Require Import alist.
 Require Import FMapWeakList.
 
+Require Import sflib.
 Require Import Coqlib.
 Require Import infrastructure.
 Require Import Metatheory.
@@ -39,6 +40,14 @@ Module Unary.
       (PRIVATE_PARENT: lhs.(private_parent) = rhs.(private_parent))
       (MEM_PARENT: lhs.(mem_parent) = rhs.(mem_parent))
   .
+
+  Global Program Instance PreOrder_le: PreOrder le.
+  Next Obligation. econs; ss. Qed.
+  Next Obligation.
+    ii. inv H. inv H0. econs.
+    - etransitivity; eauto.
+    - etransitivity; eauto.
+  Qed.
 End Unary.
 
 Module Rel.
@@ -70,6 +79,15 @@ Module Rel.
       (TGT: Unary.le lhs.(tgt) rhs.(tgt))
       (INJECT: inject_incr lhs.(inject) rhs.(inject))
   .
+
+  Global Program Instance PreOrder_le: PreOrder le.
+  Next Obligation. econs; ss. Qed.
+  Next Obligation.
+    ii. inv H. inv H0. econs.
+    - etransitivity; eauto.
+    - etransitivity; eauto.
+    - eapply inject_incr_trans; eauto.
+  Qed.
 
   (* TODO: le_public? *)
 End Rel.

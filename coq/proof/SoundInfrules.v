@@ -59,11 +59,10 @@ Lemma apply_infrules_sound
 Proof.
   unfold Infrules.apply_infrules. rewrite <- fold_left_rev_right.
   move infrules at top. revert_until infrules. induction (rev infrules); i.
-  - esplits; eauto.
-    admit. (* InvMem.Rel.le refl *)
+  - esplits; eauto. reflexivity.
   - exploit IHl0; eauto. i. des.
     exploit apply_infrule_sound; eauto. i. des.
     esplits; eauto.
     + ss. eauto.
-    + admit. (* InvMem.Rel.le trans *)
-Admitted.
+    + etransitivity; eauto.
+Qed.
