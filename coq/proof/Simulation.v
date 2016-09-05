@@ -65,17 +65,13 @@ End Sim.
 Hint Resolve _sim_mon: paco.
 
 
-Section SimModule.
-  Variable (module_src module_tgt:module).
-
-  Definition sim_module: Prop :=
-    forall main args
-      conf_src st_src
-      (SRC: s_genInitState [module_src] main args Mem.empty = Some (conf_src, st_src)),
-    exists conf_tgt st_tgt idx,
-      s_genInitState [module_tgt] main args Mem.empty = Some (conf_tgt, st_tgt) /\
-      sim conf_src conf_tgt idx st_src st_tgt.
-End SimModule.
+Definition sim_module (module_src module_tgt:module): Prop :=
+  forall main args
+    conf_src st_src
+    (SRC: s_genInitState [module_src] main args Mem.empty = Some (conf_src, st_src)),
+  exists conf_tgt st_tgt idx,
+    <<TGT: s_genInitState [module_tgt] main args Mem.empty = Some (conf_tgt, st_tgt)>> /\
+    <<SIM: sim conf_src conf_tgt idx st_src st_tgt>>.
 
 Definition return_locals
            (TD:TargetData)

@@ -24,6 +24,7 @@ Module Unary.
   }.
 
   (* TODO: not sure if MEM_PARENT is correct *)
+  (* TODO: rename shared -> public *)
   Inductive sem (conf:Config) (shared:mblock -> Prop) (m:mem) (inv:t): Prop :=
   | sem_intro
       (PRIVATE: forall b (IN: In b inv.(private)), ~ shared b)

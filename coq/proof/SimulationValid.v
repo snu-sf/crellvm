@@ -313,6 +313,7 @@ Proof.
   - (* cmd *)
     destruct (Instruction.isCallInst c) eqn:CALL.
     + (* call *)
+      destruct c; ss. destruct c0; ss.
       admit.
     + (* non-call *)
       eapply _sim_local_step.
@@ -408,6 +409,7 @@ Proof.
     destruct (initFunTable mem0 id0); eauto.
 Qed.
 
+(* TODO: lemma for module initialization *)
 Lemma valid_sim_module m_hint:
   (valid_module m_hint) <2= sim_module.
 Proof.
