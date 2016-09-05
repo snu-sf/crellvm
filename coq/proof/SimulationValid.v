@@ -26,58 +26,14 @@ Require InvMem.
 Require InvState.
 Require Import SoundBase.
 Require Import SoundImplies.
-Require Import SoundPostcond.
+Require Import SoundPostcondCmd.
+Require Import SoundPostcondCall.
 Require Import SoundPostcondPhinodes.
 Require Import SoundInfrules.
 Require Import SoundReduceMaydiff.
 
 Set Implicit Arguments.
 
-
-(* TODO: position *)
-Ltac simtac :=
-  repeat
-    (try match goal with
-         | [H: ?a = ?a |- _] => clear H
-         | [H: is_true true |- _] => clear H
-         | [H: Some _ = Some _ |- _] => inv H
-         | [H: context[let (_, _) := ?p in _] |- _] => destruct p
-         | [H: negb _ = true |- _] =>
-           apply negb_true_iff in H
-         | [H: negb _ = false |- _] =>
-           apply negb_false_iff in H
-         | [H: andb _ _ = true |- _] => apply andb_true_iff in H; destruct H
-
-         | [H: proj_sumbool (id_dec ?a ?b) = true |- _] =>
-           destruct (id_dec a b)
-         | [H: proj_sumbool (typ_dec ?a ?b) = true |- _] =>
-           destruct (typ_dec a b)
-         | [H: proj_sumbool (l_dec ?a ?b) = true |- _] =>
-           destruct (l_dec a b)
-         | [H: proj_sumbool (fheader_dec ?a ?b) = true |- _] =>
-           destruct (fheader_dec a b)
-         | [H: proj_sumbool (layouts_dec ?a ?b) = true |- _] => destruct (layouts_dec a b)
-         | [H: proj_sumbool (namedts_dec ?a ?b) = true |- _] => destruct (namedts_dec a b)
-         | [H: productInModuleB_dec ?a ?b = left _ |- _] => destruct (productInModuleB_dec a b)
-
-         | [H: context[match ?c with
-                       | [] => _
-                       | _::_ => _
-                       end] |- _] =>
-           let COND := fresh "COND" in
-           destruct c eqn:COND
-         | [H: context[match ?c with
-                       | Some _ => _
-                       | None => _
-                       end] |- _] =>
-           let COND := fresh "COND" in
-           destruct c eqn:COND
-         | [H: context[if ?c then _ else _] |- _] =>
-           let COND := fresh "COND" in
-           destruct c eqn:COND
-         end;
-     unfold Debug.debug_print_validation_process, Debug.debug_print in *;
-     try subst; ss).
 
 Inductive valid_state_sim
           (conf_src conf_tgt:Config)
@@ -175,14 +131,6 @@ Lemma if_f
       A B (c:bool) (f:A -> B) a b:
   (if c then f a else f b) = f (if c then a else b).
 Proof. destruct c; ss. Qed.
-
-(* TODO: position *)
-Definition ite A (c:bool) (a b:A): A :=
-  if c then a else b.
-Lemma ite_spec A c (a b:A):
-  ite c a b = if c then a else b.
-Proof. ss. Qed.
-Opaque ite.
 
 (* TODO: position *)
 Lemma inject_decide_nonzero
@@ -343,7 +291,15 @@ Proof.
     destruct (Instruction.isCallInst c) eqn:CALL.
     + (* call *)
       destruct c; ss. destruct c0; ss.
-      admit.
+      exploit postcond_call_sound;
+        (try instantiate (1 := (mkState (mkEC _ _ _ _ _ _) _ _))); ss; eauto; ss.
+      s. i. des. subst.
+      eapply _sim_local_call; ss; eauto; ss.
+      i. exploit RETURN; eauto. i. des.
+      exploit apply_infrules_sound; eauto; ss. i. des.
+      exploit reduce_maydiff_sound; eauto; ss. i. des.
+      exploit implies_sound; eauto; ss. i. des.
+      exists 0%nat, invmem1. splits; ss. right. apply CIH. econs; eauto.
     + (* non-call *)
       eapply _sim_local_step.
       { admit. (* tgt not stuck *) }

@@ -201,7 +201,7 @@ Proof.
   - (* call *)
     admit.
   - econs 3; ss. i. exploit STEP; eauto. i. des.
-    inv x2; [|done].
+    inv SIM; [|done].
     esplits; eauto. right.
     apply CIH. econs; eauto.
     etransitivity; eauto.

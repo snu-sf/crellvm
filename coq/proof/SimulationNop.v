@@ -294,18 +294,18 @@ Proof.
     apply _sim_local_src_nops; ss.
     apply _sim_local_src_progress. i.
     apply NNPP in PROGRESS_SRC. destruct PROGRESS_SRC as (st'_src & tr_src & PROGRESS_SRC).
-    assert (FUNC_SRC: exists func_src, getOperandValue (CurTargetData conf_src) f locals_src (Globals conf_src) = Some func_src).
-    { inv PROGRESS_SRC; eauto. }
     assert (FUNC_TGT: exists func_tgt, getOperandValue (CurTargetData conf_tgt) f locals_tgt (Globals conf_tgt) = Some func_tgt).
     { inv PROGRESS_TGT; eauto. }
-    assert (PARAM_SRC: exists gvs_param_src, params2GVs (CurTargetData conf_src) args0 locals_src (Globals conf_src) = Some gvs_param_src).
-    { inv PROGRESS_SRC; eauto. }
     assert (PARAM_TGT: exists gvs_param_tgt, params2GVs (CurTargetData conf_tgt) args0 locals_tgt (Globals conf_tgt) = Some gvs_param_tgt).
     { inv PROGRESS_TGT; eauto. }
-    des. exploit inject_locals_getOperandValue; eauto. i.
+    des.
     eapply _sim_local_call; try apply STEPS; try eexact x0; ss; try reflexivity; eauto.
-    + eapply inject_locals_params2GVs; eauto.
-    + ss. i. esplits. right. eapply CIH. econs; ss.
+    + s. i. esplits; eauto.
+      eapply inject_locals_getOperandValue; eauto.
+    + s. i. esplits; eauto.
+      eapply inject_locals_params2GVs; eauto.
+    + ss. i. esplits; [reflexivity|].
+      right. eapply CIH. econs; ss.
       * eapply inject_locals_inj_incr; eauto.
       * eapply inject_allocas_inj_incr; eauto.
   - (* return *)
