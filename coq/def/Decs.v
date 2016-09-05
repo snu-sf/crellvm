@@ -3,6 +3,7 @@ Require Import alist.
 
 Require Import infrastructure.
 
+Require Import sflib.
 Require Export Coqlib.
 Export LLVMsyntax.
 Export LLVMinfra.
@@ -136,6 +137,53 @@ Fixpoint const_eqb (c1 c2:const) : bool :=
     | _,_ => false
   end.
 
+Ltac eqbtac :=
+  repeat
+    (try match goal with
+         | [H: andb ?a ?b = true |- _] => apply andb_true_iff in H; destruct H
+         | [H: proj_sumbool (typ_dec ?a ?b) = true |- _] => destruct (typ_dec a b)
+         | [H: proj_sumbool (sz_dec ?a ?b) = true |- _] => destruct (sz_dec a b)
+         | [H: proj_sumbool (INTEGER.dec ?a ?b) = true |- _] => destruct (INTEGER.dec a b)
+         | [H: proj_sumbool (floating_point_dec ?a ?b) = true |- _] => destruct (floating_point_dec a b)
+         | [H: proj_sumbool (FLOAT.dec ?a ?b) = true |- _] => destruct (FLOAT.dec a b)
+         | [H: proj_sumbool (id_dec ?a ?b) = true |- _] => destruct (id_dec a b)
+         | [H: proj_sumbool (truncop_dec ?a ?b) = true |- _] => destruct (truncop_dec a b)
+         | [H: proj_sumbool (inbounds_dec ?a ?b) = true |- _] => destruct (inbounds_dec a b)
+         | [H: proj_sumbool (extop_dec ?a ?b) = true |- _] => destruct (extop_dec a b)
+         | [H: proj_sumbool (castop_dec ?a ?b) = true |- _] => destruct (castop_dec a b)
+         | [H: proj_sumbool (cond_dec ?a ?b) = true |- _] => destruct (cond_dec a b)
+         | [H: proj_sumbool (fcond_dec ?a ?b) = true |- _] => destruct (fcond_dec a b)
+         | [H: proj_sumbool (bop_dec ?a ?b) = true |- _] => destruct (bop_dec a b)
+         | [H: proj_sumbool (fbop_dec ?a ?b) = true |- _] => destruct (fbop_dec a b)
+         | [H: proj_sumbool (linkage_dec ?a ?b) = true |- _] => destruct (linkage_dec a b)
+         | [H: proj_sumbool (gvar_spec_dec ?a ?b) = true |- _] => destruct (gvar_spec_dec a b)
+         | [H: proj_sumbool (align_dec ?a ?b) = true |- _] => destruct (align_dec a b)
+         | [H: proj_sumbool (fdec_dec ?a ?b) = true |- _] => destruct (fdec_dec a b)
+         end;
+     subst; ss;
+     unfold sflib.is_true in *;
+     unfold LLVMinfra.is_true in *).
+
+Lemma const_eqb_spec c1 c2
+      (EQB: const_eqb c1 c2):
+  c1 = c2.
+Proof.
+  destruct c1, c2; ss; eqbtac.
+  - admit.
+  - admit.
+  - admit.
+  - admit.
+  - admit.
+  - admit.
+  - admit.
+  - admit.
+  - admit.
+  - admit.
+  - admit.
+  - admit.
+  - admit.
+Admitted.
+
 Definition gvar_eqb (g1 g2:gvar) : bool :=
   match g1,g2 with
     | gvar_intro x1 lk1 gs1 t1 c1 a1,
@@ -144,3 +192,11 @@ Definition gvar_eqb (g1 g2:gvar) : bool :=
       gvar_external x2 gs2 t2 => id_dec x1 x2 && gvar_spec_dec gs1 gs2 && typ_dec t1 t2 
     | _,_ => false
   end.
+
+Lemma gvar_eqb_spec gvar1 gvar2
+      (EQB: gvar_eqb gvar1 gvar2):
+  gvar1 = gvar2.
+Proof.
+  destruct gvar1, gvar2; ss; eqbtac.
+  apply const_eqb_spec in H1. subst. ss.
+Qed.

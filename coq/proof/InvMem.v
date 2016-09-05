@@ -2,6 +2,7 @@ Require Import syntax.
 Require Import alist.
 Require Import FMapWeakList.
 
+Require Import sflib.
 Require Import Coqlib.
 Require Import infrastructure.
 Require Import Metatheory.
@@ -14,9 +15,7 @@ Require Import GenericValues.
 
 Set Implicit Arguments.
 
-Definition GLOBAL_MAX_TODO: Prop. Admitted.
 
-(* For TODOs, see `coq/hint/hint_sem.v` *)
 Module Unary.
   Structure t := mk {
     private: list mblock;
@@ -30,8 +29,9 @@ Module Unary.
       (PRIVATE: forall b (IN: In b inv.(private)), ~ shared b)
       (PRIVATE_PARENT: forall b (IN: In b inv.(private_parent)), ~ shared b)
       (MEM_PARENT: forall b (IN: In b inv.(private_parent)),
-          forall chunk i,
-            Mem.load chunk inv.(mem_parent) b i = Mem.load chunk m b i)
+          forall mc o,
+            mload_aux inv.(mem_parent) mc b o =
+            mload_aux m mc b o)
   .
 
   Inductive le (lhs rhs:t): Prop :=
@@ -39,6 +39,14 @@ Module Unary.
       (PRIVATE_PARENT: lhs.(private_parent) = rhs.(private_parent))
       (MEM_PARENT: lhs.(mem_parent) = rhs.(mem_parent))
   .
+
+  Global Program Instance PreOrder_le: PreOrder le.
+  Next Obligation. econs; ss. Qed.
+  Next Obligation.
+    ii. inv H. inv H0. econs.
+    - etransitivity; eauto.
+    - etransitivity; eauto.
+  Qed.
 End Unary.
 
 Module Rel.
@@ -71,5 +79,15 @@ Module Rel.
       (INJECT: inject_incr lhs.(inject) rhs.(inject))
   .
 
+  Global Program Instance PreOrder_le: PreOrder le.
+  Next Obligation. econs; ss. Qed.
+  Next Obligation.
+    ii. inv H. inv H0. econs.
+    - etransitivity; eauto.
+    - etransitivity; eauto.
+    - eapply inject_incr_trans; eauto.
+  Qed.
+
   (* TODO: le_public? *)
+  (* TODO: global_max? cf. `gmax` in https://github.com/snu-sf/llvmberry/blob/before_refact/coq/hint/hint_sem.v *)
 End Rel.

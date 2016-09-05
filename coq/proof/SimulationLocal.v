@@ -2,6 +2,7 @@ Require Import syntax.
 Require Import alist.
 Require Import FMapWeakList.
 
+Require Import Classical.
 Require Import Coqlib.
 Require Import infrastructure.
 Require Import Metatheory.
@@ -12,6 +13,7 @@ Require Import sflib.
 Require Import paco.
 
 Require Import GenericValues.
+Require Import Nop.
 Require InvMem.
 Require InvState.
 
@@ -38,7 +40,7 @@ Inductive sInsn_indexed (conf:Config):
     sInsn_indexed conf st st idx1 idx2 E0
 .
 
-Section SimulationLocal.
+Section SimLocal.
   Variable (conf_src conf_tgt:Config).
   Variable (inv0:InvMem.Rel.t).
 
@@ -151,7 +153,7 @@ Section SimulationLocal.
 
   Definition sim_local: _ -> _ -> _ -> _ -> _ -> _ -> Prop :=
     paco6 _sim_local bot6.
-End SimulationLocal.
+End SimLocal.
 Hint Constructors _sim_local.
 Hint Resolve _sim_local_mon: paco.
 
@@ -168,10 +170,10 @@ Inductive init_fdef (conf:Config) (f:fdef) (args:list GenericValue): forall (ec:
 .
 
 
-Section SimulationLocalFunc.
+Section SimLocalFdef.
   Variable (conf_src conf_tgt:Config).
 
-  Definition sim_func (fdef_src fdef_tgt:fdef): Prop :=
+  Definition sim_fdef (fdef_src fdef_tgt:fdef): Prop :=
     forall inv0 stack0_src stack0_tgt mem0_src mem0_tgt
       args_src args_tgt
       ec0_src
@@ -183,4 +185,20 @@ Section SimulationLocalFunc.
       sim_local conf_src conf_tgt stack0_src stack0_tgt inv0 idx0
                 (mkState ec0_src stack0_src mem0_src)
                 (mkState ec0_tgt stack0_tgt mem0_tgt).
-End SimulationLocalFunc.
+End SimLocalFdef.
+
+Lemma _sim_local_src_progress
+      conf_src conf_tgt sim_local ecs_src ecs_tgt
+      inv index
+      st_src st_tgt
+      (XX: forall (PROGRESS_SRC: ~ stuck_state conf_src st_src),
+          _sim_local conf_src conf_tgt sim_local ecs_src ecs_tgt
+                     inv index
+                     st_src st_tgt):
+  _sim_local conf_src conf_tgt sim_local ecs_src ecs_tgt
+             inv index
+             st_src st_tgt.
+Proof.
+  destruct (classic (stuck_state conf_src st_src)); eauto.
+  admit. (* final state *)
+Admitted.

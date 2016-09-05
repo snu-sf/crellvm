@@ -484,6 +484,4 @@ Module ValidationHint.
   Definition fdef := AssocList stmts.
   Definition products := AssocList fdef.
   Definition module := products.
-  Definition modules := list module.
-  Definition system := modules.
 End ValidationHint.
