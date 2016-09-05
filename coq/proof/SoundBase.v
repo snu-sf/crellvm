@@ -29,3 +29,15 @@ Inductive valid_conf
 | valid_conf_intro
     (INJECT: inject_conf conf_src conf_tgt)
 .
+
+(* TODO: position *)
+Definition get_blocks (f:fdef): blocks :=
+  let '(fdef_intro _ blocks) := f in
+  blocks.
+
+(* TODO: position *)
+Lemma lookupBlockViaLabelFromFdef_spec
+      fdef l:
+  lookupBlockViaLabelFromFdef fdef l =
+  lookupAL _ fdef.(get_blocks) l.
+Proof. destruct fdef. ss. Qed.

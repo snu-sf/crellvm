@@ -27,6 +27,7 @@ Require InvState.
 Require Import SoundBase.
 Require Import SoundImplies.
 Require Import SoundPostcond.
+Require Import SoundPostcondPhinodes.
 Require Import SoundInfrules.
 Require Import SoundReduceMaydiff.
 
@@ -78,11 +79,6 @@ Ltac simtac :=
      unfold Debug.debug_print_validation_process, Debug.debug_print in *;
      try subst; ss).
 
-(* TODO: position *)
-Definition get_blocks (f:fdef): blocks :=
-  let '(fdef_intro _ blocks) := f in
-  blocks.
-
 Inductive valid_state_sim
           (conf_src conf_tgt:Config)
           (stack0_src stack0_tgt:ECStack)
@@ -98,6 +94,7 @@ Inductive valid_state_sim
     (ECS_SRC: st_src.(ECS) = stack0_src)
     (ECS_TGT: st_tgt.(ECS) = stack0_tgt)
     (FDEF: valid_fdef m_src m_tgt st_src.(EC).(CurFunction) st_tgt.(EC).(CurFunction) fdef_hint)
+    (LABEL: st_src.(EC).(CurBB).(fst) = st_tgt.(EC).(CurBB).(fst))
     (CMDS: valid_cmds m_src m_tgt st_src.(EC).(CurCmds) st_tgt.(EC).(CurCmds) cmds_hint inv = Some inv_term)
     (TERM: valid_terminator fdef_hint inv_term m_src m_tgt
                             st_src.(EC).(CurFunction).(get_blocks)
@@ -229,6 +226,27 @@ Proof.
   destruct c_src, c_tgt; ss.
 Qed.
 
+(* TODO: position *)
+Lemma valid_fdef_valid_stmts
+      m_src m_tgt fdef_src fdef_tgt fdef_hint l
+      phinodes_src cmds_src terminator_src
+      phinodes_tgt cmds_tgt terminator_tgt
+      stmts_hint
+      (FDEF: valid_fdef m_src m_tgt fdef_src fdef_tgt fdef_hint)
+      (SRC: lookupAL stmts (get_blocks fdef_src) l = Some (stmts_intro phinodes_src cmds_src terminator_src))
+      (TGT: lookupAL stmts (get_blocks fdef_tgt) l = Some (stmts_intro phinodes_tgt cmds_tgt terminator_tgt))
+      (HINT: lookupAL _ fdef_hint l = Some stmts_hint):
+  exists inv_term,
+    <<CMDS: valid_cmds m_src m_tgt cmds_src cmds_tgt
+                       stmts_hint.(Hints.ValidationHint.cmds)
+                       stmts_hint.(ValidationHint.invariant_after_phinodes) =
+            Some inv_term>> /\
+    <<TERM: valid_terminator fdef_hint inv_term m_src m_tgt
+                             fdef_src.(get_blocks) fdef_tgt.(get_blocks)
+                             l terminator_src terminator_tgt>>.
+Proof.
+Admitted.
+
 Lemma valid_sim
       conf_src conf_tgt:
   (valid_state_sim conf_src conf_tgt) <6= (sim_local conf_src conf_tgt).
@@ -275,41 +293,52 @@ Proof.
       rewrite VAL_TGT in H16. inv H16.
       inv CONF. inv INJECT0. ss. subst.
       exploit inject_decide_nonzero; eauto. i. subst.
-      assert (PHINODES:
-                valid_phinodes fdef_hint inv_term m_src m_tgt
-                               (get_blocks CurFunction0) (get_blocks CurFunction1)
-                               (fst CurBB0) (if decision0 then l0 else l3))
-        by (destruct decision0; ss).
-      clear COND1 COND2.
-      unfold valid_phinodes in *.
-      rewrite <- (ite_spec decision0 l0 l3) in *.
-      simtac. unfold Postcond.postcond_phinodes in *. simtac.
-      rewrite ite_spec in *.
-      (* TODO: Lemma sound_postcond_phinodes *)
-      esplits; eauto.
-      { econs 1. econs; eauto. }
-      { reflexivity. }
-      right. apply CIH.
-      instantiate (1 := mkState _ _ _).
-      instantiate (3 := mkEC _ _ _ _ _ _).
-      econs; ss; eauto.
-      * admit. (* valid_cmds *)
-      * admit. (* valid_terminator *)
-      * admit. (* InvState.Rel.sem *)
+      (* assert (PHINODES: *)
+      (*           valid_phinodes fdef_hint inv_term m_src m_tgt *)
+      (*                          (get_blocks CurFunction0) (get_blocks CurFunction1) *)
+      (*                          (fst CurBB0) (if decision0 then l0 else l3)) *)
+      (*   by (destruct decision0; ss). *)
+      (* clear COND1 COND2. *)
+      (* unfold valid_phinodes in *. *)
+      (* rewrite <- (ite_spec decision0 l0 l3) in *. *)
+      (* simtac. unfold Postcond.postcond_phinodes in *. simtac. *)
+      (* rewrite ite_spec in *. *)
+      (* (* TODO: Lemma sound_postcond_phinodes *) *)
+      (* esplits; eauto. *)
+      (* { econs 1. econs; eauto. } *)
+      (* { reflexivity. } *)
+      (* right. apply CIH. *)
+      (* instantiate (1 := mkState _ _ _). *)
+      (* instantiate (3 := mkEC _ _ _ _ _ _). *)
+      (* econs; ss; eauto. *)
+      (* * admit. (* valid_cmds *) *)
+      (* * admit. (* valid_terminator *) *)
+      (* * admit. (* InvState.Rel.sem *) *)
+      admit.
+    + (* switch *)
+      admit.
     + (* br_uncond *)
       eapply _sim_local_step.
       { admit. (* tgt not stuck *) }
       i. inv STEP. ss.
+      simtac. unfold valid_phinodes in *. simtac.
+      rewrite add_terminator_cond_br_uncond in *.
+      rewrite lookupBlockViaLabelFromFdef_spec in *.
+      rewrite COND2 in H9. inv H9.
+      rewrite COND3 in H12. inv H12.
+      exploit postcond_phinodes_sound;
+        (try instantiate (1 := (mkState (mkEC _ _ _ _ _ _) _ _))); s;
+        (try eexact COND4; try eexact MEM);
+        (try eexact H10; try eexact H13); ss; eauto.
+      i. des.
+      exploit apply_infrules_sound; eauto; ss. i. des.
+      exploit reduce_maydiff_sound; eauto; ss. i. des.
+      exploit implies_sound; eauto; ss. i. des.
+      exploit implies_sound; eauto; ss. i. des.
+      exploit valid_fdef_valid_stmts; eauto. i. des.
       esplits; eauto.
-      { econs 1. econs; eauto. }
-      { reflexivity. }
-      right. apply CIH.
-      instantiate (1 := mkState _ _ _).
-      instantiate (3 := mkEC _ _ _ _ _ _).
-      econs; ss; eauto.
-      * admit. (* valid_cmds *)
-      * admit. (* valid_terminator *)
-      * admit. (* InvState.Rel.sem *)
+      * econs 1. econs; eauto. rewrite lookupBlockViaLabelFromFdef_spec. ss.
+      * right. apply CIH. econs; ss; eauto; ss; eauto.
   - (* cmd *)
     destruct (Instruction.isCallInst c) eqn:CALL.
     + (* call *)
