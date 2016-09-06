@@ -147,7 +147,19 @@ Lemma valid_fdef_valid_stmts
                              fdef_src.(get_blocks) fdef_tgt.(get_blocks)
                              l terminator_src terminator_tgt>>.
 Proof.
-Admitted.
+  unfold valid_fdef in FDEF.
+  do 2 simtac0.
+  destruct (negb (fheader_dec fheader5 fheader0)) eqn:X; ss.
+  apply andb_true_iff in FDEF. des. clear FDEF. simtac.
+  revert SRC TGT FDEF0.
+  generalize blocks0 at 1 3.
+  generalize blocks5 at 1 3.
+  induction blocks1; i; ss.
+  destruct blocks2; [by inv FDEF0|].
+  unfold forallb2AL in FDEF0. simtac; eauto.
+  rewrite HINT in COND. inv COND.
+  esplits; eauto.
+Qed.
 
 Lemma valid_sim
       conf_src conf_tgt:
