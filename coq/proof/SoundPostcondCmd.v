@@ -24,14 +24,6 @@ Require Import SoundBase.
 Set Implicit Arguments.
 
 
-Lemma has_false_False
-      conf_src conf_tgt st_src st_tgt invst invmem inv
-      (HAS_FALSE: Hints.Invariant.has_false inv)
-      (SEM: InvState.Rel.sem conf_src conf_tgt st_src st_tgt invst invmem inv):
-  False.
-Proof.
-Admitted.
-
 Lemma postcond_cmd_is_call
       c_src c_tgt inv1 inv2
       (POSTCOND: Postcond.postcond_cmd c_src c_tgt inv1 = Some inv2):

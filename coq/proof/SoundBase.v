@@ -98,3 +98,12 @@ Lemma exCallUpdateLocals_spec
   exCallUpdateLocals TD rt noret rid oResult lc =
   return_locals TD oResult rid noret rt lc.
 Proof. destruct oResult; ss. Qed.
+||||||| merged common ancestors
+
+Lemma has_false_False
+      conf_src conf_tgt st_src st_tgt invst invmem inv
+      (HAS_FALSE: Hints.Invariant.has_false inv)
+      (SEM: InvState.Rel.sem conf_src conf_tgt st_src st_tgt invst invmem inv):
+  False.
+Proof.
+Admitted.
