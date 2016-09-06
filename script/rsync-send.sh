@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 PROOF_BUILD_DIR=.proof_build
 
-rsync -av --delete --prune-empty-dirs \
+rsync -av --copy-links --delete --prune-empty-dirs \
     --exclude "$PROOF_BUILD_DIR" \
     --exclude "lib/llvm/" --exclude "ocaml" \
     --include '*/' \

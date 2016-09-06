@@ -70,6 +70,14 @@ Definition nop_blocks (blocks_src blocks_tgt:blocks): Prop :=
     (lookupAL _ blocks_src bid)
     (lookupAL _ blocks_tgt bid).
 
+Inductive nop_fdef: forall (fdef_src fdef_tgt:fdef), Prop :=
+| nop_fdef_intro
+    header
+    blocks_src blocks_tgt
+    (BLOCKS: nop_blocks blocks_src blocks_tgt):
+    nop_fdef (fdef_intro header blocks_src) (fdef_intro header blocks_tgt)
+.
+
 Lemma lookupAL_mapAL A B i (f:A -> B) l:
   lookupAL _ (map f l) i = option_map f (lookupAL _ l i).
 Proof.

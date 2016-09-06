@@ -142,7 +142,7 @@ module Convert = struct
  
   let const_int (const_int:CoreHint_t.const_int): INTEGER.t =
     let IntType sz = const_int.int_type in
-    APInt.of_int64 sz (Int64.of_int const_int.int_value) true
+    APInt.of_int64 sz (Int64.of_string const_int.int_value) true
 
   let const_float (const_float:CoreHint_t.const_float): FLOAT.t = 
     let cxt:Llvm.llcontext = Llvm.create_context () in 
@@ -156,7 +156,6 @@ module Convert = struct
         | CoreHint_t.PPC_FP128Type -> Llvm.ppc_fp128_type cxt
         | CoreHint_t.X86_FP80Type -> Llvm.x86fp80_type cxt)
         cxt in
-    let _ = Llvm.dispose_context cxt in
     let lval:Llvm.llvalue = Llvm.const_float ty (const_float.float_value) in
     Llvm.APFloat.const_float_get_value lval
 
@@ -212,7 +211,6 @@ module Convert = struct
        LLVMsyntax.Coq_const_castop (LLVMsyntax.Coq_castop_inttoptr, (constant cei.v), (value_type cei.dstty))
     | CoreHint_t.ConstExprPtrtoint cep ->
        LLVMsyntax.Coq_const_castop (LLVMsyntax.Coq_castop_ptrtoint, (constant cep.v), (value_type cep.dstty))
-    | _ -> failwith "convertUtil.constant_expr : Unknown constant expression"
 
   let value (value:CoreHint_t.value): ValueT.t = 
     match value with
@@ -262,7 +260,6 @@ module Convert = struct
     | CoreHint_t.BopFmul -> LLVMsyntax.Coq_fbop_fmul
     | CoreHint_t.BopFdiv -> LLVMsyntax.Coq_fbop_fdiv
     | CoreHint_t.BopFrem -> LLVMsyntax.Coq_fbop_frem
-    | _ -> failwith "In ConvertUtil.fbop : unknown fbop"
 
   let bop (b:CoreHint_t.bop) : LLVMsyntax.bop = 
     match b with
@@ -279,7 +276,6 @@ module Convert = struct
     | CoreHint_t.BopAnd -> LLVMsyntax.Coq_bop_and
     | CoreHint_t.BopOr -> LLVMsyntax.Coq_bop_or
     | CoreHint_t.BopXor -> LLVMsyntax.Coq_bop_xor
-    | _ -> failwith "In ConvertUtil.bop : Unknown bop"
  
  let fcond (c:CoreHint_t.fcmp_pred) : LLVMsyntax.fcond = 
     match c with
@@ -299,7 +295,6 @@ module Convert = struct
     | CoreHint_t.CondFule -> LLVMsyntax.Coq_fcond_ule
     | CoreHint_t.CondFune -> LLVMsyntax.Coq_fcond_une
     | CoreHint_t.CondFtrue -> LLVMsyntax.Coq_fcond_true
-    | _ -> failwith "In ConvertUtil. fcond : Unknown fcond"
 
  let cond (c:CoreHint_t.icmp_pred) : LLVMsyntax.cond = 
    match c with
@@ -313,7 +308,6 @@ module Convert = struct
    | CoreHint_t.CondSge -> LLVMsyntax.Coq_cond_sge
    | CoreHint_t.CondSlt -> LLVMsyntax.Coq_cond_slt
    | CoreHint_t.CondSle -> LLVMsyntax.Coq_cond_sle
-   | _ -> failwith "In ConvertUtil. cond : Unknown cond"
 
   let expr (e:CoreHint_t.expr) (src_fdef:LLVMsyntax.fdef) (tgt_fdef:LLVMsyntax.fdef) : Expr.t = 
     match e with
@@ -347,6 +341,8 @@ module Convert = struct
           (match icmp_arg.operandtype with
           | IntValueType ivt ->
             Expr.Coq_icmp (vellvmicmp, value_type (IntValueType ivt), value icmp_arg.operand1, value icmp_arg.operand2)
+          | PtrType pt ->
+            Expr.Coq_icmp (vellvmicmp, value_type (PtrType pt), value icmp_arg.operand1, value icmp_arg.operand2)  
           | _ -> failwith "Only integer type is allowed")
       | CoreHint_t.FCmpInst fcmp_arg ->
           let vellvmfcmp = fcond fcmp_arg.predicate in 
@@ -396,6 +392,5 @@ module Convert = struct
        | CoreHint_t.UitofpInst arg ->
          Expr.Coq_cast (LLVMsyntax.Coq_castop_uitofp, value_type arg.fromty,
                 value arg.v, value_type arg.toty)
-       | _ -> failwith "Unknown instruction type"
        )
 end
