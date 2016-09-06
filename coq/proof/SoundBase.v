@@ -18,7 +18,6 @@ Require Import TODO.
 Require Import Decs.
 Require Import Validator.
 Require Import GenericValues.
-Require Import SimulationLocal.
 Require Import Inject.
 Require InvMem.
 Require InvState.
@@ -108,3 +107,32 @@ Proof. ss. Qed.
 
 (* TODO: position *)
 Opaque ite.
+
+
+(* TODO: position *)
+Definition return_locals
+           (TD:TargetData)
+           (retval:option GenericValue)
+           (id:id) (noret:noret) (ct:typ)
+           (lc:GVMap): option GVsMap :=
+  match retval, noret with
+  | Some retval, false =>
+    match (fit_gv TD ct) retval with
+    | Some retval' => Some (updateAddAL _ lc id retval')
+    | _ => None
+    end
+  | _, true => Some lc
+  | _, _ => None
+  end.
+
+Lemma returnUpdateLocals_spec
+      TD id noret clattrs ty va f args Result lc lc' gl:
+  returnUpdateLocals TD (insn_call id noret clattrs ty va f args) Result lc lc' gl =
+  match getOperandValue TD Result lc gl with
+  | Some retval => return_locals TD (Some retval) id noret ty lc'
+  | None => None
+  end.
+Proof.
+  unfold returnUpdateLocals.
+  destruct (getOperandValue TD Result lc gl); ss.
+Qed.

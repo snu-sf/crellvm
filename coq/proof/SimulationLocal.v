@@ -14,37 +14,13 @@ Require Import paco.
 
 Require Import GenericValues.
 Require Import Nop.
+Require Import SoundBase.
 Require InvMem.
 Require InvState.
 Require Import Simulation.
 
 Set Implicit Arguments.
 
-
-Definition return_locals
-           (TD:TargetData)
-           (c:cmd) (retval:option GenericValue) (lc:GVMap): option GVsMap :=
-  match c, retval with
-  | insn_call id0 false _ ct _ _ _, Some retval =>
-    match (fit_gv TD ct) retval with
-    | Some retval' => Some (updateAddAL _ lc id0 retval')
-    | _ => None
-    end
-  | insn_call _ _ _ _ _ _ _, _ => Some lc
-  | _, _ => None
-  end.
-
-Lemma returnUpdateLocals_spec
-      TD c' Result lc lc' gl:
-  returnUpdateLocals TD c' Result lc lc' gl =
-  match getOperandValue TD Result lc gl with
-  | Some retval => return_locals TD c' (Some retval) lc'
-  | None => None
-  end.
-Proof.
-  unfold returnUpdateLocals.
-  destruct (getOperandValue TD Result lc gl); ss.
-Qed.
 
 Section SimLocal.
   Variable (conf_src conf_tgt:Config).
@@ -123,14 +99,14 @@ Section SimLocal.
            (RETVAL: TODO.lift2_option (genericvalues_inject.gv_inject inv3.(InvMem.Rel.inject)) retval3_src retval3_tgt)
            (RETURN_SRC: return_locals
                           conf_src.(CurTargetData)
-                          (insn_call id2_src noret2_src clattrs2_src typ2_src varg2_src fun2_src params2_src)
-                          retval3_src st2_src.(EC).(Locals)
+                          retval3_src id2_src noret2_src typ2_src
+                          st2_src.(EC).(Locals)
                         = Some locals4_src),
          exists locals4_tgt idx4 inv4,
            <<RETURN_TGT: return_locals
                            conf_tgt.(CurTargetData)
-                           (insn_call id1_tgt noret1_tgt clattrs1_tgt typ1_tgt varg1_tgt fun1_tgt params1_tgt)
-                           retval3_tgt st1_tgt.(EC).(Locals)
+                           retval3_tgt id1_tgt noret1_tgt typ1_tgt
+                           st1_tgt.(EC).(Locals)
                          = Some locals4_tgt>> /\
            <<MEMLE: InvMem.Rel.le inv3 inv4>> /\
            <<SIM:

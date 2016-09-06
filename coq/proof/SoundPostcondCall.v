@@ -17,7 +17,6 @@ Import Opsem.
 Require Import TODO.
 Require Import Validator.
 Require Import GenericValues.
-Require Import SimulationLocal.
 Require InvMem.
 Require InvState.
 Require Import SoundBase.
@@ -56,28 +55,39 @@ Lemma postcond_call_sound
       <<ARGS_TGT: params2GVs conf_tgt.(CurTargetData) args_tgt st0_tgt.(EC).(Locals) conf_tgt.(Globals) = Some args1_tgt>> /\
       <<INJECT: list_forall2 (genericvalues_inject.gv_inject invmem0.(InvMem.Rel.inject)) args2_src args1_tgt>>>> /\
   <<RETURN:
-    forall invmem1 mem1_src mem1_tgt retval1_src retval1_tgt
+    forall invmem1 mem1_src mem1_tgt retval1_src retval1_tgt locals1_src
       (INCR: InvMem.Rel.le invmem0 invmem1)
       (MEM: InvMem.Rel.sem conf_src conf_tgt mem1_src mem1_tgt invmem1)
-      (RETVAL: genericvalues_inject.gv_inject invmem1.(InvMem.Rel.inject) retval1_src retval1_tgt),
-    exists invst1,
-      InvState.Rel.sem
-        conf_src conf_tgt
-        (mkState (mkEC st0_src.(EC).(CurFunction)
-                       st0_src.(EC).(CurBB)
-                       cmds_src
-                       st0_src.(EC).(Terminator)
-                       st0_src.(EC).(Locals)
-                       st0_src.(EC).(Allocas))
-                 st0_src.(ECS) mem1_src)
-        (mkState (mkEC st0_tgt.(EC).(CurFunction)
-                       st0_tgt.(EC).(CurBB)
-                       cmds_tgt
-                       st0_tgt.(EC).(Terminator)
-                       st0_tgt.(EC).(Locals)
-                       st0_tgt.(EC).(Allocas))
-                 st0_tgt.(ECS) mem1_tgt)
-        invst1 invmem1 inv1>>.
+      (RETVAL: TODO.lift2_option (genericvalues_inject.gv_inject invmem1.(InvMem.Rel.inject)) retval1_src retval1_tgt)
+      (RETURN_SRC: return_locals
+                     conf_src.(CurTargetData)
+                     retval1_src id_src noret_src typ_src
+                     st0_src.(EC).(Locals)
+                   = Some locals1_src),
+    exists locals1_tgt invst1,
+      <<RETURN_TGT: return_locals
+                      conf_tgt.(CurTargetData)
+                      retval1_tgt id_tgt noret_tgt typ_tgt
+                      st0_tgt.(EC).(Locals)
+                    = Some locals1_tgt>> /\
+      <<STATE:
+        InvState.Rel.sem
+          conf_src conf_tgt
+          (mkState (mkEC st0_src.(EC).(CurFunction)
+                         st0_src.(EC).(CurBB)
+                         cmds_src
+                         st0_src.(EC).(Terminator)
+                         locals1_src
+                         st0_src.(EC).(Allocas))
+                   st0_src.(ECS) mem1_src)
+          (mkState (mkEC st0_tgt.(EC).(CurFunction)
+                         st0_tgt.(EC).(CurBB)
+                         cmds_tgt
+                         st0_tgt.(EC).(Terminator)
+                         locals1_tgt
+                         st0_tgt.(EC).(Allocas))
+                   st0_tgt.(ECS) mem1_tgt)
+          invst1 invmem1 inv1>>>>.
 Proof.
   unfold Postcond.postcond_cmd in *. do 19 simtac0.
   rewrite <- (ite_spec noret_tgt None (Some id_src)) in *.
