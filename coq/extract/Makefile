@@ -11,9 +11,9 @@ extract: Makefile.coq
 Makefile.coq: Makefile $(COQTHEORIES)
 	(echo "-install none"; \
    echo "-R ../../coq $(COQMODULE)"; \
-   echo "-R ../../lib/sflib sflib"; \
    echo "-R ../../lib/paco/src Paco"; \
    echo "-R ../../lib/vellvm/src Vellvm"; \
+   echo "-R ../../lib/vellvm/lib/sflib sflib"; \
    echo "-R ../../lib/vellvm/lib/metalib metalib"; \
    echo "-R ../../lib/vellvm/lib/cpdtlib Cpdt"; \
    echo "-R ../../lib/vellvm/lib/compcert-2.4 compcert"; \
