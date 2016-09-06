@@ -16,29 +16,35 @@ Require Import GenericValues.
 Require Import Nop.
 Require InvMem.
 Require InvState.
+Require Import Simulation.
 
 Set Implicit Arguments.
 
 
-(* TODO: position *)
-Inductive error_state conf st: Prop :=
-| error_state_intro
-    (STUCK: stuck_state conf st)
-    (NFINAL: s_isFinialState conf st = None)
-.
+Definition return_locals
+           (TD:TargetData)
+           (c:cmd) (retval:option GenericValue) (lc:GVMap): option GVsMap :=
+  match c, retval with
+  | insn_call id0 false _ ct _ _ _, Some retval =>
+    match (fit_gv TD ct) retval with
+    | Some retval' => Some (updateAddAL _ lc id0 retval')
+    | _ => None
+    end
+  | insn_call _ _ _ _ _ _ _, _ => Some lc
+  | _, _ => None
+  end.
 
-(* TODO: position *)
-Inductive sInsn_indexed (conf:Config):
-  forall (st1 st2:State) (idx1 idx2:nat) (event:trace), Prop :=
-| sInsn_step
-    st1 st2 idx1 idx2 event
-    (STEP: sInsn conf st1 st2 event):
-    sInsn_indexed conf st1 st2 idx1 idx2 event
-| sInsn_stutter
-    st idx1 idx2
-    (IDX: (idx1 > idx2)%nat):
-    sInsn_indexed conf st st idx1 idx2 E0
-.
+Lemma returnUpdateLocals_spec
+      TD c' Result lc lc' gl:
+  returnUpdateLocals TD c' Result lc lc' gl =
+  match getOperandValue TD Result lc gl with
+  | Some retval => return_locals TD c' (Some retval) lc'
+  | None => None
+  end.
+Proof.
+  unfold returnUpdateLocals.
+  destruct (getOperandValue TD Result lc gl); ss.
+Qed.
 
 Section SimLocal.
   Variable (conf_src conf_tgt:Config).
@@ -56,8 +62,6 @@ Section SimLocal.
       st2_src
       id2_src typ2_src ret2_src
       id1_tgt typ1_tgt ret1_tgt
-      retval2_src
-      retval1_tgt
       (STEP: sop_star conf_src st1_src st2_src E0)
       (CMDS_SRC: st2_src.(EC).(CurCmds) = nil)
       (CMDS_TGT: st1_tgt.(EC).(CurCmds) = nil)
@@ -67,9 +71,12 @@ Section SimLocal.
       (STACK_SRC: st2_src.(ECS) = stack0_src)
       (STACK_TGT: st1_tgt.(ECS) = stack0_tgt)
       (MEM: InvMem.Rel.sem conf_src conf_tgt st2_src.(Mem) st1_tgt.(Mem) inv1)
-      (RET_SRC: getOperandValue conf_src.(CurTargetData) ret2_src st2_src.(EC).(Locals) conf_src.(Globals) = Some retval2_src)
-      (RET_TGT: getOperandValue conf_tgt.(CurTargetData) ret1_tgt st1_tgt.(EC).(Locals) conf_tgt.(Globals) = Some retval1_tgt)
-      (RETVAL: genericvalues_inject.gv_inject inv1.(InvMem.Rel.inject) retval2_src retval1_tgt)
+      (RET:
+         forall retval2_src
+           (RET_SRC: getOperandValue conf_src.(CurTargetData) ret2_src st2_src.(EC).(Locals) conf_src.(Globals) = Some retval2_src),
+         exists retval1_tgt,
+           <<RET_TGT: getOperandValue conf_tgt.(CurTargetData) ret1_tgt st1_tgt.(EC).(Locals) conf_tgt.(Globals) = Some retval1_tgt>> /\
+           <<INJECT: genericvalues_inject.gv_inject inv1.(InvMem.Rel.inject) retval2_src retval1_tgt>>)
 
   (* TODO: seems duplicate of _sim_local_return. Change semantics? *)
   | _sim_local_return_void
@@ -110,21 +117,31 @@ Section SimLocal.
            <<INJECT: list_forall2 (genericvalues_inject.gv_inject inv1.(InvMem.Rel.inject)) args2_src args1_tgt>>)
       (MEM: InvMem.Rel.sem conf_src conf_tgt st2_src.(Mem) st1_tgt.(Mem) inv1)
       (RETURN:
-         forall inv3 mem3_src mem3_tgt retval3_src retval3_tgt
+         forall inv3 mem3_src mem3_tgt retval3_src retval3_tgt locals4_src
            (INCR: InvMem.Rel.le inv1 inv3)
            (MEM: InvMem.Rel.sem conf_src conf_tgt mem3_src mem3_tgt inv3)
-           (RETVAL: genericvalues_inject.gv_inject inv3.(InvMem.Rel.inject) retval3_src retval3_tgt),
-         exists idx4 inv4,
+           (RETVAL: TODO.lift2_option (genericvalues_inject.gv_inject inv3.(InvMem.Rel.inject)) retval3_src retval3_tgt)
+           (RETURN_SRC: return_locals
+                          conf_src.(CurTargetData)
+                          (insn_call id2_src noret2_src clattrs2_src typ2_src varg2_src fun2_src params2_src)
+                          retval3_src st2_src.(EC).(Locals)
+                        = Some locals4_src),
+         exists locals4_tgt idx4 inv4,
+           <<RETURN_TGT: return_locals
+                           conf_tgt.(CurTargetData)
+                           (insn_call id1_tgt noret1_tgt clattrs1_tgt typ1_tgt varg1_tgt fun1_tgt params1_tgt)
+                           retval3_tgt st1_tgt.(EC).(Locals)
+                         = Some locals4_tgt>> /\
            <<MEMLE: InvMem.Rel.le inv3 inv4>> /\
            <<SIM:
              sim_local
                stack0_src stack0_tgt inv4 idx4
                (mkState
-                  (mkEC st2_src.(EC).(CurFunction) st2_src.(EC).(CurBB) cmds2_src st2_src.(EC).(Terminator) st2_src.(EC).(Locals) st2_src.(EC).(Allocas))
+                  (mkEC st2_src.(EC).(CurFunction) st2_src.(EC).(CurBB) cmds2_src st2_src.(EC).(Terminator) locals4_src st2_src.(EC).(Allocas))
                   st2_src.(ECS)
                   mem3_src)
                (mkState
-                  (mkEC st1_tgt.(EC).(CurFunction) st1_tgt.(EC).(CurBB) cmds1_tgt st1_tgt.(EC).(Terminator) st1_tgt.(EC).(Locals) st1_tgt.(EC).(Allocas))
+                  (mkEC st1_tgt.(EC).(CurFunction) st1_tgt.(EC).(CurBB) cmds1_tgt st1_tgt.(EC).(Terminator) locals4_tgt st1_tgt.(EC).(Allocas))
                   st1_tgt.(ECS)
                   mem3_tgt)>>)
 
@@ -162,6 +179,50 @@ End SimLocal.
 Hint Constructors _sim_local.
 Hint Resolve _sim_local_mon: paco.
 
+Lemma sop_star_sim_local
+      conf_src conf_tgt sim_local ecs0_src ecs0_tgt
+      inv idx
+      st1_src st2_src
+      st1_tgt
+      (TAU: sop_star conf_src st1_src st2_src events.E0)
+      (SIM: _sim_local conf_src conf_tgt sim_local ecs0_src ecs0_tgt inv idx st2_src st1_tgt):
+  _sim_local conf_src conf_tgt sim_local ecs0_src ecs0_tgt inv idx st1_src st1_tgt.
+Proof.
+  inv SIM.
+  - econs 1; try exact ERROR; eauto.
+    rewrite <- events.E0_left.
+    eapply opsem_props.OpsemProps.sop_star_trans; eauto.
+  - econs 2; try exact MEM; eauto. 
+    rewrite <- events.E0_left.
+    eapply opsem_props.OpsemProps.sop_star_trans; eauto.
+  - econs 3; try exact MEM; eauto.
+    rewrite <- events.E0_left.
+    eapply opsem_props.OpsemProps.sop_star_trans; eauto.
+  - econs 4; try exact MEM; eauto.
+    rewrite <- events.E0_left.
+    eapply opsem_props.OpsemProps.sop_star_trans; eauto.
+  - econs 5; eauto.
+    i. exploit STEP; eauto. i. des.
+    esplits; cycle 1; eauto.
+    rewrite <- events.E0_left.
+    eapply opsem_props.OpsemProps.sop_star_trans; eauto.
+Qed.
+
+Lemma _sim_local_src_error
+      conf_src conf_tgt sim_local ecs_src ecs_tgt
+      inv index
+      st_src st_tgt
+      (SIM: forall (ERROR_SRC: ~ error_state conf_src st_src),
+          _sim_local conf_src conf_tgt sim_local ecs_src ecs_tgt
+                     inv index
+                     st_src st_tgt):
+  _sim_local conf_src conf_tgt sim_local ecs_src ecs_tgt
+             inv index
+             st_src st_tgt.
+Proof.
+  destruct (classic (error_state conf_src st_src)); eauto.
+Qed.
+
 
 Inductive init_fdef (conf:Config) (f:fdef) (args:list GenericValue): forall (ec:ExecutionContext), Prop :=
 | init_fdef_intro
@@ -191,19 +252,3 @@ Section SimLocalFdef.
                 (mkState ec0_src stack0_src mem0_src)
                 (mkState ec0_tgt stack0_tgt mem0_tgt).
 End SimLocalFdef.
-
-Lemma _sim_local_src_progress
-      conf_src conf_tgt sim_local ecs_src ecs_tgt
-      inv index
-      st_src st_tgt
-      (XX: forall (PROGRESS_SRC: ~ stuck_state conf_src st_src),
-          _sim_local conf_src conf_tgt sim_local ecs_src ecs_tgt
-                     inv index
-                     st_src st_tgt):
-  _sim_local conf_src conf_tgt sim_local ecs_src ecs_tgt
-             inv index
-             st_src st_tgt.
-Proof.
-  destruct (classic (stuck_state conf_src st_src)); eauto.
-  admit. (* final state *)
-Admitted.

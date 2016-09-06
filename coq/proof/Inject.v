@@ -57,48 +57,47 @@ Definition inject_allocas
 Lemma inject_locals_getOperandValue
       inv val
       conf_src locals_src gval_src
-      conf_tgt locals_tgt gval_tgt
+      conf_tgt locals_tgt
       (CONF: inject_conf conf_src conf_tgt)
       (LOCALS: inject_locals inv locals_src locals_tgt)
-      (SRC: getOperandValue conf_src.(CurTargetData) val locals_src (Globals conf_src) = Some gval_src)
-      (TGT: getOperandValue conf_tgt.(CurTargetData) val locals_tgt (Globals conf_tgt) = Some gval_tgt):
-  genericvalues_inject.gv_inject inv.(InvMem.Rel.inject) gval_src gval_tgt.
+      (SRC: getOperandValue conf_src.(CurTargetData) val locals_src (Globals conf_src) = Some gval_src):
+  exists gval_tgt,
+    <<TGT: getOperandValue conf_tgt.(CurTargetData) val locals_tgt (Globals conf_tgt) = Some gval_tgt>> /\
+    <<INJECT: genericvalues_inject.gv_inject inv.(InvMem.Rel.inject) gval_src gval_tgt>>.
 Proof.
   destruct val; ss.
-  - exploit LOCALS; eauto. i. des.
-    rewrite TGT in LU_TGT. inv LU_TGT. ss.
-  - inv CONF. rewrite TARGETDATA, GLOBALS, SRC in *. inv TGT.
+  - exploit LOCALS; eauto.
+  - destruct conf_src, conf_tgt. inv CONF. ss. subst.
+    esplits; eauto.
     admit. (* const2GV inject refl *)
 Admitted.
 
 Lemma inject_locals_params2GVs
       inv0 args0
       conf_src locals_src gvs_param_src
-      conf_tgt locals_tgt gvs_param_tgt
+      conf_tgt locals_tgt
       (CONF: inject_conf conf_src conf_tgt)
       (LOCALS: inject_locals inv0 locals_src locals_tgt)
-      (PARAM_SRC:params2GVs (CurTargetData conf_src) args0 locals_src (Globals conf_src) = Some gvs_param_src)
-      (PARAM_TGT:params2GVs (CurTargetData conf_tgt) args0 locals_tgt (Globals conf_tgt) = Some gvs_param_tgt):
-  list_forall2 (genericvalues_inject.gv_inject (InvMem.Rel.inject inv0)) gvs_param_src gvs_param_tgt.
+      (PARAM_SRC:params2GVs (CurTargetData conf_src) args0 locals_src (Globals conf_src) = Some gvs_param_src):
+  exists gvs_param_tgt,
+    <<PARAM_TGT:params2GVs (CurTargetData conf_tgt) args0 locals_tgt (Globals conf_tgt) = Some gvs_param_tgt>> /\
+    <<INJECT: list_forall2 (genericvalues_inject.gv_inject (InvMem.Rel.inject inv0)) gvs_param_src gvs_param_tgt>>.
 Proof.
   revert gvs_param_src PARAM_SRC.
-  revert gvs_param_tgt PARAM_TGT.
-  induction args0.
-  - i. ss. inv PARAM_SRC. inv PARAM_TGT. econs.
-  - i. ss.
-    destruct a as ((ty_a & attr_a) & v_a).
-    revert PARAM_TGT. revert PARAM_SRC.
+  induction args0; ss.
+  - i. inv PARAM_SRC. esplits; ss. econs.
+  - i. destruct a as ((ty_a & attr_a) & v_a).
     (* TODO: make a tactic *)
     repeat
       (match goal with
-       | [|- context[match ?c with | Some _ => _ | None => _ end]] =>
+       | [H: context[match ?c with | Some _ => _ | None => _ end] |- _] =>
          let COND := fresh "COND" in
          destruct c eqn:COND
        end; ss).
-    i. inv PARAM_SRC. inv PARAM_TGT.
-    econs.
-    + eapply inject_locals_getOperandValue; eauto.
-    + eauto.
+    inv PARAM_SRC.
+    exploit inject_locals_getOperandValue; eauto. i. des.
+    exploit IHargs0; eauto. i. des.
+    rewrite TGT, PARAM_TGT. esplits; eauto. econs; eauto.
 Qed.
 
 Lemma locals_init

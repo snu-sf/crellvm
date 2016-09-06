@@ -17,6 +17,7 @@ Import Opsem.
 Require Import TODO.
 Require Import GenericValues.
 Require Import Nop.
+Require Import Simulation.
 Require Import SimulationLocal.
 Require Import Inject.
 Require InvMem.
@@ -227,47 +228,6 @@ Proof.
   - destruct a; inv NOPS. destruct conf. econs.
 Qed.
 
-Lemma _sim_local_src_nops
-      conf_src conf_tgt sim_local ecs0_src ecs0_tgt
-      inv index
-      nops
-      fdef_src b_src cmds_src term_src locals_src allocas_src ecs_src mem_src
-      st_tgt
-      (NOPS: forallb is_nop nops)
-      (SIM:
-         _sim_local conf_src conf_tgt sim_local ecs0_src ecs0_tgt
-                    inv index
-                    (mkState (mkEC fdef_src b_src cmds_src term_src locals_src allocas_src) ecs_src mem_src)
-                    st_tgt):
-  _sim_local conf_src conf_tgt sim_local ecs0_src ecs0_tgt
-             inv index
-             (mkState (mkEC fdef_src b_src (nops ++ cmds_src) term_src locals_src allocas_src) ecs_src mem_src)
-             st_tgt.
-Proof.
-  inv SIM.
-  - econs 1; cycle 1; try exact MEM; eauto.
-    rewrite <- events.E0_left.
-    eapply opsem_props.OpsemProps.sop_star_trans; [|eauto].
-    apply nops_sop_star. ss.
-  - econs 2; cycle 1; try exact MEM; eauto.
-    rewrite <- events.E0_left.
-    eapply opsem_props.OpsemProps.sop_star_trans; [|eauto].
-    apply nops_sop_star. ss.
-  - econs 3; cycle 1; try exact MEM; eauto.
-    rewrite <- events.E0_left.
-    eapply opsem_props.OpsemProps.sop_star_trans; [|eauto].
-    apply nops_sop_star. ss.
-  - econs 4; cycle 1; try exact MEM; eauto.
-    rewrite <- events.E0_left.
-    eapply opsem_props.OpsemProps.sop_star_trans; [|eauto].
-    apply nops_sop_star. ss.
-  - econs 5; ss. i. exploit STEP; eauto. i. des.
-    esplits; cycle 1; eauto.
-    rewrite <- events.E0_left.
-    eapply opsem_props.OpsemProps.sop_star_trans; [|eauto].
-    apply nops_sop_star. ss.
-Qed.
-
 Lemma nop_sim
       conf_src conf_tgt
       (CONF: inject_conf conf_src conf_tgt):
@@ -291,43 +251,40 @@ Proof.
     exploit get_status_call_inv; eauto. i. des.
     inv SIM. ss. subst.
     exploit nop_cmds_tgt_non_nop; eauto; ss. i. des. subst.
-    apply _sim_local_src_nops; ss.
-    apply _sim_local_src_progress. i.
-    apply NNPP in PROGRESS_SRC. destruct PROGRESS_SRC as (st'_src & tr_src & PROGRESS_SRC).
+    eapply sop_star_sim_local; [by apply nops_sop_star|].
+    apply _sim_local_src_error. i.
+    exploit nerror_nfinal_nstuck; eauto. i.
+    destruct x0 as (st'_src & tr_src & PROGRESS_SRC).
     assert (FUNC_TGT: exists func_tgt, getOperandValue (CurTargetData conf_tgt) f locals_tgt (Globals conf_tgt) = Some func_tgt).
     { inv PROGRESS_TGT; eauto. }
     assert (PARAM_TGT: exists gvs_param_tgt, params2GVs (CurTargetData conf_tgt) args0 locals_tgt (Globals conf_tgt) = Some gvs_param_tgt).
     { inv PROGRESS_TGT; eauto. }
     des.
     eapply _sim_local_call; try apply STEPS; try eexact x0; ss; try reflexivity; eauto.
-    + s. i. esplits; eauto.
-      eapply inject_locals_getOperandValue; eauto.
-    + s. i. esplits; eauto.
-      eapply inject_locals_params2GVs; eauto.
-    + ss. i. esplits; [reflexivity|].
-      right. eapply CIH. econs; ss.
+    { s. i. eapply inject_locals_getOperandValue; eauto. }
+    { s. i. eapply inject_locals_params2GVs; eauto. }
+    s. i. esplits.
+    + admit.
+    + reflexivity.
+    + right. eapply CIH. econs; ss.
       * eapply inject_locals_inj_incr; eauto.
+        admit.
       * eapply inject_allocas_inj_incr; eauto.
   - (* return *)
     exploit get_status_return_inv; eauto. i. des.
     inv SIM. ss. subst.
     exploit nop_cmds_tgt_nil; eauto. intro NOPS.
     rewrite (app_nil_end cmds_src).
-    apply _sim_local_src_nops; ss.
-    apply _sim_local_src_progress. i.
-    apply NNPP in PROGRESS_SRC. destruct PROGRESS_SRC as (st'_src & tr_src & PROGRESS_SRC).
-    assert (RETVAL_SRC: exists retval_src, getOperandValue (CurTargetData conf_src) value0 locals_src (Globals conf_src) = Some retval_src).
-    { inv PROGRESS_SRC; eauto. unfold returnUpdateLocals in H13. destruct (getOperandValue TD value0 locals_src gl) eqn:X; inv H13. ss. eauto. }
-    assert (RETVAL_TGT: exists retval_tgt, getOperandValue (CurTargetData conf_tgt) value0 locals_tgt (Globals conf_tgt) = Some retval_tgt).
-    { inv PROGRESS_TGT; eauto. unfold returnUpdateLocals in H13. destruct (getOperandValue TD value0 locals_tgt gl) eqn:X; inv H13. ss. eauto. }
-    des. exploit inject_locals_getOperandValue; eauto. i.
-    eapply _sim_local_return; try apply x0; eauto; ss.
+    eapply sop_star_sim_local; [by apply nops_sop_star|].
+    eapply _sim_local_return; eauto; ss.
+    i. eapply inject_locals_getOperandValue; eauto.
   - (* return void *)
     exploit get_status_return_void_inv; eauto. i. des.
     inv SIM. ss. subst.
     exploit nop_cmds_tgt_nil; eauto. intro NOPS.
-    exploit nops_sop_star; eauto. rewrite <- app_nil_end. intro STEPS.
-    eapply _sim_local_return_void; try apply STEPS; ss.
+    rewrite (app_nil_end cmds_src).
+    eapply sop_star_sim_local; [by apply nops_sop_star|].
+    eapply _sim_local_return_void; ss.
   - (* step *)
     admit.
     (* exploit get_status_step_inv; eauto. i. des. *)

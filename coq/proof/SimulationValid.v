@@ -21,6 +21,7 @@ Require Import Validator.
 Require Import GenericValues.
 Require Import SimulationLocal.
 Require Import Simulation.
+Require Import AdequacyLocal.
 Require Import Inject.
 Require InvMem.
 Require InvState.
@@ -202,13 +203,7 @@ Proof.
   intros stack0_src stack0_tgt.
   pcofix CIH.
   intros inv0 idx0 st_src st_tgt SIM. pfold.
-  generalize (classic (stuck_state conf_src st_src)). intro STUCK_SRC. des.
-  { destruct (s_isFinialState conf_src st_src) eqn:FINAL_SRC; cycle 1.
-    - (* error *)
-      eapply _sim_local_error; eauto. econs; eauto.
-    - (* final *)
-      admit.
-  }
+  apply _sim_local_src_error. i.
   destruct st_src, st_tgt. destruct EC0, EC1.
   inv SIM. ss.
   destruct CurCmds0; simtac;
@@ -217,30 +212,26 @@ Proof.
     unfold valid_terminator in TERM.
     simtac;
       (try by exfalso; eapply has_false_False; eauto).
-    apply NNPP in STUCK_SRC. des.
-    inv STUCK_SRC; destruct Terminator1; ss.
-    (* TODO: switch case *)
+    destruct Terminator0, Terminator1; simtac.
     + (* return *)
-      simtac.
-      unfold returnUpdateLocals in *. simtac.
-      exploit InvState.Rel.inject_value_spec; eauto.
-      { rewrite InvState.Unary.sem_valueT_physical. eauto. }
-      rewrite InvState.Unary.sem_valueT_physical. s. i. des.
       eapply _sim_local_return; eauto; ss.
+      i. exploit InvState.Rel.inject_value_spec; eauto.
+      { rewrite InvState.Unary.sem_valueT_physical. eauto. }
+      i. des. rewrite InvState.Unary.sem_valueT_physical in VAL_TGT. ss.
+      esplits; eauto.
     + (* return_void *)
-      simtac.
       eapply _sim_local_return_void; eauto; ss.
     + (* br *)
-      rewrite <- (ite_spec decision l1 l2) in *. simtac. rewrite ite_spec in *.
-      exploit InvState.Rel.inject_value_spec; eauto.
-      { rewrite InvState.Unary.sem_valueT_physical. eauto. }
-      rewrite InvState.Unary.sem_valueT_physical. s. i. des.
-      eapply _sim_local_step.
-      { admit. (* tgt not stuck *) }
-      i. inv STEP. ss.
-      rewrite VAL_TGT in H16. inv H16.
-      inv CONF. inv INJECT0. ss. subst.
-      exploit inject_decide_nonzero; eauto. i. subst.
+      (* rewrite <- (ite_spec decision l1 l2) in *. simtac. rewrite ite_spec in *. *)
+      (* exploit InvState.Rel.inject_value_spec; eauto. *)
+      (* { rewrite InvState.Unary.sem_valueT_physical. eauto. } *)
+      (* rewrite InvState.Unary.sem_valueT_physical. s. i. des. *)
+      (* eapply _sim_local_step. *)
+      (* { admit. (* tgt not stuck *) } *)
+      (* i. inv STEP. ss. *)
+      (* rewrite VAL_TGT in H16. inv H16. *)
+      (* inv CONF. inv INJECT0. ss. subst. *)
+      (* exploit inject_decide_nonzero; eauto. i. subst. *)
       (* assert (PHINODES: *)
       (*           valid_phinodes fdef_hint inv_term m_src m_tgt *)
       (*                          (get_blocks CurFunction0) (get_blocks CurFunction1) *)
@@ -263,21 +254,19 @@ Proof.
       (* * admit. (* valid_terminator *) *)
       (* * admit. (* InvState.Rel.sem *) *)
       admit.
-    + (* switch *)
-      admit.
     + (* br_uncond *)
+      exploit nerror_nfinal_nstuck; eauto. i. des. inv x0. simtac.
       eapply _sim_local_step.
       { admit. (* tgt not stuck *) }
-      i. inv STEP. ss.
-      simtac. unfold valid_phinodes in *. simtac.
+      i. inv STEP. unfold valid_phinodes in *. simtac.
       rewrite add_terminator_cond_br_uncond in *.
       rewrite lookupBlockViaLabelFromFdef_spec in *.
-      rewrite COND2 in H9. inv H9.
+      rewrite COND2 in H10. inv H10.
       rewrite COND3 in H12. inv H12.
       exploit postcond_phinodes_sound;
         (try instantiate (1 := (mkState (mkEC _ _ _ _ _ _) _ _))); s;
         (try eexact COND4; try eexact MEM);
-        (try eexact H10; try eexact H13); ss; eauto.
+        (try eexact H11; try eexact H13); ss; eauto.
       i. des.
       exploit apply_infrules_sound; eauto; ss. i. des.
       exploit reduce_maydiff_sound; eauto; ss. i. des.
@@ -287,19 +276,25 @@ Proof.
       esplits; eauto.
       * econs 1. econs; eauto. rewrite lookupBlockViaLabelFromFdef_spec. ss.
       * right. apply CIH. econs; ss; eauto; ss; eauto.
+    + (* switch *)
+      admit.
+    + exploit nerror_nfinal_nstuck; eauto. i. des. inv x0.
   - (* cmd *)
     destruct (Instruction.isCallInst c) eqn:CALL.
     + (* call *)
-      destruct c; ss. destruct c0; ss.
-      exploit postcond_call_sound;
-        (try instantiate (1 := (mkState (mkEC _ _ _ _ _ _) _ _))); ss; eauto; ss.
-      s. i. des. subst.
-      eapply _sim_local_call; ss; eauto; ss.
-      i. exploit RETURN; eauto. i. des.
-      exploit apply_infrules_sound; eauto; ss. i. des.
-      exploit reduce_maydiff_sound; eauto; ss. i. des.
-      exploit implies_sound; eauto; ss. i. des.
-      exists 0%nat, invmem1. splits; ss. right. apply CIH. econs; eauto.
+      admit.
+      (* destruct c; ss. destruct c0; ss. *)
+      (* exploit postcond_call_sound; *)
+      (*   (try instantiate (1 := (mkState (mkEC _ _ _ _ _ _) _ _))); ss; eauto; ss. *)
+      (* s. i. des. subst. *)
+      (* eapply _sim_local_call; ss; eauto; ss. *)
+      (* i. exploit RETURN; eauto. i. des. *)
+      (* exploit apply_infrules_sound; eauto; ss. i. des. *)
+      (* exploit reduce_maydiff_sound; eauto; ss. i. des. *)
+      (* exploit implies_sound; eauto; ss. i. des. *)
+      (* eexists _, 0%nat, invmem1. splits; ss. *)
+      (* * admit. *)
+      (* * right. apply CIH. econs; eauto. *)
     + (* non-call *)
       eapply _sim_local_step.
       { admit. (* tgt not stuck *) }
@@ -314,7 +309,7 @@ Proof.
       esplits; (try by etransitivity; eauto); eauto.
       { econs 1. eauto. }
       instantiate (1 := mkState (mkEC _ _ _ _ _ _) _ _).
-      right. apply CIH. econs; ss; eauto.
+      right. apply CIH. econs; try exact STATE3; eauto.
 Admitted.
 
 Lemma valid_sim_fdef
@@ -413,8 +408,8 @@ Proof.
     unfold initTargetData in *.
     erewrite <- valid_products_genGlobalAndInitMem; eauto. rewrite COND2.
     rewrite COND3. eauto.
-  - apply sim_local_lift_sim. econs.
-    + econs 1.
+  - apply sim_local_lift_sim. econs; ss.
+    + econs.
     + generalize H0. i.
       unfold forallb2AL in H1. ss. apply andb_true_iff in H1. des. simtac.
       hexploit InvState.Rel.sem_empty; eauto.
@@ -448,5 +443,4 @@ Proof.
         }
         rewrite COND5, COND6, COND7, COND8, COND9. ss.
       * ss. admit. (* InvMem.Rel.sem init_mem *)
-    + reflexivity.
 Admitted.
