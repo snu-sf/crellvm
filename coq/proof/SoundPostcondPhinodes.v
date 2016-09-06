@@ -17,7 +17,6 @@ Import Opsem.
 Require Import TODO.
 Require Import Validator.
 Require Import GenericValues.
-Require Import SimulationLocal.
 Require InvMem.
 Require InvState.
 Require Import SoundBase.

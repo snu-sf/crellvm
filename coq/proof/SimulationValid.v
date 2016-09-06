@@ -19,6 +19,7 @@ Require Import Decs.
 Require Import Hints.
 Require Import Validator.
 Require Import GenericValues.
+Require Import PropOpsem.
 Require Import SimulationLocal.
 Require Import Simulation.
 Require Import AdequacyLocal.
@@ -128,54 +129,6 @@ Proof.
 Qed.
 
 (* TODO: position *)
-Lemma if_f
-      A B (c:bool) (f:A -> B) a b:
-  (if c then f a else f b) = f (if c then a else b).
-Proof. destruct c; ss. Qed.
-
-(* TODO: position *)
-Lemma inject_decide_nonzero
-      TD inv
-      val_src decision_src
-      val_tgt decision_tgt
-      (INJECT: genericvalues_inject.gv_inject inv val_src val_tgt)
-      (SRC: decide_nonzero TD val_src decision_src)
-      (TGT: decide_nonzero TD val_tgt decision_tgt):
-  decision_src = decision_tgt.
-Proof.
-  inv SRC. inv TGT. unfold GV2int in *.
-  destruct val_src; ss. destruct p, v, val_src; ss.
-  destruct val_tgt; ss. destruct p, v, val_tgt; ss.
-  simtac. inv INJECT. inv H1.
-  apply inj_pair2 in H2. apply inj_pair2 in H4. subst. ss.
-Qed.
-
-(* TODO: position *)
-Lemma sInsn_non_call
-      conf fdef bb cmd cmds term locals1 allocas1 ecs mem1
-      st2 event
-      (NONCALL: ~ Instruction.isCallInst cmd)
-      (STEP: sInsn
-               conf
-               (mkState (mkEC fdef bb (cmd::cmds) term locals1 allocas1) ecs mem1)
-               st2
-               event):
-  exists locals2 allocas2 mem2,
-    st2 = mkState (mkEC fdef bb cmds term locals2 allocas2) ecs mem2.
-Proof.
-  inv STEP; eauto. ss. congruence.
-Qed.
-
-(* TODO: position *)
-Lemma postcond_cmd_is_call
-      c_src c_tgt inv1 inv2
-      (POSTCOND: Postcond.postcond_cmd c_src c_tgt inv1 = Some inv2):
-  Instruction.isCallInst c_src = Instruction.isCallInst c_tgt.
-Proof.
-  destruct c_src, c_tgt; ss.
-Qed.
-
-(* TODO: position *)
 Lemma valid_fdef_valid_stmts
       m_src m_tgt fdef_src fdef_tgt fdef_hint l
       phinodes_src cmds_src terminator_src
@@ -194,7 +147,19 @@ Lemma valid_fdef_valid_stmts
                              fdef_src.(get_blocks) fdef_tgt.(get_blocks)
                              l terminator_src terminator_tgt>>.
 Proof.
-Admitted.
+  unfold valid_fdef in FDEF.
+  do 2 simtac0.
+  destruct (negb (fheader_dec fheader5 fheader0)) eqn:X; ss.
+  apply andb_true_iff in FDEF. des. clear FDEF. simtac.
+  revert SRC TGT FDEF0.
+  generalize blocks0 at 1 3.
+  generalize blocks5 at 1 3.
+  induction blocks1; i; ss.
+  destruct blocks2; [by inv FDEF0|].
+  unfold forallb2AL in FDEF0. simtac; eauto.
+  rewrite HINT in COND. inv COND.
+  esplits; eauto.
+Qed.
 
 Lemma valid_sim
       conf_src conf_tgt:
@@ -282,19 +247,17 @@ Proof.
   - (* cmd *)
     destruct (Instruction.isCallInst c) eqn:CALL.
     + (* call *)
-      admit.
-      (* destruct c; ss. destruct c0; ss. *)
-      (* exploit postcond_call_sound; *)
-      (*   (try instantiate (1 := (mkState (mkEC _ _ _ _ _ _) _ _))); ss; eauto; ss. *)
-      (* s. i. des. subst. *)
-      (* eapply _sim_local_call; ss; eauto; ss. *)
-      (* i. exploit RETURN; eauto. i. des. *)
-      (* exploit apply_infrules_sound; eauto; ss. i. des. *)
-      (* exploit reduce_maydiff_sound; eauto; ss. i. des. *)
-      (* exploit implies_sound; eauto; ss. i. des. *)
-      (* eexists _, 0%nat, invmem1. splits; ss. *)
-      (* * admit. *)
-      (* * right. apply CIH. econs; eauto. *)
+      destruct c; ss. destruct c0; ss.
+      exploit postcond_call_sound;
+        (try instantiate (1 := (mkState (mkEC _ _ _ _ _ _) _ _))); ss; eauto; ss.
+      i. des. subst. simtac.
+      eapply _sim_local_call; ss; eauto; ss.
+      i. exploit RETURN; eauto. i. des.
+      exploit apply_infrules_sound; eauto; ss. i. des.
+      exploit reduce_maydiff_sound; eauto; ss. i. des.
+      exploit implies_sound; eauto; ss. i. des.
+      exists locals1_tgt, 0%nat, invmem1. splits; ss.
+      right. apply CIH. econs; eauto.
     + (* non-call *)
       eapply _sim_local_step.
       { admit. (* tgt not stuck *) }
@@ -389,7 +352,7 @@ Proof.
     destruct (initFunTable mem0 id0); eauto.
 Qed.
 
-(* TODO: lemma for module initialization *)
+(* TODO: extract lemma for module initialization *)
 Lemma valid_sim_module m_hint:
   (valid_module m_hint) <2= sim_module.
 Proof.

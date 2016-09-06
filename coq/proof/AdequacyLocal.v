@@ -48,13 +48,13 @@ Inductive sim_local_stack
          (RETVAL: TODO.lift2_option (genericvalues_inject.gv_inject inv'.(InvMem.Rel.inject)) retval'_src retval'_tgt)
          (RETURN_SRC: return_locals
                         conf_src.(CurTargetData)
-                        (insn_call id_src noret_src clattrs_src typ_src varg_src fun_src params_src)
-                        retval'_src locals_src = Some locals'_src),
+                        retval'_src id_src noret_src typ_src
+                        locals_src = Some locals'_src),
        exists idx' locals'_tgt,
          <<RETURN_TGT: return_locals
                          conf_tgt.(CurTargetData)
-                         (insn_call id_tgt noret_tgt clattrs_tgt typ_tgt varg_tgt fun_tgt params_tgt)
-                         retval'_tgt locals_tgt = Some locals'_tgt>> /\
+                         retval'_tgt id_tgt noret_tgt typ_tgt
+                         locals_tgt = Some locals'_tgt>> /\
          <<SIM:
            sim_local
              conf_src conf_tgt ecs0_src ecs0_tgt
