@@ -19,7 +19,7 @@ Require Import Decs.
 Require Import Hints.
 Require Import Validator.
 Require Import GenericValues.
-Require Import OpsemProp.
+Require Import PropOpsem.
 Require Import SimulationLocal.
 Require Import Simulation.
 Require Import AdequacyLocal.
