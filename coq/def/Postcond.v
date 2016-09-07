@@ -588,6 +588,9 @@ Definition postcond_cmd_inject_event
     typ_dec t1 t2 &&
     (Invariant.inject_value
        inv (ValueT.lift Tag.physical p1) (ValueT.lift Tag.physical p2))
+  | insn_free _ _ p1, insn_nop _ =>
+    (* p1 must be private *)
+    Invariant.is_private inv.(Invariant.src) (ValueT.lift Tag.physical p1)
   | insn_free _ _ _, _
   | _, insn_free _ _ _ => false
 
@@ -608,6 +611,10 @@ Definition postcond_cmd_inject_event
     (Invariant.inject_value
        inv (ValueT.lift Tag.physical v1) (ValueT.lift Tag.physical v2)) &&
     align_dec a1 a2
+  | insn_malloc _ _ _ _, insn_nop _ =>
+    (* Equivalent to (insn_alloca, insn_nop) *)
+    (* Note : postcond generator must add `private` to invariant *)
+    true
   | insn_malloc _ _ _ _, _ => false
   | _, insn_malloc _ _ _ _ => false
 
@@ -648,6 +655,52 @@ Definition postcond_cmd_add_private_unique
           (Invariant.update_private
              (IdTSet.add (IdT.lift Tag.physical aid_tgt))) inv1 in
     inv2
+  | insn_malloc id_src _ _ _, insn_malloc id_tgt _ _ _ =>
+    let inv1 := 
+        Invariant.update_src
+          (Invariant.update_unique
+             (AtomSetImpl.add id_src)) inv0 in
+    let inv2 :=
+        Invariant.update_src
+          (Invariant.update_malloc
+             (IdTSet.add (IdT.lift Tag.physical id_src))) inv1 in
+    let inv3 := 
+        Invariant.update_tgt
+          (Invariant.update_unique
+             (AtomSetImpl.add id_tgt)) inv2 in
+    let inv4 :=
+        Invariant.update_tgt
+          (Invariant.update_malloc
+             (IdTSet.add (IdT.lift Tag.physical id_tgt))) inv3 in
+    inv4
+  | insn_malloc id_src _ _ _, insn_nop _ =>
+    let inv1 :=
+        Invariant.update_src
+          (Invariant.update_unique
+             (AtomSetImpl.add id_src)) inv0 in
+    let inv2 :=
+        Invariant.update_src
+          (Invariant.update_malloc
+             (IdTSet.add (IdT.lift Tag.physical id_src))) inv1 in
+    let inv3 :=
+        Invariant.update_src
+          (Invariant.update_private
+             (IdTSet.add (IdT.lift Tag.physical id_src))) inv2 in
+    inv3
+  | insn_nop _, insn_malloc id_tgt _ _ _ =>
+    let inv1 :=
+        Invariant.update_tgt
+          (Invariant.update_unique
+             (AtomSetImpl.add id_tgt)) inv0 in
+    let inv2 :=
+        Invariant.update_tgt
+          (Invariant.update_malloc
+             (IdTSet.add (IdT.lift Tag.physical id_tgt))) inv1 in
+    let inv3 :=
+        Invariant.update_tgt
+          (Invariant.update_private
+             (IdTSet.add (IdT.lift Tag.physical id_tgt))) inv2 in
+    inv3
   | _, _ => inv0
   end.
 

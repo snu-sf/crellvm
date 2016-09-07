@@ -36,6 +36,8 @@ Module Invariant.
     alias: aliasrel;
     unique: atoms;
     private: IdTSet.t;
+    malloc: IdTSet.t; (* p malloc if `p = call i8* malloc(..)` *)
+                      (* p+1 is not malloc. *)
   }.
 
   Structure t := mk {
@@ -49,7 +51,8 @@ Module Invariant.
       (f invariant.(lessdef))
       invariant.(alias)
       invariant.(unique)
-      invariant.(private).
+      invariant.(private)
+      invariant.(malloc).
 
   Definition update_diffblock_rel (f:ValueTPairSet.t -> ValueTPairSet.t) (alias:aliasrel): aliasrel :=
     mk_aliasrel
@@ -66,7 +69,8 @@ Module Invariant.
       invariant.(lessdef)
       (f invariant.(alias))
       invariant.(unique)
-      invariant.(private).
+      invariant.(private)
+      invariant.(malloc).
 
   Definition update_diffblock (f:ValueTPairSet.t -> ValueTPairSet.t) (invariant:unary): unary :=
     update_alias (update_diffblock_rel f) invariant.
@@ -79,14 +83,24 @@ Module Invariant.
       invariant.(lessdef)
       invariant.(alias)
       (f invariant.(unique))
-      invariant.(private).
+      invariant.(private)
+      invariant.(malloc).
 
   Definition update_private (f:IdTSet.t -> IdTSet.t) (invariant:unary): unary :=
     mk_unary
       invariant.(lessdef)
       invariant.(alias)
       invariant.(unique)
-      (f invariant.(private)).
+      (f invariant.(private))
+      invariant.(malloc).
+  
+  Definition update_malloc (f:IdTSet.t -> IdTSet.t) (invariant:unary): unary :=
+    mk_unary
+      invariant.(lessdef)
+      invariant.(alias)
+      invariant.(unique)
+      invariant.(private)
+      (f invariant.(malloc)).
 
   Definition update_src (f:unary -> unary) (invariant:t): t :=
     mk
@@ -109,6 +123,12 @@ Module Invariant.
   Definition is_private (inv:unary) (value:ValueT.t): bool :=
     match value with
     | ValueT.id id => IdTSet.mem id inv.(private)
+    | ValueT.const _ => false
+    end.
+
+  Definition is_malloc (inv:unary) (value:ValueT.t): bool :=
+    match value with
+    | ValueT.id id => IdTSet.mem id inv.(malloc)
     | ValueT.const _ => false
     end.
 
@@ -159,7 +179,8 @@ Module Invariant.
     inv.(lessdef) &&
     implies_alias inv0 (inv0.(alias)) (inv.(alias)) &&
     AtomSetImpl.subset (inv.(unique)) (inv0.(unique)) &&
-    IdTSet.subset (inv.(private)) (inv0.(private)).
+    IdTSet.subset (inv.(private)) (inv0.(private)) &&
+    IdTSet.subset (inv.(malloc)) (inv0.(malloc)).
 
   Definition has_false (inv: t): bool :=
     (ExprPairSet.mem false_encoding inv.(src).(lessdef)).
@@ -250,7 +271,8 @@ Module Invariant.
     ExprPairSet.is_empty inv.(lessdef) &&
     is_empty_alias inv.(alias) &&
     AtomSetImpl.is_empty inv.(unique) &&
-    IdTSet.is_empty inv.(private).
+    IdTSet.is_empty inv.(private) &&
+    IdTSet.is_empty inv.(malloc).
 
   Definition is_empty (inv:t): bool :=
     is_empty_unary inv.(src) &&
@@ -269,7 +291,8 @@ Module Invariant.
             TODO.filter_map Ptr.get_idTs [pp.(fst) ; pp.(snd)])
          (PtrPairSet.elements (u.(alias).(noalias)))) ++
       (List.map (IdT.lift Tag.physical) (AtomSetImpl.elements u.(unique))) ++
-      IdTSet.elements u.(private).
+      IdTSet.elements u.(private) ++
+      IdTSet.elements u.(malloc).
 
   Definition get_idTs (inv: t): list IdT.t :=
     (get_idTs_unary inv.(src))
