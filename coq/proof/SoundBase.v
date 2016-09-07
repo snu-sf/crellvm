@@ -25,57 +25,6 @@ Require InvState.
 Set Implicit Arguments.
 
 
-Ltac simtac0 :=
-  try match goal with
-      | [H: ?a = ?a |- _] => clear H
-      | [H: is_true true |- _] => clear H
-      | [H: Some _ = Some _ |- _] => inv H
-      | [H: context[let (_, _) := ?p in _] |- _] => destruct p
-      | [H: negb _ = true |- _] =>
-        apply negb_true_iff in H
-      | [H: negb _ = false |- _] =>
-        apply negb_false_iff in H
-      | [H: andb _ _ = true |- _] => apply andb_true_iff in H; destruct H
-
-      | [H: proj_sumbool (id_dec ?a ?b) = true |- _] =>
-        destruct (id_dec a b)
-      | [H: proj_sumbool (typ_dec ?a ?b) = true |- _] =>
-        destruct (typ_dec a b)
-      | [H: proj_sumbool (l_dec ?a ?b) = true |- _] =>
-        destruct (l_dec a b)
-      | [H: proj_sumbool (fheader_dec ?a ?b) = true |- _] =>
-        destruct (fheader_dec a b)
-      | [H: proj_sumbool (noret_dec ?a ?b) = true |- _] =>
-        destruct (noret_dec a b)
-      | [H: proj_sumbool (clattrs_dec ?a ?b) = true |- _] =>
-        destruct (clattrs_dec a b)
-      | [H: proj_sumbool (varg_dec ?a ?b) = true |- _] =>
-        destruct (varg_dec a b)
-      | [H: proj_sumbool (layouts_dec ?a ?b) = true |- _] => destruct (layouts_dec a b)
-      | [H: proj_sumbool (namedts_dec ?a ?b) = true |- _] => destruct (namedts_dec a b)
-      | [H: productInModuleB_dec ?a ?b = left _ |- _] => destruct (productInModuleB_dec a b)
-
-      | [H: context[match ?c with
-                    | [] => _
-                    | _::_ => _
-                    end] |- _] =>
-        let COND := fresh "COND" in
-        destruct c eqn:COND
-      | [H: context[match ?c with
-                    | Some _ => _
-                    | None => _
-                    end] |- _] =>
-        let COND := fresh "COND" in
-        destruct c eqn:COND
-      | [H: context[if ?c then _ else _] |- _] =>
-        let COND := fresh "COND" in
-        destruct c eqn:COND
-      end;
-  unfold Debug.debug_print_validation_process, Debug.debug_print in *;
-  try subst; ss.
-
-Ltac simtac := repeat simtac0.
-
 (* TODO: m_src, m_tgt, conf_src, conf_tgt *)
 Inductive valid_conf
           (m_src m_tgt:module)
@@ -108,6 +57,13 @@ Proof. ss. Qed.
 (* TODO: position *)
 Opaque ite.
 
+(* TODO: position *)
+Lemma lookupAL_ite
+      X (l:AssocList X) decision l1 l2 v1 v2
+      (V1: lookupAL _ l l1 = Some v1)
+      (V2: lookupAL _ l l2 = Some v2):
+  lookupAL _ l (ite decision l1 l2) = Some (ite decision v1 v2).
+Proof. destruct decision; ss. Qed.
 
 (* TODO: position *)
 Definition return_locals
