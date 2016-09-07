@@ -42,6 +42,12 @@ Fixpoint valid_cmds
   | _, _, _ => None
   end.
 
+Definition lookup_phinodes_infrules hint_stmts l_from :=
+  match lookupAL _ hint_stmts.(ValidationHint.phinodes) l_from with
+  | None => nil
+  | Some infrules => infrules
+  end.
+
 Definition valid_phinodes
            (hint_fdef:ValidationHint.fdef)
            (inv0:Invariant.t)
@@ -52,24 +58,40 @@ Definition valid_phinodes
   let l_to := (debug_print atom_printer l_to) in
   match lookupAL _ hint_fdef l_to, lookupAL _ blocks_src l_to, lookupAL _ blocks_tgt l_to with
   | Some hint_stmts, Some (stmts_intro phinodes_src _ _), Some (stmts_intro phinodes_tgt _ _) =>
-    let infrules := match lookupAL _ hint_stmts.(ValidationHint.phinodes) l_from with
-                        | None => nil
-                        | Some infrules => infrules
-                    end in
-    let inv1 := postcond_branch blocks_src blocks_tgt l_from l_to inv0 in
-    match postcond_phinodes l_from phinodes_src phinodes_tgt inv1 with
+    let infrules := lookup_phinodes_infrules hint_stmts l_from in
+    match postcond_phinodes l_from phinodes_src phinodes_tgt inv0 with
       | None => failwith_false "valid_phinodes: postcond_phinodes returned None at phinode" (l_from::l_to::nil)
-      | Some inv2 =>
-        let inv3 := apply_infrules m_src m_tgt infrules inv2 in
-        let inv4 := reduce_maydiff inv3 in
-        let inv := hint_stmts.(ValidationHint.invariant_after_phinodes) in
-        let inv := debug_print_validation_process infrules inv0 inv2 inv3 inv4 inv in
-        if (Invariant.implies inv4 inv)
-        then true
-        else failwith_false "valid_phinodes: Invariant.implies returned false at phinode" (l_from::l_to::nil)
+      | Some inv1 =>
+        let inv2 := apply_infrules m_src m_tgt infrules inv1 in
+        let inv3 := reduce_maydiff inv2 in
+        let inv4 := hint_stmts.(ValidationHint.invariant_after_phinodes) in
+        let inv4 := debug_print_validation_process infrules inv0 inv1 inv2 inv3 inv4 in
+        if negb (Invariant.implies inv3 inv4)
+        then failwith_false "valid_phinodes: Invariant.implies returned false at phinode" (l_from::l_to::nil)
+        else true
     end
   | _, _, _ => false
   end.
+
+(* TODO: position *)
+Lemma const_l_dec (cl1 cl2:const * l):
+  {cl1 = cl2} + {cl1 <> cl2}.
+Proof.
+  decide equality. apply const_dec.
+Defined.
+
+(* TODO *)
+Require Import sflib.
+
+Lemma list_const_l_dec (cls1 cls2:list (const * l)):
+  {cls1 = cls2} + {cls1 <> cls2}.
+Proof.
+  revert cls2.
+  induction cls1; destruct cls2;
+    (try by left);
+    (try by right).
+  decide equality. apply const_l_dec.
+Defined.
 
 Definition valid_terminator
            (hint_fdef:ValidationHint.fdef)
@@ -85,6 +107,7 @@ Definition valid_terminator
     if negb (typ_dec ty_src ty_tgt)
     then failwith_false "valid_terminator: return type not matched at block" [bid]
     else
+
     if negb (Invariant.inject_value
                inv0
                (ValueT.lift Tag.physical val_src)
@@ -99,50 +122,61 @@ Definition valid_terminator
                (ValueT.lift Tag.physical val_tgt))
     then failwith_false "valid_terminator: inject_value of branch conditions failed at block" [bid]
     else
+
     if negb (l_dec l1_src l1_tgt)
     then failwith_false "valid_terminator: labels of true branches not matched at block" [bid]
     else
+
     if negb (l_dec l2_src l2_tgt)
     then failwith_false "valid_terminator: labels of false branches not matched at block" [bid]
     else
-    if negb (valid_phinodes hint_fdef inv0 m_src m_tgt blocks_src blocks_tgt bid l1_src)
+
+    if negb (valid_phinodes hint_fdef (add_terminator_cond inv0 src tgt l1_src) m_src m_tgt blocks_src blocks_tgt bid l1_src)
     then failwith_false "valid_terminator: valid_phinodes of true branches failed at block" [bid]
     else
-    if negb (valid_phinodes hint_fdef inv0 m_src m_tgt blocks_src blocks_tgt bid l2_src)
+
+    if negb (valid_phinodes hint_fdef (add_terminator_cond inv0 src tgt l2_src) m_src m_tgt blocks_src blocks_tgt bid l2_src)
     then failwith_false "valid_terminator: valid_phinodes of false branches failed at block" [bid]
     else true
-    
+
   | insn_br_uncond _ l_src, insn_br_uncond _ l_tgt =>
     if negb (l_dec l_src l_tgt)
     then failwith_false "valid_terminator: labels of unconditional branches not matched at block" [bid]
     else
-    if negb (valid_phinodes hint_fdef inv0 m_src m_tgt blocks_src blocks_tgt bid l_src)
+
+    if negb (valid_phinodes hint_fdef (add_terminator_cond inv0 src tgt l_src) m_src m_tgt blocks_src blocks_tgt bid l_src)
     then failwith_false "valid_terminator: valid_phinodes of unconditional branches failed at block" [bid]
     else true
-    
+
   | insn_switch _ typ_src val_src l0_src ls_src,
     insn_switch _ typ_tgt val_tgt l0_tgt ls_tgt =>
     if negb (typ_dec typ_src typ_tgt)
     then failwith_false "valid_terminator: types of switch conditions failed at block" [bid]
     else
-      if negb (Invariant.inject_value
+
+    if negb (Invariant.inject_value
                inv0
                (ValueT.lift Tag.physical val_src)
                (ValueT.lift Tag.physical val_tgt))
-      then failwith_false "valid_terminator: value of switch conditions failed at block" [bid]
-      else
-        if negb (l_dec l0_src l0_tgt)
-        then failwith_false "valid_terminator: default labels of switch failed at block" [bid]
-        else
-          if negb (forallb (fun clpair =>
-                              match clpair with
-                              | ((c_src, l_src), (c_tgt, l_tgt)) =>
-                                andb (const_dec c_src c_tgt)
-                                     (l_dec l_src l_tgt)
-                              end)
-                           (combine ls_src ls_tgt))
-          then failwith_false "valid_terminator: other labels conditions failed at block" [bid]
-          else true
+    then failwith_false "valid_terminator: value of switch conditions failed at block" [bid]
+    else
+
+    if negb (l_dec l0_src l0_tgt)
+    then failwith_false "valid_terminator: default labels of switch failed at block" [bid]
+    else
+
+    if negb (list_const_l_dec ls_src ls_tgt)
+    then failwith_false "valid_terminator: other labels conditions failed at block" [bid]
+    else
+
+    if negb (forallb
+               (fun cl =>
+                  if negb (valid_phinodes hint_fdef (add_terminator_cond inv0 src tgt cl.(snd)) m_src m_tgt blocks_src blocks_tgt bid cl.(snd))
+                  then failwith_false "valid_terminator: valid_phinodes of switches failed at block" [bid]
+                  else true)
+               ls_src)
+    then failwith_false "valid_terminator: valid_phinodes failed" [bid]
+    else true
 
   | insn_unreachable _, insn_unreachable _ => true
   | _, _ => failwith_false "valid_terminator: types of terminators not matched at block" [bid]
@@ -161,7 +195,7 @@ Definition valid_stmts
   | Some inv =>
     if negb (valid_terminator hint_fdef inv m_src m_tgt blocks_src blocks_tgt bid terminator_src terminator_tgt)
     then failwith_false "valid_stmts: valid_terminator failed at block" [bid]
-    else true              
+    else true
   end.
 
 Definition valid_entry_stmts (src tgt:stmts) (hint:ValidationHint.stmts): bool :=
@@ -187,10 +221,10 @@ Definition valid_fdef
            (hint:ValidationHint.fdef): bool :=
   let '(fdef_intro fheader_src blocks_src) := src in
   let '(fdef_intro fheader_tgt blocks_tgt) := tgt in
-  
+
   let fid_src := getFheaderID fheader_src in
   let fid_tgt :=getFheaderID fheader_tgt in
-    
+
   if negb (fheader_dec fheader_src fheader_tgt)
   then failwith_false "valid_fdef: function headers not matched at fheaders" (fid_src::fid_tgt::nil)
   else
@@ -204,10 +238,10 @@ Definition valid_fdef
       if negb (valid_entry_stmts block_src block_tgt hint_stmts)
       then failwith_false "valid_fdef: valid_entry_stmts failed at" (fid_src::bid_src::nil)
       else true
-             
+
     | None => failwith_false "valid_fdef: entry block hint not exist at block" (fid_src::bid_src::nil)
     end
-      
+
   | _, _ => failwith_false "valid_fdef: empty source or target block" (fid_src::nil)
   end &&
   forallb2AL
@@ -231,7 +265,7 @@ Definition valid_product (hint:ValidationHint.products) (m_src m_tgt:module) (sr
   | product_fdec fdec_src, product_fdec fdec_tgt =>
     if negb (fdec_dec fdec_src fdec_tgt)
     then failwith_false "valid_product: function declarations not matched" ((getFdecID fdec_src)::(getFdecID fdec_tgt)::nil)
-    else true       
+    else true
   | product_fdef fdef_src, product_fdef fdef_tgt =>
     let fid_src := getFdefID fdef_src in
     let fid_tgt := getFdefID fdef_tgt in
@@ -243,7 +277,7 @@ Definition valid_product (hint:ValidationHint.products) (m_src m_tgt:module) (sr
     | Some hint_fdef =>
       if negb (valid_fdef m_src m_tgt fdef_src fdef_tgt hint_fdef)
       then failwith_false "valid_product: valid_fdef failed" [fid_src]
-      else true  
+      else true
     end
   | _, _ =>
     failwith_false "valid_product: source and target product types not matched" nil
@@ -264,9 +298,3 @@ Definition valid_module (hint:ValidationHint.module) (src tgt:module): bool :=
   if negb (valid_products hint src tgt products_src products_tgt)
   then failwith_false "valid_module: valid_products failed" nil
   else true.
-
-Definition valid_modules (hint:ValidationHint.modules) (src tgt:modules): bool :=
-  list_forallb3 valid_module hint src tgt.
-
-Definition valid_system (hint:ValidationHint.system) (src tgt:system): bool :=
-  valid_modules hint src tgt.

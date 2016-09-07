@@ -18,19 +18,18 @@ quick: exec-rsync proof-quick
 
 init:
 	opam install menhir ott batteries biniou atdgen cppo easy-format ctypes coq.8.5.2~camlp4
-	git clone git@github.com:snu-sf/simplberry-tests.git simplberry-tests
+	git clone git@github.com:snu-sf/llvmberry-tests.git llvmberry-tests
 	git clone git@github.com:snu-sf/llvm.git lib/llvm
 	git clone git@github.com:snu-sf/cereal.git lib/llvm/include/llvm/cereal
 	git clone git@github.com:snu-sf/paco.git lib/paco
-	git clone git@github.com:snu-sf/sflib.git lib/sflib
 	git clone git@github.com:snu-sf/vellvm-legacy.git lib/vellvm
 	$(MAKE) -C lib/vellvm init
 
 Makefile.coq: Makefile $(COQTHEORIES)
 	(echo "-R coq $(COQMODULE)"; \
-   echo "-R lib/sflib sflib"; \
    echo "-R lib/paco/src Paco"; \
    echo "-R lib/vellvm/src Vellvm"; \
+   echo "-R lib/vellvm/lib/sflib sflib"; \
    echo "-R lib/vellvm/lib/metalib metalib"; \
    echo "-R lib/vellvm/lib/cpdtlib Cpdt"; \
    echo "-R lib/vellvm/lib/compcert-2.4 compcert"; \
@@ -49,13 +48,11 @@ rsync-send:
 rsync-receive:
 	sh script/rsync-receive.sh
 
-lib: lib/sflib lib/paco/src lib/vellvm
-	$(MAKE) -C lib/sflib
+lib: lib/paco/src lib/vellvm
 	$(MAKE) -C lib/paco/src
 	$(MAKE) -C lib/vellvm
 
-lib-quick: lib/sflib lib/paco/src lib/vellvm
-	$(MAKE) -C lib/sflib quick
+lib-quick: lib/paco/src lib/vellvm
 	$(MAKE) -C lib/paco/src quick
 	$(MAKE) -C lib/vellvm quick
 
@@ -94,9 +91,9 @@ proof-quick: def-quick $(COQPROOF)
 
 test:
 	rm -rf results-opt
-	python ./simplberry-tests/test.py -e ./.build/llvm-obj/bin/opt -v ./ocaml/main.native -r "-O2" -o -i "./simplberry-tests/inputs_full"
-	python ./simplberry-tests/listfails.py -f results-opt
-	python ./simplberry-tests/statistics.py -f results-opt -o
+	python ./llvmberry-tests/test.py -e ./.build/llvm-obj/bin/opt -v ./ocaml/main.native -r "-O2" -o -i "./llvmberry-tests/inputs_full"
+	python ./llvmberry-tests/listfails.py -f results-opt
+	python ./llvmberry-tests/statistics.py -f results-opt -o
 
 clean: Makefile.coq
 	$(MAKE) -f Makefile.coq clean

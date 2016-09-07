@@ -4,6 +4,7 @@ open Syntax
 open Coq_pretty_printer
 open Printf
 open List
+open MetatheoryAtom
        
 let out_channel = ref stderr
 
@@ -171,6 +172,11 @@ module PrintExprs = struct
         (fun vtp -> (ExprsToString.of_valueTPair vtp sym))
         (ValueTPairSet.elements vtps)
 
+    let idSet (ids: AtomSetImpl.t) (sym: string): string list =
+      List.map
+        (fun id -> (sym ^ " " ^ id))
+        (AtomSetImpl.elements ids)
+
     let idTSet (idts: IdTSet.t) (sym: string): string list =
       List.map
         (fun idt -> (sym ^ (ExprsToString.of_IdT idt)))
@@ -194,14 +200,14 @@ module PrintHints = struct
       | Infrule.Coq_add_const_not (x, y, v, c1, c2, sz) ->
          "add_const_not"
       | Infrule.Coq_add_sub _ -> "add_sub"
-      | Infrule.Coq_add_commutative (z, x, y, s) -> "add_commutative : " ^ 
-                                                ExprsToString.of_expr(Expr.Coq_value (ValueT.Coq_id z)) ^ " ≥ " ^
-                                                ExprsToString.of_expr(Expr.Coq_value x) ^ " + " ^
-                                                ExprsToString.of_expr(Expr.Coq_value y) ^ " to commutate"
       | Infrule.Coq_bop_associative (x, y, z, bop, c1, c2, c3, sz) ->
          "bop_assoc " ^ (string_of_bop bop)
       | Infrule.Coq_bop_distributive_over_selectinst(pcode, r, s, t', t, x, y, z, c, bopsz, selty) -> 
                                                 "BopDistributiveOverSelectInst"
+      | Infrule.Coq_bop_commutative (e, bop, x, y, s) -> "bop_commutative : " ^ 
+                                                ExprsToString.of_expr(e) ^ " ≥ " ^
+                                                ExprsToString.of_expr(Expr.Coq_value x) ^ (string_of_bop bop) ^
+                                                ExprsToString.of_expr(Expr.Coq_value y) ^ " to commutate"
       | Infrule.Coq_bitcast_load (ptr, ptrty, v1, ptrty2, v2, a) ->
          "bitcast_load " ^ 
              (ExprsToString.of_ValueT ptr) ^ " " ^
@@ -222,14 +228,6 @@ module PrintHints = struct
       | Infrule.Coq_diffblock_global_global _ -> "diffblock_global_global"
       | Infrule.Coq_diffblock_global_alloca _ -> "diffblock_global_alloca"
       | Infrule.Coq_intro_eq v -> "intro_eq : " ^ ExprsToString.of_expr(Expr.Coq_value v)
-      | Infrule.Coq_or_commutative (z, x, y, s) -> "or_commutative : " ^ 
-                                                ExprsToString.of_expr(Expr.Coq_value (ValueT.Coq_id z)) ^ " ≥ " ^
-                                                ExprsToString.of_expr(Expr.Coq_value x) ^ " | " ^
-                                                ExprsToString.of_expr(Expr.Coq_value y) ^ " to commutate"
-      | Infrule.Coq_or_commutative_tgt (z, x, y, s) -> "or_commutative_tgt : " ^ 
-                                                ExprsToString.of_expr(Expr.Coq_value x) ^ " | " ^
-                                                ExprsToString.of_expr(Expr.Coq_value y) ^
-                                                ExprsToString.of_expr(Expr.Coq_value (ValueT.Coq_id z)) ^ " ≥ " ^ " to commutate"
       | Infrule.Coq_or_xor3 (z, y, a, b, s) -> "or_xor3 : " ^ 
                                                 ExprsToString.of_expr(Expr.Coq_value y) ^ " ≥ "
                                                         ^ ExprsToString.of_expr(Expr.Coq_value a) ^ " ^ "
@@ -259,7 +257,9 @@ module PrintHints = struct
                                                 ExprsToString.of_expr(Expr.Coq_value p) ^ " ≥ " ^
                                                 ExprsToString.of_expr(Expr.Coq_value q) ^ " && " ^
                                                 ExprsToString.of_expr(Expr.Coq_value v) ^ " ≥ " ^
-                                                ExprsToString.of_expr(Expr.Coq_load (p, ty, a) )      
+                                                ExprsToString.of_expr(Expr.Coq_load (p, ty, a) )
+      | Infrule.Coq_gep_inbounds_remove (gepinst) ->
+         "gep inbounds remove: " ^ (ExprsToString.of_expr gepinst)
       | _ -> "infrule(TODO)"
 
     let infrules (infs:Infrule.t list): unit =
@@ -274,8 +274,8 @@ module PrintHints = struct
       (PrintExprs.exprPairSet (u.Invariant.lessdef) "≥") @
         (PrintExprs.ptrPairSet (u.Invariant.alias.Invariant.noalias) "≠") @
         (PrintExprs.valueTPairSet (u.Invariant.alias.Invariant.diffblock) "_||_") @
-        (PrintExprs.idTSet (u.Invariant.allocas) "alc") @
-        (PrintExprs.idTSet (u.Invariant.coq_private) "isol")
+        (PrintExprs.idSet (u.Invariant.unique) "uniq") @
+        (PrintExprs.idTSet (u.Invariant.coq_private) "prvt")
     
     let invariant (inv:Invariant.t): unit =
       (* print_bar(), print_sum() should be function *)

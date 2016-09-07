@@ -298,8 +298,8 @@ type propagate_diffblock = {
   scope : scope;
 }
 
-type propagate_alloca = {
-  p : register;
+type propagate_unique = {
+  register_name : string;
   scope : scope;
 }
 
@@ -312,8 +312,8 @@ type propagate_object = [
   | Lessdef of propagate_lessdef
   | Noalias of propagate_noalias
   | Diffblock of propagate_diffblock
-  | Alloca of propagate_alloca
   | Maydiff of register
+  | Unique of propagate_unique
   | Private of propagate_private
   ] <ocaml repr="classic">
 
@@ -333,13 +333,6 @@ type propagate = {
 
 type add_sub = {
   minusy : register;
-  z : register;
-  x : value;
-  y : value;
-  sz : size;
-}
-
-type add_commutative = {
   z : register;
   x : value;
   y : value;
@@ -512,13 +505,6 @@ type add_or_and = {
   sz : size;
 }
 
-type and_commutative = {
-  z : register;
-  x : value;
-  y : value;
-  sz : size;
-}
-
 type and_de_morgan = {
   z : register;
   x : register;
@@ -630,6 +616,14 @@ type bop_associative = {
   c1 : const_int;
   c2 : const_int;
   c3 : const_int;
+  sz : size;
+}
+
+type bop_commutative = {
+  e : expr;
+  bop : bop;
+  x : value;
+  y : value;
   sz : size;
 }
 
@@ -975,13 +969,6 @@ type mul_neg = {
   sz : size;
 }
 
-type mul_commutative = {
-  z : register;
-  x : value;
-  y : value;
-  sz : size;
-}
-
 type mul_shl = {
   z : register;
   y : register;
@@ -1042,13 +1029,6 @@ type or_and_xor = {
   y : value;
   a : value;
   b : value;
-  sz : size;
-}
-
-type or_commutative = {
-  z : register;
-  x : value;
-  y : value;
   sz : size;
 }
 
@@ -1645,13 +1625,6 @@ type urem_zext_const = {
   sz2 : size;
 }
 
-type xor_commutative = {
-  z : register;
-  x : value;
-  y : value;
-  sz : size;
-}
-
 type xor_commutative_tgt = {
   z : register;
   x : value;
@@ -1733,6 +1706,14 @@ type zext_zext = {
 }
 
 type icmp_inverse = {
+  predicate : icmp_pred;
+  ty : value_type;
+  x : value;
+  y : value;
+  boolean : const_int;
+}
+
+type icmp_inverse_rhs = {
   predicate : icmp_pred;
   ty : value_type;
   x : value;
@@ -1939,7 +1920,6 @@ type icmp_ult_and_not = {
 
 type infrule = [
   | AddSub of add_sub
-  | AddCommutative of add_commutative
   | AddCommutativeTgt of add_commutative_tgt
   | AddShift of add_shift
   | AddSignbit of add_signbit
@@ -1952,7 +1932,6 @@ type infrule = [
   | AddSelectZero2 of add_select_zero2
   | AddDistSub of add_dist_sub
   | AddXorAnd of add_xor_and
-  | AndCommutative of and_commutative
   | AndDeMorgan of and_de_morgan
   | AndMone of and_mone
   | AndNot of and_not
@@ -1980,6 +1959,7 @@ type infrule = [
   | BitcastZext of bitcast_zext
   | Bitcastptr of bitcastptr
   | BopAssociative of bop_associative
+  | BopCommutative of bop_commutative
   | BopDistributiveOverSelectinst of bop_distributive_over_selectinst
   | BopDistributiveOverSelectinst2 of bop_distributive_over_selectinst2
   | DiffblockGlobalAlloca of diffblock_global_alloca
@@ -2012,7 +1992,6 @@ type infrule = [
   | NegVal of neg_val
   | OrAnd of or_and
   | OrAndXor of or_and_xor
-  | OrCommutative of or_commutative
   | OrCommutativeTgt of or_commutative_tgt
   | OrFalse of or_false
   | OrMone of or_mone
@@ -2031,7 +2010,6 @@ type infrule = [
   | MulBool of mul_bool
   | MulMone of mul_mone
   | MulNeg of mul_neg
-  | MulCommutative of mul_commutative
   | MulShl of mul_shl
   | RemNeg of rem_neg
   | Substitute of substitute
@@ -2092,7 +2070,6 @@ type infrule = [
   | UitofpZext of uitofp_zext
   | UremZext of urem_zext
   | UremZextConst of urem_zext_const
-  | XorCommutative of xor_commutative
   | XorCommutativeTgt of xor_commutative_tgt
   | XorNot of xor_not
   | XorSame of xor_same
@@ -2104,6 +2081,7 @@ type infrule = [
   | ZextXor of zext_xor
   | ZextZext of zext_zext
   | IcmpInverse of icmp_inverse
+  | IcmpInverseRhs of icmp_inverse_rhs
   | IcmpSwapOperands of icmp_swap_operands
   | ImpliesFalse of implies_false
   | IcmpEqAddAdd of icmp_eq_add_add

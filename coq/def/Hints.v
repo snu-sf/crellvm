@@ -9,6 +9,8 @@ Import LLVMsyntax.
 Import LLVMinfra.
 
 Require Import Exprs.
+Require Import Decs.
+Require Import TODO.
 
 Set Implicit Arguments.
 
@@ -32,7 +34,7 @@ Module Invariant.
   Structure unary := mk_unary {
     lessdef: ExprPairSet.t;
     alias: aliasrel;
-    allocas: IdTSet.t;
+    unique: atoms;
     private: IdTSet.t;
   }.
 
@@ -46,7 +48,7 @@ Module Invariant.
     mk_unary
       (f invariant.(lessdef))
       invariant.(alias)
-      invariant.(allocas)
+      invariant.(unique)
       invariant.(private).
 
   Definition update_diffblock_rel (f:ValueTPairSet.t -> ValueTPairSet.t) (alias:aliasrel): aliasrel :=
@@ -63,7 +65,7 @@ Module Invariant.
     mk_unary
       invariant.(lessdef)
       (f invariant.(alias))
-      invariant.(allocas)
+      invariant.(unique)
       invariant.(private).
 
   Definition update_diffblock (f:ValueTPairSet.t -> ValueTPairSet.t) (invariant:unary): unary :=
@@ -72,18 +74,18 @@ Module Invariant.
   Definition update_noalias (f:PtrPairSet.t -> PtrPairSet.t) (invariant:unary): unary :=
     update_alias (update_noalias_rel f) invariant.
 
-  Definition update_allocas (f:IdTSet.t -> IdTSet.t) (invariant:unary): unary :=
+  Definition update_unique (f:atoms -> atoms) (invariant:unary): unary :=
     mk_unary
       invariant.(lessdef)
       invariant.(alias)
-      (f invariant.(allocas))
+      (f invariant.(unique))
       invariant.(private).
 
   Definition update_private (f:IdTSet.t -> IdTSet.t) (invariant:unary): unary :=
     mk_unary
       invariant.(lessdef)
       invariant.(alias)
-      invariant.(allocas)
+      invariant.(unique)
       (f invariant.(private)).
 
   Definition update_src (f:unary -> unary) (invariant:t): t :=
@@ -110,17 +112,44 @@ Module Invariant.
     | ValueT.const _ => false
     end.
 
-  Definition implies_alias (alias0 alias:aliasrel): bool :=
-    PtrPairSet.subset (alias0.(noalias)) (alias.(noalias)) &&
-    ValueTPairSet.subset (alias0.(diffblock)) (alias.(diffblock)).
+  Definition is_unique_value (inv0:unary) (value:ValueT.t): bool :=
+    match value with
+    | ValueT.id idt =>
+      (Tag.eq_dec idt.(fst) Tag.physical) &&
+      (AtomSetImpl.mem idt.(snd) inv0.(unique))
+    | _ => false
+    end.
+
+  Definition is_unique_ptr (inv0:unary) (ptr:Ptr.t): bool :=
+    is_unique_value inv0 ptr.(fst).
+
+  Definition implies_noalias (inv0:unary) (na0 na:PtrPairSet.t): bool :=
+    flip PtrPairSet.for_all na
+      (fun pp =>
+         (negb (Ptr.eq_dec pp.(fst) pp.(snd)) &&
+           is_unique_ptr inv0 pp.(fst) || is_unique_ptr inv0 pp.(snd)) ||
+         (PtrPairSet.mem pp na0)
+      ).
+
+  Definition implies_diffblock (inv0:unary) (db0 db:ValueTPairSet.t): bool :=
+    flip ValueTPairSet.for_all db
+      (fun vp =>
+         (negb (ValueT.eq_dec vp.(fst) vp.(snd)) &&
+           is_unique_value inv0 vp.(fst) || is_unique_value inv0 vp.(snd)) ||
+         (ValueTPairSet.mem vp db0)
+      ).
+
+  Definition implies_alias inv0 (alias0 alias:aliasrel): bool :=
+    implies_noalias inv0 (alias0.(noalias)) (alias.(noalias)) &&
+    implies_diffblock inv0 (alias0.(diffblock)) (alias.(diffblock)).
 
   Definition implies_unary (inv0 inv:unary): bool :=
     ExprPairSet.for_all
           (fun p => ExprPairSet.exists_
                       (fun q =>
-                        (if (Expr.eq_dec (fst p) (fst q))
-                         then ((Expr.eq_dec (snd p) (snd q)) ||
-                               (match (snd p), (snd q) with
+                        (if (Expr.eq_dec p.(fst) q.(fst))
+                         then ((Expr.eq_dec p.(snd) q.(snd)) ||
+                               (match p.(snd), q.(snd) with
                                 | Expr.value v, 
                                   Expr.value (ValueT.const (const_undef ty)) => true
                                 | _, _ => false
@@ -128,8 +157,8 @@ Module Invariant.
                          else false))
                       inv0.(lessdef))
     inv.(lessdef) &&
-    implies_alias (inv.(alias)) (inv0.(alias)) &&
-    IdTSet.subset (inv.(allocas)) (inv0.(allocas)) &&
+    implies_alias inv0 (inv0.(alias)) (inv.(alias)) &&
+    AtomSetImpl.subset (inv.(unique)) (inv0.(unique)) &&
     IdTSet.subset (inv.(private)) (inv0.(private)).
 
   Definition has_false (inv: t): bool :=
@@ -142,25 +171,18 @@ Module Invariant.
           && IdTSet.subset (inv0.(maydiff)) (inv.(maydiff))).
 
   Definition is_noalias (inv:unary) (p1:Ptr.t) (p2:Ptr.t) :=
-    PtrPairSet.exists_ (fun p1p2 =>
-                         match p1p2 with
-                           | (xp1, xp2) =>
-                             (Ptr.eq_dec p1 xp1 && Ptr.eq_dec p2 xp2) ||
-                             (Ptr.eq_dec p1 xp2 && Ptr.eq_dec p2 xp1)
-                         end) inv.(alias).(noalias).
+    flip PtrPairSet.exists_
+         inv.(alias).(noalias)
+      (fun pp =>
+           (Ptr.eq_dec p1 pp.(fst) && Ptr.eq_dec p2 pp.(snd)) ||
+           (Ptr.eq_dec p1 pp.(snd) && Ptr.eq_dec p2 pp.(fst))).
 
   Definition is_diffblock (inv:unary) (p1:Ptr.t) (p2:Ptr.t) :=
-    let (v1, t1) := p1 in
-    let (v2, t2) := p2 in
-    ValueTPairSet.exists_
-      (fun v1v2 =>
-        match v1v2 with
-        | (xv1, xv2) =>
-            (ValueT.eq_dec v1 xv1 &&
-             ValueT.eq_dec v2 xv2) ||
-            (ValueT.eq_dec v1 xv2 &&
-             ValueT.eq_dec v2 xv1)
-        end) inv.(alias).(diffblock).
+    flip ValueTPairSet.exists_
+         inv.(alias).(diffblock)
+      (fun vp =>
+         (ValueT.eq_dec p1.(fst) vp.(fst) && ValueT.eq_dec p2.(fst) vp.(snd)) ||
+         (ValueT.eq_dec p1.(fst) vp.(snd) && ValueT.eq_dec p2.(fst) vp.(fst))).
 
   Definition not_in_maydiff (inv:t) (value:ValueT.t): bool :=
     match value with
@@ -173,14 +195,12 @@ Module Invariant.
     List.forallb (not_in_maydiff inv) (Expr.get_valueTs expr).
 
   Definition get_lhs (inv:ExprPairSet.t) (rhs:Expr.t): ExprPairSet.t :=
-    ExprPairSet.filter
-       (fun (p: ExprPair.t) => Expr.eq_dec rhs (snd p))
-       inv.
+    flip ExprPairSet.filter inv
+         (fun (p: ExprPair.t) => Expr.eq_dec rhs p.(snd)).
       
   Definition get_rhs (inv:ExprPairSet.t) (lhs:Expr.t): ExprPairSet.t :=
-    ExprPairSet.filter
-       (fun (p: ExprPair.t) => Expr.eq_dec lhs (fst p))
-       inv.
+    flip ExprPairSet.filter inv
+       (fun (p: ExprPair.t) => Expr.eq_dec lhs p.(fst)).
 
   Definition inject_value (inv:t) (value_src value_tgt:ValueT.t): bool :=
     (ValueT.eq_dec value_src value_tgt && not_in_maydiff inv value_src) ||
@@ -188,10 +208,39 @@ Module Invariant.
     (ExprPairSet.mem (Expr.value value_src, Expr.value value_tgt) inv.(src).(lessdef) && not_in_maydiff inv value_tgt) ||
     (ExprPairSet.exists_
        (fun (p: ExprPair.t) => 
-          let (x, y) := p in 
-          ((ExprPairSet.mem (y, Expr.value value_tgt) inv.(tgt).(lessdef)) &&
-           (not_in_maydiff_expr inv y)))
+          ((ExprPairSet.mem (p.(snd), Expr.value value_tgt) inv.(tgt).(lessdef)) &&
+           (not_in_maydiff_expr inv p.(snd))))
        (get_rhs inv.(src).(lessdef) (Expr.value value_src))).
+
+  (* On the definition of Expr.same_modulo_value *)
+  (* There was a debate between @alxest and @jeehoonkang *)
+  (* [here](https://github.com/snu-sf/llvmberry/pull/295#discussion_r76530070). *)
+  (* I, @alxest, insist current form is much more readable. *)
+  (* Expr.same_modulo_value only requires expr, and reader do not need to care *)
+  (* about what f or data is and how it appears inside definition. *)
+  (* Also, the name same_module_value very explicitly shows what it do. *)
+  (* Actually, during this separation, I found a bug on original code's gep case. *)
+  (* @jeehoonkang's concern was that there should be a provable spec for every definition. *)
+  (* I think it is ok because its spec clearly appears on namee, *)
+  (* and requiring all primitive definitions to have such spec is impossible. *)
+  (* Also, all usage of this primitive definition is deep_check_expr, *)
+  (* so this change does not increase definition spilled out without provable spec *)
+  (* The conclusion was, keep this form and if we meet any difficulty during proving, *)
+  (* come back then *)
+  Definition deep_check_expr
+             {A: Type} (f: A -> ValueT.t -> ValueT.t -> bool)
+             (data: A) (e1 e2:Expr.t): bool :=
+    (Expr.same_modulo_value e1 e2)
+      && (list_forallb2 (f data) (Expr.get_valueTs e1) (Expr.get_valueTs e2)).
+
+  Definition inject_expr (inv: Invariant.t) (es et:Expr.t): bool :=
+    deep_check_expr Invariant.inject_value inv es et.
+
+  Definition lessdef_expr (e: (Expr.t * Expr.t)) (lessdef: ExprPairSet.t): bool :=
+    ExprPairSet.mem e lessdef
+    || (deep_check_expr
+          (fun data v1 v2 => ExprPairSet.mem (Expr.value v1, Expr.value v2) data)
+          lessdef e.(fst) e.(snd)).
 
   Definition is_empty_alias (alias:aliasrel): bool :=
     PtrPairSet.is_empty alias.(noalias) &&
@@ -200,7 +249,7 @@ Module Invariant.
   Definition is_empty_unary (inv:unary): bool :=
     ExprPairSet.is_empty inv.(lessdef) &&
     is_empty_alias inv.(alias) &&
-    IdTSet.is_empty inv.(allocas) &&
+    AtomSetImpl.is_empty inv.(unique) &&
     IdTSet.is_empty inv.(private).
 
   Definition is_empty (inv:t): bool :=
@@ -209,29 +258,27 @@ Module Invariant.
     IdTSet.is_empty inv.(maydiff).
 
   Definition get_idTs_unary (u: unary): list IdT.t :=
-    let (lessdef, alias, allocas, private) := u in
     List.concat
       (List.map
          (fun (p: ExprPair.t) =>
-            let (x, y) := p in Expr.get_idTs x ++ Expr.get_idTs y)
-         (ExprPairSet.elements lessdef)) ++
+            Expr.get_idTs p.(fst) ++ Expr.get_idTs p.(snd))
+         (ExprPairSet.elements u.(lessdef))) ++
     List.concat
       (List.map
          (fun (pp: PtrPair.t) =>
-            let (x, y) := pp in TODO.filter_map Ptr.get_idTs [x ; y])
-         (PtrPairSet.elements (alias.(noalias)))) ++
-      IdTSet.elements allocas ++ IdTSet.elements private.
+            TODO.filter_map Ptr.get_idTs [pp.(fst) ; pp.(snd)])
+         (PtrPairSet.elements (u.(alias).(noalias)))) ++
+      (List.map (IdT.lift Tag.physical) (AtomSetImpl.elements u.(unique))) ++
+      IdTSet.elements u.(private).
 
   Definition get_idTs (inv: t): list IdT.t :=
-    let (src, tgt, maydiff) := inv in
-    (get_idTs_unary src)
-      ++ (get_idTs_unary tgt)
-      ++ (IdTSet.elements maydiff).
+    (get_idTs_unary inv.(src))
+      ++ (get_idTs_unary inv.(tgt))
+      ++ (IdTSet.elements inv.(maydiff)).
 End Invariant.
 
 Module Infrule.
   Inductive t :=
-  | add_commutative (z:IdT.t) (x:ValueT.t) (y:ValueT.t) (s:sz)
   | add_commutative_tgt (z:IdT.t) (x:ValueT.t) (y:ValueT.t) (s:sz)
   | add_const_not (z:IdT.t) (y:IdT.t) (x:ValueT.t) (c1:INTEGER.t) (c2:INTEGER.t) (s:sz)
   | add_dist_sub (z:IdT.t) (minusx:IdT.t) (minusy:ValueT.t) (w:IdT.t) (x:ValueT.t) (y:ValueT.t) (s:sz)
@@ -245,7 +292,6 @@ Module Infrule.
   | add_signbit (x:IdT.t) (e1:ValueT.t) (e2:ValueT.t) (s:sz)
   | add_xor_and (z:IdT.t) (a:ValueT.t) (b:ValueT.t) (x:IdT.t) (y:IdT.t) (s:sz)
   | add_zext_bool (x:IdT.t) (y:IdT.t) (b:ValueT.t) (c:INTEGER.t) (c':INTEGER.t) (sz:sz)
-  | and_commutative (z:IdT.t) (x:ValueT.t) (y:ValueT.t) (sz:sz)
   | and_de_morgan (z:IdT.t) (x:IdT.t) (y:IdT.t) (z':IdT.t) (a:ValueT.t) (b:ValueT.t) (s:sz)
   | and_mone (z:ValueT.t) (x:ValueT.t) (s:sz)
   | and_not (z:ValueT.t) (x:ValueT.t) (y:ValueT.t) (s:sz)
@@ -258,6 +304,7 @@ Module Infrule.
   | and_zero (z:ValueT.t) (x:ValueT.t) (s:sz)
   | and_or_not1 (z:IdT.t) (x:IdT.t) (y:IdT.t) (a:ValueT.t) (b:ValueT.t) (s:sz)
   | bop_associative (x:IdT.t) (y:IdT.t) (z:IdT.t) (opcode:bop) (c1:INTEGER.t) (c2:INTEGER.t) (c3:INTEGER.t) (s:sz)
+  | bop_commutative (e:Expr.t) (opcode:bop) (x:ValueT.t) (y:ValueT.t) (s:sz)
   | bop_distributive_over_selectinst (opcode:bop) (r:IdT.t) (s:IdT.t) (t':IdT.t) (t0:IdT.t) (x:ValueT.t) (y:ValueT.t) (z:ValueT.t) (c:ValueT.t) (bopsz:sz) (selty:typ)
   | bop_distributive_over_selectinst2 (opcode:bop) (r:IdT.t) (s:IdT.t) (t':IdT.t) (t0:IdT.t) (x:ValueT.t) (y:ValueT.t) (z:ValueT.t) (c:ValueT.t) (bopsz:sz) (selty:typ)
   | bitcastptr (v:ValueT.t) (v':ValueT.t) (bitcastinst:Expr.t)
@@ -299,14 +346,12 @@ Module Infrule.
   | lessthan_undef (ty:typ) (v:ValueT.t)
   | lessthan_undef_tgt (ty:typ) (v:ValueT.t)
   | mul_bool (z:IdT.t) (x:IdT.t) (y:IdT.t)
-  | mul_commutative (z:IdT.t) (x:ValueT.t) (y:ValueT.t) (sz:sz)
   | mul_mone (z:IdT.t) (x:ValueT.t) (sz:sz)
   | mul_neg (z:IdT.t) (mx:ValueT.t) (my:ValueT.t) (x:ValueT.t) (y:ValueT.t) (s:sz)  
   | mul_shl (z:IdT.t) (y:IdT.t) (x:ValueT.t) (a:ValueT.t) (sz:sz)
   | neg_val (c1:INTEGER.t) (c2:INTEGER.t) (s:sz)
   | or_and (z:ValueT.t) (y:ValueT.t) (x:ValueT.t) (a:ValueT.t) (s:sz)
   | or_and_xor (z:ValueT.t) (x:ValueT.t) (y:ValueT.t) (a:ValueT.t) (b:ValueT.t) (s:sz)
-  | or_commutative (z:IdT.t) (x:ValueT.t) (y:ValueT.t) (sz:sz)
   | or_commutative_tgt (z:IdT.t) (x:ValueT.t) (y:ValueT.t) (sz:sz)
   | or_false (x:ValueT.t) (y:ValueT.t) (sz:sz)
   | or_mone (z:ValueT.t) (a:ValueT.t) (s:sz)
@@ -382,7 +427,6 @@ Module Infrule.
   | uitofp_zext (src:ValueT.t) (mid:ValueT.t) (dst:ValueT.t) (srcty:typ) (midty:typ) (dstty:typ)
   | urem_zext (z:IdT.t) (x:IdT.t) (y:IdT.t) (k:IdT.t) (a:ValueT.t) (b:ValueT.t) (sz1:sz) (sz2:sz)
   | urem_zext_const (z:IdT.t) (x:IdT.t) (c:INTEGER.t) (k:IdT.t) (a:ValueT.t) (sz1:sz) (sz2:sz)
-  | xor_commutative (z:IdT.t) (x:ValueT.t) (y:ValueT.t) (sz:sz)
   | xor_commutative_tgt (z:IdT.t) (x:ValueT.t) (y:ValueT.t) (sz:sz)
   | xor_not (z:ValueT.t) (y:ValueT.t) (x:ValueT.t) (s:sz)
   | xor_same (z:ValueT.t) (a:ValueT.t) (s:sz)
@@ -397,6 +441,7 @@ Module Infrule.
   | intro_eq (x:ValueT.t)
   | intro_eq_tgt (x:ValueT.t)
   | icmp_inverse (c:cond) (ty:typ) (x:ValueT.t) (y:ValueT.t) (v:INTEGER.t)
+  | icmp_inverse_rhs (c:cond) (ty:typ) (x:ValueT.t) (y:ValueT.t) (v:INTEGER.t)
   | icmp_swap_operands (c:cond) (ty:typ) (x:ValueT.t) (y:ValueT.t) (z:ValueT.t)
   | icmp_eq_add_add (z:ValueT.t) (w:ValueT.t) (x:ValueT.t) (y:ValueT.t) (a:ValueT.t) (b:ValueT.t) (s:sz)
   | icmp_eq_same (ty:typ) (x:ValueT.t) (y:ValueT.t)
@@ -455,6 +500,4 @@ Module ValidationHint.
   Definition fdef := AssocList stmts.
   Definition products := AssocList fdef.
   Definition module := products.
-  Definition modules := list module.
-  Definition system := modules.
 End ValidationHint.
