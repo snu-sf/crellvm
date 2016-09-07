@@ -15,11 +15,66 @@ Require Import paco.
 Import Opsem.
 
 Require Import TODO.
+Require Import Debug.
+Require Import Decs.
 Require Import GenericValues.
 Require Import Nop.
 Require InvMem.
 
 Set Implicit Arguments.
+
+
+(* TODO: position *)
+Ltac simtac0 :=
+  try match goal with
+      | [H: ?a = ?a |- _] => clear H
+      | [H: is_true true |- _] => clear H
+      | [H: Some _ = Some _ |- _] => inv H
+      | [H: context[let (_, _) := ?p in _] |- _] => destruct p
+      | [H: negb _ = true |- _] =>
+        apply negb_true_iff in H
+      | [H: negb _ = false |- _] =>
+        apply negb_false_iff in H
+      | [H: andb _ _ = true |- _] => apply andb_true_iff in H; destruct H
+
+      | [H: proj_sumbool (id_dec ?a ?b) = true |- _] =>
+        destruct (id_dec a b)
+      | [H: proj_sumbool (typ_dec ?a ?b) = true |- _] =>
+        destruct (typ_dec a b)
+      | [H: proj_sumbool (l_dec ?a ?b) = true |- _] =>
+        destruct (l_dec a b)
+      | [H: proj_sumbool (fheader_dec ?a ?b) = true |- _] =>
+        destruct (fheader_dec a b)
+      | [H: proj_sumbool (noret_dec ?a ?b) = true |- _] =>
+        destruct (noret_dec a b)
+      | [H: proj_sumbool (clattrs_dec ?a ?b) = true |- _] =>
+        destruct (clattrs_dec a b)
+      | [H: proj_sumbool (varg_dec ?a ?b) = true |- _] =>
+        destruct (varg_dec a b)
+      | [H: proj_sumbool (layouts_dec ?a ?b) = true |- _] => destruct (layouts_dec a b)
+      | [H: proj_sumbool (namedts_dec ?a ?b) = true |- _] => destruct (namedts_dec a b)
+      | [H: productInModuleB_dec ?a ?b = left _ |- _] => destruct (productInModuleB_dec a b)
+
+      | [H: context[match ?c with
+                    | [] => _
+                    | _::_ => _
+                    end] |- _] =>
+        let COND := fresh "COND" in
+        destruct c eqn:COND
+      | [H: context[match ?c with
+                    | Some _ => _
+                    | None => _
+                    end] |- _] =>
+        let COND := fresh "COND" in
+        destruct c eqn:COND
+      | [H: context[if ?c then _ else _] |- _] =>
+        let COND := fresh "COND" in
+        destruct c eqn:COND
+      end;
+  unfold Debug.debug_print_validation_process, Debug.debug_print in *;
+  try subst; ss.
+
+Ltac simtac := repeat simtac0.
 
 
 (* TODO: position *)
@@ -140,4 +195,21 @@ Lemma inject_allocas_inj_incr
 Proof.
   eapply list_forall2_imply; eauto. s. i.
   apply INCR. auto.
+Qed.
+
+Lemma decide_nonzero_inject
+      TD alpha
+      val_src decision_src
+      val_tgt decision_tgt
+      (INJECT: genericvalues_inject.gv_inject alpha val_src val_tgt)
+      (DECIDE_SRC: decide_nonzero TD val_src decision_src)
+      (DECIDE_TGT: decide_nonzero TD val_tgt decision_tgt):
+  decision_src = decision_tgt.
+Proof.
+  inv DECIDE_SRC. inv DECIDE_TGT.
+  inv INJECT; ss.
+  destruct v1; ss. destruct v2; ss. inv H. simtac.
+  apply inj_pair2 in H3. subst.
+  apply inj_pair2 in H5. subst.
+  ss.
 Qed.

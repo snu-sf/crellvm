@@ -26,6 +26,7 @@ Require Import AdequacyLocal.
 Require Import Inject.
 Require InvMem.
 Require InvState.
+Require Import PropValid.
 Require Import SoundBase.
 Require Import SoundImplies.
 Require Import SoundPostcondCmd.
@@ -127,91 +128,6 @@ Proof.
     }
     rewrite COND0, COND1, COND2, COND3, COND4. ss.
 Qed.
-
-(* TODO: position *)
-Lemma valid_fdef_valid_stmts
-      m_src m_tgt fdef_src fdef_tgt fdef_hint l
-      phinodes_src cmds_src terminator_src
-      phinodes_tgt cmds_tgt terminator_tgt
-      stmts_hint
-      (FDEF: valid_fdef m_src m_tgt fdef_src fdef_tgt fdef_hint)
-      (SRC: lookupAL stmts (get_blocks fdef_src) l = Some (stmts_intro phinodes_src cmds_src terminator_src))
-      (TGT: lookupAL stmts (get_blocks fdef_tgt) l = Some (stmts_intro phinodes_tgt cmds_tgt terminator_tgt))
-      (HINT: lookupAL _ fdef_hint l = Some stmts_hint):
-  exists inv_term,
-    <<CMDS: valid_cmds m_src m_tgt cmds_src cmds_tgt
-                       stmts_hint.(Hints.ValidationHint.cmds)
-                       stmts_hint.(ValidationHint.invariant_after_phinodes) =
-            Some inv_term>> /\
-    <<TERM: valid_terminator fdef_hint inv_term m_src m_tgt
-                             fdef_src.(get_blocks) fdef_tgt.(get_blocks)
-                             l terminator_src terminator_tgt>>.
-Proof.
-  unfold valid_fdef in FDEF.
-  do 2 simtac0.
-  destruct (negb (fheader_dec fheader5 fheader0)) eqn:X; ss.
-  apply andb_true_iff in FDEF. des. clear FDEF. simtac.
-  revert SRC TGT FDEF0.
-  generalize blocks0 at 1 3.
-  generalize blocks5 at 1 3.
-  induction blocks1; i; ss.
-  destruct blocks2; [by inv FDEF0|].
-  unfold forallb2AL in FDEF0. simtac; eauto.
-  rewrite HINT in COND. inv COND.
-  esplits; eauto.
-Qed.
-
-(* TODO *)
-      Lemma decide_nonzero_inject
-            TD alpha
-            val_src decision_src
-            val_tgt decision_tgt
-            (INJECT: genericvalues_inject.gv_inject alpha val_src val_tgt)
-            (DECIDE_SRC: decide_nonzero TD val_src decision_src)
-            (DECIDE_TGT: decide_nonzero TD val_tgt decision_tgt):
-        decision_src = decision_tgt.
-      Proof.
-        inv DECIDE_SRC. inv DECIDE_TGT.
-        inv INJECT; ss.
-        destruct v1; ss. destruct v2; ss. inv H. simtac.
-        apply inj_pair2 in H3. subst.
-        apply inj_pair2 in H5. subst.
-        ss.
-      Qed.
-
-(* TODO *)
-      Lemma add_terminator_cond_br
-            conf_src conf_tgt
-            st_src st_tgt
-            invst invmem inv
-            decision l1 l2
-            id_src val_src gval_src
-            id_tgt val_tgt gval_tgt
-            (STATE: InvState.Rel.sem
-                      conf_src conf_tgt st_src st_tgt
-                      invst invmem inv)
-            (VAL_SRC: getOperandValue
-                        conf_src.(CurTargetData)
-                        val_src
-                        st_src.(EC).(Locals)
-                        conf_src.(Globals) = Some gval_src)
-            (VAL_TGT: getOperandValue
-                        conf_tgt.(CurTargetData)
-                        val_tgt
-                        st_tgt.(EC).(Locals)
-                        conf_tgt.(Globals) = Some gval_tgt)
-            (DECIDE_SRC: decide_nonzero conf_src.(CurTargetData) gval_src decision)
-            (DECIDE_TGT: decide_nonzero conf_tgt.(CurTargetData) gval_tgt decision):
-        InvState.Rel.sem
-          conf_src conf_tgt
-          st_src st_tgt
-          invst invmem
-          (Postcond.add_terminator_cond
-             inv
-             (insn_br id_src val_src l1 l2)
-             (insn_br id_tgt val_tgt l1 l2) (ite decision l1 l2)).
-      Proof.
-      Admitted.
 
 Lemma valid_sim
       conf_src conf_tgt:
