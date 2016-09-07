@@ -108,6 +108,13 @@ Proof. ss. Qed.
 (* TODO: position *)
 Opaque ite.
 
+(* TODO: position *)
+Lemma lookupAL_ite
+      X (l:AssocList X) decision l1 l2 v1 v2
+      (V1: lookupAL _ l l1 = Some v1)
+      (V2: lookupAL _ l l2 = Some v2):
+  lookupAL _ l (ite decision l1 l2) = Some (ite decision v1 v2).
+Proof. destruct decision; ss. Qed.
 
 (* TODO: position *)
 Definition return_locals

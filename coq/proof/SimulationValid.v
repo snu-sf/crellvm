@@ -161,6 +161,58 @@ Proof.
   esplits; eauto.
 Qed.
 
+(* TODO *)
+      Lemma decide_nonzero_inject
+            TD alpha
+            val_src decision_src
+            val_tgt decision_tgt
+            (INJECT: genericvalues_inject.gv_inject alpha val_src val_tgt)
+            (DECIDE_SRC: decide_nonzero TD val_src decision_src)
+            (DECIDE_TGT: decide_nonzero TD val_tgt decision_tgt):
+        decision_src = decision_tgt.
+      Proof.
+        inv DECIDE_SRC. inv DECIDE_TGT.
+        inv INJECT; ss.
+        destruct v1; ss. destruct v2; ss. inv H. simtac.
+        apply inj_pair2 in H3. subst.
+        apply inj_pair2 in H5. subst.
+        ss.
+      Qed.
+
+(* TODO *)
+      Lemma add_terminator_cond_br
+            conf_src conf_tgt
+            st_src st_tgt
+            invst invmem inv
+            decision l1 l2
+            id_src val_src gval_src
+            id_tgt val_tgt gval_tgt
+            (STATE: InvState.Rel.sem
+                      conf_src conf_tgt st_src st_tgt
+                      invst invmem inv)
+            (VAL_SRC: getOperandValue
+                        conf_src.(CurTargetData)
+                        val_src
+                        st_src.(EC).(Locals)
+                        conf_src.(Globals) = Some gval_src)
+            (VAL_TGT: getOperandValue
+                        conf_tgt.(CurTargetData)
+                        val_tgt
+                        st_tgt.(EC).(Locals)
+                        conf_tgt.(Globals) = Some gval_tgt)
+            (DECIDE_SRC: decide_nonzero conf_src.(CurTargetData) gval_src decision)
+            (DECIDE_TGT: decide_nonzero conf_tgt.(CurTargetData) gval_tgt decision):
+        InvState.Rel.sem
+          conf_src conf_tgt
+          st_src st_tgt
+          invst invmem
+          (Postcond.add_terminator_cond
+             inv
+             (insn_br id_src val_src l1 l2)
+             (insn_br id_tgt val_tgt l1 l2) (ite decision l1 l2)).
+      Proof.
+      Admitted.
+
 Lemma valid_sim
       conf_src conf_tgt:
   (valid_state_sim conf_src conf_tgt) <6= (sim_local conf_src conf_tgt).
@@ -187,38 +239,52 @@ Proof.
     + (* return_void *)
       eapply _sim_local_return_void; eauto; ss.
     + (* br *)
-      (* rewrite <- (ite_spec decision l1 l2) in *. simtac. rewrite ite_spec in *. *)
-      (* exploit InvState.Rel.inject_value_spec; eauto. *)
-      (* { rewrite InvState.Unary.sem_valueT_physical. eauto. } *)
-      (* rewrite InvState.Unary.sem_valueT_physical. s. i. des. *)
-      (* eapply _sim_local_step. *)
-      (* { admit. (* tgt not stuck *) } *)
-      (* i. inv STEP. ss. *)
-      (* rewrite VAL_TGT in H16. inv H16. *)
-      (* inv CONF. inv INJECT0. ss. subst. *)
-      (* exploit inject_decide_nonzero; eauto. i. subst. *)
-      (* assert (PHINODES: *)
-      (*           valid_phinodes fdef_hint inv_term m_src m_tgt *)
-      (*                          (get_blocks CurFunction0) (get_blocks CurFunction1) *)
-      (*                          (fst CurBB0) (if decision0 then l0 else l3)) *)
-      (*   by (destruct decision0; ss). *)
-      (* clear COND1 COND2. *)
-      (* unfold valid_phinodes in *. *)
-      (* rewrite <- (ite_spec decision0 l0 l3) in *. *)
-      (* simtac. unfold Postcond.postcond_phinodes in *. simtac. *)
-      (* rewrite ite_spec in *. *)
-      (* (* TODO: Lemma sound_postcond_phinodes *) *)
-      (* esplits; eauto. *)
-      (* { econs 1. econs; eauto. } *)
-      (* { reflexivity. } *)
-      (* right. apply CIH. *)
-      (* instantiate (1 := mkState _ _ _). *)
-      (* instantiate (3 := mkEC _ _ _ _ _ _). *)
-      (* econs; ss; eauto. *)
-      (* * admit. (* valid_cmds *) *)
-      (* * admit. (* valid_terminator *) *)
-      (* * admit. (* InvState.Rel.sem *) *)
-      admit.
+      exploit nerror_nfinal_nstuck; eauto. i. des. inv x0.
+      rewrite <- (ite_spec decision l0 l3) in *. simtac.
+      exploit InvState.Rel.inject_value_spec; eauto.
+      { rewrite InvState.Unary.sem_valueT_physical. eauto. }
+      rewrite InvState.Unary.sem_valueT_physical. s. i. des.
+      eapply _sim_local_step.
+      { admit. (* tgt not stuck *) }
+      i. inv STEP. unfold valid_phinodes in *.
+      do 12 simtac0. rewrite <- (ite_spec decision0 l0 l3) in *. simtac.
+      rewrite VAL_TGT in H16. inv H16.
+      exploit decide_nonzero_inject; eauto.
+      { inv CONF. inv INJECT0. ss. subst. eauto. }
+      i. subst.
+      exploit add_terminator_cond_br; eauto. i. des.
+      rewrite lookupBlockViaLabelFromFdef_spec in *.
+      exploit (lookupAL_ite fdef_hint decision0 l0 l3); eauto. clear COND7 COND3. i.
+      exploit (lookupAL_ite CurFunction0.(get_blocks) decision0 l0 l3); eauto. clear COND8 COND4. i.
+      exploit (lookupAL_ite CurFunction1.(get_blocks) decision0 l0 l3); eauto. clear COND9 COND5. i.
+      idtac.
+      unfold l in H14. rewrite x2 in H14. inv H14.
+      unfold l in H18. rewrite x3 in H18. inv H18.
+      destruct decision0; inv H0; inv H1; ss.
+      * exploit postcond_phinodes_sound;
+          (try instantiate (1 := (mkState (mkEC _ _ _ _ _ _) _ _))); s;
+            (try eexact x0; try eexact MEM);
+            (try eexact H19; try eexact H15); ss; eauto.
+        i. des.
+        exploit apply_infrules_sound; try exact STATE0; eauto; ss. i. des.
+        exploit reduce_maydiff_sound; eauto; ss. i. des.
+        exploit implies_sound; try exact COND2; eauto; ss. i. des.
+        exploit valid_fdef_valid_stmts; eauto. i. des.
+        esplits; eauto.
+        { econs 1. econs; eauto. rewrite lookupBlockViaLabelFromFdef_spec. ss. }
+        { right. apply CIH. econs; ss; eauto; ss; eauto. }
+      * exploit postcond_phinodes_sound;
+          (try instantiate (1 := (mkState (mkEC _ _ _ _ _ _) _ _))); s;
+            (try eexact x0; try eexact MEM);
+            (try eexact H19; try eexact H15); ss; eauto.
+        i. des.
+        exploit apply_infrules_sound; try exact STATE0; eauto; ss. i. des.
+        exploit reduce_maydiff_sound; eauto; ss. i. des.
+        exploit implies_sound; try exact COND11; eauto; ss. i. des.
+        exploit valid_fdef_valid_stmts; eauto. i. des.
+        esplits; eauto.
+        { econs 1. econs; eauto. rewrite lookupBlockViaLabelFromFdef_spec. ss. }
+        { right. apply CIH. econs; ss; eauto; ss; eauto. }
     + (* br_uncond *)
       exploit nerror_nfinal_nstuck; eauto. i. des. inv x0. simtac.
       eapply _sim_local_step.
