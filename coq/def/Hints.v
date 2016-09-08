@@ -131,11 +131,21 @@ Module Invariant.
          (PtrPairSet.mem pp na0)
       ).
 
+  Definition values_diffblock_from_unique (v:ValueT.t): bool :=
+    match v with
+    | ValueT.id (Tag.physical, _) => true
+    | ValueT.const _ => true
+    | _ => false
+    end.
+
   Definition implies_diffblock (inv0:unary) (db0 db:ValueTPairSet.t): bool :=
     flip ValueTPairSet.for_all db
       (fun vp =>
-         (negb (ValueT.eq_dec vp.(fst) vp.(snd)) &&
-           is_unique_value inv0 vp.(fst) || is_unique_value inv0 vp.(snd)) ||
+         ((negb (ValueT.eq_dec vp.(fst) vp.(snd))) &&
+           ((is_unique_value inv0 vp.(fst) &&
+               values_diffblock_from_unique vp.(snd)) ||
+            (is_unique_value inv0 vp.(snd) &&
+               values_diffblock_from_unique vp.(fst)))) ||
          (ValueTPairSet.mem vp db0)
       ).
 
