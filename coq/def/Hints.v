@@ -143,20 +143,25 @@ Module Invariant.
     implies_noalias inv0 (alias0.(noalias)) (alias.(noalias)) &&
     implies_diffblock inv0 (alias0.(diffblock)) (alias.(diffblock)).
 
+  (* TODO: name? (trivial, ..) *)
+  Definition syntactic_lessdef (e1 e2:Expr.t): bool :=
+    (Expr.eq_dec e1 e2) ||
+      (match e1, e2 with
+       | Expr.value (ValueT.const (const_undef ty)),
+         Expr.value v => true
+       | _, _ => false
+       end).
+
+  Definition implies_lessdef (inv0 inv:ExprPairSet.t): bool :=
+    flip ExprPairSet.for_all inv
+         (fun q =>
+            flip ExprPairSet.exists_ inv0
+                 (fun p =>
+                    (Expr.eq_dec p.(fst) q.(fst)) &&
+                      (syntactic_lessdef p.(snd) q.(snd)))).
+
   Definition implies_unary (inv0 inv:unary): bool :=
-    ExprPairSet.for_all
-          (fun p => ExprPairSet.exists_
-                      (fun q =>
-                        (if (Expr.eq_dec p.(fst) q.(fst))
-                         then ((Expr.eq_dec p.(snd) q.(snd)) ||
-                               (match p.(snd), q.(snd) with
-                                | Expr.value v, 
-                                  Expr.value (ValueT.const (const_undef ty)) => true
-                                | _, _ => false
-                                end))
-                         else false))
-                      inv0.(lessdef))
-    inv.(lessdef) &&
+    implies_lessdef inv0.(lessdef) inv.(lessdef) &&
     implies_alias inv0 (inv0.(alias)) (inv.(alias)) &&
     AtomSetImpl.subset (inv.(unique)) (inv0.(unique)) &&
     IdTSet.subset (inv.(private)) (inv0.(private)).

@@ -17,6 +17,19 @@ Require InvMem.
 
 Set Implicit Arguments.
 
+(* TODO: move to somewhere *)
+(* in this file and SoundImplies.v *)
+Ltac solve_bool_true :=
+  repeat
+    (try match goal with
+         | [H: andb ?a ?b = true |- _] =>
+           apply andb_true_iff in H; des
+         | [H: orb ?a ?b = true |- _] =>
+           apply orb_true_iff in H; des
+         | [H: proj_sumbool (ValueTSetFacts.eq_dec ?a ?b) = true |- _] =>
+           destruct (ValueTSetFacts.eq_dec a b)
+         end;
+     try subst; ss; unfold is_true in *; unfold sflib.is_true in *).
 
 Module Unary.
   Structure t := mk {
@@ -40,9 +53,103 @@ Module Unary.
     | ValueT.const c => const2GV conf.(CurTargetData) conf.(Globals) c
     end.
 
-  (* TODO. cf. old's `coq/hint/hint_sem.v` *)
-  Definition sem_expr (conf:Config) (st:State) (invst:t) (e:Expr.t): option GenericValue.
-  Admitted.
+  Fixpoint sem_list_valueT (conf:Config) (st:State) (invst:t) (lv:list (sz * ValueT.t)): option (list GenericValue) :=
+    match lv with
+    | nil => Some nil
+    | (_, v) :: lv' =>
+      match sem_valueT conf st invst v, sem_list_valueT conf st invst lv' with
+      | Some GV, Some GVs => Some (GV::GVs)
+      | _, _ => None
+      end
+    end.
+
+  Definition sem_expr (conf:Config) (st:State) (invst:t) (e:Expr.t): option GenericValue :=
+    match e with
+    | Expr.bop op bsz v1 v2 =>
+      match sem_valueT conf st invst v1,
+            sem_valueT conf st invst v2 with
+      | Some gv1, Some gv2 =>
+        mbop conf.(CurTargetData) op bsz gv1 gv2
+      | _, _ => None
+      end
+    | Expr.fbop op fp v1 v2 =>
+      match sem_valueT conf st invst v1,
+            sem_valueT conf st invst v2 with
+      | Some gv1, Some gv2 =>
+        mfbop conf.(CurTargetData) op fp gv1 gv2
+      | _, _ => None
+      end
+    | Expr.extractvalue ty1 v1 lc ty2 =>
+      match sem_valueT conf st invst v1 with
+      | Some gv1 =>
+        extractGenericValue conf.(CurTargetData) ty1 gv1 lc
+      | None => None
+      end
+    | Expr.insertvalue ty1 v1 ty2 v2 lc =>
+      match sem_valueT conf st invst v1,
+            sem_valueT conf st invst v2 with
+      | Some gv1, Some gv2 =>
+        insertGenericValue conf.(CurTargetData) ty1 gv1 lc ty2 gv2
+      | _, _ => None
+      end
+    | Expr.gep inb ty1 v1 lsv ty2 =>
+      match sem_valueT conf st invst v1, sem_list_valueT conf st invst lsv with
+      | Some gv1, Some glsv =>
+        gep conf.(CurTargetData) ty1 glsv inb ty2 gv1
+      | _, _ => None
+      end
+    | Expr.trunc op ty1 v ty2 =>
+      match sem_valueT conf st invst v with
+      | Some gv =>
+        mtrunc conf.(CurTargetData) op ty1 ty2 gv
+      | _ => None
+      end
+    | Expr.ext eop ty1 v ty2 =>
+      match sem_valueT conf st invst v with
+      | Some gv =>
+        mext conf.(CurTargetData) eop ty1 ty2 gv
+      | None => None
+      end
+    | Expr.cast cop ty1 v ty2 =>
+      match sem_valueT conf st invst v with
+      | Some gv => mcast conf.(CurTargetData) cop ty1 ty2 gv
+      | None => None
+      end
+    | Expr.icmp c ty v1 v2 =>
+      match sem_valueT conf st invst v1,
+            sem_valueT conf st invst v2 with
+      | Some gv1, Some gv2 =>
+        micmp conf.(CurTargetData) c ty gv1 gv2
+      | _, _ => None
+      end
+    | Expr.fcmp fc fp v1 v2 =>
+      match sem_valueT conf st invst v1,
+            sem_valueT conf st invst v2 with
+      | Some gv1, Some gv2 =>
+        mfcmp conf.(CurTargetData) fc fp gv1 gv2
+      | _, _ => None
+      end
+    | Expr.select v0 ty v1 v2 =>
+      match sem_valueT conf st invst v0,
+            sem_valueT conf st invst v1,
+            sem_valueT conf st invst v2 with
+      | Some gv0, Some gv1, Some gv2 =>
+        match GV2int conf.(CurTargetData) Size.One gv0 with
+        | Some z =>
+          Some (if negb (zeq z 0) then gv1 else gv2)
+        | _ => None
+        end
+      | _, _, _ => None
+      end
+    | Expr.value v =>
+      sem_valueT conf st invst v
+    | Expr.load v ty a =>
+      match sem_valueT conf st invst v with
+      | Some gvp =>
+        mload conf.(CurTargetData) st.(Mem) gvp ty a
+      | None => None
+      end
+    end.
 
   Definition sem_lessdef (conf:Config) (st:State) (invst:t) (es:ExprPair.t): Prop :=
     forall val2 (VAL2: sem_expr conf st invst es.(snd) = Some val2),
@@ -54,6 +161,24 @@ Module Unary.
     match GV2ptr conf.(CurTargetData) (getPointerSize conf.(CurTargetData)) val1,
           GV2ptr conf.(CurTargetData) (getPointerSize conf.(CurTargetData)) val2 with
     | Some (Vptr b1 _), Some (Vptr b2 _) => b1 <> b2
+    | _, _ => True
+    end.
+
+  Definition NOALIAS_TODO: Prop. Admitted.
+
+  Definition sem_noalias (conf:Config) (val1 val2:GenericValue) (ty1 ty2:typ): Prop :=
+    match GV2ptr conf.(CurTargetData) (getPointerSize conf.(CurTargetData)) val1,
+          GV2ptr conf.(CurTargetData) (getPointerSize conf.(CurTargetData)) val2 with
+    | Some (Vptr b1 ofs1), Some (Vptr b2 ofs2) =>
+      forall
+        size1 size2
+        (BLOCK: b1 = b2)
+        (* TODO: getTypeSizeInBits, storesize, or allocsize for size? *)
+        (SIZE1: getTypeSizeInBits conf.(CurTargetData) ty1 = Some size1)
+        (SIZE2: getTypeSizeInBits conf.(CurTargetData) ty2 = Some size2),
+        NOALIAS_TODO
+        (* [Int.signed (31%nat) ofs1, Int.signed (31%nat) ofs1 + size1) disjoint *)
+        (* [Int.signed (31%nat) ofs2, Int.signed (31%nat) ofs2 + size2) *)
     | _, _ => True
     end.
 
@@ -73,7 +198,7 @@ Module Unary.
            (MEM: PtrPairSet.mem (ptr1, ptr2) arel.(Invariant.noalias))
            (VAL1: sem_valueT conf st invst ptr1.(fst) = Some gptr1)
            (VAL2: sem_valueT conf st invst ptr2.(fst) = Some gptr2),
-           False)
+           sem_noalias conf gptr1 gptr2 ptr1.(snd) ptr2.(snd))
   .
 
   Inductive sem_unique (conf:Config) (st:State) (invst:t) (a:atom): Prop :=
@@ -104,11 +229,22 @@ Module Unary.
       (PRIVATE: IdTSet.For_all (sem_private conf st invst invmem.(InvMem.Unary.private)) inv.(Invariant.private))
   .
 
+
   Lemma sem_empty
         conf st invst invmem inv
         (EMPTY: Invariant.is_empty_unary inv):
     sem conf st invst invmem inv.
   Proof.
+    unfold Invariant.is_empty_unary in EMPTY.
+    solve_bool_true.
+    econs.
+    - ii. apply ExprPairSet.is_empty_2 in EMPTY.
+      exfalso. eapply EMPTY; eauto.
+    - admit. (* TODO: sem_alias *)
+    - ii. apply AtomSetImpl.is_empty_2 in EMPTY1.
+      exfalso. eapply EMPTY1; eauto.
+    - ii. apply IdTSet.is_empty_2 in EMPTY0.
+      exfalso. eapply EMPTY0; eauto.
   Admitted.
 
   Lemma sem_valueT_physical
@@ -128,7 +264,7 @@ Module Rel.
     forall val_src (VAL_SRC: Unary.sem_idT st_src invst.(src) id = Some val_src),
     exists val_tgt,
       <<VAL_TGT: Unary.sem_idT st_tgt invst.(tgt) id = Some val_tgt>> /\
-      <<VAL: GVs.inject inject val_src val_tgt>>.
+      <<VAL: genericvalues_inject.gv_inject inject val_src val_tgt>>.
 
   Inductive sem (conf_src conf_tgt:Config) (st_src st_tgt:State) (invst:t) (invmem:InvMem.Rel.t) (inv:Invariant.t): Prop :=
   | sem_intro
@@ -158,9 +294,28 @@ Module Rel.
     - apply Unary.sem_empty. ss.
     - ii. unfold Unary.sem_idT, Unary.sem_tag in *.
       destruct id0. destruct t0; ss.
-      exploit LOCALS; eauto. i. des.
-      esplits; eauto. admit. (* easy *)
-  Admitted.
+      exploit LOCALS; eauto.
+  Qed.
+
+  (* TODO: position *)
+  Lemma not_in_maydiff_sem1
+        inv id
+        (NIMD: Invariant.not_in_maydiff inv (Exprs.ValueT.id id) = true):
+    <<NOT_IN: ~ IdTSet.mem id (Invariant.maydiff inv)>>.
+  Proof.
+    ii. apply negb_true_iff in NIMD. congruence.
+  Qed.
+
+  (* TODO: position *)
+  Lemma not_in_maydiff_sem2
+        inv id
+        (NOT_IN: ~ IdTSet.mem id (Invariant.maydiff inv)):
+  <<NIMD: Invariant.not_in_maydiff inv (Exprs.ValueT.id id) = true>>.
+  Proof.
+    destruct id; ss.
+    apply negb_true_iff.
+    destruct (IdTSet.mem (t0, i0) (Invariant.maydiff inv)); ss.
+  Qed.
 
   Lemma inject_value_spec
         conf_src st_src val_src
@@ -175,5 +330,26 @@ Module Rel.
       <<VAL_TGT: Unary.sem_valueT conf_tgt st_tgt invst.(tgt) val_tgt = Some gval_tgt>> /\
       <<INJECT: genericvalues_inject.gv_inject invmem.(InvMem.Rel.inject) gval_src gval_tgt>>.
   Proof.
+    unfold Invariant.inject_value in INJECT.
+    solve_bool_true.
+    - inv STATE.
+      destruct val_tgt.
+      + apply not_in_maydiff_sem1 in INJECT0. des.
+        exploit MAYDIFF; eauto.
+      + esplits.
+        * ss. admit. (* targetdata & globals *)
+        * admit. (* will be same *)
+    - inv STATE. inv TGT.
+      (* apply ExprPairSet.mem_2 in INJECT. *)
+      (* exploit LESSDEF; eauto. ss. *)
+      (* apply LESSDEF in INJECT. *)
+      (* Unary.sem_lessdef *)
+      (* { ss.  *)
+      (*   ExprPairSet.In *)
+      (* ExprPairSet.For_all *)
+      (* eapply LESSDEF in INJECT. *)
+      admit. (* TODO: Unary.sem_lessdef *)
+    - admit. (* ditto *)
+    - admit. (* ditto *)
   Admitted.
 End Rel.
