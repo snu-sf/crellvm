@@ -265,7 +265,7 @@ Module Rel.
     forall val_src (VAL_SRC: Unary.sem_idT st_src invst.(src) id = Some val_src),
     exists val_tgt,
       <<VAL_TGT: Unary.sem_idT st_tgt invst.(tgt) id = Some val_tgt>> /\
-      <<VAL: GVs.inject inject val_src val_tgt>>.
+      <<VAL: genericvalues_inject.gv_inject inject val_src val_tgt>>.
 
   Inductive sem (conf_src conf_tgt:Config) (st_src st_tgt:State) (invst:t) (invmem:InvMem.Rel.t) (inv:Invariant.t): Prop :=
   | sem_intro
@@ -275,18 +275,6 @@ Module Rel.
          forall id (NOTIN: ~ IdTSet.mem id inv.(Invariant.maydiff)),
            sem_inject st_src st_tgt invst invmem.(InvMem.Rel.inject) id)
   .
-
-  (* TODO: move position *)
-  Lemma gv_inject_implies_GVs_inject :
-    forall invmem val_src gv_tgt
-           (INJECT : genericvalues_inject.gv_inject
-                       (InvMem.Rel.inject invmem) val_src gv_tgt),
-      GVs.inject (InvMem.Rel.inject invmem) val_src gv_tgt.
-  Proof.
-    i. induction INJECT; econs; eauto.
-    ss. split; eauto.
-    inv H; eauto.
-  Qed.
 
   Lemma sem_empty
         conf_src ec_src ecs_src mem_src
@@ -307,9 +295,7 @@ Module Rel.
     - apply Unary.sem_empty. ss.
     - ii. unfold Unary.sem_idT, Unary.sem_tag in *.
       destruct id0. destruct t0; ss.
-      exploit LOCALS; eauto. i. des.
-      esplits; eauto.
-      apply gv_inject_implies_GVs_inject; eauto. (* TODO: remove uses of GVs *)
+      exploit LOCALS; eauto.
   Qed.
 
   (* TODO: position *)
@@ -350,9 +336,7 @@ Module Rel.
     - inv STATE.
       destruct val_tgt.
       + apply not_in_maydiff_sem1 in INJECT0. des.
-        exploit MAYDIFF; eauto. i. des.
-        esplits; eauto.
-        admit. (* remove GVs.inject *)
+        exploit MAYDIFF; eauto.
       + esplits.
         * ss. admit. (* targetdata & globals *)
         * admit. (* will be same *)
