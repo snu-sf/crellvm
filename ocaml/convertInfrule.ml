@@ -654,6 +654,138 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
      let x = Convert.value args.x in
      let sz = Convert.size args.sz in
      Infrule.Coq_sdiv_mone (z, x, sz)
+  | CoreHint_t.SelectIcmpEq (args:CoreHint_t.select_icmp_eq) -> 
+     let z = Convert.value args.z in
+     let y = Convert.value args.y in
+     let x = Convert.value args.x in
+     let v = Convert.value args.v in
+     let c = Convert.constant args.c in
+     let cty = Convert.value_type args.cty in
+     Infrule.Coq_select_icmp_eq (z, y, x, v, c, cty)
+  | CoreHint_t.SelectIcmpEqXor1 (args:CoreHint_t.select_icmp_eq_xor1) -> 
+     let z = Convert.value args.z in
+     let zprime = Convert.value args.zprime in
+     let v = Convert.value args.v in
+     let x = Convert.value args.x in
+     let u = Convert.value args.u in
+     let w = Convert.value args.w in
+     let c = Convert.const_int args.c in
+     let cprime = Convert.const_int args.cprime in
+     let s = Convert.size args.s in
+     Infrule.Coq_select_icmp_eq_xor1 (z, zprime, v, x, u, w, c, cprime, s)
+  | CoreHint_t.SelectIcmpEqXor2 (args:CoreHint_t.select_icmp_eq_xor2) -> 
+     let z = Convert.value args.z in
+     let zprime = Convert.value args.zprime in
+     let v = Convert.value args.v in
+     let x = Convert.value args.x in
+     let u = Convert.value args.u in
+     let w = Convert.value args.w in
+     let c = Convert.const_int args.c in
+     let s = Convert.size args.s in
+     Infrule.Coq_select_icmp_eq_xor2 (z, zprime, v, x, u, w, c, s)
+  | CoreHint_t.SelectIcmpNe (args:CoreHint_t.select_icmp_ne) -> 
+     let z = Convert.value args.z in
+     let y = Convert.value args.y in
+     let x = Convert.value args.x in
+     let v = Convert.value args.v in
+     let c = Convert.constant args.c in
+     let cty = Convert.value_type args.cty in
+     Infrule.Coq_select_icmp_ne (z, y, x, v, c, cty)
+  | CoreHint_t.SelectIcmpNeXor1 (args:CoreHint_t.select_icmp_ne_xor1) -> 
+     let z = Convert.value args.z in
+     let zprime = Convert.value args.zprime in
+     let v = Convert.value args.v in
+     let x = Convert.value args.x in
+     let u = Convert.value args.u in
+     let w = Convert.value args.w in
+     let c = Convert.const_int args.c in
+     let cprime = Convert.const_int args.cprime in
+     let s = Convert.size args.s in
+     Infrule.Coq_select_icmp_ne_xor1 (z, zprime, v, x, u, w, c, cprime, s)
+  | CoreHint_t.SelectIcmpNeXor2 (args:CoreHint_t.select_icmp_ne_xor2) -> 
+     let z = Convert.value args.z in
+     let zprime = Convert.value args.zprime in
+     let v = Convert.value args.v in
+     let x = Convert.value args.x in
+     let u = Convert.value args.u in
+     let w = Convert.value args.w in
+     let c = Convert.const_int args.c in
+     let s = Convert.size args.s in
+     Infrule.Coq_select_icmp_ne_xor2 (z, zprime, v, x, u, w, c, s)
+  | CoreHint_t.SelectIcmpSgtConst (args:CoreHint_t.select_icmp_sgt_const) -> 
+     let z = Convert.register args.z in
+     let y = Convert.value args.y in
+     let x = Convert.value args.x in
+     let c = Convert.const_int args.c in
+     let cprime = Convert.const_int args.cprime in
+     let selcomm = args.selcomm in
+     let s = Convert.size args.s in
+     Infrule.Coq_select_icmp_sgt_const (z, y, x, c, cprime, selcomm, s)
+  | CoreHint_t.SelectIcmpSgtXor1 (args:CoreHint_t.select_icmp_sgt_xor1) -> 
+     let z = Convert.value args.z in
+     let zprime = Convert.value args.zprime in
+     let v = Convert.value args.v in
+     let x = Convert.value args.x in
+     let u = Convert.value args.u in
+     let c = Convert.const_int args.c in
+     let cprime = Convert.const_int args.cprime in
+     let s = Convert.size args.s in
+     Infrule.Coq_select_icmp_sgt_xor1 (z, zprime, v, x, u, c, cprime, s)
+  | CoreHint_t.SelectIcmpSgtXor2 (args:CoreHint_t.select_icmp_sgt_xor2) -> 
+     let z = Convert.value args.z in
+     let zprime = Convert.value args.zprime in
+     let v = Convert.value args.v in
+     let x = Convert.value args.x in
+     let u = Convert.value args.u in
+     let c = Convert.const_int args.c in
+     let s = Convert.size args.s in
+     Infrule.Coq_select_icmp_sgt_xor2 (z, zprime, v, x, u, c, s)
+  | CoreHint_t.SelectIcmpSltConst (args:CoreHint_t.select_icmp_slt_const) -> 
+     let z = Convert.register args.z in
+     let y = Convert.value args.y in
+     let x = Convert.value args.x in
+     let c = Convert.const_int args.c in
+     let cprime = Convert.const_int args.cprime in
+     let selcomm = args.selcomm in
+     let s = Convert.size args.s in
+     Infrule.Coq_select_icmp_slt_const (z, y, x, c, cprime, selcomm, s)
+  | CoreHint_t.SelectIcmpSltXor1 (args:CoreHint_t.select_icmp_slt_xor1) -> 
+     let z = Convert.value args.z in
+     let zprime = Convert.value args.zprime in
+     let v = Convert.value args.v in
+     let x = Convert.value args.x in
+     let u = Convert.value args.u in
+     let c = Convert.const_int args.c in
+     let cprime = Convert.const_int args.cprime in
+     let s = Convert.size args.s in
+     Infrule.Coq_select_icmp_slt_xor1 (z, zprime, v, x, u, c, cprime, s)
+  | CoreHint_t.SelectIcmpSltXor2 (args:CoreHint_t.select_icmp_slt_xor2) -> 
+     let z = Convert.value args.z in
+     let zprime = Convert.value args.zprime in
+     let v = Convert.value args.v in
+     let x = Convert.value args.x in
+     let u = Convert.value args.u in
+     let c = Convert.const_int args.c in
+     let s = Convert.size args.s in
+     Infrule.Coq_select_icmp_slt_xor2 (z, zprime, v, x, u, c, s)
+  | CoreHint_t.SelectIcmpUgtConst (args:CoreHint_t.select_icmp_ugt_const) -> 
+     let z = Convert.register args.z in
+     let y = Convert.value args.y in
+     let x = Convert.value args.x in
+     let c = Convert.const_int args.c in
+     let cprime = Convert.const_int args.cprime in
+     let selcomm = args.selcomm in
+     let s = Convert.size args.s in
+     Infrule.Coq_select_icmp_ugt_const (z, y, x, c, cprime, selcomm, s)
+  | CoreHint_t.SelectIcmpUltConst (args:CoreHint_t.select_icmp_ult_const) -> 
+     let z = Convert.register args.z in
+     let y = Convert.value args.y in
+     let x = Convert.value args.x in
+     let c = Convert.const_int args.c in
+     let cprime = Convert.const_int args.cprime in
+     let selcomm = args.selcomm in
+     let s = Convert.size args.s in
+     Infrule.Coq_select_icmp_ult_const (z, y, x, c, cprime, selcomm, s)
   | CoreHint_t.SextBitcast (args:CoreHint_t.sext_bitcast) -> 
      let src = Convert.value args.src in
      let mid = Convert.value args.mid in
@@ -865,6 +997,11 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
      let y = Convert.value args.y in
      let e = Convert.expr args.e src_fdef tgt_fdef in
      Infrule.Coq_substitute_rev (x, y, e)
+  | CoreHint_t.SubstituteTgt (args:CoreHint_t.substitute_tgt) ->
+     let x = Convert.register args.x in
+     let y = Convert.value args.y in
+     let e = Convert.expr args.e src_fdef tgt_fdef in
+     Infrule.Coq_substitute_tgt (x, y, e)
   | CoreHint_t.ReplaceRhs (args:CoreHint_t.replace_rhs) ->
       let x = Convert.register args.x in
       let y = Convert.value args.y in
@@ -1049,7 +1186,8 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
      let y = Convert.value args.y in
      let yprime = Convert.value args.yprime in
      let x = Convert.value args.x in
-     Infrule.Coq_zext_xor (z, y, yprime, x)
+     let s = Convert.size args.s in
+     Infrule.Coq_zext_xor (z, y, yprime, x, s)
   | CoreHint_t.ZextZext (args:CoreHint_t.zext_zext) -> 
      let src = Convert.value args.src in
      let mid = Convert.value args.mid in

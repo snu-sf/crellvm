@@ -202,6 +202,8 @@ module PrintHints = struct
       | Infrule.Coq_add_sub _ -> "add_sub"
       | Infrule.Coq_bop_associative (x, y, z, bop, c1, c2, c3, sz) ->
          "bop_assoc " ^ (string_of_bop bop)
+      | Infrule.Coq_bop_distributive_over_selectinst(pcode, r, s, t', t, x, y, z, c, bopsz, selty) -> 
+                                                "BopDistributiveOverSelectInst"
       | Infrule.Coq_bop_commutative (e, bop, x, y, s) -> "bop_commutative : " ^ 
                                                 ExprsToString.of_expr(e) ^ " ≥ " ^
                                                 ExprsToString.of_expr(Expr.Coq_value x) ^ (string_of_bop bop) ^

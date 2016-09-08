@@ -269,6 +269,9 @@ Definition cond_floatpointtyp (t:typ) : bool :=
 Definition cond_onebit (s:sz) : bool :=
   sz_dec s (Size.One).
 
+Definition cond_neg (s:sz) (c1 c2:INTEGER.t) : bool :=
+  cond_plus s c1 c2 (INTEGER.of_Z (Size.to_Z s) (-1)%Z true).
+
 Definition const_newint (s:sz) (i:INTEGER.t) : const := 
   (const_int s (INTEGER.of_Z (Size.to_Z s) (INTEGER.to_Z i) true)).
 
@@ -337,6 +340,7 @@ Notation "{{ inv +++src y _|_ x }}" := (Invariant.update_src (Invariant.update_n
 Notation "{{ inv +++tgt y _|_ x }}" := (Invariant.update_tgt (Invariant.update_noalias (PtrPairSet.add (y, x))) inv) (at level 41, inv, y, x at level 41).
 Notation "{{ inv +++src y _||_ x }}" := (Invariant.update_src (Invariant.update_diffblock (ValueTPairSet.add (y, x))) inv) (at level 41, inv, y, x at level 41).
 Notation "{{ inv +++tgt y _||_ x }}" := (Invariant.update_tgt (Invariant.update_diffblock (ValueTPairSet.add (y, x))) inv) (at level 41, inv, y, x at level 41).
+Notation "{{ inv --- x }}" := (Invariant.update_maydiff (IdTSet.filter (fun y => negb (IdT.eq_dec x y))) inv) (at level 41, inv, x at level 41).
 
 (* TODO *)
 Definition apply_infrule
@@ -883,6 +887,186 @@ Definition apply_infrule
        cond_sameaddrspace srcty dstty
     then {{ inv0 +++src (Expr.value dst) >= (Expr.cast castop_bitcast srcty src dstty) }}
     else apply_fail tt
+  | Infrule.select_icmp_eq z y x v c cty =>
+    let vc := ValueT.const c in
+    if $$ inv0 |-src (Expr.value y) >= (Expr.icmp cond_eq cty x vc) $$ &&
+       $$ inv0 |-src (Expr.value z) >= (Expr.select y cty x v) $$
+    then
+      {{ inv0 +++src (Expr.value z) >= (Expr.select y cty vc v) }}
+    else apply_fail tt
+  | Infrule.select_icmp_eq_xor1 z z' v x u w c c' s =>
+    let vc := ValueT.const (const_newint s c) in
+    let vnotc := ValueT.const (const_newint s c') in
+    let vc0 := ValueT.const (const_zero s) in
+    if $$ inv0 |-tgt (Expr.bop bop_and s x vc) >= (Expr.value w) $$ &&
+       $$ inv0 |-tgt (Expr.icmp cond_eq (typ_int s) w vc0) >= (Expr.value v) $$ &&
+       $$ inv0 |-tgt (Expr.bop bop_xor s x vc) >= (Expr.value u) $$ &&
+       $$ inv0 |-tgt (Expr.bop bop_and s x vnotc) >= (Expr.value z') $$ &&
+       $$ inv0 |-tgt (Expr.select v (typ_int s) x u) >= (Expr.value z) $$ &&
+       cond_neg s c c'
+    then
+      {{ inv0 +++tgt (Expr.value z) >= (Expr.value z') }}
+    else apply_fail tt
+  | Infrule.select_icmp_eq_xor2 z z' v x u w c s =>
+    let vc := ValueT.const (const_newint s c) in
+    let vc0 := ValueT.const (const_zero s) in
+    if $$ inv0 |-tgt (Expr.bop bop_and s x vc) >= (Expr.value w) $$ &&
+       $$ inv0 |-tgt (Expr.icmp cond_eq (typ_int s) w vc0) >= (Expr.value v) $$ &&
+       $$ inv0 |-tgt (Expr.bop bop_xor s x vc) >= (Expr.value u) $$ &&
+       $$ inv0 |-tgt (Expr.bop bop_or s x vc) >= (Expr.value z') $$ &&
+       $$ inv0 |-tgt (Expr.select v (typ_int s) u x) >= (Expr.value z) $$ 
+    then
+      {{ inv0 +++tgt (Expr.value z) >= (Expr.value z') }}
+    else apply_fail tt
+  | Infrule.select_icmp_ne z y x v c cty =>
+    let vc := ValueT.const c in
+    if $$ inv0 |-src (Expr.value y) >= (Expr.icmp cond_ne cty x vc) $$ &&
+       $$ inv0 |-src (Expr.value z) >= (Expr.select y cty v x) $$
+    then
+      {{ inv0 +++src (Expr.value z) >= (Expr.select y cty v vc) }}
+    else apply_fail tt
+  | Infrule.select_icmp_ne_xor1 z z' v x u w c c' s =>
+    let vc := ValueT.const (const_newint s c) in
+    let vnotc := ValueT.const (const_newint s c') in
+    let vc0 := ValueT.const (const_zero s) in
+    if $$ inv0 |-tgt (Expr.bop bop_and s x vc) >= (Expr.value w) $$ &&
+       $$ inv0 |-tgt (Expr.icmp cond_ne (typ_int s) w vc0) >= (Expr.value v) $$ &&
+       $$ inv0 |-tgt (Expr.bop bop_xor s x vc) >= (Expr.value u) $$ &&
+       $$ inv0 |-tgt (Expr.bop bop_and s x vnotc) >= (Expr.value z') $$ &&
+       $$ inv0 |-tgt (Expr.select v (typ_int s) u x) >= (Expr.value z) $$ &&
+       cond_neg s c c'
+    then
+      {{ inv0 +++tgt (Expr.value z) >= (Expr.value z') }}
+    else apply_fail tt
+  | Infrule.select_icmp_ne_xor2 z z' v x u w c s =>
+    let vc := ValueT.const (const_newint s c) in
+    let vc0 := ValueT.const (const_zero s) in
+    if $$ inv0 |-tgt (Expr.bop bop_and s x vc) >= (Expr.value w) $$ &&
+       $$ inv0 |-tgt (Expr.icmp cond_ne (typ_int s) w vc0) >= (Expr.value v) $$ &&
+       $$ inv0 |-tgt (Expr.bop bop_xor s x vc) >= (Expr.value u) $$ &&
+       $$ inv0 |-tgt (Expr.bop bop_or s x vc) >= (Expr.value z') $$ &&
+       $$ inv0 |-tgt (Expr.select v (typ_int s) x u) >= (Expr.value z) $$ 
+    then
+      {{ inv0 +++tgt (Expr.value z) >= (Expr.value z') }}
+    else apply_fail tt
+  | Infrule.select_icmp_sgt_xor1 z z' v x u c c' s =>
+    let vc := ValueT.const (const_newint s c) in
+    let vm1 := ValueT.const (const_mone s) in
+    let vnotc := ValueT.const (const_newint s c') in
+    if $$ inv0 |-tgt (Expr.bop bop_xor s x vc) >= (Expr.value u) $$ &&
+       $$ inv0 |-tgt (Expr.icmp cond_sgt (typ_int s) x vm1) >= (Expr.value v) $$ &&
+       $$ inv0 |-tgt (Expr.select v (typ_int s) x u) >= (Expr.value z) $$ &&
+       $$ inv0 |-tgt (Expr.bop bop_and s x vnotc) >= (Expr.value z') $$ &&
+       cond_neg s c c' && cond_signbit s vc
+    then
+      {{ inv0 +++tgt (Expr.value z) >= (Expr.value z') }}
+    else apply_fail tt
+  | Infrule.select_icmp_sgt_xor2 z z' v x u c s =>
+    let vc := ValueT.const (const_newint s c) in
+    let vm1 := ValueT.const (const_mone s) in
+    if $$ inv0 |-tgt (Expr.bop bop_xor s x vc) >= (Expr.value u) $$ &&
+       $$ inv0 |-tgt (Expr.icmp cond_sgt (typ_int s) x vm1) >= (Expr.value v) $$ &&
+       $$ inv0 |-tgt (Expr.select v (typ_int s) u x) >= (Expr.value z) $$ &&
+       $$ inv0 |-tgt (Expr.bop bop_or s x vc) >= (Expr.value z') $$ &&
+       cond_signbit s vc
+    then
+      {{ inv0 +++tgt (Expr.value z) >= (Expr.value z') }}
+    else apply_fail tt
+  | Infrule.select_icmp_slt_xor1 z z' v x u c c' s =>
+    let vc := ValueT.const (const_newint s c) in
+    let vnotc := ValueT.const (const_newint s c') in
+    let v0 := ValueT.const (const_zero s) in
+    if $$ inv0 |-tgt (Expr.bop bop_xor s x vc) >= (Expr.value u) $$ &&
+       $$ inv0 |-tgt (Expr.icmp cond_slt (typ_int s) x v0) >= (Expr.value v) $$ &&
+       $$ inv0 |-tgt (Expr.select v (typ_int s) u x) >= (Expr.value z) $$ &&
+       $$ inv0 |-tgt (Expr.bop bop_and s x vnotc) >= (Expr.value z') $$ &&
+       cond_neg s c c' && cond_signbit s vc
+    then
+      {{ inv0 +++tgt (Expr.value z) >= (Expr.value z') }}
+    else apply_fail tt
+  | Infrule.select_icmp_slt_xor2 z z' v x u c s =>
+    let vc := ValueT.const (const_newint s c) in
+    let v0 := ValueT.const (const_zero s) in
+    if $$ inv0 |-tgt (Expr.bop bop_xor s x vc) >= (Expr.value u) $$ &&
+       $$ inv0 |-tgt (Expr.icmp cond_slt (typ_int s) x v0) >= (Expr.value v) $$ &&
+       $$ inv0 |-tgt (Expr.select v (typ_int s) x u) >= (Expr.value z) $$ &&
+       $$ inv0 |-tgt (Expr.bop bop_or s x vc) >= (Expr.value z') $$ &&
+       cond_signbit s vc
+    then
+      {{ inv0 +++tgt (Expr.value z) >= (Expr.value z') }}
+    else apply_fail tt
+  | Infrule.select_icmp_sgt_const z y x c c' selcomm s =>
+    let vz := ValueT.id z in
+    let vc := ValueT.const (const_newint s c) in
+    let vc' := ValueT.const (const_newint s c') in
+    let i1 := INTEGER.of_Z (Size.to_Z s) (1%Z) true in
+    let (sel_src, sel_tgt) := 
+        if selcomm then ((Expr.select y (typ_int s) vc' x),
+                         (Expr.select y (typ_int s) x vc'))
+        else ((Expr.select y (typ_int s) x vc'),
+              (Expr.select y (typ_int s) vc' x))
+    in
+    if $$ inv0 |-src (Expr.value vz) >= sel_src $$ &&
+       $$ inv0 |-tgt sel_tgt >= (Expr.value vz) $$ &&
+       $$ inv0 |-src (Expr.value y) >= (Expr.icmp cond_sgt (typ_int s) x vc) $$ &&
+       $$ inv0 |-tgt (Expr.icmp cond_slt (typ_int s) x vc') >= (Expr.value y) $$ &&
+       cond_plus s c i1 c'
+    then {{ inv0 --- z }}
+    else apply_fail tt
+  | Infrule.select_icmp_slt_const z y x c c' selcomm s =>
+    let vz := ValueT.id z in
+    let vc := ValueT.const (const_newint s c) in
+    let vc' := ValueT.const (const_newint s c') in
+    let i1 := INTEGER.of_Z (Size.to_Z s) (1%Z) true in
+    let (sel_src, sel_tgt) :=
+        if selcomm then ((Expr.select y (typ_int s) vc' x),
+                         (Expr.select y (typ_int s) x vc'))
+        else ((Expr.select y (typ_int s) x vc'),
+              (Expr.select y (typ_int s) vc' x))
+    in
+    if $$ inv0 |-src (Expr.value vz) >= sel_src $$ &&
+       $$ inv0 |-tgt sel_tgt >= (Expr.value vz) $$ &&
+       $$ inv0 |-src (Expr.value y) >= (Expr.icmp cond_slt (typ_int s) x vc) $$ &&
+       $$ inv0 |-tgt (Expr.icmp cond_sgt (typ_int s) x vc') >= (Expr.value y) $$ &&
+       cond_minus s c i1 c'
+    then {{ inv0 --- z }}
+    else apply_fail tt
+  | Infrule.select_icmp_ugt_const z y x c c' selcomm s =>
+    let vz := ValueT.id z in
+    let vc := ValueT.const (const_newint s c) in
+    let vc' := ValueT.const (const_newint s c') in
+    let i1 := INTEGER.of_Z (Size.to_Z s) (1%Z) true in
+    let (sel_src, sel_tgt) :=
+        if selcomm then ((Expr.select y (typ_int s) vc' x),
+                         (Expr.select y (typ_int s) x vc'))
+        else ((Expr.select y (typ_int s) x vc'),
+              (Expr.select y (typ_int s) vc' x))
+    in
+    if $$ inv0 |-src (Expr.value vz) >= sel_src $$ &&
+       $$ inv0 |-tgt sel_tgt >= (Expr.value vz) $$ &&
+       $$ inv0 |-src (Expr.value y) >= (Expr.icmp cond_ugt (typ_int s) x vc) $$ &&
+       $$ inv0 |-tgt (Expr.icmp cond_ult (typ_int s) x vc') >= (Expr.value y) $$ &&
+       cond_plus s c i1 c'
+    then {{ inv0 --- z }}
+    else apply_fail tt
+  | Infrule.select_icmp_ult_const z y x c c' selcomm s =>
+    let vz := ValueT.id z in
+    let vc := ValueT.const (const_newint s c) in
+    let vc' := ValueT.const (const_newint s c') in
+    let i1 := INTEGER.of_Z (Size.to_Z s) (1%Z) true in
+    let (sel_src, sel_tgt) :=
+        if selcomm then ((Expr.select y (typ_int s) vc' x),
+                         (Expr.select y (typ_int s) x vc'))
+        else ((Expr.select y (typ_int s) x vc'),
+              (Expr.select y (typ_int s) vc' x))
+    in
+    if $$ inv0 |-src (Expr.value vz) >= sel_src $$ &&
+       $$ inv0 |-tgt sel_tgt >= (Expr.value vz) $$ &&
+       $$ inv0 |-src (Expr.value y) >= (Expr.icmp cond_ult (typ_int s) x vc) $$ &&
+       $$ inv0 |-tgt (Expr.icmp cond_ugt (typ_int s) x vc') >= (Expr.value y) $$ &&
+       cond_minus s c i1 c'
+    then {{ inv0 --- z }}
+    else apply_fail tt
   | Infrule.sext_bitcast src mid dst srcty midty dstty =>
     if $$ inv0 |-src (Expr.value mid) >= (Expr.cast castop_bitcast srcty src midty) $$ &&
        $$ inv0 |-src (Expr.value dst) >= (Expr.ext extop_s midty mid dstty) $$ &&
@@ -1166,6 +1350,16 @@ Definition apply_infrule
                        end) in
       {{inv0 +++src (Expr.map_valueTs e x_to_y) >= e}}
     else apply_fail tt
+  | Infrule.substitute_tgt x y e =>
+    if $$ inv0 |-tgt (Expr.value y) >= (Expr.value x) $$
+    then
+      let x_to_y := (fun v =>
+                       match v with
+                       | ValueT.id i => if(IdT.eq_dec x i) then y else v
+                       | _ => v
+                       end) in
+      {{inv0 +++tgt e >= (Expr.map_valueTs e x_to_y)}}
+    else apply_fail tt
   | Infrule.replace_rhs x y e1 e2 e2' =>
     if $$ inv0 |-src (Expr.value x) >= (Expr.value y) $$ &&
        $$ inv0 |-src e1 >= e2 $$ &&
@@ -1313,16 +1507,16 @@ Definition apply_infrule
        end)
     then {{ inv0 +++tgt (Expr.ext extop_z (typ_int s') y (typ_int s)) >= (Expr.value z) }}
     else apply_fail tt
-  | Infrule.zext_xor z y y' x =>
-    if $$ inv0 |-tgt (Expr.bop bop_xor (Size.from_Z 1) x 
-          (ValueT.const (const_int (Size.from_Z 1) (INTEGER.of_Z 1 1%Z true)))) 
+  | Infrule.zext_xor z y y' x sz =>
+    if $$ inv0 |-tgt (Expr.bop bop_xor (Size.One) x 
+          (ValueT.const (const_int (Size.One) (INTEGER.of_Z 1 1%Z true)))) 
         >= (Expr.value y) $$ &&
-       $$ inv0 |-tgt (Expr.ext extop_z (typ_int (Size.from_Z 1)) x (typ_int (Size.from_Z 32))) 
+       $$ inv0 |-tgt (Expr.ext extop_z (typ_int (Size.One)) x (typ_int sz)) 
         >= (Expr.value y') $$ &&
-       $$ inv0 |-tgt (Expr.bop bop_xor (Size.from_Z 32) y' 
-          (ValueT.const (const_int (Size.from_Z 32) (INTEGER.of_Z 32 1%Z true)))) 
+       $$ inv0 |-tgt (Expr.bop bop_xor sz y' 
+          (ValueT.const (const_int sz (INTEGER.of_Z (Size.to_Z sz) 1%Z true)))) 
         >= (Expr.value z) $$
-    then {{ inv0 +++tgt (Expr.ext extop_z (typ_int (Size.from_Z 1)) y (typ_int (Size.from_Z 32))) 
+    then {{ inv0 +++tgt (Expr.ext extop_z (typ_int (Size.One)) y (typ_int sz)) 
         >= (Expr.value z) }}
     else apply_fail tt
   | Infrule.zext_zext src mid dst srcty midty dstty =>
