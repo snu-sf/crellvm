@@ -49,28 +49,13 @@ Ltac solve_match_bool :=
             destruct c eqn:MATCH; try done
           end).
 
-Lemma syntactic_lessdef_spec
-      conf st invst e1 e2
-      (SYNTACTIC_LESSDEF:Invariant.syntactic_lessdef e1 e2):
-  <<LESSDEF: InvState.Unary.sem_lessdef conf st invst (e1, e2)>>.
+Lemma list_forall2_refl
+      X P (l: list X)
+      (REFL: reflexive X P):
+  <<REFL: list_forall2 P l l>>.
 Proof.
-  assert(CASES: e1 = e2 \/
-                (exists ty v2, e1 = Expr.value (ValueT.const (const_undef ty)) /\ e2 = Expr.value v2)).
-  { unfold Invariant.syntactic_lessdef in *.
-    solve_bool_true; eauto.
-    solve_match_bool; eauto. }
-  des.
-  - subst. ii.
-    esplits; eauto.
-    unfold GVs.lessdef.
-    apply list_forall2_imply with (P1:=eq).
-    + admit. (* list_forall2 eq *)
-    + i. subst. eauto.
-  - subst.
-    ii. ss.
-    (* esplits; eauto. ss. *)
-    admit. (* const2GV *)
-Admitted.
+  induction l; econs; eauto.
+Qed.
 
 Lemma list_forall2_trans
       X P
@@ -86,19 +71,30 @@ Proof.
   - econs; inv FORALL2; try apply IHFORALL1; eauto.
 Qed.
 
-Lemma GVs_lessdef_trans
-      v1 v2 v3
-      (LESSDEF1: GVs.lessdef v1 v2)
-      (LESSDEF2: GVs.lessdef v2 v3):
-  <<LESSDEF: GVs.lessdef v1 v3>>.
-Proof.
-  unfold GVs.lessdef in *.
+(* TODO: position *)
+Program Instance PreOrder_GVs_lessdef: PreOrder GVs.lessdef.
+Next Obligation.
+  ii. apply list_forall2_refl. ss.
+Qed.
+Next Obligation.
+  ii. unfold GVs.lessdef in *.
   eapply list_forall2_trans; eauto.
   ii. des.
   split.
   - eapply Values.Val.lessdef_trans; eauto.
   - etransitivity; eauto.
 Qed.
+
+Lemma syntactic_lessdef_spec
+      conf st invst e1 e2
+      (SYNTACTIC_LESSDEF:Invariant.syntactic_lessdef e1 e2):
+  <<LESSDEF: InvState.Unary.sem_lessdef conf st invst (e1, e2)>>.
+Proof.
+  unfold Invariant.syntactic_lessdef in *. solve_bool_true; ss.
+  - subst. ii. esplits; eauto. reflexivity.
+  - solve_match_bool. subst.
+    admit. (* const2GV *)
+Admitted.
 
 Lemma implies_lessdef_sound
       ld0 ld1 invst conf st
@@ -119,7 +115,7 @@ Proof.
   eexists val0.
   split.
   - rewrite <- e0. eauto.
-  - eapply GVs_lessdef_trans; eauto.
+  - red. etransitivity; eauto.
 Qed.
 
 (* TODO: premise for unique *)

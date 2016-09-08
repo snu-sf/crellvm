@@ -63,7 +63,6 @@ Module Unary.
       end
     end.
 
-  (* TODO. cf. old's `coq/hint/hint_sem.v` *)
   Definition sem_expr (conf:Config) (st:State) (invst:t) (e:Expr.t): option GenericValue :=
     match e with
     | Expr.bop op bsz v1 v2 =>
