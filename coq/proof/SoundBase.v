@@ -105,4 +105,12 @@ Lemma has_false_False
       (SEM: InvState.Rel.sem conf_src conf_tgt st_src st_tgt invst invmem inv):
   False.
 Proof.
+  unfold Hints.Invariant.has_false in *.
+  unfold Hints.Invariant.false_encoding in *.
+  inv SEM. inv SRC.
+  apply Exprs.ExprPairSet.mem_2 in HAS_FALSE.
+  specialize (LESSDEF _ HAS_FALSE).
+  clear -LESSDEF.
+  unfold InvState.Unary.sem_lessdef in *. ss.
+  admit.
 Admitted.

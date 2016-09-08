@@ -16,11 +16,14 @@ Import Opsem.
 
 Require Import TODO.
 Require Import Validator.
+Require Import Exprs.
+Require Import Hints.
 Require Import GenericValues.
 Require Import SimulationLocal.
 Require InvMem.
 Require InvState.
 Require Import SoundBase.
+
 
 Set Implicit Arguments.
 (* TODO: move to somewhere *)
@@ -31,126 +34,178 @@ Ltac solve_bool_true :=
            apply andb_true_iff in H; des
          | [H: orb ?a ?b = true |- _] =>
            apply orb_true_iff in H; des
+         | [H: proj_sumbool (?dec ?a ?b) = true |- _] =>
+           destruct (dec a b)
          end;
-     try subst; ss; unfold is_true in *).
+     try subst; ss; unfold is_true in *; unfold sflib.is_true in *).
 
-Lemma implies_lessdef_sound
-      ld0 ld1 invst conf_src st_src
-      (LESSDEF_IMPLIES:
-         Exprs.ExprPairSet.for_all
-           (fun p => Exprs.ExprPairSet.exists_
-                       (fun q =>
-                          (if (Exprs.Expr.eq_dec p.(fst) q.(fst))
-                           then ((Exprs.Expr.eq_dec p.(snd) q.(snd)) ||
-                                 (match p.(snd), q.(snd) with
-                                  | Exprs.Expr.value v, 
-                                    Exprs.Expr.value (Exprs.ValueT.const (const_undef ty)) => true
-                                  | _, _ => false
-                                  end))
-                           else false)) ld0) ld1)
-      (LESSDEF0:
-         Exprs.ExprPairSet.For_all
-           (InvState.Unary.sem_lessdef
-              conf_src st_src
-              invst) ld0):
-    <<IMPLIES_LESSDEF_SOUND:
-      Exprs.ExprPairSet.For_all
-        (InvState.Unary.sem_lessdef
-           conf_src st_src
-           invst) ld1>>.
+Ltac solve_match_bool :=
+  repeat (match goal with
+          | [H:match ?c with _ => _ end = true |- _] =>
+            let MATCH := fresh "MATCH" in
+            destruct c eqn:MATCH; try done
+          | [H:match ?c with _ => _ end = false |- _] =>
+            let MATCH := fresh "MATCH" in
+            destruct c eqn:MATCH; try done
+          end).
+
+Lemma syntactic_lessdef_spec
+      conf st invst e1 e2
+      (SYNTACTIC_LESSDEF:Invariant.syntactic_lessdef e1 e2):
+  <<LESSDEF: InvState.Unary.sem_lessdef conf st invst (e1, e2)>>.
 Proof.
-  ii.
-  apply Exprs.ExprPairSet.for_all_2 in LESSDEF_IMPLIES; eauto; cycle 1.
-  { ii. subst. ss. }
-  specialize (LESSDEF_IMPLIES x H). ss.
-  apply Exprs.ExprPairSet.exists_2 in LESSDEF_IMPLIES; eauto; cycle 1.
-  { ii. subst. ss. }
-  inv LESSDEF_IMPLIES. des.
-  destruct (Exprs.Expr.eq_dec (fst x) (fst x0)) eqn:EXPR_DEC; try done.
-  specialize (LESSDEF0 x0 H0).
-  solve_bool_true.
-  - assert (DECX: x = x0).
-    { eapply injective_projections; eauto.
-      destruct (Exprs.Expr.eq_dec (snd x) (snd x0)); done. }
-    subst.
-    unfold InvState.Unary.sem_lessdef in LESSDEF0.
-    eapply LESSDEF0; eauto.
-  - repeat (match goal with
-            | [H:match ?c with _ => _ end = _ |- _] =>
-              let MATCH := fresh "MATCH" in
-              destruct c eqn:MATCH; try done
-            end).
-    unfold InvState.Unary.sem_lessdef in LESSDEF0. ss.
-    exploit LESSDEF0.
-    { rewrite MATCH0. ss.
-      admit. (* TODO: undef from const2GV *)
-    }
-    i. des.
+  assert(CASES: e1 = e2 \/
+                (exists ty v2, e1 = Expr.value (ValueT.const (const_undef ty)) /\ e2 = Expr.value v2)).
+  { unfold Invariant.syntactic_lessdef in *.
+    solve_bool_true; eauto.
+    solve_match_bool; eauto. }
+  des.
+  - subst. ii.
     esplits; eauto.
-    rewrite e. eauto.
+    unfold GVs.lessdef.
+    apply list_forall2_imply with (P1:=eq).
+    + admit. (* list_forall2 eq *)
+    + i. subst. eauto.
+  - subst.
+    ii. ss.
+    (* esplits; eauto. ss. *)
+    admit. (* const2GV *)
 Admitted.
 
-Lemma implies_alias_sound
-      inv0 inv1 conf_src st_src invst
-      (ALIAS_IMPLIES:Hints.Invariant.implies_alias inv0 (Hints.Invariant.alias inv0) (Hints.Invariant.alias inv1) = true)
-      (NOALIAS:InvState.Unary.sem_alias conf_src st_src invst
-                                        (Hints.Invariant.alias inv0)):
-  <<IMPLIES_ALIAS_SOUND:
-    InvState.Unary.sem_alias
-      conf_src st_src invst
-      (Hints.Invariant.alias inv1)>>.
+Lemma list_forall2_trans
+      X P
+      (l1 l2 l3: list X)
+      (FORALL1: list_forall2 P l1 l2)
+      (FORALL2: list_forall2 P l2 l3)
+      (IMPLIES: transitive X P):
+  <<FORALL: list_forall2 P l1 l3>>.
 Proof.
+  revert l3 FORALL2.
+  induction FORALL1; destruct l3; eauto.
+  - i. inv FORALL2.
+  - econs; inv FORALL2; try apply IHFORALL1; eauto.
+Qed.
+
+Lemma GVs_lessdef_trans
+      v1 v2 v3
+      (LESSDEF1: GVs.lessdef v1 v2)
+      (LESSDEF2: GVs.lessdef v2 v3):
+  <<LESSDEF: GVs.lessdef v1 v3>>.
+Proof.
+  unfold GVs.lessdef in *.
+  eapply list_forall2_trans; eauto.
+  ii. des.
+  split.
+  - eapply Values.Val.lessdef_trans; eauto.
+  - etransitivity; eauto.
+Qed.
+
+Lemma implies_lessdef_sound
+      ld0 ld1 invst conf st
+      (IMPLIES_LESSDEF: Invariant.implies_lessdef ld0 ld1)
+      (LESSDEF: ExprPairSet.For_all (InvState.Unary.sem_lessdef conf st invst) ld0):
+    <<LESSDEF: ExprPairSet.For_all (InvState.Unary.sem_lessdef conf st invst) ld1>>.
+Proof.
+  ii. apply ExprPairSet.for_all_2 in IMPLIES_LESSDEF; eauto; cycle 1.
+  { ii. subst. ss. }
+  specialize (IMPLIES_LESSDEF x H). ss.
+  apply ExprPairSet.exists_2 in IMPLIES_LESSDEF; eauto; cycle 1.
+  { ii. subst. ss. }
+  inv IMPLIES_LESSDEF. des. solve_bool_true.
+  specialize (LESSDEF x0 H0).
+  destruct (Expr.eq_dec (fst x0) (fst x)) eqn:EXPR_DEC; try done.
+  exploit syntactic_lessdef_spec; eauto. i. des. ss.
+  specialize (LESSDEF val1 VAL1). des.
+  eexists val0.
+  split.
+  - rewrite <- e0. eauto.
+  - eapply GVs_lessdef_trans; eauto.
+Qed.
+
+(* TODO: premise for unique *)
+Lemma implies_alias_sound
+      inv0 inv1 conf st invst
+      (UNIQUE: AtomSetImpl.For_all (InvState.Unary.sem_unique conf st invst) (Invariant.unique inv0))
+      (IMPLIES_ALIAS: Invariant.implies_alias inv0 inv0.(Invariant.alias) inv1.(Invariant.alias) = true)
+      (ALIAS: InvState.Unary.sem_alias conf st invst (Invariant.alias inv0)):
+  <<ALIAS: InvState.Unary.sem_alias conf st invst (Invariant.alias inv1)>>.
+Proof.
+  inv ALIAS.
+  unfold Invariant.implies_alias in *.
+  solve_bool_true.
+  econs.
+  - clear IMPLIES_ALIAS NOALIAS.
+    unfold Invariant.implies_diffblock, flip in *.
+    i. apply ValueTPairSet.for_all_2 in IMPLIES_ALIAS0; cycle 1.
+    { ii. subst. ss. }
+    apply ValueTPairSet.mem_2 in MEM.
+    specialize (IMPLIES_ALIAS0 (val1, val2) MEM). ss.
+    (* solve_bool_true. *)
+    (* + unfold Invariant.is_unique_value in *. *)
+    (*   solve_match_bool. *)
+    (*   solve_bool_true. *)
+    (*   apply AtomSetImpl.mem_2 in IMPLIES_ALIAS2. *)
+    (*   specialize (UNIQUE (snd x) IMPLIES_ALIAS2). *)
+    (*   inv UNIQUE. *)
+    (*   assert (XVAL: val = gval1). *)
+    (*   { unfold InvState.Unary.sem_idT in VAL1. *)
+    (*     unfold InvState.Unary.sem_tag in VAL1. *)
+    (*     rewrite e in VAL1. congruence. } *)
+    (*   subst. *)
+    (*   apply negb_true_iff in IMPLIES_ALIAS0. *)
+    (*   destruct val2. *)
+    (*   * ss. *)
+    (*     admit. (* InvState.Unary.sem_unique - ghost? *) *)
+    (*     apply (LOCALS (snd x0)). *)
+    (*     { ii.  *)
+
+      
+
+    (*   InvState.Unary.sem_unique *)
+    (*   unfold InvState.Unary.sem_diffblock. *)
+
+    (*   admit. (* unique vp.(fst) *) *)
+    (* + admit. (* unique vp.(snd) *) *)
+    (* + eapply DIFFBLOCK; eauto. *)
+    admit. (* waiting merge of fixed diffblock *)
+  - admit. (* noalias *)
 Admitted.
 
 Lemma implies_unique_sound
-      inv0 inv1 conf_src st_src invst
-      (IMPLIES:AtomSetImpl.subset (Hints.Invariant.unique inv1)
-                                  (Hints.Invariant.unique inv0) = true)
-      (UNIQUE : AtomSetImpl.For_all
-                  (InvState.Unary.sem_unique conf_src st_src invst)
-                  (Hints.Invariant.unique inv0)):
-  <<IMPLIES_UNIQUE_SOUND:
+      inv0 inv1 conf st invst
+      (IMPLIES_UNIQUE:AtomSetImpl.subset (Invariant.unique inv1) (Invariant.unique inv0) = true)
+      (UNIQUE : AtomSetImpl.For_all (InvState.Unary.sem_unique conf st invst)
+                                    (Invariant.unique inv0)):
+  <<UNIQUE:
     AtomSetImpl.For_all
-      (InvState.Unary.sem_unique conf_src st_src invst)
-      (Hints.Invariant.unique inv1)>>.
+      (InvState.Unary.sem_unique conf st invst)
+      (Invariant.unique inv1)>>.
 Proof.
-  ii. apply AtomSetImpl.subset_2 in IMPLIES; eauto.
+  ii. apply AtomSetImpl.subset_2 in IMPLIES_UNIQUE; eauto.
 Qed.
 
 Lemma implies_private_sound
-      inv0 inv1 conf_src st_src invst invmem
-      (IMPLIES : Exprs.IdTSet.subset (Hints.Invariant.private inv1)
-                                     (Hints.Invariant.private inv0) = true)
-      (PRIVATE : Exprs.IdTSet.For_all
-                   (InvState.Unary.sem_private
-                      conf_src st_src 
-                      invst
-                      (InvMem.Unary.private invmem))
-                   (Hints.Invariant.private inv0)):
-  <<IMPLIES_PRIVATE_SOUND:
-    Exprs.IdTSet.For_all
-      (InvState.Unary.sem_private
-         conf_src st_src invst
-         (InvMem.Unary.private invmem))
-      (Hints.Invariant.private inv1)>>.
+      inv0 inv1 conf st invst invmem
+      (IMPLIES_PRIVATE : IdTSet.subset (Invariant.private inv1)
+                                       (Invariant.private inv0) = true)
+      (PRIVATE : IdTSet.For_all
+                   (InvState.Unary.sem_private conf st invst (InvMem.Unary.private invmem))
+                   (Invariant.private inv0)):
+  <<PRIVATE: IdTSet.For_all
+               (InvState.Unary.sem_private conf st invst (InvMem.Unary.private invmem))
+               (Invariant.private inv1)>>.
 Proof.
-  intros id. apply Exprs.IdTSet.subset_2 in IMPLIES; eauto.
+  intros id. apply IdTSet.subset_2 in IMPLIES_PRIVATE; eauto.
 Qed.
 
 Lemma implies_unary_sound
-    inv0 inv1 invmem invst
-    conf_src st_src
-    (IMPLIES: Hints.Invariant.implies_unary inv0 inv1 = true)
-    (SRC : InvState.Unary.sem
-             conf_src st_src
-             invst invmem inv0):
-      <<IMPLIES_UNARY_SOUND:
-        InvState.Unary.sem
-          conf_src st_src invst
-          invmem inv1>>.
+    inv0 inv1 invmem invst conf st
+    (IMPLIES_UNARY: Invariant.implies_unary inv0 inv1 = true)
+    (UNARY: InvState.Unary.sem conf st invst invmem inv0):
+      <<UNARY: InvState.Unary.sem conf st invst invmem inv1>>.
 Proof.
-  i. inv SRC.
-  unfold Hints.Invariant.implies_unary in IMPLIES.
+  i. inv UNARY.
+  unfold Invariant.implies_unary in IMPLIES_UNARY.
   solve_bool_true.
   econs.
   - eapply implies_lessdef_sound; eauto.
@@ -164,19 +219,19 @@ Lemma implies_sound
       m_tgt conf_tgt st_tgt
       invst invmem inv0 inv1
       (CONF: valid_conf m_src m_tgt conf_src conf_tgt)
-      (IMPLIES: Hints.Invariant.implies inv0 inv1)
+      (IMPLIES: Invariant.implies inv0 inv1)
       (STATE: InvState.Rel.sem conf_src conf_tgt st_src st_tgt invst invmem inv0)
       (MEM: InvMem.Rel.sem conf_src conf_tgt st_src.(Mem) st_tgt.(Mem) invmem):
   <<STATE: InvState.Rel.sem conf_src conf_tgt st_src st_tgt invst invmem inv1>>.
 Proof.
-  unfold Hints.Invariant.implies in IMPLIES.
+  unfold Invariant.implies in IMPLIES.
   solve_bool_true.
-  - exfalso; eapply has_false_False; eauto.
-  - inv STATE. econs.
-    + eapply implies_unary_sound; eauto.
-    + eapply implies_unary_sound; eauto.
-    + i. apply MAYDIFF. ii. apply NOTIN.
-      apply Exprs.IdTSetFacts.mem_iff.
-      eapply Exprs.IdTSetFacts.subset_iff; eauto.
-      apply Exprs.IdTSetFacts.mem_iff. ss.
+  { exfalso; eapply has_false_False; eauto. }
+  inv STATE. econs.
+  - eapply implies_unary_sound; eauto.
+  - eapply implies_unary_sound; eauto.
+  - i. apply MAYDIFF. ii. apply NOTIN.
+    apply IdTSetFacts.mem_iff.
+    eapply IdTSetFacts.subset_iff; eauto.
+    apply IdTSetFacts.mem_iff. ss.
 Qed.

@@ -29,7 +29,7 @@ Ltac solve_bool_true :=
          | [H: proj_sumbool (ValueTSetFacts.eq_dec ?a ?b) = true |- _] =>
            destruct (ValueTSetFacts.eq_dec a b)
          end;
-     try subst; ss; unfold is_true; unfold sflib.is_true in *).
+     try subst; ss; unfold is_true in *; unfold sflib.is_true in *).
 
 Module Unary.
   Structure t := mk {
