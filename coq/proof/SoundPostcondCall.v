@@ -19,6 +19,7 @@ Require Import Validator.
 Require Import GenericValues.
 Require InvMem.
 Require InvState.
+Require Import Inject.
 Require Import SoundBase.
 
 Set Implicit Arguments.

@@ -50,15 +50,16 @@ Inductive sim_local_stack
                         conf_src.(CurTargetData)
                         retval'_src id_src noret_src typ_src
                         locals_src = Some locals'_src),
-       exists idx' locals'_tgt,
+       exists inv'' idx' locals'_tgt,
          <<RETURN_TGT: return_locals
                          conf_tgt.(CurTargetData)
                          retval'_tgt id_tgt noret_tgt typ_tgt
                          locals_tgt = Some locals'_tgt>> /\
+         <<MEMLE: InvMem.Rel.le inv' inv''>> /\
          <<SIM:
            sim_local
              conf_src conf_tgt ecs0_src ecs0_tgt
-             inv' idx'
+             inv'' idx'
              (mkState
                 (mkEC func_src b_src cmds_src term_src locals'_src allocas_src)
                 ecs_src
@@ -192,9 +193,42 @@ Proof.
     exploit nerror_nfinal_nstuck; eauto. i. des.
     inv x0; ss.
     + (* call *)
-      admit.
+      exploit FUN; eauto. i. des.
+      exploit ARGS; eauto. i. des.
+      apply _sim_step; ss.
+      { admit. (* tgt not stuck *) }
+      i. inv STEP0; ss; cycle 1.
+      { admit. (* call & excall mismatch *) }
+      rewrite FUN_TGT in H22. inv H22.
+      rewrite ARGS_TGT in H25. inv H25.
+      esplits; eauto.
+      * econs 1. econs; eauto.
+      * right. apply CIH. econs.
+        { ss. }
+        { econs 2; eauto. s. i.
+          hexploit RETURN; eauto. i. des. inv SIM; ss.
+          esplits; eauto.
+        }
+        { admit. (* sim_local init *) }
+        { reflexivity. }
     + (* excall *)
-      admit.
+      exploit FUN; eauto. i. des.
+      exploit ARGS; eauto. i. des.
+      apply _sim_step; ss.
+      { admit. (* tgt not stuck *) }
+      i. inv STEP0; ss.
+      { admit. (* call & excall mismatch *) }
+      rewrite FUN_TGT in H22. inv H22.
+      rewrite ARGS_TGT in H24. inv H24.
+      hexploit RETURN; eauto.
+      { reflexivity. }
+      { admit. (* retvals are related *) }
+      { rewrite exCallUpdateLocals_spec in H21. eauto. }
+      i. des. inv SIM; ss.
+      esplits; eauto.
+      * econs 1. econs; eauto.
+        admit. (* callExternalOrIntrinsics *)
+      * right. apply CIH. econs; eauto. etransitivity; eauto.
   - (* step *)
     econs 3; ss. i. exploit STEP; eauto. i. des.
     inv SIM; [|done].

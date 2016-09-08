@@ -92,3 +92,9 @@ Proof.
   unfold returnUpdateLocals.
   destruct (getOperandValue TD Result lc gl); ss.
 Qed.
+
+Lemma exCallUpdateLocals_spec
+      TD rt noret rid oResult lc:
+  exCallUpdateLocals TD rt noret rid oResult lc =
+  return_locals TD oResult rid noret rt lc.
+Proof. destruct oResult; ss. Qed.

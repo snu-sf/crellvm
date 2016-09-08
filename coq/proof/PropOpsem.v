@@ -19,7 +19,7 @@ Require Import Decs.
 Require Import Hints.
 Require Import Validator.
 Require Import GenericValues.
-Require Import SoundBase.
+Require Import Inject.
 
 Set Implicit Arguments.
 
