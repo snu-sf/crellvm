@@ -3,6 +3,7 @@ Require Import syntax.
 Require Import alist.
 Require Import FMapWeakList.
 
+Require Import sflib.
 Require Import Coqlib.
 Require Import infrastructure.
 Require Import Metatheory.
@@ -282,56 +283,55 @@ Module ForgetMemory.
     inv2.
 End ForgetMemory.
 
-Definition reduce_non_physical (inv0: Invariant.t): Invariant.t :=
-  let (src, tgt, _) := inv0 in
-  let used_ids := ((Invariant.get_idTs_unary src) ++ (Invariant.get_idTs_unary tgt)) in
+Definition reduce_maydiff_non_physical (inv0: Invariant.t): Invariant.t :=
+  let used_ids := (Invariant.get_idTs_unary inv0.(Invariant.src))
+                    ++ (Invariant.get_idTs_unary inv0.(Invariant.tgt))
+  in
   Invariant.update_maydiff
     (IdTSet.filter
-       (fun idt =>
-          if(Tag.eq_dec (fst idt) Tag.physical)
-          then true
-          else
-            match List.find (IdT.eq_dec idt) used_ids with
-              | (Some _) => true
-              | None => false
-            end
-    ))
+       (fun idt => (Tag.eq_dec (fst idt) Tag.physical) ||
+                if List.find (IdT.eq_dec idt) used_ids
+                then true
+                else false))
     inv0.
 
-Definition reduce_maydiff (inv0:Invariant.t): Invariant.t :=
+Definition reduce_maydiff_lessdef (inv0:Invariant.t): Invariant.t :=
   let lessdef_src := inv0.(Invariant.src).(Invariant.lessdef) in
   let lessdef_tgt := inv0.(Invariant.tgt).(Invariant.lessdef) in
-  let inv1 :=
-      Invariant.update_maydiff
-        (IdTSet.filter
-           (fun id =>
-              negb (ExprPairSet.exists_
-                      (fun p => ExprPairSet.exists_
-                                  (fun q => Invariant.inject_expr inv0 (snd p) (fst q))
-                                  (Invariant.get_lhs lessdef_tgt (fst p)))
-                      (Invariant.get_rhs lessdef_src
-                                         (Expr.value (ValueT.id id)))))) inv0 in
-  let inv2 := reduce_non_physical inv1 in
+  Invariant.update_maydiff
+    (IdTSet.filter
+       (fun id =>
+          negb (ExprPairSet.exists_
+                  (fun p => ExprPairSet.exists_
+                           (fun q => Invariant.inject_expr inv0 (snd p) (fst q))
+                           (Invariant.get_lhs lessdef_tgt (fst p)))
+                  (Invariant.get_rhs lessdef_src
+                                     (Expr.value (ValueT.id id)))))) inv0.
+
+Definition reduce_maydiff (inv0:Invariant.t): Invariant.t :=
+  let inv1 := reduce_maydiff_lessdef inv0 in
+  let inv2 := reduce_maydiff_non_physical inv1 in
   inv2.
 
-Definition reduce_maydiff_default (inv0:Invariant.t): Invariant.t :=
-  let lessdef_src := inv0.(Invariant.src).(Invariant.lessdef) in
-  let lessdef_tgt := inv0.(Invariant.tgt).(Invariant.lessdef) in
-  let equations := ExprPairSet.filter
-                     (fun elt => ExprPairSet.mem (snd elt, fst elt) lessdef_tgt)
-                     lessdef_src in
-  let inv1 := Invariant.update_maydiff
-                (IdTSet.filter
-                   (fun id =>
-                      negb (ExprPairSet.exists_
-                              (fun ep =>
-                                 ((Expr.eq_dec (fst ep)
-                                               (Expr.value (ValueT.id id)))
-                                    && Invariant.not_in_maydiff_expr inv0 (snd ep)))
-                              equations)))
-                inv0 in
-  let inv2 := reduce_non_physical inv1 in
-  inv2.
+(* TODO: unused. remove? *)
+(* Definition reduce_maydiff_default (inv0:Invariant.t): Invariant.t := *)
+(*   let lessdef_src := inv0.(Invariant.src).(Invariant.lessdef) in *)
+(*   let lessdef_tgt := inv0.(Invariant.tgt).(Invariant.lessdef) in *)
+(*   let equations := ExprPairSet.filter *)
+(*                      (fun elt => ExprPairSet.mem (snd elt, fst elt) lessdef_tgt) *)
+(*                      lessdef_src in *)
+(*   let inv1 := Invariant.update_maydiff *)
+(*                 (IdTSet.filter *)
+(*                    (fun id => *)
+(*                       negb (ExprPairSet.exists_ *)
+(*                               (fun ep => *)
+(*                                  ((Expr.eq_dec (fst ep) *)
+(*                                                (Expr.value (ValueT.id id))) *)
+(*                                     && Invariant.not_in_maydiff_expr inv0 (snd ep))) *)
+(*                               equations))) *)
+(*                 inv0 in *)
+(*   let inv2 := reduce_maydiff_non_physical inv1 in *)
+(*   inv2. *)
 
 Module Cmd.
   Definition t := cmd.

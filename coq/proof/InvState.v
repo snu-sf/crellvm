@@ -33,8 +33,8 @@ Ltac solve_bool_true :=
 
 Module Unary.
   Structure t := mk {
-    previous: GVMap;
-    ghost: GVMap;
+    previous: GVsMap;
+    ghost: GVsMap;
   }.
 
   Definition sem_tag (st:State) (invst:t) (tag:Tag.t): GVsMap :=
