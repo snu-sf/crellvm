@@ -108,14 +108,11 @@ Proof.
   apply ExprPairSet.exists_2 in IMPLIES_LESSDEF; eauto; cycle 1.
   { ii. subst. ss. }
   inv IMPLIES_LESSDEF. des. solve_bool_true.
-  specialize (LESSDEF x0 H0).
-  destruct (Expr.eq_dec (fst x0) (fst x)) eqn:EXPR_DEC; try done.
-  exploit syntactic_lessdef_spec; eauto. i. des. ss.
-  specialize (LESSDEF val1 VAL1). des.
-  eexists val0.
-  split.
-  - rewrite <- e0. eauto.
-  - red. etransitivity; eauto.
+  destruct x0, x; ss. subst.
+  specialize (LESSDEF _ H0 _ VAL1). ss. des.
+  hexploit syntactic_lessdef_spec; eauto. i. des.
+  specialize (H3 _ VAL2). ss. des.
+  esplits; eauto. etransitivity; eauto.
 Qed.
 
 (* TODO: premise for unique *)

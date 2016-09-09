@@ -152,9 +152,9 @@ Module Unary.
     end.
 
   Definition sem_lessdef (conf:Config) (st:State) (invst:t) (es:ExprPair.t): Prop :=
-    forall val2 (VAL2: sem_expr conf st invst es.(snd) = Some val2),
-    exists val1,
-      <<VAL1: sem_expr conf st invst es.(fst) = Some val1>> /\
+    forall val1 (VAL1: sem_expr conf st invst es.(fst) = Some val1),
+    exists val2,
+      <<VAL2: sem_expr conf st invst es.(snd) = Some val2>> /\
       <<VAL: GVs.lessdef val1 val2>>.
 
   Definition sem_diffblock (conf:Config) (val1 val2:GenericValue): Prop :=
