@@ -223,8 +223,13 @@ Proof.
   inv STATE. econs.
   - eapply implies_unary_sound; eauto.
   - eapply implies_unary_sound; eauto.
-  - i. apply MAYDIFF. ii. apply NOTIN.
-    apply IdTSetFacts.mem_iff.
-    eapply IdTSetFacts.subset_iff; eauto.
-    apply IdTSetFacts.mem_iff. ss.
+  - i. apply MAYDIFF. ii.
+    destruct (IdTSet.mem id0 (Invariant.maydiff inv0)) eqn:T; auto.
+    rewrite <- IdTSetFacts.mem_iff in T.
+    eapply IdTSetFacts.subset_iff in IMPLIES0.
+    unfold IdTSet.Subset in IMPLIES0.
+    specialize (IMPLIES0 id0).
+    apply IMPLIES0 in T.
+    apply IdTSetFacts.mem_iff in T.
+    destruct (IdTSet.mem id0 (Invariant.maydiff inv1)) eqn:T2; auto.
 Qed.

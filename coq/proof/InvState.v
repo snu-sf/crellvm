@@ -271,7 +271,7 @@ Module Rel.
       (SRC: Unary.sem conf_src st_src invst.(src) invmem.(InvMem.Rel.src) inv.(Invariant.src))
       (TGT: Unary.sem conf_tgt st_tgt invst.(tgt) invmem.(InvMem.Rel.tgt) inv.(Invariant.tgt))
       (MAYDIFF:
-         forall id (NOTIN: ~ IdTSet.mem id inv.(Invariant.maydiff)),
+         forall id (NOTIN: negb (IdTSet.mem id inv.(Invariant.maydiff))),
            sem_inject st_src st_tgt invst invmem.(InvMem.Rel.inject) id)
   .
 
@@ -301,20 +301,19 @@ Module Rel.
   Lemma not_in_maydiff_sem1
         inv id
         (NIMD: Invariant.not_in_maydiff inv (Exprs.ValueT.id id) = true):
-    <<NOT_IN: ~ IdTSet.mem id (Invariant.maydiff inv)>>.
+    <<NOT_IN: negb (IdTSet.mem id (Invariant.maydiff inv))>>.
   Proof.
-    ii. apply negb_true_iff in NIMD. congruence.
+    ii. apply negb_true_iff in NIMD.
+    rewrite NIMD. ss.
   Qed.
 
   (* TODO: position *)
   Lemma not_in_maydiff_sem2
         inv id
-        (NOT_IN: ~ IdTSet.mem id (Invariant.maydiff inv)):
+        (NOT_IN: negb (IdTSet.mem id (Invariant.maydiff inv))):
   <<NIMD: Invariant.not_in_maydiff inv (Exprs.ValueT.id id) = true>>.
   Proof.
     destruct id; ss.
-    apply negb_true_iff.
-    destruct (IdTSet.mem (t0, i0) (Invariant.maydiff inv)); ss.
   Qed.
 
   Lemma inject_value_spec
