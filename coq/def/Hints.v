@@ -123,14 +123,6 @@ Module Invariant.
   Definition is_unique_ptr (inv0:unary) (ptr:Ptr.t): bool :=
     is_unique_value inv0 ptr.(fst).
 
-  Definition implies_noalias (inv0:unary) (na0 na:PtrPairSet.t): bool :=
-    flip PtrPairSet.for_all na
-      (fun pp =>
-         (negb (Ptr.eq_dec pp.(fst) pp.(snd)) &&
-           is_unique_ptr inv0 pp.(fst) || is_unique_ptr inv0 pp.(snd)) ||
-         (PtrPairSet.mem pp na0)
-      ).
-
   Definition values_diffblock_from_unique (v:ValueT.t): bool :=
     match v with
     | ValueT.id (Tag.physical, _) => true
@@ -138,16 +130,22 @@ Module Invariant.
     | _ => false
     end.
 
+  Definition diffblock_by_unique (inv0:unary) (v1 v2:ValueT.t): bool :=
+    (negb (ValueT.eq_dec v1 v2)) &&
+    ((is_unique_value inv0 v1 && values_diffblock_from_unique v2) ||
+     (is_unique_value inv0 v2 && values_diffblock_from_unique v1)).
+
+  Definition implies_noalias (inv0:unary) (na0 na:PtrPairSet.t): bool :=
+    flip PtrPairSet.for_all na
+      (fun pp =>
+         (diffblock_by_unique inv0 pp.(fst).(fst) pp.(snd).(fst)) ||
+         (PtrPairSet.mem pp na0)).
+
   Definition implies_diffblock (inv0:unary) (db0 db:ValueTPairSet.t): bool :=
     flip ValueTPairSet.for_all db
       (fun vp =>
-         ((negb (ValueT.eq_dec vp.(fst) vp.(snd))) &&
-           ((is_unique_value inv0 vp.(fst) &&
-               values_diffblock_from_unique vp.(snd)) ||
-            (is_unique_value inv0 vp.(snd) &&
-               values_diffblock_from_unique vp.(fst)))) ||
-         (ValueTPairSet.mem vp db0)
-      ).
+         (diffblock_by_unique inv0 vp.(fst) vp.(snd)) ||
+         (ValueTPairSet.mem vp db0)).
 
   Definition implies_alias inv0 (alias0 alias:aliasrel): bool :=
     implies_noalias inv0 (alias0.(noalias)) (alias.(noalias)) &&
