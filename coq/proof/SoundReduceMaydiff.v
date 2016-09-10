@@ -191,14 +191,7 @@ Lemma reduce_maydiff_non_physical_sound
 Proof.
   inv STATE.
   unfold reduce_maydiff_non_physical.
-  remember (fun idt : Exprs.Tag.t * id =>
-             Exprs.Tag.eq_dec (fst idt) Exprs.Tag.physical
-             || (if
-                  find (fun y : Exprs.IdT.t => Exprs.IdT.eq_dec idt y)
-                    (Hints.Invariant.get_idTs_unary (Hints.Invariant.src inv) ++
-                     Hints.Invariant.get_idTs_unary (Hints.Invariant.tgt inv))
-                 then true
-                 else false)) as safe_to_remove.
+  remember (safe_to_remove inv) as safe_to_remove.
   remember (fun k: (Exprs.Tag.t_ * (id * GenericValue)) =>
               safe_to_remove (k.(fst), k.(snd).(fst))) as safe_to_remove_fit_type.
   remember (fun ks => List.map snd (List.filter safe_to_remove_fit_type ks))
@@ -228,6 +221,7 @@ Proof.
       destruct id0; ss.
       (* TODO do not explicitly write this *)
       rewrite Heqsafe_to_remove in NOTIN0.
+      unfold Postcond.safe_to_remove in NOTIN0. ss.
       destruct
         (find (fun y : Exprs.IdT.t => Exprs.IdT.eq_dec (t, i0) y)
               (Hints.Invariant.get_idTs_unary
