@@ -32,7 +32,9 @@ Ltac des_is_true :=
   repeat
     match goal with
     | [H: sflib.is_true ?x |- _] =>
-      let H2 := fresh H in destruct x eqn:H2; cycle 1; inv H
+      let H2 := fresh H in
+      destruct x eqn:H2; cycle 1; inversion H; clear H
+    (* Intended not to use inv here, because it contains subst, changing other premises  *)
     end.
 
 Ltac des_bool :=
@@ -42,6 +44,10 @@ Ltac des_bool :=
     | [ H: ?x && ?y = false |- _ ] => apply andb_false_iff in H
     | [ H: ?x || ?y = true |- _ ] => apply orb_true_iff in H
     | [ H: ?x || ?y = false |- _ ] => apply orb_false_iff in H
+    | [ H: context[ ?x && false ] |- _ ] => rewrite andb_false_r in H
+    | [ H: context[ false && ?x ] |- _ ] => rewrite andb_false_l in H
+    | [ H: context[ ?x || true ] |- _ ] => rewrite orb_true_r in H
+    | [ H: context[ true || ?x ] |- _ ] => rewrite orb_true_l in H
     | [ H: context[ negb (?x && ?y) ] |- _ ] => rewrite negb_andb in H
     | [ H: context[ negb (?x || ?y) ] |- _ ] => rewrite negb_orb in H
     | [ H: context[ negb (negb ?x) ] |- _ ] => rewrite negb_involutive in H
@@ -184,17 +190,27 @@ Lemma reduce_maydiff_non_physical_sound
                               (reduce_maydiff_non_physical inv)>>.
 Proof.
   inv STATE.
-  (* assert(ABC: InvState.Rel.t) by admit. *)
-  (* exists ABC. *)
-  exists invst0.
+  unfold reduce_maydiff_non_physical.
+  remember (fun idt : Exprs.Tag.t * id =>
+             Exprs.Tag.eq_dec (fst idt) Exprs.Tag.physical
+             || (if
+                  find (fun y : Exprs.IdT.t => Exprs.IdT.eq_dec idt y)
+                    (Hints.Invariant.get_idTs_unary (Hints.Invariant.src inv) ++
+                     Hints.Invariant.get_idTs_unary (Hints.Invariant.tgt inv))
+                 then true
+                 else false)) as safe_to_remove.
+  remember (fun k: (Exprs.Tag.t_ * (id * GenericValue)) =>
+              safe_to_remove (k.(fst), k.(snd).(fst))) as safe_to_remove_fit_type.
+  remember (fun ks => List.map snd (List.filter safe_to_remove_fit_type ks))
+    as safe_to_remove_fit_type2.
+  exists (InvState.Rel.update_both
+            (InvState.Unary.update_both safe_to_remove_fit_type2) invst0).
   red.
-  (* econs; eauto; ss; cycle 2. *)
-  econs; eauto.
+  econs; eauto; ss; cycle 2.
   {
     i. ii. (* VAL_SRC (sem_idT) is from ii *) (* sem_inject from MAYDIFF *) ss. des.
     rewrite Exprs.IdTSetFacts.filter_b in NOTIN; cycle 1.
     { solve_compat_bool. }
-
     des_is_true.
     des_bool.
     des.
@@ -202,35 +218,35 @@ Proof.
       unfold InvState.Rel.sem_inject in NOTIN0.
       specialize (NOTIN0 val_src).
       exploit NOTIN0; eauto.
+      (* ok because it is subset *)
+      admit.
+      ii; des.
+      esplits; eauto.
+      (* ok because it is safe *)
+      admit.
     - des_bool; des.
       destruct id0; ss.
       (* TODO do not explicitly write this *)
+      rewrite Heqsafe_to_remove in NOTIN0.
       destruct
         (find (fun y : Exprs.IdT.t => Exprs.IdT.eq_dec (t, i0) y)
               (Hints.Invariant.get_idTs_unary
                  (Hints.Invariant.src inv) ++
                  (Hints.Invariant.get_idTs_unary (Hints.Invariant.tgt inv)))) eqn:T;
-        inv NOTIN1.
-      unfold InvState.Unary.sem_idT in VAL_SRC; ss.
-      (* exploit MAYDIFF; eauto. *)
-      (* TODO
- Don't select  invst0, rather select subset of it.
- Enforce VAL_SRC to return NONE. exfalso.
-       *)
-      (* destruct t; inv NOTIN0; ss. *)
-      (* { *)
-      (*   + (* prev *) *)
-      (*     esplits; eauto. *)
-      (*     unfold InvState.Unary.sem_idT; ss. *)
-      (*     eauto. *)
-      (*   + (* ghost *) *)
-      (* } *)
-      (* { *)
-      (*   exfalso. *)
-      (*   destruct t; inv NOTIN0; ss. *)
-      (*   unfold InvState.Unary.sem_tag in *. *)
-      (* } *)
+        inversion NOTIN0; clear NOTIN0; des_bool; try by inv H0.
+      des.
+      rename t into __t__.
+      exfalso.
+      clear H1 MAYDIFF TGT SRC MEM CONF invmem.
+      subst. ss.
       admit.
+      (* assert(G: find (fun y : Exprs.IdT.t => Exprs.IdT.eq_dec (fst k, fst (snd k)) y) *)
+      (*                (Hints.Invariant.get_idTs_unary (Hints.Invariant.src inv) ++ *)
+      (*                 Hints.Invariant.get_idTs_unary (Hints.Invariant.tgt inv)) = None). *)
+      (* unfold InvState.Unary.sem_idT in VAL_SRC. ss. *)
+      (* unfold InvState.Unary.sem_tag in VAL_SRC. ss. *)
+      (* destruct __t__; ss. *)
+
   }
 Admitted.
 

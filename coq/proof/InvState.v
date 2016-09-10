@@ -37,6 +37,15 @@ Module Unary.
     ghost: GVsMap;
   }.
 
+  Definition update_previous f x :=
+    (mk (f (List.map (pair Tag.previous) x.(previous))) x.(ghost)).
+
+  Definition update_ghost f x :=
+    (mk x.(previous) (f (List.map (pair Tag.ghost) x.(ghost)))).
+
+  Definition update_both f x :=
+    update_ghost f (update_previous f x).
+
   Definition sem_tag (st:State) (invst:t) (tag:Tag.t): GVsMap :=
     match tag with
     | Tag.physical => st.(EC).(Locals)
@@ -259,6 +268,15 @@ Module Rel.
     src: Unary.t;
     tgt: Unary.t;
   }.
+
+  Definition update_src f x :=
+    (mk (f x.(src)) x.(tgt)).
+
+  Definition update_tgt f x :=
+    (mk x.(src) (f x.(tgt))).
+
+  Definition update_both f x :=
+    update_src f (update_tgt f x).
 
   Definition sem_inject (st_src st_tgt:State) (invst:t) (inject:meminj) (id:IdT.t): Prop :=
     forall val_src (VAL_SRC: Unary.sem_idT st_src invst.(src) id = Some val_src),
