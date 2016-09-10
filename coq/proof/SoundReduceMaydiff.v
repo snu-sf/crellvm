@@ -230,18 +230,73 @@ Proof.
         inversion NOTIN0; clear NOTIN0; des_bool; try by inv H0.
       des.
       rename t into __t__.
+      rename i0 into __i__.
       exfalso.
       clear H1 MAYDIFF TGT SRC MEM CONF invmem.
       subst. ss.
-      admit.
-      (* assert(G: find (fun y : Exprs.IdT.t => Exprs.IdT.eq_dec (fst k, fst (snd k)) y) *)
-      (*                (Hints.Invariant.get_idTs_unary (Hints.Invariant.src inv) ++ *)
-      (*                 Hints.Invariant.get_idTs_unary (Hints.Invariant.tgt inv)) = None). *)
-      (* unfold InvState.Unary.sem_idT in VAL_SRC. ss. *)
-      (* unfold InvState.Unary.sem_tag in VAL_SRC. ss. *)
-      (* destruct __t__; ss. *)
-
+      unfold safe_to_remove in VAL_SRC.
+      unfold InvState.Unary.sem_idT in VAL_SRC. ss.
+      unfold InvState.Unary.sem_tag in VAL_SRC. ss.
+      destruct invst0; ss.
+      destruct src, tgt; ss.
+      destruct __t__; inv H0.
+      + induction previous; ss; try by inv VAL_SRC.
+        apply IHprevious. clear IHprevious.
+        destruct a as [aid atag].
+        destruct (eq_dec __i__ aid); ss.
+        * subst.
+          (* rewrite T in VAL_SRC. *)
+          (* IDK why this does not work. I checked with Set Printing All. *)
+          replace (find (fun y : Exprs.IdT.t => Exprs.IdT.eq_dec (Exprs.Tag.previous, aid) y)
+                      (Hints.Invariant.get_idTs_unary (Hints.Invariant.src inv) ++
+                       Hints.Invariant.get_idTs_unary (Hints.Invariant.tgt inv))) with
+          (@None Exprs.IdT.t) in VAL_SRC.
+          ss.
+        * destruct (find (fun y : Exprs.IdT.t => Exprs.IdT.eq_dec (Exprs.Tag.previous, aid) y)
+                      (Hints.Invariant.get_idTs_unary (Hints.Invariant.src inv) ++
+                       Hints.Invariant.get_idTs_unary (Hints.Invariant.tgt inv))) eqn:T2; ss.
+          (* TODO automatize this *)
+          (* Set Printing All. idtac. *)
+          destruct (@eq_dec atom (EqDec_eq_of_EqDec atom EqDec_atom) __i__ aid).
+          { subst. unfold not in n. exfalso; apply n; auto. }
+          clear n0 n.
+          apply VAL_SRC.
+      (* COPIED FROM ABOVE. EXACTLY SAME PROOF *)
+      + induction ghost; ss; try by inv VAL_SRC.
+        apply IHghost. clear IHghost.
+        destruct a as [aid atag].
+        destruct (eq_dec __i__ aid); ss.
+        * subst.
+          (* rewrite T in VAL_SRC. *)
+          (* IDK why this does not work. I checked with Set Printing All. *)
+          replace (find (fun y : Exprs.IdT.t => Exprs.IdT.eq_dec (Exprs.Tag.ghost, aid) y)
+                      (Hints.Invariant.get_idTs_unary (Hints.Invariant.src inv) ++
+                       Hints.Invariant.get_idTs_unary (Hints.Invariant.tgt inv))) with
+          (@None Exprs.IdT.t) in VAL_SRC.
+          ss.
+        * destruct (find (fun y : Exprs.IdT.t => Exprs.IdT.eq_dec (Exprs.Tag.ghost, aid) y)
+                      (Hints.Invariant.get_idTs_unary (Hints.Invariant.src inv) ++
+                       Hints.Invariant.get_idTs_unary (Hints.Invariant.tgt inv))) eqn:T2; ss.
+          (* TODO automatize this *)
+          (* Set Printing All. idtac. *)
+          destruct (@eq_dec atom (EqDec_eq_of_EqDec atom EqDec_atom) __i__ aid).
+          { subst. unfold not in n. exfalso; apply n; auto. }
+          clear n0 n.
+          apply VAL_SRC.
   }
+  - inv SRC.
+    econs; eauto.
+    + clear NOALIAS UNIQUE PRIVATE.
+      unfold Exprs.ExprPairSet.For_all in *.
+      i.
+      specialize (LESSDEF x H).
+      (* if x survived safe_to_remove, ok. *)
+      (* if it didn't, x must not appear in SRC/TGT, contradiction to LESSDEF *)
+      admit.
+    + admit.
+    + admit.
+    + admit.
+  - admit.
 Admitted.
 
 Lemma reduce_maydiff_sound
