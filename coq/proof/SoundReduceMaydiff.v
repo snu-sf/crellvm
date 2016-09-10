@@ -197,21 +197,40 @@ Lemma safe_to_remove_fit_type_spec1
     (InvState.Unary.update_both (safe_to_remove_fit_type inv) (InvState.Rel.src invst0))
     (InvMem.Rel.tgt invmem) (Hints.Invariant.tgt inv).
 Proof.
-  (* - inv SRC. *)
-  (*   econs; eauto. *)
-  (*   + clear NOALIAS UNIQUE PRIVATE. *)
-  (*     unfold Exprs.ExprPairSet.For_all in *. *)
-  (*     i. *)
-  (*     specialize (LESSDEF x H). *)
-  (*     unfold InvState.Unary.sem_lessdef in *. *)
-  (*     Exprs.Expr.get_idTs. *)
-  (*     (* if x survived safe_to_remove, ok. *) *)
-  (*     (* if it didn't, x must not appear in SRC/TGT, contradiction to LESSDEF *) *)
-  (*     admit. *)
-  (*   + admit. *)
-  (*   + admit. *)
-  (*   + admit. *)
-  (* - admit. *)
+  (* SPEC: an element satisfies safe_to_remove condition -> ~ B-2 {for LESSDEF, NOALIAS ..) *)
+  splits.
+  - inv SRC.
+    econs; eauto.
+    + clear - LESSDEF TGT.
+      unfold Exprs.ExprPairSet.For_all in *.
+      i.
+      (* B-2: Exprs.ExprPairSet.In x (Hints.Invariant.lessdef (Hints.Invariant.src inv)) *)
+      specialize (LESSDEF x H).
+      unfold InvState.Unary.sem_lessdef in *.
+      (* A: if x survived safe_to_remove, ok. *)
+      (* B: if it didn't, B-1: x must not appear in SRC/TGT, B-2: contradiction to LESSDEF *)
+      admit.
+    + clear - NOALIAS TGT.
+      inv NOALIAS.
+      econs; ii.
+      (* B-2: MEM *)
+      * admit.
+      (* A: use VAL1 / VAL2, eapply DIFFBLOCK *)
+      * admit.
+    (* A: use VAL1 / VAL2, eapply NOALIAS0 *)
+    + clear - UNIQUE TGT.
+      ii.
+      (* Set Printing All. idtac. *)
+      (* B-2: H *)
+      specialize (UNIQUE x H).
+      admit.
+    + clear - PRIVATE TGT.
+      unfold Exprs.IdTSet.For_all.
+      i.
+      specialize (PRIVATE x H).
+      (* B-2: H *)
+      admit.
+  - admit.
 Admitted.
 
 Lemma reduce_maydiff_non_physical_sound
