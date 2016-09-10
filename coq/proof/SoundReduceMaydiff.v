@@ -66,12 +66,11 @@ Lemma reduce_maydiff_lessdef_sound
       (STATE: InvState.Rel.sem conf_src conf_tgt st_src st_tgt invst invmem inv)
       (MEM: InvMem.Rel.sem conf_src conf_tgt st_src.(Mem) st_tgt.(Mem) invmem):
   <<STATE: InvState.Rel.sem conf_src conf_tgt st_src st_tgt invst invmem
-                            (reduce_maydiff_lessdef inv)>> /\
-  <<MEM: InvMem.Rel.sem conf_src conf_tgt st_src.(Mem) st_tgt.(Mem) invmem>>.
+                            (reduce_maydiff_lessdef inv)>>.
 Proof.
   assert(STATE_DUP := STATE).
   inv STATE.
-  split; red; try by eauto.
+  red.
   econs; eauto.
   ii.
   specialize (MAYDIFF id0).
@@ -151,10 +150,18 @@ Lemma reduce_maydiff_non_physical_sound
       (MEM: InvMem.Rel.sem conf_src conf_tgt st_src.(Mem) st_tgt.(Mem) invmem):
   exists invst1,
     <<STATE: InvState.Rel.sem conf_src conf_tgt st_src st_tgt invst1 invmem
-                              (reduce_maydiff_non_physical inv)>> /\
-    <<MEM: InvMem.Rel.sem conf_src conf_tgt st_src.(Mem) st_tgt.(Mem) invmem>>.
+                              (reduce_maydiff_non_physical inv)>>.
 Proof.
+(*   inv STATE. *)
+(*   assert(ABC: InvState.Rel.t) by admit. *)
+(*   exists ABC. *)
+(*   splits; try by eauto. *)
+(*   - *)
+(*     econs; eauto. ss. *)
+
+(* Qed. *)
 Admitted.
+
 
 Lemma reduce_maydiff_sound
       m_src m_tgt
@@ -166,8 +173,7 @@ Lemma reduce_maydiff_sound
       (MEM: InvMem.Rel.sem conf_src conf_tgt st_src.(Mem) st_tgt.(Mem) invmem):
   exists invst1,
     <<STATE: InvState.Rel.sem conf_src conf_tgt st_src st_tgt invst1 invmem
-                              (reduce_maydiff inv)>> /\
-    <<MEM: InvMem.Rel.sem conf_src conf_tgt st_src.(Mem) st_tgt.(Mem) invmem>>.
+                              (reduce_maydiff inv)>>.
 Proof.
   unfold reduce_maydiff.
   exploit reduce_maydiff_lessdef_sound; eauto. i. des.
