@@ -184,22 +184,54 @@ Lemma reduce_maydiff_non_physical_sound
                               (reduce_maydiff_non_physical inv)>>.
 Proof.
   inv STATE.
-  assert(ABC: InvState.Rel.t) by admit.
-  exists ABC.
+  (* assert(ABC: InvState.Rel.t) by admit. *)
+  (* exists ABC. *)
+  exists invst0.
   red.
-  econs; eauto; ss; cycle 2.
+  (* econs; eauto; ss; cycle 2. *)
+  econs; eauto.
   {
-    ii; des.
+    i. ii. (* VAL_SRC (sem_idT) is from ii *) (* sem_inject from MAYDIFF *) ss. des.
     rewrite Exprs.IdTSetFacts.filter_b in NOTIN; cycle 1.
     { solve_compat_bool. }
 
     des_is_true.
     des_bool.
     des.
-    admit. admit.
+    - apply MAYDIFF in NOTIN0.
+      unfold InvState.Rel.sem_inject in NOTIN0.
+      specialize (NOTIN0 val_src).
+      exploit NOTIN0; eauto.
+    - des_bool; des.
+      destruct id0; ss.
+      (* TODO do not explicitly write this *)
+      destruct
+        (find (fun y : Exprs.IdT.t => Exprs.IdT.eq_dec (t, i0) y)
+              (Hints.Invariant.get_idTs_unary
+                 (Hints.Invariant.src inv) ++
+                 (Hints.Invariant.get_idTs_unary (Hints.Invariant.tgt inv)))) eqn:T;
+        inv NOTIN1.
+      unfold InvState.Unary.sem_idT in VAL_SRC; ss.
+      (* exploit MAYDIFF; eauto. *)
+      (* TODO
+ Don't select  invst0, rather select subset of it.
+ Enforce VAL_SRC to return NONE. exfalso.
+       *)
+      (* destruct t; inv NOTIN0; ss. *)
+      (* { *)
+      (*   + (* prev *) *)
+      (*     esplits; eauto. *)
+      (*     unfold InvState.Unary.sem_idT; ss. *)
+      (*     eauto. *)
+      (*   + (* ghost *) *)
+      (* } *)
+      (* { *)
+      (*   exfalso. *)
+      (*   destruct t; inv NOTIN0; ss. *)
+      (*   unfold InvState.Unary.sem_tag in *. *)
+      (* } *)
+      admit.
   }
-  - admit.
-  - admit.
 Admitted.
 
 Lemma reduce_maydiff_sound
