@@ -27,6 +27,38 @@ Set Implicit Arguments.
 
 Ltac solve_compat_bool := repeat red; ii; subst; eauto.
 
+(* TODO rename H2 into H(original name)? *)
+Ltac des_is_true :=
+  repeat
+    match goal with
+    | [H: sflib.is_true ?x |- _] =>
+      let H2 := fresh H in destruct x eqn:H2; cycle 1; inv H
+    end.
+
+Ltac des_bool :=
+  repeat
+    match goal with
+    | [ H: ?x && ?y = true |- _ ] => apply andb_true_iff in H
+    | [ H: ?x && ?y = false |- _ ] => apply andb_false_iff in H
+    | [ H: ?x || ?y = true |- _ ] => apply orb_true_iff in H
+    | [ H: ?x || ?y = false |- _ ] => apply orb_false_iff in H
+    | [ H: context[ negb (?x && ?y) ] |- _ ] => rewrite negb_andb in H
+    | [ H: context[ negb (?x || ?y) ] |- _ ] => rewrite negb_orb in H
+    | [ H: context[ negb (negb ?x) ] |- _ ] => rewrite negb_involutive in H
+    end.
+
+Lemma proj_sumbool_false: forall (P Q : Prop) (a : {P} + {Q}),
+    proj_sumbool a = false -> Q.
+Proof. ii. destruct a; auto. inv H. Qed.
+
+Ltac des_sumbool :=
+  repeat
+    match goal with
+    | [ H: proj_sumbool ?x = true |- _ ] => apply proj_sumbool_true in H
+    | [ H: proj_sumbool ?x = false |- _ ] => apply proj_sumbool_false in H
+    end.
+(* check InvBooleans tactic *)
+
 Lemma get_lhs_in_spec
       ld (rhs: Exprs.Expr.t) x
   (LHS: Exprs.ExprPairSet.In x (Hints.Invariant.get_lhs ld rhs)):
@@ -38,7 +70,7 @@ Proof.
   rewrite Exprs.ExprPairSetFacts.filter_iff in LHS; cycle 1.
   { solve_compat_bool. }
   ss. des.
-  apply proj_sumbool_true in LHS0.
+  des_sumbool.
   auto.
 Qed.
 
@@ -53,7 +85,7 @@ Proof.
   rewrite Exprs.ExprPairSetFacts.filter_iff in RHS; cycle 1.
   { solve_compat_bool. }
   ss. des.
-  apply proj_sumbool_true in RHS0.
+  des_sumbool.
   auto.
 Qed.
 
@@ -78,15 +110,14 @@ Proof.
   ss.
   rewrite Exprs.IdTSetFacts.filter_b in NOTIN; cycle 1.
   { repeat red. ii. subst. eauto. }
-  rewrite negb_andb in NOTIN.
-  rewrite negb_involutive in NOTIN.
-  apply orb_true_iff in NOTIN.
+  des_is_true.
+  des_bool.
   des.
   { try exploit MAYDIFF; eauto. }
 
-  apply Exprs.ExprPairSetFacts.exists_iff in NOTIN; cycle 1.
+  apply Exprs.ExprPairSetFacts.exists_iff in NOTIN0; cycle 1.
   { repeat red. ii. subst. eauto. }
-  inv NOTIN.
+  inv NOTIN0.
   des.
 
   apply Exprs.ExprPairSetFacts.exists_iff in H0; cycle 1.
@@ -152,16 +183,24 @@ Lemma reduce_maydiff_non_physical_sound
     <<STATE: InvState.Rel.sem conf_src conf_tgt st_src st_tgt invst1 invmem
                               (reduce_maydiff_non_physical inv)>>.
 Proof.
-(*   inv STATE. *)
-(*   assert(ABC: InvState.Rel.t) by admit. *)
-(*   exists ABC. *)
-(*   splits; try by eauto. *)
-(*   - *)
-(*     econs; eauto. ss. *)
+  inv STATE.
+  assert(ABC: InvState.Rel.t) by admit.
+  exists ABC.
+  red.
+  econs; eauto; ss; cycle 2.
+  {
+    ii; des.
+    rewrite Exprs.IdTSetFacts.filter_b in NOTIN; cycle 1.
+    { solve_compat_bool. }
 
-(* Qed. *)
+    des_is_true.
+    des_bool.
+    des.
+    admit. admit.
+  }
+  - admit.
+  - admit.
 Admitted.
-
 
 Lemma reduce_maydiff_sound
       m_src m_tgt
