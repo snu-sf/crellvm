@@ -351,4 +351,56 @@ Module Rel.
     - admit. (* ditto *)
     - admit. (* ditto *)
   Admitted.
+
+  Lemma inject_expr_spec
+        conf_src st_src expr_src
+        conf_tgt st_tgt expr_tgt
+        invst invmem inv
+        gval_src
+        (STATE: sem conf_src conf_tgt st_src st_tgt invst invmem inv)
+        (MEM: InvMem.Rel.sem conf_src conf_tgt st_src.(Mem) st_tgt.(Mem) invmem)
+        (INJECT: Hints.Invariant.inject_expr inv expr_src expr_tgt)
+        (VAL_SRC: Unary.sem_expr conf_src st_src invst.(src) expr_src = Some gval_src):
+    exists gval_tgt,
+      <<VAL_TGT: Unary.sem_expr conf_tgt st_tgt invst.(tgt) expr_tgt = Some gval_tgt>> /\
+      <<INJECT: genericvalues_inject.gv_inject invmem.(InvMem.Rel.inject) gval_src gval_tgt>>.
+  Proof.
+    unfold Invariant.inject_expr in INJECT.
+    unfold Invariant.deep_check_expr in INJECT.
+    destruct expr_src, expr_tgt; inv INJECT.
+    - repeat rewrite andb_true_iff in *. des.
+      clear H3.
+      ss.
+      destruct (Unary.sem_valueT conf_src st_src (src invst) v) eqn:Tv;
+        destruct (Unary.sem_valueT conf_src st_src (src invst) w) eqn:Tw;
+        inv VAL_SRC.
+      rename H1 into INJECT_V.
+      rename H2 into INJECT_W.
+      rename H3 into SEM.
+      exploit inject_value_spec; try eapply INJECT_V; eauto. ii; des.
+      exploit inject_value_spec; try eapply INJECT_W; eauto. ii; des.
+      ss.
+      rewrite VAL_TGT.
+      rewrite VAL_TGT0.
+      apply proj_sumbool_true in H0.
+      apply proj_sumbool_true in H4.
+      subst.
+      exploit genericvalues_inject.simulation__mbop;
+        [apply INJECT|apply INJECT0| |]; eauto. ii; des.
+      esplits; eauto.
+      (* It seems inject_conf is needed *)
+      admit.
+    - admit.
+    - admit.
+    - admit.
+    - admit.
+    - admit.
+    - admit.
+    - admit.
+    - admit.
+    - admit.
+    - admit.
+    - admit.
+    - admit.
+  Admitted.
 End Rel.
