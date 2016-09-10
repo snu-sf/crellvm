@@ -253,27 +253,26 @@ Proof.
       admit.
     - destruct id0; ss.
       des_bool.
-      apply negb_true_iff in NOTIN.
       (* TODO do not explicitly write this *)
       unfold Postcond.safe_to_remove in NOTIN. ss.
+      des_bool. des.
       destruct
         (find (fun y : Exprs.IdT.t => Exprs.IdT.eq_dec (t, i0) y)
               (Hints.Invariant.get_idTs_unary
                  (Hints.Invariant.src inv) ++
                  (Hints.Invariant.get_idTs_unary (Hints.Invariant.tgt inv)))) eqn:T;
-        inversion NOTIN; clear NOTIN; des_bool; try by inv H0.
-      des.
+        inversion NOTIN0; clear NOTIN0.
       rename t into __t__.
       rename i0 into __i__.
       exfalso.
-      clear H1 MAYDIFF TGT SRC MEM CONF invmem.
+      clear MAYDIFF TGT SRC MEM CONF invmem.
       subst. ss.
       unfold safe_to_remove in VAL_SRC.
       unfold InvState.Unary.sem_idT in VAL_SRC. ss.
       unfold InvState.Unary.sem_tag in VAL_SRC. ss.
       destruct invst0; ss.
       destruct src, tgt; ss.
-      destruct __t__; inv H0.
+      destruct __t__; inv NOTIN.
       + induction previous; ss; try by inv VAL_SRC.
         apply IHprevious. clear IHprevious.
         destruct a as [aid atag].
