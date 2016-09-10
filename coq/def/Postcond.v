@@ -491,11 +491,15 @@ Definition add_terminator_cond
 Definition postcond_phinodes_add_lessdef
            (assigns:list Phinode.assign)
            (inv0:ExprPairSet.t): ExprPairSet.t :=
-  fold_left
-    (fun result a =>
-       let (lhs, rhs) := Phinode.get_equation a in
-       ExprPairSet.add (lhs, rhs) (ExprPairSet.add (rhs, lhs) result))
-    assigns inv0.
+  ExprPairSet.union
+    inv0
+    (List.fold_left
+       (fun s eq =>
+          ExprPairSet.add
+            (eq.(fst), eq.(snd))
+            (ExprPairSet.add (eq.(snd), eq.(fst)) s))
+       (List.map Phinode.get_equation assigns)
+       ExprPairSet.empty).
 
 Definition postcond_phinodes_assigns
            (assigns_src assigns_tgt:list Phinode.assign)
