@@ -452,6 +452,15 @@ Module Phinode.
   Definition get_equation (a:assign): Expr.t * Expr.t :=
     (Expr.value (IdT.lift Tag.physical (get_def a)),
      Expr.value (ValueT.lift Tag.previous (get_rhs a))).
+
+  Definition get_lessdef (assigns:list assign): ExprPairSet.t :=
+    List.fold_left
+      (fun s eq =>
+         ExprPairSet.add
+           (eq.(fst), eq.(snd))
+           (ExprPairSet.add (eq.(snd), eq.(fst)) s))
+      (List.map Phinode.get_equation assigns)
+      ExprPairSet.empty.
 End Phinode.
 
 Definition add_terminator_cond_lessdef
@@ -491,15 +500,7 @@ Definition add_terminator_cond
 Definition postcond_phinodes_add_lessdef
            (assigns:list Phinode.assign)
            (inv0:ExprPairSet.t): ExprPairSet.t :=
-  ExprPairSet.union
-    inv0
-    (List.fold_left
-       (fun s eq =>
-          ExprPairSet.add
-            (eq.(fst), eq.(snd))
-            (ExprPairSet.add (eq.(snd), eq.(fst)) s))
-       (List.map Phinode.get_equation assigns)
-       ExprPairSet.empty).
+  ExprPairSet.union inv0 (Phinode.get_lessdef assigns).
 
 Definition postcond_phinodes_assigns
            (assigns_src assigns_tgt:list Phinode.assign)
