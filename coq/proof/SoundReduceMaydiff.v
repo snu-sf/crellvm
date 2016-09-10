@@ -69,54 +69,77 @@ Lemma reduce_maydiff_lessdef_sound
                             (reduce_maydiff_lessdef inv)>> /\
   <<MEM: InvMem.Rel.sem conf_src conf_tgt st_src.(Mem) st_tgt.(Mem) invmem>>.
 Proof.
+  assert(STATE_DUP := STATE).
   inv STATE.
-  split; red.
-  -
-    econs; eauto.
-    ii.
-    specialize (MAYDIFF id0).
+  split; red; try by eauto.
+  econs; eauto.
+  ii.
+  specialize (MAYDIFF id0).
 
-    ss.
-    rewrite Exprs.IdTSetFacts.filter_b in NOTIN; cycle 1.
-    { repeat red. ii. subst. eauto. }
-    rewrite negb_andb in NOTIN.
-    rewrite negb_involutive in NOTIN.
-    apply orb_true_iff in NOTIN.
-    des.
-    { try exploit MAYDIFF; eauto. }
+  ss.
+  rewrite Exprs.IdTSetFacts.filter_b in NOTIN; cycle 1.
+  { repeat red. ii. subst. eauto. }
+  rewrite negb_andb in NOTIN.
+  rewrite negb_involutive in NOTIN.
+  apply orb_true_iff in NOTIN.
+  des.
+  { try exploit MAYDIFF; eauto. }
 
-    apply Exprs.ExprPairSetFacts.exists_iff in NOTIN; cycle 1.
-    { repeat red. ii. subst. eauto. }
-    inv NOTIN.
-    des.
+  apply Exprs.ExprPairSetFacts.exists_iff in NOTIN; cycle 1.
+  { repeat red. ii. subst. eauto. }
+  inv NOTIN.
+  des.
 
-    apply Exprs.ExprPairSetFacts.exists_iff in H0; cycle 1.
-    { repeat red. ii. subst. eauto. }
-    inv H0.
-    des.
+  apply Exprs.ExprPairSetFacts.exists_iff in H0; cycle 1.
+  { repeat red. ii. subst. eauto. }
+  inv H0.
+  des.
 
-    apply get_lhs_in_spec in H1.
-    apply get_rhs_in_spec in H.
-    destruct x, x0; des; ss; subst.
-    rename id0 into __ID__.
+  apply get_lhs_in_spec in H1.
+  apply get_rhs_in_spec in H.
+  destruct x, x0; des; ss; subst.
+  rename id0 into __ID__.
 
-    (* show existance of val_tgt *)
-    (* src lessdef x, t0 *)
-    (* inject_expr t0, t1 *)
-    (* tgt t1, x *)
+  (* show existance of val_tgt *)
+  (* src lessdef x, t0 --> t0's result exists *)
+  (* inject_expr t0, t1 --> t1's result exists *)
+  (* tgt t1, x --> x's result exists *)
+  (* put x's result as val_tgt *)
 
-    inv SRC.
-    clear NOALIAS UNIQUE PRIVATE.
-    unfold Exprs.ExprPairSet.For_all in *.
-    specialize (LESSDEF (Exprs.Expr.value (Exprs.ValueT.id __ID__), t0)).
-    apply LESSDEF in H3.
-    clear LESSDEF.
+  (* src lessdef x, t0 --> t0's result exists *)
+  inv SRC.
+  clear NOALIAS UNIQUE PRIVATE.
+  unfold Exprs.ExprPairSet.For_all in *.
+  specialize (LESSDEF (Exprs.Expr.value (Exprs.ValueT.id __ID__), t0)).
+  apply LESSDEF in H3.
+  clear LESSDEF.
 
-    unfold InvState.Unary.sem_lessdef in *.
-    admit.
-  -
-    admit.
-Admitted.
+  unfold InvState.Unary.sem_lessdef in *. ss.
+  exploit H3; eauto. ii; des.
+
+  (* inject_expr t0, t1 --> t1's result exists *)
+  exploit InvState.Rel.inject_expr_spec; eauto. (* uses STATE_DUP *) ii; des.
+
+  (* tgt t1, x --> x's result exists *)
+  inv TGT.
+  clear NOALIAS UNIQUE PRIVATE.
+  specialize (LESSDEF (t1, Exprs.Expr.value (Exprs.ValueT.id __ID__))).
+  apply LESSDEF in H2.
+  clear LESSDEF.
+
+  unfold InvState.Unary.sem_lessdef in *. ss.
+  exploit H2; eauto. ii; des.
+
+  esplits; eauto.
+  {
+    clear VAL0 VAL_TGT VAL2 H2 H3 H0 VAL_SRC MAYDIFF.
+    rename val0 into val_a.
+    rename val2 into val_b.
+    (* val_src >= val_a >= val_tgt >= val_b *)
+    exploit GVs.inject_lessdef_compose; eauto. ii; des.
+    exploit GVs.lessdef_inject_compose; cycle 1; eauto.
+  }
+Qed.
 
 Lemma reduce_maydiff_non_physical_sound
       m_src m_tgt
