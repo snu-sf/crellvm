@@ -44,6 +44,8 @@ Ltac des_bool :=
     | [ H: ?x && ?y = false |- _ ] => apply andb_false_iff in H
     | [ H: ?x || ?y = true |- _ ] => apply orb_true_iff in H
     | [ H: ?x || ?y = false |- _ ] => apply orb_false_iff in H
+    | [ H: negb ?x = true |- _ ] => apply negb_true_iff in H
+    | [ H: negb ?x = false |- _ ] => apply negb_false_iff in H
     | [ H: context[ ?x && false ] |- _ ] => rewrite andb_false_r in H
     | [ H: context[ false && ?x ] |- _ ] => rewrite andb_false_l in H
     | [ H: context[ ?x || true ] |- _ ] => rewrite orb_true_r in H
@@ -121,9 +123,10 @@ Proof.
   des.
   { try exploit MAYDIFF; eauto. }
 
-  apply Exprs.ExprPairSetFacts.exists_iff in NOTIN0; cycle 1.
+  des_bool.
+  apply Exprs.ExprPairSetFacts.exists_iff in NOTIN; cycle 1.
   { repeat red. ii. subst. eauto. }
-  inv NOTIN0.
+  inv NOTIN.
   des.
 
   apply Exprs.ExprPairSetFacts.exists_iff in H0; cycle 1.
@@ -177,6 +180,40 @@ Proof.
   }
 Qed.
 
+Definition safe_to_remove_fit_type inv ks :=
+  List.map snd (List.filter (fun k: (Exprs.Tag.t_ * (id * GenericValue)) =>
+     safe_to_remove inv (k.(fst), k.(snd).(fst))) ks).
+
+Lemma safe_to_remove_fit_type_spec1
+           inv conf_src conf_tgt invst0 invmem st_src st_tgt
+  (SRC : InvState.Unary.sem conf_src st_src (InvState.Rel.src invst0)
+          (InvMem.Rel.src invmem) (Hints.Invariant.src inv))
+  (TGT : InvState.Unary.sem conf_tgt st_tgt (InvState.Rel.tgt invst0)
+          (InvMem.Rel.tgt invmem) (Hints.Invariant.tgt inv)):
+  InvState.Unary.sem conf_src st_src
+    (InvState.Unary.update_both (safe_to_remove_fit_type inv) (InvState.Rel.src invst0))
+    (InvMem.Rel.src invmem) (Hints.Invariant.src inv) /\
+  InvState.Unary.sem conf_tgt st_tgt
+    (InvState.Unary.update_both (safe_to_remove_fit_type inv) (InvState.Rel.src invst0))
+    (InvMem.Rel.tgt invmem) (Hints.Invariant.tgt inv).
+Proof.
+  (* - inv SRC. *)
+  (*   econs; eauto. *)
+  (*   + clear NOALIAS UNIQUE PRIVATE. *)
+  (*     unfold Exprs.ExprPairSet.For_all in *. *)
+  (*     i. *)
+  (*     specialize (LESSDEF x H). *)
+  (*     unfold InvState.Unary.sem_lessdef in *. *)
+  (*     Exprs.Expr.get_idTs. *)
+  (*     (* if x survived safe_to_remove, ok. *) *)
+  (*     (* if it didn't, x must not appear in SRC/TGT, contradiction to LESSDEF *) *)
+  (*     admit. *)
+  (*   + admit. *)
+  (*   + admit. *)
+  (*   + admit. *)
+  (* - admit. *)
+Admitted.
+
 Lemma reduce_maydiff_non_physical_sound
       m_src m_tgt
       conf_src st_src
@@ -191,13 +228,8 @@ Lemma reduce_maydiff_non_physical_sound
 Proof.
   inv STATE.
   unfold reduce_maydiff_non_physical.
-  remember (safe_to_remove inv) as safe_to_remove.
-  remember (fun k: (Exprs.Tag.t_ * (id * GenericValue)) =>
-              safe_to_remove (k.(fst), k.(snd).(fst))) as safe_to_remove_fit_type.
-  remember (fun ks => List.map snd (List.filter safe_to_remove_fit_type ks))
-    as safe_to_remove_fit_type2.
   exists (InvState.Rel.update_both
-            (InvState.Unary.update_both safe_to_remove_fit_type2) invst0).
+            (InvState.Unary.update_both (safe_to_remove_fit_type inv)) invst0).
   red.
   econs; eauto; ss; cycle 2.
   {
@@ -207,27 +239,29 @@ Proof.
     des_is_true.
     des_bool.
     des.
-    - apply MAYDIFF in NOTIN0.
-      unfold InvState.Rel.sem_inject in NOTIN0.
-      specialize (NOTIN0 val_src).
-      exploit NOTIN0; eauto.
+    - apply MAYDIFF in NOTIN.
+      unfold InvState.Rel.sem_inject in NOTIN.
+      specialize (NOTIN val_src).
+      exploit NOTIN; eauto.
       (* ok because it is subset *)
       admit.
       ii; des.
       esplits; eauto.
       (* ok because it is safe *)
+      unfold InvState.Unary.sem_idT in *.
+      ss.
       admit.
-    - des_bool; des.
-      destruct id0; ss.
+    - destruct id0; ss.
+      des_bool.
+      apply negb_true_iff in NOTIN.
       (* TODO do not explicitly write this *)
-      rewrite Heqsafe_to_remove in NOTIN0.
-      unfold Postcond.safe_to_remove in NOTIN0. ss.
+      unfold Postcond.safe_to_remove in NOTIN. ss.
       destruct
         (find (fun y : Exprs.IdT.t => Exprs.IdT.eq_dec (t, i0) y)
               (Hints.Invariant.get_idTs_unary
                  (Hints.Invariant.src inv) ++
                  (Hints.Invariant.get_idTs_unary (Hints.Invariant.tgt inv)))) eqn:T;
-        inversion NOTIN0; clear NOTIN0; des_bool; try by inv H0.
+        inversion NOTIN; clear NOTIN; des_bool; try by inv H0.
       des.
       rename t into __t__.
       rename i0 into __i__.
@@ -243,6 +277,7 @@ Proof.
       + induction previous; ss; try by inv VAL_SRC.
         apply IHprevious. clear IHprevious.
         destruct a as [aid atag].
+        unfold safe_to_remove_fit_type, safe_to_remove in *. ss.
         destruct (eq_dec __i__ aid); ss.
         * subst.
           (* rewrite T in VAL_SRC. *)
@@ -265,6 +300,7 @@ Proof.
       + induction ghost; ss; try by inv VAL_SRC.
         apply IHghost. clear IHghost.
         destruct a as [aid atag].
+        unfold safe_to_remove_fit_type, safe_to_remove in *. ss.
         destruct (eq_dec __i__ aid); ss.
         * subst.
           (* rewrite T in VAL_SRC. *)
@@ -284,19 +320,8 @@ Proof.
           clear n0 n.
           apply VAL_SRC.
   }
-  - inv SRC.
-    econs; eauto.
-    + clear NOALIAS UNIQUE PRIVATE.
-      unfold Exprs.ExprPairSet.For_all in *.
-      i.
-      specialize (LESSDEF x H).
-      (* if x survived safe_to_remove, ok. *)
-      (* if it didn't, x must not appear in SRC/TGT, contradiction to LESSDEF *)
-      admit.
-    + admit.
-    + admit.
-    + admit.
-  - admit.
+  - exploit safe_to_remove_fit_type_spec1; eauto. ii; des. auto.
+  - exploit safe_to_remove_fit_type_spec1; eauto. ii; des. auto.
 Admitted.
 
 Lemma reduce_maydiff_sound
