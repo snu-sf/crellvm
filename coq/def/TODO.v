@@ -150,9 +150,9 @@ Proof. ss. Qed.
 Ltac aa_mark H := apply _aa_mark in H.
 Ltac aa_unmark H := apply _aa_unmark in H.
 
-(* Find one without __aa_mark__, and try applying it.
+(* Find one without __aa_mark__, and try applying "x".
 Regardless of success or fail, __aa_mark__ that.
-By the nature of Ltac's match, it searches untill it succeeds.
+By the nature of Ltac's match, it searches until it succeeds.
 If one success happen, apply_all_ ends, so "repeat" in apply_all is needed.
 If all fails, "repeat" in apply_all will end, and will __aa_unmark__ all.
 About repeat: https://coq.inria.fr/refman/Reference-Manual011.html#hevea_tactic201
