@@ -135,3 +135,66 @@ Qed.
 (* Insert element BEFORE index. If index is out of bound, it SILENTLY inserts at the last. *)
 Definition insert_at (A:Type) (idx:nat) (x:A) (l:list A): list A :=
   (firstn idx l) ++ [x] ++ (skipn idx l).
+
+(* Print sflib. There are several same definitions, __mark__, __guard__, etc.
+I intentionally define this new definition, not to mess these other things *)
+Definition __aa_mark__ A (a : A) : A := a.
+
+Lemma _aa_mark {A} (a: A) : __aa_mark__ A.
+Proof. ss. Qed.
+
+Lemma _aa_unmark {A} (a: __aa_mark__ A) : A.
+Proof. ss. Qed.
+
+(* Made tactic applying @jeehoonkang's opinion *)
+Ltac aa_mark H := apply _aa_mark in H.
+Ltac aa_unmark H := apply _aa_unmark in H.
+
+(* Find one without __aa_mark__, and try applying it.
+Regardless of success or fail, __aa_mark__ that.
+By the nature of Ltac's match, it searches untill it succeeds.
+If one success happen, apply_all_ ends, so "repeat" in apply_all is needed.
+If all fails, "repeat" in apply_all will end, and will __aa_unmark__ all.
+About repeat: https://coq.inria.fr/refman/Reference-Manual011.html#hevea_tactic201
+ *)
+Ltac _apply_all x :=
+  match goal with
+  | [ H: ?y |- _ ] =>
+    match y with
+    | (__aa_mark__ _) => fail 1
+    | _ =>
+      try apply x in H; aa_mark H
+    end
+  end.
+
+Ltac aa_unmark_all :=
+  repeat match goal with
+  | [ H: (__aa_mark__ ?y) |- _ ] =>
+    aa_unmark H
+  end.
+
+Ltac apply_all x :=
+  repeat (_apply_all x); aa_unmark_all.
+
+Goal forall (a b c d e: bool) f,
+    (negb true = false) -> (* IT SHOULD NOT RUN INF LOOP *)
+    (negb false = true) ->
+    (negb a = true) ->
+    (negb b = true) ->
+    (negb c = true) ->
+    (negb d = true) ->
+    (negb e = true) ->
+    (0 :: 2 :: nil = f) -> (* SHOULD IGNORE THIS *)
+    True -> (* SHOULD IGNORE THIS *)
+    (negb (true && false) = true) -> False.
+Proof.
+  i.
+  repeat (_apply_all negb_true_iff). (* all Prop should be __aa_mark__ed, regardless of success or fail *)
+  aa_unmark_all. (* all __aa_mark__ will disappear *)
+  Undo. Undo.
+  Time apply_all negb_true_iff.
+  Undo.
+  aa_mark H0. (* This will prevent apply_all to happen here *)
+  apply_all negb_true_iff.
+  (* User only needs to know "apply_all" and "aa_mark". *)
+Abort.
