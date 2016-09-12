@@ -12,6 +12,14 @@ Import LLVMinfra.
 
 Set Implicit Arguments.
 
+
+Definition bool_of_option A (x:option A): bool :=
+  match x with
+  | Some _ => true
+  | None => false
+  end.
+Coercion bool_of_option: option >-> bool.
+
 Definition get_or_else A (x: option A) (default: A) :=
   match x with
     | None => default

@@ -219,17 +219,12 @@ Lemma implies_sound
 Proof.
   unfold Invariant.implies in IMPLIES.
   solve_bool_true.
-  { exfalso; eapply has_false_False; eauto. }
+  { exfalso. eapply has_false_False; eauto. }
   inv STATE. econs.
   - eapply implies_unary_sound; eauto.
   - eapply implies_unary_sound; eauto.
-  - i. apply MAYDIFF. ii.
-    destruct (IdTSet.mem id0 (Invariant.maydiff inv0)) eqn:T; auto.
-    rewrite <- IdTSetFacts.mem_iff in T.
-    eapply IdTSetFacts.subset_iff in IMPLIES0.
-    unfold IdTSet.Subset in IMPLIES0.
-    specialize (IMPLIES0 id0).
-    apply IMPLIES0 in T.
-    apply IdTSetFacts.mem_iff in T.
-    destruct (IdTSet.mem id0 (Invariant.maydiff inv1)) eqn:T2; auto.
+  - i. apply MAYDIFF.
+    apply IdTSetFacts.not_mem_iff. ii.
+    apply IdTSetFacts.not_mem_iff in NOTIN. apply NOTIN.
+    eapply IdTSetFacts.subset_iff; eauto.
 Qed.

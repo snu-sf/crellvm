@@ -72,14 +72,10 @@ Lemma get_lhs_in_spec
   (LHS: Exprs.ExprPairSet.In x (Hints.Invariant.get_lhs ld rhs)):
   (snd x) = rhs /\ Exprs.ExprPairSet.In x ld.
 Proof.
-  destruct x. ss.
-  unfold Hints.Invariant.get_lhs in *.
-  unfold flip in *.
+  unfold Hints.Invariant.get_lhs, flip in *.
   rewrite Exprs.ExprPairSetFacts.filter_iff in LHS; cycle 1.
   { solve_compat_bool. }
-  ss. des.
-  des_sumbool.
-  auto.
+  des. des_sumbool. ss.
 Qed.
 
 Lemma get_rhs_in_spec
@@ -87,14 +83,10 @@ Lemma get_rhs_in_spec
   (RHS: Exprs.ExprPairSet.In x (Hints.Invariant.get_rhs ld lhs)):
   (fst x) = lhs /\ Exprs.ExprPairSet.In x ld.
 Proof.
-  destruct x. ss.
-  unfold Hints.Invariant.get_rhs in *.
-  unfold flip in *.
+  unfold Hints.Invariant.get_rhs, flip in *.
   rewrite Exprs.ExprPairSetFacts.filter_iff in RHS; cycle 1.
   { solve_compat_bool. }
-  ss. des.
-  des_sumbool.
-  auto.
+  des. des_sumbool. ss.
 Qed.
 
 Lemma reduce_maydiff_lessdef_sound
@@ -108,125 +100,89 @@ Lemma reduce_maydiff_lessdef_sound
   <<STATE: InvState.Rel.sem conf_src conf_tgt st_src st_tgt invst invmem
                             (reduce_maydiff_lessdef inv)>>.
 Proof.
-  assert(STATE_DUP := STATE).
-  inv STATE.
-  red.
-  econs; eauto.
-  ii.
-  specialize (MAYDIFF id0).
-
-  ss.
+  inversion STATE. econs; eauto. ii.
+  specialize (MAYDIFF id0). ss.
   rewrite Exprs.IdTSetFacts.filter_b in NOTIN; cycle 1.
   { repeat red. ii. subst. eauto. }
-  des_is_true.
-  des_bool.
-  des.
-  { try exploit MAYDIFF; eauto. }
-
+  des_is_true. des_bool. des; [by eapply MAYDIFF; eauto|].
   des_bool.
   apply Exprs.ExprPairSetFacts.exists_iff in NOTIN; cycle 1.
   { repeat red. ii. subst. eauto. }
-  inv NOTIN.
-  des.
-
+  inv NOTIN. des.
   apply Exprs.ExprPairSetFacts.exists_iff in H0; cycle 1.
   { repeat red. ii. subst. eauto. }
-  inv H0.
-  des.
-
+  inv H0. des.
   apply get_lhs_in_spec in H1.
   apply get_rhs_in_spec in H.
-  destruct x, x0; des; ss; subst.
+  destruct x, x0. ss. des. subst.
   rename id0 into __ID__.
 
-  (* show existance of val_tgt *)
   (* src lessdef x, t0 --> t0's result exists *)
-  (* inject_expr t0, t1 --> t1's result exists *)
-  (* tgt t1, x --> x's result exists *)
-  (* put x's result as val_tgt *)
-
-  (* src lessdef x, t0 --> t0's result exists *)
-  inv SRC.
-  clear NOALIAS UNIQUE PRIVATE.
+  inv SRC. clear NOALIAS UNIQUE PRIVATE.
   unfold Exprs.ExprPairSet.For_all in *.
   specialize (LESSDEF (Exprs.Expr.value (Exprs.ValueT.id __ID__), t0)).
-  apply LESSDEF in H3.
-  clear LESSDEF.
-
-  unfold InvState.Unary.sem_lessdef in *. ss.
-  exploit H3; eauto. ii; des.
+  apply LESSDEF in H3. clear LESSDEF.
+  exploit H3; eauto. i. des.
 
   (* inject_expr t0, t1 --> t1's result exists *)
-  exploit InvState.Rel.inject_expr_spec; eauto. (* uses STATE_DUP *) ii; des.
+  exploit InvState.Rel.inject_expr_spec; eauto. i. des.
 
   (* tgt t1, x --> x's result exists *)
-  inv TGT.
-  clear NOALIAS UNIQUE PRIVATE.
+  inv TGT. clear NOALIAS UNIQUE PRIVATE.
   specialize (LESSDEF (t1, Exprs.Expr.value (Exprs.ValueT.id __ID__))).
-  apply LESSDEF in H2.
-  clear LESSDEF.
+  apply LESSDEF in H2. clear LESSDEF.
+  exploit H2; eauto. i. des.
 
-  unfold InvState.Unary.sem_lessdef in *. ss.
-  exploit H2; eauto. ii; des.
-
+  (* val_src >= val_a >= val_tgt >= val_b *)
   esplits; eauto.
-  {
-    clear VAL0 VAL_TGT VAL2 H2 H3 H0 VAL_SRC MAYDIFF.
-    rename val0 into val_a.
-    rename val2 into val_b.
-    (* val_src >= val_a >= val_tgt >= val_b *)
-    exploit GVs.inject_lessdef_compose; eauto. ii; des.
-    exploit GVs.lessdef_inject_compose; cycle 1; eauto.
-  }
+  clear VAL0 VAL_TGT VAL2 H2 H3 H0 VAL_SRC MAYDIFF.
+  rename val0 into val_a.
+  rename val2 into val_b.
+  exploit GVs.inject_lessdef_compose; eauto. i. des.
+  exploit GVs.lessdef_inject_compose; cycle 1; eauto.
 Qed.
 
-Definition safe_to_remove_fit_type inv ks :=
+Definition reduce_maydiff_preserved_fit_type inv ks :=
   List.map snd (List.filter (fun k: (Exprs.Tag.t_ * (id * GenericValue)) =>
-     safe_to_remove inv (k.(fst), k.(snd).(fst))) ks).
+     reduce_maydiff_preserved inv (k.(fst), k.(snd).(fst))) ks).
 
-Lemma safe_to_remove_fit_type_spec1
-           inv conf_src conf_tgt invst0 invmem st_src st_tgt
-  (SRC : InvState.Unary.sem conf_src st_src (InvState.Rel.src invst0)
-          (InvMem.Rel.src invmem) (Hints.Invariant.src inv))
-  (TGT : InvState.Unary.sem conf_tgt st_tgt (InvState.Rel.tgt invst0)
-          (InvMem.Rel.tgt invmem) (Hints.Invariant.tgt inv)):
+Lemma reduce_maydiff_preserved_fit_type_spec1
+      inv conf_src conf_tgt invst0 invmem st_src st_tgt
+      (SRC: InvState.Unary.sem conf_src st_src (InvState.Rel.src invst0)
+                                (InvMem.Rel.src invmem) (Hints.Invariant.src inv))
+      (TGT: InvState.Unary.sem conf_tgt st_tgt (InvState.Rel.tgt invst0)
+                               (InvMem.Rel.tgt invmem) (Hints.Invariant.tgt inv)):
   InvState.Unary.sem conf_src st_src
-    (InvState.Unary.update_both (safe_to_remove_fit_type inv) (InvState.Rel.src invst0))
-    (InvMem.Rel.src invmem) (Hints.Invariant.src inv) /\
+                     (InvState.Unary.update_both (reduce_maydiff_preserved_fit_type inv) (InvState.Rel.src invst0))
+                     (InvMem.Rel.src invmem) (Hints.Invariant.src inv) /\
   InvState.Unary.sem conf_tgt st_tgt
-    (InvState.Unary.update_both (safe_to_remove_fit_type inv) (InvState.Rel.src invst0))
-    (InvMem.Rel.tgt invmem) (Hints.Invariant.tgt inv).
+                     (InvState.Unary.update_both (reduce_maydiff_preserved_fit_type inv) (InvState.Rel.src invst0))
+                     (InvMem.Rel.tgt invmem) (Hints.Invariant.tgt inv).
 Proof.
-  (* SPEC: an element satisfies safe_to_remove condition -> ~ B-2 {for LESSDEF, NOALIAS ..) *)
+  (* SPEC: an element satisfies reduce_maydiff_preserved condition -> ~ B-2 {for LESSDEF, NOALIAS ..) *)
   splits.
-  - inv SRC.
-    econs; eauto.
+  - inv SRC. econs; eauto.
     + clear - LESSDEF TGT.
-      unfold Exprs.ExprPairSet.For_all in *.
-      i.
+      unfold Exprs.ExprPairSet.For_all in *. i.
       (* B-2: Exprs.ExprPairSet.In x (Hints.Invariant.lessdef (Hints.Invariant.src inv)) *)
       specialize (LESSDEF x H).
       unfold InvState.Unary.sem_lessdef in *.
-      (* A: if x survived safe_to_remove, ok. *)
+      (* A: if x survived reduce_maydiff_preserved, ok. *)
       (* B: if it didn't, B-1: x must not appear in SRC/TGT, B-2: contradiction to LESSDEF *)
       admit.
-    + clear - NOALIAS TGT.
-      inv NOALIAS.
-      econs; ii.
+    + clear - NOALIAS TGT. inv NOALIAS. econs; i.
       (* B-2: MEM *)
       * admit.
       (* A: use VAL1 / VAL2, eapply DIFFBLOCK *)
       * admit.
     (* A: use VAL1 / VAL2, eapply NOALIAS0 *)
-    + clear - UNIQUE TGT.
-      ii.
+    + clear - UNIQUE TGT. ii.
       (* Set Printing All. idtac. *)
       (* B-2: H *)
       specialize (UNIQUE x H).
       admit.
     + clear - PRIVATE TGT.
-      unfold Exprs.IdTSet.For_all.
-      i.
+      unfold Exprs.IdTSet.For_all. i.
       specialize (PRIVATE x H).
       (* B-2: H *)
       admit.
@@ -248,98 +204,64 @@ Proof.
   inv STATE.
   unfold reduce_maydiff_non_physical.
   exists (InvState.Rel.update_both
-            (InvState.Unary.update_both (safe_to_remove_fit_type inv)) invst0).
+       (InvState.Unary.update_both (reduce_maydiff_preserved_fit_type inv)) invst0).
   red.
   econs; eauto; ss; cycle 2.
-  {
-    i. ii. (* VAL_SRC (sem_idT) is from ii *) (* sem_inject from MAYDIFF *) ss. des.
+  { ii. (* VAL_SRC (sem_idT) is from ii *) (* sem_inject from MAYDIFF *) ss.
     rewrite Exprs.IdTSetFacts.filter_b in NOTIN; cycle 1.
     { solve_compat_bool. }
-    des_is_true.
-    des_bool.
-    des.
+    des_is_true. des_bool. des.
     - apply MAYDIFF in NOTIN.
       unfold InvState.Rel.sem_inject in NOTIN.
-      specialize (NOTIN val_src).
-      exploit NOTIN; eauto.
-      (* ok because it is subset *)
-      admit.
-      ii; des.
+      exploit (NOTIN val_src); eauto.
+      { (* ok because it is subset *)
+        admit.
+      }
+      i. des.
       esplits; eauto.
       (* ok because it is safe *)
-      unfold InvState.Unary.sem_idT in *.
-      ss.
       admit.
-    - destruct id0; ss.
-      des_bool.
+    - destruct id0.
       (* TODO do not explicitly write this *)
-      unfold Postcond.safe_to_remove in NOTIN. ss.
+      unfold Postcond.reduce_maydiff_preserved in NOTIN. ss.
       des_bool. des.
-      destruct
-        (find (fun y : Exprs.IdT.t => Exprs.IdT.eq_dec (t, i0) y)
-              (Hints.Invariant.get_idTs_unary
-                 (Hints.Invariant.src inv) ++
-                 (Hints.Invariant.get_idTs_unary (Hints.Invariant.tgt inv)))) eqn:T;
-        inversion NOTIN0; clear NOTIN0.
-      rename t into __t__.
-      rename i0 into __i__.
-      exfalso.
-      clear MAYDIFF TGT SRC MEM CONF invmem.
-      subst. ss.
-      unfold safe_to_remove in VAL_SRC.
+      match goal with
+      | [H: bool_of_option ?o = false |- _] => destruct o eqn:T
+      end; inv NOTIN0.
+      rename t into __t__, i0 into __i__.
+      exfalso. clear MAYDIFF TGT SRC MEM CONF invmem.
       unfold InvState.Unary.sem_idT in VAL_SRC. ss.
       unfold InvState.Unary.sem_tag in VAL_SRC. ss.
-      destruct invst0; ss.
-      destruct src, tgt; ss.
+      destruct invst0. ss.
+      destruct src, tgt. ss.
       destruct __t__; inv NOTIN.
       + induction previous; ss; try by inv VAL_SRC.
         apply IHprevious. clear IHprevious.
         destruct a as [aid atag].
-        unfold safe_to_remove_fit_type, safe_to_remove in *. ss.
+        unfold reduce_maydiff_preserved_fit_type, reduce_maydiff_preserved in *. ss.
         destruct (eq_dec __i__ aid); ss.
         * subst.
-          (* rewrite T in VAL_SRC. *)
-          (* IDK why this does not work. I checked with Set Printing All. *)
-          replace (find (fun y : Exprs.IdT.t => Exprs.IdT.eq_dec (Exprs.Tag.previous, aid) y)
-                      (Hints.Invariant.get_idTs_unary (Hints.Invariant.src inv) ++
-                       Hints.Invariant.get_idTs_unary (Hints.Invariant.tgt inv))) with
-          (@None Exprs.IdT.t) in VAL_SRC.
-          ss.
-        * destruct (find (fun y : Exprs.IdT.t => Exprs.IdT.eq_dec (Exprs.Tag.previous, aid) y)
-                      (Hints.Invariant.get_idTs_unary (Hints.Invariant.src inv) ++
-                       Hints.Invariant.get_idTs_unary (Hints.Invariant.tgt inv))) eqn:T2; ss.
-          (* TODO automatize this *)
-          (* Set Printing All. idtac. *)
-          destruct (@eq_dec atom (EqDec_eq_of_EqDec atom EqDec_atom) __i__ aid).
-          { subst. unfold not in n. exfalso; apply n; auto. }
-          clear n0 n.
-          apply VAL_SRC.
-      (* COPIED FROM ABOVE. EXACTLY SAME PROOF *)
-      + induction ghost; ss; try by inv VAL_SRC.
+          unfold Exprs.Tag.t in *. rewrite T in VAL_SRC. ss.
+        * match goal with
+          | [H: context[bool_of_option ?o] |- _] => destruct o eqn:T2; ss
+          end.
+          unfold id in *. destruct (__i__ == aid); ss.
+      + (* COPIED FROM ABOVE. EXACTLY SAME PROOF *)
+        (* NOTE(jeehoon.kang): if you want to avoid this duplication, you can change some definitions.  *)
+        induction ghost; ss; try by inv VAL_SRC.
         apply IHghost. clear IHghost.
         destruct a as [aid atag].
-        unfold safe_to_remove_fit_type, safe_to_remove in *. ss.
+        unfold reduce_maydiff_preserved_fit_type, reduce_maydiff_preserved in *. ss.
         destruct (eq_dec __i__ aid); ss.
         * subst.
-          (* rewrite T in VAL_SRC. *)
-          (* IDK why this does not work. I checked with Set Printing All. *)
-          replace (find (fun y : Exprs.IdT.t => Exprs.IdT.eq_dec (Exprs.Tag.ghost, aid) y)
-                      (Hints.Invariant.get_idTs_unary (Hints.Invariant.src inv) ++
-                       Hints.Invariant.get_idTs_unary (Hints.Invariant.tgt inv))) with
-          (@None Exprs.IdT.t) in VAL_SRC.
-          ss.
-        * destruct (find (fun y : Exprs.IdT.t => Exprs.IdT.eq_dec (Exprs.Tag.ghost, aid) y)
-                      (Hints.Invariant.get_idTs_unary (Hints.Invariant.src inv) ++
-                       Hints.Invariant.get_idTs_unary (Hints.Invariant.tgt inv))) eqn:T2; ss.
-          (* TODO automatize this *)
-          (* Set Printing All. idtac. *)
-          destruct (@eq_dec atom (EqDec_eq_of_EqDec atom EqDec_atom) __i__ aid).
-          { subst. unfold not in n. exfalso; apply n; auto. }
-          clear n0 n.
-          apply VAL_SRC.
+          unfold Exprs.Tag.t in *. rewrite T in VAL_SRC. ss.
+        * match goal with
+          | [H: context[bool_of_option ?o] |- _] => destruct o eqn:T2; ss
+          end.
+          unfold id in *. destruct (__i__ == aid); ss.
   }
-  - exploit safe_to_remove_fit_type_spec1; eauto. ii; des. auto.
-  - exploit safe_to_remove_fit_type_spec1; eauto. ii; des. auto.
+  - exploit reduce_maydiff_preserved_fit_type_spec1; eauto. i. des. ss.
+  - exploit reduce_maydiff_preserved_fit_type_spec1; eauto. i. des. ss.
 Admitted.
 
 Lemma reduce_maydiff_sound

@@ -284,16 +284,14 @@ Module ForgetMemory.
 End ForgetMemory.
 
 (* Non-physical that is only in maydiff is safe to remove *)
-Definition safe_to_remove (inv0: Invariant.t) :=
+Definition reduce_maydiff_preserved (inv0: Invariant.t) :=
   let used_ids := (Invariant.get_idTs_unary inv0.(Invariant.src))
-                    ++ (Invariant.get_idTs_unary inv0.(Invariant.tgt)) in
-  (fun idt => (Tag.eq_dec (fst idt) Tag.physical) ||
-                if List.find (IdT.eq_dec idt) used_ids
-                then true
-                else false).
+                    ++ (Invariant.get_idTs_unary inv0.(Invariant.tgt))
+  in
+  (fun idt => (Tag.eq_dec (fst idt) Tag.physical) || (List.find (IdT.eq_dec idt) used_ids)).
 
 Definition reduce_maydiff_non_physical (inv0: Invariant.t): Invariant.t :=
-  Invariant.update_maydiff (IdTSet.filter (safe_to_remove inv0)) inv0.
+  Invariant.update_maydiff (IdTSet.filter (reduce_maydiff_preserved inv0)) inv0.
 
 Definition reduce_maydiff_lessdef (inv0:Invariant.t): Invariant.t :=
   let lessdef_src := inv0.(Invariant.src).(Invariant.lessdef) in
