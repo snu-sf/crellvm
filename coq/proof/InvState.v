@@ -38,10 +38,10 @@ Module Unary.
   }.
 
   Definition update_previous f x :=
-    (mk (f (List.map (pair Tag.previous) x.(previous))) x.(ghost)).
+    (mk (f x.(previous)) x.(ghost)).
 
   Definition update_ghost f x :=
-    (mk x.(previous) (f (List.map (pair Tag.ghost) x.(ghost)))).
+    (mk x.(previous) (f x.(ghost))).
 
   Definition update_both f x :=
     update_ghost f (update_previous f x).

@@ -142,52 +142,181 @@ Proof.
   exploit GVs.lessdef_inject_compose; cycle 1; eauto.
 Qed.
 
-Definition reduce_maydiff_preserved_fit_type inv ks :=
-  List.map snd (List.filter (fun k: (Exprs.Tag.t_ * (id * GenericValue)) =>
-     reduce_maydiff_preserved inv (k.(fst), k.(snd).(fst))) ks).
+(* TODO
+ * preserved: same
+ * otherwise: none
+ *)
 
-Lemma reduce_maydiff_preserved_fit_type_spec1
-      inv conf_src conf_tgt invst0 invmem st_src st_tgt
-      (SRC: InvState.Unary.sem conf_src st_src (InvState.Rel.src invst0)
-                                (InvMem.Rel.src invmem) (Hints.Invariant.src inv))
-      (TGT: InvState.Unary.sem conf_tgt st_tgt (InvState.Rel.tgt invst0)
-                               (InvMem.Rel.tgt invmem) (Hints.Invariant.tgt inv)):
-  InvState.Unary.sem conf_src st_src
-                     (InvState.Unary.update_both (reduce_maydiff_preserved_fit_type inv) (InvState.Rel.src invst0))
-                     (InvMem.Rel.src invmem) (Hints.Invariant.src inv) /\
-  InvState.Unary.sem conf_tgt st_tgt
-                     (InvState.Unary.update_both (reduce_maydiff_preserved_fit_type inv) (InvState.Rel.src invst0))
-                     (InvMem.Rel.tgt invmem) (Hints.Invariant.tgt inv).
+(* It is important that f does not look into A *)
+(* This can give you following spec *)
+Fixpoint filter_AL_atom {A: Type} (f: atom -> bool) (al: AssocList A) :=
+  match al with
+  | [] => []
+  | (a, h) :: t =>
+    if f(a)
+    then (a, h) :: (filter_AL_atom f t)
+    else (filter_AL_atom f t)
+  end.
+
+Lemma lookup_AL_filter_false {A: Type} id al f
+      (NOPASS: f id = false):
+  <<NORESULT: lookupAL A (filter_AL_atom f al) id = None>>.
 Proof.
-  (* SPEC: an element satisfies reduce_maydiff_preserved condition -> ~ B-2 {for LESSDEF, NOALIAS ..) *)
-  splits.
-  - inv SRC. econs; eauto.
-    + clear - LESSDEF TGT.
-      unfold Exprs.ExprPairSet.For_all in *. i.
-      (* B-2: Exprs.ExprPairSet.In x (Hints.Invariant.lessdef (Hints.Invariant.src inv)) *)
-      specialize (LESSDEF x H).
-      unfold InvState.Unary.sem_lessdef in *.
-      (* A: if x survived reduce_maydiff_preserved, ok. *)
-      (* B: if it didn't, B-1: x must not appear in SRC/TGT, B-2: contradiction to LESSDEF *)
-      admit.
-    + clear - NOALIAS TGT. inv NOALIAS. econs; i.
-      (* B-2: MEM *)
-      * admit.
-      (* A: use VAL1 / VAL2, eapply DIFFBLOCK *)
-      * admit.
-    (* A: use VAL1 / VAL2, eapply NOALIAS0 *)
-    + clear - UNIQUE TGT. ii.
-      (* Set Printing All. idtac. *)
-      (* B-2: H *)
-      specialize (UNIQUE x H).
-      admit.
-    + clear - PRIVATE TGT.
-      unfold Exprs.IdTSet.For_all. i.
-      specialize (PRIVATE x H).
-      (* B-2: H *)
-      admit.
-  - admit.
-Admitted.
+  red.
+  induction al; ss.
+  destruct a; ss.
+  destruct (f a) eqn:T; ss.
+  ss.
+  destruct (id == a) eqn:T2; ss.
+  subst. rewrite T in NOPASS. ss.
+Qed.
+
+Lemma lookup_AL_filter_true {A: Type} id al f
+      (PASS: f id = true):
+  <<RESULT: lookupAL A (filter_AL_atom f al) id =
+              lookupAL A al id >>.
+Proof.
+  red.
+  induction al; ss.
+  destruct a.
+  destruct (id == a) eqn:T; ss.
+  - subst. rewrite PASS. ss. rewrite T. ss.
+  - destruct (f a) eqn:T2; ss.
+    rewrite T. ss.
+Qed.
+
+Lemma lookup_AL_filter_some {A: Type} id val al f
+  (FILTERED: lookupAL A (filter_AL_atom f al) id = Some val):
+  lookupAL A al id = Some val.
+Proof.
+  destruct (f id) eqn:T.
+  - exploit (@lookup_AL_filter_true A); eauto. ii; des.
+    rewrite FILTERED in x0. ss.
+  - exploit (@lookup_AL_filter_false A); eauto. ii; des.
+    rewrite FILTERED in x0. ss.
+Qed.
+
+Definition clear_locals
+           (preserved: id -> bool)
+           (locals: GVsMap): GVsMap :=
+  filter_AL_atom (preserved) locals.
+
+Definition clear_unary
+           (preserved: Exprs.Tag.t * id -> bool)
+           (inv: InvState.Unary.t): InvState.Unary.t :=
+  InvState.Unary.update_ghost
+    (clear_locals (fun id => preserved (Exprs.Tag.ghost, id)))
+    (InvState.Unary.update_previous
+       (clear_locals (fun id => preserved (Exprs.Tag.previous, id)))
+       inv).
+
+Lemma in_filter_find {A: Type} (x: A) f l
+  (IN: In x (filter f l)):
+  exists x2, find f l = Some x2 /\ f x2.
+Proof.
+  induction l; ss.
+  destruct (f a) eqn:T.
+  - eexists; eauto.
+  - clear T. specialize (IHl IN). ss.
+Qed.
+
+Definition clear_rel
+           (preserved: Exprs.Tag.t * id -> bool)
+           (inv: InvState.Rel.t): InvState.Rel.t :=
+  InvState.Rel.update_both (clear_unary preserved) inv.
+
+Definition equiv_locals (ids:list id) (lhs rhs:GVsMap): Prop :=
+  forall id (ID: List.In id ids), lookupAL _ lhs id = lookupAL _ rhs id.
+
+(* TODO move this code into Exprs' tag module *)
+Definition is_previous x := match x with Exprs.Tag.previous => true | _ => false end.
+Definition is_ghost x := match x with Exprs.Tag.ghost => true | _ => false end.
+
+Inductive equiv_unary (ids:list Exprs.IdT.t) (lhs rhs:InvState.Unary.t): Prop :=
+| equiv_unary_intro
+    (PREVIOUS: equiv_locals (List.map snd (List.filter (is_previous <*> fst) ids))
+                            lhs.(InvState.Unary.previous) rhs.(InvState.Unary.previous))
+    (GHOST: equiv_locals (List.map snd (List.filter (is_ghost <*> fst) ids))
+                         lhs.(InvState.Unary.ghost) rhs.(InvState.Unary.ghost))
+    (* TODO: nil => filter_map from ids *)
+.
+
+Lemma clear_unary_subset st_unary f id invst_unary val
+      (VAL_SUBSET: (InvState.Unary.sem_idT
+                   st_unary (clear_unary f invst_unary) id =
+                 Some val)):
+  <<VAL: (InvState.Unary.sem_idT st_unary invst_unary id =
+          Some val)>>.
+Proof.
+  red.
+  unfold InvState.Unary.sem_idT in *.
+  unfold clear_unary, clear_locals in *.
+  unfold InvState.Unary.update_ghost, InvState.Unary.update_previous in *. ss.
+  unfold InvState.Unary.sem_tag in *. ss.
+  destruct id. rename i0 into id. ss.
+  destruct invst_unary. ss.
+  destruct t; ss.
+  - exploit (@lookup_AL_filter_some GenericValue); eauto.
+  - exploit (@lookup_AL_filter_some GenericValue); eauto.
+Qed.
+
+(* Lemma unary_implies_get_idTs conf_unary st_unary invst_unary invmem_unary inv_unary *)
+(*       (UNARY : InvState.Unary.sem conf_unary st_unary invst_unary invmem_unary *)
+(*                                   inv_unary) *)
+(*   Exprs.Tag.eq_dec t Exprs.Tag.physical *)
+(*   || find (fun y : Exprs.IdT.t => Exprs.IdT.eq_dec (t, id) y) *)
+(*        (Hints.Invariant.get_idTs_unary (Hints.Invariant.src inv) ++ *)
+(*         Hints.Invariant.get_idTs_unary (Hints.Invariant.tgt inv)) = true *)
+
+Lemma reduce_maydiff_preserved_sem_idT
+      conf_unary st_unary id invst_unary val invmem_unary inv
+      (* inv is not unary, which is ugly.
+One may re-define reduce_maydiff_preserved to take only unary, but it seems not simple *)
+      (UNARY:
+         (InvState.Unary.sem
+            conf_unary st_unary invst_unary
+            invmem_unary (Hints.Invariant.src inv))
+         \/
+         (InvState.Unary.sem
+            conf_unary st_unary invst_unary
+            invmem_unary (Hints.Invariant.tgt inv)))
+      (VAL_UNARY: InvState.Unary.sem_idT st_unary invst_unary id = Some val):
+  InvState.Unary.sem_idT
+    st_unary (clear_unary (reduce_maydiff_preserved inv) invst_unary) id = Some val.
+Proof.
+  unfold InvState.Unary.sem_idT in *.
+  (* assert(SAFE: (reduce_maydiff_preserved inv) id = false). *)
+  destruct id; ss.
+  rename i0 into id.
+  assert(SAFE: (fun id0 : LLVMsyntax.id =>
+                  reduce_maydiff_preserved inv (t, id0)) id = true).
+  {
+    unfold reduce_maydiff_preserved.
+    ss.
+    des.
+    - admit.
+    - admit.
+      (* inv UNARY. *)
+  }
+  clear UNARY.
+  unfold clear_unary, clear_locals in *.
+  unfold InvState.Unary.update_ghost, InvState.Unary.update_previous in *. ss.
+  unfold InvState.Unary.sem_tag in *. ss.
+  destruct invst_unary; ss.
+  destruct t; ss.
+  - exploit (@lookup_AL_filter_true
+               GenericValue id previous
+               (fun id0 : LLVMsyntax.id =>
+                  reduce_maydiff_preserved inv (Exprs.Tag.previous, id0))); eauto.
+    ii; des.
+    rewrite <- VAL_UNARY. eauto.
+  - exploit (@lookup_AL_filter_true
+               GenericValue id ghost
+               (fun id0 : LLVMsyntax.id =>
+                  reduce_maydiff_preserved inv (Exprs.Tag.ghost, id0))); eauto.
+    ii; des.
+    rewrite <- VAL_UNARY. eauto.
+Abort.
 
 Lemma reduce_maydiff_non_physical_sound
       m_src m_tgt
@@ -203,8 +332,7 @@ Lemma reduce_maydiff_non_physical_sound
 Proof.
   inv STATE.
   unfold reduce_maydiff_non_physical.
-  exists (InvState.Rel.update_both
-       (InvState.Unary.update_both (reduce_maydiff_preserved_fit_type inv)) invst0).
+  exists (clear_rel (reduce_maydiff_preserved inv) invst0).
   red.
   econs; eauto; ss; cycle 2.
   { ii. (* VAL_SRC (sem_idT) is from ii *) (* sem_inject from MAYDIFF *) ss.
@@ -214,13 +342,17 @@ Proof.
     - apply MAYDIFF in NOTIN.
       unfold InvState.Rel.sem_inject in NOTIN.
       exploit (NOTIN val_src); eauto.
-      { (* ok because it is subset *)
-        admit.
+      {
+        (* ok because it is subset *)
+        exploit clear_unary_subset; eauto.
       }
       i. des.
       esplits; eauto.
-      (* ok because it is safe *)
-      admit.
+      {
+        (* ok because it is safe *)
+        rename id0 into tttttttttttttttttttt.
+        admit.
+      }
     - destruct id0.
       (* TODO do not explicitly write this *)
       unfold Postcond.reduce_maydiff_preserved in NOTIN. ss.
@@ -238,11 +370,14 @@ Proof.
       + induction previous; ss; try by inv VAL_SRC.
         apply IHprevious. clear IHprevious.
         destruct a as [aid atag].
-        unfold reduce_maydiff_preserved_fit_type, reduce_maydiff_preserved in *. ss.
+        unfold reduce_maydiff_preserved in *. ss.
         destruct (eq_dec __i__ aid); ss.
         * subst.
-          unfold Exprs.Tag.t in *. rewrite T in VAL_SRC. ss.
-        * match goal with
+          unfold Exprs.Tag.t in *.
+          unfold clear_locals in *. ss.
+          rewrite T in VAL_SRC. ss.
+        * unfold clear_locals in *. ss.
+          match goal with
           | [H: context[bool_of_option ?o] |- _] => destruct o eqn:T2; ss
           end.
           unfold id in *. destruct (__i__ == aid); ss.
@@ -251,17 +386,22 @@ Proof.
         induction ghost; ss; try by inv VAL_SRC.
         apply IHghost. clear IHghost.
         destruct a as [aid atag].
-        unfold reduce_maydiff_preserved_fit_type, reduce_maydiff_preserved in *. ss.
+        unfold reduce_maydiff_preserved in *. ss.
         destruct (eq_dec __i__ aid); ss.
         * subst.
-          unfold Exprs.Tag.t in *. rewrite T in VAL_SRC. ss.
-        * match goal with
+          unfold Exprs.Tag.t in *.
+          unfold clear_locals in *; ss.
+          rewrite T in VAL_SRC. ss.
+        * unfold clear_locals in *; ss.
+          match goal with
           | [H: context[bool_of_option ?o] |- _] => destruct o eqn:T2; ss
           end.
           unfold id in *. destruct (__i__ == aid); ss.
   }
-  - exploit reduce_maydiff_preserved_fit_type_spec1; eauto. i. des. ss.
-  - exploit reduce_maydiff_preserved_fit_type_spec1; eauto. i. des. ss.
+  - admit.
+  - admit.
+  (* - exploit preserved_equiv_unary. apply SRC. eauto. i. des. ss. *)
+  (* - exploit reduce_maydiff_preserved_fit_type_spec1; eauto. i. des. ss. *)
 Admitted.
 
 Lemma reduce_maydiff_sound
