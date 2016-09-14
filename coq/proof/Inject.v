@@ -174,6 +174,22 @@ Proof.
   - admit.
 Admitted.
 
+Lemma updateAddAL_inject_locals
+      id inv
+      retval_src locals_src
+      retval_tgt locals_tgt
+      (RETVAL: genericvalues_inject.gv_inject inv.(InvMem.Rel.inject) retval_src retval_tgt)
+      (LOCAL: inject_locals inv locals_src locals_tgt):
+  <<LOCAL: inject_locals inv
+                         (updateAddAL _ locals_src id retval_src)
+                         (updateAddAL _ locals_tgt id retval_tgt)>>.
+Proof.
+  ii. destruct (id_dec i0 id).
+  - subst. rewrite lookupAL_updateAddAL_eq in *. inv LU_SRC.
+    esplits; eauto.
+  - erewrite <- lookupAL_updateAddAL_neq in *; eauto.
+Qed.
+
 Lemma inject_locals_inj_incr
       inv0 inv1
       locals_src locals_tgt
@@ -198,6 +214,30 @@ Proof.
 Qed.
 
 Lemma decide_nonzero_inject
+      TD alpha decision
+      val_src val_tgt
+      (INJECT: genericvalues_inject.gv_inject alpha val_src val_tgt)
+      (DECIDE_SRC: decide_nonzero TD val_src decision):
+  decide_nonzero TD val_tgt decision.
+Proof.
+  inv DECIDE_SRC. inv INJECT; ss.
+  destruct v1; ss. destruct gv1; ss. simtac. inv H. inv H0.
+  apply inj_pair2 in H3. subst.
+  econs; eauto. unfold GV2int.
+  destruct (Nat.eq_dec (wz + 1) (Size.to_nat Size.One)); ss.
+Qed.
+
+Lemma decide_nonzero_unique
+      TD val dec1 dec2
+      (DEC1: decide_nonzero TD val dec1)
+      (DEC2: decide_nonzero TD val dec2):
+  dec1 = dec2.
+Proof.
+  inv DEC1. inv DEC2.
+  rewrite INT in INT0. inv INT0. ss.
+Qed.
+
+Lemma decide_nonzero_inject_aux
       TD alpha
       val_src decision_src
       val_tgt decision_tgt
@@ -206,10 +246,34 @@ Lemma decide_nonzero_inject
       (DECIDE_TGT: decide_nonzero TD val_tgt decision_tgt):
   decision_src = decision_tgt.
 Proof.
-  inv DECIDE_SRC. inv DECIDE_TGT.
-  inv INJECT; ss.
-  destruct v1; ss. destruct v2; ss. inv H. simtac.
-  apply inj_pair2 in H3. subst.
-  apply inj_pair2 in H5. subst.
-  ss.
+  exploit decide_nonzero_inject; eauto. i.
+  eapply decide_nonzero_unique; eauto.
+Qed.
+
+Lemma get_switch_branch_inject
+      TD typ cls l0 alpha l
+      val_src val_tgt
+      (INJECT: genericvalues_inject.gv_inject alpha val_src val_tgt)
+      (DECIDE_SRC: get_switch_branch TD typ val_src cls l0 = Some l):
+  get_switch_branch TD typ val_tgt cls l0 = Some l.
+Proof.
+  destruct typ; ss.
+  exploit genericvalues_inject.simulation__eq__GV2int; eauto. i.
+  (* TODO: The definition of val_inject is WRONG!
+   * https://github.com/snu-sf/llvmberry/issues/327
+   *)
+  rewrite x0 in *. eauto.
+Qed.
+
+Lemma get_switch_branch_inject_aux
+      TD typ cls l0 alpha
+      val_src l_src
+      val_tgt l_tgt
+      (INJECT: genericvalues_inject.gv_inject alpha val_src val_tgt)
+      (DECIDE_SRC: get_switch_branch TD typ val_src cls l0 = Some l_src)
+      (DECIDE_TGT: get_switch_branch TD typ val_tgt cls l0 = Some l_tgt):
+  l_src = l_tgt.
+Proof.
+  exploit get_switch_branch_inject; eauto. i.
+  rewrite DECIDE_TGT in x0. inv x0. ss.
 Qed.
