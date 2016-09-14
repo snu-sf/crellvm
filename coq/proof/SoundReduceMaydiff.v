@@ -241,7 +241,7 @@ Inductive equiv_unary (ids:list Exprs.IdT.t) (lhs rhs:InvState.Unary.t): Prop :=
     (* TODO: nil => filter_map from ids *)
 .
 
-Lemma clear_unary_subset st_unary f id invst_unary val
+Lemma clear_unary_subset_idT st_unary f id invst_unary val
       (VAL_SUBSET: (InvState.Unary.sem_idT
                    st_unary (clear_unary f invst_unary) id =
                  Some val)):
@@ -260,63 +260,150 @@ Proof.
   - exploit (@lookup_AL_filter_some GenericValue); eauto.
 Qed.
 
-(* Lemma unary_implies_get_idTs conf_unary st_unary invst_unary invmem_unary inv_unary *)
-(*       (UNARY : InvState.Unary.sem conf_unary st_unary invst_unary invmem_unary *)
-(*                                   inv_unary) *)
-(*   Exprs.Tag.eq_dec t Exprs.Tag.physical *)
-(*   || find (fun y : Exprs.IdT.t => Exprs.IdT.eq_dec (t, id) y) *)
-(*        (Hints.Invariant.get_idTs_unary (Hints.Invariant.src inv) ++ *)
-(*         Hints.Invariant.get_idTs_unary (Hints.Invariant.tgt inv)) = true *)
-
-Lemma reduce_maydiff_preserved_sem_idT
-      conf_unary st_unary id invst_unary val invmem_unary inv
-      (* inv is not unary, which is ugly.
-One may re-define reduce_maydiff_preserved to take only unary, but it seems not simple *)
-      (UNARY:
-         (InvState.Unary.sem
-            conf_unary st_unary invst_unary
-            invmem_unary (Hints.Invariant.src inv))
-         \/
-         (InvState.Unary.sem
-            conf_unary st_unary invst_unary
-            invmem_unary (Hints.Invariant.tgt inv)))
-      (VAL_UNARY: InvState.Unary.sem_idT st_unary invst_unary id = Some val):
-  InvState.Unary.sem_idT
-    st_unary (clear_unary (reduce_maydiff_preserved inv) invst_unary) id = Some val.
+Lemma clear_unary_subset_valueT conf_unary st_unary f vt invst_unary val
+      (VAL_SUBSET: (InvState.Unary.sem_valueT conf_unary
+                   st_unary (clear_unary f invst_unary) vt =
+                 Some val)):
+  <<VAL: (InvState.Unary.sem_valueT conf_unary st_unary invst_unary vt =
+          Some val)>>.
 Proof.
-  unfold InvState.Unary.sem_idT in *.
-  (* assert(SAFE: (reduce_maydiff_preserved inv) id = false). *)
-  destruct id; ss.
+  red.
+  destruct vt; ss.
+  exploit clear_unary_subset_idT; eauto.
+Qed.
+
+Lemma clear_unary_subset_list_valueT conf_unary st_unary f vtl invst_unary val
+      (VAL_SUBSET: (InvState.Unary.sem_list_valueT conf_unary
+                   st_unary (clear_unary f invst_unary) vtl =
+                 Some val)):
+  <<VAL: (InvState.Unary.sem_list_valueT conf_unary st_unary invst_unary vtl =
+          Some val)>>.
+Proof.
+  red.
+  generalize dependent val.
+  induction vtl; i; ss.
+  destruct a; ss.
+  Ltac exploit_with x :=
+    (exploit clear_unary_subset_valueT; [exact x|]; eauto; ii; des).
+  des_ifs; ss; (all_once exploit_with); (exploit IHvtl; eauto; ii; des); clarify.
+Qed.
+
+Lemma clear_unary_subset_exprT conf_unary st_unary f expr invst_unary val
+      (VAL_SUBSET: (InvState.Unary.sem_expr conf_unary
+                   st_unary (clear_unary f invst_unary) expr =
+                 Some val)):
+  <<VAL: (InvState.Unary.sem_expr conf_unary st_unary invst_unary expr =
+          Some val)>>.
+Proof.
+  red.
+  Ltac exploit_with_fast x :=
+    match (type of x) with
+    | (InvState.Unary.sem_valueT _ _ _ _ = Some _) =>
+      (exploit clear_unary_subset_valueT; [exact x|]; eauto; ii; des)
+    | (InvState.Unary.sem_list_valueT _ _ _ _ = Some _) =>
+      (exploit clear_unary_subset_list_valueT; [exact x|]; eauto; ii; des)
+    end.
+  Time destruct expr; ss;
+    des_ifs; ss; (all_once exploit_with_fast); clarify.
+  (* exploit_with: Finished transaction in 25.39 secs (25.194u,0.213s) (successful) *)
+  (* exploit_with_fast: Finished transaction in 7.575 secs (7.536u,0.044s) (successful) *)
+Qed.
+
+Lemma reduce_maydiff_preserved_sem_idT st_src st_tgt
+      invst inv id val_src val_tgt
+  (VAL_SRC: InvState.Unary.sem_idT st_src
+              (clear_unary (reduce_maydiff_preserved inv) (InvState.Rel.src invst)) id =
+            Some val_src)
+  (VAL_TGT: InvState.Unary.sem_idT st_tgt (InvState.Rel.tgt invst) id = Some val_tgt):
+  <<VAL_TGT: InvState.Unary.sem_idT st_tgt
+    (clear_unary (reduce_maydiff_preserved inv) (InvState.Rel.tgt invst)) id = Some val_tgt>>.
+Proof.
+  destruct id.
   rename i0 into id.
-  assert(SAFE: (fun id0 : LLVMsyntax.id =>
-                  reduce_maydiff_preserved inv (t, id0)) id = true).
-  {
-    unfold reduce_maydiff_preserved.
-    ss.
-    des.
-    - admit.
-    - admit.
-      (* inv UNARY. *)
-  }
-  clear UNARY.
-  unfold clear_unary, clear_locals in *.
-  unfold InvState.Unary.update_ghost, InvState.Unary.update_previous in *. ss.
+  unfold InvState.Unary.sem_idT in *. ss.
   unfold InvState.Unary.sem_tag in *. ss.
-  destruct invst_unary; ss.
   destruct t; ss.
-  - exploit (@lookup_AL_filter_true
-               GenericValue id previous
-               (fun id0 : LLVMsyntax.id =>
-                  reduce_maydiff_preserved inv (Exprs.Tag.previous, id0))); eauto.
-    ii; des.
-    rewrite <- VAL_UNARY. eauto.
-  - exploit (@lookup_AL_filter_true
-               GenericValue id ghost
-               (fun id0 : LLVMsyntax.id =>
-                  reduce_maydiff_preserved inv (Exprs.Tag.ghost, id0))); eauto.
-    ii; des.
-    rewrite <- VAL_UNARY. eauto.
-Abort.
+  - rewrite <- VAL_TGT.
+    destruct ((fun id0 : LLVMsyntax.id =>
+                 reduce_maydiff_preserved inv (Exprs.Tag.previous, id0)) id) eqn:T.
+    + exploit (@lookup_AL_filter_true GenericValue id); eauto. ss.
+    + exploit (@lookup_AL_filter_false GenericValue id); eauto.
+      instantiate (1:= (fun id0 : LLVMsyntax.id =>
+                          reduce_maydiff_preserved inv (Exprs.Tag.previous, id0))).
+      ss.
+      ii; des.
+      (* rewrite x0. *)
+      (* rewrite VAL_TGT. *)
+      (* exfalso. *)
+      rewrite x0 in VAL_SRC.
+      inv VAL_SRC.
+  - rewrite <- VAL_TGT.
+    destruct ((fun id0 : LLVMsyntax.id =>
+                 reduce_maydiff_preserved inv (Exprs.Tag.ghost, id0)) id) eqn:T.
+    + exploit (@lookup_AL_filter_true GenericValue id); eauto. ss.
+    + exploit (@lookup_AL_filter_false GenericValue id); eauto.
+      instantiate (1:= (fun id0 : LLVMsyntax.id =>
+                          reduce_maydiff_preserved inv (Exprs.Tag.ghost, id0))).
+      ss.
+      ii; des.
+      (* rewrite x0. *)
+      (* rewrite VAL_TGT. *)
+      (* exfalso. *)
+      rewrite x0 in VAL_SRC.
+      inv VAL_SRC.
+Qed.
+
+(* Lemma reduce_maydiff_preserved_sem_idT *)
+(*       conf_unary st_unary id invst_unary val invmem_unary inv *)
+(*       (* inv is not unary, which is ugly. *)
+(* One may re-define reduce_maydiff_preserved to take only unary, but it seems not simple *) *)
+(*       (UNARY: *)
+(*          (InvState.Unary.sem *)
+(*             conf_unary st_unary invst_unary *)
+(*             invmem_unary (Hints.Invariant.src inv)) *)
+(*          \/ *)
+(*          (InvState.Unary.sem *)
+(*             conf_unary st_unary invst_unary *)
+(*             invmem_unary (Hints.Invariant.tgt inv))) *)
+(*       (VAL_UNARY: InvState.Unary.sem_idT st_unary invst_unary id = Some val): *)
+(*   InvState.Unary.sem_idT *)
+(*     st_unary (clear_unary (reduce_maydiff_preserved inv) invst_unary) id = Some val. *)
+(* Proof. *)
+(*   unfold InvState.Unary.sem_idT in *. *)
+(*   (* assert(SAFE: (reduce_maydiff_preserved inv) id = false). *) *)
+(*   destruct id; ss. *)
+(*   rename i0 into id. *)
+(*   assert(SAFE: (fun id0 : LLVMsyntax.id => *)
+(*                   reduce_maydiff_preserved inv (t, id0)) id = true). *)
+(*   { *)
+(*     unfold reduce_maydiff_preserved. *)
+(*     ss. *)
+(*     des. *)
+(*     - *)
+(*       inv UNARY. *)
+(*       admit. *)
+(*     - admit. *)
+(*       (* inv UNARY. *) *)
+(*   } *)
+(*   clear UNARY. *)
+(*   unfold clear_unary, clear_locals in *. *)
+(*   unfold InvState.Unary.update_ghost, InvState.Unary.update_previous in *. ss. *)
+(*   unfold InvState.Unary.sem_tag in *. ss. *)
+(*   destruct invst_unary; ss. *)
+(*   destruct t; ss. *)
+(*   - exploit (@lookup_AL_filter_true *)
+(*                GenericValue id previous *)
+(*                (fun id0 : LLVMsyntax.id => *)
+(*                   reduce_maydiff_preserved inv (Exprs.Tag.previous, id0))); eauto. *)
+(*     ii; des. *)
+(*     rewrite <- VAL_UNARY. eauto. *)
+(*   - exploit (@lookup_AL_filter_true *)
+(*                GenericValue id ghost *)
+(*                (fun id0 : LLVMsyntax.id => *)
+(*                   reduce_maydiff_preserved inv (Exprs.Tag.ghost, id0))); eauto. *)
+(*     ii; des. *)
+(*     rewrite <- VAL_UNARY. eauto. *)
+(* Abort. *)
 
 Lemma reduce_maydiff_non_physical_sound
       m_src m_tgt
@@ -344,14 +431,12 @@ Proof.
       exploit (NOTIN val_src); eauto.
       {
         (* ok because it is subset *)
-        exploit clear_unary_subset; eauto.
+        exploit clear_unary_subset_idT; eauto.
       }
       i. des.
       esplits; eauto.
       {
-        (* ok because it is safe *)
-        rename id0 into tttttttttttttttttttt.
-        admit.
+        exploit reduce_maydiff_preserved_sem_idT; eauto.
       }
     - destruct id0.
       (* TODO do not explicitly write this *)
@@ -398,7 +483,34 @@ Proof.
           end.
           unfold id in *. destruct (__i__ == aid); ss.
   }
-  - admit.
+  - econs.
+    inv SRC.
+    +
+      clear NOALIAS UNIQUE PRIVATE.
+      unfold Exprs.ExprPairSet.For_all.
+      i.
+      destruct x as [e1 e2]; ss.
+      specialize (LESSDEF (e1, e2) H).
+      unfold InvState.Unary.sem_lessdef in LESSDEF; ss.
+      ii. ss.
+      specialize (LESSDEF val1).
+      assert(G: InvState.Unary.sem_expr
+                  conf_src st_src (InvState.Rel.src invst0) e1 = Some val1).
+      {
+        admit.
+      }
+      specialize (LESSDEF G).
+      des.
+      esplits; eauto.
+      (* exploit clear_unary_subset_exprT. apply VAL2. ii; des. *)
+
+      unfold clear_unary, clear_locals; ss.
+      destruct invst0; ss.
+      destruct src; ss.
+      admit.
+    + admit.
+    + admit.
+    + admit.
   - admit.
   (* - exploit preserved_equiv_unary. apply SRC. eauto. i. des. ss. *)
   (* - exploit reduce_maydiff_preserved_fit_type_spec1; eauto. i. des. ss. *)
