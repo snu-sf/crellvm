@@ -405,6 +405,183 @@ Qed.
 (*     rewrite <- VAL_UNARY. eauto. *)
 (* Abort. *)
 
+Lemma incl_lessdef_inv_unary inv_unary:
+  <<LESSDEF_INCL:
+    List.incl
+      (Hints.Invariant.get_idTs_lessdef inv_unary.(Hints.Invariant.lessdef))
+      (Hints.Invariant.get_idTs_unary inv_unary)>>.
+Proof.
+  unfold Hints.Invariant.get_idTs_unary.
+  red.
+  ss.
+  assert(G: incl (Hints.Invariant.get_idTs_lessdef (Hints.Invariant.lessdef inv_unary))
+                 (Hints.Invariant.get_idTs_lessdef (Hints.Invariant.lessdef inv_unary))).
+  { apply incl_refl. }
+  eapply incl_appl in G.
+  eapply G.
+Qed.
+
+Lemma In_concat {A B C: Type} f (a: A) (x: B) xs
+      (IN1: In a (f x))
+      (IN2: In (f x) (List.map f xs)):
+  <<IN3: In a (concat (List.map f xs))>>.
+Proof.
+  red.
+  generalize dependent a.
+  generalize dependent x.
+  induction xs; ii; ss.
+  des.
+  - rewrite IN2.
+    destruct (f x); inv IN1.
+    + ss. left. ss.
+    + ss. right.
+      eapply in_or_app.
+      left; ss.
+  - specialize (IHxs x IN2 a0 IN1).
+    destruct (f a) eqn:T; ss.
+    right.
+    eapply in_or_app. right. ss.
+Qed.
+
+Lemma In_map {A B: Type} (f: A -> B) (a: A) al
+      (IN: In a al):
+        <<IN2: In (f a) (List.map f al)>>.
+Proof.
+  generalize dependent a.
+  induction al; ii; ss.
+  des; red; ss. subst.
+  - left; ss.
+  - right. eapply IHal; ss.
+Qed.
+
+Lemma In_list {A} (f: Exprs.ExprPair.t -> list A) x xs
+      (IN: Exprs.ExprPairSet.In x xs):
+  <<IN: List.incl (f x) (List.concat (List.map f (Exprs.ExprPairSet.elements xs)))>>.
+Proof.
+  red.
+  exploit Exprs.ExprPairSetFacts.elements_iff; eauto. ii; des.
+  specialize (x1 IN). clear x0.
+  exploit InA_iff_In; eauto. ii; des.
+  specialize (x2 x1). clear x0. clear x1.
+  assert(G: In (f x) (List.map f (Exprs.ExprPairSet.elements xs))).
+  { eapply In_map; eauto. }
+  exploit (@In_concat A Exprs.ExprPair.t (list A)); eauto.
+Qed.
+
+Lemma lessdef_safe
+      e1 e2 inv_unary
+      (LESSDEF: Exprs.ExprPairSet.In
+                  (e1, e2) (Hints.Invariant.lessdef inv_unary)):
+  <<SAFE: (List.incl (Exprs.Expr.get_idTs e1) (Hints.Invariant.get_idTs_unary inv_unary))
+          /\ (List.incl (Exprs.Expr.get_idTs e2) (Hints.Invariant.get_idTs_unary inv_unary))>>.
+Proof.
+  unfold Exprs.Expr.get_idTs.
+  esplits.
+  (* - destruct e1; ss. *)
+    +
+      assert(LESSDEF2 := LESSDEF).
+      eapply In_list in LESSDEF; ss.
+      red in LESSDEF.
+      instantiate (1:= Exprs.ExprPair.get_idTs) in LESSDEF.
+      (* exploit (incl_lessdef_inv_unary inv_unary). *)
+      (* instantiate (1 := (Hints.Invariant.get_idTs_lessdef *)
+      (*                      inv_unary.(Hints.Invariant.lessdef))). *)
+      unfold Hints.Invariant.get_idTs_unary.
+      unfold Exprs.ExprPair.get_idTs in *. ss.
+      unfold Exprs.Expr.get_idTs in *. ss.
+      eapply incl_tran.
+      {
+        instantiate (1:= ((filter_map Exprs.ValueT.get_idTs (Exprs.Expr.get_valueTs e1))
+                            ++ (filter_map Exprs.ValueT.get_idTs (Exprs.Expr.get_valueTs e2)))).
+        apply incl_appl.
+        apply incl_refl.
+      }
+
+      eapply incl_tran.
+      {
+        instantiate
+          (1:=
+             (concat
+                (List.map
+                   (fun ep : Exprs.ExprPair.t =>
+                      (filter_map Exprs.ValueT.get_idTs (Exprs.Expr.get_valueTs (fst ep)))
+                        ++ (filter_map Exprs.ValueT.get_idTs (Exprs.Expr.get_valueTs (snd ep))))
+                   (Exprs.ExprPairSet.elements (Hints.Invariant.lessdef inv_unary))))).
+        eauto.
+      }
+
+      eapply incl_tran.
+      {
+        instantiate (1:= Hints.Invariant.get_idTs_lessdef (Hints.Invariant.lessdef inv_unary)).
+        ss.
+      }
+
+      apply incl_appl. apply incl_refl.
+    +
+      (* COPIED FROM ABOVE *)
+      assert(LESSDEF2 := LESSDEF).
+      eapply In_list in LESSDEF; ss.
+      red in LESSDEF.
+      instantiate (1:= Exprs.ExprPair.get_idTs) in LESSDEF.
+      (* exploit (incl_lessdef_inv_unary inv_unary). *)
+      (* instantiate (1 := (Hints.Invariant.get_idTs_lessdef *)
+      (*                      inv_unary.(Hints.Invariant.lessdef))). *)
+      unfold Hints.Invariant.get_idTs_unary.
+      unfold Exprs.ExprPair.get_idTs in *. ss.
+      unfold Exprs.Expr.get_idTs in *. ss.
+      eapply incl_tran.
+      {
+        instantiate (1:= ((filter_map Exprs.ValueT.get_idTs (Exprs.Expr.get_valueTs e1))
+                            ++ (filter_map Exprs.ValueT.get_idTs (Exprs.Expr.get_valueTs e2)))).
+        apply incl_appr.
+        apply incl_refl.
+      }
+
+      eapply incl_tran.
+      {
+        instantiate
+          (1:=
+             (concat
+                (List.map
+                   (fun ep : Exprs.ExprPair.t =>
+                      (filter_map Exprs.ValueT.get_idTs (Exprs.Expr.get_valueTs (fst ep)))
+                        ++ (filter_map Exprs.ValueT.get_idTs (Exprs.Expr.get_valueTs (snd ep))))
+                   (Exprs.ExprPairSet.elements (Hints.Invariant.lessdef inv_unary))))).
+        eauto.
+      }
+
+      eapply incl_tran.
+      {
+        instantiate (1:= Hints.Invariant.get_idTs_lessdef (Hints.Invariant.lessdef inv_unary)).
+        ss.
+      }
+
+      apply incl_appl. apply incl_refl.
+Qed.
+
+(* Lemma reduce_maydiff_preserved_expr *)
+(*       conf_src st_src invst0 inv e1 e2 val1 val2 *)
+(*       (VAL2: InvState.Unary.sem_expr conf_src st_src (InvState.Rel.src invst0) e2 = Some val2) *)
+(*       (H: Exprs.ExprPairSet.In (e1, e2) (Hints.Invariant.lessdef (Hints.Invariant.src inv))) *)
+(*       (G: InvState.Unary.sem_expr conf_src st_src (InvState.Rel.src invst0) e1 = Some val1): *)
+(*   <<SAFE: InvState.Unary.sem_expr conf_src st_src *)
+(*     (clear_unary (reduce_maydiff_preserved inv) (InvState.Rel.src invst0)) e2 =  *)
+(*   Some val2>>. *)
+(* Proof. *)
+(*   red. *)
+(*   (* unfold clear_unary, clear_locals; ss. *) *)
+(*   destruct invst0; ss. *)
+(*   destruct src; ss. *)
+(*   Time destruct e2; ss; *)
+(*     des_ifs; ss; (all_once exploit_with_fast); clarify. *)
+(*   - *)
+(*   Heq0: InvState.Unary.sem_valueT conf_src st_src *)
+(*            (clear_unary (reduce_maydiff_preserved inv) *)
+(*               {| InvState.Unary.previous := previous; InvState.Unary.ghost := ghost |}) w = None *)
+
+(* Qed. *)
+
+
 Lemma reduce_maydiff_non_physical_sound
       m_src m_tgt
       conf_src st_src
@@ -497,16 +674,13 @@ Proof.
       assert(G: InvState.Unary.sem_expr
                   conf_src st_src (InvState.Rel.src invst0) e1 = Some val1).
       {
-        admit.
+        exploit clear_unary_subset_exprT; eauto.
       }
       specialize (LESSDEF G).
       des.
       esplits; eauto.
-      (* exploit clear_unary_subset_exprT. apply VAL2. ii; des. *)
 
-      unfold clear_unary, clear_locals; ss.
-      destruct invst0; ss.
-      destruct src; ss.
+      clear - H G VAL2.
       admit.
     + admit.
     + admit.
