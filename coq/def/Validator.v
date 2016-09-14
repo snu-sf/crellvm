@@ -176,6 +176,10 @@ Definition valid_terminator
                   else true)
                ls_src)
     then failwith_false "valid_terminator: valid_phinodes failed" [bid]
+    else
+
+    if negb (valid_phinodes hint_fdef (add_terminator_cond inv0 src tgt l0_src) m_src m_tgt blocks_src blocks_tgt bid l0_src)
+    then failwith_false "valid_terminator: valid_phinodes failed" [bid]
     else true
 
   | insn_unreachable _, insn_unreachable _ => true
