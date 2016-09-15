@@ -507,28 +507,6 @@ Proof.
       apply incl_appl. apply incl_refl.
 Qed.
 
-(* Lemma reduce_maydiff_preserved_expr *)
-(*       conf_src st_src invst0 inv e1 e2 val1 val2 *)
-(*       (VAL2: InvState.Unary.sem_expr conf_src st_src (InvState.Rel.src invst0) e2 = Some val2) *)
-(*       (H: Exprs.ExprPairSet.In (e1, e2) (Hints.Invariant.lessdef (Hints.Invariant.src inv))) *)
-(*       (G: InvState.Unary.sem_expr conf_src st_src (InvState.Rel.src invst0) e1 = Some val1): *)
-(*   <<SAFE: InvState.Unary.sem_expr conf_src st_src *)
-(*     (clear_unary (reduce_maydiff_preserved inv) (InvState.Rel.src invst0)) e2 =  *)
-(*   Some val2>>. *)
-(* Proof. *)
-(*   red. *)
-(*   (* unfold clear_unary, clear_locals; ss. *) *)
-(*   destruct invst0; ss. *)
-(*   destruct src; ss. *)
-(*   Time destruct e2; ss; *)
-(*     des_ifs; ss; (all_once exploit_with_fast); clarify. *)
-(*   - *)
-(*   Heq0: InvState.Unary.sem_valueT conf_src st_src *)
-(*            (clear_unary (reduce_maydiff_preserved inv) *)
-(*               {| InvState.Unary.previous := previous; InvState.Unary.ghost := ghost |}) w = None *)
-
-(* Qed. *)
-
 Lemma clear_unary_preserved_valueT
       conf_unary st_unary invst_unary vt val f
       (VAL: InvState.Unary.sem_valueT conf_unary st_unary invst_unary vt = Some val)
