@@ -14,8 +14,17 @@ Require Import Hints.
 Require Import GenericValues.
 Require Import Inject.
 Require InvMem.
+Require Import TODO.
 
 Set Implicit Arguments.
+
+(* TODO: m_src, m_tgt, conf_src, conf_tgt *)
+Inductive valid_conf
+          (m_src m_tgt:module)
+          (conf_src conf_tgt:Config): Prop :=
+| valid_conf_intro
+    (INJECT: inject_conf conf_src conf_tgt)
+.
 
 (* TODO: move to somewhere *)
 (* in this file and SoundImplies.v *)
@@ -372,10 +381,11 @@ Module Rel.
   Admitted.
 
   Lemma inject_expr_spec
-        conf_src st_src expr_src
-        conf_tgt st_tgt expr_tgt
+        m_src conf_src st_src expr_src
+        m_tgt conf_tgt st_tgt expr_tgt
         invst invmem inv
         gval_src
+        (CONF: valid_conf m_src m_tgt conf_src conf_tgt)
         (STATE: sem conf_src conf_tgt st_src st_tgt invst invmem inv)
         (MEM: InvMem.Rel.sem conf_src conf_tgt st_src.(Mem) st_tgt.(Mem) invmem)
         (INJECT: Hints.Invariant.inject_expr inv expr_src expr_tgt)
@@ -384,42 +394,138 @@ Module Rel.
       <<VAL_TGT: Unary.sem_expr conf_tgt st_tgt invst.(tgt) expr_tgt = Some gval_tgt>> /\
       <<INJECT: genericvalues_inject.gv_inject invmem.(InvMem.Rel.inject) gval_src gval_tgt>>.
   Proof.
-    unfold Invariant.inject_expr in INJECT.
-    unfold Invariant.deep_check_expr in INJECT.
-    destruct expr_src, expr_tgt; inv INJECT.
-    - repeat rewrite andb_true_iff in *. des.
-      clear H3.
-      ss.
-      destruct (Unary.sem_valueT conf_src st_src (src invst) v) eqn:Tv;
-        destruct (Unary.sem_valueT conf_src st_src (src invst) w) eqn:Tw;
-        inv VAL_SRC.
-      rename H1 into INJECT_V.
-      rename H2 into INJECT_W.
-      rename H3 into SEM.
-      exploit inject_value_spec; try eapply INJECT_V; eauto. ii; des.
-      exploit inject_value_spec; try eapply INJECT_W; eauto. ii; des.
-      ss.
-      rewrite VAL_TGT.
-      rewrite VAL_TGT0.
-      apply proj_sumbool_true in H0.
-      apply proj_sumbool_true in H4.
-      subst.
-      exploit genericvalues_inject.simulation__mbop;
-        [apply INJECT|apply INJECT0| |]; eauto. ii; des.
+    unfold Invariant.inject_expr in INJECT. unfold Invariant.deep_check_expr in INJECT. des_bool; des.
+    inv CONF. inv INJECT1.
+    Ltac exploit_inject_value_spec_with x :=
+      match (type of x) with
+      | (Unary.sem_valueT _ _ _ _ = Some _) =>
+        (exploit inject_value_spec; [| | | exact x |]; eauto; ii; des)
+      (* | (InvState.Unary.sem_list_valueT _ _ _ _ = Some _) => *)
+      (*   (exploit clear_unary_preserved_list_valueT; [exact x| |]; eauto; ii; des) *)
+      end.
+    Time destruct expr_src, expr_tgt;
+      inv INJECT; (* only 13 will remain from 169 *)
+      repeat (des_bool; des; ss);
+      des_ifs; (all_once exploit_inject_value_spec_with);
+        des_sumbool; subst; ss; clarify;
+          try (rewrite <- TARGETDATA).
+    - exploit genericvalues_inject.simulation__mbop; try apply VAL_SRC; eauto; ii; des; eauto.
+    - exploit genericvalues_inject.simulation__mfbop; try apply VAL_SRC; eauto; ii; des; eauto.
+    -
+      assert(lc = lc0) by admit. clarify.
+      exploit genericvalues_inject.simulation__extractGenericValue; try apply VAL_SRC; eauto; ii; des; eauto.
+    -
+      assert(lc = lc0) by admit. clarify.
+      exploit genericvalues_inject.simulation__insertGenericValue; try apply VAL_SRC; eauto; ii; des; eauto.
+    -
+      exploit genericvalues_inject.simulation__GEP; try apply VAL_SRC; eauto; ii; des; eauto.
+      (* exploit genericvalues_inject.simulation__mgep; try apply VAL_SRC; eauto; ii; des; eauto. *)
       esplits; eauto.
-      (* It seems inject_conf is needed *)
+      idtac.
       admit.
-    - admit.
-    - admit.
-    - admit.
-    - admit.
-    - admit.
-    - admit.
-    - admit.
-    - admit.
-    - admit.
-    - admit.
-    - admit.
-    - admit.
+      admit.
+    -
+      idtac.
+  (* Heq2 : Unary.sem_list_valueT conf_src st_src (src invst) lsv = ret l0 *)
+  (* H2 : List.map fst lsv = List.map fst lsv0 *)
+  (* Heq0 : Unary.sem_list_valueT conf_tgt st_tgt (tgt invst) lsv0 = merror *)
+      admit.
+
+    -
+      idtac.
+      exploit genericvalues_inject.simulation__mtrunc; try apply VAL_SRC; eauto; ii; des; eauto.
+    -
+      exploit genericvalues_inject.simulation__mext; try apply VAL_SRC; eauto; ii; des; eauto.
+    -
+      idtac.
+      exploit genericvalues_inject.simulation__mcast; try apply VAL_SRC; eauto; ii; des; eauto.
+    -
+      exploit genericvalues_inject.simulation__micmp; try apply VAL_SRC; eauto; ii; des; eauto.
+    -
+      exploit genericvalues_inject.simulation__mfcmp; try apply VAL_SRC; eauto; ii; des; eauto.
+    -
+      esplits; eauto.
+    -
+      idtac.
+      esplits; eauto.
+  (* Heq7 : GV2int (CurTargetData conf_src) Size.One g2 = ret z2 *)
+  (* Heq2 : GV2int (CurTargetData conf_tgt) Size.One g = ret z1 *)
+  (* Heq3 : negb (zeq z1 0) = true *)
+  (* Heq8 : negb (zeq z2 0) = false *)
+  (* INJECT5 : genericvalues_inject.gv_inject (InvMem.Rel.inject invmem) g2 g *)
+      admit.
+    -
+      idtac.
+      admit.
+      (* same as above *)
+    -
+      esplits; eauto.
+    -
+  (* Heq6 : GV2int (CurTargetData conf_src) Size.One g2 = ret z1 *)
+  (* Heq2 : GV2int (CurTargetData conf_tgt) Size.One g = merror *)
+  (* INJECT5 : genericvalues_inject.gv_inject (InvMem.Rel.inject invmem) g2 g *)
+      admit.
+    -
+  (* Heq6 : GV2int (CurTargetData conf_src) Size.One g2 = ret z1 *)
+  (* Heq2 : GV2int (CurTargetData conf_tgt) Size.One g = merror *)
+  (* INJECT5 : genericvalues_inject.gv_inject (InvMem.Rel.inject invmem) g2 g *)
+      admit.
+    -
+      (* There exists lemma for mload_aux *)
+      (* exploit genericvalues_inject.simulation__mload; try apply VAL_SRC; eauto; ii; des; eauto. *)
   Admitted.
 End Rel.
+
+  (*     genericvalues_inject *)
+  (* H2 : list_forallb2 Decs.const_eqb lc lc0 = true *)
+  (*                                              lc = lc0 *)
+
+
+
+
+
+
+
+(* GEPPPPPPPPPPPPPPPPPPPPPPP *)
+(* 2 focused subgoals *)
+(* (unfocused: 13, shelved: 3), subgoal 1 (ID 257388) *)
+
+(*   m_src : module *)
+(*   conf_src : Config *)
+(*   st_src : State *)
+(*   v : ValueT.t *)
+(*   lsv : list (sz * ValueT.t) *)
+(*   m_tgt : module *)
+(*   conf_tgt : Config *)
+(*   st_tgt : State *)
+(*   ib0 : inbounds *)
+(*   t1 : typ *)
+(*   v0 : ValueT.t *)
+(*   lsv0 : list (sz * ValueT.t) *)
+(*   u0 : typ *)
+(*   invst : t *)
+(*   invmem : InvMem.Rel.t *)
+(*   inv : Invariant.t *)
+(*   gval_src : GenericValue *)
+(*   STATE : sem conf_src conf_tgt st_src st_tgt invst invmem inv *)
+(*   MEM : InvMem.Rel.sem conf_src conf_tgt (Mem st_src) (Mem st_tgt) invmem *)
+(*   INJECT0 : Invariant.inject_value inv v v0 = true *)
+(*   INJECT1 : list_forallb2 (Invariant.inject_value inv) (List.map snd lsv) (List.map snd lsv0) = true *)
+(*   g0 : GenericValue *)
+(*   Heq1 : Unary.sem_valueT conf_src st_src (src invst) v = ret g0 *)
+(*   l1 : list GenericValue *)
+(*   Heq2 : Unary.sem_list_valueT conf_src st_src (src invst) lsv = ret l1 *)
+(*   TARGETDATA : CurTargetData conf_src = CurTargetData conf_tgt *)
+(*   GLOBALS : Globals conf_src = Globals conf_tgt *)
+(*   H2 : List.map fst lsv = List.map fst lsv0 *)
+(*   g : GenericValue *)
+(*   l0 : list GenericValue *)
+(*   Heq0 : Unary.sem_list_valueT conf_tgt st_tgt (tgt invst) lsv0 = ret l0 *)
+(*   VAL_SRC : gep (CurTargetData conf_src) t1 l1 ib0 u0 g0 = ret gval_src *)
+(*   VAL_TGT : Unary.sem_valueT conf_tgt st_tgt (tgt invst) v0 = ret g *)
+(*   INJECT : genericvalues_inject.gv_inject (InvMem.Rel.inject invmem) g0 g *)
+(*   ============================ *)
+(*   genericvalues_inject.wf_sb_mi ?Goal14 (InvMem.Rel.inject invmem) ?Goal15 ?Goal16 *)
+
+(* subgoal 2 (ID 257312) is: *)
+(*  genericvalues_inject.gvs_inject (InvMem.Rel.inject invmem) l1 l0 *)
