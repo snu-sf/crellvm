@@ -166,6 +166,14 @@ If one success happen, _all_once ends, so "repeat" in all_once is needed.
 If all fails, "repeat" in all_once will end, and will unmark all __ao_mark__.
 About repeat: https://coq.inria.fr/refman/Reference-Manual011.html#hevea_tactic201
  *)
+(*
+TODO this tactic can run inf loop, if given tactic generates a premise that
+is again the target of the given tactic. This can be systematically prevented
+if we snapshot the given moment (by marking detph 1), and then run
+all_once (marking depth 2). For now, user may carefully pass tactic that ensures
+not to run inf loop, one tip is to use pattern match of type.
+See the proof of clear_unary_preserved_expr in SoundReduceMaydiff.v
+*)
 Tactic Notation "_all_once" tactic(tac) :=
   match goal with
   | [ H: ?y |- _ ] =>
@@ -214,3 +222,48 @@ Proof.
   Undo. Undo.
   apply_all_once negb_true_iff.
 Abort.
+
+Ltac solve_compat_bool := repeat red; ii; subst; eauto.
+
+Ltac des_bool :=
+  repeat
+    match goal with
+    | [ H: sflib.is_true _ |- _] => unfold sflib.is_true in H
+    | [ H: _ |- sflib.is_true _ ] => unfold sflib.is_true
+    | [ H: _ && _ = true |- _ ] => apply andb_true_iff in H
+    | [ H: _ && _ = false |- _ ] => apply andb_false_iff in H
+    | [ H: _ || _ = true |- _ ] => apply orb_true_iff in H
+    | [ H: _ || _ = false |- _ ] => apply orb_false_iff in H
+    | [ H: negb _ = true |- _ ] => apply negb_true_iff in H
+    | [ H: negb _ = false |- _ ] => apply negb_false_iff in H
+    | [ H: context[ _ && false ] |- _ ] => rewrite andb_false_r in H
+    | [ H: context[ false && _ ] |- _ ] => rewrite andb_false_l in H
+    | [ H: context[ _ || true ] |- _ ] => rewrite orb_true_r in H
+    | [ H: context[ true || _ ] |- _ ] => rewrite orb_true_l in H
+    | [ H: context[ negb (_ && _) ] |- _ ] => rewrite negb_andb in H
+    | [ H: context[ negb (_ || _) ] |- _ ] => rewrite negb_orb in H
+    | [ H: context[ negb (negb _) ] |- _ ] => rewrite negb_involutive in H
+    | [ |- _ && true = true ] => apply andb_true_iff; splits; [|auto]
+    | [ |- true && _ = true ] => apply andb_true_iff; splits; [auto|]
+    | [ |- _ || true = true ] => apply orb_true_iff; right; auto
+    | [ |- true || _ = true ] => apply orb_true_iff; left; auto
+    | [ |- _ && false = true ] => exfalso
+    | [ |- false && _ = true ] => exfalso
+    | [ |- _ || false = true ] => apply orb_true_iff; left
+    | [ |- false || _ = true ] => apply orb_true_iff; right
+    end.
+
+(* Constant compcert.lib.Coqlib.proj_sumbool *)
+(* proj_sumbool is from compcert *)
+(* If we want to insert it inside sflib, we should first define proj_sumbool inside sflib *)
+Lemma proj_sumbool_false: forall (P Q : Prop) (a : {P} + {Q}),
+    proj_sumbool a = false -> Q.
+Proof. ii. destruct a; auto. inv H. Qed.
+
+Ltac des_sumbool :=
+  repeat
+    match goal with
+    | [ H: proj_sumbool ?x = true |- _ ] => apply proj_sumbool_true in H
+    | [ H: proj_sumbool ?x = false |- _ ] => apply proj_sumbool_false in H
+    end.
+(* check InvBooleans tactic in compcert *)
