@@ -459,7 +459,7 @@ Module Phinode.
          ExprPairSet.add
            (eq.(fst), eq.(snd))
            (ExprPairSet.add (eq.(snd), eq.(fst)) s))
-      (List.map Phinode.get_equation assigns)
+      (List.map get_equation assigns)
       ExprPairSet.empty.
 End Phinode.
 

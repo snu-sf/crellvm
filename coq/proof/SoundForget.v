@@ -18,6 +18,7 @@ Require Import TODO.
 Require Import Validator.
 Require Import Postcond.
 Require Import Exprs.
+Require Import Hints.
 Require Import GenericValues.
 Require InvMem.
 Require InvState.
@@ -25,29 +26,37 @@ Require Import SoundBase.
 
 Set Implicit Arguments.
 
-Definition equiv_Locals_mod_ids (locals0 locals1:GVsMap) (ids:IdTSet.t): Prop :=
+Definition locals_equiv_except (ids:IdTSet.t) (locals0 locals1:GVsMap): Prop :=
   forall id (NOT_IN: ~ IdTSet.In (Tag.physical, id) ids),
     lookupAL _ locals0 id = lookupAL _ locals1 id.
 
-Definition equiv_EC_mod_ids (EC0 EC1: ExecutionContext) (ids:IdTSet.t): Prop :=
-  EC0.(CurFunction) = EC1.(CurFunction) /\
-  EC0.(CurBB) = EC1.(CurBB) /\
-  EC0.(CurCmds) = EC1.(CurCmds) /\
-  EC0.(Terminator) = EC1.(Terminator) /\
-  EC0.(Allocas) = EC1.(Allocas) /\
-  equiv_Locals_mod_ids EC0.(Locals) EC1.(Locals) ids.
+Inductive state_equiv_except (ids:IdTSet.t) (st0 st1: State): Prop :=
+| state_eq_except_intro
+    (MEM: st0.(Mem) = st1.(Mem))
+    (LOCALS: locals_equiv_except ids st0.(EC).(Locals) st1.(EC).(Locals))
+.
 
-Definition equiv_state_mod_ids (st0 st1: State) (ids:IdTSet.t): Prop :=
-  st0.(ECS) = st1.(ECS) /\ st0.(Mem) = st1.(Mem) /\
-  equiv_EC_mod_ids st0.(EC) st1.(EC) ids.
+(* TODO: not sure if needed *)
+(* Lemma forget_unary_reduce_lessdef *)
+(*       s inv0 inv1 ld *)
+(*       (FORGET: Forget.unary s inv0 = inv1) *)
+(*       (MEM: ExprPairSet.mem ld inv1.(Invariant.lessdef)): *)
+(*   <<MEM: ExprPairSet.mem ld inv0.(Invariant.lessdef)>>. *)
+(* Proof. *)
+(*   (* unfold Forget.unary in *. *) *)
+(* Admitted. *)
 
 Lemma forget_sound
-      conf_src conf_tgt st_src0 st_tgt0 st_src1 st_tgt1 invst0 invmem0 inv0 inv1 s_src s_tgt
-      (EQUIV_SRC: equiv_state_mod_ids st_src0 st_src1 s_src)
-      (EQUIV_TGT: equiv_state_mod_ids st_tgt0 st_tgt1 s_tgt)
-      (STATE: InvState.Rel.sem conf_src conf_tgt st_src0 st_tgt0 invst0 invmem0 inv0)
-      (FORGET: Forget.t s_src s_tgt inv0 = inv1):
-  exists invst1,
-    <<STATE: InvState.Rel.sem conf_src conf_tgt st_src1 st_tgt1 invst1 invmem0 inv1>>.
+      conf_src st_src0
+      conf_tgt st_tgt0
+      st_src1 st_tgt1
+      invst invmem inv0
+      s_src s_tgt
+      (EQUIV_SRC: state_equiv_except s_src st_src0 st_src1)
+      (EQUIV_TGT: state_equiv_except s_tgt st_tgt0 st_tgt1)
+      (STATE: InvState.Rel.sem conf_src conf_tgt st_src0 st_tgt0
+                               invst invmem inv0):
+  <<STATE: InvState.Rel.sem conf_src conf_tgt st_src1 st_tgt1
+                            invst invmem (Forget.t s_src s_tgt inv0)>>.
 Proof.
 Admitted.
