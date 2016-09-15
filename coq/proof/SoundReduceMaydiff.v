@@ -353,58 +353,6 @@ Proof.
       inv VAL_SRC.
 Qed.
 
-(* Lemma reduce_maydiff_preserved_sem_idT *)
-(*       conf_unary st_unary id invst_unary val invmem_unary inv *)
-(*       (* inv is not unary, which is ugly. *)
-(* One may re-define reduce_maydiff_preserved to take only unary, but it seems not simple *) *)
-(*       (UNARY: *)
-(*          (InvState.Unary.sem *)
-(*             conf_unary st_unary invst_unary *)
-(*             invmem_unary (Hints.Invariant.src inv)) *)
-(*          \/ *)
-(*          (InvState.Unary.sem *)
-(*             conf_unary st_unary invst_unary *)
-(*             invmem_unary (Hints.Invariant.tgt inv))) *)
-(*       (VAL_UNARY: InvState.Unary.sem_idT st_unary invst_unary id = Some val): *)
-(*   InvState.Unary.sem_idT *)
-(*     st_unary (clear_unary (reduce_maydiff_preserved inv) invst_unary) id = Some val. *)
-(* Proof. *)
-(*   unfold InvState.Unary.sem_idT in *. *)
-(*   (* assert(SAFE: (reduce_maydiff_preserved inv) id = false). *) *)
-(*   destruct id; ss. *)
-(*   rename i0 into id. *)
-(*   assert(SAFE: (fun id0 : LLVMsyntax.id => *)
-(*                   reduce_maydiff_preserved inv (t, id0)) id = true). *)
-(*   { *)
-(*     unfold reduce_maydiff_preserved. *)
-(*     ss. *)
-(*     des. *)
-(*     - *)
-(*       inv UNARY. *)
-(*       admit. *)
-(*     - admit. *)
-(*       (* inv UNARY. *) *)
-(*   } *)
-(*   clear UNARY. *)
-(*   unfold clear_unary, clear_locals in *. *)
-(*   unfold InvState.Unary.update_ghost, InvState.Unary.update_previous in *. ss. *)
-(*   unfold InvState.Unary.sem_tag in *. ss. *)
-(*   destruct invst_unary; ss. *)
-(*   destruct t; ss. *)
-(*   - exploit (@lookup_AL_filter_true *)
-(*                GenericValue id previous *)
-(*                (fun id0 : LLVMsyntax.id => *)
-(*                   reduce_maydiff_preserved inv (Exprs.Tag.previous, id0))); eauto. *)
-(*     ii; des. *)
-(*     rewrite <- VAL_UNARY. eauto. *)
-(*   - exploit (@lookup_AL_filter_true *)
-(*                GenericValue id ghost *)
-(*                (fun id0 : LLVMsyntax.id => *)
-(*                   reduce_maydiff_preserved inv (Exprs.Tag.ghost, id0))); eauto. *)
-(*     ii; des. *)
-(*     rewrite <- VAL_UNARY. eauto. *)
-(* Abort. *)
-
 Lemma incl_lessdef_inv_unary inv_unary:
   <<LESSDEF_INCL:
     List.incl
@@ -698,13 +646,55 @@ Proof.
     destruct (x_eq_dec x a) eqn:T; ss.
 Qed.
 
-Lemma incl_implies_preserved
+Lemma incl_implies_preserved_src
       conf_src st_src invst0 expr val inv
       (VAL: InvState.Unary.sem_expr conf_src st_src (InvState.Rel.src invst0) expr = Some val)
       (INCL: incl (Exprs.Expr.get_idTs expr) (Hints.Invariant.get_idTs_unary (Hints.Invariant.src inv))):
   <<PRESERVED: InvState.Unary.sem_expr conf_src st_src
                                        (clear_unary (reduce_maydiff_preserved inv)
                                                     (InvState.Rel.src invst0)) expr = Some val>>.
+Proof.
+  red.
+  eapply clear_unary_preserved_expr; eauto.
+  clear VAL.
+
+  remember (Exprs.Expr.get_idTs expr) as X.
+  (* generalize dependent HeqX. *)
+  clear HeqX.
+  unfold reduce_maydiff_preserved.
+  induction X; ii; ss.
+  exploit IHX; eauto.
+  { eapply elim_incl_cons; eauto. }
+  ii; des.
+  rewrite x.
+  destruct a.
+  rename i0 into id.
+  destruct t; ss.
+  - unfold incl in INCL.
+    specialize (INCL (Exprs.Tag.previous, id)).
+    exploit INCL. left; eauto. (* although econs; eauto works *)
+    ii; des.
+    unfold is_true.
+    des_bool.
+    eapply In_eq_find.
+    apply in_app; eauto.
+  - unfold incl in INCL.
+    specialize (INCL (Exprs.Tag.ghost, id)).
+    exploit INCL. left; eauto. (* although econs; eauto works *)
+    ii; des.
+    unfold is_true.
+    des_bool.
+    eapply In_eq_find.
+    apply in_app; eauto.
+Qed.
+
+Lemma incl_implies_preserved_tgt
+      conf_tgt st_tgt invst0 expr val inv
+      (VAL: InvState.Unary.sem_expr conf_tgt st_tgt (InvState.Rel.tgt invst0) expr = Some val)
+      (INCL: incl (Exprs.Expr.get_idTs expr) (Hints.Invariant.get_idTs_unary (Hints.Invariant.tgt inv))):
+  <<PRESERVED: InvState.Unary.sem_expr conf_tgt st_tgt
+                                       (clear_unary (reduce_maydiff_preserved inv)
+                                                    (InvState.Rel.tgt invst0)) expr = Some val>>.
 Proof.
   red.
   eapply clear_unary_preserved_expr; eauto.
@@ -818,8 +808,8 @@ Proof.
           end.
           unfold id in *. destruct (__i__ == aid); ss.
   }
-  - econs.
-    inv SRC.
+  - clear TGT.
+    econs; inv SRC.
     +
       clear NOALIAS UNIQUE PRIVATE.
       unfold Exprs.ExprPairSet.For_all.
@@ -839,18 +829,92 @@ Proof.
       esplits; eauto.
       assert(K := incl_lessdef_inv_unary (Hints.Invariant.src inv)); des.
       (* exploit incl_lessdef_inv_unary. eauto. *)
-      apply incl_implies_preserved; eauto.
+      apply incl_implies_preserved_src; eauto.
       eapply In_list with (f:= Exprs.ExprPair.get_idTs) in H. des.
       unfold Exprs.ExprPair.get_idTs in H; ss.
       apply incl_app_inv_r in H.
       eapply incl_tran; eauto.
     +
-    + admit.
-    + admit.
-  - admit.
-  (* - exploit preserved_equiv_unary. apply SRC. eauto. i. des. ss. *)
-  (* - exploit reduce_maydiff_preserved_fit_type_spec1; eauto. i. des. ss. *)
-Admitted.
+      clear LESSDEF UNIQUE PRIVATE.
+      inv NOALIAS.
+      rename NOALIAS0 into NOALIAS.
+      econs; ii.
+      * clear NOALIAS.
+        eapply DIFFBLOCK; eauto.
+        eapply clear_unary_subset_valueT; eauto.
+        eapply clear_unary_subset_valueT; eauto.
+      * clear DIFFBLOCK.
+        eapply NOALIAS; eauto.
+        eapply clear_unary_subset_valueT; eauto.
+        eapply clear_unary_subset_valueT; eauto.
+    +
+      clear LESSDEF NOALIAS PRIVATE.
+      ii.
+      specialize (UNIQUE x H).
+      inv UNIQUE.
+      econs; eauto.
+    +
+      clear LESSDEF NOALIAS UNIQUE.
+      ii.
+      specialize (PRIVATE x H).
+      unfold InvState.Unary.sem_private in PRIVATE.
+      specialize (PRIVATE val).
+      apply PRIVATE.
+      eapply clear_unary_subset_idT; eauto.
+  - clear SRC.
+    econs; inv TGT.
+    +
+      clear NOALIAS UNIQUE PRIVATE.
+      unfold Exprs.ExprPairSet.For_all.
+      i.
+      destruct x as [e1 e2]; ss.
+      specialize (LESSDEF (e1, e2) H).
+      unfold InvState.Unary.sem_lessdef in LESSDEF; ss.
+      ii. ss.
+      specialize (LESSDEF val1).
+      assert(G: InvState.Unary.sem_expr
+                  conf_tgt st_tgt (InvState.Rel.tgt invst0) e1 = Some val1).
+      {
+        exploit clear_unary_subset_expr; eauto.
+      }
+      specialize (LESSDEF G).
+      des.
+      esplits; eauto.
+      assert(K := incl_lessdef_inv_unary (Hints.Invariant.tgt inv)); des.
+      (* exploit incl_lessdef_inv_unary. eauto. *)
+      apply incl_implies_preserved_tgt; eauto.
+      eapply In_list with (f:= Exprs.ExprPair.get_idTs) in H. des.
+      unfold Exprs.ExprPair.get_idTs in H; ss.
+      apply incl_app_inv_r in H.
+      eapply incl_tran; eauto.
+    +
+      clear LESSDEF UNIQUE PRIVATE.
+      inv NOALIAS.
+      rename NOALIAS0 into NOALIAS.
+      econs; ii.
+      * clear NOALIAS.
+        eapply DIFFBLOCK; eauto.
+        eapply clear_unary_subset_valueT; eauto.
+        eapply clear_unary_subset_valueT; eauto.
+      * clear DIFFBLOCK.
+        eapply NOALIAS; eauto.
+        eapply clear_unary_subset_valueT; eauto.
+        eapply clear_unary_subset_valueT; eauto.
+    +
+      clear LESSDEF NOALIAS PRIVATE.
+      ii.
+      specialize (UNIQUE x H).
+      inv UNIQUE.
+      econs; eauto.
+    +
+      clear LESSDEF NOALIAS UNIQUE.
+      ii.
+      specialize (PRIVATE x H).
+      unfold InvState.Unary.sem_private in PRIVATE.
+      specialize (PRIVATE val).
+      apply PRIVATE.
+      eapply clear_unary_subset_idT; eauto.
+Qed.
 
 Lemma reduce_maydiff_sound
       m_src m_tgt
