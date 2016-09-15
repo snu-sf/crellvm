@@ -27,32 +27,32 @@ Set Implicit Arguments.
 
 Ltac solve_compat_bool := repeat red; ii; subst; eauto.
 
-(* TODO rename H2 into H(original name)? *)
-Ltac des_is_true :=
-  repeat
-    match goal with
-    | [H: sflib.is_true ?x |- _] =>
-      let H2 := fresh H in
-      destruct x eqn:H2; cycle 1; inversion H; clear H
-    (* Intended not to use inv here, because it contains subst, changing other premises  *)
-    end.
-
 Ltac des_bool :=
   repeat
     match goal with
-    | [ H: ?x && ?y = true |- _ ] => apply andb_true_iff in H
-    | [ H: ?x && ?y = false |- _ ] => apply andb_false_iff in H
-    | [ H: ?x || ?y = true |- _ ] => apply orb_true_iff in H
-    | [ H: ?x || ?y = false |- _ ] => apply orb_false_iff in H
-    | [ H: negb ?x = true |- _ ] => apply negb_true_iff in H
-    | [ H: negb ?x = false |- _ ] => apply negb_false_iff in H
-    | [ H: context[ ?x && false ] |- _ ] => rewrite andb_false_r in H
-    | [ H: context[ false && ?x ] |- _ ] => rewrite andb_false_l in H
-    | [ H: context[ ?x || true ] |- _ ] => rewrite orb_true_r in H
-    | [ H: context[ true || ?x ] |- _ ] => rewrite orb_true_l in H
-    | [ H: context[ negb (?x && ?y) ] |- _ ] => rewrite negb_andb in H
-    | [ H: context[ negb (?x || ?y) ] |- _ ] => rewrite negb_orb in H
-    | [ H: context[ negb (negb ?x) ] |- _ ] => rewrite negb_involutive in H
+    | [ H: sflib.is_true _ |- _] => unfold sflib.is_true in H
+    | [ H: _ |- sflib.is_true _ ] => unfold sflib.is_true
+    | [ H: _ && _ = true |- _ ] => apply andb_true_iff in H
+    | [ H: _ && _ = false |- _ ] => apply andb_false_iff in H
+    | [ H: _ || _ = true |- _ ] => apply orb_true_iff in H
+    | [ H: _ || _ = false |- _ ] => apply orb_false_iff in H
+    | [ H: negb _ = true |- _ ] => apply negb_true_iff in H
+    | [ H: negb _ = false |- _ ] => apply negb_false_iff in H
+    | [ H: context[ _ && false ] |- _ ] => rewrite andb_false_r in H
+    | [ H: context[ false && _ ] |- _ ] => rewrite andb_false_l in H
+    | [ H: context[ _ || true ] |- _ ] => rewrite orb_true_r in H
+    | [ H: context[ true || _ ] |- _ ] => rewrite orb_true_l in H
+    | [ H: context[ negb (_ && _) ] |- _ ] => rewrite negb_andb in H
+    | [ H: context[ negb (_ || _) ] |- _ ] => rewrite negb_orb in H
+    | [ H: context[ negb (negb _) ] |- _ ] => rewrite negb_involutive in H
+    | [ |- _ && true = true ] => apply andb_true_iff; splits; [|auto]
+    | [ |- true && _ = true ] => apply andb_true_iff; splits; [auto|]
+    | [ |- _ || true = true ] => apply orb_true_iff; right; auto
+    | [ |- true || _ = true ] => apply orb_true_iff; left; auto
+    | [ |- _ && false = true ] => exfalso
+    | [ |- false && _ = true ] => exfalso
+    | [ |- _ || false = true ] => apply orb_true_iff; left
+    | [ |- false || _ = true ] => apply orb_true_iff; right
     end.
 
 Lemma proj_sumbool_false: forall (P Q : Prop) (a : {P} + {Q}),
@@ -104,7 +104,7 @@ Proof.
   specialize (MAYDIFF id0). ss.
   rewrite Exprs.IdTSetFacts.filter_b in NOTIN; cycle 1.
   { repeat red. ii. subst. eauto. }
-  des_is_true. des_bool. des; [by eapply MAYDIFF; eauto|].
+  des_bool. des; [by eapply MAYDIFF; eauto|].
   des_bool.
   apply Exprs.ExprPairSetFacts.exists_iff in NOTIN; cycle 1.
   { repeat red. ii. subst. eauto. }
@@ -272,23 +272,23 @@ Proof.
   exploit clear_unary_subset_idT; eauto.
 Qed.
 
-Lemma clear_unary_subset_list_valueT conf_unary st_unary f vtl invst_unary val
+Lemma clear_unary_subset_list_valueT conf_unary st_unary f vts invst_unary val
       (VAL_SUBSET: (InvState.Unary.sem_list_valueT conf_unary
-                   st_unary (clear_unary f invst_unary) vtl =
+                   st_unary (clear_unary f invst_unary) vts =
                  Some val)):
-  <<VAL: (InvState.Unary.sem_list_valueT conf_unary st_unary invst_unary vtl =
+  <<VAL: (InvState.Unary.sem_list_valueT conf_unary st_unary invst_unary vts =
           Some val)>>.
 Proof.
   red.
   generalize dependent val.
-  induction vtl; i; ss.
+  induction vts; i; ss.
   destruct a; ss.
-  Ltac exploit_with x :=
-    (exploit clear_unary_subset_valueT; [exact x|]; eauto; ii; des).
-  des_ifs; ss; (all_once exploit_with); (exploit IHvtl; eauto; ii; des); clarify.
+  Ltac exploit_with H x :=
+    (exploit H; [exact x|]; eauto; ii; des).
+  des_ifs; ss; (all_once exploit_with clear_unary_subset_valueT); (exploit IHvts; eauto; ii; des); clarify.
 Qed.
 
-Lemma clear_unary_subset_exprT conf_unary st_unary f expr invst_unary val
+Lemma clear_unary_subset_expr conf_unary st_unary f expr invst_unary val
       (VAL_SUBSET: (InvState.Unary.sem_expr conf_unary
                    st_unary (clear_unary f invst_unary) expr =
                  Some val)):
@@ -296,7 +296,7 @@ Lemma clear_unary_subset_exprT conf_unary st_unary f expr invst_unary val
           Some val)>>.
 Proof.
   red.
-  Ltac exploit_with_fast x :=
+  Ltac exploit_clear_unary_subset_with x :=
     match (type of x) with
     | (InvState.Unary.sem_valueT _ _ _ _ = Some _) =>
       (exploit clear_unary_subset_valueT; [exact x|]; eauto; ii; des)
@@ -304,7 +304,7 @@ Proof.
       (exploit clear_unary_subset_list_valueT; [exact x|]; eauto; ii; des)
     end.
   Time destruct expr; ss;
-    des_ifs; ss; (all_once exploit_with_fast); clarify.
+    des_ifs; ss; (all_once exploit_clear_unary_subset_with); clarify.
   (* exploit_with: Finished transaction in 25.39 secs (25.194u,0.213s) (successful) *)
   (* exploit_with_fast: Finished transaction in 7.575 secs (7.536u,0.044s) (successful) *)
 Qed.
@@ -468,11 +468,11 @@ Proof.
   exploit (@In_concat A Exprs.ExprPair.t (list A)); eauto.
 Qed.
 
-Lemma lessdef_safe
+Lemma lessdef_incl
       e1 e2 inv_unary
       (LESSDEF: Exprs.ExprPairSet.In
                   (e1, e2) (Hints.Invariant.lessdef inv_unary)):
-  <<SAFE: (List.incl (Exprs.Expr.get_idTs e1) (Hints.Invariant.get_idTs_unary inv_unary))
+  <<INCL: (List.incl (Exprs.Expr.get_idTs e1) (Hints.Invariant.get_idTs_unary inv_unary))
           /\ (List.incl (Exprs.Expr.get_idTs e2) (Hints.Invariant.get_idTs_unary inv_unary))>>.
 Proof.
   unfold Exprs.Expr.get_idTs.
@@ -581,6 +581,164 @@ Qed.
 
 (* Qed. *)
 
+Lemma clear_unary_preserved_valueT
+      conf_unary st_unary invst_unary vt val f
+      (VAL: InvState.Unary.sem_valueT conf_unary st_unary invst_unary vt = Some val)
+      (PRESERVED: (sflib.is_true (List.forallb f (Exprs.ValueT.get_idTs vt)))):
+  <<VAL: InvState.Unary.sem_valueT conf_unary st_unary (clear_unary f invst_unary) vt = Some val>>.
+Proof.
+  red.
+  destruct vt; ss.
+  des_bool. des. clear PRESERVED0.
+  unfold InvState.Unary.sem_idT in *.
+  destruct x; ss.
+  unfold clear_unary, clear_locals.
+  unfold InvState.Unary.update_ghost, InvState.Unary.update_previous in *. ss.
+  unfold InvState.Unary.sem_tag in *. ss.
+  destruct invst_unary; ss.
+  destruct t; ss.
+  - exploit (@lookup_AL_filter_true GenericValue).
+    {
+      (* apply PRESERVED. *) (* WHY IT DOES NOT WORK ???????? *)
+      instantiate (1:= i0).
+      instantiate  (1:= (fun id0 : id => f (Exprs.Tag.previous, id0))).
+      ss.
+    } ii; des.
+    rewrite x0; ss.
+  - (* COPIED FROM ABOVE *)
+    exploit (@lookup_AL_filter_true GenericValue).
+    {
+      (* apply PRESERVED. *) (* WHY IT DOES NOT WORK ???????? *)
+      instantiate (1:= i0).
+      instantiate  (1:= (fun id0 : id => f (Exprs.Tag.ghost, id0))).
+      ss.
+    } ii; des.
+    rewrite x0; ss.
+Qed.
+
+Lemma clear_unary_preserved_list_valueT
+      conf_unary st_unary invst_unary vts val f
+      (VAL: InvState.Unary.sem_list_valueT conf_unary st_unary invst_unary vts = Some val)
+      (PRESERVED: sflib.is_true (List.forallb
+                     (fun x => (List.forallb f (Exprs.ValueT.get_idTs x)))
+                     (List.map snd vts))):
+  <<VAL: InvState.Unary.sem_list_valueT conf_unary st_unary (clear_unary f invst_unary) vts = Some val>>.
+Proof.
+  generalize dependent PRESERVED.
+  generalize dependent val.
+  induction vts; ii; ss; red.
+  destruct a; ss.
+  repeat (des_bool; des).
+  des_ifs; ss.
+  - (exploit clear_unary_preserved_valueT; [exact Heq1| |]; eauto; ii; des).
+    specialize (IHvts l1). exploit IHvts; eauto. ii; des.
+    clarify.
+  - (exploit clear_unary_preserved_valueT; [exact Heq1| |]; eauto; ii; des).
+    clarify.
+    specialize (IHvts l0). exploit IHvts; eauto. ii; des.
+    ss.
+  - (exploit clear_unary_preserved_valueT; [exact Heq0| |]; eauto; ii; des).
+    specialize (IHvts l0). exploit IHvts; eauto. ii; des.
+    clarify.
+Qed.
+
+Lemma forallb_filter_map {A B: Type} (f: B -> bool) (g: A -> option B) (xs: list A)
+      (FORALL: List.forallb f (filter_map g xs)):
+  (* List.forallb (fun x => match (g x) with | Some y => f y | None => true end) xs. *)
+  <<FORALL: List.forallb (fun x => List.forallb f (g x)) xs>>.
+Proof.
+  red.
+  generalize dependent FORALL.
+  induction xs; ii; ss.
+  destruct (g a) eqn:T; des_bool; ss.
+  - unfold is_true in FORALL. (* des_bool should solve this!!! KILL ALL is_true *)
+    des_bool. des.
+    rewrite FORALL.
+    rewrite IHxs; eauto. ss.
+  - rewrite IHxs; ss.
+Qed.
+
+Lemma clear_unary_preserved_expr
+      conf_unary st_unary invst_unary expr val f
+      (VAL: InvState.Unary.sem_expr conf_unary st_unary invst_unary expr = Some val)
+      (PRESERVED: List.forallb f (Exprs.Expr.get_idTs expr)):
+  <<VAL: InvState.Unary.sem_expr conf_unary st_unary (clear_unary f invst_unary) expr = Some val>>.
+Proof.
+  red.
+  unfold Exprs.Expr.get_idTs in *.
+  eapply forallb_filter_map in PRESERVED. des.
+  unfold is_true in PRESERVED. (* des_bool should kill it!!!!!!! KILL ALL is_true *)
+
+  Ltac exploit_clear_unary_preserved_with x :=
+    match (type of x) with
+    | (InvState.Unary.sem_valueT _ _ (clear_unary _ _) _ = _) => fail 1
+    | (InvState.Unary.sem_list_valueT _ _ (clear_unary _ _) _ = _) => fail 1
+    (* Above is REQUIRED in order to prevent inf loop *)
+    | (InvState.Unary.sem_valueT _ _ _ _ = Some _) =>
+      (exploit clear_unary_preserved_valueT; [exact x| |]; eauto; ii; des)
+    | (InvState.Unary.sem_list_valueT _ _ _ _ = Some _) =>
+      (exploit clear_unary_preserved_list_valueT; [exact x| |]; eauto; ii; des)
+    end.
+
+  Time destruct expr; ss;
+    repeat (des_bool; des); des_ifs; clarify;
+      (all_once exploit_clear_unary_subset_with); clarify;
+        (all_once exploit_clear_unary_preserved_with); clarify.
+Qed.
+
+Lemma In_eq_find {X} (x: X) xs (x_eq_dec: forall x1 x2, {x1 = x2} + {x1 <> x2})
+      (IN: In x xs):
+  <<FOUND: (find (fun y => x_eq_dec x y) xs)>>.
+Proof.
+  red.
+  generalize dependent IN.
+  induction xs; ii; inv IN; ss.
+  - destruct (x_eq_dec x x) eqn:T; ss.
+  - specialize (IHxs H).
+    destruct (x_eq_dec x a) eqn:T; ss.
+Qed.
+
+Lemma incl_implies_preserved
+      conf_src st_src invst0 expr val inv
+      (VAL: InvState.Unary.sem_expr conf_src st_src (InvState.Rel.src invst0) expr = Some val)
+      (INCL: incl (Exprs.Expr.get_idTs expr) (Hints.Invariant.get_idTs_unary (Hints.Invariant.src inv))):
+  <<PRESERVED: InvState.Unary.sem_expr conf_src st_src
+                                       (clear_unary (reduce_maydiff_preserved inv)
+                                                    (InvState.Rel.src invst0)) expr = Some val>>.
+Proof.
+  red.
+  eapply clear_unary_preserved_expr; eauto.
+  clear VAL.
+
+  remember (Exprs.Expr.get_idTs expr) as X.
+  (* generalize dependent HeqX. *)
+  clear HeqX.
+  unfold reduce_maydiff_preserved.
+  induction X; ii; ss.
+  exploit IHX; eauto.
+  { eapply elim_incl_cons; eauto. }
+  ii; des.
+  rewrite x.
+  destruct a.
+  rename i0 into id.
+  destruct t; ss.
+  - unfold incl in INCL.
+    specialize (INCL (Exprs.Tag.previous, id)).
+    exploit INCL. left; eauto. (* although econs; eauto works *)
+    ii; des.
+    unfold is_true.
+    des_bool.
+    eapply In_eq_find.
+    apply in_app; eauto.
+  - unfold incl in INCL.
+    specialize (INCL (Exprs.Tag.ghost, id)).
+    exploit INCL. left; eauto. (* although econs; eauto works *)
+    ii; des.
+    unfold is_true.
+    des_bool.
+    eapply In_eq_find.
+    apply in_app; eauto.
+Qed.
 
 Lemma reduce_maydiff_non_physical_sound
       m_src m_tgt
@@ -602,7 +760,7 @@ Proof.
   { ii. (* VAL_SRC (sem_idT) is from ii *) (* sem_inject from MAYDIFF *) ss.
     rewrite Exprs.IdTSetFacts.filter_b in NOTIN; cycle 1.
     { solve_compat_bool. }
-    des_is_true. des_bool. des.
+    des_bool. des.
     - apply MAYDIFF in NOTIN.
       unfold InvState.Rel.sem_inject in NOTIN.
       exploit (NOTIN val_src); eauto.
@@ -674,15 +832,19 @@ Proof.
       assert(G: InvState.Unary.sem_expr
                   conf_src st_src (InvState.Rel.src invst0) e1 = Some val1).
       {
-        exploit clear_unary_subset_exprT; eauto.
+        exploit clear_unary_subset_expr; eauto.
       }
       specialize (LESSDEF G).
       des.
       esplits; eauto.
-
-      clear - H G VAL2.
-      admit.
-    + admit.
+      assert(K := incl_lessdef_inv_unary (Hints.Invariant.src inv)); des.
+      (* exploit incl_lessdef_inv_unary. eauto. *)
+      apply incl_implies_preserved; eauto.
+      eapply In_list with (f:= Exprs.ExprPair.get_idTs) in H. des.
+      unfold Exprs.ExprPair.get_idTs in H; ss.
+      apply incl_app_inv_r in H.
+      eapply incl_tran; eauto.
+    +
     + admit.
     + admit.
   - admit.

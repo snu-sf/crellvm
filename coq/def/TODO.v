@@ -20,6 +20,13 @@ Definition bool_of_option A (x:option A): bool :=
   end.
 Coercion bool_of_option: option >-> bool.
 
+Definition option_to_list A (oa:option A): list A :=
+  match oa with
+  | Some a => a::nil
+  | None => nil
+  end.
+Coercion option_to_list: option >-> list.
+
 Definition get_or_else A (x: option A) (default: A) :=
   match x with
     | None => default
@@ -62,12 +69,6 @@ Definition lift2_option
   | Some a, Some b => pred a b
   | None, None => True
   | _, _ => False
-  end.
-
-Definition option_to_list A (oa:option A): list A :=
-  match oa with
-  | Some a => a::nil
-  | None => nil
   end.
 
 Fixpoint filter_map A B (pred:A -> option B) (l:list A): list B :=
