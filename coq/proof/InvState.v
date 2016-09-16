@@ -393,6 +393,49 @@ Module Rel.
     clarify.
   Qed.
 
+  Lemma inject_list_value_spec
+        conf_src st_src vals_src
+        conf_tgt st_tgt vals_tgt
+        invst invmem inv
+        gval_src
+        (STATE: sem conf_src conf_tgt st_src st_tgt invst invmem inv)
+        (MEM: InvMem.Rel.sem conf_src conf_tgt st_src.(Mem) st_tgt.(Mem) invmem)
+        (* TODO unite below into single INJECT? For unity with inject_value_spec *)
+        (INJECT_SZ: List.map fst vals_src = List.map fst vals_tgt)
+        (INJECT_VAL: list_forallb2 (Invariant.inject_value inv) (List.map snd vals_src) (List.map snd vals_tgt))
+        (VAL_SRC: Unary.sem_list_valueT conf_src st_src invst.(src) vals_src = Some gval_src):
+    exists gval_tgt,
+      <<VAL_TGT: Unary.sem_list_valueT conf_tgt st_tgt invst.(tgt) vals_tgt = Some gval_tgt>> /\
+      <<INJECT: Forall2 (genericvalues_inject.gv_inject invmem.(InvMem.Rel.inject)) gval_src gval_tgt>>.
+  Proof.
+    Ltac exploit_inject_value_spec_with x :=
+      match (type of x) with
+      | (Unary.sem_valueT _ _ _ _ = Some _) =>
+        (exploit inject_value_spec; [| | | exact x |]; eauto; ii; des; [])
+      end.
+    generalize dependent vals_tgt.
+    generalize dependent gval_src.
+    induction vals_src; ii; ss.
+    - destruct vals_tgt; inv INJECT_SZ; ss. inv VAL_SRC.
+      esplits; eauto. econs.
+    - destruct a; ss.
+      destruct vals_tgt; ss.
+      inv INJECT_SZ. des_bool; des.
+      destruct p; ss.
+      des_ifs; (all_once exploit_inject_value_spec_with);
+        (all_once exploit_inject_value_spec_with);
+        (exploit IHvals_src; eauto; ii; des; []); clarify.
+      + esplits; eauto.
+        econs; eauto.
+  Qed.
+
+  (* Unary.sem_valueT : Config -> State -> Unary.t -> ValueT.t -> monad GenericValue *)
+(* Unary.sem_list_valueT : Config -> State -> Unary.t -> list (sz * ValueT.t) -> monad (list GenericValue) *)
+
+  (* Heq2 : Unary.sem_list_valueT conf_src st_src (src invst) lsv = ret l0 *)
+  (* INJECT1 : list_forallb2 (Invariant.inject_value inv) (List.map snd lsv) (List.map snd lsv0) = true *)
+  (* Heq0 : Unary.sem_list_valueT conf_tgt st_tgt (tgt invst) lsv0 = merror *)
+
   Lemma inject_expr_spec
         m_src conf_src st_src expr_src
         m_tgt conf_tgt st_tgt expr_tgt
@@ -409,22 +452,23 @@ Module Rel.
   Proof.
     unfold Invariant.inject_expr in INJECT. unfold Invariant.deep_check_expr in INJECT. des_bool; des.
     inv CONF. inv INJECT1.
-    Ltac exploit_inject_value_spec_with x :=
+    Ltac exploit_inject_list_value_spec_with x :=
       match (type of x) with
-      | (Unary.sem_valueT _ _ _ _ = Some _) =>
-        (exploit inject_value_spec; [| | | exact x |]; eauto; ii; des)
-      (* | (InvState.Unary.sem_list_valueT _ _ _ _ = Some _) => *)
-      (*   (exploit clear_unary_preserved_list_valueT; [exact x| |]; eauto; ii; des) *)
+      | (Unary.sem_list_valueT _ _ _ _ = Some _) =>
+        (exploit inject_list_value_spec; [| | | | exact x |]; eauto; ii; des; [])
       end.
     assert(EQB_SPEC := Decs.const_eqb_spec).
     Time destruct expr_src, expr_tgt;
       inv INJECT; (* only 13 will remain from 169 *)
       repeat (des_bool; des; ss);
-      des_ifs; (all_once exploit_inject_value_spec_with);
-        des_sumbool; subst; ss;
-          try (rewrite <- TARGETDATA);
-          try (exploit (@eqb_forallb2 const); eauto; ii; des; []);
-          clarify.
+      des_ifs; (* 41 goals *) (* Finished transaction in 25.972 secs (25.937u,0.05s) (successful) *)
+      clarify; (* 41 goals, Finished transaction in 30.875 secs (30.841u,0.052s) (successful) *)
+      des_sumbool; subst; ss;
+        try (rewrite <- TARGETDATA);
+        try (exploit (@eqb_forallb2 const); eauto; ii; des; []);
+        (all_once exploit_inject_value_spec_with);
+        (all_once exploit_inject_list_value_spec_with);
+        clarify. (* Finished transaction in 140.027 secs (139.734u,0.373s) (successful) *)
     - exploit genericvalues_inject.simulation__mbop; try apply VAL_SRC; eauto; ii; des; eauto.
     - exploit genericvalues_inject.simulation__mfbop; try apply VAL_SRC; eauto; ii; des; eauto.
     - exploit genericvalues_inject.simulation__extractGenericValue; try apply VAL_SRC; eauto; ii; des; eauto.
@@ -434,19 +478,13 @@ Module Rel.
       esplits; eauto.
       admit.
       admit.
-    -
-      idtac.
-  (* Heq2 : Unary.sem_list_valueT conf_src st_src (src invst) lsv = ret l0 *)
-  (* INJECT1 : list_forallb2 (Invariant.inject_value inv) (List.map snd lsv) (List.map snd lsv0) = true *)
-  (* Heq0 : Unary.sem_list_valueT conf_tgt st_tgt (tgt invst) lsv0 = merror *)
-      admit.
     - exploit genericvalues_inject.simulation__mtrunc; try apply VAL_SRC; eauto; ii; des; eauto.
     - exploit genericvalues_inject.simulation__mext; try apply VAL_SRC; eauto; ii; des; eauto.
     - exploit genericvalues_inject.simulation__mcast; try apply VAL_SRC; eauto; ii; des; eauto.
     - exploit genericvalues_inject.simulation__micmp; try apply VAL_SRC; eauto; ii; des; eauto.
     - exploit genericvalues_inject.simulation__mfcmp; try apply VAL_SRC; eauto; ii; des; eauto.
     - esplits; eauto.
-    - admit.
+    - idtac. admit.
   (* Heq7 : GV2int (CurTargetData conf_src) Size.One g2 = ret z2 *)
   (* Heq2 : GV2int (CurTargetData conf_tgt) Size.One g = ret z1 *)
   (* Heq3 : negb (zeq z1 0) = true *)
