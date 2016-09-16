@@ -429,13 +429,6 @@ Module Rel.
         econs; eauto.
   Qed.
 
-  (* Unary.sem_valueT : Config -> State -> Unary.t -> ValueT.t -> monad GenericValue *)
-(* Unary.sem_list_valueT : Config -> State -> Unary.t -> list (sz * ValueT.t) -> monad (list GenericValue) *)
-
-  (* Heq2 : Unary.sem_list_valueT conf_src st_src (src invst) lsv = ret l0 *)
-  (* INJECT1 : list_forallb2 (Invariant.inject_value inv) (List.map snd lsv) (List.map snd lsv0) = true *)
-  (* Heq0 : Unary.sem_list_valueT conf_tgt st_tgt (tgt invst) lsv0 = merror *)
-
   Lemma inject_expr_spec
         m_src conf_src st_src expr_src
         m_tgt conf_tgt st_tgt expr_tgt
@@ -484,77 +477,49 @@ Module Rel.
     - exploit genericvalues_inject.simulation__micmp; try apply VAL_SRC; eauto; ii; des; eauto.
     - exploit genericvalues_inject.simulation__mfcmp; try apply VAL_SRC; eauto; ii; des; eauto.
     - esplits; eauto.
-    - idtac. admit.
-  (* Heq7 : GV2int (CurTargetData conf_src) Size.One g2 = ret z2 *)
-  (* Heq2 : GV2int (CurTargetData conf_tgt) Size.One g = ret z1 *)
-  (* Heq3 : negb (zeq z1 0) = true *)
-  (* Heq8 : negb (zeq z2 0) = false *)
-  (* INJECT5 : genericvalues_inject.gv_inject (InvMem.Rel.inject invmem) g2 g *)
-    - admit.
-      (* same as above *)
+    -
+
+      Ltac exploit_eq_GV2int :=
+        let tmp := fresh in
+        match goal with
+        | [ H1: GV2int _ _ ?x = _,
+                H2: GV2int _ _ ?y = _,
+                    INJ: genericvalues_inject.gv_inject _ ?x ?y |- _ ] =>
+          exploit genericvalues_inject.simulation__eq__GV2int; try eapply INJ; eauto; ii; des; []
+        end.
+      exploit_eq_GV2int.
+      (* Want to automatize more *)
+      (* Need exact name for exploited premise, in order to apply lemmas there *)
+      (* Or we may use assert? Can we use assert with some variables left as existential? *)
+      (* Like in apply f with (x := 1) (y := 2) ? *)
+      (* Putting CurTargetData blah or meminj inside this Ltac seems dirty. *)
+      rewrite Heq2 in H.
+      rewrite <- TARGETDATA in H.
+      rewrite Heq7 in H.
+      clarify.
+    -
+      exploit_eq_GV2int.
+      rewrite Heq2 in H.
+      rewrite <- TARGETDATA in H.
+      rewrite Heq7 in H.
+      clarify.
     - esplits; eauto.
     -
-  (* Heq6 : GV2int (CurTargetData conf_src) Size.One g2 = ret z1 *)
-  (* Heq2 : GV2int (CurTargetData conf_tgt) Size.One g = merror *)
-  (* INJECT5 : genericvalues_inject.gv_inject (InvMem.Rel.inject invmem) g2 g *)
-      admit.
+      exploit_eq_GV2int.
+      rewrite Heq2 in H.
+      rewrite <- TARGETDATA in H.
+      rewrite Heq6 in H.
+      clarify.
     -
-  (* Heq6 : GV2int (CurTargetData conf_src) Size.One g2 = ret z1 *)
-  (* Heq2 : GV2int (CurTargetData conf_tgt) Size.One g = merror *)
-  (* INJECT5 : genericvalues_inject.gv_inject (InvMem.Rel.inject invmem) g2 g *)
-      admit.
+      exploit_eq_GV2int.
+      rewrite Heq2 in H.
+      rewrite <- TARGETDATA in H.
+      rewrite Heq6 in H.
+      clarify.
     - (* There exists lemma for mload_aux *)
       (* exploit genericvalues_inject.simulation__mload; try apply VAL_SRC; eauto; ii; des; eauto. *)
   Admitted.
 End Rel.
-
-(* 2 focused subgoals *)
-(* (unfocused: 13, shelved: 3), subgoal 1 (ID 386956) *)
-
-(*   m_src : module *)
-(*   conf_src : Config *)
-(*   st_src : State *)
-(*   v : ValueT.t *)
-(*   lsv : list (sz * ValueT.t) *)
-(*   m_tgt : module *)
-(*   conf_tgt : Config *)
-(*   st_tgt : State *)
-(*   ib0 : inbounds *)
-(*   t1 : typ *)
-(*   v0 : ValueT.t *)
-(*   lsv0 : list (sz * ValueT.t) *)
-(*   u0 : typ *)
-(*   invst : t *)
-(*   invmem : InvMem.Rel.t *)
-(*   inv : Invariant.t *)
-(*   gval_src : GenericValue *)
-(*   STATE : sem conf_src conf_tgt st_src st_tgt invst invmem inv *)
-(*   MEM : InvMem.Rel.sem conf_src conf_tgt (Mem st_src) (Mem st_tgt) invmem *)
-(*   INJECT0 : Invariant.inject_value inv v v0 = true *)
-(*   INJECT1 : list_forallb2 (Invariant.inject_value inv) (List.map snd lsv) (List.map snd lsv0) = true *)
-(*   g0 : GenericValue *)
-(*   Heq1 : Unary.sem_valueT conf_src st_src (src invst) v = ret g0 *)
-(*   l1 : list GenericValue *)
-(*   Heq2 : Unary.sem_list_valueT conf_src st_src (src invst) lsv = ret l1 *)
-(*   TARGETDATA : CurTargetData conf_src = CurTargetData conf_tgt *)
-(*   GLOBALS : Globals conf_src = Globals conf_tgt *)
-(*   EQB_SPEC : forall c1 c2 : const, Decs.const_eqb c1 c2 -> c1 = c2 *)
-(*   H2 : List.map fst lsv = List.map fst lsv0 *)
-(*   g : GenericValue *)
-(*   l0 : list GenericValue *)
-(*   Heq0 : Unary.sem_list_valueT conf_tgt st_tgt (tgt invst) lsv0 = ret l0 *)
-(*   VAL_SRC : gep (CurTargetData conf_src) t1 l1 ib0 u0 g0 = ret gval_src *)
-(*   VAL_TGT : Unary.sem_valueT conf_tgt st_tgt (tgt invst) v0 = ret g *)
-(*   INJECT : genericvalues_inject.gv_inject (InvMem.Rel.inject invmem) g0 g *)
-(*   ============================ *)
-(*   genericvalues_inject.wf_sb_mi ?Goal12 (InvMem.Rel.inject invmem) ?Goal13 ?Goal14 *)
-
-(* subgoal 2 (ID 386878) is: *)
-(*  genericvalues_inject.gvs_inject (InvMem.Rel.inject invmem) l1 l0 *)
-
-
-
-
 
 (* GEPPPPPPPPPPPPPPPPPPPPPPP *)
 (* 2 focused subgoals *)
