@@ -445,11 +445,30 @@ Module Rel.
   Proof.
     unfold Invariant.inject_expr in INJECT. unfold Invariant.deep_check_expr in INJECT. des_bool; des.
     inv CONF. inv INJECT1.
+
     Ltac exploit_inject_list_value_spec_with x :=
       match (type of x) with
       | (Unary.sem_list_valueT _ _ _ _ = Some _) =>
         (exploit inject_list_value_spec; [| | | | exact x |]; eauto; ii; des; [])
       end.
+
+    Ltac exploit_eq_GV2int :=
+      let tmp := fresh in
+      match goal with
+      | [ H1: GV2int ?conf_x _ ?x = _,
+              H2: GV2int ?conf_y _ ?y = _,
+                  TRGTDATA: ?conf_x = ?conf_y,
+                            INJ: genericvalues_inject.gv_inject _ ?x ?y |- _ ] =>
+        exploit genericvalues_inject.simulation__eq__GV2int; try eapply INJ; eauto; intro tmp; des; [];
+        rewrite H1 in tmp;
+        rewrite TRGTDATA in tmp;
+        rewrite H2 in tmp;
+        clarify
+      end.
+    (* Or we may use assert? Can we use assert with some variables left as existential? *)
+    (* Like in apply f with (x := 1) (y := 2) ? *)
+    (* Putting CurTargetData blah or meminj inside this Ltac seems dirty. *)
+
     assert(EQB_SPEC := Decs.const_eqb_spec).
     Time destruct expr_src, expr_tgt;
       inv INJECT; (* only 13 will remain from 169 *)
@@ -461,14 +480,14 @@ Module Rel.
         try (exploit (@eqb_forallb2 const); eauto; ii; des; []);
         (all_once exploit_inject_value_spec_with);
         (all_once exploit_inject_list_value_spec_with);
-        clarify. (* Finished transaction in 140.027 secs (139.734u,0.373s) (successful) *)
+        clarify; (* Finished transaction in 140.027 secs (139.734u,0.373s) (successful) *)
+        try exploit_eq_GV2int.
     - exploit genericvalues_inject.simulation__mbop; try apply VAL_SRC; eauto; ii; des; eauto.
     - exploit genericvalues_inject.simulation__mfbop; try apply VAL_SRC; eauto; ii; des; eauto.
     - exploit genericvalues_inject.simulation__extractGenericValue; try apply VAL_SRC; eauto; ii; des; eauto.
     - exploit genericvalues_inject.simulation__insertGenericValue; try apply VAL_SRC; eauto; ii; des; eauto.
     - exploit genericvalues_inject.simulation__GEP; try apply VAL_SRC; eauto; ii; des; eauto.
       (* exploit genericvalues_inject.simulation__mgep; try apply VAL_SRC; eauto; ii; des; eauto. *)
-      esplits; eauto.
       admit.
       admit.
     - exploit genericvalues_inject.simulation__mtrunc; try apply VAL_SRC; eauto; ii; des; eauto.
@@ -477,47 +496,10 @@ Module Rel.
     - exploit genericvalues_inject.simulation__micmp; try apply VAL_SRC; eauto; ii; des; eauto.
     - exploit genericvalues_inject.simulation__mfcmp; try apply VAL_SRC; eauto; ii; des; eauto.
     - esplits; eauto.
-    -
-
-      Ltac exploit_eq_GV2int :=
-        let tmp := fresh in
-        match goal with
-        | [ H1: GV2int _ _ ?x = _,
-                H2: GV2int _ _ ?y = _,
-                    INJ: genericvalues_inject.gv_inject _ ?x ?y |- _ ] =>
-          exploit genericvalues_inject.simulation__eq__GV2int; try eapply INJ; eauto; ii; des; []
-        end.
-      exploit_eq_GV2int.
-      (* Want to automatize more *)
-      (* Need exact name for exploited premise, in order to apply lemmas there *)
-      (* Or we may use assert? Can we use assert with some variables left as existential? *)
-      (* Like in apply f with (x := 1) (y := 2) ? *)
-      (* Putting CurTargetData blah or meminj inside this Ltac seems dirty. *)
-      rewrite Heq2 in H.
-      rewrite <- TARGETDATA in H.
-      rewrite Heq7 in H.
-      clarify.
-    -
-      exploit_eq_GV2int.
-      rewrite Heq2 in H.
-      rewrite <- TARGETDATA in H.
-      rewrite Heq7 in H.
-      clarify.
     - esplits; eauto.
-    -
-      exploit_eq_GV2int.
-      rewrite Heq2 in H.
-      rewrite <- TARGETDATA in H.
-      rewrite Heq6 in H.
-      clarify.
-    -
-      exploit_eq_GV2int.
-      rewrite Heq2 in H.
-      rewrite <- TARGETDATA in H.
-      rewrite Heq6 in H.
-      clarify.
     - (* There exists lemma for mload_aux *)
       (* exploit genericvalues_inject.simulation__mload; try apply VAL_SRC; eauto; ii; des; eauto. *)
+      admit.
   Admitted.
 End Rel.
 
