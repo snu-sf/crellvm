@@ -293,6 +293,13 @@ Module Rel.
       <<VAL_TGT: Unary.sem_idT st_tgt invst.(tgt) id = Some val_tgt>> /\
       <<VAL: genericvalues_inject.gv_inject inject val_src val_tgt>>.
 
+  Definition sem_inject_expr (conf_src conf_tgt: Config)
+             (st_src st_tgt:State) (invst:t) (inject:meminj) (expr:Expr.t): Prop :=
+    forall val_src (VAL_SRC: Unary.sem_expr conf_src st_src invst.(src) expr = Some val_src),
+    exists val_tgt,
+      <<VAL_TGT: Unary.sem_expr conf_tgt st_tgt invst.(tgt) expr = Some val_tgt>> /\
+      <<VAL: genericvalues_inject.gv_inject inject val_src val_tgt>>.
+
   Inductive sem (conf_src conf_tgt:Config) (st_src st_tgt:State) (invst:t) (invmem:InvMem.Rel.t) (inv:Invariant.t): Prop :=
   | sem_intro
       (SRC: Unary.sem conf_src st_src invst.(src) invmem.(InvMem.Rel.src) inv.(Invariant.src))
@@ -344,41 +351,296 @@ Module Rel.
     rewrite NOT_IN. ss.
   Qed.
 
+  (* genericvalues_inject.sb_mem_inj__const2GV: *)
+  Lemma const2GV_gv_inject_refl
+        TD globals cnst gv meminj
+        (CONST: const2GV TD globals cnst = ret gv):
+    <<REFL: genericvalues_inject.gv_inject meminj gv gv>>.
+  Proof.
+    admit.
+  Admitted.
+
+  (* TODO put this in FSetExtra *)
+  Lemma In_elements x xs:
+    In x (ExprPairSet.elements xs) <-> ExprPairSet.In x xs.
+  Proof.
+    split; i.
+    - (apply_all_once InA_iff_In).
+      apply ExprPairSetFacts.elements_iff; eauto.
+    - (* (apply_all_once InA_iff_In). *)
+      (* TODO also apply in goal? *)
+      apply InA_iff_In.
+      apply ExprPairSetFacts.elements_iff; eauto.
+  Qed.
+
+  (* TODO put this in FSetExtra *)
+  Lemma In_filter_elements fnc x xs
+        (IN: In x (ExprPairSet.elements
+                     (ExprPairSet.filter fnc xs))):
+    fnc x = true /\ In x (ExprPairSet.elements xs).
+  Proof.
+    apply In_elements in IN.
+    apply ExprPairSetFacts.filter_iff in IN; [|solve_compat_bool].
+    des.
+    splits; ss.
+    apply InA_iff_In.
+    apply ExprPairSetFacts.elements_iff.
+    ss.
+  Qed.
+
+  Lemma not_in_maydiff_value_spec
+        inv invmem invst
+        m_src conf_src st_src
+        m_tgt conf_tgt st_tgt
+        val gv_val_src
+        (CONF: valid_conf m_src m_tgt conf_src conf_tgt)
+        (NIMD: Invariant.not_in_maydiff inv val = true)
+        (MAYDIFF: forall id : Tag.t * id,
+            IdTSet.mem id (Invariant.maydiff inv) = false ->
+            sem_inject st_src st_tgt invst (InvMem.Rel.inject invmem) id)
+        (VAL_SRC: Unary.sem_valueT conf_src st_src (src invst) val = ret gv_val_src):
+    exists gv_val_tgt, Unary.sem_valueT conf_tgt st_tgt (tgt invst) val = ret gv_val_tgt /\
+                       genericvalues_inject.gv_inject (InvMem.Rel.inject invmem) gv_val_src gv_val_tgt.
+  Proof.
+    inv CONF. inv INJECT.
+    destruct val; ss; repeat (des_bool; des).
+    - specialize (MAYDIFF x NIMD). clear NIMD.
+      unfold sem_inject in *.
+      specialize (MAYDIFF gv_val_src VAL_SRC). clear VAL_SRC.
+      des.
+      esplits; eauto.
+    - esplits; eauto.
+      rewrite <- TARGETDATA.
+      rewrite <- GLOBALS.
+      eauto.
+      eapply const2GV_gv_inject_refl; eauto.
+  Qed.
+
+  Lemma not_in_maydiff_list_value_spec
+        inv invmem invst
+        m_src conf_src st_src
+        m_tgt conf_tgt st_tgt
+        vals gv_vals_src
+        (CONF: valid_conf m_src m_tgt conf_src conf_tgt)
+        (NIMD: forallb (Invariant.not_in_maydiff inv) (List.map snd vals) = true)
+        (MAYDIFF: forall id : Tag.t * id,
+            IdTSet.mem id (Invariant.maydiff inv) = false ->
+            sem_inject st_src st_tgt invst (InvMem.Rel.inject invmem) id)
+        (VAL_SRC: Unary.sem_list_valueT conf_src st_src (src invst) vals = ret gv_vals_src):
+    exists gv_vals_tgt,
+      Unary.sem_list_valueT conf_tgt st_tgt (tgt invst) vals = ret gv_vals_tgt /\
+      Forall2 (genericvalues_inject.gv_inject invmem.(InvMem.Rel.inject)) gv_vals_src gv_vals_tgt.
+    Proof.
+      Ltac exploit_not_in_maydiff_value_spec_with x :=
+        match (type of x) with
+        | (Unary.sem_valueT _ _ _ _ = Some _) =>
+          (exploit not_in_maydiff_value_spec; [| | | exact x |]; eauto; ii; des; [])
+        end.
+      (* revert - vals.  *)
+      (* revert all except this ? *)
+      generalize dependent gv_vals_src.
+      induction vals; ii; ss; inv VAL_SRC.
+      - esplits; eauto. econs.
+      - repeat (des_bool; des).
+        destruct a; ss.
+        specialize (IHvals NIMD0).
+        des_ifs; ss; (all_once exploit_not_in_maydiff_value_spec_with); clarify;
+          (exploit IHvals; eauto; ii; des; []); clarify.
+        + esplits; eauto.
+          econs; eauto.
+    Qed.
+
+  Lemma not_in_maydiff_expr_spec
+        inv invmem invst
+        m_src conf_src st_src
+        m_tgt conf_tgt st_tgt
+        expr gv_expr_src
+        (CONF: valid_conf m_src m_tgt conf_src conf_tgt)
+        (NIMD: Invariant.not_in_maydiff_expr inv expr = true)
+        (MAYDIFF: forall id : Tag.t * id,
+            IdTSet.mem id (Invariant.maydiff inv) = false ->
+            sem_inject st_src st_tgt invst (InvMem.Rel.inject invmem) id)
+        (VAL_SRC: Unary.sem_expr conf_src st_src (src invst) expr = ret gv_expr_src):
+    exists gv_expr_tgt, Unary.sem_expr conf_tgt st_tgt (tgt invst) expr = ret gv_expr_tgt /\
+                    genericvalues_inject.gv_inject (InvMem.Rel.inject invmem) gv_expr_src gv_expr_tgt.
+  Proof.
+    assert(CONF_DUP := CONF).
+    inv CONF. inv INJECT.
+    unfold Invariant.not_in_maydiff_expr in *.
+    Ltac exploit_not_in_maydiff_list_value_spec_with x :=
+      match (type of x) with
+      | (Unary.sem_list_valueT _ _ _ _ = Some _) =>
+        (exploit not_in_maydiff_list_value_spec; [| | | exact x |]; eauto; ii; des; [])
+      end.
+    Ltac exploit_eq_GV2int :=
+      let tmp := fresh in
+      match goal with
+      | [ H1: GV2int ?conf_x _ ?x = _,
+              H2: GV2int ?conf_y _ ?y = _,
+                  TRGTDATA: ?conf_x = ?conf_y,
+                            INJ: genericvalues_inject.gv_inject _ ?x ?y |- _ ] =>
+        exploit genericvalues_inject.simulation__eq__GV2int; try eapply INJ; eauto; intro tmp; des; [];
+        rewrite H1 in tmp;
+        rewrite TRGTDATA in tmp;
+        rewrite H2 in tmp;
+        clarify
+      end.
+    Time destruct expr; ss; repeat (des_bool; des);
+      des_ifs; (all_once exploit_not_in_maydiff_value_spec_with); clarify;
+        (all_once exploit_not_in_maydiff_list_value_spec_with); clarify;
+          try rewrite TARGETDATA in VAL_SRC;
+          try exploit_eq_GV2int.
+    (* Finished transaction in 39.843 secs (39.67u,0.194s) (successful) *)
+    - exploit genericvalues_inject.simulation__mbop; try apply VAL_SRC; eauto; ii; des; eauto.
+    - exploit genericvalues_inject.simulation__mfbop; try apply VAL_SRC; eauto; ii; des; eauto.
+    - exploit genericvalues_inject.simulation__extractGenericValue; try apply VAL_SRC; eauto; ii; des; eauto.
+    - exploit genericvalues_inject.simulation__insertGenericValue; try apply VAL_SRC; eauto; ii; des; eauto.
+    - exploit genericvalues_inject.simulation__GEP; try apply VAL_SRC; eauto; ii; des; eauto.
+      (* exploit genericvalues_inject.simulation__mgep; try apply VAL_SRC; eauto; ii; des; eauto. *)
+      admit.
+      admit.
+    - exploit genericvalues_inject.simulation__mtrunc; try apply VAL_SRC; eauto; ii; des; eauto.
+    - exploit genericvalues_inject.simulation__mext; try apply VAL_SRC; eauto; ii; des; eauto.
+    - exploit genericvalues_inject.simulation__mcast; try apply VAL_SRC; eauto; ii; des; eauto.
+    - exploit genericvalues_inject.simulation__micmp; try apply VAL_SRC; eauto; ii; des; eauto.
+    - exploit genericvalues_inject.simulation__mfcmp; try apply VAL_SRC; eauto; ii; des; eauto.
+    - esplits; eauto.
+    - esplits; eauto.
+    - eapply not_in_maydiff_value_spec; eauto.
+    - admit.
+      Unshelve.
+      apply xH.
+      admit. admit.
+  Admitted.
+
+  Lemma lessdef_maydiff_sem
+        inv invmem invst
+        gv_l
+        expr_l expr_r
+        m_src conf_src st_src
+        m_tgt conf_tgt st_tgt
+        (CONF: valid_conf m_src m_tgt conf_src conf_tgt)
+        (NIMD: Invariant.not_in_maydiff_expr inv expr_r = true)
+        (MAYDIFF: forall id : Tag.t * id,
+            IdTSet.mem id (Invariant.maydiff inv) = false ->
+            sem_inject st_src st_tgt invst (InvMem.Rel.inject invmem) id)
+        (VAL_SRC: Unary.sem_expr conf_src st_src (src invst) expr_l = ret gv_l)
+        (LESSDEF: Unary.sem_lessdef conf_src st_src (src invst)
+                                    (expr_l, expr_r)):
+    exists gv_r, Unary.sem_expr conf_tgt st_tgt (tgt invst) expr_r = ret gv_r /\
+                    genericvalues_inject.gv_inject (InvMem.Rel.inject invmem) gv_l gv_r.
+  Proof.
+    exploit LESSDEF; eauto; ii; des; [].
+    exploit not_in_maydiff_expr_spec; eauto; ii; des; [].
+    esplits; eauto.
+    eapply GVs.lessdef_inject_compose; eauto.
+  Qed.
+
+  Lemma maydiff_lessdef_sem
+        inv invmem invst
+        gv_l
+        expr_l expr_r
+        m_src conf_src st_src
+        m_tgt conf_tgt st_tgt
+        (CONF: valid_conf m_src m_tgt conf_src conf_tgt)
+        (NIMD: Invariant.not_in_maydiff_expr inv expr_l = true)
+        (VAL_SRC: Unary.sem_expr conf_src st_src (src invst) expr_l = ret gv_l)
+        (MAYDIFF: forall id, IdTSet.mem id (Invariant.maydiff inv) = false ->
+                             sem_inject st_src st_tgt invst (InvMem.Rel.inject invmem) id)
+        (LESSDEF: Unary.sem_lessdef conf_tgt st_tgt (tgt invst)
+                                    (expr_l, expr_r)):
+    exists gv_r, Unary.sem_expr conf_tgt st_tgt (tgt invst) expr_r = ret gv_r /\
+                    genericvalues_inject.gv_inject (InvMem.Rel.inject invmem) gv_l gv_r.
+  Proof.
+    exploit not_in_maydiff_expr_spec; eauto; ii; des; [].
+    exploit LESSDEF; eauto; ii; des; [].
+    esplits; eauto.
+    eapply GVs.inject_lessdef_compose; eauto.
+  Qed.
+
+  Lemma sem_lessdef_refl
+        conf st invst vx:
+    <<REFL: Unary.sem_lessdef conf st invst (vx, vx)>>.
+  Proof.
+    econs. ss.
+    esplits; eauto.
+    apply GVs.lessdef_refl.
+  Qed.
+
   Lemma inject_value_spec
-        conf_src st_src val_src
-        conf_tgt st_tgt val_tgt
+        m_src conf_src st_src val_src
+        m_tgt conf_tgt st_tgt val_tgt
         invst invmem inv
         gval_src
+        (CONF: valid_conf m_src m_tgt conf_src conf_tgt)
         (STATE: sem conf_src conf_tgt st_src st_tgt invst invmem inv)
         (MEM: InvMem.Rel.sem conf_src conf_tgt st_src.(Mem) st_tgt.(Mem) invmem)
         (INJECT: Hints.Invariant.inject_value inv val_src val_tgt)
         (VAL_SRC: Unary.sem_valueT conf_src st_src invst.(src) val_src = Some gval_src):
     exists gval_tgt,
       <<VAL_TGT: Unary.sem_valueT conf_tgt st_tgt invst.(tgt) val_tgt = Some gval_tgt>> /\
-      <<INJECT: genericvalues_inject.gv_inject invmem.(InvMem.Rel.inject) gval_src gval_tgt>>.
+                 <<INJECT: genericvalues_inject.gv_inject invmem.(InvMem.Rel.inject) gval_src gval_tgt>>.
   Proof.
     unfold Invariant.inject_value in INJECT.
+    assert(CONF_DUP := CONF).
+    inv CONF. inv INJECT0.
     solve_bool_true.
     - inv STATE.
       destruct val_tgt.
       + apply not_in_maydiff_sem1 in INJECT0. des.
         exploit MAYDIFF; eauto.
       + esplits.
-        * ss. admit. (* targetdata & globals *)
-        * admit. (* will be same *)
-    - inv STATE. inv TGT.
-      (* apply ExprPairSet.mem_2 in INJECT. *)
-      (* exploit LESSDEF; eauto. ss. *)
-      (* apply LESSDEF in INJECT. *)
-      (* Unary.sem_lessdef *)
-      (* { ss.  *)
-      (*   ExprPairSet.In *)
-      (* ExprPairSet.For_all *)
-      (* eapply LESSDEF in INJECT. *)
-      admit. (* TODO: Unary.sem_lessdef *)
-    - admit. (* ditto *)
-    - admit. (* ditto *)
-  Admitted.
+        * ss. rewrite <- TARGETDATA.
+          rewrite <- GLOBALS.
+          eauto.
+        * ss. eapply const2GV_gv_inject_refl; eauto.
+    - inv STATE. clear SRC. inv TGT. clear NOALIAS UNIQUE PRIVATE.
+      apply ExprPairSet.mem_2 in INJECT.
+      (* val_src/SRC ~= val_src/TGT by MAYDIFF *)
+      (* val_src/TGT ~= val_tgt/TGT by LESSDEF *)
+      specialize (LESSDEF ((Expr.value val_src), (Expr.value val_tgt)) INJECT). clear INJECT.
+      exploit maydiff_lessdef_sem; eauto.
+      unfold Invariant.not_in_maydiff_expr; ss. des_bool. eauto.
+      ss.
+    - inv STATE. clear TGT. inv SRC. clear NOALIAS UNIQUE PRIVATE.
+      apply ExprPairSet.mem_2 in INJECT.
+      (* val_src/SRC ~= val_src/TGT by MAYDIFF *)
+      (* val_src/TGT ~= val_tgt/TGT by LESSDEF *)
+      exploit lessdef_maydiff_sem; eauto; ii; des.
+      unfold Invariant.not_in_maydiff_expr; ss. des_bool. eauto.
+      ss.
+    - remember (fun p : ExprPair.t =>
+                  (ExprPairSet.mem (snd p, Expr.value val_tgt)
+                                  (Invariant.lessdef (Invariant.tgt inv)))
+                    && (Invariant.not_in_maydiff_expr inv (snd p))) as fnc.
+      assert(COMPAT_BOOL: compat_bool eq fnc) by solve_compat_bool.
+      exploit ExprPairSetFacts.exists_b; eauto; ii; des; []. clear COMPAT_BOOL.
+      instantiate (1:= (Invariant.get_rhs (Invariant.lessdef (Invariant.src inv)) val_src)) in H.
+      rewrite H in INJECT. clear H.
+      eapply existsb_exists in INJECT. des. subst.
+      repeat (des_bool; des).
+      destruct x; ss.
+      unfold Invariant.get_rhs in *. unfold flip in *.
+      apply In_filter_elements in INJECT. des.
+      des_sumbool. ss. subst.
+      (* val_src/SRC ~= t1/SRC   by lessdef *)
+      (* t1/SRC ~= t1/TGT        by not_in_maydiff *)
+      (* t1/TGT ~= val_tgt/TGT   by lessdef *)
+      apply ExprPairSet.mem_2 in INJECT0.
+      inv STATE.
+      inv SRC. clear NOALIAS UNIQUE PRIVATE.
+      inv TGT. clear NOALIAS UNIQUE PRIVATE.
+      rename LESSDEF into LESSDEF_SRC.
+      rename LESSDEF0 into LESSDEF_TGT.
+      apply In_elements in INJECT2.
+      specialize (LESSDEF_SRC (Expr.value val_src, t1) INJECT2). clear INJECT2.
+      specialize (LESSDEF_TGT (t1, Expr.value val_tgt) INJECT0). clear INJECT0.
+      exploit LESSDEF_SRC; eauto; ii; des; []. ss.
+      exploit lessdef_maydiff_sem; eauto. apply sem_lessdef_refl. ii; des.
+      exploit maydiff_lessdef_sem; eauto; ii; des; [].
+      esplits; eauto.
+      eapply GVs.lessdef_inject_compose; eauto.
+  Qed.
 
   Lemma eqb_forallb2 {X} x_eqb (xs: list X) xs2
         (EQB_SPEC: forall x x2, x_eqb x x2 = true -> x = x2)
@@ -394,10 +656,11 @@ Module Rel.
   Qed.
 
   Lemma inject_list_value_spec
-        conf_src st_src vals_src
-        conf_tgt st_tgt vals_tgt
+        m_src conf_src st_src vals_src
+        m_tgt conf_tgt st_tgt vals_tgt
         invst invmem inv
         gval_src
+        (CONF: valid_conf m_src m_tgt conf_src conf_tgt)
         (STATE: sem conf_src conf_tgt st_src st_tgt invst invmem inv)
         (MEM: InvMem.Rel.sem conf_src conf_tgt st_src.(Mem) st_tgt.(Mem) invmem)
         (* TODO unite below into single INJECT? For unity with inject_value_spec *)
@@ -411,7 +674,7 @@ Module Rel.
     Ltac exploit_inject_value_spec_with x :=
       match (type of x) with
       | (Unary.sem_valueT _ _ _ _ = Some _) =>
-        (exploit inject_value_spec; [| | | exact x |]; eauto; ii; des; [])
+        (exploit inject_value_spec; [| | | | exact x |]; eauto; ii; des; [])
       end.
     generalize dependent vals_tgt.
     generalize dependent gval_src.
@@ -444,27 +707,15 @@ Module Rel.
       <<INJECT: genericvalues_inject.gv_inject invmem.(InvMem.Rel.inject) gval_src gval_tgt>>.
   Proof.
     unfold Invariant.inject_expr in INJECT. unfold Invariant.deep_check_expr in INJECT. des_bool; des.
+    assert(CONF_DUP := CONF).
     inv CONF. inv INJECT1.
 
     Ltac exploit_inject_list_value_spec_with x :=
       match (type of x) with
       | (Unary.sem_list_valueT _ _ _ _ = Some _) =>
-        (exploit inject_list_value_spec; [| | | | exact x |]; eauto; ii; des; [])
+        (exploit inject_list_value_spec; [| | | | | exact x |]; eauto; ii; des; [])
       end.
 
-    Ltac exploit_eq_GV2int :=
-      let tmp := fresh in
-      match goal with
-      | [ H1: GV2int ?conf_x _ ?x = _,
-              H2: GV2int ?conf_y _ ?y = _,
-                  TRGTDATA: ?conf_x = ?conf_y,
-                            INJ: genericvalues_inject.gv_inject _ ?x ?y |- _ ] =>
-        exploit genericvalues_inject.simulation__eq__GV2int; try eapply INJ; eauto; intro tmp; des; [];
-        rewrite H1 in tmp;
-        rewrite TRGTDATA in tmp;
-        rewrite H2 in tmp;
-        clarify
-      end.
     (* Or we may use assert? Can we use assert with some variables left as existential? *)
     (* Like in apply f with (x := 1) (y := 2) ? *)
     (* Putting CurTargetData blah or meminj inside this Ltac seems dirty. *)

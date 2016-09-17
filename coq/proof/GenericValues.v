@@ -25,6 +25,13 @@ Module GVs.
          vc1.(snd) = vc2.(snd))
       v1 v2.
 
+  Lemma lessdef_refl x:
+        <<REFL: GVs.lessdef x x>>.
+  Proof.
+    induction x; ii; ss; des; econs.
+    esplits; eauto. apply IHx.
+  Qed.
+
   (* TODO *)
   Lemma lessdef_inject_compose mij a b c
         (LD: lessdef a b)

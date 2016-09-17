@@ -360,6 +360,7 @@ Proof.
   - right. eapply IHal; ss.
 Qed.
 
+(* TODO put this in FSetExtra *)
 Lemma In_list {A} (f: Exprs.ExprPair.t -> list A) x xs
       (IN: Exprs.ExprPairSet.In x xs):
   <<IN: List.incl (f x) (List.concat (List.map f (Exprs.ExprPairSet.elements xs)))>>.
