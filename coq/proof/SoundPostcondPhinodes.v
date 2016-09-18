@@ -98,6 +98,85 @@ Ltac solve_match_bool :=
           end).
 
 (* TODO: move and prove*)
+
+Lemma get_lessdef_spec_aux
+      ep l init
+      (REV: Exprs.ExprPairSet.In ep
+              (fold_right
+                 (fun (y : Exprs.Expr.t * Exprs.Expr.t) (x : Exprs.ExprPairSet.t) =>
+                    Exprs.ExprPairSet.add (fst y, snd y) (Exprs.ExprPairSet.add (snd y, fst y) x))
+                 init (rev l)))
+  :
+    <<IN: Exprs.ExprPairSet.In ep
+            (fold_right
+               (fun (y : Exprs.Expr.t * Exprs.Expr.t) (x : Exprs.ExprPairSet.t) =>
+                  Exprs.ExprPairSet.add (fst y, snd y) (Exprs.ExprPairSet.add (snd y, fst y) x))
+               init l)>>.
+Proof.
+  rewrite fold_left_rev_right in REV.
+  revert ep init REV.
+  induction l; i; ss.
+  exploit IHl; eauto. i. des.
+  i.
+  Lemma aux2
+        ep ep1 l init 
+        (IN: Exprs.ExprPairSet.In ep
+           (fold_right
+              (fun (y : Exprs.Expr.t * Exprs.Expr.t) (x : Exprs.ExprPairSet.t) =>
+                 Exprs.ExprPairSet.add (fst y, snd y)
+                                       (Exprs.ExprPairSet.add (snd y, fst y) x))
+              (Exprs.ExprPairSet.add ep1 init) l))
+        :
+          <<IN:
+          ep = (fst ep1, snd ep1) \/
+          ep = (snd ep1, fst ep1) \/
+          Exprs.ExprPairSet.In ep
+            (fold_right
+               (fun (y : Exprs.Expr.t * Exprs.Expr.t) (x : Exprs.ExprPairSet.t) =>
+                  Exprs.ExprPairSet.add (fst y, snd y)
+                                        (Exprs.ExprPairSet.add (snd y, fst y) x))
+               init l)>>.
+  Proof.
+    revert ep ep1 init IN.
+    induction l.
+    { i. ss.
+      apply Exprs.ExprPairSetFacts.add_iff in IN. des.
+      - destruct ep. subst. eauto.
+      - eauto.
+    }
+    { i. ss.
+      repeat rewrite Exprs.ExprPairSetFacts.add_iff in IN. des.
+      - right. right.
+        apply Exprs.ExprPairSetFacts.add_iff. eauto.
+      - right. right.
+        apply Exprs.ExprPairSetFacts.add_iff.
+        right.
+        apply Exprs.ExprPairSetFacts.add_iff.
+        eauto.
+      - exploit IHl; eauto. i. des; eauto.
+        right. right.
+        apply Exprs.ExprPairSetFacts.add_iff. right.
+        apply Exprs.ExprPairSetFacts.add_iff. right.
+        eauto.
+    }
+  Qed.
+
+  idtac.
+  apply aux2 in x.
+  des.
+  - ss. apply Exprs.ExprPairSetFacts.add_iff. eauto.
+  - ss. apply Exprs.ExprPairSetFacts.add_iff. right.
+    apply Exprs.ExprPairSetFacts.add_iff. eauto.
+  - apply aux2 in x.
+    des.
+    + ss. apply Exprs.ExprPairSetFacts.add_iff. right.
+      apply Exprs.ExprPairSetFacts.add_iff. eauto.
+    + ss. apply Exprs.ExprPairSetFacts.add_iff. eauto.
+    + apply Exprs.ExprPairSetFacts.add_iff. right.
+      apply Exprs.ExprPairSetFacts.add_iff. right.
+      eauto.
+Qed.
+      
 Lemma get_lessdef_spec
       ep assigns
       (IN: Exprs.ExprPairSet.In ep (Postcond.Phinode.get_lessdef assigns)):
@@ -108,7 +187,23 @@ Lemma get_lessdef_spec
            <<PAIR2: ep = (Exprs.Expr.value (Exprs.ValueT.lift Exprs.Tag.previous phiv),
                           Exprs.Expr.value (Exprs.ValueT.id (Exprs.Tag.physical, phix)))>>).
 Proof.
-Admitted.
+  revert ep IN.
+  unfold Postcond.Phinode.get_lessdef.
+  rewrite <- fold_left_rev_right.
+
+  i. apply get_lessdef_spec_aux in IN. revert ep IN.
+
+  induction assigns.
+  { i. ss. apply Exprs.ExprPairSetFacts.empty_iff in IN. done. }
+  i. ss.
+  des.
+  repeat rewrite -> Exprs.ExprPairSetFacts.add_iff in IN. des.
+  - destruct a. esplits; eauto.
+  - destruct a. esplits; eauto.
+  - exploit IHassigns; eauto. i. des.
+    + esplits; eauto.
+    + esplits; eauto.
+Qed.
 
 Lemma phinode_assign_sound
       conf phinodes b assigns
