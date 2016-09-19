@@ -301,10 +301,13 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
      let dstty = Convert.value_type args.dstty in
      Infrule.Coq_bitcast_zext (src, mid, dst, srcty, midty, dstty)
   | CoreHint_t.Bitcastptr (args:CoreHint_t.bitcastptr) ->
-     let v = Convert.value args.v in
      let vprime = Convert.value args.vprime in
      let bitcastinst = Convert.expr args.bitcastinst src_fdef tgt_fdef in
-     Infrule.Coq_bitcastptr (v, vprime, bitcastinst)
+     Infrule.Coq_bitcastptr (vprime, bitcastinst)
+  | CoreHint_t.BitcastptrConst (args:CoreHint_t.bitcastptr_const) -> 
+     let vprime = Convert.constant args.vprime in
+     let bitcastinst = Convert.constant_expr args.bitcastinst in
+     Infrule.Coq_bitcastptr_const (vprime, bitcastinst)
   | CoreHint_t.BopAssociative (args:CoreHint_t.bop_associative) ->
      let x = Convert.register args.x in
      let y = Convert.register args.y in
@@ -445,13 +448,23 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
      let dstty = Convert.value_type args.dstty in
      Infrule.Coq_fptrunc_fpext (src, mid, dst, srcty, midty, dstty)
   | CoreHint_t.Gepzero (args:CoreHint_t.gepzero) ->
-     let v = Convert.value args.v in
      let vprime = Convert.value args.vprime in
      let gepinst = Convert.expr args.gepinst src_fdef tgt_fdef in
-     Infrule.Coq_gepzero (v, vprime, gepinst)
+     Infrule.Coq_gepzero (vprime, gepinst)
+  | CoreHint_t.GepzeroConst (args:CoreHint_t.gepzero_const) -> 
+     let vprime = Convert.constant args.vprime in
+     let gepinst = Convert.constant_expr args.gepinst in
+     Infrule.Coq_gepzero_const (vprime, gepinst)
   | CoreHint_t.GepInboundsRemove (args:CoreHint_t.gep_inbounds_remove) ->
      let gepinst = Convert.expr args.gepinst src_fdef tgt_fdef in
      Infrule.Coq_gep_inbounds_remove (gepinst)
+  | CoreHint_t.GepInboundsAdd (args:CoreHint_t.gep_inbounds_add) -> 
+     let v = Convert.value args.v in
+     let ptr = Convert.value args.ptr in
+     let loadty = Convert.value_type args.loadty in
+     let al = Convert.size args.al in
+     let e = Convert.expr args.e src_fdef tgt_fdef in
+     Infrule.Coq_gep_inbounds_add (v, ptr, loadty, al, e)
   | CoreHint_t.InttoptrLoad (args:CoreHint_t.inttoptr_load) -> 
      let ptr = Convert.value args.ptr in
      let intty = Convert.value_type args.intty in
@@ -953,14 +966,18 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
      let y = Convert.value args.y in
      let sz = Convert.size args.sz in
      Infrule.Coq_udiv_sub_urem (z, b, a, x, y, sz)
-  | CoreHint_t.DiffblockGlobalAlloca (args:CoreHint_t.diffblock_global_alloca) ->
-     let x = Convert.constant args.gx in
+  | CoreHint_t.DiffblockUnique (args:CoreHint_t.diffblock_unique) ->
+     let x = Convert.register args.x in
      let y = Convert.register args.y in
-     Infrule.Coq_diffblock_global_alloca (x, y)
+     Infrule.Coq_diffblock_unique (x, y)
   | CoreHint_t.DiffblockGlobalGlobal (args:CoreHint_t.diffblock_global_global) ->
      let gx = Convert.constant args.gx in
      let gy = Convert.constant args.gy in
      Infrule.Coq_diffblock_global_global (gx, gy)
+  | CoreHint_t.DiffblockGlobalUnique (args:CoreHint_t.diffblock_global_unique) -> 
+     let gx = Convert.constant args.gx in
+     let y = Convert.register args.y in
+     Infrule.Coq_diffblock_global_unique (gx, y)
   | CoreHint_t.DiffblockLessthan (args:CoreHint_t.diffblock_lessthan) ->
      let x = Convert.value args.x in
      let y = Convert.value args.y in
@@ -1121,10 +1138,10 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
       let g = args.g.name in
       Infrule.Coq_intro_ghost (x, g)
   | CoreHint_t.IntroEq (args:CoreHint_t.intro_eq) ->
-      let x = Convert.value args.x in
+      let x = Convert.expr args.x src_fdef tgt_fdef in
       Infrule.Coq_intro_eq x
   | CoreHint_t.IntroEqTgt (args:CoreHint_t.intro_eq_tgt) ->
-      let x = Convert.value args.x in
+      let x = Convert.expr args.x src_fdef tgt_fdef in
       Infrule.Coq_intro_eq_tgt x
   | CoreHint_t.XorCommutativeTgt (args:CoreHint_t.xor_commutative_tgt) ->
      let z = Convert.register args.z in
