@@ -93,54 +93,6 @@ Qed.
  * otherwise: none
  *)
 
-(* It is important that f does not look into A *)
-(* This can give you following spec *)
-Fixpoint filter_AL_atom {A: Type} (f: atom -> bool) (al: AssocList A) :=
-  match al with
-  | [] => []
-  | (a, h) :: t =>
-    if f(a)
-    then (a, h) :: (filter_AL_atom f t)
-    else (filter_AL_atom f t)
-  end.
-
-Lemma lookup_AL_filter_false {A: Type} id al f
-      (NOPASS: f id = false):
-  <<NORESULT: lookupAL A (filter_AL_atom f al) id = None>>.
-Proof.
-  red.
-  induction al; ss.
-  destruct a; ss.
-  destruct (f a) eqn:T; ss.
-  destruct (id == a) eqn:T2; ss. subst.
-  clarify.
-Qed.
-
-Lemma lookup_AL_filter_true {A: Type} id al f
-      (PASS: f id = true):
-  <<RESULT: lookupAL A (filter_AL_atom f al) id =
-              lookupAL A al id >>.
-Proof.
-  red.
-  induction al; ss.
-  destruct a.
-  destruct (id == a) eqn:T; ss.
-  - subst. rewrite PASS. ss. rewrite T. ss.
-  - destruct (f a) eqn:T2; ss.
-    rewrite T. ss.
-Qed.
-
-Lemma lookup_AL_filter_some {A: Type} id val al f
-  (FILTERED: lookupAL A (filter_AL_atom f al) id = Some val):
-  lookupAL A al id = Some val.
-Proof.
-  destruct (f id) eqn:T.
-  - exploit (@lookup_AL_filter_true A); eauto. ii; des.
-    rewrite FILTERED in x0. ss.
-  - exploit (@lookup_AL_filter_false A); eauto. ii; des.
-    rewrite FILTERED in x0. ss.
-Qed.
-
 Definition clear_locals
            (preserved: id -> bool)
            (locals: GVsMap): GVsMap :=
@@ -165,16 +117,6 @@ Proof.
   unfold clear_locals. destruct (pred i) eqn:PRED.
   - apply lookup_AL_filter_true. ss.
   - apply lookup_AL_filter_false. ss.
-Qed.
-
-Lemma in_filter_find {A: Type} (x: A) f l
-  (IN: In x (filter f l)):
-  exists x2, find f l = Some x2 /\ f x2.
-Proof.
-  induction l; ss.
-  destruct (f a) eqn:T.
-  - eexists; eauto.
-  - clear T. specialize (IHl IN). ss.
 Qed.
 
 Definition clear_rel
@@ -289,39 +231,6 @@ Proof.
     des_ifs.
 Qed.
 
-Lemma In_concat {A B C: Type} f (a: A) (x: B) xs
-      (IN1: In a (f x))
-      (IN2: In (f x) (List.map f xs)):
-  <<IN3: In a (concat (List.map f xs))>>.
-Proof.
-  red.
-  generalize dependent a.
-  generalize dependent x.
-  induction xs; ii; ss.
-  des.
-  - rewrite IN2.
-    destruct (f x); inv IN1.
-    + ss. left. ss.
-    + ss. right.
-      eapply in_or_app.
-      left; ss.
-  - exploit IHxs; eauto; []; ii; des.
-    destruct (f a) eqn:T; ss.
-    right.
-    eapply in_or_app. right. ss.
-Qed.
-
-Lemma In_map {A B: Type} (f: A -> B) (a: A) al
-      (IN: In a al):
-        <<IN2: In (f a) (List.map f al)>>.
-Proof.
-  generalize dependent a.
-  induction al; ii; ss.
-  des; red; ss. subst.
-  - left; ss.
-  - right. eapply IHal; ss.
-Qed.
-
 (* TODO put this in FSetExtra *)
 Lemma In_list {A} (f: Exprs.ExprPair.t -> list A) x xs
       (IN: Exprs.ExprPairSet.In x xs):
@@ -380,22 +289,6 @@ Proof.
     clarify.
 Qed.
 
-Lemma forallb_filter_map {A B: Type} (f: B -> bool) (g: A -> option B) (xs: list A)
-      (FORALL: List.forallb f (filter_map g xs)):
-  (* List.forallb (fun x => match (g x) with | Some y => f y | None => true end) xs. *)
-  <<FORALL: List.forallb (fun x => List.forallb f (g x)) xs>>.
-Proof.
-  red.
-  generalize dependent FORALL.
-  induction xs; ii; ss.
-  destruct (g a) eqn:T; des_bool; ss.
-  - unfold is_true in FORALL. (* des_bool should solve this!!! KILL ALL is_true *)
-    repeat (des_bool; des).
-    rewrite FORALL.
-    rewrite IHxs; eauto. ss.
-  - rewrite IHxs; ss.
-Qed.
-
 Lemma clear_unary_preserved_expr
       conf_unary st_unary invst_unary expr val f
       (VAL: InvState.Unary.sem_expr conf_unary st_unary invst_unary expr = Some val)
@@ -422,18 +315,6 @@ Proof.
     repeat (des_bool; des); des_ifs; clarify;
       (all_once exploit_clear_unary_subset_with); clarify;
         (all_once exploit_clear_unary_preserved_with); clarify.
-Qed.
-
-Lemma In_eq_find {X} (x: X) xs (x_eq_dec: forall x1 x2, {x1 = x2} + {x1 <> x2})
-      (IN: In x xs):
-  <<FOUND: (find (fun y => x_eq_dec x y) xs)>>.
-Proof.
-  red.
-  generalize dependent IN.
-  induction xs; ii; inv IN; ss.
-  - destruct (x_eq_dec x x) eqn:T; ss.
-  - specialize (IHxs H).
-    destruct (x_eq_dec x a) eqn:T; ss.
 Qed.
 
 Lemma incl_implies_preserved
@@ -480,17 +361,6 @@ Proof.
     econs; eauto.
   - ii. exploit PRIVATE; eauto.
     eapply clear_unary_subset_idT; eauto.
-Qed.
-
-Lemma find_app
-      A pred (l1 l2:list A):
-  find pred (l1 ++ l2) =
-  match find pred l1 with
-  | Some v1 => Some v1
-  | None => find pred l2
-  end.
-Proof.
-  induction l1; ss. destruct (pred a); ss.
 Qed.
 
 Lemma reduce_maydiff_non_physical_sound
