@@ -168,6 +168,18 @@ Definition clear_unary
        (clear_locals (fun id => preserved (Exprs.Tag.previous, id)))
        inv).
 
+Lemma clear_locals_spec
+      pred gvs i:
+  lookupAL _ (clear_locals pred gvs) i =
+  if pred i
+  then lookupAL _ gvs i
+  else None.
+Proof.
+  unfold clear_locals. destruct (pred i) eqn:PRED.
+  - apply lookup_AL_filter_true. ss.
+  - apply lookup_AL_filter_false. ss.
+Qed.
+
 Lemma in_filter_find {A: Type} (x: A) f l
   (IN: In x (filter f l)):
   exists x2, find f l = Some x2 /\ f x2.
@@ -375,97 +387,6 @@ Proof.
   exploit (@In_concat A Exprs.ExprPair.t (list A)); eauto.
 Qed.
 
-Lemma lessdef_incl
-      e1 e2 inv_unary
-      (LESSDEF: Exprs.ExprPairSet.In
-                  (e1, e2) (Hints.Invariant.lessdef inv_unary)):
-  <<INCL: (List.incl (Exprs.Expr.get_idTs e1) (Hints.Invariant.get_idTs_unary inv_unary))
-          /\ (List.incl (Exprs.Expr.get_idTs e2) (Hints.Invariant.get_idTs_unary inv_unary))>>.
-Proof.
-  unfold Exprs.Expr.get_idTs.
-  esplits.
-  (* - destruct e1; ss. *)
-    +
-      assert(LESSDEF2 := LESSDEF).
-      eapply In_list in LESSDEF; ss.
-      red in LESSDEF.
-      instantiate (1:= Exprs.ExprPair.get_idTs) in LESSDEF.
-      (* exploit (incl_lessdef_inv_unary inv_unary). *)
-      (* instantiate (1 := (Hints.Invariant.get_idTs_lessdef *)
-      (*                      inv_unary.(Hints.Invariant.lessdef))). *)
-      unfold Hints.Invariant.get_idTs_unary.
-      unfold Exprs.ExprPair.get_idTs in *. ss.
-      unfold Exprs.Expr.get_idTs in *. ss.
-      eapply incl_tran.
-      {
-        instantiate (1:= ((filter_map Exprs.ValueT.get_idTs (Exprs.Expr.get_valueTs e1))
-                            ++ (filter_map Exprs.ValueT.get_idTs (Exprs.Expr.get_valueTs e2)))).
-        apply incl_appl.
-        apply incl_refl.
-      }
-
-      eapply incl_tran.
-      {
-        instantiate
-          (1:=
-             (concat
-                (List.map
-                   (fun ep : Exprs.ExprPair.t =>
-                      (filter_map Exprs.ValueT.get_idTs (Exprs.Expr.get_valueTs (fst ep)))
-                        ++ (filter_map Exprs.ValueT.get_idTs (Exprs.Expr.get_valueTs (snd ep))))
-                   (Exprs.ExprPairSet.elements (Hints.Invariant.lessdef inv_unary))))).
-        eauto.
-      }
-
-      eapply incl_tran.
-      {
-        instantiate (1:= Hints.Invariant.get_idTs_lessdef (Hints.Invariant.lessdef inv_unary)).
-        ss.
-      }
-
-      apply incl_appl. apply incl_refl.
-    +
-      (* COPIED FROM ABOVE *)
-      assert(LESSDEF2 := LESSDEF).
-      eapply In_list in LESSDEF; ss.
-      red in LESSDEF.
-      instantiate (1:= Exprs.ExprPair.get_idTs) in LESSDEF.
-      (* exploit (incl_lessdef_inv_unary inv_unary). *)
-      (* instantiate (1 := (Hints.Invariant.get_idTs_lessdef *)
-      (*                      inv_unary.(Hints.Invariant.lessdef))). *)
-      unfold Hints.Invariant.get_idTs_unary.
-      unfold Exprs.ExprPair.get_idTs in *. ss.
-      unfold Exprs.Expr.get_idTs in *. ss.
-      eapply incl_tran.
-      {
-        instantiate (1:= ((filter_map Exprs.ValueT.get_idTs (Exprs.Expr.get_valueTs e1))
-                            ++ (filter_map Exprs.ValueT.get_idTs (Exprs.Expr.get_valueTs e2)))).
-        apply incl_appr.
-        apply incl_refl.
-      }
-
-      eapply incl_tran.
-      {
-        instantiate
-          (1:=
-             (concat
-                (List.map
-                   (fun ep : Exprs.ExprPair.t =>
-                      (filter_map Exprs.ValueT.get_idTs (Exprs.Expr.get_valueTs (fst ep)))
-                        ++ (filter_map Exprs.ValueT.get_idTs (Exprs.Expr.get_valueTs (snd ep))))
-                   (Exprs.ExprPairSet.elements (Hints.Invariant.lessdef inv_unary))))).
-        eauto.
-      }
-
-      eapply incl_tran.
-      {
-        instantiate (1:= Hints.Invariant.get_idTs_lessdef (Hints.Invariant.lessdef inv_unary)).
-        ss.
-      }
-
-      apply incl_appl. apply incl_refl.
-Qed.
-
 Lemma clear_unary_preserved_valueT
       conf_unary st_unary invst_unary vt val f
       (VAL: InvState.Unary.sem_valueT conf_unary st_unary invst_unary vt = Some val)
@@ -583,88 +504,61 @@ Proof.
     destruct (x_eq_dec x a) eqn:T; ss.
 Qed.
 
-Lemma incl_implies_preserved_src
-      conf_src st_src invst0 expr val inv
-      (VAL: InvState.Unary.sem_expr conf_src st_src (InvState.Rel.src invst0) expr = Some val)
-      (INCL: incl (Exprs.Expr.get_idTs expr) (Hints.Invariant.get_idTs_unary (Hints.Invariant.src inv))):
-  <<PRESERVED: InvState.Unary.sem_expr conf_src st_src
-                                       (clear_unary (reduce_maydiff_preserved inv)
-                                                    (InvState.Rel.src invst0)) expr = Some val>>.
+Lemma incl_implies_preserved
+      conf st invst0 expr val inv
+      (preserved: _ -> bool)
+      (PRESERVED: forall id (ID: In id (Hints.Invariant.get_idTs_unary inv)), preserved id)
+      (VAL: InvState.Unary.sem_expr conf st invst0 expr = Some val)
+      (INCL: incl (Exprs.Expr.get_idTs expr) (Hints.Invariant.get_idTs_unary inv)):
+  <<PRESERVED: InvState.Unary.sem_expr conf st
+                                       (clear_unary preserved invst0)
+                                       expr = Some val>>.
 Proof.
-  red.
-  eapply clear_unary_preserved_expr; eauto.
-  clear VAL.
-
-  remember (Exprs.Expr.get_idTs expr) as X.
-  (* generalize dependent HeqX. *)
-  clear HeqX.
-  unfold reduce_maydiff_preserved.
-  induction X; ii; ss.
-  exploit IHX; eauto.
-  { eapply elim_incl_cons; eauto. }
-  ii; des.
-  rewrite x.
-  destruct a.
-  rename i0 into id.
-  destruct t; ss.
-  - unfold incl in INCL.
-    specialize (INCL (Exprs.Tag.previous, id)).
-    exploit INCL. left; eauto. (* although econs; eauto works *)
-    ii; des.
-    unfold is_true.
-    des_bool.
-    eapply In_eq_find.
-    apply in_app; eauto.
-  - unfold incl in INCL.
-    specialize (INCL (Exprs.Tag.ghost, id)).
-    exploit INCL. left; eauto. (* although econs; eauto works *)
-    ii; des.
-    unfold is_true.
-    des_bool.
-    eapply In_eq_find.
-    apply in_app; eauto.
+  eapply clear_unary_preserved_expr; eauto. apply forallb_forall. i.
+  apply PRESERVED. apply INCL. ss.
 Qed.
 
-Lemma incl_implies_preserved_tgt
-      conf_tgt st_tgt invst0 expr val inv
-      (VAL: InvState.Unary.sem_expr conf_tgt st_tgt (InvState.Rel.tgt invst0) expr = Some val)
-      (INCL: incl (Exprs.Expr.get_idTs expr) (Hints.Invariant.get_idTs_unary (Hints.Invariant.tgt inv))):
-  <<PRESERVED: InvState.Unary.sem_expr conf_tgt st_tgt
-                                       (clear_unary (reduce_maydiff_preserved inv)
-                                                    (InvState.Rel.tgt invst0)) expr = Some val>>.
+Lemma clear_unary_spec
+      conf st invst invmem inv
+      (preserved: _ -> bool)
+      (PRESERVED: forall id (ID: In id (Hints.Invariant.get_idTs_unary inv)), preserved id)
+      (STATE: InvState.Unary.sem conf st invst invmem inv):
+  InvState.Unary.sem conf st
+                     (clear_unary preserved invst)
+                     invmem inv.
 Proof.
-  red.
-  eapply clear_unary_preserved_expr; eauto.
-  clear VAL.
+  inv STATE. econs.
+  - ii.
+    exploit clear_unary_subset_expr; eauto. i. des.
+    exploit LESSDEF; eauto. i. des.
+    exploit incl_implies_preserved; eauto.
+    eapply incl_tran; [|eapply incl_tran].
+    + apply incl_appr. apply incl_refl.
+    + eapply In_list in H. des. refine H.
+    + unfold Hints.Invariant.get_idTs_unary.
+      apply incl_appl. apply incl_refl.
+  - inv NOALIAS. econs; i.
+    + eapply DIFFBLOCK; eauto.
+      * eapply clear_unary_subset_valueT; eauto.
+      * eapply clear_unary_subset_valueT; eauto.
+    + eapply NOALIAS0; eauto.
+      * eapply clear_unary_subset_valueT; eauto.
+      * eapply clear_unary_subset_valueT; eauto.
+  - ii. exploit UNIQUE; eauto. i. inv x0.
+    econs; eauto.
+  - ii. exploit PRIVATE; eauto.
+    eapply clear_unary_subset_idT; eauto.
+Qed.
 
-  remember (Exprs.Expr.get_idTs expr) as X.
-  (* generalize dependent HeqX. *)
-  clear HeqX.
-  unfold reduce_maydiff_preserved.
-  induction X; ii; ss.
-  exploit IHX; eauto.
-  { eapply elim_incl_cons; eauto. }
-  ii; des.
-  rewrite x.
-  destruct a.
-  rename i0 into id.
-  destruct t; ss.
-  - unfold incl in INCL.
-    specialize (INCL (Exprs.Tag.previous, id)).
-    exploit INCL. left; eauto. (* although econs; eauto works *)
-    ii; des.
-    unfold is_true.
-    des_bool.
-    eapply In_eq_find.
-    apply in_app; eauto.
-  - unfold incl in INCL.
-    specialize (INCL (Exprs.Tag.ghost, id)).
-    exploit INCL. left; eauto. (* although econs; eauto works *)
-    ii; des.
-    unfold is_true.
-    des_bool.
-    eapply In_eq_find.
-    apply in_app; eauto.
+Lemma find_app
+      A pred (l1 l2:list A):
+  find pred (l1 ++ l2) =
+  match find pred l1 with
+  | Some v1 => Some v1
+  | None => find pred l2
+  end.
+Proof.
+  induction l1; ss. destruct (pred a); ss.
 Qed.
 
 Lemma reduce_maydiff_non_physical_sound
@@ -679,178 +573,45 @@ Lemma reduce_maydiff_non_physical_sound
     <<STATE: InvState.Rel.sem conf_src conf_tgt st_src st_tgt invst1 invmem
                               (reduce_maydiff_non_physical inv)>>.
 Proof.
-  inv STATE.
-  unfold reduce_maydiff_non_physical.
-  exists (clear_rel (reduce_maydiff_preserved inv) invst0).
-  red.
-  econs; eauto; ss; cycle 2.
-  { ii. (* VAL_SRC (sem_idT) is from ii *) (* sem_inject from MAYDIFF *) ss.
-    rewrite Exprs.IdTSetFacts.filter_b in NOTIN; cycle 1.
-    { solve_compat_bool. }
+  exists (clear_rel (reduce_maydiff_preserved inv) invst0). red.
+  inv STATE. econs; ss; cycle 2.
+  - ii. ss.
+    rewrite Exprs.IdTSetFacts.filter_b in NOTIN; [|solve_compat_bool].
     des_bool. des.
-    - apply MAYDIFF in NOTIN.
-      unfold InvState.Rel.sem_inject in NOTIN.
-      exploit (NOTIN val_src); eauto.
-      {
-        (* ok because it is subset *)
-        exploit clear_unary_subset_idT; eauto.
-      }
-      i. des.
-      esplits; eauto.
-      {
-        exploit reduce_maydiff_preserved_sem_idT; eauto.
-      }
-    - destruct id0.
-      (* TODO do not explicitly write this *)
-      unfold Postcond.reduce_maydiff_preserved in NOTIN. ss.
-      des_bool. des.
-      match goal with
-      | [H: bool_of_option ?o = false |- _] => destruct o eqn:T
-      end; inv NOTIN0.
+    + exploit MAYDIFF; eauto.
+      { exploit clear_unary_subset_idT; eauto. }
+      i. des. esplits; eauto.
+      eapply reduce_maydiff_preserved_sem_idT; eauto.
+    + destruct id0.
       rename t into __t__, i0 into __i__.
-      exfalso. clear MAYDIFF TGT SRC MEM CONF invmem.
       unfold InvState.Unary.sem_idT in VAL_SRC. ss.
       unfold InvState.Unary.sem_tag in VAL_SRC. ss.
-      destruct invst0. ss.
-      destruct src, tgt. ss.
       destruct __t__; inv NOTIN.
-      + induction previous; ss; try by inv VAL_SRC.
-        apply IHprevious. clear IHprevious.
-        destruct a as [aid atag].
-        unfold reduce_maydiff_preserved in *. ss.
-        destruct (eq_dec __i__ aid); ss.
-        * subst.
-          unfold Exprs.Tag.t in *.
-          unfold clear_locals in *. ss.
-          rewrite T in VAL_SRC. ss.
-        * unfold clear_locals in *. ss.
-          match goal with
-          | [H: context[bool_of_option ?o] |- _] => destruct o eqn:T2; ss
-          end.
-          unfold id in *. destruct (__i__ == aid); ss.
-      + (* COPIED FROM ABOVE. EXACTLY SAME PROOF *)
-        (* NOTE(jeehoon.kang): if you want to avoid this duplication, you can change some definitions.  *)
-        induction ghost; ss; try by inv VAL_SRC.
-        apply IHghost. clear IHghost.
-        destruct a as [aid atag].
-        unfold reduce_maydiff_preserved in *. ss.
-        destruct (eq_dec __i__ aid); ss.
-        * subst.
-          unfold Exprs.Tag.t in *.
-          unfold clear_locals in *; ss.
-          rewrite T in VAL_SRC. ss.
-        * unfold clear_locals in *; ss.
-          match goal with
-          | [H: context[bool_of_option ?o] |- _] => destruct o eqn:T2; ss
-          end.
-          unfold id in *. destruct (__i__ == aid); ss.
-  }
-  - clear TGT.
-    econs; inv SRC.
-    +
-      clear NOALIAS UNIQUE PRIVATE.
-      unfold Exprs.ExprPairSet.For_all.
-      i.
-      destruct x as [e1 e2]; ss.
-      specialize (LESSDEF (e1, e2) H).
-      unfold InvState.Unary.sem_lessdef in LESSDEF; ss.
-      ii. ss.
-      specialize (LESSDEF val1).
-      assert(G: InvState.Unary.sem_expr
-                  conf_src st_src (InvState.Rel.src invst0) e1 = Some val1).
-      {
-        exploit clear_unary_subset_expr; eauto.
-      }
-      specialize (LESSDEF G).
-      des.
-      esplits; eauto.
-      assert(K := incl_lessdef_inv_unary (Hints.Invariant.src inv)); des.
-      (* exploit incl_lessdef_inv_unary. eauto. *)
-      apply incl_implies_preserved_src; eauto.
-      eapply In_list with (f:= Exprs.ExprPair.get_idTs) in H. des.
-      unfold Exprs.ExprPair.get_idTs in H; ss.
-      apply incl_app_inv_r in H.
-      eapply incl_tran; eauto.
-    +
-      clear LESSDEF UNIQUE PRIVATE.
-      inv NOALIAS.
-      rename NOALIAS0 into NOALIAS.
-      econs; ii.
-      * clear NOALIAS.
-        eapply DIFFBLOCK; eauto.
-        eapply clear_unary_subset_valueT; eauto.
-        eapply clear_unary_subset_valueT; eauto.
-      * clear DIFFBLOCK.
-        eapply NOALIAS; eauto.
-        eapply clear_unary_subset_valueT; eauto.
-        eapply clear_unary_subset_valueT; eauto.
-    +
-      clear LESSDEF NOALIAS PRIVATE.
-      ii.
-      specialize (UNIQUE x H).
-      inv UNIQUE.
-      econs; eauto.
-    +
-      clear LESSDEF NOALIAS UNIQUE.
-      ii.
-      specialize (PRIVATE x H).
-      unfold InvState.Unary.sem_private in PRIVATE.
-      specialize (PRIVATE val).
-      apply PRIVATE.
-      eapply clear_unary_subset_idT; eauto.
-  - clear SRC.
-    econs; inv TGT.
-    +
-      clear NOALIAS UNIQUE PRIVATE.
-      unfold Exprs.ExprPairSet.For_all.
-      i.
-      destruct x as [e1 e2]; ss.
-      specialize (LESSDEF (e1, e2) H).
-      unfold InvState.Unary.sem_lessdef in LESSDEF; ss.
-      ii. ss.
-      specialize (LESSDEF val1).
-      assert(G: InvState.Unary.sem_expr
-                  conf_tgt st_tgt (InvState.Rel.tgt invst0) e1 = Some val1).
-      {
-        exploit clear_unary_subset_expr; eauto.
-      }
-      specialize (LESSDEF G).
-      des.
-      esplits; eauto.
-      assert(K := incl_lessdef_inv_unary (Hints.Invariant.tgt inv)); des.
-      (* exploit incl_lessdef_inv_unary. eauto. *)
-      apply incl_implies_preserved_tgt; eauto.
-      eapply In_list with (f:= Exprs.ExprPair.get_idTs) in H. des.
-      unfold Exprs.ExprPair.get_idTs in H; ss.
-      apply incl_app_inv_r in H.
-      eapply incl_tran; eauto.
-    +
-      clear LESSDEF UNIQUE PRIVATE.
-      inv NOALIAS.
-      rename NOALIAS0 into NOALIAS.
-      econs; ii.
-      * clear NOALIAS.
-        eapply DIFFBLOCK; eauto.
-        eapply clear_unary_subset_valueT; eauto.
-        eapply clear_unary_subset_valueT; eauto.
-      * clear DIFFBLOCK.
-        eapply NOALIAS; eauto.
-        eapply clear_unary_subset_valueT; eauto.
-        eapply clear_unary_subset_valueT; eauto.
-    +
-      clear LESSDEF NOALIAS PRIVATE.
-      ii.
-      specialize (UNIQUE x H).
-      inv UNIQUE.
-      econs; eauto.
-    +
-      clear LESSDEF NOALIAS UNIQUE.
-      ii.
-      specialize (PRIVATE x H).
-      unfold InvState.Unary.sem_private in PRIVATE.
-      specialize (PRIVATE val).
-      apply PRIVATE.
-      eapply clear_unary_subset_idT; eauto.
+      * rewrite clear_locals_spec in VAL_SRC.
+        unfold Exprs.Tag.t in *. rewrite H0 in VAL_SRC. ss.
+      * rewrite clear_locals_spec in VAL_SRC.
+        unfold Exprs.Tag.t in *. rewrite H0 in VAL_SRC. ss.
+  - apply clear_unary_spec; ss. i.
+    unfold reduce_maydiff_preserved. apply orb_true_iff. right.
+    rewrite find_app.
+    match goal with
+    | [|- context[match ?g with | Some _ => _ | None => _ end]] =>
+      let COND := fresh "COND" in
+      destruct g eqn:COND
+    end; ss.
+    eapply find_none in COND; [|eauto].
+    destruct (Exprs.IdT.eq_dec id0 id0); ss.
+  - apply clear_unary_spec; ss. i.
+    unfold reduce_maydiff_preserved. apply orb_true_iff. right.
+    rewrite find_app.
+    match goal with
+    | [|- context[match ?g with | Some _ => _ | None => _ end]] =>
+      let COND := fresh "COND" in
+      destruct g eqn:COND
+    end; ss.
+    apply In_eq_find. ss.
+Grab Existential Variables.
+  { eauto. }
 Qed.
 
 Lemma reduce_maydiff_sound
