@@ -122,18 +122,6 @@ Definition clear_rel
            (inv: InvState.Rel.t): InvState.Rel.t :=
   InvState.Rel.update_both (clear_unary preserved) inv.
 
-Definition equiv_locals (ids:list id) (lhs rhs:GVsMap): Prop :=
-  forall id (ID: List.In id ids), lookupAL _ lhs id = lookupAL _ rhs id.
-
-Inductive equiv_unary (ids:list Exprs.IdT.t) (lhs rhs:InvState.Unary.t): Prop :=
-| equiv_unary_intro
-    (PREVIOUS: equiv_locals (List.map snd (List.filter (Exprs.Tag.is_previous <*> fst) ids))
-                            lhs.(InvState.Unary.previous) rhs.(InvState.Unary.previous))
-    (GHOST: equiv_locals (List.map snd (List.filter (Exprs.Tag.is_ghost <*> fst) ids))
-                         lhs.(InvState.Unary.ghost) rhs.(InvState.Unary.ghost))
-    (* TODO: nil => filter_map from ids *)
-.
-
 Lemma clear_unary_subset_idT st_unary f id invst_unary val
       (VAL_SUBSET: (InvState.Unary.sem_idT
                    st_unary (clear_unary f invst_unary) id =
