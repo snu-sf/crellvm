@@ -26,20 +26,18 @@ Module GVs.
       v1 v2.
 
   Lemma lessdef_refl x:
-        <<REFL: GVs.lessdef x x>>.
+        <<REFL: lessdef x x>>.
   Proof.
     induction x; ii; ss; des; econs.
     esplits; eauto. apply IHx.
   Qed.
 
-  (* TODO *)
   Lemma lessdef_inject_compose mij a b c
         (LD: lessdef a b)
         (INJECT: genericvalues_inject.gv_inject mij b c):
     << INJECT: genericvalues_inject.gv_inject mij a c >>.
   Proof. Admitted.
 
-  (* TODO *)
   Lemma inject_lessdef_compose mij a b c
         (INJECT: genericvalues_inject.gv_inject mij a b)
         (LD: lessdef b c):

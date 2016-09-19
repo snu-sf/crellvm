@@ -331,26 +331,6 @@ Module Rel.
       exploit LOCALS; eauto.
   Qed.
 
-  (* TODO: position *)
-  Lemma not_in_maydiff_sem1
-        inv id
-        (NIMD: Invariant.not_in_maydiff inv (Exprs.ValueT.id id) = true):
-    <<NOT_IN: (IdTSet.mem id (Invariant.maydiff inv)) = false>>.
-  Proof.
-    ii. apply negb_true_iff in NIMD.
-    rewrite NIMD. ss.
-  Qed.
-
-  (* TODO: position *)
-  Lemma not_in_maydiff_sem2
-        inv id
-        (NOT_IN: (IdTSet.mem id (Invariant.maydiff inv) = false)):
-  <<NIMD: Invariant.not_in_maydiff inv (Exprs.ValueT.id id) = true>>.
-  Proof.
-    destruct id; ss.
-    rewrite NOT_IN. ss.
-  Qed.
-
   (* genericvalues_inject.sb_mem_inj__const2GV: *)
   Lemma const2GV_gv_inject_refl
         TD globals cnst gv meminj
