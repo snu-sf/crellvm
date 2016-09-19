@@ -127,15 +127,11 @@ Definition clear_rel
 Definition equiv_locals (ids:list id) (lhs rhs:GVsMap): Prop :=
   forall id (ID: List.In id ids), lookupAL _ lhs id = lookupAL _ rhs id.
 
-(* TODO move this code into Exprs' tag module *)
-Definition is_previous x := match x with Exprs.Tag.previous => true | _ => false end.
-Definition is_ghost x := match x with Exprs.Tag.ghost => true | _ => false end.
-
 Inductive equiv_unary (ids:list Exprs.IdT.t) (lhs rhs:InvState.Unary.t): Prop :=
 | equiv_unary_intro
-    (PREVIOUS: equiv_locals (List.map snd (List.filter (is_previous <*> fst) ids))
+    (PREVIOUS: equiv_locals (List.map snd (List.filter (Exprs.Tag.is_previous <*> fst) ids))
                             lhs.(InvState.Unary.previous) rhs.(InvState.Unary.previous))
-    (GHOST: equiv_locals (List.map snd (List.filter (is_ghost <*> fst) ids))
+    (GHOST: equiv_locals (List.map snd (List.filter (Exprs.Tag.is_ghost <*> fst) ids))
                          lhs.(InvState.Unary.ghost) rhs.(InvState.Unary.ghost))
     (* TODO: nil => filter_map from ids *)
 .

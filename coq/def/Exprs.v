@@ -25,6 +25,9 @@ Module Tag <: UsualDecidableType.
   Definition eq_dec (x y:t): {x = y} + {x <> y}.
     decide equality.
   Defined.
+
+  Definition is_previous x := match x with Tag.previous => true | _ => false end.
+  Definition is_ghost x := match x with Tag.ghost => true | _ => false end.
 End Tag.
 Hint Resolve Tag.eq_dec: EqDecDb.
 
