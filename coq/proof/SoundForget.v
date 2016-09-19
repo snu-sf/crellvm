@@ -46,6 +46,36 @@ Inductive state_equiv_except (ids:IdTSet.t) (st0 st1: State): Prop :=
 (*   (* unfold Forget.unary in *. *) *)
 (* Admitted. *)
 
+Lemma sem_inject_equiv_except
+      ids st0 st1 invst id val
+      (EQUIV: state_equiv_except ids st0 st1)
+      (STATE: InvState.Unary.sem_idT st0 invst id = Some val)
+      (NOTIN: ~ IdTSet.In id ids)
+  :
+    <<STATE: InvState.Unary.sem_idT st1 invst id = Some val>>.
+Proof.
+  unfold InvState.Unary.sem_idT in *.
+  inv EQUIV.
+  unfold locals_equiv_except in LOCALS.
+  red. rewrite <- STATE.
+  destruct id.
+  destruct t; ss.
+  symmetry. eapply LOCALS; eauto.
+Qed.
+
+Lemma forget_unary_sound
+      ids st0 st1
+      conf invst invmem inv0 
+      (EQUIV : state_equiv_except ids st0 st1)
+      (STATE : InvState.Unary.sem conf st0 invst invmem inv0)
+  :
+    <<STATE: InvState.Unary.sem conf st1 invst invmem (Forget.unary ids inv0)>>.
+Proof.
+  inv STATE.
+  (* econs. *)
+  (* - *)
+Admitted.
+
 Lemma forget_sound
       conf_src st_src0
       conf_tgt st_tgt0
@@ -59,4 +89,10 @@ Lemma forget_sound
   <<STATE: InvState.Rel.sem conf_src conf_tgt st_src1 st_tgt1
                             invst invmem (Forget.t s_src s_tgt inv0)>>.
 Proof.
+  inv STATE.
+  econs.
+  - eapply forget_unary_sound; eauto.
+  - eapply forget_unary_sound; eauto.
+  - i. ss.
+    admit. (* forget maydiff *)
 Admitted.
