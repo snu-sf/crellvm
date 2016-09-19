@@ -59,45 +59,33 @@ Lemma reduce_maydiff_lessdef_sound
                             (reduce_maydiff_lessdef inv)>>.
 Proof.
   inversion STATE. econs; eauto. ii.
-  specialize (MAYDIFF id0). ss.
-  rewrite Exprs.IdTSetFacts.filter_b in NOTIN; cycle 1.
-  { repeat red. ii. subst. eauto. }
-  des_bool. des; [by eapply MAYDIFF; eauto|].
-  des_bool.
-  apply Exprs.ExprPairSetFacts.exists_iff in NOTIN; cycle 1.
-  { repeat red. ii. subst. eauto. }
-  inv NOTIN. des.
-  apply Exprs.ExprPairSetFacts.exists_iff in H0; cycle 1.
-  { repeat red. ii. subst. eauto. }
-  inv H0. des.
-  apply get_lhs_in_spec in H1.
-  apply get_rhs_in_spec in H.
+  ss. rewrite Exprs.IdTSetFacts.filter_b in NOTIN; [|solve_compat_bool].
+  repeat (des_bool; des); ss; cycle 2.
+  { exploit MAYDIFF; eauto. } clear MAYDIFF.
+  apply Exprs.ExprPairSetFacts.exists_iff in NOTIN; [|solve_compat_bool].
+  red in NOTIN; des.
+  apply Exprs.ExprPairSetFacts.exists_iff in NOTIN0; [|solve_compat_bool].
+  red in NOTIN0; des.
+  apply get_lhs_in_spec in NOTIN0.
+  apply get_rhs_in_spec in NOTIN.
   destruct x, x0. ss. des. subst.
-  rename id0 into __ID__.
+  rename id0 into idt.
 
   (* src lessdef x, t0 --> t0's result exists *)
   inv SRC. clear NOALIAS UNIQUE PRIVATE.
-  unfold Exprs.ExprPairSet.For_all in *.
-  specialize (LESSDEF (Exprs.Expr.value (Exprs.ValueT.id __ID__), t0)).
-  apply LESSDEF in H3. clear LESSDEF.
-  exploit H3; eauto. i. des.
+  exploit LESSDEF; eauto; []; ii; des. clear LESSDEF.
 
   (* inject_expr t0, t1 --> t1's result exists *)
-  exploit InvState.Rel.inject_expr_spec; eauto. i. des.
+  exploit InvState.Rel.inject_expr_spec; eauto; []; ii; des.
 
   (* tgt t1, x --> x's result exists *)
   inv TGT. clear NOALIAS UNIQUE PRIVATE.
-  specialize (LESSDEF (t1, Exprs.Expr.value (Exprs.ValueT.id __ID__))).
-  apply LESSDEF in H2. clear LESSDEF.
-  exploit H2; eauto. i. des.
+  exploit LESSDEF; eauto; []; ii; des. clear LESSDEF.
 
   (* val_src >= val_a >= val_tgt >= val_b *)
   esplits; eauto.
-  clear VAL0 VAL_TGT VAL2 H2 H3 H0 VAL_SRC MAYDIFF.
-  rename val0 into val_a.
-  rename val2 into val_b.
-  exploit GVs.inject_lessdef_compose; eauto. i. des.
-  exploit GVs.lessdef_inject_compose; cycle 1; eauto.
+  exploit GVs.inject_lessdef_compose; eauto; []; ii; des.
+  exploit GVs.lessdef_inject_compose; try exact x0; eauto.
 Qed.
 
 (* TODO
@@ -124,9 +112,8 @@ Proof.
   induction al; ss.
   destruct a; ss.
   destruct (f a) eqn:T; ss.
-  ss.
-  destruct (id == a) eqn:T2; ss.
-  subst. rewrite T in NOPASS. ss.
+  destruct (id == a) eqn:T2; ss. subst.
+  clarify.
 Qed.
 
 Lemma lookup_AL_filter_true {A: Type} id al f
@@ -288,55 +275,18 @@ Lemma reduce_maydiff_preserved_sem_idT st_src st_tgt
   <<VAL_TGT: InvState.Unary.sem_idT st_tgt
     (clear_unary (reduce_maydiff_preserved inv) (InvState.Rel.tgt invst)) id = Some val_tgt>>.
 Proof.
-  destruct id.
-  rename i0 into id.
+  destruct id. rename i0 into id.
   unfold InvState.Unary.sem_idT in *. ss.
   unfold InvState.Unary.sem_tag in *. ss.
+  remember (fun id0 : LLVMsyntax.id => reduce_maydiff_preserved
+                                         inv (Exprs.Tag.previous, id0)) as fnc.
   destruct t; ss.
   - rewrite <- VAL_TGT.
-    destruct ((fun id0 : LLVMsyntax.id =>
-                 reduce_maydiff_preserved inv (Exprs.Tag.previous, id0)) id) eqn:T.
-    + exploit (@lookup_AL_filter_true GenericValue id); eauto. ss.
-    + exploit (@lookup_AL_filter_false GenericValue id); eauto.
-      instantiate (1:= (fun id0 : LLVMsyntax.id =>
-                          reduce_maydiff_preserved inv (Exprs.Tag.previous, id0))).
-      ss.
-      ii; des.
-      (* rewrite x0. *)
-      (* rewrite VAL_TGT. *)
-      (* exfalso. *)
-      rewrite x0 in VAL_SRC.
-      inv VAL_SRC.
+    rewrite clear_locals_spec in *.
+    des_ifs.
   - rewrite <- VAL_TGT.
-    destruct ((fun id0 : LLVMsyntax.id =>
-                 reduce_maydiff_preserved inv (Exprs.Tag.ghost, id0)) id) eqn:T.
-    + exploit (@lookup_AL_filter_true GenericValue id); eauto. ss.
-    + exploit (@lookup_AL_filter_false GenericValue id); eauto.
-      instantiate (1:= (fun id0 : LLVMsyntax.id =>
-                          reduce_maydiff_preserved inv (Exprs.Tag.ghost, id0))).
-      ss.
-      ii; des.
-      (* rewrite x0. *)
-      (* rewrite VAL_TGT. *)
-      (* exfalso. *)
-      rewrite x0 in VAL_SRC.
-      inv VAL_SRC.
-Qed.
-
-Lemma incl_lessdef_inv_unary inv_unary:
-  <<LESSDEF_INCL:
-    List.incl
-      (Hints.Invariant.get_idTs_lessdef inv_unary.(Hints.Invariant.lessdef))
-      (Hints.Invariant.get_idTs_unary inv_unary)>>.
-Proof.
-  unfold Hints.Invariant.get_idTs_unary.
-  red.
-  ss.
-  assert(G: incl (Hints.Invariant.get_idTs_lessdef (Hints.Invariant.lessdef inv_unary))
-                 (Hints.Invariant.get_idTs_lessdef (Hints.Invariant.lessdef inv_unary))).
-  { apply incl_refl. }
-  eapply incl_appl in G.
-  eapply G.
+    rewrite clear_locals_spec in *.
+    des_ifs.
 Qed.
 
 Lemma In_concat {A B C: Type} f (a: A) (x: B) xs
@@ -355,7 +305,7 @@ Proof.
     + ss. right.
       eapply in_or_app.
       left; ss.
-  - specialize (IHxs x IN2 a0 IN1).
+  - exploit IHxs; eauto; []; ii; des.
     destruct (f a) eqn:T; ss.
     right.
     eapply in_or_app. right. ss.
@@ -378,7 +328,7 @@ Lemma In_list {A} (f: Exprs.ExprPair.t -> list A) x xs
   <<IN: List.incl (f x) (List.concat (List.map f (Exprs.ExprPairSet.elements xs)))>>.
 Proof.
   red.
-  exploit Exprs.ExprPairSetFacts.elements_iff; eauto. ii; des.
+  exploit Exprs.ExprPairSetFacts.elements_iff; eauto; []; ii; des.
   specialize (x1 IN). clear x0.
   exploit InA_iff_In; eauto. ii; des.
   specialize (x2 x1). clear x0. clear x1.
@@ -395,31 +345,13 @@ Lemma clear_unary_preserved_valueT
 Proof.
   red.
   destruct vt; ss.
-  des_bool. des. clear PRESERVED0.
+  repeat (des_bool; des). clear PRESERVED0.
   unfold InvState.Unary.sem_idT in *.
   destruct x; ss.
-  unfold clear_unary, clear_locals.
-  unfold InvState.Unary.update_ghost, InvState.Unary.update_previous in *. ss.
-  unfold InvState.Unary.sem_tag in *. ss.
+  unfold clear_unary.
   destruct invst_unary; ss.
-  destruct t; ss.
-  - exploit (@lookup_AL_filter_true GenericValue).
-    {
-      (* apply PRESERVED. *) (* WHY IT DOES NOT WORK ???????? *)
-      instantiate (1:= i0).
-      instantiate  (1:= (fun id0 : id => f (Exprs.Tag.previous, id0))).
-      ss.
-    } ii; des.
-    rewrite x0; ss.
-  - (* COPIED FROM ABOVE *)
-    exploit (@lookup_AL_filter_true GenericValue).
-    {
-      (* apply PRESERVED. *) (* WHY IT DOES NOT WORK ???????? *)
-      instantiate (1:= i0).
-      instantiate  (1:= (fun id0 : id => f (Exprs.Tag.ghost, id0))).
-      ss.
-    } ii; des.
-    rewrite x0; ss.
+  unfold Exprs.Tag.t in *. (* TODO doing left unfold is a bit annoying *)
+  destruct t; ss; rewrite clear_locals_spec in *; des_ifs.
 Qed.
 
 Lemma clear_unary_preserved_list_valueT
@@ -437,14 +369,14 @@ Proof.
   repeat (des_bool; des).
   des_ifs; ss.
   - (exploit clear_unary_preserved_valueT; [exact Heq1| |]; eauto; ii; des).
-    specialize (IHvts l1). exploit IHvts; eauto. ii; des.
+    exploit IHvts; eauto; []; ii; des.
     clarify.
   - (exploit clear_unary_preserved_valueT; [exact Heq1| |]; eauto; ii; des).
     clarify.
-    specialize (IHvts l0). exploit IHvts; eauto. ii; des.
-    ss.
+    exploit IHvts; eauto; []; ii; des.
+    clarify.
   - (exploit clear_unary_preserved_valueT; [exact Heq0| |]; eauto; ii; des).
-    specialize (IHvts l0). exploit IHvts; eauto. ii; des.
+    exploit IHvts; eauto; []; ii; des.
     clarify.
 Qed.
 
@@ -458,7 +390,7 @@ Proof.
   induction xs; ii; ss.
   destruct (g a) eqn:T; des_bool; ss.
   - unfold is_true in FORALL. (* des_bool should solve this!!! KILL ALL is_true *)
-    des_bool. des.
+    repeat (des_bool; des).
     rewrite FORALL.
     rewrite IHxs; eauto. ss.
   - rewrite IHxs; ss.
