@@ -324,6 +324,18 @@ Proof.
     rewrite FILTERED in x0. ss.
 Qed.
 
+Lemma lookup_AL_filter_spec
+      {X: Type} f (al: AssocList X) i:
+  lookupAL _ (filter_AL_atom f al) i =
+  if f i
+  then lookupAL _ al i
+  else None.
+Proof.
+  destruct (f i) eqn:T.
+  - apply lookup_AL_filter_true. ss.
+  - apply lookup_AL_filter_false. ss.
+Qed.
+
 Lemma in_filter_find {A: Type} (x: A) f l
   (IN: In x (filter f l)):
   exists x2, find f l = Some x2 /\ f x2.
