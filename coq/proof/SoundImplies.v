@@ -211,7 +211,7 @@ Lemma implies_sound
       m_src conf_src st_src
       m_tgt conf_tgt st_tgt
       invst invmem inv0 inv1
-      (CONF: valid_conf m_src m_tgt conf_src conf_tgt)
+      (CONF: InvState.valid_conf m_src m_tgt conf_src conf_tgt)
       (IMPLIES: Invariant.implies inv0 inv1)
       (STATE: InvState.Rel.sem conf_src conf_tgt st_src st_tgt invst invmem inv0)
       (MEM: InvMem.Rel.sem conf_src conf_tgt st_src.(Mem) st_tgt.(Mem) invmem):
@@ -219,12 +219,12 @@ Lemma implies_sound
 Proof.
   unfold Invariant.implies in IMPLIES.
   solve_bool_true.
-  { exfalso; eapply has_false_False; eauto. }
+  { exfalso. eapply has_false_False; eauto. }
   inv STATE. econs.
   - eapply implies_unary_sound; eauto.
   - eapply implies_unary_sound; eauto.
-  - i. apply MAYDIFF. ii. apply NOTIN.
-    apply IdTSetFacts.mem_iff.
+  - i. apply MAYDIFF.
+    apply IdTSetFacts.not_mem_iff. ii.
+    apply IdTSetFacts.not_mem_iff in NOTIN. apply NOTIN.
     eapply IdTSetFacts.subset_iff; eauto.
-    apply IdTSetFacts.mem_iff. ss.
 Qed.

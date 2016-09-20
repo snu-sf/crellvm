@@ -25,14 +25,6 @@ Require InvState.
 Set Implicit Arguments.
 
 
-(* TODO: m_src, m_tgt, conf_src, conf_tgt *)
-Inductive valid_conf
-          (m_src m_tgt:module)
-          (conf_src conf_tgt:Config): Prop :=
-| valid_conf_intro
-    (INJECT: inject_conf conf_src conf_tgt)
-.
-
 (* TODO: position *)
 Definition get_blocks (f:fdef): blocks :=
   let '(fdef_intro _ blocks) := f in
@@ -80,6 +72,25 @@ Definition return_locals
   | _, true => Some lc
   | _, _ => None
   end.
+
+Lemma return_locals_inject_locals
+      TD id noret ty inv
+      retval_src locals1_src locals2_src
+      retval_tgt locals1_tgt
+      (RETVAL: lift2_option (genericvalues_inject.gv_inject inv.(InvMem.Rel.inject)) retval_src retval_tgt)
+      (LOCAL: inject_locals inv locals1_src locals1_tgt)
+      (SRC: return_locals TD retval_src id noret ty locals1_src = Some locals2_src):
+  exists locals2_tgt,
+    <<TGT: return_locals TD retval_tgt id noret ty locals1_tgt = Some locals2_tgt>> /\
+    <<LOCAL: inject_locals inv locals2_src locals2_tgt>>.
+Proof.
+  unfold return_locals in *.
+  simtac; try by esplits; eauto.
+  exploit genericvalues_inject.simulation__fit_gv; eauto.
+  { admit. (* wf_sb_mi *) }
+  i. des. rewrite x0. esplits; eauto.
+  apply updateAddAL_inject_locals; ss.
+Admitted.
 
 Lemma returnUpdateLocals_spec
       TD id noret clattrs ty va f args Result lc lc' gl:

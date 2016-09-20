@@ -31,7 +31,7 @@ Lemma apply_infrule_sound
       conf_tgt st_tgt
       invst0 invmem0 inv0
       infrule
-      (CONF: valid_conf m_src m_tgt conf_src conf_tgt)
+      (CONF: InvState.valid_conf m_src m_tgt conf_src conf_tgt)
       (STATE: InvState.Rel.sem conf_src conf_tgt st_src st_tgt invst0 invmem0 inv0)
       (MEM: InvMem.Rel.sem conf_src conf_tgt st_src.(Mem) st_tgt.(Mem) invmem0):
   exists invst1 invmem1,
@@ -48,7 +48,7 @@ Lemma apply_infrules_sound
       conf_tgt st_tgt
       invst0 invmem0 inv0
       infrules
-      (CONF: valid_conf m_src m_tgt conf_src conf_tgt)
+      (CONF: InvState.valid_conf m_src m_tgt conf_src conf_tgt)
       (STATE: InvState.Rel.sem conf_src conf_tgt st_src st_tgt invst0 invmem0 inv0)
       (MEM: InvMem.Rel.sem conf_src conf_tgt st_src.(Mem) st_tgt.(Mem) invmem0):
   exists invst1 invmem1,
