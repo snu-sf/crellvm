@@ -25,6 +25,9 @@ Module Tag <: UsualDecidableType.
   Definition eq_dec (x y:t): {x = y} + {x <> y}.
     decide equality.
   Defined.
+
+  Definition is_previous x := match x with Tag.previous => true | _ => false end.
+  Definition is_ghost x := match x with Tag.ghost => true | _ => false end.
 End Tag.
 Hint Resolve Tag.eq_dec: EqDecDb.
 
@@ -134,6 +137,10 @@ Module ValueTPair <: UsualDecidableType.
     apply prod_dec;
     apply ValueT.eq_dec.
   Defined.
+
+  Definition get_idTs (vp: t): list IdT.t :=
+    (option_to_list (ValueT.get_idTs vp.(fst)))
+      ++ (option_to_list (ValueT.get_idTs vp.(snd))).
 End ValueTPair.
 Hint Resolve ValueTPair.eq_dec: EqDecDb.
 
@@ -302,6 +309,10 @@ Module ExprPair <: UsualDecidableType.
     apply prod_dec;
       apply Expr.eq_dec.
   Defined.
+
+  Definition get_idTs (ep: t): list IdT.t :=
+    (Expr.get_idTs ep.(fst))
+      ++ (Expr.get_idTs ep.(snd)).
 End ExprPair.
 Hint Resolve ExprPair.eq_dec: EqDecDb.
 
@@ -368,6 +379,10 @@ Module PtrPair <: UsualDecidableType.
   Proof.
     apply prod_dec; apply Ptr.eq_dec.
   Defined.
+
+  Definition get_idTs (pp: t): list IdT.t :=
+    (option_to_list (Ptr.get_idTs pp.(fst)))
+      ++ (option_to_list (Ptr.get_idTs pp.(snd))).
 End PtrPair.
 Hint Resolve PtrPair.eq_dec: EqDecDb.
 

@@ -25,14 +25,6 @@ Require InvState.
 Set Implicit Arguments.
 
 
-(* TODO: m_src, m_tgt, conf_src, conf_tgt *)
-Inductive valid_conf
-          (m_src m_tgt:module)
-          (conf_src conf_tgt:Config): Prop :=
-| valid_conf_intro
-    (INJECT: inject_conf conf_src conf_tgt)
-.
-
 (* TODO: position *)
 Definition get_blocks (f:fdef): blocks :=
   let '(fdef_intro _ blocks) := f in
