@@ -22,6 +22,8 @@ Require Import GenericValues.
 Require InvMem.
 Require InvState.
 Require Import SoundBase.
+Require Import SoundImplies. (* for preorder GVs.lessdef *)
+Require Import Inject. (* for simtac *)
 
 Set Implicit Arguments.
 
@@ -30,18 +32,65 @@ Set Implicit Arguments.
 
 (* TODO: Unify this snapshot_specs *)
 
-Definition snapshot_as_previous st invst: Prop :=
-  forall x gvx
-         (LOCAL: lookupAL _ st.(EC).(Locals) x = Some gvx),
-    <<PREV: InvState.Unary.sem_idT st invst (Tag.previous, x) = Some gvx>>.
+(* Definition snapshot_as_previous st invst: Prop := *)
+(*   forall x gvx *)
+(*          (LOCAL: lookupAL _ st.(EC).(Locals) x = Some gvx), *)
+(*     <<PREV: InvState.Unary.sem_idT st invst (Tag.previous, x) = Some gvx>>. *)
 
-Definition snapshot_spec2 st invst: Prop :=
-  forall x gvx
-         (PREV: InvState.Unary.sem_idT st invst (Tag.previous, x) = Some gvx),
-    <<LOCAL: lookupAL _ st.(EC).(Locals) x = Some gvx>>.
+(* Definition snapshot_spec2 st invst: Prop := *)
+(*   forall x gvx *)
+(*          (PREV: InvState.Unary.sem_idT st invst (Tag.previous, x) = Some gvx), *)
+(*     <<LOCAL: lookupAL _ st.(EC).(Locals) x = Some gvx>>. *)
 
-Definition snapshot_spec3 invst0 invst1: Prop :=
-  invst0.(InvState.Unary.ghost) = invst1.(InvState.Unary.ghost).
+Definition snapshot_previous st invst: Prop :=
+  forall x,
+    <<SNAPSHOT_PREV: InvState.Unary.sem_idT st invst (Tag.previous, x) =
+    lookupAL _ st.(EC).(Locals) x>>.
+
+Definition snapshot_ghost invst0 invst1: Prop :=
+  <<SNAPSHOT_GHOST: invst0.(InvState.Unary.ghost) = invst1.(InvState.Unary.ghost)>>.
+
+Lemma physical_previous_lessdef_spec
+      e1 e2 inv
+      (IN: ExprPairSet.In (e1, e2) (Snapshot.physical_previous_lessdef inv))
+  :
+    exists x,
+      <<IN_UNARY: In (Tag.previous, x) (Hints.Invariant.get_idTs_unary inv)>> /\
+      (<<EXPR1: e1 = Expr.value (ValueT.id (Tag.previous, x))>> /\
+       <<EXPR2: e2 = Expr.value (ValueT.id (Tag.physical, x))>>
+                         \/
+       <<EXPR1: e2 = Expr.value (ValueT.id (Tag.previous, x))>> /\
+       <<EXPR2: e1 = Expr.value (ValueT.id (Tag.physical, x))>>).
+Proof.
+Admitted.
+
+(* TODO: move tactics to somewhere *)
+Ltac solve_set_union :=
+  match goal with
+  | [H: ExprPairSet.In _ (ExprPairSet.union _ _) |- _] =>
+    apply ExprPairSet.union_1 in H; destruct H as [IN|IN]
+  end.
+
+Ltac solve_sem_idT :=
+  match goal with
+  | [H: InvState.Unary.sem_idT _ _ (_, _) = _ |- _] =>
+    unfold InvState.Unary.sem_idT in H; ss
+  | [_:_ |- InvState.Unary.sem_idT _ _ (_, _) = _] =>
+    unfold InvState.Unary.sem_idT; ss
+  end.
+
+Ltac solve_in_filter :=
+  match goal with
+  | [H: ExprPairSet.In _ (ExprPairSet.filter _ _) |- _] =>
+    apply ExprPairSetFacts.filter_iff in H; try (ii;subst;ss;fail); destruct H as [IN FILTER]
+  end.
+
+Ltac solve_negb_liftpred :=
+  match goal with
+  | [H: (negb <*> LiftPred.ExprPair _) (_, _) = _ |- _] =>
+    unfold compose, LiftPred.ExprPair in H; simtac; ss;
+    apply orb_false_iff in H; destruct H as [FILTER1 FILTER2]
+  end.
 
 Lemma snapshot_unary_sound
       conf st invst0 invmem inv0
@@ -49,20 +98,33 @@ Lemma snapshot_unary_sound
   :
     exists invst1,
       <<STATE: InvState.Unary.sem conf st invst1 invmem (Snapshot.unary inv0)>> /\
-               <<PREV: snapshot_as_previous st invst1>> /\
-                       <<PREV2: snapshot_spec2 st invst1>> /\
-                                <<GHOST: snapshot_spec3 invst0 invst1>>.
+      <<PREV: snapshot_previous st invst1>> /\
+      <<GHOST: snapshot_ghost invst0 invst1>>.
 Proof.
   exists (InvState.Unary.mk st.(EC).(Locals) invst0.(InvState.Unary.ghost)).
   splits; ss.
   inv STATE.
   econs; ss.
-  - ii.
-    exploit ExprPairSet.union_1; eauto. i. des.
-    + admit.
-      (* Lemma snapshot_physical_previous_lessdef_spec *)
-      (*       Snapshot.unary *)
-    + admit.
+  - intros ep. ii.
+    solve_set_union.
+    + destruct ep as [e1 e2].
+      apply physical_previous_lessdef_spec in IN. des.
+      { subst; ss.
+        solve_sem_idT.
+        esplits; [eauto|reflexivity].
+      }
+      { subst; ss.
+        solve_sem_idT.
+        esplits; [eauto|reflexivity].
+      }
+    + destruct ep as [e1 e2].
+      unfold Snapshot.ExprPairSet in IN. ss.
+      solve_set_union.
+      { solve_in_filter.
+        solve_negb_liftpred.
+        admit.
+      }
+      admit.
   - admit.
   - admit.
   - admit.
@@ -77,6 +139,7 @@ Proof.
   (* esplits. *)
 Admitted.
 
+(* TODO: move this *)
 Lemma IdTSet_map_aux
       f tx (elems:list IdT.t)
   :
@@ -225,40 +288,40 @@ Proof.
   des. apply IdTSet.mem_1 in MEM. done.
 Qed.
 
-Lemma snapshot_maydiff_spec2
-      md0 x
-      (IN: IdTSet.In (Tag.previous, x) (Snapshot.IdTSet md0))
-  :
-    <<IN: IdTSet.In (Tag.physical, x) md0 >>.
-Proof.
-  unfold Snapshot.IdTSet in IN.
-  apply IdTSet.union_1 in IN. des.
-  { apply IdTSetFacts.filter_iff in IN; cycle 1.
-    { ii. subst. ss. }
-    des. ss.
-  }
-  apply IdTSet_map_spec in IN. des.
-  apply IdTSetFacts.filter_iff in IN0; cycle 1.
-  { ii. subst. ss. }
-  des.
-  unfold compose in *.
-  unfold Previousify.IdT in *.
-  destruct tx.
-  destruct t; ss.
-  inv MAP; eauto.
-Qed.
+(* Lemma snapshot_maydiff_spec2 *)
+(*       md0 x *)
+(*       (IN: IdTSet.In (Tag.previous, x) (Snapshot.IdTSet md0)) *)
+(*   : *)
+(*     <<IN: IdTSet.In (Tag.physical, x) md0 >>. *)
+(* Proof. *)
+(*   unfold Snapshot.IdTSet in IN. *)
+(*   apply IdTSet.union_1 in IN. des. *)
+(*   { apply IdTSetFacts.filter_iff in IN; cycle 1. *)
+(*     { ii. subst. ss. } *)
+(*     des. ss. *)
+(*   } *)
+(*   apply IdTSet_map_spec in IN. des. *)
+(*   apply IdTSetFacts.filter_iff in IN0; cycle 1. *)
+(*   { ii. subst. ss. } *)
+(*   des. *)
+(*   unfold compose in *. *)
+(*   unfold Previousify.IdT in *. *)
+(*   destruct tx. *)
+(*   destruct t; ss. *)
+(*   inv MAP; eauto. *)
+(* Qed. *)
 
-Lemma snapshot_maydiff_spec2_inv
-      md0 x
-      (NOTIN: ~ IdTSet.mem (Tag.physical, x) md0)
-  :
-    <<NOTIN: ~ IdTSet.mem (Tag.previous, x) (Snapshot.IdTSet md0) >>.
-Proof.
-  destruct (IdTSet.mem (Tag.previous, x) (Snapshot.IdTSet md0)) eqn:MEM; eauto.
-  apply IdTSet.mem_2 in MEM.
-  apply snapshot_maydiff_spec2 in MEM; try done.
-  des. apply IdTSet.mem_1 in MEM. done.
-Qed.
+(* Lemma snapshot_maydiff_spec2_inv *)
+(*       md0 x *)
+(*       (NOTIN: ~ IdTSet.mem (Tag.physical, x) md0) *)
+(*   : *)
+(*     <<NOTIN: ~ IdTSet.mem (Tag.previous, x) (Snapshot.IdTSet md0) >>. *)
+(* Proof. *)
+(*   destruct (IdTSet.mem (Tag.previous, x) (Snapshot.IdTSet md0)) eqn:MEM; eauto. *)
+(*   apply IdTSet.mem_2 in MEM. *)
+(*   apply snapshot_maydiff_spec2 in MEM; try done. *)
+(*   des. apply IdTSet.mem_1 in MEM. done. *)
+(* Qed. *)
 
 Lemma snapshot_maydiff_spec3
       md0 x
@@ -292,8 +355,8 @@ Lemma snapshot_sound
       (STATE: InvState.Rel.sem conf_src conf_tgt st_src st_tgt invst0 invmem inv0):
   exists invst1,
     <<STATE: InvState.Rel.sem conf_src conf_tgt st_src st_tgt invst1 invmem (Snapshot.t inv0)>> /\
-    <<PREV_SRC: snapshot_as_previous st_src invst1.(InvState.Rel.src)>> /\
-    <<PREV_TGT: snapshot_as_previous st_tgt invst1.(InvState.Rel.tgt)>>.
+    <<PREV_SRC: snapshot_previous st_src invst1.(InvState.Rel.src)>> /\
+    <<PREV_TGT: snapshot_previous st_tgt invst1.(InvState.Rel.tgt)>>.
 Proof.
   inv STATE.
   apply snapshot_unary_sound in SRC. des.
@@ -313,16 +376,20 @@ Proof.
       { hexploit snapshot_maydiff_spec3_inv; eauto. i. des.
         hexploit MAYDIFF; eauto. i.
         ii. ss.
-        exploit PREV2; eauto. i. des.
+        exploit PREV; eauto. i. des.
         exploit H0.
-        { unfold InvState.Unary.sem_idT. ss. eauto. }
+        { unfold InvState.Unary.sem_idT. ss.
+          rewrite <- x. eauto.
+        }
         i. des.
         esplits; eauto.
         exploit PREV0; eauto.
+        i. des.
+        rewrite x0; eauto.
       }
       { hexploit snapshot_maydiff_spec1_inv; eauto; try done. i. des.
         hexploit MAYDIFF; eauto. i.
-        unfold snapshot_spec3 in *.
+        unfold snapshot_ghost in *.
         unfold InvState.Rel.sem_inject in *.
         unfold InvState.Unary.sem_idT in *. ss.
         rewrite <- GHOST. rewrite <- GHOST0. eauto.

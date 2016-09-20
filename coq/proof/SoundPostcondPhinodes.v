@@ -176,7 +176,7 @@ Proof.
       apply Exprs.ExprPairSetFacts.add_iff. right.
       eauto.
 Qed.
-      
+
 Lemma get_lessdef_spec
       ep assigns
       (IN: Exprs.ExprPairSet.In ep (Postcond.Phinode.get_lessdef assigns)):
@@ -214,10 +214,9 @@ Lemma phinode_assign_sound
                   conf.(CurTargetData) phinodes b conf.(Globals) locals = Some locals')
       (UNIQUE_PHI: unique id_dec (List.map Postcond.Phinode.get_def assigns) = true)
       (ASSIGN_IN: In (Postcond.Phinode.assign_intro x ty v) assigns)
-  :
-    exists gv,
-      <<VAL_V: getOperandValue conf.(CurTargetData) v locals conf.(Globals) = Some gv>> /\
-               <<VAL_X: getOperandValue conf.(CurTargetData) (value_id x) locals' conf.(Globals) = Some gv>>.
+  : exists gv,
+    <<VAL_V: getOperandValue conf.(CurTargetData) v locals conf.(Globals) = Some gv>> /\
+    <<VAL_X: getOperandValue conf.(CurTargetData) (value_id x) locals' conf.(Globals) = Some gv>>.
 Proof.
   revert assigns locals locals' x ty v ASSIGNS LOCALS' UNIQUE_PHI ASSIGN_IN.
   induction phinodes.
@@ -259,18 +258,17 @@ Lemma phinodes_add_lessdef_sound
       invst invmem inv0
       assigns
       (STEP: switchToNewBasicBlock conf.(CurTargetData)
-                                          (l_to, stmts_intro phinodes cmds terminator)
-                                          st0.(EC).(CurBB)
-                                          conf.(Globals)
-                                          st0.(EC).(Locals) = Some st1.(EC).(Locals))
+                                   (l_to, stmts_intro phinodes cmds terminator)
+                                   st0.(EC).(CurBB)
+                                   conf.(Globals)
+                                   st0.(EC).(Locals) = Some st1.(EC).(Locals))
       (ASSIGNS: forallb_map (Postcond.Phinode.resolve st0.(EC).(CurBB).(fst)) phinodes = Some assigns)
       (UNIQUE_PHI: unique id_dec (List.map Postcond.Phinode.get_def assigns) = true)
       (STATE: InvState.Unary.sem conf st1 invst invmem inv0)
-      (PREV: snapshot_as_previous st0 invst)
-  :
-  InvState.Unary.sem
-    conf st1 invst invmem
-    (Hints.Invariant.update_lessdef (Postcond.postcond_phinodes_add_lessdef assigns) inv0).
+      (PREV: snapshot_previous st0 invst)
+  : InvState.Unary.sem
+      conf st1 invst invmem
+      (Hints.Invariant.update_lessdef (Postcond.postcond_phinodes_add_lessdef assigns) inv0).
 Proof.
   (* TODO: invst's previous = st0.(EC).(Locals) *)
   inv STATE.
@@ -279,6 +277,7 @@ Proof.
   ii. exploit Exprs.ExprPairSet.union_1; eauto. i. des.
   { exploit LESSDEF; eauto. }
   clear LESSDEF NOALIAS UNIQUE PRIVATE H.
+  unfold snapshot_previous in PREV.
   exploit get_lessdef_spec; eauto. i. des.
   { subst. ss.
     esplits; try reflexivity.
@@ -295,7 +294,7 @@ Proof.
     subst.
     unfold getOperandValue in VAL_V.
     destruct phiv; eauto.
-    exploit PREV; eauto.
+    rewrite <- PREV in VAL_V. ss.
   }
   { subst. ss.
     esplits; try reflexivity.
@@ -310,8 +309,8 @@ Proof.
     assert (GV_VAL1: gv = val1).
     { unfold InvState.Unary.sem_idT. ss.
       destruct phiv.
-      - exploit PREV; eauto. i. des.
-        ss. unfold InvState.Unary.sem_idT in *. ss. congruence.
+      - ss. rewrite <- PREV in VAL_V.
+        unfold InvState.Unary.sem_idT in *. ss. congruence.
       - ss. congruence.
     }
     subst. eauto.
@@ -337,8 +336,9 @@ Qed.
 Lemma locals_equiv_after_phinode
       conf l_to phinodes cmds tmn b assigns
       locals locals'
-      (SWITCH: switchToNewBasicBlock conf.(CurTargetData) (l_to, stmts_intro phinodes cmds tmn)
-                                                          b conf.(Globals) locals = Some locals')
+      (SWITCH: switchToNewBasicBlock conf.(CurTargetData)
+                                     (l_to, stmts_intro phinodes cmds tmn)
+                                     b conf.(Globals) locals = Some locals')
       (RESOLVE: forallb_map (Postcond.Phinode.resolve b.(fst)) phinodes = Some assigns)
   :
     <<EQUIV: locals_equiv_except (Exprs.IdTSet_from_list (List.map (Exprs.IdT.lift Exprs.Tag.physical)
