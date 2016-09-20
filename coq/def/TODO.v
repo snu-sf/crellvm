@@ -40,14 +40,6 @@ Fixpoint list_forallb2 A B (P: A -> B -> bool) (la:list A) (lb:list B): bool :=
   | _, _ => false
   end.
 
-Inductive Forall2 (A B : Type) (P : A -> B -> Prop) : list A -> list B -> Prop :=
-  Forall2_nil :
-    <<FORALL2_NIL: Forall2 P [] []>>
-| Forall2_cons a b la lb
-               (HEAD: P a b)
-               (TAIL: Forall2 P la lb):
-    <<FORALL2_CONS: Forall2 P (a :: la) (b :: lb)>>.
-
 Fixpoint list_forallb3 A B C (P: A -> B -> C -> bool) (la:list A) (lb:list B) (lc:list C): bool :=
   match la, lb, lc with
   | a::la, b::lb, c::lc => P a b c && list_forallb3 P la lb lc

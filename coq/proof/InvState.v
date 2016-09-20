@@ -18,6 +18,7 @@ Require Import TODO.
 
 Set Implicit Arguments.
 
+
 (* TODO: m_src, m_tgt, conf_src, conf_tgt *)
 Inductive valid_conf
           (m_src m_tgt:module)
@@ -40,6 +41,28 @@ Ltac solve_bool_true :=
          end;
      try subst; ss; unfold is_true in *; unfold sflib.is_true in *).
 
+Lemma get_lhs_in_spec
+      ld (rhs: Expr.t) x
+  (LHS: ExprPairSet.In x (Invariant.get_lhs ld rhs)):
+  (snd x) = rhs /\ ExprPairSet.In x ld.
+Proof.
+  unfold Invariant.get_lhs, flip in *.
+  rewrite ExprPairSetFacts.filter_iff in LHS; cycle 1.
+  { solve_compat_bool. }
+  des. des_sumbool. ss.
+Qed.
+
+Lemma get_rhs_in_spec
+      ld (lhs: Expr.t) x
+  (RHS: ExprPairSet.In x (Invariant.get_rhs ld lhs)):
+  (fst x) = lhs /\ ExprPairSet.In x ld.
+Proof.
+  unfold Invariant.get_rhs, flip in *.
+  rewrite ExprPairSetFacts.filter_iff in RHS; cycle 1.
+  { solve_compat_bool. }
+  des. des_sumbool. ss.
+Qed.
+
 Module Unary.
   Structure t := mk {
     previous: GVsMap;
@@ -54,15 +77,6 @@ Module Unary.
 
   Definition update_both f x :=
     update_ghost f (update_previous f x).
-
-  Definition filter
-             (preserved: Exprs.Tag.t * id -> bool)
-             (inv: t): t :=
-    update_ghost
-      (filter_AL_atom (preserved <*> (pair Exprs.Tag.ghost)))
-      (update_previous
-         (filter_AL_atom (preserved <*> (pair Exprs.Tag.previous)))
-         inv).
 
   Definition sem_tag (st:State) (invst:t) (tag:Tag.t): GVsMap :=
     match tag with
@@ -178,139 +192,6 @@ Module Unary.
       end
     end.
 
-  Lemma filter_subset_idT st_unary f id invst_unary val
-        (VAL_SUBSET: (sem_idT st_unary (filter f invst_unary) id = Some val)):
-    <<VAL: (sem_idT st_unary invst_unary id = Some val)>>.
-  Proof.
-    red.
-    unfold sem_idT in *.
-    unfold filter, filter_AL_atom in *.
-    unfold update_ghost, update_previous in *. ss.
-    unfold sem_tag in *. ss.
-    destruct id. rename i0 into id. ss.
-    destruct invst_unary. ss.
-    destruct t0; ss.
-    - exploit (@lookup_AL_filter_some GenericValue); eauto.
-    - exploit (@lookup_AL_filter_some GenericValue); eauto.
-  Qed.
-
-  Lemma filter_subset_valueT conf_unary st_unary f vt invst_unary val
-        (VAL_SUBSET: (sem_valueT conf_unary st_unary
-                                 (filter f invst_unary) vt = Some val)):
-    <<VAL: (sem_valueT conf_unary st_unary invst_unary vt = Some val)>>.
-  Proof.
-    red.
-    destruct vt; ss.
-    exploit filter_subset_idT; eauto.
-  Qed.
-
-  Lemma filter_subset_list_valueT conf_unary st_unary f vts invst_unary val
-        (VAL_SUBSET: (sem_list_valueT conf_unary st_unary
-                                      (filter f invst_unary) vts = Some val)):
-    <<VAL: (sem_list_valueT conf_unary st_unary invst_unary vts = Some val)>>.
-  Proof.
-    red.
-    generalize dependent val.
-    induction vts; i; ss.
-    destruct a; ss.
-    Ltac exploit_with H x :=
-      (exploit H; [exact x|]; eauto; ii; des).
-    des_ifs; ss;
-      (all_once exploit_with filter_subset_valueT);
-      (exploit IHvts; eauto; ii; des); clarify.
-  Qed.
-
-  Lemma filter_subset_expr conf_unary st_unary f expr invst_unary val
-        (VAL_SUBSET: (sem_expr conf_unary st_unary
-                               (filter f invst_unary) expr = Some val)):
-    <<VAL: (sem_expr conf_unary st_unary invst_unary expr = Some val)>>.
-  Proof.
-    red.
-    Ltac exploit_filter_subset_with x :=
-      match (type of x) with
-      | (sem_valueT _ _ _ _ = Some _) =>
-        (exploit filter_subset_valueT; [exact x|]; eauto; ii; des)
-      | (sem_list_valueT _ _ _ _ = Some _) =>
-        (exploit filter_subset_list_valueT; [exact x|]; eauto; ii; des)
-      end.
-    Time destruct expr; ss;
-      des_ifs; ss; (all_once exploit_filter_subset_with); clarify.
-  (* exploit_with: Finished transaction in 25.39 secs (25.194u,0.213s) (successful) *)
-  (* exploit_with_fast: Finished transaction in 7.575 secs (7.536u,0.044s) (successful) *)
-  Qed.
-
-  Lemma filter_preserved_valueT
-        conf_unary st_unary invst_unary vt val f
-        (VAL: sem_valueT conf_unary st_unary invst_unary vt = Some val)
-        (PRESERVED: (sflib.is_true (List.forallb f (Exprs.ValueT.get_idTs vt)))):
-    <<VAL: sem_valueT conf_unary st_unary (filter f invst_unary) vt = Some val>>.
-  Proof.
-    red.
-    destruct vt; ss.
-    repeat (des_bool; des). clear PRESERVED0.
-    unfold sem_idT in *.
-    destruct x; ss.
-    unfold filter.
-    destruct invst_unary; ss.
-    unfold compose in *.
-    unfold Exprs.Tag.t in *. (* TODO doing left unfold is a bit annoying *)
-    destruct t0; ss; rewrite lookup_AL_filter_spec in *; des_ifs.
-  Qed.
-
-  Lemma filter_preserved_list_valueT
-        conf_unary st_unary invst_unary vts val f
-        (VAL: sem_list_valueT conf_unary st_unary invst_unary vts = Some val)
-        (PRESERVED: sflib.is_true (List.forallb
-                                     (fun x => (List.forallb f (Exprs.ValueT.get_idTs x)))
-                                     (List.map snd vts))):
-    <<VAL: sem_list_valueT conf_unary st_unary (filter f invst_unary) vts = Some val>>.
-  Proof.
-    generalize dependent PRESERVED.
-    generalize dependent val.
-    induction vts; ii; ss; red.
-    destruct a; ss.
-    repeat (des_bool; des).
-    des_ifs; ss.
-    - (exploit filter_preserved_valueT; [exact Heq1| |]; eauto; ii; des).
-      exploit IHvts; eauto; []; ii; des.
-      clarify.
-    - (exploit filter_preserved_valueT; [exact Heq1| |]; eauto; ii; des).
-      clarify.
-      exploit IHvts; eauto; []; ii; des.
-      clarify.
-    - (exploit filter_preserved_valueT; [exact Heq0| |]; eauto; ii; des).
-      exploit IHvts; eauto; []; ii; des.
-      clarify.
-  Qed.
-
-  Lemma filter_preserved_expr
-        conf_unary st_unary invst_unary expr val f
-        (VAL: sem_expr conf_unary st_unary invst_unary expr = Some val)
-        (PRESERVED: List.forallb f (Exprs.Expr.get_idTs expr)):
-    <<VAL: sem_expr conf_unary st_unary (filter f invst_unary) expr = Some val>>.
-  Proof.
-    red.
-    unfold Exprs.Expr.get_idTs in *.
-    eapply forallb_filter_map in PRESERVED. des.
-    unfold is_true in PRESERVED. (* des_bool should kill it!!!!!!! KILL ALL is_true *)
-
-    Ltac exploit_filter_preserved_with x :=
-      match (type of x) with
-      | (sem_valueT _ _ (filter _ _) _ = _) => fail 1
-      | (sem_list_valueT _ _ (filter _ _) _ = _) => fail 1
-      (* Above is REQUIRED in order to prevent inf loop *)
-      | (sem_valueT _ _ _ _ = Some _) =>
-        (exploit filter_preserved_valueT; [exact x| |]; eauto; ii; des)
-      | (sem_list_valueT _ _ _ _ = Some _) =>
-        (exploit filter_preserved_list_valueT; [exact x| |]; eauto; ii; des)
-      end.
-
-    Time destruct expr; ss;
-      repeat (des_bool; des); des_ifs; clarify;
-        (all_once exploit_filter_subset_with); clarify;
-          (all_once exploit_filter_preserved_with); clarify.
-  Qed.
-
   Definition sem_lessdef (conf:Config) (st:State) (invst:t) (es:ExprPair.t): Prop :=
     forall val1 (VAL1: sem_expr conf st invst es.(fst) = Some val1),
     exists val2,
@@ -389,64 +270,6 @@ Module Unary.
       (PRIVATE: IdTSet.For_all (sem_private conf st invst invmem.(InvMem.Unary.private)) inv.(Invariant.private))
   .
 
-  Lemma incl_implies_preserved
-        conf st invst0 expr val inv
-        (preserved: _ -> bool)
-        (PRESERVED: forall id (ID: In id (Hints.Invariant.get_idTs_unary inv)), preserved id)
-        (VAL: sem_expr conf st invst0 expr = Some val)
-        (INCL: incl (Exprs.Expr.get_idTs expr) (Hints.Invariant.get_idTs_unary inv)):
-    <<PRESERVED: sem_expr conf st (filter preserved invst0) expr = Some val>>.
-  Proof.
-    eapply filter_preserved_expr; eauto. apply forallb_forall. i.
-    apply PRESERVED. apply INCL. ss.
-  Qed.
-
-  (* TODO put this in FSetExtra *)
-  Lemma In_list {A} (f: Exprs.ExprPair.t -> list A) x xs
-        (IN: Exprs.ExprPairSet.In x xs):
-    <<IN: List.incl (f x) (List.concat (List.map f (Exprs.ExprPairSet.elements xs)))>>.
-  Proof.
-    red.
-    exploit Exprs.ExprPairSetFacts.elements_iff; eauto; []; ii; des.
-    specialize (H IN). clear IN.
-    specialize (H1 H).
-    exploit InA_iff_In; eauto. ii; des.
-    specialize (H2 H). clear H3.
-    assert(G: In (f x) (List.map f (Exprs.ExprPairSet.elements xs))).
-    { eapply In_map; eauto. }
-    exploit (@In_concat A Exprs.ExprPair.t (list A)); eauto.
-  Qed.
-
-  Lemma filter_spec
-        conf st invst invmem inv
-        (preserved: _ -> bool)
-        (PRESERVED: forall id (ID: In id (Hints.Invariant.get_idTs_unary inv)), preserved id)
-        (STATE: sem conf st invst invmem inv):
-    sem conf st (filter preserved invst) invmem inv.
-  Proof.
-    inv STATE. econs.
-    - ii.
-      exploit filter_subset_expr; eauto. i. des.
-      exploit LESSDEF; eauto. i. des.
-      exploit incl_implies_preserved; eauto.
-      eapply incl_tran; [|eapply incl_tran].
-      + apply incl_appr. apply incl_refl.
-      + eapply In_list in H. des. refine H.
-      + unfold Hints.Invariant.get_idTs_unary.
-        apply incl_appl. apply incl_refl.
-    - inv NOALIAS. econs; i.
-      + eapply DIFFBLOCK; eauto.
-        * eapply filter_subset_valueT; eauto.
-        * eapply filter_subset_valueT; eauto.
-      + eapply NOALIAS0; eauto.
-        * eapply filter_subset_valueT; eauto.
-        * eapply filter_subset_valueT; eauto.
-    - ii. exploit UNIQUE; eauto. i. inv H0.
-      econs; eauto.
-    - ii. exploit PRIVATE; eauto.
-      eapply filter_subset_idT; eauto.
-  Qed.
-
   Lemma sem_empty
         conf st invst invmem inv
         (EMPTY: Invariant.is_empty_unary inv):
@@ -486,11 +309,6 @@ Module Rel.
   Definition update_both f x :=
     update_src f (update_tgt f x).
 
-  Definition filter
-             (preserved: Exprs.Tag.t * id -> bool)
-             (inv: t): t :=
-    update_both (Unary.filter preserved) inv.
-
   Definition sem_inject (st_src st_tgt:State) (invst:t) (inject:meminj) (id:IdT.t): Prop :=
     forall val_src (VAL_SRC: Unary.sem_idT st_src invst.(src) id = Some val_src),
     exists val_tgt,
@@ -517,8 +335,8 @@ Module Rel.
         conf_src ec_src ecs_src mem_src
         conf_tgt ec_tgt ecs_tgt mem_tgt
         invmem inv
-        (SRC: Hints.Invariant.is_empty_unary inv.(Invariant.src))
-        (TGT: Hints.Invariant.is_empty_unary inv.(Invariant.tgt))
+        (SRC: Invariant.is_empty_unary inv.(Invariant.src))
+        (TGT: Invariant.is_empty_unary inv.(Invariant.tgt))
         (LOCALS: inject_locals invmem ec_src.(Locals) ec_tgt.(Locals)):
     exists invst,
       sem conf_src conf_tgt
@@ -542,25 +360,6 @@ Module Rel.
     <<REFL: genericvalues_inject.gv_inject meminj gv gv>>.
   Proof.
   Admitted.
-
-  (* TODO put this in FSetExtra *)
-  Lemma In_elements x xs:
-    In x (ExprPairSet.elements xs) <-> ExprPairSet.In x xs.
-  Proof.
-    rewrite ExprPairSetFacts.elements_iff, <- InA_iff_In. ss.
-  Qed.
-
-  (* TODO put this in FSetExtra *)
-  Lemma In_filter_elements fnc x xs
-        (IN: In x (ExprPairSet.elements
-                     (ExprPairSet.filter fnc xs))):
-    fnc x = true /\ In x (ExprPairSet.elements xs).
-  Proof.
-    apply In_elements in IN.
-    apply ExprPairSetFacts.filter_iff in IN; [|solve_compat_bool].
-    des. splits; ss.
-    apply InA_iff_In, ExprPairSetFacts.elements_iff. ss.
-  Qed.
 
   Lemma not_in_maydiff_value_spec
         inv invmem invst
@@ -597,7 +396,7 @@ Module Rel.
         (VAL_SRC: Unary.sem_list_valueT conf_src st_src (src invst) vals = ret gv_vals_src):
     exists gv_vals_tgt,
       Unary.sem_list_valueT conf_tgt st_tgt (tgt invst) vals = ret gv_vals_tgt /\
-      Forall2 (genericvalues_inject.gv_inject invmem.(InvMem.Rel.inject)) gv_vals_src gv_vals_tgt.
+      list_forall2 (genericvalues_inject.gv_inject invmem.(InvMem.Rel.inject)) gv_vals_src gv_vals_tgt.
   Proof.
     revert gv_vals_src VAL_SRC.
     induction vals; ss; i; inv VAL_SRC.
@@ -620,7 +419,7 @@ Module Rel.
             sem_inject st_src st_tgt invst (InvMem.Rel.inject invmem) id)
         (VAL_SRC: Unary.sem_expr conf_src st_src (src invst) expr = ret gv_expr_src):
     exists gv_expr_tgt, Unary.sem_expr conf_tgt st_tgt (tgt invst) expr = ret gv_expr_tgt /\
-                    genericvalues_inject.gv_inject (InvMem.Rel.inject invmem) gv_expr_src gv_expr_tgt.
+                   genericvalues_inject.gv_inject (InvMem.Rel.inject invmem) gv_expr_src gv_expr_tgt.
   Proof.
     inversion CONF. inv INJECT.
     unfold Invariant.not_in_maydiff_expr in *.
@@ -701,7 +500,7 @@ Module Rel.
         (CONF: valid_conf m_src m_tgt conf_src conf_tgt)
         (STATE: sem conf_src conf_tgt st_src st_tgt invst invmem inv)
         (MEM: InvMem.Rel.sem conf_src conf_tgt st_src.(Mem) st_tgt.(Mem) invmem)
-        (INJECT: Hints.Invariant.inject_value inv val_src val_tgt)
+        (INJECT: Invariant.inject_value inv val_src val_tgt)
         (VAL_SRC: Unary.sem_valueT conf_src st_src invst.(src) val_src = Some gval_src):
     exists gval_tgt,
       <<VAL_TGT: Unary.sem_valueT conf_tgt st_tgt invst.(tgt) val_tgt = Some gval_tgt>> /\
@@ -722,15 +521,9 @@ Module Rel.
     - inv STATE.
       apply ExprPairSetFacts.exists_iff in INJECT; [|solve_compat_bool].
       inv INJECT. destruct x. repeat (des_bool; des).
-      unfold Invariant.get_rhs in *. unfold flip in *.
-      apply ExprPairSetFacts.filter_iff in H; [|solve_compat_bool]. des.
-      unfold fst, snd in *.
-      match goal with
-      | [H: proj_sumbool (Expr.eq_dec ?a ?b) = true |- _] =>
-        destruct (Expr.eq_dec a b); ss; subst
-      end.
-      apply ExprPairSetFacts.mem_iff in H.
-      exploit lessdef_expr_spec; try exact H; eauto. i. des.
+      apply get_rhs_in_spec in H. ss. des. subst.
+      apply ExprPairSetFacts.mem_iff in H2.
+      exploit lessdef_expr_spec; try exact H2; eauto. i. des.
       exploit not_in_maydiff_expr_spec; try exact H1; eauto. i. des.
       exploit lessdef_expr_spec; try exact H0; eauto. i. des.
       esplits; eauto.
@@ -765,7 +558,7 @@ Module Rel.
         (VAL_SRC: Unary.sem_list_valueT conf_src st_src invst.(src) vals_src = Some gval_src):
     exists gval_tgt,
       <<VAL_TGT: Unary.sem_list_valueT conf_tgt st_tgt invst.(tgt) vals_tgt = Some gval_tgt>> /\
-      <<INJECT: Forall2 (genericvalues_inject.gv_inject invmem.(InvMem.Rel.inject)) gval_src gval_tgt>>.
+      <<INJECT: list_forall2 (genericvalues_inject.gv_inject invmem.(InvMem.Rel.inject)) gval_src gval_tgt>>.
   Proof.
     Ltac exploit_inject_value_spec_with x :=
       match (type of x) with
@@ -796,7 +589,7 @@ Module Rel.
         (CONF: valid_conf m_src m_tgt conf_src conf_tgt)
         (STATE: sem conf_src conf_tgt st_src st_tgt invst invmem inv)
         (MEM: InvMem.Rel.sem conf_src conf_tgt st_src.(Mem) st_tgt.(Mem) invmem)
-        (INJECT: Hints.Invariant.inject_expr inv expr_src expr_tgt)
+        (INJECT: Invariant.inject_expr inv expr_src expr_tgt)
         (VAL_SRC: Unary.sem_expr conf_src st_src invst.(src) expr_src = Some gval_src):
     exists gval_tgt,
       <<VAL_TGT: Unary.sem_expr conf_tgt st_tgt invst.(tgt) expr_tgt = Some gval_tgt>> /\
