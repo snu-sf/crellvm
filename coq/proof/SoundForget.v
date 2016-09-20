@@ -240,8 +240,6 @@ Proof.
   - eapply forget_unary_sound; eauto.
   - eapply forget_unary_sound; eauto.
   - i. ss.
-    unfold sflib.is_true in NOTIN.
-    apply not_true_is_false in NOTIN.
     apply IdTSetFacts.not_mem_iff in NOTIN.
     rewrite IdTSetFacts.union_iff in NOTIN.
     apply not_or_and in NOTIN. des.
@@ -250,8 +248,6 @@ Proof.
     apply IdTSetFacts.not_mem_iff in NOTIN0.
     ii. apply state_equiv_except_symm in EQUIV_SRC.
     exploit sem_idT_equiv_except; try exact EQUIV_SRC; eauto. i. des.
-    exploit MAYDIFF; eauto.
-    { congruence. }
-    i. des.
+    exploit MAYDIFF; eauto. i. des.
     exploit sem_idT_equiv_except; try exact EQUIV_TGT; eauto.
 Qed.

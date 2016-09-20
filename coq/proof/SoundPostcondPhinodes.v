@@ -15,6 +15,8 @@ Require Import paco.
 Import Opsem.
 
 Require Import TODO.
+Require Import Exprs.
+Require Import Hints.
 Require Import Validator.
 Require Import GenericValues.
 Require InvMem.
@@ -25,7 +27,6 @@ Require Import SoundSnapshot.
 Require Import SoundForget.
 Require Import SoundReduceMaydiff.
 Require Import SoundImplies.
-(* Require Import SoundPhinodesAddLessdef. *)
 
 Set Implicit Arguments.
 
@@ -107,112 +108,35 @@ Ltac solve_match_bool :=
             destruct c eqn:MATCH; try done
           end).
 
-(* TODO: move and prove*)
-
-Lemma get_lessdef_spec_aux
-      ep l init
-      (REV: Exprs.ExprPairSet.In ep
-              (fold_right
-                 (fun (y : Exprs.Expr.t * Exprs.Expr.t) (x : Exprs.ExprPairSet.t) =>
-                    Exprs.ExprPairSet.add (fst y, snd y) (Exprs.ExprPairSet.add (snd y, fst y) x))
-                 init (rev l)))
-  :
-    <<IN: Exprs.ExprPairSet.In ep
-            (fold_right
-               (fun (y : Exprs.Expr.t * Exprs.Expr.t) (x : Exprs.ExprPairSet.t) =>
-                  Exprs.ExprPairSet.add (fst y, snd y) (Exprs.ExprPairSet.add (snd y, fst y) x))
-               init l)>>.
-Proof.
-  rewrite fold_left_rev_right in REV.
-  revert ep init REV.
-  induction l; i; ss.
-  exploit IHl; eauto. i. des.
-  i.
-  Lemma aux2
-        ep ep1 l init 
-        (IN: Exprs.ExprPairSet.In ep
-           (fold_right
-              (fun (y : Exprs.Expr.t * Exprs.Expr.t) (x : Exprs.ExprPairSet.t) =>
-                 Exprs.ExprPairSet.add (fst y, snd y)
-                                       (Exprs.ExprPairSet.add (snd y, fst y) x))
-              (Exprs.ExprPairSet.add ep1 init) l))
-        :
-          <<IN:
-          ep = (fst ep1, snd ep1) \/
-          ep = (snd ep1, fst ep1) \/
-          Exprs.ExprPairSet.In ep
-            (fold_right
-               (fun (y : Exprs.Expr.t * Exprs.Expr.t) (x : Exprs.ExprPairSet.t) =>
-                  Exprs.ExprPairSet.add (fst y, snd y)
-                                        (Exprs.ExprPairSet.add (snd y, fst y) x))
-               init l)>>.
-  Proof.
-    revert ep ep1 init IN.
-    induction l.
-    { i. ss.
-      apply Exprs.ExprPairSetFacts.add_iff in IN. des.
-      - destruct ep. subst. eauto.
-      - eauto.
-    }
-    { i. ss.
-      repeat rewrite Exprs.ExprPairSetFacts.add_iff in IN. des.
-      - right. right.
-        apply Exprs.ExprPairSetFacts.add_iff. eauto.
-      - right. right.
-        apply Exprs.ExprPairSetFacts.add_iff.
-        right.
-        apply Exprs.ExprPairSetFacts.add_iff.
-        eauto.
-      - exploit IHl; eauto. i. des; eauto.
-        right. right.
-        apply Exprs.ExprPairSetFacts.add_iff. right.
-        apply Exprs.ExprPairSetFacts.add_iff. right.
-        eauto.
-    }
-  Qed.
-
-  idtac.
-  apply aux2 in x.
-  des.
-  - ss. apply Exprs.ExprPairSetFacts.add_iff. eauto.
-  - ss. apply Exprs.ExprPairSetFacts.add_iff. right.
-    apply Exprs.ExprPairSetFacts.add_iff. eauto.
-  - apply aux2 in x.
-    des.
-    + ss. apply Exprs.ExprPairSetFacts.add_iff. right.
-      apply Exprs.ExprPairSetFacts.add_iff. eauto.
-    + ss. apply Exprs.ExprPairSetFacts.add_iff. eauto.
-    + apply Exprs.ExprPairSetFacts.add_iff. right.
-      apply Exprs.ExprPairSetFacts.add_iff. right.
-      eauto.
-Qed.
-
 Lemma get_lessdef_spec
       ep assigns
-      (IN: Exprs.ExprPairSet.In ep (Postcond.Phinode.get_lessdef assigns)):
+      (IN: ExprPairSet.In ep (Postcond.Phinode.get_lessdef assigns)):
   exists phix phiv phity,
     <<IN: In (Postcond.Phinode.assign_intro phix phity phiv) assigns>> /\
-          (<<PAIR1: ep = (Exprs.Expr.value (Exprs.ValueT.id (Exprs.Tag.physical, phix)),
-                          Exprs.Expr.value (Exprs.ValueT.lift Exprs.Tag.previous phiv))>> \/
-           <<PAIR2: ep = (Exprs.Expr.value (Exprs.ValueT.lift Exprs.Tag.previous phiv),
-                          Exprs.Expr.value (Exprs.ValueT.id (Exprs.Tag.physical, phix)))>>).
+    __guard__
+      (<<PAIR1: ep = (Expr.value (ValueT.id (Tag.physical, phix)),
+                      Expr.value (ValueT.lift Tag.previous phiv))>> \/
+       <<PAIR2: ep = (Expr.value (ValueT.lift Tag.previous phiv),
+                      Expr.value (ValueT.id (Tag.physical, phix)))>>).
 Proof.
-  revert ep IN.
-  unfold Postcond.Phinode.get_lessdef.
-  rewrite <- fold_left_rev_right.
-
-  i. apply get_lessdef_spec_aux in IN. revert ep IN.
-
-  induction assigns.
-  { i. ss. apply Exprs.ExprPairSetFacts.empty_iff in IN. done. }
-  i. ss.
-  des.
-  repeat rewrite -> Exprs.ExprPairSetFacts.add_iff in IN. des.
-  - destruct a. esplits; eauto.
-  - destruct a. esplits; eauto.
-  - exploit IHassigns; eauto. i. des.
-    + esplits; eauto.
-    + esplits; eauto.
+  cut
+    (exists phix phiv phity,
+        <<IN: In (Postcond.Phinode.assign_intro phix phity phiv) (rev assigns)>> /\
+        __guard__
+          (<<PAIR1: ep = (Expr.value (ValueT.id (Tag.physical, phix)),
+                          Expr.value (ValueT.lift Tag.previous phiv))>> \/
+           <<PAIR2: ep = (Expr.value (ValueT.lift Tag.previous phiv),
+                          Expr.value (ValueT.id (Tag.physical, phix)))>>)).
+  { i. des. esplits; eauto. apply in_rev. eauto. }
+  unfold Postcond.Phinode.get_lessdef in IN.
+  rewrite <- fold_left_rev_right, <- map_rev in IN.
+  induction (rev assigns); ss.
+  { apply ExprPairSetFacts.empty_iff in IN. done. }
+  destruct a. ss.
+  repeat rewrite -> ExprPairSetFacts.add_iff in IN. des.
+  - esplits; eauto. left. eauto.
+  - esplits; eauto. right. eauto.
+  - exploit IHl0; eauto. i. des. esplits; eauto.
 Qed.
 
 Lemma phinode_assign_sound
@@ -228,38 +152,29 @@ Lemma phinode_assign_sound
     <<VAL_V: getOperandValue conf.(CurTargetData) v locals conf.(Globals) = Some gv>> /\
     <<VAL_X: getOperandValue conf.(CurTargetData) (value_id x) locals' conf.(Globals) = Some gv>>.
 Proof.
-  revert assigns locals locals' x ty v ASSIGNS LOCALS' UNIQUE_PHI ASSIGN_IN.
-  induction phinodes.
-  - i. ss. inv ASSIGNS. ss.
-  - i. ss.
-    simtac. des.
-    + inv ASSIGN_IN.
-      assert (EQV: v = v0).
-      { match goal with
-        | [H1: getValueViaBlockFromValuels _ _ = Some v0,
-           H2: lookupAL _ _ _ = Some v |- _] => clear -H1 H2
-        end.
-        unfold getValueViaBlockFromValuels in *.
-        induction l0; ss; simtac.
-        exploit IHl0; eauto.
-      }
-      subst. esplits; eauto.
-      match goal with
-      | [H:_ |- (if ?c then _ else _) = _ ] => destruct c; try done
+  revert_until b. induction phinodes; i; ss.
+  { inv ASSIGNS. ss. }
+  simtac. des.
+  - inv ASSIGN_IN.
+    assert (EQV: v = v0).
+    { match goal with
+      | [H1: getValueViaBlockFromValuels _ _ = Some v0,
+         H2: lookupAL _ _ _ = Some v |- _] => clear -H1 H2
       end.
-    + exploit IHphinodes; eauto. i. des.
-      esplits; eauto.
-      destruct (id_dec x id5).
-      { subst.
-        assert (IN_DEFS: In id5 (List.map Postcond.Phinode.get_def l2)).
-        { replace id5 with (Postcond.Phinode.get_def (Postcond.Phinode.assign_intro id5 ty v)); eauto.
-          apply In_map; eauto.
-        }
-        destruct (in_dec id_dec id5 (List.map Postcond.Phinode.get_def l2)); done.
-      }
-      match goal with
-      | [H:_ |- (if ?c then _ else _) = _ ] => destruct c; try done
-      end.
+      unfold getValueViaBlockFromValuels in *.
+      induction l0; ss; simtac.
+      eapply IHl0; eauto.
+    }
+    subst. esplits; eauto.
+    match goal with
+    | [H:_ |- (if ?c then _ else _) = _ ] => destruct c; try done
+    end.
+  - exploit IHphinodes; eauto. i. des.
+    esplits; eauto.
+    fold id. destruct (x == id5); ss. subst.
+    destruct (in_dec id_dec id5 (List.map Postcond.Phinode.get_def l2)); ss. contradict n.
+    replace id5 with (Postcond.Phinode.get_def (Postcond.Phinode.assign_intro id5 ty v)); eauto.
+    apply In_map; eauto.
 Qed.
 
 Lemma phinodes_add_lessdef_sound
@@ -280,51 +195,34 @@ Lemma phinodes_add_lessdef_sound
       conf st1 invst invmem
       (Hints.Invariant.update_lessdef (Postcond.postcond_phinodes_add_lessdef assigns) inv0).
 Proof.
-  (* TODO: invst's previous = st0.(EC).(Locals) *)
-  inv STATE.
-  econs; eauto.
-  ss. unfold Postcond.postcond_phinodes_add_lessdef.
-  ii. exploit Exprs.ExprPairSet.union_1; eauto. i. des.
-  { exploit LESSDEF; eauto. }
-  clear LESSDEF NOALIAS UNIQUE PRIVATE H.
+  econs; try by inv STATE.
+  s. ii. apply ExprPairSet.union_1 in H.  des.
+  { eapply STATE; eauto. }
   unfold snapshot_previous in PREV.
   exploit get_lessdef_spec; eauto. i. des.
-  { subst. ss.
-    esplits; try reflexivity.
-    unfold switchToNewBasicBlock in *.
-    solve_match_bool. inv STEP. ss.
-    destruct (CurBB (EC st0)). ss.
-    exploit phinode_assign_sound; eauto; ss. i. des. ss.
-    exploit opsem_props.OpsemProps.updateValuesForNewBlock_spec4; eauto.
-    match goal with
-    | [H: updateValuesForNewBlock _ _ = _ |- _] => rewrite H; i
-    end.
-    assert (GV_VAL1: gv = val1).
+  esplits; [|reflexivity].
+  unfold switchToNewBasicBlock in *.
+  solve_match_bool. inv STEP. ss.
+  destruct (CurBB (EC st0)). ss.
+  exploit phinode_assign_sound; eauto; ss. i. des. ss.
+  exploit opsem_props.OpsemProps.updateValuesForNewBlock_spec4; eauto.
+  match goal with
+  | [H: updateValuesForNewBlock _ _ = _ |- _] => rewrite H; i
+  end.
+  unguardH x0. des; subst; ss.
+  - assert (GV_VAL1: gv = val1).
     { unfold InvState.Unary.sem_idT in VAL1. ss. congruence. }
     subst.
     unfold getOperandValue in VAL_V.
     destruct phiv; eauto.
     rewrite <- PREV in VAL_V. ss.
-  }
-  { subst. ss.
-    esplits; try reflexivity.
-    unfold switchToNewBasicBlock in *.
-    solve_match_bool. inv STEP. ss.
-    destruct (CurBB (EC st0)). ss.
-    exploit phinode_assign_sound; eauto; ss. i. des. ss.
-    exploit opsem_props.OpsemProps.updateValuesForNewBlock_spec4; eauto. 
-    match goal with
-    | [H: updateValuesForNewBlock _ _ = _ |- _] => rewrite H; i
-    end.
-    assert (GV_VAL1: gv = val1).
-    { unfold InvState.Unary.sem_idT. ss.
-      destruct phiv.
-      - ss. rewrite <- PREV in VAL_V.
+  - assert (GV_VAL1: gv = val1).
+    { destruct phiv; ss.
+      - rewrite <- PREV in VAL_V.
         unfold InvState.Unary.sem_idT in *. ss. congruence.
-      - ss. congruence.
+      - congruence.
     }
     subst. eauto.
-  }
 Qed.
 
 Lemma phinodes_progress_getPhiNodeID_safe
@@ -336,11 +234,8 @@ Lemma phinodes_progress_getPhiNodeID_safe
   :
     <<IN: In id (List.map Postcond.Phinode.get_def assigns)>>.
 Proof.
-  revert locals locals' id assigns GETINC IN RESOLVE.
-  induction phinodes; ss.
-  i. simtac.
-  des; eauto.
-  exploit IHphinodes; eauto.
+  revert_until gl. induction phinodes; ss. i. simtac.
+  des; auto. exploit IHphinodes; eauto.
 Qed.
 
 Lemma locals_equiv_after_phinode
@@ -351,25 +246,17 @@ Lemma locals_equiv_after_phinode
                                      b conf.(Globals) locals = Some locals')
       (RESOLVE: forallb_map (Postcond.Phinode.resolve b.(fst)) phinodes = Some assigns)
   :
-    <<EQUIV: locals_equiv_except (Exprs.IdTSet_from_list (List.map (Exprs.IdT.lift Exprs.Tag.physical)
+    <<EQUIV: locals_equiv_except (IdTSet_from_list (List.map (IdT.lift Tag.physical)
                                                                    (List.map Postcond.Phinode.get_def assigns)))
                                  locals locals'>>.
 Proof.
-  unfold locals_equiv_except. ii.
-  unfold switchToNewBasicBlock in SWITCH.
-  simtac.
-  apply opsem_props.OpsemProps.updateValuesForNewBlock_spec5; eauto.
-  destruct (in_dec id_dec id0 (List.map Postcond.Phinode.get_def assigns)).
-  { exfalso. apply NOT_IN.
-    apply Exprs.IdTSet.mem_2.
-    eapply Exprs.IdTSet_from_list_spec.
-    apply In_map. eauto.
-  }
-
+  ii. unfold switchToNewBasicBlock in SWITCH. simtac.
+  apply opsem_props.OpsemProps.updateValuesForNewBlock_spec5; ss.
   destruct (in_dec id_dec id0 (List.map getPhiNodeID phinodes)).
-  { exploit phinodes_progress_getPhiNodeID_safe; eauto; done. }
-  hexploit opsem_props.OpsemProps.getIncomingValuesForBlockFromPHINodes_spec8; eauto. i.
-  exploit notin_lookupAL_None; eauto.
+  - exploit phinodes_progress_getPhiNodeID_safe; eauto. i. des.
+    contradict NOT_IN. apply IdTSet.mem_2, IdTSet_from_list_spec, In_map. ss.
+  - hexploit opsem_props.OpsemProps.getIncomingValuesForBlockFromPHINodes_spec8; eauto. i.
+    exploit notin_lookupAL_None; eauto.
 Qed.
 
 Lemma postcond_phinodes_sound
@@ -377,7 +264,7 @@ Lemma postcond_phinodes_sound
       m_tgt conf_tgt st0_tgt phinodes_tgt cmds_tgt terminator_tgt locals_tgt
       invst0 invmem inv0 inv1
       l_from l_to
-      (CONF: valid_conf m_src m_tgt conf_src conf_tgt)
+      (CONF: InvState.valid_conf m_src m_tgt conf_src conf_tgt)
       (CMD_SRC: st0_src.(EC).(CurCmds) = [])
       (CMD_TGT: st0_tgt.(EC).(CurCmds) = [])
       (L_SRC: st0_src.(EC).(CurBB).(fst) = l_from)
@@ -433,31 +320,18 @@ Proof.
   simtac.
   exploit snapshot_sound; eauto. i. des.
   exploit forget_sound; eauto.
-  { instantiate (1 := mkState (mkEC _ _ _ _ _ _) _ _). econs; s.
-    - eauto.
-    - instantiate (1 := locals_src).
-      eapply locals_equiv_after_phinode; eauto.
+  { instantiate (1 := mkState (mkEC _ _ _ _ _ _) _ _). econs; s; eauto.
+    eapply locals_equiv_after_phinode; eauto.
   }
-  { instantiate (1 := mkState (mkEC _ _ _ _ _ _) _ _). econs; s.
-    - eauto.
-    - instantiate (1 := locals_tgt).
-      eapply locals_equiv_after_phinode; eauto.
-      rewrite L_TGT. eauto.
+  { instantiate (1 := mkState (mkEC _ _ _ _ _ _) _ _). econs; s; eauto.
+    eapply locals_equiv_after_phinode; eauto.
+    rewrite L_TGT. eauto.
   }
-  i. des.
-  inversion x0.
-  exploit phinodes_add_lessdef_sound; try exact SRC; eauto. i.
-  exploit phinodes_add_lessdef_sound; try exact TGT; eauto.
+  i. des. inversion x0.
+  exploit phinodes_add_lessdef_sound; try exact SRC; eauto; i.
+  exploit phinodes_add_lessdef_sound; try exact TGT; eauto; i.
   { rewrite L_TGT. eauto. }
-  i. exploit reduce_maydiff_sound.
-  { eauto. }
-  { instantiate (1 := Hints.Invariant.mk _ _ _).
-    econs; s.
-    - apply x1.
-    - apply x2.
-    - eauto.
-  }
-  { eauto. }
-  s. i. des.
-  esplits; try exact STATE1; eauto.
+  exploit reduce_maydiff_sound; swap 1 2.
+  { instantiate (1 := Hints.Invariant.mk _ _ _). econs; eauto. }
+  all: eauto.
 Qed.

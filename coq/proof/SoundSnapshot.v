@@ -277,15 +277,15 @@ Qed.
 
 Lemma snapshot_maydiff_spec1_inv
       md0 x t
-      (NOTIN: ~ IdTSet.mem (t, x) (Snapshot.IdTSet md0))
+      (NOTIN: IdTSet.mem (t, x) (Snapshot.IdTSet md0) = false)
       (NOTPREV: t <> Tag.previous)
   :
-    <<NOTIN: ~ IdTSet.mem (t, x) md0>>.
+    <<NOTIN: IdTSet.mem (t, x) md0 = false>>.
 Proof.
   destruct (IdTSet.mem (t, x) md0) eqn:MEM; eauto.
   apply IdTSet.mem_2 in MEM.
   apply snapshot_maydiff_spec1 in MEM; eauto.
-  des. apply IdTSet.mem_1 in MEM. done.
+  des. apply IdTSet.mem_1 in MEM. clarify.
 Qed.
 
 (* Lemma snapshot_maydiff_spec2 *)
@@ -340,14 +340,14 @@ Qed.
 
 Lemma snapshot_maydiff_spec3_inv
       md0 x
-      (IN: ~ IdTSet.mem (Tag.previous, x) (Snapshot.IdTSet md0))
+      (IN: IdTSet.mem (Tag.previous, x) (Snapshot.IdTSet md0) = false)
   :
-    <<IN: ~ IdTSet.mem (Tag.physical, x) md0>>.
+    <<IN: IdTSet.mem (Tag.physical, x) md0 = false>>.
 Proof.
   destruct (IdTSet.mem (Tag.physical, x) md0) eqn:MEM; eauto.
   apply IdTSet.mem_2 in MEM.
   apply snapshot_maydiff_spec3 in MEM; try done.
-  des. apply IdTSet.mem_1 in MEM. done.
+  des. apply IdTSet.mem_1 in MEM. clarify.
 Qed.
 
 Lemma snapshot_sound
