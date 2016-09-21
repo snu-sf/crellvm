@@ -323,7 +323,7 @@ Module Infrule.
   | bitcastptr (v':ValueT.t) (bitcastinst:Expr.t)
   | bitcastptr_const (v':const) (bitcastinst:const)
   | bitcast_bitcast (src:ValueT.t) (mid:ValueT.t) (dst:ValueT.t) (srcty:typ) (midty:typ) (dstty:typ)
-  | bitcast_load (ptr:ValueT.t) (ptrty:typ) (v1:ValueT.t) (ptrty2:typ) (v2:ValueT.t) (a:align)
+  | bitcast_load (ptr:ValueT.t) (ty:typ) (v1:ValueT.t) (ty2:typ) (v2:ValueT.t) (a:align)
   | bitcast_fpext (src:ValueT.t) (mid:ValueT.t) (dst:ValueT.t) (srcty:typ) (midty:typ) (dstty:typ)
   | bitcast_fptosi (src:ValueT.t) (mid:ValueT.t) (dst:ValueT.t) (srcty:typ) (midty:typ) (dstty:typ)
   | bitcast_fptoui (src:ValueT.t) (mid:ValueT.t) (dst:ValueT.t) (srcty:typ) (midty:typ) (dstty:typ)

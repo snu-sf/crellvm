@@ -529,10 +529,10 @@ Definition apply_infrule
        $$ inv0 |-src (Expr.value dst) >= (Expr.cast castop_bitcast midty mid dstty) $$
     then {{ inv0 +++src (Expr.value dst) >= (Expr.cast castop_bitcast srcty src dstty) }}
     else apply_fail tt
-  | Infrule.bitcast_load ptr ptrty v1 ptrty2 v2 a =>
-    if $$ inv0 |-src (Expr.load ptr ptrty a) >= (Expr.value v1) $$ &&
-       $$ inv0 |-src (Expr.cast castop_bitcast ptrty v1 ptrty2) >= (Expr.value v2) $$
-    then {{inv0 +++src (Expr.load ptr ptrty2 a) >= (Expr.value v2)}}
+  | Infrule.bitcast_load ptr ty v1 ty2 v2 a =>
+    if $$ inv0 |-src (Expr.load ptr ty a) >= (Expr.value v1) $$ &&
+       $$ inv0 |-src (Expr.cast castop_bitcast ty v1 ty2) >= (Expr.value v2) $$
+    then {{inv0 +++src (Expr.load ptr ty2 a) >= (Expr.value v2)}}
     else apply_fail tt
   | Infrule.bitcast_inttoptr src mid dst srcty midty dstty =>
     if $$ inv0 |-src (Expr.value mid) >= (Expr.cast castop_inttoptr srcty src midty) $$ &&
