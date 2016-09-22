@@ -182,8 +182,8 @@ Module Snapshot.
 
   Definition alias (inv0: Invariant.aliasrel): Invariant.aliasrel :=
     let inv1 := Invariant.update_noalias_rel noalias inv0 in
-    let inv2 := Invariant.update_diffblock_rel diffblock inv0 in
-    inv1.
+    let inv2 := Invariant.update_diffblock_rel diffblock inv1 in
+    inv2.
 
   Definition physical_previous_lessdef (inv:Invariant.unary): ExprPairSet.t :=
     let idt_set := IdTSet_from_list (Invariant.get_idTs_unary inv) in
