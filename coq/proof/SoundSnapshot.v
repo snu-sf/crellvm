@@ -42,13 +42,13 @@ Set Implicit Arguments.
 (*          (PREV: InvState.Unary.sem_idT st invst (Tag.previous, x) = Some gvx), *)
 (*     <<LOCAL: lookupAL _ st.(EC).(Locals) x = Some gvx>>. *)
 
-Definition snapshot_previous st invst: Prop :=
-  forall x,
-    <<SNAPSHOT_PREV: InvState.Unary.sem_idT st invst (Tag.previous, x) =
-    lookupAL _ st.(EC).(Locals) x>>.
+(* Definition snapshot_previous st invst: Prop := *)
+(*   forall x, *)
+(*     <<SNAPSHOT_PREV: InvState.Unary.sem_idT st invst (Tag.previous, x) = *)
+(*     lookupAL _ st.(EC).(Locals) x>>. *)
 
-Definition snapshot_ghost invst0 invst1: Prop :=
-  <<SNAPSHOT_GHOST: invst0.(InvState.Unary.ghost) = invst1.(InvState.Unary.ghost)>>.
+(* Definition snapshot_ghost invst0 invst1: Prop := *)
+(*   <<SNAPSHOT_GHOST: invst0.(InvState.Unary.ghost) = invst1.(InvState.Unary.ghost)>>. *)
 
 Lemma physical_previous_lessdef_spec
       e1 e2 inv
@@ -309,8 +309,9 @@ Lemma snapshot_unary_sound
   :
     exists invst1,
       <<STATE: InvState.Unary.sem conf st invst1 invmem (Snapshot.unary inv0)>> /\
-      <<PREV: snapshot_previous st invst1>> /\
-      <<GHOST: snapshot_ghost invst0 invst1>>.
+      <<PREV: forall x, InvState.Unary.sem_idT st invst1 (Tag.previous, x) =
+                                lookupAL _ st.(EC).(Locals) x>> /\
+      <<GHOST: invst0.(InvState.Unary.ghost) = invst1.(InvState.Unary.ghost)>>.
 Proof.
   exists (InvState.Unary.mk st.(EC).(Locals) invst0.(InvState.Unary.ghost)).
   splits; ss.
@@ -515,8 +516,10 @@ Lemma snapshot_sound
       (STATE: InvState.Rel.sem conf_src conf_tgt st_src st_tgt invst0 invmem inv0):
   exists invst1,
     <<STATE: InvState.Rel.sem conf_src conf_tgt st_src st_tgt invst1 invmem (Snapshot.t inv0)>> /\
-    <<PREV_SRC: snapshot_previous st_src invst1.(InvState.Rel.src)>> /\
-    <<PREV_TGT: snapshot_previous st_tgt invst1.(InvState.Rel.tgt)>>.
+    <<PREV_SRC: forall x, InvState.Unary.sem_idT st_src invst1.(InvState.Rel.src) (Tag.previous, x) =
+                          lookupAL _ st_src.(EC).(Locals) x>> /\
+    <<PREV_TGT: forall x, InvState.Unary.sem_idT st_tgt invst1.(InvState.Rel.tgt) (Tag.previous, x) =
+                          lookupAL _ st_tgt.(EC).(Locals) x>>.
 Proof.
   inv STATE.
   apply snapshot_unary_sound in SRC. des.
@@ -540,7 +543,6 @@ Proof.
       i. des.
       rewrite x0; eauto.
     * hexploit MAYDIFF; eauto. i.
-      unfold snapshot_ghost in *.
       unfold InvState.Rel.sem_inject in *.
       unfold InvState.Unary.sem_idT in *. ss.
       rewrite <- GHOST. rewrite <- GHOST0. eauto.

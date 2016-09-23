@@ -145,24 +145,54 @@ Proof.
   - inv EQUIV. rewrite <- MEM. eauto.
 Admitted.
 
+Definition unique_preserved_except conf invst1 inv st1 defs uses : Prop :=
+  forall x u gvx gvy
+         (IN_X: IdTSet.In x defs)
+         (IN_Y: AtomSetImpl.In u inv.(Invariant.unique))
+         (NOT_IN_USE: ~ IdTSet.In (Tag.physical, u) uses)
+         (VAL_X: InvState.Unary.sem_idT st1 invst1 x = Some gvx)
+         (VAL_Y: lookupAL _ st1.(EC).(Locals) u = Some gvy),
+    InvState.Unary.sem_diffblock conf gvx gvy.
+
 Lemma forget_unary_sound
-      defs uses st0
+      defs uses st0 st1
       conf invst invmem inv0
+      (EQUIV: state_equiv_except defs st0 st1)
+      (UNIQUE: unique_preserved_except conf invst inv0 st1 defs uses)
       (STATE: InvState.Unary.sem conf st0 invst invmem inv0)
-  : <<STATE: InvState.Unary.sem conf st0 invst invmem (Forget.unary defs uses inv0)>>.
+  : <<STATE: InvState.Unary.sem conf st1 invst invmem (Forget.unary defs uses inv0)>>.
 Proof.
 Admitted.
 
 Lemma forget_sound
       conf_src st_src0
       conf_tgt st_tgt0
+      st_src1 st_tgt1
       invst invmem inv0
       s_src s_tgt
       u_src u_tgt
+      (EQUIV_SRC: state_equiv_except s_src st_src0 st_src1)
+      (EQUIV_TGT: state_equiv_except s_tgt st_tgt0 st_tgt1)
+      (UNIQUE_SRC: unique_preserved_except conf_src invst.(InvState.Rel.src) inv0.(Invariant.src) st_src1 s_src u_src)
+      (UNIQUE_TGT: unique_preserved_except conf_tgt invst.(InvState.Rel.tgt) inv0.(Invariant.tgt) st_tgt1 s_tgt u_tgt)
       (STATE: InvState.Rel.sem conf_src conf_tgt st_src0 st_tgt0
-                               invst invmem inv0)
-  :
-  <<STATE: InvState.Rel.sem conf_src conf_tgt st_src0 st_tgt0
+                               invst invmem inv0):
+  <<STATE: InvState.Rel.sem conf_src conf_tgt st_src1 st_tgt1
                             invst invmem (Forget.t s_src s_tgt u_src u_tgt inv0)>>.
 Proof.
-Admitted.
+  inv STATE.
+  econs.
+  - eapply forget_unary_sound; eauto.
+  - eapply forget_unary_sound; eauto.
+  - i. ss.
+    apply IdTSetFacts.not_mem_iff in NOTIN.
+    rewrite IdTSetFacts.union_iff in NOTIN.
+    apply not_or_and in NOTIN. des.
+    rewrite IdTSetFacts.union_iff in NOTIN.
+    apply not_or_and in NOTIN. des.
+    apply IdTSetFacts.not_mem_iff in NOTIN0.
+    ii. apply state_equiv_except_symm in EQUIV_SRC.
+    exploit sem_idT_equiv_except; try exact EQUIV_SRC; eauto. i. des.
+    exploit MAYDIFF; eauto. i. des.
+    exploit sem_idT_equiv_except; try exact EQUIV_TGT; eauto.
+Qed.

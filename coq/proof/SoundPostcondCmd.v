@@ -29,7 +29,8 @@ Lemma postcond_cmd_is_call
       (POSTCOND: Postcond.postcond_cmd c_src c_tgt inv1 = Some inv2):
   Instruction.isCallInst c_src = Instruction.isCallInst c_tgt.
 Proof.
-  destruct c_src, c_tgt; ss.
+  destruct c_src, c_tgt;ss;
+    unfold Postcond.postcond_cmd in *; ss; des_ifs.
 Qed.
 
 (* TODO: we can assume source's progress *)

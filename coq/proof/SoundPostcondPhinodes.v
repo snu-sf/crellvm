@@ -166,41 +166,40 @@ Lemma phinodes_add_lessdef_sound
       (ASSIGNS: forallb_map (Postcond.Phinode.resolve st0.(EC).(CurBB).(fst)) phinodes = Some assigns)
       (UNIQUE_PHI: unique id_dec (List.map Postcond.Phinode.get_def assigns) = true)
       (STATE: InvState.Unary.sem conf st1 invst invmem inv0)
-      (PREV: snapshot_previous st0 invst)
+      (PREV: forall x, InvState.Unary.sem_idT st0 invst (Tag.previous, x) =
+                          lookupAL _ st0.(EC).(Locals) x)
   : InvState.Unary.sem
       conf st1 invst invmem
       (Hints.Invariant.update_lessdef (Postcond.postcond_phinodes_add_lessdef assigns) inv0).
 Proof.
-(*   econs; try by inv STATE. *)
-(*   s. ii. apply ExprPairSet.union_1 in H.  des. *)
-(*   { eapply STATE; eauto. } *)
-(*   unfold snapshot_previous in PREV. *)
-(*   exploit get_lessdef_spec; eauto. i. des. *)
-(*   esplits; [|reflexivity]. *)
-(*   unfold switchToNewBasicBlock in *. *)
-(*   solve_match_bool. inv STEP. ss. *)
-(*   destruct (CurBB (EC st0)). ss. *)
-(*   exploit phinode_assign_sound; eauto; ss. i. des. ss. *)
-(*   exploit opsem_props.OpsemProps.updateValuesForNewBlock_spec4; eauto. *)
-(*   match goal with *)
-(*   | [H: updateValuesForNewBlock _ _ = _ |- _] => rewrite H; i *)
-(*   end. *)
-(*   unguardH x0. des; subst; ss. *)
-(*   - assert (GV_VAL1: gv = val1). *)
-(*     { unfold InvState.Unary.sem_idT in VAL1. ss. congruence. } *)
-(*     subst. *)
-(*     unfold getOperandValue in VAL_V. *)
-(*     destruct phiv; eauto. *)
-(*     rewrite <- PREV in VAL_V. ss. *)
-(*   - assert (GV_VAL1: gv = val1). *)
-(*     { destruct phiv; ss. *)
-(*       - rewrite <- PREV in VAL_V. *)
-(*         unfold InvState.Unary.sem_idT in *. ss. congruence. *)
-(*       - congruence. *)
-(*     } *)
-(*     subst. eauto. *)
-(* Qed. *)
-Admitted.
+  econs; try by inv STATE.
+  s. ii. apply ExprPairSet.union_1 in H.  des.
+  { eapply STATE; eauto. }
+  exploit get_lessdef_spec; eauto. i. des.
+  esplits; [|reflexivity].
+  unfold switchToNewBasicBlock in *.
+  solve_match_bool. inv STEP. ss.
+  destruct (CurBB (EC st0)). ss. des_ifs.
+  exploit phinode_assign_sound; eauto; ss. i. des. ss.
+  exploit opsem_props.OpsemProps.updateValuesForNewBlock_spec4; eauto.
+  match goal with
+  | [H: updateValuesForNewBlock _ _ = _ |- _] => rewrite H; i
+  end.
+  unguardH x0. des; subst; ss.
+  - assert (GV_VAL1: gv = val1).
+    { unfold InvState.Unary.sem_idT in VAL1. ss. congruence. }
+    subst.
+    unfold getOperandValue in VAL_V.
+    destruct phiv; eauto.
+    rewrite <- PREV in VAL_V. ss.
+  - assert (GV_VAL1: gv = val1).
+    { destruct phiv; ss.
+      - rewrite <- PREV in VAL_V.
+        unfold InvState.Unary.sem_idT in *. ss. congruence.
+      - congruence.
+    }
+    subst. eauto.
+Qed.
 
 Lemma phinodes_progress_getPhiNodeID_safe
       TD phinodes b gl locals locals' id assigns
