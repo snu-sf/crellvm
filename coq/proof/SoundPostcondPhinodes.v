@@ -230,7 +230,8 @@ Proof.
   apply opsem_props.OpsemProps.updateValuesForNewBlock_spec5; ss.
   destruct (in_dec id_dec id0 (List.map getPhiNodeID phinodes)).
   - exploit phinodes_progress_getPhiNodeID_safe; eauto. i. des.
-    contradict NOT_IN. apply IdTSet.mem_2, IdTSet_from_list_spec, In_map. ss.
+    contradict NOT_MEM. unfold not.
+    apply eq_true_false_abs, IdTSet_from_list_spec, In_map. eauto.
   - hexploit opsem_props.OpsemProps.getIncomingValuesForBlockFromPHINodes_spec8; eauto. i.
     exploit notin_lookupAL_None; eauto.
 Qed.
