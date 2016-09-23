@@ -241,17 +241,18 @@ Proof.
   - (* cmd *)
     destruct (Instruction.isCallInst c) eqn:CALL.
     + (* call *)
-      destruct c; ss. destruct c0; ss.
-      exploit postcond_call_sound;
-        (try instantiate (1 := (mkState (mkEC _ _ _ _ _ _) _ _))); ss; eauto; ss.
-      i. des. subst. simtac.
-      eapply _sim_local_call; ss; eauto; ss.
-      i. exploit RETURN; eauto. i. des.
-      exploit apply_infrules_sound; eauto; ss. i. des.
-      exploit reduce_maydiff_sound; eauto; ss. i. des.
-      exploit implies_sound; eauto; ss. i. des.
-      exists locals1_tgt, 0%nat, invmem1. splits; ss.
-      right. apply CIH. econs; eauto.
+      destruct c; ss. (* destruct c0; ss. *)
+      (* exploit postcond_call_sound; *)
+      (*   (try instantiate (1 := (mkState (mkEC _ _ _ _ _ _) _ _))); ss; eauto; ss. *)
+      (* i. des. subst. simtac. *)
+      (* eapply _sim_local_call; ss; eauto; ss. *)
+      (* i. exploit RETURN; eauto. i. des. *)
+      (* exploit apply_infrules_sound; eauto; ss. i. des. *)
+      (* exploit reduce_maydiff_sound; eauto; ss. i. des. *)
+      (* exploit implies_sound; eauto; ss. i. des. *)
+      (* exists locals1_tgt, 0%nat, invmem1. splits; ss. *)
+      (* right. apply CIH. econs; eauto. *)
+      admit.
     + (* non-call *)
       eapply _sim_local_step.
       { admit. (* tgt not stuck *) }

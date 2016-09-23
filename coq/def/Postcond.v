@@ -232,7 +232,7 @@ Module Forget.
     let inv1 :=
         Invariant.update_lessdef
           (ExprPairSet.filter
-             (compose negb (LiftPred.ExprPair (flip IdTSet.mem defs)))) inv0 in
+             (negb <*> (LiftPred.ExprPair (flip IdTSet.mem defs)))) inv0 in
     let inv2 := Invariant.update_alias (alias defs) inv1 in
     let inv3 :=
         Invariant.update_unique

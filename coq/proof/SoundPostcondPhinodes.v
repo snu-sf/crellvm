@@ -291,10 +291,10 @@ Lemma postcond_phinodes_sound
                   st0_tgt.(Mem))
                invst1 invmem inv1>>.
 Proof.
-(*   unfold Postcond.postcond_phinodes in *. *)
-(*   unfold Postcond.postcond_phinodes_assigns in *. *)
-(*   simtac. *)
-(*   exploit snapshot_sound; eauto. i. des. *)
+  unfold Postcond.postcond_phinodes in *.
+  unfold Postcond.postcond_phinodes_assigns in *.
+  simtac.
+  exploit snapshot_sound; eauto. i. des.
 (*   exploit forget_sound; eauto. *)
 (*   { instantiate (1 := mkState (mkEC _ _ _ _ _ _) _ _). econs; s; eauto. *)
 (*     eapply locals_equiv_after_phinode; eauto. *)

@@ -27,29 +27,6 @@ Require Import Inject. (* for simtac *)
 
 Set Implicit Arguments.
 
-
-(* TODO: lemma on tag.previous *)
-
-(* TODO: Unify this snapshot_specs *)
-
-(* Definition snapshot_as_previous st invst: Prop := *)
-(*   forall x gvx *)
-(*          (LOCAL: lookupAL _ st.(EC).(Locals) x = Some gvx), *)
-(*     <<PREV: InvState.Unary.sem_idT st invst (Tag.previous, x) = Some gvx>>. *)
-
-(* Definition snapshot_spec2 st invst: Prop := *)
-(*   forall x gvx *)
-(*          (PREV: InvState.Unary.sem_idT st invst (Tag.previous, x) = Some gvx), *)
-(*     <<LOCAL: lookupAL _ st.(EC).(Locals) x = Some gvx>>. *)
-
-(* Definition snapshot_previous st invst: Prop := *)
-(*   forall x, *)
-(*     <<SNAPSHOT_PREV: InvState.Unary.sem_idT st invst (Tag.previous, x) = *)
-(*     lookupAL _ st.(EC).(Locals) x>>. *)
-
-(* Definition snapshot_ghost invst0 invst1: Prop := *)
-(*   <<SNAPSHOT_GHOST: invst0.(InvState.Unary.ghost) = invst1.(InvState.Unary.ghost)>>. *)
-
 Lemma physical_previous_lessdef_spec
       e1 e2 inv
       (IN: ExprPairSet.In (e1, e2) (Snapshot.physical_previous_lessdef inv))
@@ -66,54 +43,6 @@ Proof.
   rewrite IdTSet.fold_1 in IN.
   rewrite <- fold_left_rev_right in IN.
 Admitted.
-
-  (* match goal with *)
-  (* | [H: (negb <*> LiftPred.ExprPair _) (_, _) = _ |- _] => *)
-  (*   let FILTER1 := fresh "FILTER1" in *)
-  (*   let FILTER2 := fresh "FILTER2" in *)
-  (*   unfold compose, LiftPred.ExprPair in H; simtac; ss; *)
-  (*   apply orb_false_iff in H; destruct H as [FILTER1 FILTER2] *)
-  (* | [H: (negb <*> LiftPred.ValueTPair _) (_, _) = _ |- _] => *)
-  (*   unfold compose, LiftPred.ValueTPair in H; simtac; solve_des_bool *)
-  (* end. *)
-
-
-(* Lemma expr_no_prev_sem_preserved *)
-(*       conf st1 st2 invst e *)
-(*       (LOCALS: st1.(EC).(Locals) = st2.(EC).(Locals)) *)
-(*       (MEM: st1.(Mem) = st2.(Mem)) *)
-(*       (NOPREV: LiftPred.Expr Snapshot.IdT e = false) *)
-(*   : <<SEM: InvState.Unary.sem_expr conf st1 invst e = *)
-(*            InvState.Unary.sem_expr conf st2 invst e>>. *)
-(* Proof. *)
-(*   destruct e; *)
-(*     try (ss; repeat solve_des_bool; *)
-(*          des_ifs; solve_sem_valueT; solve_sem_idT; congruence). *)
-(*   - ss. repeat solve_des_bool. *)
-(*     des_ifs. *)
-(*     + admit. (* sem_list_valueT *) *)
-(*     + admit. *)
-(*     + (* solve_sem_valueT; try congruence. *) *)
-(*       admit. *)
-(*     + admit. *)
-(*     + solve_sem_valueT; solve_sem_idT; congruence. *)
-(*   - ss. repeat solve_des_bool. *)
-(*     des_ifs; try (solve_sem_valueT; solve_sem_idT; congruence). *)
-(*     + destruct v. *)
-(*       { *)
-(*         ss. *)
-(*         destruct x as [xtag x]. *)
-(*         { destruct xtag; ss. *)
-(*           { solve_sem_idT. rewrite LOCALS in *. clarify. } *)
-(*           { solve_sem_idT. clarify. } *)
-(*         } *)
-(*       } *)
-(*       { ss. clarify. } *)
-(*     + admit. *)
-(*   - destruct v; ss. *)
-(*     destruct x as [xtag x]; destruct xtag; ss. *)
-(*     red. solve_sem_idT. congruence. *)
-(* Admitted. *)
 
 Lemma valueT_no_prev_sem_preserved
       conf st invst0 invst1 v
