@@ -146,108 +146,23 @@ Proof.
 Admitted.
 
 Lemma forget_unary_sound
-      ids st0 st1
+      defs uses st0
       conf invst invmem inv0
-      (EQUIV : state_equiv_except ids st0 st1)
-      (STATE : InvState.Unary.sem conf st0 invst invmem inv0)
-  :
-    <<STATE: InvState.Unary.sem conf st1 invst invmem (Forget.unary ids inv0)>>.
+      (STATE: InvState.Unary.sem conf st0 invst invmem inv0)
+  : <<STATE: InvState.Unary.sem conf st0 invst invmem (Forget.unary defs uses inv0)>>.
 Proof.
-  inv STATE.
-  econs.
-  - ss.
-    ii.
-    match goal with
-    | [H: ExprPairSet.In x (ExprPairSet.filter _ _) |- _] =>
-      apply ExprPairSetFacts.filter_iff in H; [| ii; subst; eauto ]; destruct H as [IN FILTER]
-    end.
-    unfold compose, LiftPred.ExprPair in FILTER.
-    rewrite negb_orb in FILTER.
-    apply andb_true_iff in FILTER.
-    repeat rewrite negb_true_iff in FILTER. des.
-    apply state_equiv_except_symm in EQUIV.
-    exploit sem_expr_equiv_except; try exact VAL1; eauto.
-    i. des.
-    specialize (LESSDEF x IN).
-    exploit LESSDEF; eauto. i. des.
-    apply state_equiv_except_symm in EQUIV.
-    exploit sem_expr_equiv_except; try exact VAL2; eauto.
-  - ss.
-    inv NOALIAS.
-    econs.
-    + i. ss.
-      rewrite ValueTPairSetFacts.filter_b in MEM; [| ii; subst; ss].
-      des_ifs.
-      unfold compose, LiftPred.ValueTPair in MEM.
-      rewrite negb_orb in MEM. des_ifs.
-      unfold sflib.is_true in *.
-      rewrite negb_true_iff in *. ss.
-      apply state_equiv_except_symm in EQUIV.
-      exploit sem_valueT_equiv_except; try exact VAL1; eauto. i. des.
-      exploit sem_valueT_equiv_except; try exact VAL2; eauto.
-    + i. ss.
-      rewrite PtrPairSetFacts.filter_b in MEM; [| ii; subst; ss].
-      des_ifs.
-      unfold compose, LiftPred.PtrPair in MEM.
-      rewrite negb_orb in MEM. des_ifs.
-      unfold sflib.is_true in *.
-      rewrite negb_true_iff in *. ss.
-      apply state_equiv_except_symm in EQUIV.
-      unfold LiftPred.Ptr in *.
-      exploit sem_valueT_equiv_except; try exact VAL1; eauto. i. des.
-      exploit sem_valueT_equiv_except; try exact VAL2; eauto.
-  - ii. ss.
-    rewrite AtomSetFacts.filter_iff in *; [| ii; subst; ss]. des.
-    simtac.
-    rewrite <- IdTSetFacts.not_mem_iff in *.
-    exploit UNIQUE; eauto. intro SEM0.
-    inv SEM0.
-    exploit sem_idT_equiv_except; eauto.
-    { unfold InvState.Unary.sem_idT. ss. eauto. }
-    i. des.
-    econs; eauto.
-    + (* IdTSet.In (P, x) ids -> *)
-      (* lookupAL _ st1.(EC).(Locals) x = Some gv -> *)
-      (* InvState.Unary.sem_diffblock conf  *)
-      admit. (* need ids diffblock unique *)
-    + inv EQUIV.
-      rewrite <- MEM0. eauto.
-  - ii. ss.
-    unfold flip, compose in *.
-    rewrite IdTSetFacts.filter_iff in *; [| ii; subst; ss]. des.
-    simtac.
-    exploit PRIVATE; eauto.
-    eapply sem_idT_equiv_except; eauto.
-    + apply state_equiv_except_symm; eauto.
-    + apply IdTSetFacts.not_mem_iff; eauto.
 Admitted.
 
 Lemma forget_sound
       conf_src st_src0
       conf_tgt st_tgt0
-      st_src1 st_tgt1
       invst invmem inv0
       s_src s_tgt
-      (EQUIV_SRC: state_equiv_except s_src st_src0 st_src1)
-      (EQUIV_TGT: state_equiv_except s_tgt st_tgt0 st_tgt1)
+      u_src u_tgt
       (STATE: InvState.Rel.sem conf_src conf_tgt st_src0 st_tgt0
-                               invst invmem inv0):
-  <<STATE: InvState.Rel.sem conf_src conf_tgt st_src1 st_tgt1
-                            invst invmem (Forget.t s_src s_tgt inv0)>>.
+                               invst invmem inv0)
+  :
+  <<STATE: InvState.Rel.sem conf_src conf_tgt st_src0 st_tgt0
+                            invst invmem (Forget.t s_src s_tgt u_src u_tgt inv0)>>.
 Proof.
-  inv STATE.
-  econs.
-  - eapply forget_unary_sound; eauto.
-  - eapply forget_unary_sound; eauto.
-  - i. ss.
-    apply IdTSetFacts.not_mem_iff in NOTIN.
-    rewrite IdTSetFacts.union_iff in NOTIN.
-    apply not_or_and in NOTIN. des.
-    rewrite IdTSetFacts.union_iff in NOTIN.
-    apply not_or_and in NOTIN. des.
-    apply IdTSetFacts.not_mem_iff in NOTIN0.
-    ii. apply state_equiv_except_symm in EQUIV_SRC.
-    exploit sem_idT_equiv_except; try exact EQUIV_SRC; eauto. i. des.
-    exploit MAYDIFF; eauto. i. des.
-    exploit sem_idT_equiv_except; try exact EQUIV_TGT; eauto.
-Qed.
+Admitted.

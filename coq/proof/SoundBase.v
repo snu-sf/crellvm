@@ -125,3 +125,93 @@ Proof.
   unfold InvState.Unary.sem_lessdef in *. ss.
   admit.
 Admitted.
+
+(* tactics from yoonseung *)
+Ltac solve_match_bool :=
+  repeat (let MATCH := fresh "MATCH" in
+          match goal with
+          | [H:match ?c with _ => _ end = true |- _] =>
+            destruct c eqn:MATCH; try done
+          | [H:match ?c with _ => _ end = false |- _] =>
+            destruct c eqn:MATCH; try done
+          | [H:match ?c with | Some _ => _ | None => _ end =
+               Some _ |- _] =>
+            destruct c eqn:MATCH; try done
+          | [H:match ?c with | Some _ => _ | None => _ end =
+               None |- _] =>
+            destruct c eqn:MATCH; try done
+          | [H:if ?c then Some _ else None = Some _ |- _] =>
+            destruct c eqn:MATCH; try done
+          | [H:if ?c then Some _ else None = None |- _] =>
+            destruct c eqn:MATCH; try done
+          | [H:if ?c then None else Some _ = Some _ |- _] =>
+            destruct c eqn:MATCH; try done
+          | [H:if ?c then None else Some _ = None |- _] =>
+            destruct c eqn:MATCH; try done
+          end).
+
+Ltac solve_des_bool :=
+  match goal with
+  | [H: _ || _ = false |- _] =>
+    apply orb_false_iff in H; des
+  | [H: _ || _ = true |- _] =>
+    apply orb_true_iff in H; des
+  | [H: _ && _ = true |- _] =>
+    apply andb_true_iff in H; des
+  | [H: _ && _ = false |- _] =>
+    apply andb_false_iff in H; des
+  end.
+
+Ltac solve_set_union :=
+  match goal with
+  | [H: Exprs.ExprPairSet.In _ (Exprs.ExprPairSet.union _ _) |- _] =>
+    let IN := fresh "IN" in
+    apply Exprs.ExprPairSet.union_1 in H; destruct H as [IN|IN]
+  | [H: ?is_true (Exprs.ValueTPairSet.mem _ (Exprs.ValueTPairSet.union _ _)) |- _] =>
+    unfold is_true in H;
+    rewrite Exprs.ValueTPairSetFacts.union_b in H; solve_des_bool
+  | [H: ?is_true (Exprs.PtrPairSet.mem _ (Exprs.PtrPairSet.union _ _)) |- _] =>
+    unfold is_true in H;
+    rewrite Exprs.PtrPairSetFacts.union_b in H; solve_des_bool
+  end.
+
+Ltac solve_sem_idT :=
+  try match goal with
+  | [H: InvState.Unary.sem_idT _ _ (_, _) = _ |- _] =>
+    unfold InvState.Unary.sem_idT in *; ss
+  | [_:_ |- InvState.Unary.sem_idT _ _ (_, _) = _] =>
+    unfold InvState.Unary.sem_idT in *; ss
+  end.
+
+Ltac solve_in_filter :=
+  match goal with
+  | [H: Exprs.ExprPairSet.In _ (Exprs.ExprPairSet.filter _ _) |- _] =>
+    let IN := fresh "IN" in
+    let FILTER := fresh "FILTER" in
+    apply Exprs.ExprPairSetFacts.filter_iff in H; try (ii;subst;ss;fail); destruct H as [IN FILTER]
+  end.
+
+Ltac solve_negb_liftpred :=
+  match goal with
+  | [H: (negb <*> Postcond.LiftPred.ExprPair _) (_, _) = _ |- _] =>
+    unfold compose, Postcond.LiftPred.ExprPair in H; simtac; solve_des_bool
+  | [H: (negb <*> Postcond.LiftPred.ValueTPair _) (_, _) = _ |- _] =>
+    unfold compose, Postcond.LiftPred.ValueTPair in H; simtac; solve_des_bool
+  | [H: (negb <*> Postcond.LiftPred.PtrPair _) (_, _) = _ |- _] =>
+    unfold compose, Postcond.LiftPred.PtrPair in H; simtac; solve_des_bool
+  end.
+
+Ltac solve_sem_valueT :=
+  repeat match goal with
+         | [v: Exprs.ValueT.t |- _] =>
+           match goal with
+           | [Hv: InvState.Unary.sem_valueT _ _ _ v = _ |- _] =>
+             destruct v
+           end
+         end;
+  ss;
+  repeat match goal with
+         | [x:Exprs.IdT.t |- _] =>
+           let xtag := fresh "xtag" in
+           destruct x as [xtag x]; destruct xtag; ss
+         end.

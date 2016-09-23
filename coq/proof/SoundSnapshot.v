@@ -67,58 +67,6 @@ Proof.
   rewrite <- fold_left_rev_right in IN.
 Admitted.
 
-(* TODO: move tactics to somewhere *)
-
-Ltac solve_des_bool :=
-  match goal with
-  | [H: _ || _ = false |- _] =>
-    apply orb_false_iff in H; des
-  | [H: _ || _ = true |- _] =>
-    apply orb_true_iff in H; des
-  | [H: _ && _ = true |- _] =>
-    apply andb_true_iff in H; des
-  | [H: _ && _ = false |- _] =>
-    apply andb_false_iff in H; des
-  end.
-
-Ltac solve_set_union :=
-  match goal with
-  | [H: ExprPairSet.In _ (ExprPairSet.union _ _) |- _] =>
-    let IN := fresh "IN" in
-    apply ExprPairSet.union_1 in H; destruct H as [IN|IN]
-  | [H: ?is_true (ValueTPairSet.mem _ (ValueTPairSet.union _ _)) |- _] =>
-    unfold is_true in H;
-    rewrite ValueTPairSetFacts.union_b in H; solve_des_bool
-  | [H: ?is_true (PtrPairSet.mem _ (PtrPairSet.union _ _)) |- _] =>
-    unfold is_true in H;
-    rewrite PtrPairSetFacts.union_b in H; solve_des_bool
-  end.
-
-Ltac solve_sem_idT :=
-  try match goal with
-  | [H: InvState.Unary.sem_idT _ _ (_, _) = _ |- _] =>
-    unfold InvState.Unary.sem_idT in *; ss
-  | [_:_ |- InvState.Unary.sem_idT _ _ (_, _) = _] =>
-    unfold InvState.Unary.sem_idT in *; ss
-  end.
-
-Ltac solve_in_filter :=
-  match goal with
-  | [H: ExprPairSet.In _ (ExprPairSet.filter _ _) |- _] =>
-    let IN := fresh "IN" in
-    let FILTER := fresh "FILTER" in
-    apply ExprPairSetFacts.filter_iff in H; try (ii;subst;ss;fail); destruct H as [IN FILTER]
-  end.
-
-Ltac solve_negb_liftpred :=
-  match goal with
-  | [H: (negb <*> LiftPred.ExprPair _) (_, _) = _ |- _] =>
-    unfold compose, LiftPred.ExprPair in H; simtac; solve_des_bool
-  | [H: (negb <*> LiftPred.ValueTPair _) (_, _) = _ |- _] =>
-    unfold compose, LiftPred.ValueTPair in H; simtac; solve_des_bool
-  | [H: (negb <*> LiftPred.PtrPair _) (_, _) = _ |- _] =>
-    unfold compose, LiftPred.PtrPair in H; simtac; solve_des_bool
-  end.
   (* match goal with *)
   (* | [H: (negb <*> LiftPred.ExprPair _) (_, _) = _ |- _] => *)
   (*   let FILTER1 := fresh "FILTER1" in *)
@@ -129,20 +77,6 @@ Ltac solve_negb_liftpred :=
   (*   unfold compose, LiftPred.ValueTPair in H; simtac; solve_des_bool *)
   (* end. *)
 
-Ltac solve_sem_valueT :=
-  repeat match goal with
-         | [v: ValueT.t |- _] =>
-           match goal with
-           | [Hv: InvState.Unary.sem_valueT _ _ _ v = _ |- _] =>
-             destruct v
-           end
-         end;
-  ss;
-  repeat match goal with
-         | [x:IdT.t |- _] =>
-           let xtag := fresh "xtag" in
-           destruct x as [xtag x]; destruct xtag; ss
-         end.
 
 (* Lemma expr_no_prev_sem_preserved *)
 (*       conf st1 st2 invst e *)
@@ -195,7 +129,7 @@ Qed.
 
 Ltac solve_liftpred_nopred :=
   repeat match goal with
-         | [H: LiftPred.ValueT Snapshot.IdT _ = false |- _ ] =>
+         | [H: Postcond.LiftPred.ValueT Postcond.Snapshot.IdT _ = false |- _ ] =>
            eapply valueT_no_prev_sem_preserved in H; des; eauto
          end.
 
@@ -205,9 +139,10 @@ Lemma expr_no_prev_sem_preserved
       (GHOST: invst0.(InvState.Unary.ghost) = invst1.(InvState.Unary.ghost))
   : <<SEM: InvState.Unary.sem_expr conf st invst0 e = InvState.Unary.sem_expr conf st invst1 e>>.
 Proof.
-  destruct e; unfold LiftPred.Expr in *; try solve_des_bool;
+  Time destruct e; unfold LiftPred.Expr in *; try solve_des_bool;
     try (solve_liftpred_nopred;
-      solve_sem_valueT; solve_sem_idT; des_ifs; fail).
+         solve_sem_valueT; solve_sem_idT; des_ifs; fail).
+  (* Finished transaction in 17.507 secs (17.477u,0.042s) (successful) *)
   - solve_liftpred_nopred.
     solve_sem_valueT.
     + solve_sem_idT. des_ifs.
@@ -338,36 +273,34 @@ Lemma previousified_sem_expr_in_new_invst
                                     InvState.Unary.ghost := InvState.Unary.ghost invst0 |}
                                  (Previousify.Expr e)>>.
 Proof.
-  destruct e; unfold LiftPred.Expr in *; try solve_des_bool; ss.
-  - exploit previousified_sem_valueT_in_new_invst; try exact NOPREV; i; des;
-    exploit previousified_sem_valueT_in_new_invst; try exact NOPREV0; i; des.
-    rewrite x0. rewrite x1. congruence.
-  - exploit previousified_sem_valueT_in_new_invst; try exact NOPREV; i; des;
-    exploit previousified_sem_valueT_in_new_invst; try exact NOPREV0; i; des.
-    rewrite x0. rewrite x1. congruence.
-  - exploit previousified_sem_valueT_in_new_invst; try exact NOPREV; i; des.
-    rewrite x0. congruence.
-  - exploit previousified_sem_valueT_in_new_invst; try exact NOPREV; i; des;
-    exploit previousified_sem_valueT_in_new_invst; try exact NOPREV0; i; des.
-    rewrite x0. rewrite x1. congruence.
+  (* TODO: use all_once *)
+  Ltac solve_double :=
+    match goal with
+    | [v: ValueT.t, w:ValueT.t |- _] =>
+      match goal with
+      | [Hv: LiftPred.ValueT Snapshot.IdT v = false,
+             Hw: LiftPred.ValueT Snapshot.IdT w = false |- _] =>
+        let EQv := fresh "EQv" in
+        let EQw := fresh "EQw" in
+        exploit previousified_sem_valueT_in_new_invst; try exact Hv; intro EQv; des; rewrite EQv;
+        exploit previousified_sem_valueT_in_new_invst; try exact Hw; intro EQw; des; rewrite EQw
+      end
+    end.
+  Ltac solve_single :=
+    match goal with
+    | [v: ValueT.t |- _] =>
+      match goal with
+      | [Hv: LiftPred.ValueT Snapshot.IdT v = false |- _] =>
+        let EQv := fresh "EQv" in
+        exploit previousified_sem_valueT_in_new_invst; try exact Hv; intro EQv; des; rewrite EQv
+      end
+    end.
+
+  destruct e; unfold LiftPred.Expr in *; try solve_des_bool; ss;
+    try (solve_double; congruence; fail);
+    try (solve_single;congruence; fail).
   - admit. (* gep *)
-  - exploit previousified_sem_valueT_in_new_invst; try exact NOPREV; i; des.
-    rewrite x0. congruence.
-  - exploit previousified_sem_valueT_in_new_invst; try exact NOPREV; i; des.
-    rewrite x0. congruence.
-  - exploit previousified_sem_valueT_in_new_invst; try exact NOPREV; i; des.
-    rewrite x0. congruence.
-  - exploit previousified_sem_valueT_in_new_invst; try exact NOPREV; i; des;
-    exploit previousified_sem_valueT_in_new_invst; try exact NOPREV0; i; des.
-    rewrite x0. rewrite x1. congruence.
-  - exploit previousified_sem_valueT_in_new_invst; try exact NOPREV; i; des;
-    exploit previousified_sem_valueT_in_new_invst; try exact NOPREV0; i; des.
-    rewrite x0. rewrite x1. congruence.
   - admit. (* select *)
-  - exploit previousified_sem_valueT_in_new_invst; try exact NOPREV; i; des.
-    rewrite x0. congruence.
-  - exploit previousified_sem_valueT_in_new_invst; try exact NOPREV; i; des.
-    rewrite x0. congruence.
 Admitted.
 
 Lemma snapshot_unary_sound

@@ -228,24 +228,24 @@ Module Forget.
     AtomSetImpl.filter
       (fun i => negb (IdTSet.mem (Tag.physical, i) ids)) uniq0.
 
-  Definition unary (ids:IdTSet.t) (inv0:Invariant.unary): Invariant.unary :=
+  Definition unary (defs uses:IdTSet.t) (inv0:Invariant.unary): Invariant.unary :=
     let inv1 :=
         Invariant.update_lessdef
           (ExprPairSet.filter
-             (compose negb (LiftPred.ExprPair (flip IdTSet.mem ids)))) inv0 in
-    let inv2 := Invariant.update_alias (alias ids) inv1 in
+             (compose negb (LiftPred.ExprPair (flip IdTSet.mem defs)))) inv0 in
+    let inv2 := Invariant.update_alias (alias defs) inv1 in
     let inv3 :=
         Invariant.update_unique
           (AtomSetImpl.filter
-             (fun i => negb (IdTSet.mem (Tag.physical, i) ids))) inv2 in
+             (fun i => negb (IdTSet.mem (Tag.physical, i) (IdTSet.union defs uses)))) inv2 in
     let inv4 :=
         Invariant.update_private
-          (IdTSet.filter (compose negb (flip IdTSet.mem ids))) inv3 in
+          (IdTSet.filter (compose negb (flip IdTSet.mem defs))) inv3 in
     inv4.
 
-  Definition t (s_src s_tgt:IdTSet.t) (inv0:Invariant.t): Invariant.t :=
-    let inv1 := Invariant.update_src (unary s_src) inv0 in
-    let inv2 := Invariant.update_tgt (unary s_tgt) inv1 in
+  Definition t (s_src s_tgt u_src u_tgt:IdTSet.t) (inv0:Invariant.t): Invariant.t :=
+    let inv1 := Invariant.update_src (unary s_src u_src) inv0 in
+    let inv2 := Invariant.update_tgt (unary s_tgt u_tgt) inv1 in
     let inv3 :=
         Invariant.update_maydiff (IdTSet.union (IdTSet.union s_src s_tgt)) inv2 in
     inv3.
@@ -338,12 +338,10 @@ Module Cmd.
 
   Definition get_def_memory (c:t): option Ptr.t :=
     match c with
-    | insn_malloc x ty v a => Some (ValueT.id (IdT.lift Tag.physical x), ty)
     | insn_free x ty v =>
       TODO.lift_option
         (fun id => (ValueT.id (IdT.lift Tag.physical id), ty))
         (getValueID v)
-    | insn_alloca x ty v a => Some (ValueT.id (IdT.lift Tag.physical x), ty)
     | insn_store x ty v p a =>
       TODO.lift_option
         (fun id => (ValueT.id (IdT.lift Tag.physical id), typ_pointer ty))
@@ -510,13 +508,15 @@ Definition postcond_phinodes_assigns
 
   let defs_src := IdTSet_from_list (List.map (IdT.lift Tag.physical) defs_src') in
   let defs_tgt := IdTSet_from_list (List.map (IdT.lift Tag.physical) defs_tgt') in
+  let uses_src := IdTSet_from_list (List.map (IdT.lift Tag.physical) uses_src') in
+  let uses_tgt := IdTSet_from_list (List.map (IdT.lift Tag.physical) uses_tgt') in
 
   if negb (unique id_dec defs_src' && unique id_dec defs_tgt')
   then None
   else
 
   let inv1 := Snapshot.t inv0 in
-  let inv2 := Forget.t defs_src defs_tgt inv1 in
+  let inv2 := Forget.t defs_src defs_tgt uses_src uses_tgt inv1 in
   let inv3 :=
       Invariant.update_src
         (Invariant.update_lessdef (postcond_phinodes_add_lessdef assigns_src)) inv2 in
@@ -748,26 +748,27 @@ Definition postcond_cmd
   let uses_src := AtomSetImpl_from_list (Cmd.get_ids src) in
   let uses_tgt := AtomSetImpl_from_list (Cmd.get_ids tgt) in
 
-  if negb (postcond_cmd_inject_event src tgt inv0)
-  then failwith_None "valid_cmds: postcond_cmd returned None, Case 1" nil
-  else
   if negb
        ((AtomSetImpl.is_empty
            (AtomSetImpl.inter (AtomSetImpl_from_list def_src') uses_src))
           && (AtomSetImpl.is_empty
                 (AtomSetImpl.inter (AtomSetImpl_from_list def_tgt') uses_tgt)))
+  then failwith_None "valid_cmds: postcond_cmd returned None, Case 1" nil
+  else
+
+  if negb (postcond_cmd_inject_event src tgt inv0)
   then failwith_None "valid_cmds: postcond_cmd returned None, Case 2" nil
   else
 
-  let inv1 := Forget.t def_src def_tgt inv0 in
+  let inv1 := Forget.t def_src def_tgt def_src def_tgt inv0 in (* TODO: change arguments *)
   let inv2 := postcond_unique_leakage src tgt inv1 in
-  let inv3 := postcond_cmd_add_private_unique src tgt inv2 in
-  let inv4 := ForgetMemory.t def_memory_src def_memory_tgt inv3 in
+  let inv3 := ForgetMemory.t def_memory_src def_memory_tgt inv2 in
+
+  let inv4 := postcond_cmd_add_private_unique src tgt inv3 in
   let inv5 := Invariant.update_src
                 (Invariant.update_lessdef (postcond_cmd_add_lessdef src)) inv4 in
   let inv6 := Invariant.update_tgt
                 (Invariant.update_lessdef (postcond_cmd_add_lessdef tgt)) inv5 in
-
   let inv7 := remove_def_from_maydiff src tgt inv6 in
   let inv8 := reduce_maydiff inv7 in
   Some inv8.
