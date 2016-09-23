@@ -236,6 +236,15 @@ Proof.
     exploit notin_lookupAL_None; eauto.
 Qed.
 
+Lemma IdTSet_from_list_spec':
+  forall ids id0, IdTSet.mem id0 (IdTSet_from_list ids) = false <-> ~ In id0 ids.
+Proof.
+  split; i.
+  - ii. apply IdTSet_from_list_spec in H0. congruence.
+  - apply not_true_iff_false. ii.
+    apply IdTSet_from_list_spec in H0. eauto.
+Qed.
+
 Lemma postcond_phinodes_sound
       m_src conf_src st0_src phinodes_src cmds_src terminator_src locals_src
       m_tgt conf_tgt st0_tgt phinodes_tgt cmds_tgt terminator_tgt locals_tgt
@@ -296,20 +305,45 @@ Proof.
   unfold Postcond.postcond_phinodes_assigns in *.
   simtac.
   exploit snapshot_sound; eauto. i. des.
+  exploit forget_sound; eauto.
 (*   exploit forget_sound; eauto. *)
-(*   { instantiate (1 := mkState (mkEC _ _ _ _ _ _) _ _). econs; s; eauto. *)
-(*     eapply locals_equiv_after_phinode; eauto. *)
-(*   } *)
-(*   { instantiate (1 := mkState (mkEC _ _ _ _ _ _) _ _). econs; s; eauto. *)
-(*     eapply locals_equiv_after_phinode; eauto. *)
-(*     rewrite L_TGT. eauto. *)
-(*   } *)
-(*   i. des. inversion x0. *)
-(*   exploit phinodes_add_lessdef_sound; try exact SRC; eauto; i. *)
-(*   exploit phinodes_add_lessdef_sound; try exact TGT; eauto; i. *)
-(*   { rewrite L_TGT. eauto. } *)
-(*   exploit reduce_maydiff_sound; swap 1 2. *)
-(*   { instantiate (1 := Hints.Invariant.mk _ _ _). econs; eauto. } *)
-(*   all: eauto. *)
-(* Qed. *)
+  { instantiate (1 := mkState (mkEC _ _ _ _ _ _) _ _). econs; s; eauto.
+    eapply locals_equiv_after_phinode; eauto.
+  }
+  { instantiate (1 := mkState (mkEC _ _ _ _ _ _) _ _). econs; s; eauto.
+    eapply locals_equiv_after_phinode; eauto.
+    rewrite L_TGT. eauto.
+  }
+  { instantiate (1 := IdTSet_from_list (List.map (IdT.lift Tag.physical) (filter_map Postcond.Phinode.get_use l0))).
+    ii.
+    inv STATE0.
+    inv SRC.
+    exploit UNIQUE; eauto.
+    { apply AtomSetFacts.mem_iff; eauto. }
+    i.
+    apply IdTSet_from_list_spec in MEM_X.
+    (* apply IdTSet_from_list_spec' in UNIQUE_NO_USE. *)
+    
+    (* contradict  *)
+    
+    (* Set Printing All. idtac. *)
+    
+    (* eapply eq_true_false_abs in UNIQUE_NO_USE. *)
+    (* bool *)
+    (* apply IdTSet_from_list_spec in UNIQUE_NO_USE. *)
+    (* IdTSetFacts.mem_ *)
+    
+
+    (* unfold unique_preserved_except. *)
+    admit. }
+  { admit. }
+  i. des. inversion x0.
+  exploit phinodes_add_lessdef_sound; try exact SRC; eauto; i.
+  exploit phinodes_add_lessdef_sound; try exact TGT; eauto; i.
+  { rewrite L_TGT. eauto. }
+  exploit reduce_maydiff_sound; swap 1 2.
+  { instantiate (1 := Hints.Invariant.mk _ _ _). econs; eauto. }
+  { eauto. }
+  { eauto. }
+  { i. match goal with [H:exists _, _ |- _] => exact H end.
 Admitted.
