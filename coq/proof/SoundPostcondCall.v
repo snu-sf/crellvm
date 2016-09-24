@@ -90,7 +90,9 @@ Lemma postcond_call_sound
                    st0_tgt.(ECS) mem1_tgt)
           invst1 invmem1 inv1>>>>.
 Proof.
-  unfold Postcond.postcond_cmd, Postcond.postcond_cmd_forget in *.
+  unfold Postcond.postcond_cmd in *. do 19 simtac0.
+  rewrite <- (ite_spec noret_tgt None (Some id_src)) in *.
+  rewrite <- (ite_spec noret_tgt None (Some id_tgt)) in *.
   splits; ss.
   - admit. (* fun *)
   - admit. (* args *)
