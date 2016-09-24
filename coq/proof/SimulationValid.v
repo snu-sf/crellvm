@@ -241,8 +241,8 @@ Proof.
   - (* cmd *)
     destruct (Instruction.isCallInst c) eqn:CALL.
     + (* call *)
-      destruct c; ss. unfold Postcond.postcond_cmd in COND.
-      destruct c0; try by simtac.
+      exploit postcond_cmd_is_call; eauto. i.
+      destruct c; ss. destruct c0; ss.
       exploit postcond_call_sound;
         (try instantiate (1 := (mkState (mkEC _ _ _ _ _ _) _ _))); ss; eauto; ss.
       i. des. subst. do 24 simtac0.
