@@ -28,11 +28,11 @@ Require Import Inject. (* TODO: for simtac *)
 
 Set Implicit Arguments.
 
-Definition locals_equiv_except (ids:IdTSet.t) (locals0 locals1:GVsMap): Prop :=
-  forall id (NOT_MEM: IdTSet.mem (Tag.physical, id) ids = false),
+Definition locals_equiv_except (ids:AtomSetImpl.t) (locals0 locals1:GVsMap): Prop :=
+  forall id (NOT_MEM: AtomSetImpl.mem id ids = false),
     lookupAL _ locals0 id = lookupAL _ locals1 id.
 
-Inductive state_equiv_except (ids:IdTSet.t) (st0 st1: State): Prop :=
+Inductive state_equiv_except (ids:AtomSetImpl.t) (st0 st1: State): Prop :=
 | state_eq_except_intro
     (MEM: st0.(Mem) = st1.(Mem))
     (LOCALS: locals_equiv_except ids st0.(EC).(Locals) st1.(EC).(Locals))
@@ -60,29 +60,17 @@ Next Obligation.
   ii. inv_state_equiv_except; eauto using eq_trans.
 Qed.
 
-(* Lemma state_equiv_except_symm *)
-(*       ids st0 st1 *)
-(*   : *)
-(*     state_equiv_except ids st0 st1 -> state_equiv_except ids st1 st0. *)
-(* Proof. *)
-(*   i. inv H. econs; eauto. *)
-(*   unfold locals_equiv_except in *. *)
-(*   symmetry. eauto. *)
-(* Qed. *)
-
 Lemma sem_idT_equiv_except
       ids st0 st1 invst id gv
       (EQUIV: state_equiv_except ids st0 st1)
-      (STATE: InvState.Unary.sem_idT st0 invst id = Some gv)
-      (NOTIN: IdTSet.mem id ids = false)
-  : <<STATE: InvState.Unary.sem_idT st1 invst id = Some gv>>.
+      (STATE: InvState.Unary.sem_idT st0 invst (Tag.physical, id) = Some gv)
+      (NOTIN: AtomSetImpl.mem id ids = false)
+  : <<STATE: InvState.Unary.sem_idT st1 invst (Tag.physical, id) = Some gv>>.
 Proof.
   unfold InvState.Unary.sem_idT in *.
   inv EQUIV.
   unfold locals_equiv_except in LOCALS.
   red. rewrite <- STATE.
-  destruct id.
-  destruct t; ss.
   symmetry. eapply LOCALS; eauto.
 Qed.
 
@@ -91,11 +79,12 @@ Lemma sem_valueT_equiv_except
       conf
       (EQUIV: state_equiv_except ids st0 st1)
       (STATE: InvState.Unary.sem_valueT conf st0 invst v = Some gv)
-      (NOTIN: (LiftPred.ValueT (flip IdTSet.mem ids)) v = false)
+      (NOTIN: (LiftPred.ValueT (flip IdTSet.mem (lift_physical_atoms_idtset ids))) v = false)
   : <<STATE: InvState.Unary.sem_valueT conf st1 invst v = Some gv>>.
 Proof.
   unfold flip in NOTIN.
-  destruct v; ss.
+  destruct v; ss. destruct x. destruct t; ss.
+  rewrite lift_physical_atoms_idtset_spec1 in *.
   eapply sem_idT_equiv_except; eauto.
 Qed.
 
@@ -104,7 +93,7 @@ Lemma sem_list_valueT_equiv_except
       conf
       (EQUIV: state_equiv_except ids st0 st1)
       (STATE: InvState.Unary.sem_list_valueT conf st0 invst lsv = Some gvs)
-      (NOTIN: existsb (LiftPred.ValueT (flip IdTSet.mem ids) <*> snd) lsv = false)
+      (NOTIN: existsb (LiftPred.ValueT (flip IdTSet.mem (lift_physical_atoms_idtset ids)) <*> snd) lsv = false)
   : <<STATE: InvState.Unary.sem_list_valueT conf st1 invst lsv = Some gvs>>.
 Proof.
   unfold flip in NOTIN.
@@ -140,7 +129,7 @@ Lemma sem_expr_equiv_except
       conf invst
       ids st0 st1 e val
       (EQUIV: state_equiv_except ids st0 st1)
-      (FILTER: (LiftPred.Expr (flip IdTSet.mem ids)) e = false)
+      (FILTER: (LiftPred.Expr (flip IdTSet.mem (lift_physical_atoms_idtset ids))) e = false)
       (SEM_EXPR: InvState.Unary.sem_expr conf st0 invst e = Some val)
   : <<SEM_EXPR: InvState.Unary.sem_expr conf st1 invst e = Some val>>.
 Proof.
@@ -154,10 +143,10 @@ Admitted.
 
 Definition unique_preserved_except conf invst1 inv st1 defs uses : Prop :=
   forall x u gvx gvy
-         (MEM_X: IdTSet.mem x defs = true)
+         (MEM_X: AtomSetImpl.mem x defs = true)
          (MEM_Y: AtomSetImpl.mem u inv.(Invariant.unique) = true)
-         (UNIQUE_NO_USE: IdTSet.mem (Tag.physical, u) uses = false)
-         (VAL_X: InvState.Unary.sem_idT st1 invst1 x = Some gvx)
+         (UNIQUE_NO_USE: AtomSetImpl.mem u uses = false)
+         (VAL_X: InvState.Unary.sem_idT st1 invst1 (Tag.physical, x) = Some gvx)
          (VAL_Y: lookupAL _ st1.(EC).(Locals) u = Some gvy),
     InvState.Unary.sem_diffblock conf gvx gvy.
 
@@ -194,10 +183,14 @@ Proof.
   - i. ss.
     rewrite IdTSetFacts.union_b in NOTIN.
     solve_des_bool.
-    rewrite IdTSetFacts.union_b in NOTIN.
-    solve_des_bool.
-    ii. symmetry in EQUIV_SRC.
-    exploit sem_idT_equiv_except; try exact EQUIV_SRC; eauto. i. des.
-    exploit MAYDIFF; eauto. i. des.
-    exploit sem_idT_equiv_except; try exact EQUIV_TGT; eauto.
-Qed.
+    destruct id0. destruct t; ss.
+    + rewrite lift_physical_atoms_idtset_spec1 in *.
+      rewrite AtomSetFacts.union_b in NOTIN.
+      solve_des_bool.
+      ii. symmetry in EQUIV_SRC.
+      exploit sem_idT_equiv_except; try exact EQUIV_SRC; eauto. i. des.
+      exploit MAYDIFF; eauto. i. des.
+      exploit sem_idT_equiv_except; try exact EQUIV_TGT; eauto.
+    + admit.
+    + admit.
+Admitted.

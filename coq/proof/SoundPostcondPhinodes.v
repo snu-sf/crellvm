@@ -222,8 +222,7 @@ Lemma locals_equiv_after_phinode
                                      b conf.(Globals) locals = Some locals')
       (RESOLVE: forallb_map (Postcond.Phinode.resolve b.(fst)) phinodes = Some assigns)
   :
-    <<EQUIV: locals_equiv_except (IdTSet_from_list (List.map (IdT.lift Tag.physical)
-                                                                   (List.map Postcond.Phinode.get_def assigns)))
+    <<EQUIV: locals_equiv_except (AtomSetImpl_from_list (List.map Postcond.Phinode.get_def assigns))
                                  locals locals'>>.
 Proof.
   ii. unfold switchToNewBasicBlock in SWITCH. simtac.
@@ -231,10 +230,11 @@ Proof.
   destruct (in_dec id_dec id0 (List.map getPhiNodeID phinodes)).
   - exploit phinodes_progress_getPhiNodeID_safe; eauto. i. des.
     contradict NOT_MEM. unfold not.
-    apply eq_true_false_abs, IdTSet_from_list_spec, In_map. eauto.
+    admit.
+    (* apply eq_true_false_abs, AtomSetImpl_from_list_spec, In_map. eauto. *)
   - hexploit opsem_props.OpsemProps.getIncomingValuesForBlockFromPHINodes_spec8; eauto. i.
     exploit notin_lookupAL_None; eauto.
-Qed.
+Admitted.
 
 Lemma IdTSet_from_list_spec':
   forall ids id0, IdTSet.mem id0 (IdTSet_from_list ids) = false <-> ~ In id0 ids.
@@ -314,14 +314,15 @@ Proof.
     eapply locals_equiv_after_phinode; eauto.
     rewrite L_TGT. eauto.
   }
-  { instantiate (1 := IdTSet_from_list (List.map (IdT.lift Tag.physical) (filter_map Postcond.Phinode.get_use l0))).
+  { instantiate (1 := AtomSetImpl_from_list ((filter_map Postcond.Phinode.get_use l0))).
     ii.
     inv STATE0.
     inv SRC.
     exploit UNIQUE; eauto.
     { apply AtomSetFacts.mem_iff; eauto. }
     i.
-    apply IdTSet_from_list_spec in MEM_X.
+    admit.
+    (* apply IdTSet_from_list_spec in MEM_X. *)
     (* apply IdTSet_from_list_spec' in UNIQUE_NO_USE. *)
     
     (* contradict  *)
@@ -335,7 +336,7 @@ Proof.
     
 
     (* unfold unique_preserved_except. *)
-    admit. }
+  }
   { admit. }
   i. des. inversion x0.
   exploit phinodes_add_lessdef_sound; try exact SRC; eauto; i.
