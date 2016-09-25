@@ -19,6 +19,117 @@ Require Import Debug.
 Import ListNotations.
 Set Implicit Arguments.
 
+Module Cmd.
+  Definition t := cmd.
+
+  Definition get_def (c:t): option id := getCmdID c.
+
+  Definition get_def_memory (c:t): option Ptr.t :=
+    match c with
+    | insn_free x ty v =>
+      TODO.lift_option
+        (fun id => (ValueT.id (IdT.lift Tag.physical id), ty))
+        (getValueID v)
+    | insn_store x ty v p a =>
+      TODO.lift_option
+        (fun id => (ValueT.id (IdT.lift Tag.physical id), typ_pointer ty))
+        (getValueID p)
+    | _ => None
+    end.
+
+  Definition get_rhs (c:t): option Expr.t :=
+    match c with
+    | insn_nop _ => None
+    | insn_bop x b s v1 v2 =>
+      Some (Expr.bop b s (ValueT.lift Tag.physical v1) (ValueT.lift Tag.physical v2))
+    | insn_fbop x fb fp v1 v2 =>
+      Some (Expr.fbop fb fp (ValueT.lift Tag.physical v1) (ValueT.lift Tag.physical v2))
+    | insn_extractvalue x ty1 v lc ty2 =>
+      Some (Expr.extractvalue ty1 (ValueT.lift Tag.physical v) lc ty2)
+    | insn_insertvalue x ty1 v1 ty2 v2 lc =>
+      Some (Expr.insertvalue ty1 (ValueT.lift Tag.physical v1)
+                             ty2 (ValueT.lift Tag.physical v2) lc)
+    | insn_malloc x ty v a => None
+    | insn_free x ty v => None
+    | insn_alloca x ty v a => None
+    | insn_load x ty p a => Some (Expr.load (ValueT.lift Tag.physical p) ty a)
+    | insn_store x ty v p a => None
+    | insn_gep x ib ty1 v lsv ty2 =>
+      let lsvT :=
+          List.map (fun elt => (fst elt, ValueT.lift Tag.physical (snd elt))) lsv in
+      Some (Expr.gep ib ty1 (ValueT.lift Tag.physical v) lsvT ty2)
+    | insn_trunc x trop ty1 v ty2 =>
+      Some (Expr.trunc trop ty1 (ValueT.lift Tag.physical v) ty2)
+    | insn_ext x eop ty1 v ty2 =>
+      Some (Expr.ext eop ty1 (ValueT.lift Tag.physical v) ty2)
+    | insn_cast x cop ty1 v ty2 =>
+      Some (Expr.cast cop ty1 (ValueT.lift Tag.physical v) ty2)
+    | insn_icmp x con ty v1 v2 =>
+      Some (Expr.icmp con ty
+                      (ValueT.lift Tag.physical v1)
+                      (ValueT.lift Tag.physical v2))
+    | insn_fcmp x fcon fp v1 v2 =>
+      Some (Expr.fcmp fcon fp
+                      (ValueT.lift Tag.physical v1)
+                      (ValueT.lift Tag.physical v2))
+    | insn_select x v1 ty v2 v3 =>
+      Some (Expr.select (ValueT.lift Tag.physical v1) ty
+                        (ValueT.lift Tag.physical v2)
+                        (ValueT.lift Tag.physical v3))
+    | insn_call x _ _ typ _ f params => None
+    end.
+
+  Definition get_values (c: t): list value :=
+    match c with
+      | insn_nop _ => []
+      | insn_bop x b s v1 v2 => [v1 ; v2]
+      | insn_fbop x fb fp v1 v2 => [v1 ; v2]
+      | insn_extractvalue x ty1 v lc ty2 => [v]
+      | insn_insertvalue x ty1 v1 ty2 v2 lc => [v1 ; v2]
+      | insn_malloc x ty v a => [v]
+      | insn_free x ty v => [v]
+      | insn_alloca x ty v a => [v]
+      | insn_load x ty p a => [p]
+      | insn_store x ty v p a => [v ; p]
+      | insn_gep x ib ty1 v lsv ty2 => v :: (List.map snd lsv)
+      | insn_trunc x trop ty1 v ty2 => [v]
+      | insn_ext x eop ty1 v ty2 => [v]
+      | insn_cast x cop ty1 v ty2 => [v]
+      | insn_icmp x con ty v1 v2 => [v1 ; v2]
+      | insn_fcmp x fcon fp v1 v2 => [v1 ; v2]
+      | insn_select x v1 ty v2 v3 => [v1 ; v2 ; v3]
+      | insn_call x nr attr ty va f ps => f :: (List.map snd ps)
+    end.
+
+    Definition get_leaked_values (c: t): list value :=
+    match c with
+      | insn_nop _ => []
+      | insn_bop x b s v1 v2 => [v1 ; v2]
+      | insn_fbop x fb fp v1 v2 => [v1 ; v2]
+      | insn_extractvalue x ty1 v lc ty2 => [v]
+      | insn_insertvalue x ty1 v1 ty2 v2 lc => [v1 ; v2]
+      | insn_malloc x ty v a => [v]
+      | insn_free x ty v => [v]
+      | insn_alloca x ty v a => [v]
+      | insn_load x ty p a => []
+      | insn_store x ty v p a => [v]
+      | insn_gep x ib ty1 v lsv ty2 => v :: (List.map snd lsv)
+      | insn_trunc x trop ty1 v ty2 => [v]
+      | insn_ext x eop ty1 v ty2 => [v]
+      | insn_cast x cop ty1 v ty2 => [v]
+      | insn_icmp x con ty v1 v2 => [v1 ; v2]
+      | insn_fcmp x fcon fp v1 v2 => [v1 ; v2]
+      | insn_select x v1 ty v2 v3 => [v1 ; v2 ; v3]
+      | insn_call x nr attr ty va f ps => f :: (List.map snd ps)
+    end.
+
+  Definition get_ids (c: t): list id :=
+    TODO.filter_map Value.get_ids (get_values c).
+
+  Definition get_leaked_ids (c: t): list id :=
+    TODO.filter_map Value.get_ids (get_leaked_values c).
+End Cmd.
+
 Module LiftPred.
   Section LiftPred.
     Variable IdT: IdT.t -> bool.
@@ -276,19 +387,44 @@ Module ForgetMemory.
 
   Definition is_noalias_ExprPair
              (inv:Invariant.unary) (ps:PtrSet.t) (ep:ExprPair.t): bool :=
-    is_noalias_Expr inv ps (fst ep) && is_noalias_Expr inv ps (snd ep).
+    is_noalias_Expr inv ps ep.(fst) && is_noalias_Expr inv ps ep.(snd).
 
   Definition filter_unique (ps:PtrSet.t) (inv:Invariant.unary): PtrSet.t :=
     PtrSet.filter
       (compose negb (Invariant.is_unique_ptr inv)) ps.
 
-  Definition unary (ps:PtrSet.t) (inv0:Invariant.unary): Invariant.unary :=
-    let ps := filter_unique ps inv0 in
-    Invariant.update_lessdef (ExprPairSet.filter (is_noalias_ExprPair inv0 ps)) inv0.
+  Definition unary_non_call (ps:PtrSet.t) (inv0:Invariant.unary): Invariant.unary :=
+    Invariant.update_lessdef (ExprPairSet.filter (is_noalias_ExprPair inv0 (filter_unique ps inv0))) inv0.
 
-  Definition t (s_src s_tgt:PtrSet.t) (inv0:Invariant.t): Invariant.t :=
-    let inv1 := Invariant.update_src (unary s_src) inv0 in
-    let inv2 := Invariant.update_tgt (unary s_tgt) inv1 in
+  Definition is_private_or_unique_Expr (inv:Invariant.unary) (e:Expr.t): bool :=
+    match e with
+    | Expr.load v ty al =>
+      match v with
+      | ValueT.id (t, x) =>
+        IdTSet.mem (t, x) inv.(Invariant.private) ||
+        match t with
+        | Tag.physical => AtomSetImpl.mem x inv.(Invariant.unique)
+        | _ => false
+        end
+      | _ => false
+      end
+    | _ => true
+    end.
+
+  Definition is_private_or_unique_ExprPair (inv:Invariant.unary) (ep:ExprPair.t): bool :=
+    is_private_or_unique_Expr inv ep.(fst) && is_private_or_unique_Expr inv ep.(snd).
+
+  Definition unary_call (inv0:Invariant.unary): Invariant.unary :=
+    Invariant.update_lessdef (ExprPairSet.filter (is_private_or_unique_ExprPair inv0)) inv0.
+
+  Definition unary (c:cmd) (inv0:Invariant.unary): Invariant.unary :=
+    if (Instruction.isCallInst c)
+    then unary_non_call (PtrSet_from_list (option_to_list (Cmd.get_def_memory c))) inv0
+    else unary_call inv0.
+
+  Definition t (cmd_src cmd_tgt:cmd) (inv0:Invariant.t): Invariant.t :=
+    let inv1 := Invariant.update_src (unary cmd_src) inv0 in
+    let inv2 := Invariant.update_tgt (unary cmd_tgt) inv1 in
     inv2.
 End ForgetMemory.
 
@@ -339,92 +475,6 @@ Definition reduce_maydiff (inv0:Invariant.t): Invariant.t :=
 (*                 inv0 in *)
 (*   let inv2 := reduce_maydiff_non_physical inv1 in *)
 (*   inv2. *)
-
-Module Cmd.
-  Definition t := cmd.
-
-  Definition get_def (c:t): option id := getCmdID c.
-
-  Definition get_def_memory (c:t): option Ptr.t :=
-    match c with
-    | insn_free x ty v =>
-      TODO.lift_option
-        (fun id => (ValueT.id (IdT.lift Tag.physical id), ty))
-        (getValueID v)
-    | insn_store x ty v p a =>
-      TODO.lift_option
-        (fun id => (ValueT.id (IdT.lift Tag.physical id), typ_pointer ty))
-        (getValueID p)
-    | _ => None
-    end.
-
-  Definition get_rhs (c:t): option Expr.t :=
-    match c with
-    | insn_nop _ => None
-    | insn_bop x b s v1 v2 =>
-      Some (Expr.bop b s (ValueT.lift Tag.physical v1) (ValueT.lift Tag.physical v2))
-    | insn_fbop x fb fp v1 v2 =>
-      Some (Expr.fbop fb fp (ValueT.lift Tag.physical v1) (ValueT.lift Tag.physical v2))
-    | insn_extractvalue x ty1 v lc ty2 =>
-      Some (Expr.extractvalue ty1 (ValueT.lift Tag.physical v) lc ty2)
-    | insn_insertvalue x ty1 v1 ty2 v2 lc =>
-      Some (Expr.insertvalue ty1 (ValueT.lift Tag.physical v1)
-                             ty2 (ValueT.lift Tag.physical v2) lc)
-    | insn_malloc x ty v a => None
-    | insn_free x ty v => None
-    | insn_alloca x ty v a => None
-    | insn_load x ty p a => Some (Expr.load (ValueT.lift Tag.physical p) ty a)
-    | insn_store x ty v p a => None
-    | insn_gep x ib ty1 v lsv ty2 =>
-      let lsvT :=
-          List.map (fun elt => (fst elt, ValueT.lift Tag.physical (snd elt))) lsv in
-      Some (Expr.gep ib ty1 (ValueT.lift Tag.physical v) lsvT ty2)
-    | insn_trunc x trop ty1 v ty2 =>
-      Some (Expr.trunc trop ty1 (ValueT.lift Tag.physical v) ty2)
-    | insn_ext x eop ty1 v ty2 =>
-      Some (Expr.ext eop ty1 (ValueT.lift Tag.physical v) ty2)
-    | insn_cast x cop ty1 v ty2 =>
-      Some (Expr.cast cop ty1 (ValueT.lift Tag.physical v) ty2)
-    | insn_icmp x con ty v1 v2 =>
-      Some (Expr.icmp con ty
-                      (ValueT.lift Tag.physical v1)
-                      (ValueT.lift Tag.physical v2))
-    | insn_fcmp x fcon fp v1 v2 =>
-      Some (Expr.fcmp fcon fp
-                      (ValueT.lift Tag.physical v1)
-                      (ValueT.lift Tag.physical v2))
-    | insn_select x v1 ty v2 v3 =>
-      Some (Expr.select (ValueT.lift Tag.physical v1) ty
-                        (ValueT.lift Tag.physical v2)
-                        (ValueT.lift Tag.physical v3))
-    | insn_call x _ _ typ _ f params => None
-    end.
-
-  Definition get_values (c: t): list value :=
-    match c with
-      | insn_nop _ => []
-      | insn_bop x b s v1 v2 => [v1 ; v2]
-      | insn_fbop x fb fp v1 v2 => [v1 ; v2]
-      | insn_extractvalue x ty1 v lc ty2 => [v]
-      | insn_insertvalue x ty1 v1 ty2 v2 lc => [v1 ; v2]
-      | insn_malloc x ty v a => [v]
-      | insn_free x ty v => [v]
-      | insn_alloca x ty v a => [v]
-      | insn_load x ty p a => [p]
-      | insn_store x ty v p a => [v ; p]
-      | insn_gep x ib ty1 v lsv ty2 => v :: (List.map snd lsv)
-      | insn_trunc x trop ty1 v ty2 => [v]
-      | insn_ext x eop ty1 v ty2 => [v]
-      | insn_cast x cop ty1 v ty2 => [v]
-      | insn_icmp x con ty v1 v2 => [v1 ; v2]
-      | insn_fcmp x fcon fp v1 v2 => [v1 ; v2]
-      | insn_select x v1 ty v2 v3 => [v1 ; v2 ; v3]
-      | insn_call x nr attr ty va f ps => f :: (List.map snd ps)
-    end.
-
-  Definition get_ids (c: t): list id :=
-    TODO.filter_map Value.get_ids (get_values c).
-End Cmd.
 
 Module Phinode.
   Definition t := phinode.
@@ -762,12 +812,11 @@ Definition postcond_cmd_check
   true.
 
 Definition postcond_cmd_forget
+           (cmd_src cmd_tgt: cmd)
            (def_src def_tgt leaks_src leaks_tgt:AtomSetImpl.t)
-           (def_memory_src def_memory_tgt:PtrSet.t)
            (inv0:Invariant.t): Invariant.t :=
   let inv1 := Forget.t def_src def_tgt leaks_src leaks_tgt inv0 in
-  (* let inv2 := postcond_unique_leakage src tgt inv1 in *) (* TODO *)
-  let inv2 := ForgetMemory.t def_memory_src def_memory_tgt inv1 in
+  let inv2 := ForgetMemory.t cmd_src cmd_tgt inv1 in
   inv2.
 
 Definition postcond_cmd_add
@@ -789,14 +838,11 @@ Definition postcond_cmd
   let def_tgt := AtomSetImpl_from_list (option_to_list (Cmd.get_def tgt)) in
   let uses_src := AtomSetImpl_from_list (Cmd.get_ids src) in
   let uses_tgt := AtomSetImpl_from_list (Cmd.get_ids tgt) in
-  let leaks_src := uses_src in (* TODO *)
-  let leaks_tgt := uses_tgt in (* TODO *)
-  let def_memory_src := PtrSet_from_list (option_to_list (Cmd.get_def_memory src)) in
-  let def_memory_tgt := PtrSet_from_list (option_to_list (Cmd.get_def_memory tgt)) in
-  (* TODO: after call, invariants on non-private locations should be reased *)
+  let leaks_src := AtomSetImpl_from_list (Cmd.get_leaked_ids src) in
+  let leaks_tgt := AtomSetImpl_from_list (Cmd.get_leaked_ids tgt) in
   (* TODO: why ForgetMemory accepts PtrSet?  Why not option Ptr? *)
 
-  let inv1 := postcond_cmd_forget def_src def_tgt uses_src uses_tgt def_memory_src def_memory_tgt inv0 in
+  let inv1 := postcond_cmd_forget src tgt def_src def_tgt uses_src uses_tgt inv0 in
   if postcond_cmd_check src tgt def_src def_tgt uses_src uses_tgt inv1
   then Some (postcond_cmd_add src tgt inv1)
   else None.
