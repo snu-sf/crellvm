@@ -148,6 +148,21 @@ Lemma postcond_cmd_forget_le
 Proof.
 Admitted.
 
+Lemma step_state_equiv_except
+      cmd cmds
+      conf st0 st1 evt
+      (CMDS: st0.(EC).(CurCmds) = cmd :: cmds)
+      (STEP: sInsn conf st0 st1 evt)
+  : state_equiv_except (AtomSetImpl_from_list (option_to_list (Cmd.get_def cmd))) st0 st1.
+Proof.
+Admitted.
+
+(* TODO: complete this lemma about unique_preserved_except *)
+(* Lemma step_unique_preserved_except *)
+(*           (STEP: sInsn conf_src st0_src st1_src evt) *)
+(*     : unique_preserved_except conf_src (InvState.Rel.src invst0) (Invariant.src inv0) *)
+(*     (AtomSetImpl_from_list (Cmd.get_def ?Goal13)) ?Goal *)
+
 (* TODO: we can assume source's progress *)
 Lemma postcond_cmd_sound
       conf_src st0_src cmd_src cmds_src
@@ -175,8 +190,8 @@ Proof.
   }
   i. des.
   exploit postcond_cmd_forget_sound; eauto.
-  { admit. }
-  { admit. }
+  { exploit step_state_equiv_except; eauto. }
+  { exploit step_state_equiv_except; eauto. }
   { admit. }
   { admit. }
   { admit. }

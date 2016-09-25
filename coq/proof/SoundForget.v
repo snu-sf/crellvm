@@ -145,7 +145,7 @@ Definition unique_preserved_except conf invst1 inv st1 defs uses : Prop :=
   forall x u gvx gvy
          (MEM_X: AtomSetImpl.mem x defs = true)
          (MEM_Y: AtomSetImpl.mem u inv.(Invariant.unique) = true)
-         (UNIQUE_NO_USE: AtomSetImpl.mem u uses = false)
+         (UNIQUE_NO_USE: AtomSetImpl.mem u (AtomSetImpl.union defs uses) = false)
          (VAL_X: InvState.Unary.sem_idT st1 invst1 (Tag.physical, x) = Some gvx)
          (VAL_Y: lookupAL _ st1.(EC).(Locals) u = Some gvy),
     InvState.Unary.sem_diffblock conf gvx gvy.
