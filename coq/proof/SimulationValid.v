@@ -49,7 +49,7 @@ Inductive valid_state_sim
     fdef_hint cmds_hint
     inv inv_term
     invst
-    (CONF: valid_conf m_src m_tgt conf_src conf_tgt)
+    (CONF: InvState.valid_conf m_src m_tgt conf_src conf_tgt)
     (ECS_SRC: st_src.(ECS) = stack0_src)
     (ECS_TGT: st_tgt.(ECS) = stack0_tgt)
     (FDEF: valid_fdef m_src m_tgt st_src.(EC).(CurFunction) st_tgt.(EC).(CurFunction) fdef_hint)
@@ -78,7 +78,7 @@ Lemma valid_init
       (FDEF: valid_fdef m_src m_tgt fdef_src fdef_tgt fdef_hint)
       (ARGS: list_forall2 (genericvalues_inject.gv_inject inv.(InvMem.Rel.inject)) args_src args_tgt)
       (MEM: InvMem.Rel.sem conf_src conf_tgt mem_src mem_tgt inv)
-      (CONF: valid_conf m_src m_tgt conf_src conf_tgt)
+      (CONF: InvState.valid_conf m_src m_tgt conf_src conf_tgt)
       (INIT_SRC: init_fdef conf_src fdef_src args_src ec_src):
   exists ec_tgt,
     <<INIT_TGT: init_fdef conf_tgt fdef_tgt args_tgt ec_tgt>> /\
@@ -165,7 +165,7 @@ Proof.
       i. inv STEP. unfold valid_phinodes in *.
       do 12 simtac0. rewrite <- (ite_spec decision0 l0 l3) in *. simtac.
       rewrite VAL_TGT in H16. inv H16.
-      exploit decide_nonzero_inject; eauto.
+      exploit decide_nonzero_inject_aux; eauto.
       { inv CONF. inv INJECT0. ss. subst. eauto. }
       i. subst.
       exploit add_terminator_cond_br; eauto. i. des.
@@ -224,8 +224,20 @@ Proof.
       * econs 1. econs; eauto. rewrite lookupBlockViaLabelFromFdef_spec. ss.
       * right. apply CIH. econs; ss; eauto; ss; eauto.
     + (* switch *)
+      destruct (list_const_l_dec l0 l1); ss. subst. (* TODO *)
+      exploit nerror_nfinal_nstuck; eauto. i. des. inv x0.
+      exploit InvState.Rel.inject_value_spec; eauto.
+      { rewrite InvState.Unary.sem_valueT_physical. eauto. }
+      rewrite InvState.Unary.sem_valueT_physical. s. i. des.
+      exploit get_switch_branch_inject; eauto. i.
+      eapply _sim_local_step.
+      { admit. (* tgt not stuck *) }
+      i. inv STEP. unfold valid_phinodes in *. simtac.
+      rewrite add_terminator_cond_switch in *.
+      rewrite lookupBlockViaLabelFromFdef_spec in *.
       admit.
-    + exploit nerror_nfinal_nstuck; eauto. i. des. inv x0.
+    + (* unreachable *)
+      exploit nerror_nfinal_nstuck; eauto. i. des. inv x0.
   - (* cmd *)
     destruct (Instruction.isCallInst c) eqn:CALL.
     + (* call *)
@@ -262,7 +274,7 @@ Lemma valid_sim_fdef
       conf_src conf_tgt
       fdef_src fdef_tgt
       fdef_hint
-      (CONF: valid_conf m_src m_tgt conf_src conf_tgt)
+      (CONF: InvState.valid_conf m_src m_tgt conf_src conf_tgt)
       (FDEF: valid_fdef m_src m_tgt fdef_src fdef_tgt fdef_hint):
   sim_fdef conf_src conf_tgt fdef_src fdef_tgt.
 Proof.

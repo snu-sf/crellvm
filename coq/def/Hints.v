@@ -270,19 +270,33 @@ Module Invariant.
     is_empty_unary inv.(tgt) &&
     IdTSet.is_empty inv.(maydiff).
 
+  Definition get_idTs_lessdef (ld: ExprPairSet.t): list IdT.t :=
+    List.concat (List.map
+                   (fun (p: ExprPair.t) =>
+                      Expr.get_idTs p.(fst) ++ Expr.get_idTs p.(snd))
+                   (ExprPairSet.elements ld)).
+
+  Definition get_idTs_noalias (noal: PtrPairSet.t): list IdT.t :=
+    List.concat (List.map PtrPair.get_idTs (PtrPairSet.elements noal)).
+
+  Definition get_idTs_diffblock (db: ValueTPairSet.t): list IdT.t :=
+    List.concat (List.map ValueTPair.get_idTs (ValueTPairSet.elements db)).
+
+  Definition get_idTs_alias (ar: aliasrel): list IdT.t :=
+    (get_idTs_noalias ar.(noalias))
+      ++ (get_idTs_diffblock ar.(diffblock)).
+
+  Definition get_idTs_unique (uniq: atoms): list IdT.t :=
+    (List.map (IdT.lift Tag.physical) (AtomSetImpl.elements uniq)).
+
+  Definition get_idTs_private (prvt: IdTSet.t): list IdT.t :=
+    IdTSet.elements prvt.
+
   Definition get_idTs_unary (u: unary): list IdT.t :=
-    List.concat
-      (List.map
-         (fun (p: ExprPair.t) =>
-            Expr.get_idTs p.(fst) ++ Expr.get_idTs p.(snd))
-         (ExprPairSet.elements u.(lessdef))) ++
-    List.concat
-      (List.map
-         (fun (pp: PtrPair.t) =>
-            TODO.filter_map Ptr.get_idTs [pp.(fst) ; pp.(snd)])
-         (PtrPairSet.elements (u.(alias).(noalias)))) ++
-      (List.map (IdT.lift Tag.physical) (AtomSetImpl.elements u.(unique))) ++
-      IdTSet.elements u.(private).
+    (get_idTs_lessdef u.(lessdef))
+      ++ (get_idTs_alias u.(alias))
+      ++ (get_idTs_unique u.(unique))
+      ++ (get_idTs_private u.(private)).
 
   Definition get_idTs (inv: t): list IdT.t :=
     (get_idTs_unary inv.(src))

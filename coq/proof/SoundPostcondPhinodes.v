@@ -34,6 +34,16 @@ Lemma add_terminator_cond_br_uncond
   inv.
 Proof. destruct inv, src, tgt. ss. Qed.
 
+Lemma add_terminator_cond_switch
+      inv bid_src bid_tgt ty val_src val_tgt l0 cls l:
+  Postcond.add_terminator_cond
+    inv
+    (insn_switch bid_src ty val_src l0 cls)
+    (insn_switch bid_tgt ty val_tgt l0 cls)
+    l =
+  inv.
+Proof. destruct inv, src, tgt. ss. Qed.
+
 Lemma add_terminator_cond_br
       conf_src conf_tgt
       st_src st_tgt
