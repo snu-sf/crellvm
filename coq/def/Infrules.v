@@ -933,6 +933,21 @@ Definition apply_infrule
        cond_same_bitsize intty ptrty m_src
     then {{ inv0 +++src (Expr.load ptr intty a) >= (Expr.value v2) }}
     else apply_fail tt
+  | Infrule.ptrtoint_zero ptrty intty =>
+    match ptrty with
+    | typ_pointer elemty =>
+      match intty with
+      | typ_int sz =>
+        let castlhs := (Expr.cast castop_ptrtoint intty
+             (ValueT.const (const_null elemty)) intty)
+        in
+        let castrhs := (Expr.value (ValueT.const (const_zero sz))) in
+        let inv1 := {{ inv0 +++src castlhs >= castrhs }} in
+        {{ inv1 +++tgt castlhs >= castrhs }}
+      | _ => apply_fail tt
+      end
+    | _ => apply_fail tt
+    end
   | Infrule.inttoptr_ptrtoint src mid dst srcty midty dstty =>
     if $$ inv0 |-src (Expr.value mid) >= (Expr.cast castop_ptrtoint srcty src midty) $$ &&
        $$ inv0 |-src (Expr.value dst) >= (Expr.cast castop_inttoptr midty mid dstty) $$ &&

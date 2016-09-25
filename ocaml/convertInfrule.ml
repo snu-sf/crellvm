@@ -625,6 +625,10 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
      let v2 = Convert.value args.v2 in
      let a = Convert.size args.a in
      Infrule.Coq_ptrtoint_load (ptr, ptrty, v1, intty, v2, a)
+  | CoreHint_t.PtrtointZero (args:CoreHint_t.ptrtoint_zero) -> 
+     let ptrty = Convert.value_type args.ptrty in
+     let intty = Convert.value_type args.intty in
+     Infrule.Coq_ptrtoint_zero (ptrty, intty)
   | CoreHint_t.NegVal (args:CoreHint_t.neg_val) ->
      let c1 = Convert.const_int args.c1 in
      let c2 = Convert.const_int args.c2 in

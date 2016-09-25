@@ -55,7 +55,7 @@ type value_type = [
     | IntValueType of int_type
     | FloatValueType of float_type
     | NamedType of string
-    | PtrType of (int * value_type)
+    | PtrType of (int * value_type) (* (addr space, type) *)
     | ArrayType of (int * value_type)
     | FunctionType of (value_type * (value_type list) * bool * int) (* (return-type, argument-type, is-var-arg, arg-size) *)
     | VectorType of (int * value_type)
@@ -110,7 +110,7 @@ type constant_expr = [
 type constant = [
   | ConstInt of const_int
   | ConstFloat of const_float
-  | ConstNull of (int * value_type)
+  | ConstNull of (int * value_type) (* addr space, type *)
   | ConstUndef of value_type 
   | ConstGlobalVarAddr of const_global_var_addr 
   | ConstDataVector of (value_type * constant list)
@@ -325,6 +325,7 @@ type propagate_range = [
 type propagate = {
   propagate : propagate_object;
   propagate_range : propagate_range;
+  desc : string;
 }
 
 (*****************************************)
@@ -1165,6 +1166,11 @@ type ptrtoint_load = {
     intty : value_type;
     v2 : value;
     a : size;
+}
+
+type ptrtoint_zero = {
+    ptrty : value_type;
+    intty : value_type;
 }
 
 type rem_neg = {
@@ -2026,6 +2032,7 @@ type infrule = [
   | OrZero of or_zero
   | PtrtointBitcast of ptrtoint_bitcast
   | PtrtointLoad of ptrtoint_load
+  | PtrtointZero of ptrtoint_zero
   | MulBool of mul_bool
   | MulMone of mul_mone
   | MulNeg of mul_neg
