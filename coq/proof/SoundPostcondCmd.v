@@ -24,38 +24,11 @@ Require InvMem.
 Require InvState.
 Require Import Inject.
 Require Import SoundBase.
-Require Import SoundForget.
-Require Import SoundPostcondCmdCheck.
-Require Import SoundPostcondCmdForget.
+Require Import SoundPostcondForget.
 Require Import SoundPostcondCmdAdd.
 
 Set Implicit Arguments.
 
-
-(* TODO: move somewhere else *)
-Program Instance po_inv_le_unary : PreOrder Invariant.le_unary.
-Next Obligation.
-  ii. econs; ss.
-  econs; ss.
-Qed.
-Next Obligation.
-  ii. inv H. inv H0. econs.
-  - eauto using ExprPairSetFacts.Subset_trans.
-  - inv ALIAS. inv ALIAS0. econs.
-    + eauto using ValueTPairSetFacts.Subset_trans.
-    + eauto using PtrPairSetFacts.Subset_trans.
-  - eauto using AtomSetFacts.Subset_trans.
-  - eauto using IdTSetFacts.Subset_trans.
-Qed.
-
-Program Instance po_inv_le : PreOrder Invariant.le.
-Next Obligation.
-  ii. econs; ss; reflexivity.
-Qed.
-Next Obligation.
-  ii. inv H; inv H0.
-  econs; etransitivity; eauto.
-Qed.
 
 Lemma postcond_cmd_is_call
       c_src c_tgt inv1 inv2
@@ -66,6 +39,16 @@ Proof.
     Postcond.postcond_cmd,
     Postcond.postcond_cmd_check in *.
   destruct c_src, c_tgt; ss; des_ifs.
+Qed.
+
+Lemma noncall_event
+      conf st0 st1 evt cmd cmds
+      (STEP: sInsn conf st0 st1 evt)
+      (CMDS: st0.(EC).(CurCmds) = cmd::cmds)
+      (NONCALL: Instruction.isCallInst cmd = false):
+  evt = events.E0.
+Proof.
+  inv STEP; ss. inv CMDS. ss.
 Qed.
 
 Lemma postcond_cmd_sound
@@ -90,13 +73,17 @@ Lemma postcond_cmd_sound
 Proof.
   exploit postcond_cmd_is_call; eauto. i.
   unfold postcond_cmd in *. simtac.
-  exploit postcond_cmd_check_sound; try exact STATE; eauto.
-  { eapply postcond_cmd_check_mon; eauto.
-    etransitivity.
-    - apply postcond_cmd_forget_memory_le.
-    - apply postcond_cmd_forget_le.
+
+  destruct (s_isFinialState conf_src st0_src) eqn:FINAL.
+  { unfold s_isFinialState in FINAL. simtac. }
+  exploit nerror_nfinal_nstuck; eauto. i. des.
+  replace e with evt in *; cycle 1.
+  { unfold postcond_cmd_check in COND. simtac.
+    exploit (@noncall_event conf_src); eauto. i.
+    exploit (@noncall_event conf_tgt); eauto. i.
+    subst. ss.
   }
-  i. des.
+
   exploit postcond_cmd_forget_sound; eauto.
   { exploit step_state_equiv_except; eauto. }
   { exploit step_state_equiv_except; eauto. }
@@ -105,6 +92,7 @@ Proof.
   { admit. }
   { admit. }
   i. des.
+
   exploit postcond_cmd_add_sound; eauto. i. des.
   esplits; eauto. etransitivity; eauto.
 Admitted.

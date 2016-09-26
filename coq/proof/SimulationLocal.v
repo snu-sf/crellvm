@@ -94,7 +94,7 @@ Section SimLocal.
       (MEM: InvMem.Rel.sem conf_src conf_tgt st2_src.(Mem) st1_tgt.(Mem) inv1)
       (RETURN:
          forall inv3 mem3_src mem3_tgt retval3_src retval3_tgt locals4_src
-           (INCR: InvMem.Rel.le inv1 inv3)
+           (INCR: InvMem.Rel.le (InvMem.Rel.lift st2_src.(Mem) st1_tgt.(Mem) inv1) inv3)
            (MEM: InvMem.Rel.sem conf_src conf_tgt mem3_src mem3_tgt inv3)
            (RETVAL: TODO.lift2_option (genericvalues_inject.gv_inject inv3.(InvMem.Rel.inject)) retval3_src retval3_tgt)
            (RETURN_SRC: return_locals

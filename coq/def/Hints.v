@@ -302,27 +302,6 @@ Module Invariant.
     (get_idTs_unary inv.(src))
       ++ (get_idTs_unary inv.(tgt))
       ++ (IdTSet.elements inv.(maydiff)).
-
-  Inductive le_aliasrel (lhs rhs:aliasrel): Prop :=
-  | le_aliasrel_intro
-      (DIFFBLOCK: ValueTPairSet.Subset lhs.(diffblock) rhs.(diffblock))
-      (NOALIAS: PtrPairSet.Subset lhs.(noalias) rhs.(noalias))
-  .
-
-  Inductive le_unary (lhs rhs:unary): Prop :=
-  | le_unary_intro
-      (LESSDEF: ExprPairSet.Subset lhs.(lessdef) rhs.(lessdef))
-      (ALIAS: le_aliasrel lhs.(alias) rhs.(alias))
-      (UNIQUE: AtomSetImpl.Subset lhs.(unique) rhs.(unique))
-      (PRIVATE: IdTSet.Subset lhs.(private) rhs.(private))
-  .
-
-  Inductive le (lhs rhs:t): Prop :=
-  | le_intro
-      (SRC: le_unary lhs.(src) rhs.(src))
-      (TGT: le_unary lhs.(tgt) rhs.(tgt))
-      (MAYDIFF: IdTSet.Subset lhs.(maydiff) rhs.(maydiff))
-  .
 End Invariant.
 
 Module Infrule.
