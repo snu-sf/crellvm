@@ -3,6 +3,7 @@ Require Import sflib.
 Require Import vellvm.
 Require Import paco.
 
+Require Import GenericValues.
 Import Opsem.
 
 
@@ -22,12 +23,10 @@ Inductive behmatch
   forall (st:State) (obs:observation), Prop :=
 | beh_error
     s obs
-    (STUCK: stuck_state conf s)
-    (NFINAL: s_isFinialState conf s = None):
+    (ERROR: error_state conf s):
     behmatch conf behave s obs
 | beh_done
     s
-    (STUCK: stuck_state conf s)
     (FINAL: s_isFinialState conf s <> None):
     behmatch conf behave s obs_done
 | beh_inftau

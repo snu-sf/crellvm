@@ -54,6 +54,17 @@ Inductive error_state conf st: Prop :=
     (NFINAL: s_isFinialState conf st = None)
 .
 
+Lemma final_stuck
+      conf st retval
+      (FINAL: s_isFinialState conf st = Some retval):
+  stuck_state conf st.
+Proof.
+  ii. des. destruct st, EC0. ss.
+  destruct CurCmds0, Terminator0, ECS0; ss.
+  - inv H.
+  - inv H.
+Qed.
+
 Lemma nerror_stuck_final
       conf st
       (NERROR: ~ error_state conf st)

@@ -53,7 +53,7 @@ Section Sim.
       (STEP:
          forall st3_tgt event
            (STEP: sInsn conf_tgt st1_tgt st3_tgt event),
-         exists st2_src st3_src st3_tgt idx3,
+         exists st2_src st3_src idx3,
            sop_star conf_src st1_src st2_src E0 /\
            sInsn_indexed conf_src st2_src st3_src idx1 idx3 event /\
            sim idx3 st3_src st3_tgt)
