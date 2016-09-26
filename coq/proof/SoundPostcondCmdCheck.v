@@ -29,13 +29,11 @@ Require Import SoundForget.
 Set Implicit Arguments.
 
 
-Definition Invariant_le (inv0 inv1: Invariant.t): Prop. Admitted. (* TODO *)
-
 Lemma postcond_cmd_check_mon
           src tgt
           def_src def_tgt uses_src uses_tgt
           inv0 inv1
-          (LE: Invariant_le inv0 inv1)
+          (LE: Invariant.le inv0 inv1)
           (CHECK: postcond_cmd_check
                     src tgt
                     def_src def_tgt uses_src uses_tgt
@@ -45,19 +43,9 @@ Lemma postcond_cmd_check_mon
     def_src def_tgt uses_src uses_tgt
     inv1.
 Proof.
-Admitted.
-
-Lemma postcond_cmd_forget_le
-      def_src def_tgt leaks_src leaks_tgt
-      def_memory_src def_memory_tgt
-      inv:
-  Invariant_le
-    (postcond_cmd_forget
-       def_src def_tgt leaks_src leaks_tgt
-       def_memory_src def_memory_tgt
-       inv)
-    inv.
-Proof.
+  unfold postcond_cmd_check in *. simtac.
+  destruct (postcond_cmd_inject_event src tgt inv1) eqn:X; ss. exfalso.
+  admit.
 Admitted.
 
 

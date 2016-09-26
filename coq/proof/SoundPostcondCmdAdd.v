@@ -29,7 +29,6 @@ Require Import SoundForget.
 Set Implicit Arguments.
 
 
-(* TODO: position *)
 Definition cmd_is_normal (c:cmd): bool :=
   match c with
   | insn_malloc _ _ _ _

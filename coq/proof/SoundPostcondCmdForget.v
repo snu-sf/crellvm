@@ -29,6 +29,20 @@ Require Import SoundForget.
 Set Implicit Arguments.
 
 
+Lemma postcond_cmd_forget_le
+      def_src def_tgt leaks_src leaks_tgt
+      def_memory_src def_memory_tgt
+      inv:
+  Invariant.le
+    (postcond_cmd_forget
+       def_src def_tgt leaks_src leaks_tgt
+       def_memory_src def_memory_tgt
+       inv)
+    inv.
+Proof.
+Admitted.
+
+
 Lemma step_state_equiv_except
       cmd cmds
       conf st0 st1 evt
