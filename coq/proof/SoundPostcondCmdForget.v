@@ -29,19 +29,24 @@ Require Import SoundForget.
 Set Implicit Arguments.
 
 
+(* TODO: move this to soundforget.v? *)
 Lemma postcond_cmd_forget_le
       def_src def_tgt leaks_src leaks_tgt
-      def_memory_src def_memory_tgt
       inv:
   Invariant.le
-    (postcond_cmd_forget
-       def_src def_tgt leaks_src leaks_tgt
-       def_memory_src def_memory_tgt
-       inv)
+    (Forget.t def_src def_tgt leaks_src leaks_tgt inv)
     inv.
 Proof.
 Admitted.
 
+Lemma postcond_cmd_forget_memory_le
+      def_memory_src def_memory_tgt
+      inv:
+  Invariant.le
+    (ForgetMemory.t def_memory_src def_memory_tgt inv)
+    inv.
+Proof.
+Admitted.
 
 Lemma step_state_equiv_except
       cmd cmds
@@ -63,8 +68,8 @@ Definition FORGET_MEMORY_TODO: Prop. Admitted. (* TODO *)
 
 (* TODO: we can assume source's progress *)
 Lemma postcond_cmd_forget_sound
-      conf_src st0_src st1_src def_src leaks_src cmd_src cmds_src
-      conf_tgt st0_tgt st1_tgt def_tgt leaks_tgt cmd_tgt cmds_tgt
+      conf_src st0_src st1_src def_src leaks_src cmd_src cmds_src def_memory_src
+      conf_tgt st0_tgt st1_tgt def_tgt leaks_tgt cmd_tgt cmds_tgt def_memory_tgt
       invst0 invmem0 inv0
       (STATE: InvState.Rel.sem conf_src conf_tgt st0_src st0_tgt invst0 invmem0 inv0)
       (MEM: InvMem.Rel.sem conf_src conf_tgt st0_src.(Mem) st0_tgt.(Mem) invmem0)
@@ -78,10 +83,8 @@ Lemma postcond_cmd_forget_sound
       (MEM_TGT: FORGET_MEMORY_TODO)
   : exists invst1 invmem1,
     <<STATE: InvState.Rel.sem conf_src conf_tgt st1_src st1_tgt invst1 invmem1
-                              (Postcond.postcond_cmd_forget
-                                 cmd_src cmd_tgt
-                                 def_src def_tgt leaks_src leaks_tgt
-                                 inv0)>> /\
+                              (ForgetMemory.t def_memory_src def_memory_tgt
+                                              (Forget.t def_src def_tgt leaks_src leaks_tgt inv0)) >> /\
     <<MEM: InvMem.Rel.sem conf_src conf_tgt st1_src.(Mem) st1_tgt.(Mem) invmem1>> /\
     <<MEMLE: InvMem.Rel.le invmem0 invmem1>>.
 Proof.

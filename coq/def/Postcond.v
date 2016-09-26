@@ -393,9 +393,16 @@ Module ForgetMemory.
     PtrSet.filter
       (compose negb (Invariant.is_unique_ptr inv)) ps.
 
-  Definition unary_non_call (ps:PtrSet.t) (inv0:Invariant.unary): Invariant.unary :=
+  Definition unary (ps:PtrSet.t) (inv0:Invariant.unary): Invariant.unary :=
     Invariant.update_lessdef (ExprPairSet.filter (is_noalias_ExprPair inv0 (filter_unique ps inv0))) inv0.
 
+  Definition t (s_src s_tgt:PtrSet.t) (inv0:Invariant.t): Invariant.t :=
+    let inv1 := Invariant.update_src (unary s_src) inv0 in
+    let inv2 := Invariant.update_tgt (unary s_tgt) inv1 in
+    inv2.
+End ForgetMemory.
+
+Module ForgetMemoryCall.
   Definition is_private_or_unique_Expr (inv:Invariant.unary) (e:Expr.t): bool :=
     match e with
     | Expr.load v ty al =>
@@ -414,19 +421,14 @@ Module ForgetMemory.
   Definition is_private_or_unique_ExprPair (inv:Invariant.unary) (ep:ExprPair.t): bool :=
     is_private_or_unique_Expr inv ep.(fst) && is_private_or_unique_Expr inv ep.(snd).
 
-  Definition unary_call (inv0:Invariant.unary): Invariant.unary :=
+  Definition unary (inv0:Invariant.unary): Invariant.unary :=
     Invariant.update_lessdef (ExprPairSet.filter (is_private_or_unique_ExprPair inv0)) inv0.
 
-  Definition unary (c:cmd) (inv0:Invariant.unary): Invariant.unary :=
-    if (Instruction.isCallInst c)
-    then unary_non_call (PtrSet_from_list (option_to_list (Cmd.get_def_memory c))) inv0
-    else unary_call inv0.
-
-  Definition t (cmd_src cmd_tgt:cmd) (inv0:Invariant.t): Invariant.t :=
-    let inv1 := Invariant.update_src (unary cmd_src) inv0 in
-    let inv2 := Invariant.update_tgt (unary cmd_tgt) inv1 in
+  Definition t (inv0:Invariant.t): Invariant.t :=
+    let inv1 := Invariant.update_src unary inv0 in
+    let inv2 := Invariant.update_tgt unary inv1 in
     inv2.
-End ForgetMemory.
+End ForgetMemoryCall.
 
 (* Non-physical that is only in maydiff is safe to remove *)
 Definition reduce_maydiff_preserved (inv0: Invariant.t) :=
@@ -811,13 +813,13 @@ Definition postcond_cmd_check
 
   true.
 
-Definition postcond_cmd_forget
-           (cmd_src cmd_tgt: cmd)
-           (def_src def_tgt leaks_src leaks_tgt:AtomSetImpl.t)
-           (inv0:Invariant.t): Invariant.t :=
-  let inv1 := Forget.t def_src def_tgt leaks_src leaks_tgt inv0 in
-  let inv2 := ForgetMemory.t cmd_src cmd_tgt inv1 in
-  inv2.
+(* Definition postcond_cmd_forget *)
+(*            (cmd_src cmd_tgt: cmd) *)
+(*            (def_src def_tgt leaks_src leaks_tgt:AtomSetImpl.t) *)
+(*            (inv0:Invariant.t): Invariant.t := *)
+(*   let inv1 := Forget.t def_src def_tgt leaks_src leaks_tgt inv0 in *)
+(*   let inv2 := ForgetMemory.t cmd_src cmd_tgt inv1 in *)
+(*   inv2. *)
 
 Definition postcond_cmd_add
            (src tgt:cmd)
@@ -840,9 +842,16 @@ Definition postcond_cmd
   let uses_tgt := AtomSetImpl_from_list (Cmd.get_ids tgt) in
   let leaks_src := AtomSetImpl_from_list (Cmd.get_leaked_ids src) in
   let leaks_tgt := AtomSetImpl_from_list (Cmd.get_leaked_ids tgt) in
+  let def_memory_src := PtrSet_from_list (option_to_list (Cmd.get_def_memory src)) in
+  let def_memory_tgt := PtrSet_from_list (option_to_list (Cmd.get_def_memory tgt)) in
   (* TODO: why ForgetMemory accepts PtrSet?  Why not option Ptr? *)
 
-  let inv1 := postcond_cmd_forget src tgt def_src def_tgt uses_src uses_tgt inv0 in
-  if postcond_cmd_check src tgt def_src def_tgt uses_src uses_tgt inv1
-  then Some (postcond_cmd_add src tgt inv1)
+  let inv1 := Forget.t def_src def_tgt leaks_src leaks_tgt inv0 in
+  let inv2 :=
+      if Instruction.isCallInst src
+      then ForgetMemoryCall.t inv1
+      else ForgetMemory.t def_memory_src def_memory_tgt inv1
+  in
+  if postcond_cmd_check src tgt def_src def_tgt uses_src uses_tgt inv2
+  then Some (postcond_cmd_add src tgt inv2)
   else None.

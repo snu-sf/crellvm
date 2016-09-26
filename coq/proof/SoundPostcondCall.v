@@ -90,9 +90,10 @@ Lemma postcond_call_sound
                    st0_tgt.(ECS) mem1_tgt)
           invst1 invmem1 inv1>>>>.
 Proof.
-  unfold Postcond.postcond_cmd, Postcond.postcond_cmd_forget in *.
-  splits; ss.
-  - admit. (* fun *)
-  - admit. (* args *)
-  - admit. (* return *)
+  (* TODO: proof crashed since we remove postcond_cmd_forget *)
+  (* unfold Postcond.postcond_cmd, Postcond.postcond_cmd_forget in *. *)
+  (* splits; ss. *)
+  (* - admit. (* fun *) *)
+  (* - admit. (* args *) *)
+  (* - admit. (* return *) *)
 Admitted.

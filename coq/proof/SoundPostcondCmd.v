@@ -32,6 +32,31 @@ Require Import SoundPostcondCmdAdd.
 Set Implicit Arguments.
 
 
+(* TODO: move somewhere else *)
+Program Instance po_inv_le_unary : PreOrder Invariant.le_unary.
+Next Obligation.
+  ii. econs; ss.
+  econs; ss.
+Qed.
+Next Obligation.
+  ii. inv H. inv H0. econs.
+  - eauto using ExprPairSetFacts.Subset_trans.
+  - inv ALIAS. inv ALIAS0. econs.
+    + eauto using ValueTPairSetFacts.Subset_trans.
+    + eauto using PtrPairSetFacts.Subset_trans.
+  - eauto using AtomSetFacts.Subset_trans.
+  - eauto using IdTSetFacts.Subset_trans.
+Qed.
+
+Program Instance po_inv_le : PreOrder Invariant.le.
+Next Obligation.
+  ii. econs; ss; reflexivity.
+Qed.
+Next Obligation.
+  ii. inv H; inv H0.
+  econs; etransitivity; eauto.
+Qed.
+
 Lemma postcond_cmd_is_call
       c_src c_tgt inv1 inv2
       (POSTCOND: Postcond.postcond_cmd c_src c_tgt inv1 = Some inv2):
@@ -63,10 +88,14 @@ Lemma postcond_cmd_sound
     <<MEM: InvMem.Rel.sem conf_src conf_tgt st1_src.(Mem) st1_tgt.(Mem) invmem1>> /\
     <<MEMLE: InvMem.Rel.le invmem0 invmem1>>.
 Proof.
+  exploit postcond_cmd_is_call; eauto. i.
   unfold postcond_cmd in *. simtac.
+  { congruence. }
   exploit postcond_cmd_check_sound; try exact STATE; eauto.
   { eapply postcond_cmd_check_mon; eauto.
-    apply postcond_cmd_forget_le.
+    etransitivity.
+    - apply postcond_cmd_forget_memory_le.
+    - apply postcond_cmd_forget_le.
   }
   i. des.
   exploit postcond_cmd_forget_sound; eauto.
@@ -78,5 +107,5 @@ Proof.
   { admit. }
   i. des.
   exploit postcond_cmd_add_sound; eauto. i. des.
-  esplits; eauto. etransitivity; eauto.
+  esplits; eauto. (* etransitivity; eauto. *) (* TODO: proof crashed *)
 Admitted.

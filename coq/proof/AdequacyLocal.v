@@ -228,11 +228,13 @@ Proof.
       esplits; eauto.
       * econs 1. econs; eauto.
         admit. (* callExternalOrIntrinsics *)
-      * right. apply CIH. econs; eauto. etransitivity; eauto.
+      * right. apply CIH. econs; eauto. (* etransitivity; eauto. *) (* TODO: proof crashed *)
+        admit.
   - (* step *)
     econs 3; ss. i. exploit STEP; eauto. i. des.
     inv SIM; [|done].
     esplits; eauto. right.
     apply CIH. econs; eauto.
-    etransitivity; eauto.
+    (* etransitivity; eauto. *) (* TODO: proof crashed *)
+    admit.
 Admitted.
