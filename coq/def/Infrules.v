@@ -938,7 +938,7 @@ Definition apply_infrule
     | typ_pointer elemty =>
       match intty with
       | typ_int sz =>
-        let castlhs := (Expr.cast castop_ptrtoint intty
+        let castlhs := (Expr.cast castop_ptrtoint ptrty
              (ValueT.const (const_null elemty)) intty)
         in
         let castrhs := (Expr.value (ValueT.const (const_zero sz))) in
