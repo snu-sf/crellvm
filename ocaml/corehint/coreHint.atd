@@ -325,7 +325,6 @@ type propagate_range = [
 type propagate = {
   propagate : propagate_object;
   propagate_range : propagate_range;
-  desc : string;
 }
 
 (*****************************************)
