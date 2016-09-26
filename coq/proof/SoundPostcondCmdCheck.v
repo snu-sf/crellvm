@@ -53,10 +53,10 @@ Lemma event_call
       conf st0 st1 evt cmd cmds
       (STEP: sInsn conf st0 st1 evt)
       (CMDS: st0.(EC).(CurCmds) = cmd::cmds)
-      (NONCALL: ~ Instruction.isCallInst cmd):
+      (NONCALL: Instruction.isCallInst cmd = false):
   evt = events.E0.
 Proof.
-  inv STEP; ss. inv CMDS. ss. congruence.
+  inv STEP; ss. inv CMDS. ss.
 Qed.
 
 Lemma postcond_cmd_check_sound
@@ -70,8 +70,8 @@ Lemma postcond_cmd_check_sound
       (STEP_TGT: sInsn conf_tgt st0_tgt st1_tgt evt)
       (CMDS_SRC: st0_src.(EC).(CurCmds) = cmd_src :: cmds_src)
       (CMDS_TGT: st0_tgt.(EC).(CurCmds) = cmd_tgt :: cmds_tgt)
-      (NONCALL_SRC: ~ Instruction.isCallInst cmd_src)
-      (NONCALL_TGT: ~ Instruction.isCallInst cmd_tgt)
+      (NONCALL_SRC: Instruction.isCallInst cmd_src = false)
+      (NONCALL_TGT: Instruction.isCallInst cmd_tgt = false)
       (NERROR_SRC: ~ error_state conf_src st0_src)
       (DEF_SRC: def_src = AtomSetImpl_from_list (option_to_list (Cmd.get_def cmd_src)))
       (DEF_TGT: def_tgt = AtomSetImpl_from_list (option_to_list (Cmd.get_def cmd_tgt)))

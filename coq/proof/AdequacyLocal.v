@@ -223,18 +223,15 @@ Proof.
       hexploit RETURN; eauto.
       { reflexivity. }
       { admit. (* retvals are related *) }
-      { rewrite exCallUpdateLocals_spec in H21. eauto. }
+      { rewrite exCallUpdateLocals_spec in *. eauto. }
       i. des. inv SIM; ss.
       esplits; eauto.
       * econs 1. econs; eauto.
         admit. (* callExternalOrIntrinsics *)
-      * right. apply CIH. econs; eauto. (* etransitivity; eauto. *) (* TODO: proof crashed *)
-        admit.
+      * admit. (* sim *)
   - (* step *)
     econs 3; ss. i. exploit STEP; eauto. i. des.
     inv SIM; [|done].
     esplits; eauto. right.
-    apply CIH. econs; eauto.
-    (* etransitivity; eauto. *) (* TODO: proof crashed *)
-    admit.
+    apply CIH. econs; eauto. etransitivity; eauto.
 Admitted.

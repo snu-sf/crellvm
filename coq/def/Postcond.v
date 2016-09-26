@@ -373,32 +373,40 @@ End Forget.
 
 Module ForgetMemory.
   Definition is_noalias_Ptr
-             (inv:Invariant.unary) (ps:PtrSet.t) (p:Ptr.t): bool :=
+             (inv:Invariant.unary) (ps:Ptr.t) (p:Ptr.t): bool :=
     Invariant.is_unique_ptr inv p ||
-    PtrSet.for_all (Invariant.is_noalias inv p) ps ||
-    PtrSet.for_all (Invariant.is_diffblock inv p) ps.
+    Invariant.is_noalias inv p ps ||
+    Invariant.is_diffblock inv p ps.
 
   Definition is_noalias_Expr
-             (inv:Invariant.unary) (ps:PtrSet.t) (e:Expr.t): bool :=
+             (inv:Invariant.unary) (ps:Ptr.t) (e:Expr.t): bool :=
     match e with
       | Expr.load v ty al => is_noalias_Ptr inv ps (v, typ_pointer ty)
       | _ => true
     end.
 
   Definition is_noalias_ExprPair
-             (inv:Invariant.unary) (ps:PtrSet.t) (ep:ExprPair.t): bool :=
+             (inv:Invariant.unary) (ps:Ptr.t) (ep:ExprPair.t): bool :=
     is_noalias_Expr inv ps ep.(fst) && is_noalias_Expr inv ps ep.(snd).
 
-  Definition filter_unique (ps:PtrSet.t) (inv:Invariant.unary): PtrSet.t :=
-    PtrSet.filter
-      (compose negb (Invariant.is_unique_ptr inv)) ps.
+  Definition unary (ps:Ptr.t) (inv0:Invariant.unary): Invariant.unary :=
+    if Invariant.is_unique_ptr inv0 ps
+    then inv0
+    else Invariant.update_lessdef (ExprPairSet.filter (is_noalias_ExprPair inv0 ps)) inv0.
 
-  Definition unary (ps:PtrSet.t) (inv0:Invariant.unary): Invariant.unary :=
-    Invariant.update_lessdef (ExprPairSet.filter (is_noalias_ExprPair inv0 (filter_unique ps inv0))) inv0.
-
-  Definition t (s_src s_tgt:PtrSet.t) (inv0:Invariant.t): Invariant.t :=
-    let inv1 := Invariant.update_src (unary s_src) inv0 in
-    let inv2 := Invariant.update_tgt (unary s_tgt) inv1 in
+  Definition t (s_src s_tgt:option Ptr.t) (inv0:Invariant.t): Invariant.t :=
+    let inv1 :=
+        match s_src with
+        | Some s_src => Invariant.update_src (unary s_src) inv0
+        | None => inv0
+        end
+    in
+    let inv2 :=
+        match s_tgt with
+        | Some s_tgt => Invariant.update_src (unary s_tgt) inv1
+        | None => inv1
+        end
+    in
     inv2.
 End ForgetMemory.
 
@@ -813,14 +821,6 @@ Definition postcond_cmd_check
 
   true.
 
-(* Definition postcond_cmd_forget *)
-(*            (cmd_src cmd_tgt: cmd) *)
-(*            (def_src def_tgt leaks_src leaks_tgt:AtomSetImpl.t) *)
-(*            (inv0:Invariant.t): Invariant.t := *)
-(*   let inv1 := Forget.t def_src def_tgt leaks_src leaks_tgt inv0 in *)
-(*   let inv2 := ForgetMemory.t cmd_src cmd_tgt inv1 in *)
-(*   inv2. *)
-
 Definition postcond_cmd_add
            (src tgt:cmd)
            (inv0:Invariant.t): Invariant.t :=
@@ -842,9 +842,8 @@ Definition postcond_cmd
   let uses_tgt := AtomSetImpl_from_list (Cmd.get_ids tgt) in
   let leaks_src := AtomSetImpl_from_list (Cmd.get_leaked_ids src) in
   let leaks_tgt := AtomSetImpl_from_list (Cmd.get_leaked_ids tgt) in
-  let def_memory_src := PtrSet_from_list (option_to_list (Cmd.get_def_memory src)) in
-  let def_memory_tgt := PtrSet_from_list (option_to_list (Cmd.get_def_memory tgt)) in
-  (* TODO: why ForgetMemory accepts PtrSet?  Why not option Ptr? *)
+  let def_memory_src := Cmd.get_def_memory src in
+  let def_memory_tgt := Cmd.get_def_memory tgt in
 
   let inv1 := Forget.t def_src def_tgt leaks_src leaks_tgt inv0 in
   let inv2 :=

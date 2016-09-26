@@ -79,8 +79,8 @@ Lemma postcond_cmd_sound
       (STEP_TGT: sInsn conf_tgt st0_tgt st1_tgt evt)
       (CMDS_SRC: st0_src.(EC).(CurCmds) = cmd_src :: cmds_src)
       (CMDS_TGT: st0_tgt.(EC).(CurCmds) = cmd_tgt :: cmds_tgt)
-      (NONCALL_SRC: ~ Instruction.isCallInst cmd_src)
-      (NONCALL_TGT: ~ Instruction.isCallInst cmd_tgt)
+      (NONCALL_SRC: Instruction.isCallInst cmd_src = false)
+      (NONCALL_TGT: Instruction.isCallInst cmd_tgt = false)
       (NERROR_SRC: ~ error_state conf_src st0_src):
   exists st1_src invst1 invmem1,
     <<STEP_SRC: sInsn conf_src st0_src st1_src evt>> /\
@@ -90,7 +90,6 @@ Lemma postcond_cmd_sound
 Proof.
   exploit postcond_cmd_is_call; eauto. i.
   unfold postcond_cmd in *. simtac.
-  { congruence. }
   exploit postcond_cmd_check_sound; try exact STATE; eauto.
   { eapply postcond_cmd_check_mon; eauto.
     etransitivity.
@@ -107,5 +106,5 @@ Proof.
   { admit. }
   i. des.
   exploit postcond_cmd_add_sound; eauto. i. des.
-  esplits; eauto. (* etransitivity; eauto. *) (* TODO: proof crashed *)
+  esplits; eauto. etransitivity; eauto.
 Admitted.

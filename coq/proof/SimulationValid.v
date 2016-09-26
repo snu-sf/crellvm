@@ -266,7 +266,6 @@ Proof.
       exploit implies_sound; eauto; ss. i. des.
       esplits; (try by etransitivity; eauto); eauto.
       { econs 1. eauto. }
-      instantiate (1 := mkState (mkEC _ _ _ _ _ _) _ _).
       right. apply CIH. econs; try exact x1; eauto.
 Admitted.
 
