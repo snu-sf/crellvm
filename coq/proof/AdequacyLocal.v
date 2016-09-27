@@ -55,7 +55,7 @@ Inductive sim_local_stack
                          conf_tgt.(CurTargetData)
                          retval'_tgt id_tgt noret_tgt typ_tgt
                          locals_tgt = Some locals'_tgt>> /\
-         <<MEMLE: InvMem.Rel.le inv' inv''>> /\
+         <<MEMLE: InvMem.Rel.le inv inv''>> /\
          <<SIM:
            sim_local
              conf_src conf_tgt ecs0_src ecs0_tgt
@@ -142,7 +142,6 @@ Proof.
         { right. apply CIH. econs; [..|M]; Mskip eauto.
           - admit. (* free_allocas *)
           - etransitivity; eauto.
-            admit. (* invmem lift le *)
         }
       * exploit LOCAL; eauto.
         { instantiate (2 := Some _).
@@ -159,7 +158,6 @@ Proof.
         { right. apply CIH. econs; [..|M]; Mskip eauto.
           - admit. (* free_allocas *)
           - etransitivity; eauto.
-            admit. (* invmem lift le *)
         }
   - (* return_void *)
     eapply sop_star_sim; eauto.

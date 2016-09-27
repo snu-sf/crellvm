@@ -251,8 +251,9 @@ Proof.
       exploit apply_infrules_sound; eauto; ss. i. des.
       exploit reduce_maydiff_sound; eauto; ss. i. des.
       exploit implies_sound; eauto; ss. i. des.
-      exists locals1_tgt, 0%nat, invmem1. splits; ss.
-      right. apply CIH. econs; eauto.
+      exists locals2_tgt, 0%nat, invmem1. splits; ss.
+      * etransitivity; eauto.
+      * right. apply CIH. econs; eauto.
     + (* non-call *)
       eapply _sim_local_step.
       { admit. (* tgt not stuck *) }
