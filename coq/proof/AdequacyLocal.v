@@ -33,8 +33,8 @@ Inductive sim_local_stack
 | sim_local_stack_cons
     ecs0_src ecs0_tgt inv0
     inv
-    func_src b_src id_src noret_src clattrs_src typ_src varg_src fun_src params_src cmds_src term_src locals_src allocas_src ecs_src
-    func_tgt b_tgt id_tgt noret_tgt clattrs_tgt typ_tgt varg_tgt fun_tgt params_tgt cmds_tgt term_tgt locals_tgt allocas_tgt ecs_tgt
+    func_src b_src id_src noret_src clattrs_src typ_src varg_src fun_src params_src cmds_src term_src locals_src allocas_src ecs_src mem_src
+    func_tgt b_tgt id_tgt noret_tgt clattrs_tgt typ_tgt varg_tgt fun_tgt params_tgt cmds_tgt term_tgt locals_tgt allocas_tgt ecs_tgt mem_tgt
     (STACK: sim_local_stack conf_src conf_tgt ecs0_src ecs0_tgt inv0)
     (LE0: InvMem.Rel.le inv0 inv)
     (NORET: noret_src = noret_tgt)
@@ -43,7 +43,7 @@ Inductive sim_local_stack
     (VARG: varg_src = varg_tgt)
     (LOCAL:
        forall inv' mem'_src mem'_tgt retval'_src retval'_tgt locals'_src
-         (LE: InvMem.Rel.le inv inv')
+         (INCR: InvMem.Rel.le (InvMem.Rel.lift mem_src mem_tgt inv) inv')
          (MEM: InvMem.Rel.sem conf_src conf_tgt mem'_src mem'_tgt inv')
          (RETVAL: TODO.lift2_option (genericvalues_inject.gv_inject inv'.(InvMem.Rel.inject)) retval'_src retval'_tgt)
          (RETURN_SRC: return_locals
@@ -72,7 +72,7 @@ Inductive sim_local_stack
       conf_src conf_tgt
       ((mkEC func_src b_src ((insn_call id_src noret_src clattrs_src typ_src varg_src fun_src params_src)::cmds_src) term_src locals_src allocas_src) :: ecs_src)
       ((mkEC func_tgt b_tgt ((insn_call id_tgt noret_tgt clattrs_tgt typ_tgt varg_tgt fun_tgt params_tgt)::cmds_tgt) term_tgt locals_tgt allocas_tgt) :: ecs_tgt)
-      inv
+      (InvMem.Rel.lift mem_src mem_tgt inv)
 .
 
 Inductive sim_local_lift
@@ -133,13 +133,16 @@ Proof.
           instantiate (1 := Some _).
           eauto.
         }
+        { ss. }
         i. des. simtac.
         esplits; eauto.
-        { econs 1. econs ;eauto.
+        { econs 1. econs; eauto.
           rewrite returnUpdateLocals_spec, COND. ss.
         }
-        { right. apply CIH. econs; eauto.
-          admit. (* free_allocas *)
+        { right. apply CIH. econs; [..|M]; Mskip eauto.
+          - admit. (* free_allocas *)
+          - etransitivity; eauto.
+            admit. (* invmem lift le *)
         }
       * exploit LOCAL; eauto.
         { instantiate (2 := Some _).
@@ -153,8 +156,10 @@ Proof.
           rewrite returnUpdateLocals_spec, COND. s.
           rewrite COND2. ss.
         }
-        { right. apply CIH. econs; eauto.
-          admit. (* free_allocas *)
+        { right. apply CIH. econs; [..|M]; Mskip eauto.
+          - admit. (* free_allocas *)
+          - etransitivity; eauto.
+            admit. (* invmem lift le *)
         }
   - (* return_void *)
     eapply sop_star_sim; eauto.
@@ -177,7 +182,8 @@ Proof.
         - destruct noret_tgt; ss.
       }
       i. inv STEP0. ss.
-      exploit LOCAL; eauto.
+      exploit LOCAL; [M|..]; Mskip eauto.
+      { admit. }
       { instantiate (1 := None). instantiate (1 := None). ss. }
       { destruct noret_tgt; ss. }
       i. des.
@@ -220,19 +226,18 @@ Proof.
       { admit. (* call & excall mismatch *) }
       rewrite FUN_TGT in H22. inv H22.
       rewrite ARGS_TGT in H24. inv H24.
-      hexploit RETURN; eauto.
-      { reflexivity. }
-      { admit. (* retvals are related *) }
-      { rewrite exCallUpdateLocals_spec in H21. eauto. }
+      hexploit RETURN; try reflexivity; eauto.
+      { admit. (* InvMem.Rel.sem *) }
+      { s. admit. (* retvals are related *) }
+      { rewrite exCallUpdateLocals_spec in *. eauto. }
       i. des. inv SIM; ss.
       esplits; eauto.
       * econs 1. econs; eauto.
         admit. (* callExternalOrIntrinsics *)
-      * right. apply CIH. econs; eauto. etransitivity; eauto.
+      * admit. (* sim *)
   - (* step *)
     econs 3; ss. i. exploit STEP; eauto. i. des.
     inv SIM; [|done].
     esplits; eauto. right.
-    apply CIH. econs; eauto.
-    etransitivity; eauto.
+    apply CIH. econs; eauto. etransitivity; eauto.
 Admitted.

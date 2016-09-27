@@ -2,6 +2,7 @@ Require Import syntax.
 Require Import alist.
 
 Require Import infrastructure.
+Require Import vellvm.
 
 Require Import sflib.
 Require Export Coqlib.
@@ -68,7 +69,118 @@ Hint Resolve align_dec: EqDecDb.
 Definition sz_dec : forall x y:sz, {x = y} + {~ x = y} := Size.dec.
 Hint Resolve sz_dec: EqDecDb.
 
+Lemma targetdata_dec
+      (TD_src TD_tgt:TargetData):
+  {TD_src = TD_tgt} + {TD_src <> TD_tgt}.
+Proof.
+  decide equality.
+  - apply namedts_dec.
+  - apply layouts_dec.
+Qed.
+Hint Resolve targetdata_dec: EqDecDb.
+
 (** * constant_dec *)
+
+Lemma typ_ind_gen: forall P : typ -> Prop,
+       (forall sz5 : sz, P (typ_int sz5)) ->
+       (forall floating_point5 : floating_point,
+        P (typ_floatpoint floating_point5)) ->
+       P typ_void ->
+       P typ_label ->
+       P typ_metadata ->
+       (forall (sz5 : sz) (typ5 : typ), P typ5 -> P (typ_array sz5 typ5)) ->
+       (forall typ_5 : typ,
+        P typ_5 ->
+        forall (l : list typ) (varg5 : varg) (IH: Forall P l), P (typ_function typ_5 l varg5)) ->
+       (forall (l : list typ) (IH: Forall P l), P (typ_struct l)) ->
+       (forall typ5 : typ, P typ5 -> P (typ_pointer typ5)) ->
+       (forall id5 : id, P (typ_namedt id5)) -> forall t : typ, P t.
+Proof.
+  intros; revert t; fix IH 1.
+  intros; destruct t; try (by clear IH; eauto).
+  - apply H4; eauto. 
+  - apply H5; eauto. 
+    induction l0; [by clear IH|].
+    by econs; [apply IH| apply IHl0].
+  - apply H6; eauto. 
+    induction l0; [by clear IH|].
+    by econs; [apply IH| apply IHl0].
+  - apply H7; eauto. 
+Qed.
+
+Lemma const_ind_gen:
+  forall P : const -> Prop,
+       (forall typ5 : typ, P (const_zeroinitializer typ5)) ->
+       (forall (sz5 : sz) (Int5 : Int), P (const_int sz5 Int5)) ->
+       (forall (floating_point5 : floating_point) (Float5 : Float),
+        P (const_floatpoint floating_point5 Float5)) ->
+       (forall typ5 : typ, P (const_undef typ5)) ->
+       (forall typ5 : typ, P (const_null typ5)) ->
+       (forall (typ5 : typ) (l : list const) (IH: Forall P l), P (const_arr typ5 l)) ->
+       (forall (typ5 : typ) (l : list const) (IH: Forall P l), P (const_struct typ5 l)) ->
+       (forall (typ5 : typ) (id5 : id), P (const_gid typ5 id5)) ->
+       (forall (truncop5 : truncop) (const5 : const),
+        P const5 -> forall typ5 : typ, P (const_truncop truncop5 const5 typ5)) ->
+       (forall (extop5 : extop) (const5 : const),
+        P const5 -> forall typ5 : typ, P (const_extop extop5 const5 typ5)) ->
+       (forall (castop5 : castop) (const5 : const),
+        P const5 -> forall typ5 : typ, P (const_castop castop5 const5 typ5)) ->
+       (forall (inbounds5 : inbounds) (const_5 : const),
+        P const_5 -> forall (l : list const) (IH: Forall P l), P (const_gep inbounds5 const_5 l)) ->
+       (forall const0 : const,
+        P const0 ->
+        forall const1 : const,
+        P const1 ->
+        forall const2 : const,
+        P const2 -> P (const_select const0 const1 const2)) ->
+       (forall (cond5 : cond) (const1 : const),
+        P const1 ->
+        forall const2 : const, P const2 -> P (const_icmp cond5 const1 const2)) ->
+       (forall (fcond5 : fcond) (const1 : const),
+        P const1 ->
+        forall const2 : const,
+        P const2 -> P (const_fcmp fcond5 const1 const2)) ->
+       (forall const_5 : const,
+        P const_5 -> forall (l : list const) (IH: Forall P l), P (const_extractvalue const_5 l)) ->
+       (forall const_5 : const,
+        P const_5 ->
+        forall const' : const,
+        P const' ->
+        forall (l : list const) (IH: Forall P l), P (const_insertvalue const_5 const' l)) ->
+       (forall (bop5 : bop) (const1 : const),
+        P const1 ->
+        forall const2 : const, P const2 -> P (const_bop bop5 const1 const2)) ->
+       (forall (fbop5 : fbop) (const1 : const),
+        P const1 ->
+        forall const2 : const, P const2 -> P (const_fbop fbop5 const1 const2)) ->
+       forall c : const, P c.
+Proof.
+  intros; revert c; fix IH 1.
+  intros; destruct c; try (by clear IH; eauto).
+  - apply H4. 
+    induction l0; [by clear IH|].
+    by econs; [apply IH| apply IHl0].
+  - apply H5. 
+    induction l0; [by clear IH|].
+    by econs; [apply IH| apply IHl0].
+  - apply H7; eauto. 
+  - apply H8; eauto. 
+  - apply H9; eauto.
+  - apply H10; eauto. 
+    induction l0; [by clear IH|].
+    by econs; [apply IH| apply IHl0].
+  - apply H11; eauto.
+  - apply H12; eauto.
+  - apply H13; eauto.
+  - apply H14; eauto.
+    induction l0; [by clear IH|].
+    by econs; [apply IH| apply IHl0].
+  - apply H15; eauto.
+    induction l0; [by clear IH|].
+    by econs; [apply IH| apply IHl0].
+  - apply H16; eauto.
+  - apply H17; eauto.
+Qed.
 
 Fixpoint const_eqb (c1 c2:const) : bool :=
   match c1,c2 with
@@ -168,21 +280,22 @@ Lemma const_eqb_spec c1 c2
       (EQB: const_eqb c1 c2):
   c1 = c2.
 Proof.
-  destruct c1, c2; ss; eqbtac.
-  - admit.
-  - admit.
-  - admit.
-  - admit.
-  - admit.
-  - admit.
-  - admit.
-  - admit.
-  - admit.
-  - admit.
-  - admit.
-  - admit.
-  - admit.
-Admitted.
+  revert c2 EQB.
+  induction c1 using const_ind_gen; destruct c2; ss;
+    unfold const_eqb; fold const_eqb; i;
+      repeat (eqbtac; try reflexivity);
+      f_equal; eauto.
+  - f_equal. revert l1 IH H0. induction l0; destruct l1; ss. i.
+    inv IH. eqbtac. f_equal; eauto.
+  - f_equal. revert l1 IH H0. induction l0; destruct l1; ss. i.
+    inv IH. eqbtac. f_equal; eauto.
+  - f_equal. revert l1 IH H0. induction l0; destruct l1; ss. i.
+    inv IH. eqbtac. f_equal; eauto.
+  - f_equal. revert l1 IH H0. induction l0; destruct l1; ss. i.
+    inv IH. eqbtac. f_equal; eauto.
+  - f_equal. revert l1 IH H0. induction l0; destruct l1; ss. i.
+    inv IH. eqbtac. f_equal; eauto.
+Qed.
 
 Definition gvar_eqb (g1 g2:gvar) : bool :=
   match g1,g2 with

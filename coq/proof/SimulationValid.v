@@ -241,10 +241,11 @@ Proof.
   - (* cmd *)
     destruct (Instruction.isCallInst c) eqn:CALL.
     + (* call *)
+      exploit postcond_cmd_is_call; eauto. i.
       destruct c; ss. destruct c0; ss.
       exploit postcond_call_sound;
         (try instantiate (1 := (mkState (mkEC _ _ _ _ _ _) _ _))); ss; eauto; ss.
-      i. des. subst. simtac.
+      i. des. subst. do 24 simtac0.
       eapply _sim_local_call; ss; eauto; ss.
       i. exploit RETURN; eauto. i. des.
       exploit apply_infrules_sound; eauto; ss. i. des.
@@ -265,8 +266,7 @@ Proof.
       exploit implies_sound; eauto; ss. i. des.
       esplits; (try by etransitivity; eauto); eauto.
       { econs 1. eauto. }
-      instantiate (1 := mkState (mkEC _ _ _ _ _ _) _ _).
-      right. apply CIH. econs; try exact STATE3; eauto.
+      right. apply CIH. econs; try exact x1; eauto.
 Admitted.
 
 Lemma valid_sim_fdef

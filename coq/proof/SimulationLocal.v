@@ -94,7 +94,7 @@ Section SimLocal.
       (MEM: InvMem.Rel.sem conf_src conf_tgt st2_src.(Mem) st1_tgt.(Mem) inv1)
       (RETURN:
          forall inv3 mem3_src mem3_tgt retval3_src retval3_tgt locals4_src
-           (INCR: InvMem.Rel.le inv1 inv3)
+           (INCR: InvMem.Rel.le (InvMem.Rel.lift st2_src.(Mem) st1_tgt.(Mem) inv1) inv3)
            (MEM: InvMem.Rel.sem conf_src conf_tgt mem3_src mem3_tgt inv3)
            (RETVAL: TODO.lift2_option (genericvalues_inject.gv_inject inv3.(InvMem.Rel.inject)) retval3_src retval3_tgt)
            (RETURN_SRC: return_locals
@@ -126,7 +126,7 @@ Section SimLocal.
       (STEP:
          forall st3_tgt event
            (STEP: sInsn conf_tgt st1_tgt st3_tgt event),
-         exists st2_src st3_src st3_tgt inv3 idx3,
+         exists st2_src st3_src inv3 idx3,
            <<TAU: sop_star conf_src st1_src st2_src E0>> /\
            <<EVT: sInsn_indexed conf_src st2_src st3_src idx1 idx3 event>> /\
            <<MEMLE: InvMem.Rel.le inv1 inv3>> /\
