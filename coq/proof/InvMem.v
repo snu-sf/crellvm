@@ -48,6 +48,9 @@ Module Unary.
     - etransitivity; eauto.
     - etransitivity; eauto.
   Qed.
+
+  Definition lift (m:mem) (inv:t): t :=
+    mk nil (inv.(private) ++ inv.(private_parent)) m.
 End Unary.
 
 Module Rel.
@@ -88,6 +91,11 @@ Module Rel.
     - etransitivity; eauto.
     - eapply inject_incr_trans; eauto.
   Qed.
+
+  Definition lift (m_src m_tgt:mem) (inv:t): t :=
+    mk (Unary.lift m_src inv.(src))
+       (Unary.lift m_tgt inv.(tgt))
+       inv.(inject).
 
   (* TODO: le_public? *)
   (* TODO: global_max? cf. `gmax` in https://github.com/snu-sf/llvmberry/blob/before_refact/coq/hint/hint_sem.v *)

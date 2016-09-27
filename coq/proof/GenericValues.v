@@ -2,6 +2,7 @@ Require Import syntax.
 Require Import alist.
 Require Import FMapWeakList.
 
+Require Import Classical.
 Require Import Coqlib.
 Require Import infrastructure.
 Require Import Metatheory.
@@ -44,3 +45,43 @@ Module GVs.
     << INJECT: genericvalues_inject.gv_inject mij a c >>.
   Proof. Admitted.
 End GVs.
+
+
+(* TODO: position *)
+Inductive error_state conf st: Prop :=
+| error_state_intro
+    (STUCK: stuck_state conf st)
+    (NFINAL: s_isFinialState conf st = None)
+.
+
+Lemma final_stuck
+      conf st retval
+      (FINAL: s_isFinialState conf st = Some retval):
+  stuck_state conf st.
+Proof.
+  ii. des. destruct st, EC0. ss.
+  destruct CurCmds0, Terminator0, ECS0; ss.
+  - inv H.
+  - inv H.
+Qed.
+
+Lemma nerror_stuck_final
+      conf st
+      (NERROR: ~ error_state conf st)
+      (STUCK: stuck_state conf st):
+  exists retval, s_isFinialState conf st = Some retval.
+Proof.
+  destruct (s_isFinialState conf st) eqn:X; eauto.
+  exfalso. apply NERROR. econs; ss.
+Qed.
+
+Lemma nerror_nfinal_nstuck
+      conf st1
+      (NERROR: ~ error_state conf st1)
+      (NFINAL: s_isFinialState conf st1 = None):
+  exists st2 e, sInsn conf st1 st2 e.
+Proof.
+  destruct (classic (stuck_state conf st1)).
+  - contradict NERROR. econs; ss.
+  - apply NNPP in H. ss.
+Qed.
