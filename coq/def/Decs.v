@@ -69,16 +69,6 @@ Hint Resolve align_dec: EqDecDb.
 Definition sz_dec : forall x y:sz, {x = y} + {~ x = y} := Size.dec.
 Hint Resolve sz_dec: EqDecDb.
 
-Lemma targetdata_dec
-      (TD_src TD_tgt:TargetData):
-  {TD_src = TD_tgt} + {TD_src <> TD_tgt}.
-Proof.
-  decide equality.
-  - apply namedts_dec.
-  - apply layouts_dec.
-Qed.
-Hint Resolve targetdata_dec: EqDecDb.
-
 (** * constant_dec *)
 
 Lemma typ_ind_gen: forall P : typ -> Prop,
