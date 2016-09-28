@@ -323,8 +323,8 @@ Module Snapshot.
     inv3.
 End Snapshot.
 
-Definition lift_physical_atoms_idtset (a:atoms): IdTSet.t.
-Admitted.
+Definition lift_physical_atoms_idtset (a:atoms): IdTSet.t :=
+  AtomSetImpl.fold (IdTSet.add <*> (IdT.lift Tag.physical)) a IdTSet.empty.
 
 Lemma lift_physical_atoms_idtset_spec1
       id l:
