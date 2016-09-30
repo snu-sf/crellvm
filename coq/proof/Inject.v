@@ -78,6 +78,15 @@ Ltac simtac0 :=
 
 Ltac simtac := repeat simtac0.
 
+Lemma targetdata_dec
+      (TD_src TD_tgt:TargetData):
+  {TD_src = TD_tgt} + {TD_src <> TD_tgt}.
+Proof.
+  decide equality.
+  - apply namedts_dec.
+  - apply layouts_dec.
+Qed.
+Hint Resolve targetdata_dec: EqDecDb.
 
 Lemma app_inject: forall mi gv1 gv2 gv1' gv2'
     (IN1: gv_inject mi gv1 gv1')

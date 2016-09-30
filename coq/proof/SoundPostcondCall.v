@@ -67,12 +67,13 @@ Lemma postcond_call_sound
                      retval1_src id_src noret_src typ_src
                      st0_src.(EC).(Locals)
                    = Some locals1_src),
-    exists locals1_tgt invst1,
+    exists locals2_tgt invst2 invmem2,
       <<RETURN_TGT: return_locals
                       conf_tgt.(CurTargetData)
                       retval1_tgt id_tgt noret_tgt typ_tgt
                       st0_tgt.(EC).(Locals)
-                    = Some locals1_tgt>> /\
+                    = Some locals2_tgt>> /\
+      <<INCR: InvMem.Rel.le invmem0 invmem2>> /\
       <<STATE:
         InvState.Rel.sem
           conf_src conf_tgt
@@ -87,10 +88,11 @@ Lemma postcond_call_sound
                          st0_tgt.(EC).(CurBB)
                          cmds_tgt
                          st0_tgt.(EC).(Terminator)
-                         locals1_tgt
+                         locals2_tgt
                          st0_tgt.(EC).(Allocas))
                    st0_tgt.(ECS) mem1_tgt)
-          invst1 invmem1 inv1>>>>.
+          invst2 invmem2 inv1>> /\
+      <<MEM: InvMem.Rel.sem conf_src conf_tgt mem1_src mem1_tgt invmem2>>>>.
 Proof.
   unfold Postcond.postcond_cmd, Postcond.postcond_cmd_check in *. ss.
   rewrite <- (ite_spec noret_src None (Some id_src)) in *.

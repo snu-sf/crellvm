@@ -108,7 +108,7 @@ Section SimLocal.
                            retval3_tgt id1_tgt noret1_tgt typ1_tgt
                            st1_tgt.(EC).(Locals)
                          = Some locals4_tgt>> /\
-           <<MEMLE: InvMem.Rel.le inv3 inv4>> /\
+           <<MEMLE: InvMem.Rel.le inv1 inv4>> /\
            <<SIM:
              sim_local
                stack0_src stack0_tgt inv4 idx4

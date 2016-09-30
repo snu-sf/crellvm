@@ -280,8 +280,8 @@ Proof.
     i. des.
     esplits; eauto.
     + inv CONF. rewrite <- TARGETDATA. eauto.
-    + reflexivity.
-    + right. eapply CIH. econs; ss.
+    + admit. (* InvMem.Rel.le *)
+    + right. eapply CIH. econs; ss; eauto.
       eapply inject_allocas_inj_incr; eauto. etransitivity; eauto.
       admit. (* invmem le lift *)
   - (* return *)
