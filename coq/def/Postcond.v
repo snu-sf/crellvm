@@ -403,7 +403,7 @@ Module ForgetMemory.
     in
     let inv2 :=
         match s_tgt with
-        | Some s_tgt => Invariant.update_src (unary s_tgt) inv1
+        | Some s_tgt => Invariant.update_tgt (unary s_tgt) inv1
         | None => inv1
         end
     in

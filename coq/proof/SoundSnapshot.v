@@ -237,7 +237,7 @@ Lemma snapshot_unary_sound
       (STATE: InvState.Unary.sem conf st invst0 invmem inv0)
   :
     exists invst1,
-      <<STATE: InvState.Unary.sem conf st invst1 invmem (Snapshot.unary inv0)>> /\
+      <<STATE_UNARY: InvState.Unary.sem conf st invst1 invmem (Snapshot.unary inv0)>> /\
       <<PREV: forall x, InvState.Unary.sem_idT st invst1 (Tag.previous, x) =
                                 lookupAL _ st.(EC).(Locals) x>> /\
       <<GHOST: invst0.(InvState.Unary.ghost) = invst1.(InvState.Unary.ghost)>>.
@@ -334,9 +334,6 @@ Proof.
         des_ifs. ss.
         rewrite <- previousified_sem_valueT_in_new_invst in *; eauto.
       }
-  - ii.
-    exploit UNIQUE; eauto. intros UNIQUE_SEM.
-    inv UNIQUE_SEM. econs; eauto.
   - ii.
     unfold Snapshot.IdTSet in *.
     match goal with
@@ -444,7 +441,7 @@ Lemma snapshot_sound
       conf_src conf_tgt st_src st_tgt invst0 invmem inv0
       (STATE: InvState.Rel.sem conf_src conf_tgt st_src st_tgt invst0 invmem inv0):
   exists invst1,
-    <<STATE: InvState.Rel.sem conf_src conf_tgt st_src st_tgt invst1 invmem (Snapshot.t inv0)>> /\
+    <<STATE_SNAPSHOT: InvState.Rel.sem conf_src conf_tgt st_src st_tgt invst1 invmem (Snapshot.t inv0)>> /\
     <<PREV_SRC: forall x, InvState.Unary.sem_idT st_src invst1.(InvState.Rel.src) (Tag.previous, x) =
                           lookupAL _ st_src.(EC).(Locals) x>> /\
     <<PREV_TGT: forall x, InvState.Unary.sem_idT st_tgt invst1.(InvState.Rel.tgt) (Tag.previous, x) =

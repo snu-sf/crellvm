@@ -316,7 +316,7 @@ Proof.
   }
   { instantiate (1 := AtomSetImpl_from_list ((filter_map Postcond.Phinode.get_use l0))).
     ii.
-    inv STATE0.
+    inv STATE_SNAPSHOT.
     inv SRC.
     exploit UNIQUE; eauto.
     { apply AtomSetFacts.mem_iff; eauto. }
@@ -338,7 +338,7 @@ Proof.
     (* unfold unique_preserved_except. *)
   }
   { admit. }
-  i. des. inversion x0.
+  intro STATE_FORGET. des. inversion STATE_FORGET.
   exploit phinodes_add_lessdef_sound; try exact SRC; eauto; i.
   exploit phinodes_add_lessdef_sound; try exact TGT; eauto; i.
   { rewrite L_TGT. eauto. }

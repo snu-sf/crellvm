@@ -60,16 +60,16 @@ Module Rel.
     inject: meminj;
   }.
 
-  Definition shared_src (inv:t) (b:mblock): Prop :=
-    inv.(inject) b <> None.
+  Definition shared_src (inject:meminj) (b:mblock): Prop :=
+    inject b <> None.
 
-  Definition shared_tgt (inv:t) (b:mblock): Prop :=
-    exists b_src offset, inv.(inject) b_src = Some (b, offset).
+  Definition shared_tgt (inject:meminj) (b:mblock): Prop :=
+    exists b_src offset, inject b_src = Some (b, offset).
 
   Inductive sem (conf_src conf_tgt:Config) (mem_src mem_tgt:mem) (inv:t): Prop :=
   | sem_intro
-      (SRC: Unary.sem conf_src (shared_src inv) mem_src inv.(src))
-      (TGT: Unary.sem conf_tgt (shared_tgt inv) mem_tgt inv.(tgt))
+      (SRC: Unary.sem conf_src (shared_src inv.(inject)) mem_src inv.(src))
+      (TGT: Unary.sem conf_tgt (shared_tgt inv.(inject)) mem_tgt inv.(tgt))
       (INJECT: Mem.inject inv.(inject) mem_src mem_tgt)
   .
 

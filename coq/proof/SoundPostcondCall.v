@@ -21,7 +21,8 @@ Require InvMem.
 Require InvState.
 Require Import Inject.
 Require Import SoundBase.
-Require Import SoundPostcondForget.
+Require Import SoundForget.
+Require Import SoundForgetMemoryCall.
 
 Set Implicit Arguments.
 
@@ -97,15 +98,7 @@ Proof.
   simtac.
 
   splits; ss.
-  - admit. (* funval *)
-  - admit. (* params *)
-  - exploit postcond_call_forget_sound; eauto.
-    { admit. }
-    { admit. }
-    { admit. }
-    { admit. }
-    { admit. }
-    { admit. }
-    i. des.
-    esplits; eauto.
+  { admit. } (* funval *)
+  { admit. } (* params *)
+  (* exploit forget_sound. *)
 Admitted.

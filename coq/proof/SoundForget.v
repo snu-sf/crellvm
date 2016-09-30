@@ -101,16 +101,9 @@ Proof.
   induction lsv; ss.
   i. simtac.
   apply orb_false_iff in NOTIN. des.
-  exploit sem_valueT_equiv_except; eauto.
-  i.
-  des_ifs.
-(*   - ss. *)
-
-(*   destruct v; ss. *)
-(*   eapply sem_idT_equiv_except; eauto. *)
-(*   apply IdTSetFacts.not_mem_iff; eauto. *)
-(* Qed. *)
-Admitted.
+  exploit sem_valueT_equiv_except; eauto. i. des.
+  des_ifs; exploit IHlsv; eauto; i; des; clarify.
+Qed.
 
 Ltac solve_equiv_except_val st0 :=
   (* apply orb_false_iff in FILTER; des; *)
@@ -136,47 +129,110 @@ Proof.
   unfold compose in FILTER.
   destruct e; ss; simtac;
     try (solve_equiv_except_val st0; eauto).
-  - admit. (* lsv *)
+  - erewrite sem_list_valueT_equiv_except; eauto.
   - rewrite COND2. eauto.
   - inv EQUIV. rewrite <- MEM. eauto.
-Admitted.
+Qed.
 
-Definition unique_preserved_except conf invst1 inv st1 defs uses : Prop :=
-  forall x u gvx gvy
-         (MEM_X: AtomSetImpl.mem x defs = true)
-         (MEM_Y: AtomSetImpl.mem u inv.(Invariant.unique) = true)
-         (UNIQUE_NO_USE: AtomSetImpl.mem u (AtomSetImpl.union defs uses) = false)
-         (VAL_X: InvState.Unary.sem_idT st1 invst1 (Tag.physical, x) = Some gvx)
-         (VAL_Y: lookupAL _ st1.(EC).(Locals) u = Some gvy),
-    InvState.Unary.sem_diffblock conf gvx gvy.
+Definition unique_preserved_except conf inv st1 defs leaks : Prop :=
+  forall u (MEM: AtomSetImpl.mem u inv.(Invariant.unique) = true)
+         (NO_LEAK: AtomSetImpl.mem u (AtomSetImpl.union defs leaks) = false),
+    InvState.Unary.sem_unique conf st1 u.
+
+Lemma forget_unique_leak_disjoint
+      defs leaks inv0
+  : AtomSetImpl.disjoint (Invariant.unique (Forget.unary defs leaks inv0)) leaks.
+Proof.
+  unfold Forget.unary. ss.
+  unfold AtomSetImpl.disjoint.
+  unfold AtomSetImpl.Equal.
+  i.
+  rewrite AtomSetFacts.empty_iff.
+  split; try done.
+  i. apply AtomSetFacts.inter_iff in H. des.
+  apply AtomSetFacts.filter_iff in H; [| solve_compat_bool]. des.
+  apply negb_true_iff in H1.
+  rewrite AtomSetFacts.union_b in H1. solve_des_bool.
+  apply AtomSetFacts.mem_iff in H0. clarify.
+Qed.
 
 Lemma forget_unary_sound
-      defs uses st0 st1
+      defs leaks st0 st1
       conf invst invmem inv0
       (EQUIV: state_equiv_except defs st0 st1)
-      (UNIQUE: unique_preserved_except conf invst inv0 st1 defs uses)
+      (UNIQUE_PRSV: unique_preserved_except conf inv0 st1 defs leaks)
       (STATE: InvState.Unary.sem conf st0 invst invmem inv0)
-  : <<STATE: InvState.Unary.sem conf st1 invst invmem (Forget.unary defs uses inv0)>>.
-Proof.
-Admitted.
-
-Lemma forget_sound
-      conf_src st_src0
-      conf_tgt st_tgt0
-      st_src1 st_tgt1
-      invst invmem inv0
-      s_src s_tgt
-      u_src u_tgt
-      (EQUIV_SRC: state_equiv_except s_src st_src0 st_src1)
-      (EQUIV_TGT: state_equiv_except s_tgt st_tgt0 st_tgt1)
-      (UNIQUE_SRC: unique_preserved_except conf_src invst.(InvState.Rel.src) inv0.(Invariant.src) st_src1 s_src u_src)
-      (UNIQUE_TGT: unique_preserved_except conf_tgt invst.(InvState.Rel.tgt) inv0.(Invariant.tgt) st_tgt1 s_tgt u_tgt)
-      (STATE: InvState.Rel.sem conf_src conf_tgt st_src0 st_tgt0
-                               invst invmem inv0)
-  : <<STATE: InvState.Rel.sem conf_src conf_tgt st_src1 st_tgt1
-                            invst invmem (Forget.t s_src s_tgt u_src u_tgt inv0)>>.
+  : <<STATE: InvState.Unary.sem conf st1 invst invmem (Forget.unary defs leaks inv0)>>.
 Proof.
   inv STATE.
+  assert (EQUIV_REV: state_equiv_except defs st1 st0).
+  { symmetry. eauto. }
+  econs.
+  - ii.
+    destruct x as [e1 e2]. ss.
+    apply ExprPairSetFacts.filter_iff in H; [| solve_compat_bool]. des.
+    solve_negb_liftpred.
+    exploit sem_expr_equiv_except; try exact EQUIV_REV; try exact VAL1; eauto.
+    i. des.
+
+    exploit LESSDEF; eauto.
+    i. des. ss.
+    exploit sem_expr_equiv_except; try exact EQUIV; try exact VAL2; eauto.
+  - inv NOALIAS.
+    econs.
+    + i. ss.
+      rewrite ValueTPairSetFacts.filter_b in MEM; [| solve_compat_bool]. des_ifs.
+      unfold sflib.is_true in MEM.
+      solve_negb_liftpred.
+      exploit sem_valueT_equiv_except; try exact EQUIV_REV; try exact VAL1; eauto. i. des.
+      exploit sem_valueT_equiv_except; try exact EQUIV_REV; try exact VAL2; eauto.
+    + i. ss.
+      rewrite PtrPairSetFacts.filter_b in MEM; [| solve_compat_bool]. des_ifs.
+      unfold sflib.is_true in MEM.
+      solve_negb_liftpred.
+      exploit sem_valueT_equiv_except; try exact EQUIV_REV; try exact VAL1; eauto. i. des.
+      exploit sem_valueT_equiv_except; try exact EQUIV_REV; try exact VAL2; eauto.
+  - ii. ss.
+    apply AtomSetFacts.filter_iff in H; [| solve_compat_bool]. des.
+    apply negb_true_iff in H0.
+
+    unfold unique_preserved_except in *.
+
+    apply UNIQUE_PRSV; eauto.
+    apply AtomSetFacts.mem_iff; eauto.
+  - ii. ss.
+    apply IdTSetFacts.filter_iff in H; [| solve_compat_bool]. des.
+    unfold flip, compose in *.
+    apply negb_true_iff in H0.
+
+    destruct x as [t x].
+    destruct t; try (exploit PRIVATE; eauto; fail).
+
+    exploit sem_idT_equiv_except; eauto.
+    { rewrite <- lift_physical_atoms_idtset_spec1. eauto. }
+    i. des.
+    exploit PRIVATE; eauto.
+Qed.
+
+Lemma forget_sound
+      conf_src st0_src
+      conf_tgt st0_tgt
+      st1_src st1_tgt
+      invst invmem inv0
+      s_src s_tgt
+      l_src l_tgt
+      (STATE: InvState.Rel.sem conf_src conf_tgt st0_src st0_tgt invst invmem inv0)
+      (EQUIV_SRC: state_equiv_except s_src st0_src st1_src)
+      (EQUIV_TGT: state_equiv_except s_tgt st0_tgt st1_tgt)
+      (UNIQUE_SRC: unique_preserved_except conf_src inv0.(Invariant.src) st1_src s_src l_src)
+      (UNIQUE_TGT: unique_preserved_except conf_tgt inv0.(Invariant.tgt) st1_tgt s_tgt l_tgt)
+  : <<STATE_FORGET: InvState.Rel.sem conf_src conf_tgt st1_src st1_tgt
+                            invst invmem (Forget.t s_src s_tgt l_src l_tgt inv0)>>.
+Proof.
+  inv STATE.
+  exploit forget_unary_sound; try exact EQUIV_SRC; eauto. i. des.
+  exploit forget_unary_sound; try exact EQUIV_TGT; eauto. i. des.
+  esplits; eauto.
   econs.
   - eapply forget_unary_sound; eauto.
   - eapply forget_unary_sound; eauto.
@@ -191,6 +247,6 @@ Proof.
       exploit sem_idT_equiv_except; try exact EQUIV_SRC; eauto. i. des.
       exploit MAYDIFF; eauto. i. des.
       exploit sem_idT_equiv_except; try exact EQUIV_TGT; eauto.
-    + admit.
-    + admit.
-Admitted.
+    + ii. exploit MAYDIFF; eauto.
+    + ii. exploit MAYDIFF; eauto.
+Qed.

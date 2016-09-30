@@ -242,7 +242,7 @@ Module Unary.
            sem_noalias conf gptr1 gptr2 ptr1.(snd) ptr2.(snd))
   .
 
-  Inductive sem_unique (conf:Config) (st:State) (invst:t) (a:atom): Prop :=
+  Inductive sem_unique (conf:Config) (st:State) (a:atom): Prop :=
   | sem_unique_intro
       val
       (VAL: lookupAL _ st.(EC).(Locals) a = Some val)
@@ -266,7 +266,7 @@ Module Unary.
   | sem_intro
       (LESSDEF: ExprPairSet.For_all (sem_lessdef conf st invst) inv.(Invariant.lessdef))
       (NOALIAS: sem_alias conf st invst inv.(Invariant.alias))
-      (UNIQUE: AtomSetImpl.For_all (sem_unique conf st invst) inv.(Invariant.unique))
+      (UNIQUE: AtomSetImpl.For_all (sem_unique conf st) inv.(Invariant.unique))
       (PRIVATE: IdTSet.For_all (sem_private conf st invst invmem.(InvMem.Unary.private)) inv.(Invariant.private))
   .
 
