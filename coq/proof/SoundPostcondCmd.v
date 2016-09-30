@@ -132,12 +132,13 @@ Proof.
     - rewrite <- lookupAL_updateAddAL_neq; eauto.
     - i.
       destruct (id_dec id0 reg).
-      + admit.
+      + admit. (* bop: operand not unique => result not unique *)
+        (* TODO: result of inst not containing unique *)
+        (* can believe it even without proofs *)
       + exploit LOCALS; eauto.
         rewrite <- lookupAL_updateAddAL_neq in *; eauto.
     - i. eauto.
   }
-  (* TODO: result of inst not containing unique *)
 Admitted.
 
 Lemma step_equiv_except_mem
