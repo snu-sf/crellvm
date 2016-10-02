@@ -225,15 +225,31 @@ module PrintHints = struct
       | Infrule.Coq_add_shift _ -> "add_shift"
       | Infrule.Coq_add_signbit _ -> "add_signbit"
       | Infrule.Coq_add_zext_bool _ -> "add_zext_bool"
+      | Infrule.Coq_bitcastptr _ -> "bitcastptr"
+      | Infrule.Coq_diffblock_lessthan _ -> "diffblock_lessthan"
+      | Infrule.Coq_diffblock_noalias _ -> "diffblock_noalias"
+      | Infrule.Coq_diffblock_unique _ -> "diffblock_unique"
+      | Infrule.Coq_diffblock_global_unique _ -> "diffblock_global_unique"
       | Infrule.Coq_diffblock_global_global _ -> "diffblock_global_global"
-      | Infrule.Coq_diffblock_global_alloca _ -> "diffblock_global_alloca"
-      | Infrule.Coq_intro_eq v -> "intro_eq : " ^ ExprsToString.of_expr(Expr.Coq_value v)
+      | Infrule.Coq_gep_inbounds_add _ ->
+         "gep inbounds add"
+      | Infrule.Coq_gep_inbounds_remove (gepinst) ->
+         "gep inbounds remove: " ^ (ExprsToString.of_expr gepinst)
+      | Infrule.Coq_gepzero _ -> "gepzero"
+      | Infrule.Coq_intro_eq v -> "intro_eq : " ^ ExprsToString.of_expr(v)
+      | Infrule.Coq_intro_ghost _ -> "intro_ghost"
       | Infrule.Coq_or_xor3 (z, y, a, b, s) -> "or_xor3 : " ^ 
                                                 ExprsToString.of_expr(Expr.Coq_value y) ^ " ≥ "
                                                         ^ ExprsToString.of_expr(Expr.Coq_value a) ^ " ^ "
                                                         ^ ExprsToString.of_expr(Expr.Coq_value b) ^ " -> " ^
                                                 ExprsToString.of_expr(Expr.Coq_value z)
+      | Infrule.Coq_ptrtoint_load _ -> "ptrtoint_load"
+      | Infrule.Coq_ptrtoint_zero _ -> "ptrtoint_zero"
       | Infrule.Coq_transitivity (a, b, c) -> "transitivity : " ^
+                                                ExprsToString.of_expr a ^ " ≥ " ^
+                                                  ExprsToString.of_expr b ^ " ≥ " ^
+                                                    ExprsToString.of_expr c
+      | Infrule.Coq_transitivity_tgt (a, b, c) -> "transitivity_tgt : " ^
                                                 ExprsToString.of_expr a ^ " ≥ " ^
                                                   ExprsToString.of_expr b ^ " ≥ " ^
                                                     ExprsToString.of_expr c
@@ -258,8 +274,6 @@ module PrintHints = struct
                                                 ExprsToString.of_expr(Expr.Coq_value q) ^ " && " ^
                                                 ExprsToString.of_expr(Expr.Coq_value v) ^ " ≥ " ^
                                                 ExprsToString.of_expr(Expr.Coq_load (p, ty, a) )
-      | Infrule.Coq_gep_inbounds_remove (gepinst) ->
-         "gep inbounds remove: " ^ (ExprsToString.of_expr gepinst)
       | _ -> "infrule(TODO)"
 
     let infrules (infs:Infrule.t list): unit =

@@ -55,7 +55,7 @@ type value_type = [
     | IntValueType of int_type
     | FloatValueType of float_type
     | NamedType of string
-    | PtrType of (int * value_type)
+    | PtrType of (int * value_type) (* (addr space, type) *)
     | ArrayType of (int * value_type)
     | FunctionType of (value_type * (value_type list) * bool * int) (* (return-type, argument-type, is-var-arg, arg-size) *)
     | VectorType of (int * value_type)
@@ -110,7 +110,7 @@ type constant_expr = [
 type constant = [
   | ConstInt of const_int
   | ConstFloat of const_float
-  | ConstNull of (int * value_type)
+  | ConstNull of (int * value_type) (* addr space, type *)
   | ConstUndef of value_type 
   | ConstGlobalVarAddr of const_global_var_addr 
   | ConstDataVector of (value_type * constant list)
@@ -642,13 +642,6 @@ type bop_distributive_over_selectinst = {
 }
 
 type bitcastptr = {
-  v : value;
-  vprime : value;
-  bitcastinst : expr;
-}
-
-type bitcastptr_tgt = {
-  v : value;
   vprime : value;
   bitcastinst : expr;
 }
@@ -880,7 +873,6 @@ type fptrunc_fpext = {
 }
 
 type gepzero = {
-  v : value;
   vprime : value;
   gepinst : expr;
 }
@@ -889,17 +881,25 @@ type gep_inbounds_remove = {
   gepinst : expr;
 }
 
+type gep_inbounds_add = {
+    v : value;
+    ptr : value;
+    loadty : value_type;
+    al : size;
+    e : expr;
+}
+
 type intro_ghost = {
   x : expr;
   g : register;
 }
 
 type intro_eq = {
-  x : value;
+  x : expr;
 }
 
 type intro_eq_tgt = {
-  x : value;
+  x : expr;
 }
 
 type inttoptr_load = {
@@ -1010,8 +1010,13 @@ type diffblock_global_global = {
   gy : constant;
 }
 
-type diffblock_global_alloca = {
-  gx : constant;
+type diffblock_global_unique = {
+    gx : constant;
+    y : register;
+}
+
+type diffblock_unique = {
+  x : register;
   y : register;
 }
 
@@ -1150,6 +1155,11 @@ type ptrtoint_load = {
     intty : value_type;
     v2 : value;
     a : size;
+}
+
+type ptrtoint_zero = {
+    ptrty : value_type;
+    intty : value_type;
 }
 
 type rem_neg = {
@@ -1962,8 +1972,9 @@ type infrule = [
   | BopCommutative of bop_commutative
   | BopDistributiveOverSelectinst of bop_distributive_over_selectinst
   | BopDistributiveOverSelectinst2 of bop_distributive_over_selectinst2
-  | DiffblockGlobalAlloca of diffblock_global_alloca
+  | DiffblockUnique of diffblock_unique
   | DiffblockGlobalGlobal of diffblock_global_global
+  | DiffblockGlobalUnique of diffblock_global_unique
   | DiffblockLessthan of diffblock_lessthan
   | DiffblockNoalias of diffblock_noalias
   | FaddCommutativeTgt of fadd_commutative_tgt
@@ -1979,6 +1990,7 @@ type infrule = [
   | FptruncFpext of fptrunc_fpext
   | Gepzero of gepzero
   | GepInboundsRemove of gep_inbounds_remove
+  | GepInboundsAdd of gep_inbounds_add
   | IntroGhost of intro_ghost
   | IntroEq of intro_eq
   | IntroEqTgt of intro_eq_tgt
@@ -2007,6 +2019,7 @@ type infrule = [
   | OrZero of or_zero
   | PtrtointBitcast of ptrtoint_bitcast
   | PtrtointLoad of ptrtoint_load
+  | PtrtointZero of ptrtoint_zero
   | MulBool of mul_bool
   | MulMone of mul_mone
   | MulNeg of mul_neg
