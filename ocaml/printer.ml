@@ -226,7 +226,6 @@ module PrintHints = struct
       | Infrule.Coq_add_signbit _ -> "add_signbit"
       | Infrule.Coq_add_zext_bool _ -> "add_zext_bool"
       | Infrule.Coq_bitcastptr _ -> "bitcastptr"
-      | Infrule.Coq_bitcastptr_const _ -> "bitcastptr_const"
       | Infrule.Coq_diffblock_lessthan _ -> "diffblock_lessthan"
       | Infrule.Coq_diffblock_noalias _ -> "diffblock_noalias"
       | Infrule.Coq_diffblock_unique _ -> "diffblock_unique"
@@ -237,7 +236,6 @@ module PrintHints = struct
       | Infrule.Coq_gep_inbounds_remove (gepinst) ->
          "gep inbounds remove: " ^ (ExprsToString.of_expr gepinst)
       | Infrule.Coq_gepzero _ -> "gepzero"
-      | Infrule.Coq_gepzero_const _ -> "gepzero_const"
       | Infrule.Coq_intro_eq v -> "intro_eq : " ^ ExprsToString.of_expr(v)
       | Infrule.Coq_intro_ghost _ -> "intro_ghost"
       | Infrule.Coq_or_xor3 (z, y, a, b, s) -> "or_xor3 : " ^ 
