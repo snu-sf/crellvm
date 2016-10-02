@@ -304,10 +304,6 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
      let vprime = Convert.value args.vprime in
      let bitcastinst = Convert.expr args.bitcastinst src_fdef tgt_fdef in
      Infrule.Coq_bitcastptr (vprime, bitcastinst)
-  | CoreHint_t.BitcastptrConst (args:CoreHint_t.bitcastptr_const) -> 
-     let vprime = Convert.constant args.vprime in
-     let bitcastinst = Convert.constant_expr args.bitcastinst in
-     Infrule.Coq_bitcastptr_const (vprime, bitcastinst)
   | CoreHint_t.BopAssociative (args:CoreHint_t.bop_associative) ->
      let x = Convert.register args.x in
      let y = Convert.register args.y in
@@ -451,10 +447,6 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
      let vprime = Convert.value args.vprime in
      let gepinst = Convert.expr args.gepinst src_fdef tgt_fdef in
      Infrule.Coq_gepzero (vprime, gepinst)
-  | CoreHint_t.GepzeroConst (args:CoreHint_t.gepzero_const) -> 
-     let vprime = Convert.constant args.vprime in
-     let gepinst = Convert.constant_expr args.gepinst in
-     Infrule.Coq_gepzero_const (vprime, gepinst)
   | CoreHint_t.GepInboundsRemove (args:CoreHint_t.gep_inbounds_remove) ->
      let gepinst = Convert.expr args.gepinst src_fdef tgt_fdef in
      Infrule.Coq_gep_inbounds_remove (gepinst)
