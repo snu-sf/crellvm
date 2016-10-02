@@ -148,8 +148,7 @@ Lemma step_equiv_except_mem
       (CMDS: CurCmds st0.(EC) = cmd :: cmds)
       (STEP: sInsn conf st0 st1 evt)
   : state_equiv_except_mem conf
-                           (option_ptr_to_genericvalue conf (mkState st1.(EC) st1.(ECS) st0.(Mem))
-                                                       invst (Cmd.get_def_memory cmd))
+                           (monad.mbind _ _ (ptr_to_genericvalue conf (mkState st1.(EC) st1.(ECS) st0.(Mem)) invst) (Cmd.get_def_memory cmd))
                            (mkState st1.(EC) st1.(ECS) st0.(Mem)) st1.
 Proof.
     inv STEP; ss.

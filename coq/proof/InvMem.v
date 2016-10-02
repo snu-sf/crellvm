@@ -79,8 +79,8 @@ Module Rel.
 
   Inductive sem (conf_src conf_tgt:Config) (mem_src mem_tgt:mem) (inv:t): Prop :=
   | sem_intro
-      (SRC: Unary.sem conf_src (public_src inv.(inject)) mem_src inv.(src))
-      (TGT: Unary.sem conf_tgt (public_tgt inv.(inject)) mem_tgt inv.(tgt))
+      (SRC: Unary.sem conf_src inv.(gmax) (public_src inv.(inject)) mem_src inv.(src))
+      (TGT: Unary.sem conf_tgt inv.(gmax) (public_tgt inv.(inject)) mem_tgt inv.(tgt))
       (INJECT: Mem.inject inv.(inject) mem_src mem_tgt)
   .
 
