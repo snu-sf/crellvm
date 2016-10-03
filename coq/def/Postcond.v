@@ -541,6 +541,19 @@ Definition add_terminator_cond_lessdef
     ExprPairSet.add
       (expr1, expr2)
       (ExprPairSet.add (expr2, expr1) inv0)
+  | insn_switch _ ty v l_dflt cl_l =>
+    if (l_dec l_to l_dflt) then inv0
+    else
+      match find (fun cl => (l_dec l_to (snd cl))) cl_l with
+      | Some cl =>
+        let expr1 := Expr.value (ValueT.lift Tag.physical v) in
+        let expr2 := Expr.value
+                       (ValueT.const (fst cl)) in
+        ExprPairSet.add
+          (expr1, expr2)
+          (ExprPairSet.add (expr2, expr1) inv0)
+      | None => inv0
+      end
   | _ => inv0
   end.
 
