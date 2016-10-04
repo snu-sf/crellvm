@@ -83,6 +83,100 @@ Lemma postcond_cmd_add_private_unique_sound
 Proof.
 Admitted.
 
+(* TODO Add To Metatheory?? *)
+(* Lemma AtomSetImpl_from_list_inter {X: Type} x l1 l2 *)
+(*       (IN1: List.In x l1) *)
+(*       (IN2: List.In x l2) *)
+(*   : *)
+(*     AtomSetImpl.mem x (AtomSetImpl.inter (AtomSetImpl_from_list l1) *)
+(*                                          (AtomSetImpl_from_list l2)). *)
+(* Proof. *)
+(*   apply AtomSetImpl_from_list_spec in IN1. *)
+(*   apply AtomSetImpl_from_list_spec in IN2. *)
+(*   rewrite AtomSetFacts.inter_b. *)
+(*   rewrite IN1. rewrite IN2. ss. *)
+(* Qed. *)
+
+(* Lemma AtomSetImpl_mem_is_empty x s: *)
+(*   AtomSetImpl.mem x s -> *)
+(*   ~(AtomSetImpl.is_empty s). *)
+(* Proof. *)
+(*   ii. *)
+(*   apply AtomSetFacts.is_empty_iff in H0. *)
+(*   apply AtomSetFacts.mem_iff in H. *)
+(*   exploit H0; eauto. *)
+(* Qed. *)
+
+Lemma AtomSetImpl_inter_empty
+      a l1 l2
+      (EMPTY: AtomSetImpl.Empty (AtomSetImpl.inter l1 l2))
+      (IN: a `in` l1)
+  :
+    <<NOTIN: a `notin` l2>>.
+Proof.
+  red.
+  ii.
+  specialize (EMPTY a).
+  unfold not in EMPTY.
+  apply EMPTY.
+  apply AtomSetFacts.inter_iff; ss.
+Qed.
+
+Lemma AtomSetImpl_from_list_inter_is_empty
+      l1 l2
+      (INTER_EMPTY: AtomSetImpl.is_empty
+                      (AtomSetImpl.inter (AtomSetImpl_from_list l1)
+                                         (AtomSetImpl_from_list l2)) = true)
+  :
+    List.Forall (fun x => List.Forall (fun y => x <> y) l2) l1
+    (* List.forallb (fun x => List.forallb (fun y => negb (AtomSetFacts.eqb x y)) l2) l1 *)
+.
+Proof.
+  generalize dependent l2.
+  induction l1; ii; ss.
+  apply AtomSetFacts.is_empty_iff in INTER_EMPTY.
+  specialize (IHl1 l2).
+  rewrite <- AtomSetFacts.is_empty_iff in IHl1.
+  exploit IHl1.
+  { ii. specialize (INTER_EMPTY a0).
+    eapply AtomSetFacts.inter_s_m_Proper in H; eauto.
+    - ii.
+      unfold AtomSetImpl.Subset.
+      apply_all_once AtomSetFacts.mem_iff.
+      apply AtomSetFacts.mem_iff.
+      apply_all_once AtomSetImpl_from_list_spec.
+      apply AtomSetImpl_from_list_spec.
+      ss. right; ss.
+    - ii. ss.
+  }
+  ii. econs; ss.
+  clear x. clear IHl1.
+  {
+    apply AtomSetImpl_inter_empty with (a:=a) in INTER_EMPTY; cycle 1.
+    {
+      apply AtomSetFacts.mem_iff.
+      apply AtomSetImpl_from_list_spec.
+      econs; ss.
+    }
+    clear l1.
+    red in INTER_EMPTY.
+    apply AtomSetFacts.not_mem_iff in INTER_EMPTY.
+    assert(~ In a l2).
+    {
+      unfold not. i.
+      apply AtomSetImpl_from_list_spec in H.
+      rewrite INTER_EMPTY in H. ss.
+    }
+    apply Forall_forall.
+    ii. clarify.
+  }
+Qed.
+
+Ltac simpl_list :=
+  match goal with
+  | [ H: Forall _ (_ :: _) |- _ ] => inv H
+  end.
+
 Lemma postcond_cmd_add_lessdef_src_sound
       conf_src st0_src st1_src cmd_src cmds_src def_src uses_src
       conf_tgt st1_tgt cmd_tgt def_tgt uses_tgt
@@ -218,14 +312,18 @@ even unable to read proof status because it shows changed type environment, like
 
           {
             destruct value1, value2; ss; clarify.
-            - repeat des_lookupAL_updateAddAL; try apply GVs.lessdef_refl.
-              admit. (* Heq1 *)
-              admit. (* Heq1 *)
-              admit. (* Heq1 *)
-            - repeat des_lookupAL_updateAddAL; try apply GVs.lessdef_refl.
-              admit. (* Heq1 *)
-            - repeat des_lookupAL_updateAddAL; try apply GVs.lessdef_refl.
-              admit. (* Heq1 *)
+            -
+              apply AtomSetImpl_from_list_inter_is_empty in Heq1.
+              repeat simpl_list.
+              repeat des_lookupAL_updateAddAL; try apply GVs.lessdef_refl.
+            -
+              apply AtomSetImpl_from_list_inter_is_empty in Heq1.
+              repeat simpl_list.
+              repeat des_lookupAL_updateAddAL; try apply GVs.lessdef_refl.
+            -
+              apply AtomSetImpl_from_list_inter_is_empty in Heq1.
+              repeat simpl_list.
+              repeat des_lookupAL_updateAddAL; try apply GVs.lessdef_refl.
             - repeat des_lookupAL_updateAddAL; try apply GVs.lessdef_refl.
           }
           (* - works without {}, but indentation gets fucked up *)
