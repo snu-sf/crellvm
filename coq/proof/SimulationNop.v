@@ -274,13 +274,16 @@ Proof.
     { s. i. eapply inject_locals_params2GVs; eauto. }
     s. i.
     exploit return_locals_inject_locals; eauto.
-    { eapply inject_locals_inj_incr; eauto. }
+    { eapply inject_locals_inj_incr; eauto. etransitivity; eauto.
+      admit. (* invmem le lift *)
+    }
     i. des.
     esplits; eauto.
     + inv CONF. rewrite <- TARGETDATA. eauto.
-    + reflexivity.
-    + right. eapply CIH. econs; ss.
-      eapply inject_allocas_inj_incr; eauto.
+    + admit. (* InvMem.Rel.le *)
+    + right. eapply CIH. econs; ss; eauto.
+      eapply inject_allocas_inj_incr; eauto. etransitivity; eauto.
+      admit. (* invmem le lift *)
   - (* return *)
     exploit get_status_return_inv; eauto. i. des.
     inv SIM. ss. subst.

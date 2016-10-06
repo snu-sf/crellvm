@@ -21,11 +21,12 @@ Require InvMem.
 Require InvState.
 Require Import Inject.
 Require Import SoundBase.
+Require Import SoundPostcondForget.
 
 Set Implicit Arguments.
 
 
-(* TODO: in return we need to update locals.  SimulationLocal.v should also be changed. cf. `sim_local_stack` in Simulation.v *)
+(* TODO: free allocas *)
 Lemma postcond_call_sound
       conf_src st0_src id_src noret_src clattrs_src typ_src varg_src fun_src args_src cmds_src
       conf_tgt st0_tgt id_tgt noret_tgt clattrs_tgt typ_tgt varg_tgt fun_tgt args_tgt cmds_tgt
@@ -57,7 +58,7 @@ Lemma postcond_call_sound
       <<INJECT: list_forall2 (genericvalues_inject.gv_inject invmem0.(InvMem.Rel.inject)) args2_src args1_tgt>>>> /\
   <<RETURN:
     forall invmem1 mem1_src mem1_tgt retval1_src retval1_tgt locals1_src
-      (INCR: InvMem.Rel.le invmem0 invmem1)
+      (INCR: InvMem.Rel.le (InvMem.Rel.lift st0_src.(Mem) st0_tgt.(Mem) invmem0) invmem1)
       (MEM: InvMem.Rel.sem conf_src conf_tgt mem1_src mem1_tgt invmem1)
       (RETVAL: TODO.lift2_option (genericvalues_inject.gv_inject invmem1.(InvMem.Rel.inject)) retval1_src retval1_tgt)
       (RETURN_SRC: return_locals
@@ -65,12 +66,13 @@ Lemma postcond_call_sound
                      retval1_src id_src noret_src typ_src
                      st0_src.(EC).(Locals)
                    = Some locals1_src),
-    exists locals1_tgt invst1,
+    exists locals2_tgt invst2 invmem2,
       <<RETURN_TGT: return_locals
                       conf_tgt.(CurTargetData)
                       retval1_tgt id_tgt noret_tgt typ_tgt
                       st0_tgt.(EC).(Locals)
-                    = Some locals1_tgt>> /\
+                    = Some locals2_tgt>> /\
+      <<INCR: InvMem.Rel.le invmem0 invmem2>> /\
       <<STATE:
         InvState.Rel.sem
           conf_src conf_tgt
@@ -85,16 +87,27 @@ Lemma postcond_call_sound
                          st0_tgt.(EC).(CurBB)
                          cmds_tgt
                          st0_tgt.(EC).(Terminator)
-                         locals1_tgt
+                         locals2_tgt
                          st0_tgt.(EC).(Allocas))
                    st0_tgt.(ECS) mem1_tgt)
-          invst1 invmem1 inv1>>>>.
+          invst2 invmem2 inv1>> /\
+      <<MEM: InvMem.Rel.sem conf_src conf_tgt mem1_src mem1_tgt invmem2>>>>.
 Proof.
-  unfold Postcond.postcond_cmd in *. do 19 simtac0.
-  rewrite <- (ite_spec noret_tgt None (Some id_src)) in *.
+  unfold Postcond.postcond_cmd, Postcond.postcond_cmd_check in *. ss.
+  rewrite <- (ite_spec noret_src None (Some id_src)) in *.
   rewrite <- (ite_spec noret_tgt None (Some id_tgt)) in *.
+  simtac.
+
   splits; ss.
-  - admit. (* fun *)
-  - admit. (* args *)
-  - admit. (* return *)
+  - admit. (* funval *)
+  - admit. (* params *)
+  - exploit postcond_call_forget_sound; eauto.
+    { admit. }
+    { admit. }
+    { admit. }
+    { admit. }
+    { admit. }
+    { admit. }
+    i. des.
+    esplits; eauto.
 Admitted.

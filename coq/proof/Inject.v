@@ -8,7 +8,9 @@ Require Import infrastructure.
 Require Import Metatheory.
 Import LLVMsyntax.
 Import LLVMinfra.
+Require Import vellvm.
 Require Import opsem.
+Require Import genericvalues_inject.
 
 Require Import sflib.
 Require Import paco.
@@ -76,8 +78,6 @@ Ltac simtac0 :=
 
 Ltac simtac := repeat simtac0.
 
-
-(* TODO: position *)
 Lemma targetdata_dec
       (TD_src TD_tgt:TargetData):
   {TD_src = TD_tgt} + {TD_src <> TD_tgt}.
@@ -86,6 +86,253 @@ Proof.
   - apply namedts_dec.
   - apply layouts_dec.
 Qed.
+Hint Resolve targetdata_dec: EqDecDb.
+
+Lemma app_inject: forall mi gv1 gv2 gv1' gv2'
+    (IN1: gv_inject mi gv1 gv1')
+    (IN2: genericvalues_inject.gv_inject mi gv2 gv2'),
+  gv_inject mi (gv1 ++ gv2) (gv1' ++ gv2').
+Proof.
+  induction gv1.
+  - i; destruct gv1'; [|inv IN1]; eauto.
+  - i. destruct gv1'; inv IN1.
+    econs; eauto.
+Qed.
+
+Lemma uninits_inject
+      n maxb mi Mem1 Mem2
+      (Hwfsim: genericvalues_inject.wf_sb_mi maxb mi Mem1 Mem2):
+  genericvalues_inject.gv_inject mi (uninits n) (uninits n).
+Proof.
+  i; induction n; econs; eauto. 
+Qed.
+
+Lemma repeatGV_inject
+      mi n g g'
+      (INJ: genericvalues_inject.gv_inject mi g g'):
+  genericvalues_inject.gv_inject mi (repeatGV g n) (repeatGV g' n).
+Proof.
+  induction n; s; eauto using app_inject.
+Qed.
+
+Lemma zeroconst2GV_aux_inject
+      TD maxb mi Mem1 Mem2 (Hwfsim: genericvalues_inject.wf_sb_mi maxb mi Mem1 Mem2)
+      acc (Hnc: forall id5 gv5, 
+              lookupAL _ acc id5 = Some (Some gv5) ->
+              genericvalues_inject.gv_inject mi gv5 gv5)
+      t gv (Hz: zeroconst2GV_aux TD acc t = Some gv):
+  genericvalues_inject.gv_inject mi gv gv.
+Proof.
+  revert_until t.
+  induction t using typ_ind_gen; i; ss; try by inv Hz; econs; eauto.
+  - destruct floating_point5; inv Hz; econs; eauto.
+  - destruct sz5 as [|s]; try solve [uniq_result; auto using gv_inject_uninits].
+    inv_mbind; exploit IHt; eauto.
+    eauto 10 using gv_inject_app, uninits_inject, repeatGV_inject.
+  - inv_mbind.  
+    destruct g; inv H0; [by econs; eauto|].
+    revert HeqR; generalize (p::g); clear p g; intro gv; i.
+    revert_until l0; induction l0; s; i; [by inv HeqR; eauto|].
+    inv IH; inv_mbind; eapply gv_inject_app.
+      by symmetry_ctx; eauto.
+      eapply gv_inject_app; eauto using uninits_inject.
+  - inv Hz; unfold null; inv Hwfsim; eauto.
+  - inv_mbind; symmetry_ctx; eauto.
+Qed.
+
+Lemma zeroconsts2GV_aux_inject
+      TD maxb mi Mem1 Mem2 (Hwfsim: wf_sb_mi maxb mi Mem1 Mem2)
+      acc (Hnc: forall id5 gv5, 
+              lookupAL _ acc id5 = Some (Some gv5) ->
+              gv_inject mi gv5 gv5)
+      lt gv (Hz: zeroconsts2GV_aux TD acc lt = Some gv):
+  gv_inject mi gv gv.
+Proof.
+  revert_until lt. induction lt; s; i; [by inv Hz; econs; eauto|].
+  inv_mbind; symmetry_ctx; exploit IHlt; eauto; intro IJT.
+  eapply zeroconst2GV_aux_inject in HeqR0; eauto.
+  eauto using gv_inject_app, uninits_inject.
+Qed.
+
+Lemma zeroconst2GV_for_namedts_inject
+      TD l maxb mi Mem1 Mem2 (Hwfsim: wf_sb_mi maxb mi Mem1 Mem2)
+      n id gv (LU: lookupAL (monad GenericValue) (zeroconst2GV_for_namedts TD l n) id = ret (ret gv)):
+  gv_inject mi gv gv.
+Proof.
+  revert_until n. induction n; ss.
+  i; destruct a; ss. destruct (eq_dec id0 i0); subst; eauto.
+  inv LU; inv_mbind; symmetry_ctx.
+  destruct g; inv H1; [by econs; eauto|].
+  eapply zeroconsts2GV_aux_inject; eauto.
+Qed.
+
+Lemma zeroconst2GV_inject
+      maxb mi Mem1 Mem2 gv td t
+      (WF: wf_sb_mi maxb mi Mem1 Mem2)
+      (ZERO: zeroconst2GV td t = Some gv):
+  gv_inject mi gv gv.
+Proof. 
+  destruct td. 
+  eauto using zeroconst2GV_aux_inject, zeroconst2GV_for_namedts_inject.
+Qed.
+
+Lemma cgv2gv_inject
+      maxb mi Mem1 Mem2 g t
+      (WF: wf_sb_mi maxb mi Mem1 Mem2)
+      (INJECT: gv_inject mi g g):
+  gv_inject mi (cgv2gv g t) (cgv2gv g t).
+Proof.
+  destruct g; eauto.
+  destruct p; s; destruct v; eauto.
+  destruct g; eauto. 
+  destruct t; s; try by econs; eauto.
+  - destruct floating_point5; econs; eauto.
+  - unfold null. inv WF. eauto.
+Qed.
+
+Lemma cgv2gv_inject_rev
+      maxb mi Mem1 Mem2 g t
+      (WF: wf_sb_mi maxb mi Mem1 Mem2)
+      (INJECT: gv_inject mi (cgv2gv g t) (cgv2gv g t)):
+  gv_inject mi g g.
+Proof.
+  destruct g; eauto.
+  destruct p; s; destruct v; eauto.
+  destruct g; eauto. 
+Qed.
+
+Lemma const2GV_list_inject
+      maxb mi Mem1 Mem2 TD gl t ll gv
+      (Hwf: wf_sb_mi maxb mi Mem1 Mem2)
+      (IH: Forall
+             (fun c : const =>
+                forall gv : GenericValue,
+                  const2GV TD gl c = ret gv -> gv_inject mi gv gv) ll)
+      (Hgv: _list_const_struct2GV_ _const2GV TD gl ll = ret (gv, t)):
+  gv_inject mi gv gv.
+Proof.
+  revert ll t gv IH Hgv; induction ll.
+  - i; inv Hgv; eauto using uninits_inject.
+  - i; inv IH; unfold const2GV in Hgv; s in Hgv; inv_mbind.
+    eapply gv_inject_app.
+    + eapply cgv2gv_inject_rev; eauto.
+      eapply H1; unfold const2GV; rewrite <- HeqR0; eauto.
+    + eapply gv_inject_app; eauto using uninits_inject.
+Qed.
+
+Lemma const2GV_inject
+      maxb mi Mem Mem' TD gl c gv
+      (Hwf: wf_sb_mi maxb mi Mem Mem')
+      (Hgl: wf_globals maxb gl)
+      (Hgv: const2GV TD gl c = Some gv):
+  gv_inject mi gv gv.
+Proof.
+  revert gv Hgv; induction c using const_ind_gen
+  ; [M|M|M|M|M| |M|M|M|M|M|M|M|M|M|M|M|M|M]; Mdo unfold const2GV; s; i; inv_mbind.
+  - inv H0; apply symmetry in HeqR0.
+    eauto using zeroconst2GV_inject, cgv2gv_inject.
+  - inv Hgv; econs; eauto.
+  - inv H0; destruct floating_point5; inv HeqR; s; econs; eauto.
+  - inv H0; symmetry_ctx; eauto using cgv2gv_inject, gv_inject_gundef.
+  - inv Hgv; inv Hwf; econs; eauto.
+  - i; revert l0 IH gv Hgv; induction l0.
+    + i; inv Hgv; eauto using uninits_inject.
+    + i; inv IH; unfold const2GV in Hgv; s in Hgv; inv_mbind.
+      destruct typ_dec; subst; [|done].
+      inv_mbind; inv H0.
+      eapply cgv2gv_inject; eauto.
+      eapply gv_inject_app.
+      * eapply cgv2gv_inject_rev; eauto.
+        eapply H1; unfold const2GV; rewrite <- HeqR0; eauto.
+      * eapply gv_inject_app; eauto using uninits_inject.
+        specialize (IHl0 H2).
+        unfold const2GV in IHl0; s in IHl0.
+        rewrite <- HeqR in IHl0.
+        destruct l0; [by inv HeqR; eauto|].
+        s in IHl0; eapply cgv2gv_inject_rev; eauto.
+  - inv H0; eapply cgv2gv_inject; eauto.
+    destruct typ_eq_list_typ; [|by inv H1].
+    destruct g; inv H1; eauto using uninits_inject.
+    revert HeqR0; generalize (p::g) as gg; clear p g; i.
+    eauto using const2GV_list_inject.
+  - inv H0; eapply cgv2gv_inject; eauto.
+    symmetry_ctx; eauto using global_gv_inject_refl.
+  - inv H0; eapply cgv2gv_inject; eauto.
+    symmetry_ctx; eapply simulation__mtrunc_refl, HeqR.
+    unfold const2GV in IHc; rewrite HeqR0 in IHc.
+    eauto using cgv2gv_inject_rev.
+  - inv H0; eapply cgv2gv_inject; eauto.
+    symmetry_ctx; eapply simulation__mext_refl, HeqR.
+    unfold const2GV in IHc; rewrite HeqR0 in IHc.
+    eauto using cgv2gv_inject_rev.
+  - inv H0; eapply cgv2gv_inject; eauto.
+    symmetry_ctx; eapply simulation__mcast_refl, HeqR.
+    unfold const2GV in IHc; rewrite HeqR0 in IHc.
+    eauto using cgv2gv_inject_rev.
+  - apply symmetry in H1; inv H0; eapply cgv2gv_inject; eauto.
+    destruct t; tinv H1.
+    remember (getConstGEPTyp l0 (typ_pointer t)) as R2.
+    destruct R2; tinv H1.
+    remember (GV2ptr TD (getPointerSize TD) g) as R3.
+    destruct R3; tinv H1.
+    remember (intConsts2Nats TD l0) as R4.
+    destruct R4; tinv H1.
+    remember (mgep TD t v l1) as R5.
+    destruct R5; inv H1.
+    symmetry_ctx; unfold const2GV in IHc; rewrite HeqR0 in IHc.
+    eapply simulation__mgep_refl with (mi:=mi) in HeqR5 
+    ; eauto using GV2ptr_refl, cgv2gv_inject_rev.
+    unfold ptr2GV, val2GV. simpl. auto.
+
+    inv_mbind. symmetry_ctx. 
+    eauto using gv_inject_gundef.
+    inv_mbind. symmetry_ctx. 
+    eauto using gv_inject_gundef.
+    inv_mbind. symmetry_ctx.
+    eauto using gv_inject_gundef.
+  - inv H0; unfold const2GV in IHc2, IHc3; destruct p0, p1.
+    rewrite <- HeqR in IHc2; rewrite <- HeqR1 in IHc3.
+    destruct isGVZero; inv H1; eauto.
+  - inv H0; eapply cgv2gv_inject; eauto.
+    unfold const2GV in IHc1, IHc2.
+    rewrite <- HeqR0 in IHc1; rewrite <- HeqR in IHc2.
+    apply symmetry in HeqR1.
+    eapply simulation__micmp_refl, HeqR1; eauto using cgv2gv_inject_rev.
+  - inv H0; eapply cgv2gv_inject; eauto.
+    destruct t; try by inv H1.
+    inv_mbind; unfold const2GV in IHc1, IHc2.
+    rewrite <- HeqR0 in IHc1; rewrite <- HeqR in IHc2.
+    apply symmetry in HeqR1.
+    eapply simulation__mfcmp_refl, HeqR1; eauto using cgv2gv_inject_rev.
+
+  - inv H0; eapply cgv2gv_inject; eauto. 
+    unfold const2GV in IHc; rewrite <-HeqR0 in IHc.
+    specialize (IHc _ eq_refl); eapply cgv2gv_inject_rev in IHc; eauto.
+    eapply simulation__extractGenericValue_refl; eauto.  
+
+  - inv H0; eapply cgv2gv_inject; eauto. 
+    unfold const2GV in IHc1, IHc2; rewrite <-HeqR0 in IHc1; rewrite <-HeqR in IHc2.
+    specialize (IHc1 _ eq_refl); eapply cgv2gv_inject_rev in IHc1; eauto.
+    specialize (IHc2 _ eq_refl); eapply cgv2gv_inject_rev in IHc2; eauto.
+    symmetry_ctx; eapply simulation__insertGenericValue_refl in HeqR1; eauto.
+
+  - inv H0; eapply cgv2gv_inject; eauto. 
+    destruct t; try by inv H1.
+    inv_mbind.
+    unfold const2GV in IHc1, IHc2; rewrite <-HeqR0 in IHc1; rewrite <-HeqR in IHc2.
+    specialize (IHc1 _ eq_refl); eapply cgv2gv_inject_rev in IHc1; eauto.
+    specialize (IHc2 _ eq_refl); eapply cgv2gv_inject_rev in IHc2; eauto.
+    symmetry_ctx; eapply simulation__mbop_refl in HeqR1; eauto.
+
+  - inv H0; eapply cgv2gv_inject; eauto. 
+    destruct t; try by inv H1.
+    inv_mbind.
+    unfold const2GV in IHc1, IHc2; rewrite <-HeqR0 in IHc1; rewrite <-HeqR in IHc2.
+    specialize (IHc1 _ eq_refl); eapply cgv2gv_inject_rev in IHc1; eauto.
+    specialize (IHc2 _ eq_refl); eapply cgv2gv_inject_rev in IHc2; eauto.
+    symmetry_ctx; eapply simulation__mfbop_refl in HeqR1; eauto.
+Qed.
+
 
 (* TODO: name *)
 Definition inject_locals
@@ -94,7 +341,7 @@ Definition inject_locals
   forall (i:id) (gv_src:GenericValue) (LU_SRC: lookupAL _ locals_src i = Some gv_src),
   exists gv_tgt,
     <<LU_TGT: lookupAL _ locals_tgt i = Some gv_tgt>> /\
-    <<INJECT: genericvalues_inject.gv_inject inv.(InvMem.Rel.inject) gv_src gv_tgt>>.
+              <<INJECT: genericvalues_inject.gv_inject inv.(InvMem.Rel.inject) gv_src gv_tgt>>.
 
 Inductive inject_conf (conf_src conf_tgt:Config): Prop :=
 | inject_conf_intro
@@ -118,13 +365,15 @@ Lemma inject_locals_getOperandValue
       (SRC: getOperandValue conf_src.(CurTargetData) val locals_src (Globals conf_src) = Some gval_src):
   exists gval_tgt,
     <<TGT: getOperandValue conf_tgt.(CurTargetData) val locals_tgt (Globals conf_tgt) = Some gval_tgt>> /\
-    <<INJECT: genericvalues_inject.gv_inject inv.(InvMem.Rel.inject) gval_src gval_tgt>>.
+           <<INJECT: genericvalues_inject.gv_inject inv.(InvMem.Rel.inject) gval_src gval_tgt>>.
 Proof.
   destruct val; ss.
   - exploit LOCALS; eauto.
   - destruct conf_src, conf_tgt. inv CONF. ss. subst.
     esplits; eauto.
-    admit. (* const2GV inject refl *)
+    eapply const2GV_inject; eauto.
+    + admit. (* wf_sb_mi *)
+    + admit. (* wf_globals *)
 Admitted.
 
 Lemma inject_locals_params2GVs
@@ -136,7 +385,7 @@ Lemma inject_locals_params2GVs
       (PARAM_SRC:params2GVs (CurTargetData conf_src) args0 locals_src (Globals conf_src) = Some gvs_param_src):
   exists gvs_param_tgt,
     <<PARAM_TGT:params2GVs (CurTargetData conf_tgt) args0 locals_tgt (Globals conf_tgt) = Some gvs_param_tgt>> /\
-    <<INJECT: list_forall2 (genericvalues_inject.gv_inject (InvMem.Rel.inject inv0)) gvs_param_src gvs_param_tgt>>.
+                <<INJECT: list_forall2 (genericvalues_inject.gv_inject (InvMem.Rel.inject inv0)) gvs_param_src gvs_param_tgt>>.
 Proof.
   revert gvs_param_src PARAM_SRC.
   induction args0; ss.
@@ -164,14 +413,14 @@ Lemma locals_init
       (LOCALS_SRC : initLocals (CurTargetData conf_src) la args_src = Some gvs_src) :
   exists gvs_tgt,
     << LOCALS_TGT : initLocals (CurTargetData conf_tgt) la args_tgt = Some gvs_tgt >> /\
-    << LOCALS: inject_locals inv gvs_src gvs_tgt >>.
+                    << LOCALS: inject_locals inv gvs_src gvs_tgt >>.
 Proof.
   unfold initLocals in *.
   revert gvs_src LOCALS_SRC. induction ARGS; ss.
   - i. destruct la; cycle 1.
-    { admit. }
+    { admit. (* TODO: what? *) }
     ss. inv LOCALS_SRC. esplits; eauto. ss.
-  - admit.
+  - admit. (* TODO: what? *)
 Admitted.
 
 Lemma updateAddAL_inject_locals
