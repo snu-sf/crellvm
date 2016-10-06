@@ -139,6 +139,71 @@ Definition unique_preserved_except conf inv st1 defs leaks : Prop :=
          (NO_LEAK: AtomSetImpl.mem u (AtomSetImpl.union defs leaks) = false),
     InvState.Unary.sem_unique conf st1 u.
 
+(* monotonic features of Forget *)
+(* useful lemmas for postcond *)
+Lemma not_in_maydiff_forget_monotone
+      def_src use_src
+      def_tgt use_tgt
+      inv0 v
+      (NOT_MD: Invariant.not_in_maydiff (Forget.t def_src def_tgt use_src use_tgt inv0) v = true)
+  : Invariant.not_in_maydiff inv0 v = true.
+Proof.
+  unfold Invariant.not_in_maydiff in *.
+  destruct v; eauto.
+  rewrite negb_true_iff in *.
+  
+  unfold Forget.t in *. ss.
+  rewrite IdTSetFacts.union_b in *.
+  solve_des_bool. eauto.
+Qed.
+
+Lemma inject_value_forget_monotone
+      v1 def_src use_src
+      v2 def_tgt use_tgt
+      inv0
+      (INJECT: Invariant.inject_value
+                 (Forget.t def_src def_tgt use_src use_tgt inv0) v1 v2)
+  : Invariant.inject_value inv0 v1 v2.
+Proof.
+  unfold Invariant.inject_value in *.
+  unfold is_true in *.
+  simtac.
+  repeat rewrite orb_true_iff in INJECT.
+  repeat rewrite orb_true_iff.
+  des.
+  - left. left. left.
+    solve_des_bool.
+    apply andb_true_iff; split; eauto using not_in_maydiff_forget_monotone.
+  - left. left. right.
+    solve_des_bool.
+    apply andb_true_iff; split; eauto using not_in_maydiff_forget_monotone.
+    rewrite ExprPairSetFacts.filter_b in *; try by solve_compat_bool.
+    solve_des_bool. eauto.
+  - left. right.
+    solve_des_bool.
+    apply andb_true_iff; split; eauto using not_in_maydiff_forget_monotone.
+    rewrite ExprPairSetFacts.filter_b in *; try by solve_compat_bool.
+    solve_des_bool. eauto.
+  - right.
+    rewrite <- ExprPairSetFacts.exists_iff in *;try by solve_compat_bool.
+    unfold ExprPairSet.Exists in *. des.
+    apply InvState.get_rhs_in_spec in INJECT. des.
+    esplits.
+    + eapply ExprPairSetFacts.filter_iff in INJECT1; try by solve_compat_bool. des.
+      eapply InvState.get_rhs_in_spec2; eauto.
+    + solve_des_bool.
+      apply andb_true_iff.
+      split.
+      * rewrite ExprPairSetFacts.filter_b in *; try by solve_compat_bool.
+        solve_des_bool. eauto.
+      * unfold Invariant.not_in_maydiff_expr in *.
+        apply forallb_forall. i.
+        eapply forallb_forall in INJECT2; eauto.
+        eapply not_in_maydiff_forget_monotone; eauto.
+Qed.
+
+(* soundness *)
+
 Lemma forget_unique_leak_disjoint
       defs leaks inv0
   : AtomSetImpl.disjoint (Invariant.unique (Forget.unary defs leaks inv0)) leaks.

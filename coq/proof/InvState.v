@@ -63,6 +63,20 @@ Proof.
   des. des_sumbool. ss.
 Qed.
 
+Lemma get_rhs_in_spec2
+      (ld: ExprPairSet.t) (lhs: Expr.t) (x: Expr.t * Expr.t)
+      (LHS: fst x = lhs)
+      (IN: ExprPairSet.In x ld)
+  : ExprPairSet.In x (Invariant.get_rhs ld lhs).
+Proof.
+  i. des.
+  unfold Invariant.get_rhs, flip.
+  apply ExprPairSet.filter_3; try by solve_compat_bool.
+  subst.
+  unfold proj_sumbool.
+  des_ifs.
+Qed.
+
 Module Unary.
   Structure t := mk {
     previous: GVsMap;
