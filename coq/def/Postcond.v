@@ -764,6 +764,20 @@ Definition postcond_cmd_add_lessdef
     end
   end.
 
+Lemma postcond_cmd_add_lessdef_Subset c inv0
+  :
+    ExprPairSet.Subset inv0 (postcond_cmd_add_lessdef c inv0).
+Proof.
+  ii.
+  destruct c;
+    cbn; des_ifs;
+    repeat (apply ExprPairSetFacts.add_iff; right); ss.
+  unfold postcond_cmd_add_lessdef.
+  unfold postcond_cmd_get_lessdef.
+  ss.
+  des_ifs.
+Qed.
+
  (* This removes the defined register from maydiff in 3 cases *)
  (* (alloca, malloc, call) because postcond do not *)
  (* produce any lessdef information from them *)

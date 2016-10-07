@@ -161,7 +161,73 @@ Ltac des_lookupAL_updateAddAL :=
             ss; clarify; rewrite <- lookupAL_updateAddAL_neq in H]; ss; clarify
          end.
 
-(* TODO(youngju.song): prove a general lemma for both src & tgt *)
+Lemma postcond_cmd_inject_event_Subset src tgt inv0 inv1
+      (INJECT_EVENT: postcond_cmd_inject_event src tgt inv0)
+      (SUBSET_SRC: ExprPairSet.Subset
+                 (inv0.(Invariant.src).(Invariant.lessdef))
+                 (inv1.(Invariant.src).(Invariant.lessdef)))
+      (SUBSET_TGT: ExprPairSet.Subset
+                 (inv0.(Invariant.tgt).(Invariant.lessdef))
+                 (inv1.(Invariant.tgt).(Invariant.lessdef)))
+  :
+    <<INJECT_EVENT: postcond_cmd_inject_event src tgt inv1>>
+.
+Proof.
+  red.
+  destruct src, tgt; ss.
+  -
+    apply ExprPairSetFacts.exists_iff; try by solve_compat_bool.
+    apply ExprPairSetFacts.exists_iff in INJECT_EVENT; try by solve_compat_bool.
+    unfold ExprPairSet.Exists in *.
+    des.
+    esplits; eauto.
+  - repeat (des_bool; des).
+    clarify. repeat des_bool.
+    apply andb_true_iff; splits; [auto|]. (* TODO Why des_bool does not clear this?????? *)
+    admit.
+Admitted.
+
+Lemma postcond_cmd_add_lessdef_unary_sound
+      conf_src st0_src st1_src cmd_src cmds_src def_src uses_src
+      invst0 invmem0 inv0 gmax public
+      evt
+      (POSTCOND_UNARY: AtomSetImpl.is_empty (AtomSetImpl.inter def_src uses_src))
+      (STATE: InvState.Unary.sem conf_src st1_src invst0 invmem0 inv0)
+      (MEM: InvMem.Unary.sem conf_src gmax public st1_src.(Mem) invmem0)
+      (* (MEM: InvMem.Rel.sem conf_src conf_tgt st1_src.(Mem) st1_tgt.(Mem) invmem0) *)
+      (* InvMem.Unary.sem conf_src inv.(gmax) (public_src inv) mem_src inv.(src) *)
+      (STEP_SRC: sInsn conf_src st0_src st1_src evt)
+      (* (STEP_TGT: sInsn conf_tgt st0_tgt st1_tgt evt) *)
+      (CMDS_SRC: st0_src.(EC).(CurCmds) = cmd_src :: cmds_src)
+      (* (CMDS_TGT: st0_tgt.(EC).(CurCmds) = cmd_tgt :: cmds_tgt) *)
+      (NONCALL_SRC: Instruction.isCallInst cmd_src = false)
+      (* (NONCALL_TGT: Instruction.isCallInst cmd_tgt = false) *)
+      (DEF_SRC: def_src = AtomSetImpl_from_list (option_to_list (Cmd.get_def cmd_src)))
+      (* (DEF_TGT: def_tgt = AtomSetImpl_from_list (option_to_list (Cmd.get_def cmd_tgt))) *)
+      (USES_SRC: uses_src = AtomSetImpl_from_list (Cmd.get_ids cmd_src))
+      (* (USES_TGT: uses_tgt = AtomSetImpl_from_list (Cmd.get_ids cmd_tgt)): *)
+      :
+    <<STATE: InvState.Unary.sem
+               conf_src st1_src invst0 invmem0
+               (Invariant.update_lessdef (postcond_cmd_add_lessdef cmd_src) inv0)>>
+  (* exists invst1 invmem1 public1, *)
+  (*   <<STATE: InvState.Unary.sem *)
+  (*              conf_src st1_src invst1 invmem1 *)
+  (*              (Invariant.update_lessdef (postcond_cmd_add_lessdef cmd_src) inv0)>> /\ *)
+  (*   <<MEM: InvMem.Unary.sem conf_src gmax public1 st1_src.(Mem) invmem1>> /\ *)
+  (*   <<MEMLE: InvMem.Unary.le invmem0 invmem1>> /\ *)
+  (*   <<POSTCOND_UNARY: AtomSetImpl.is_empty (AtomSetImpl.inter def_src uses_src)>> *)
+.
+Proof.
+Admitted.
+
+(* Lemma postcond_cmd_inject_event_preserved *)
+(*   Heq1 : postcond_cmd_inject_event cmd_src cmd_tgt inv0 = true *)
+(*   Heq3 : postcond_cmd_inject_event cmd_src cmd_tgt *)
+(*        (Invariant.update_src (Invariant.update_lessdef (postcond_cmd_add_lessdef cmd_src)) *)
+(*               inv0) = false *)
+
+
 Lemma postcond_cmd_add_lessdef_src_sound
       conf_src st0_src st1_src cmd_src cmds_src def_src uses_src
       conf_tgt st1_tgt cmd_tgt def_tgt uses_tgt
@@ -193,10 +259,58 @@ Lemma postcond_cmd_add_lessdef_src_sound
                      (Invariant.update_lessdef (postcond_cmd_add_lessdef cmd_src)) inv0)>>
 .
 Proof.
+  unfold postcond_cmd_check in POSTCOND. des_ifs. des_bool.
+  (* clear Heq0. *) (* later used to rebuild POSTCOND *)
+  move Heq0 at top.
+  inv STATE.
+  inv MEM.
+  destruct invst0. destruct invmem0. ss.
+  exploit postcond_cmd_add_lessdef_unary_sound;
+    try apply SRC; try apply SRC0; try apply STEP_SRC; eauto; []; ii; des.
+  splits; eauto; ss.
+  - unfold postcond_cmd_check. des_ifs. des_bool.
+    exfalso.
+    eapply postcond_cmd_inject_event_Subset in Heq1.
+    des. unfold is_true in Heq1.
+    rewrite Heq1 in Heq3. ss.
+    ss.
+    eapply postcond_cmd_add_lessdef_Subset.
+    ss.
+Qed.
+
+Lemma postcond_cmd_add_lessdef_src_sound_old
+      conf_src st0_src st1_src cmd_src cmds_src def_src uses_src
+      conf_tgt st1_tgt cmd_tgt def_tgt uses_tgt
+      (* conf_tgt st0_tgt st1_tgt cmd_tgt cmds_tgt def_tgt uses_tgt *)
+      invst0 invmem0 inv0
+      evt
+      (POSTCOND: Postcond.postcond_cmd_check
+                   cmd_src cmd_tgt def_src def_tgt uses_src uses_tgt inv0)
+      (STATE: InvState.Rel.sem conf_src conf_tgt st1_src st1_tgt invst0 invmem0 inv0)
+      (MEM: InvMem.Rel.sem conf_src conf_tgt st1_src.(Mem) st1_tgt.(Mem) invmem0)
+      (STEP_SRC: sInsn conf_src st0_src st1_src evt)
+      (* (STEP_TGT: sInsn conf_tgt st0_tgt st1_tgt evt) *)
+      (CMDS_SRC: st0_src.(EC).(CurCmds) = cmd_src :: cmds_src)
+      (* (CMDS_TGT: st0_tgt.(EC).(CurCmds) = cmd_tgt :: cmds_tgt) *)
+      (NONCALL_SRC: Instruction.isCallInst cmd_src = false)
+      (* (NONCALL_TGT: Instruction.isCallInst cmd_tgt = false) *)
+      (DEF_SRC: def_src = AtomSetImpl_from_list (option_to_list (Cmd.get_def cmd_src)))
+      (* (DEF_TGT: def_tgt = AtomSetImpl_from_list (option_to_list (Cmd.get_def cmd_tgt))) *)
+      (USES_SRC: uses_src = AtomSetImpl_from_list (Cmd.get_ids cmd_src))
+      (* (USES_TGT: uses_tgt = AtomSetImpl_from_list (Cmd.get_ids cmd_tgt)): *)
+      :
+    <<STATE: InvState.Rel.sem
+               conf_src conf_tgt st1_src st1_tgt invst0 invmem0
+               (Invariant.update_src
+                  (Invariant.update_lessdef (postcond_cmd_add_lessdef cmd_src)) inv0)>> /\
+    <<POSTCOND: Postcond.postcond_cmd_check
+                  cmd_src cmd_tgt def_src def_tgt uses_src uses_tgt
+                  (Invariant.update_src
+                     (Invariant.update_lessdef (postcond_cmd_add_lessdef cmd_src)) inv0)>>
+.
   (* unfold postcond_cmd_add_lessdef in *. *)
   destruct inv0, src.
   unfold Invariant.update_src, Invariant.update_lessdef. ss.
-
   Time destruct cmd_src; ss; try by inv NONCALL_SRC.
   (* Finished transaction in 22.738 secs (22.705u,0.045s) (successful) *)
   - (* bop *)
@@ -206,7 +320,6 @@ Proof.
     clear NOALIAS UNIQUE PRIVATE. (* from SRC *)
     ii. destruct x. ss.
     (* DO NOT USE econs; eauto HERE!! early binding will mess up late proof a lot. *)
-
     unfold postcond_cmd_check in POSTCOND. des_ifs. des_bool. ss. clear Heq1.
     (* unfold Cmd.get_ids in Heq. *) (* unfolding here will ruin later des_ifs... *)
     (* unfold Cmd.get_values in Heq. *)
@@ -300,7 +413,23 @@ Lemma postcond_cmd_add_lessdef_tgt_sound
                      (Invariant.update_lessdef (postcond_cmd_add_lessdef cmd_tgt)) inv0)>>
 .
 Proof.
-Admitted.
+  unfold postcond_cmd_check in POSTCOND. des_ifs. des_bool.
+  (* clear Heq0. *) (* later used to rebuild POSTCOND *)
+  move Heq1 at top.
+  inv STATE.
+  inv MEM.
+  destruct invst0. destruct invmem0. ss.
+  exploit postcond_cmd_add_lessdef_unary_sound;
+    try apply TGT; try apply TGT0; try apply STEP_TGT; eauto; []; ii; des.
+  splits; eauto; ss.
+  - unfold postcond_cmd_check. des_ifs. des_bool.
+    exfalso.
+    eapply postcond_cmd_inject_event_Subset in Heq1.
+    des. unfold is_true in Heq1.
+    rewrite Heq1 in Heq3. ss.
+    ss.
+    eapply postcond_cmd_add_lessdef_Subset.
+Qed.
 
 Lemma postcond_cmd_add_remove_def_from_maydiff_sound
       conf_src st0_src st1_src cmd_src cmds_src def_src uses_src
@@ -355,7 +484,6 @@ Theorem postcond_cmd_add_sound
 Proof.
   unfold postcond_cmd_add.
   exploit postcond_cmd_add_private_unique_sound; eauto; []; ii; des.
-  (* guard. *)
   exploit postcond_cmd_add_lessdef_src_sound; try apply STATE0; eauto; []; ii; des.
   exploit postcond_cmd_add_lessdef_tgt_sound; try apply STATE1; eauto; []; ii; des.
   exploit postcond_cmd_add_remove_def_from_maydiff_sound; try apply STATE2;
