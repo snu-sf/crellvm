@@ -159,6 +159,10 @@ Ltac des_lookupAL_updateAddAL :=
            destruct (eq_atom_dec idB idA);
            [ss; clarify; rewrite lookupAL_updateAddAL_eq in H |
             ss; clarify; rewrite <- lookupAL_updateAddAL_neq in H]; ss; clarify
+         | [ |- lookupAL ?t (updateAddAL ?t _ ?idA _) ?idB = _ ] =>
+           destruct (eq_atom_dec idB idA);
+           [ss; clarify; rewrite lookupAL_updateAddAL_eq |
+            ss; clarify; rewrite <- lookupAL_updateAddAL_neq]; ss; clarify
          end.
 
 Lemma postcond_cmd_inject_event_Subset src tgt inv0 inv1
@@ -187,10 +191,22 @@ Proof.
     admit.
 Admitted.
 
+Ltac simpl_ep_set :=
+  repeat
+    match goal with
+    | [H: ExprPairSet.In _ (ExprPairSet.add _ _) |- _] =>
+      eapply ExprPairSetFacts.add_iff in H; des; clarify
+    end.
+
+Ltac u := autounfold in *.
+Hint Unfold InvState.Unary.sem_idT.
+Hint Unfold Cmd.get_ids.
+
 Lemma postcond_cmd_add_lessdef_unary_sound
       conf st0 st1 cmd cmds def uses
       invst0 invmem0 inv0 gmax public
       evt
+      (* TODO rename this lemma to POSTCOND_CHECK *)
       (POSTCOND_UNARY: AtomSetImpl.is_empty (AtomSetImpl.inter def uses))
       (STATE: InvState.Unary.sem conf st1 invst0 invmem0 inv0)
       (MEM: InvMem.Unary.sem conf gmax public st1.(Mem) invmem0)
@@ -199,12 +215,109 @@ Lemma postcond_cmd_add_lessdef_unary_sound
       (NONCALL: Instruction.isCallInst cmd = false)
       (DEF: def = AtomSetImpl_from_list (option_to_list (Cmd.get_def cmd)))
       (USES: uses = AtomSetImpl_from_list (Cmd.get_ids cmd))
-      :
+  :
     <<STATE: InvState.Unary.sem
                conf st1 invst0 invmem0
                (Invariant.update_lessdef (postcond_cmd_add_lessdef cmd) inv0)>>
 .
 Proof.
+  destruct inv0.
+  unfold Invariant.update_lessdef. ss.
+  destruct cmd; ss; try by inv NONCALL.
+  - (* bop *)
+    clear MEM.
+    inv STATE. ss.
+    cbn. econs; eauto. ss.
+    clear NOALIAS UNIQUE PRIVATE.
+    ii. destruct x as [LHS RHS]. ss.
+    apply AtomSetImpl_from_list_inter_is_empty in POSTCOND_UNARY.
+    simpl_ep_set.
+    (* TODO(youngju.song): the first two cases are basically the same thing: a=b implies a>=b and b>=a.  You need to make a lemma. *)
+    +
+      clear LESSDEF.
+      inv STEP; inv CMDS; []; ss.
+      {
+        exists gvs3.
+        splits.
+        - u. ss.
+          des_lookupAL_updateAddAL.
+        - des_ifs.
+          exploit opsem_props.OpsemProps.BOP_inversion; eauto; []; ii; des.
+          rewrite InvState.Unary.sem_valueT_physical in *. ss.
+          u. ss. simpl_list.
+          destruct value1, value2; ss; clarify;
+            simpl_list; des_lookupAL_updateAddAL;
+            try apply GVs.lessdef_refl.
+      }
+      (* { *)
+      (*   exists gvs3. *)
+      (*   des_ifs; clarify; []. *)
+      (*   exploit opsem_props.OpsemProps.BOP_inversion; eauto; []; ii; des. *)
+      (*   esplits; eauto. *)
+      (*   * unfold InvState.Unary.sem_idT. ss. *)
+      (*     rewrite lookupAL_updateAddAL_eq. ss. *)
+      (*   * rewrite InvState.Unary.sem_valueT_physical in *. ss. *)
+      (*     clear MEM LESSDEF. *)
+      (*     cbn in Heq. *)
+      (*     destruct value1, value2; ss; clarify; *)
+      (*       repeat simpl_list; *)
+      (*       repeat des_lookupAL_updateAddAL; try apply GVs.lessdef_refl. *)
+      (* } *)
+    + clear LESSDEF.
+      inv STEP; inv CMDS; [].
+      exists gvs3.
+      {
+        splits.
+        -
+          cbn in VAL1. des_lookupAL_updateAddAL.
+          unfold BOP in H.
+          destruct value1, value2; ss; u; ss; des_ifs;
+            simpl_list; des_lookupAL_updateAddAL.
+        - ss.
+          exploit opsem_props.OpsemProps.BOP_inversion; eauto; []; ii; des.
+          u. ss. simpl_list.
+          destruct value1, value2; ss; clarify;
+            simpl_list; des_lookupAL_updateAddAL;
+              try apply GVs.lessdef_refl.
+      }
+      (* { *)
+      (* exploit opsem_props.OpsemProps.BOP_inversion; eauto; []; ii; des. *)
+      (* u. simpl in POSTCOND_UNARY. simpl_list. *)
+      (* destruct value1, value2; ss; clarify; *)
+      (*   simpl_list; unfold InvState.Unary.sem_idT; ss; *)
+      (*     des_ifs; des_lookupAL_updateAddAL. *)
+      (* * esplits; eauto. *)
+      (*   cbn in VAL1. *)
+      (*   des_ifs; des_lookupAL_updateAddAL. *)
+      (*   apply GVs.lessdef_refl. *)
+      (* * esplits; eauto. *)
+      (*   cbn in VAL1. *)
+      (*   des_ifs; des_lookupAL_updateAddAL. *)
+      (*   apply GVs.lessdef_refl. *)
+      (* * esplits; eauto. *)
+      (*   cbn in VAL1. *)
+      (*   des_ifs; des_lookupAL_updateAddAL. *)
+      (*   apply GVs.lessdef_refl. *)
+      (* * esplits; eauto. *)
+      (*   cbn in VAL1. *)
+      (*   des_ifs; des_lookupAL_updateAddAL. *)
+      (*   apply GVs.lessdef_refl. *)
+      (* } *)
+    + apply LESSDEF in H. clear LESSDEF.
+      exploit H; eauto.
+  - admit.
+  - admit.
+  - admit.
+  - admit.
+  - admit.
+  - admit.
+  - admit.
+  - admit.
+  - admit.
+  - admit.
+  - admit.
+  - admit.
+  - admit.
 Admitted.
 
 Lemma postcond_cmd_add_lessdef_src_sound
