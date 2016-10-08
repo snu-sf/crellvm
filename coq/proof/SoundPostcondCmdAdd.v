@@ -188,45 +188,24 @@ Proof.
 Admitted.
 
 Lemma postcond_cmd_add_lessdef_unary_sound
-      conf_src st0_src st1_src cmd_src cmds_src def_src uses_src
+      conf st0 st1 cmd cmds def uses
       invst0 invmem0 inv0 gmax public
       evt
-      (POSTCOND_UNARY: AtomSetImpl.is_empty (AtomSetImpl.inter def_src uses_src))
-      (STATE: InvState.Unary.sem conf_src st1_src invst0 invmem0 inv0)
-      (MEM: InvMem.Unary.sem conf_src gmax public st1_src.(Mem) invmem0)
-      (* (MEM: InvMem.Rel.sem conf_src conf_tgt st1_src.(Mem) st1_tgt.(Mem) invmem0) *)
-      (* InvMem.Unary.sem conf_src inv.(gmax) (public_src inv) mem_src inv.(src) *)
-      (STEP_SRC: sInsn conf_src st0_src st1_src evt)
-      (* (STEP_TGT: sInsn conf_tgt st0_tgt st1_tgt evt) *)
-      (CMDS_SRC: st0_src.(EC).(CurCmds) = cmd_src :: cmds_src)
-      (* (CMDS_TGT: st0_tgt.(EC).(CurCmds) = cmd_tgt :: cmds_tgt) *)
-      (NONCALL_SRC: Instruction.isCallInst cmd_src = false)
-      (* (NONCALL_TGT: Instruction.isCallInst cmd_tgt = false) *)
-      (DEF_SRC: def_src = AtomSetImpl_from_list (option_to_list (Cmd.get_def cmd_src)))
-      (* (DEF_TGT: def_tgt = AtomSetImpl_from_list (option_to_list (Cmd.get_def cmd_tgt))) *)
-      (USES_SRC: uses_src = AtomSetImpl_from_list (Cmd.get_ids cmd_src))
-      (* (USES_TGT: uses_tgt = AtomSetImpl_from_list (Cmd.get_ids cmd_tgt)): *)
+      (POSTCOND_UNARY: AtomSetImpl.is_empty (AtomSetImpl.inter def uses))
+      (STATE: InvState.Unary.sem conf st1 invst0 invmem0 inv0)
+      (MEM: InvMem.Unary.sem conf gmax public st1.(Mem) invmem0)
+      (STEP: sInsn conf st0 st1 evt)
+      (CMDS: st0.(EC).(CurCmds) = cmd :: cmds)
+      (NONCALL: Instruction.isCallInst cmd = false)
+      (DEF: def = AtomSetImpl_from_list (option_to_list (Cmd.get_def cmd)))
+      (USES: uses = AtomSetImpl_from_list (Cmd.get_ids cmd))
       :
     <<STATE: InvState.Unary.sem
-               conf_src st1_src invst0 invmem0
-               (Invariant.update_lessdef (postcond_cmd_add_lessdef cmd_src) inv0)>>
-  (* exists invst1 invmem1 public1, *)
-  (*   <<STATE: InvState.Unary.sem *)
-  (*              conf_src st1_src invst1 invmem1 *)
-  (*              (Invariant.update_lessdef (postcond_cmd_add_lessdef cmd_src) inv0)>> /\ *)
-  (*   <<MEM: InvMem.Unary.sem conf_src gmax public1 st1_src.(Mem) invmem1>> /\ *)
-  (*   <<MEMLE: InvMem.Unary.le invmem0 invmem1>> /\ *)
-  (*   <<POSTCOND_UNARY: AtomSetImpl.is_empty (AtomSetImpl.inter def_src uses_src)>> *)
+               conf st1 invst0 invmem0
+               (Invariant.update_lessdef (postcond_cmd_add_lessdef cmd) inv0)>>
 .
 Proof.
 Admitted.
-
-(* Lemma postcond_cmd_inject_event_preserved *)
-(*   Heq1 : postcond_cmd_inject_event cmd_src cmd_tgt inv0 = true *)
-(*   Heq3 : postcond_cmd_inject_event cmd_src cmd_tgt *)
-(*        (Invariant.update_src (Invariant.update_lessdef (postcond_cmd_add_lessdef cmd_src)) *)
-(*               inv0) = false *)
-
 
 Lemma postcond_cmd_add_lessdef_src_sound
       conf_src st0_src st1_src cmd_src cmds_src def_src uses_src
