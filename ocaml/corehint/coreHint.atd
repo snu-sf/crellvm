@@ -248,6 +248,21 @@ type select_inst = {
   falseval : value;
 }
 
+type extract_value_inst = {
+  aggrty : value_type;
+  aggrv : value;
+  idx : int list;
+  retty : value_type;
+}
+
+type insert_value_inst = {
+  aggrty : value_type;
+  aggrv : value;
+  argty : value_type;
+  argv : value;
+  idx : int list;
+}
+
 type instruction = [ 
   | BinaryOp of binary_operator
   | FloatBinaryOp of float_binary_operator
@@ -266,6 +281,8 @@ type instruction = [
   | TruncInst of trunc_inst
   | SitofpInst of sitofp_inst
   | UitofpInst of uitofp_inst
+  | InsertValueInst of insert_value_inst
+  | ExtractValueInst of extract_value_inst
 ] <ocaml repr="classic">
 
 type expr = [
