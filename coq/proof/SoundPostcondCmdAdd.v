@@ -26,6 +26,7 @@ Require Import Inject.
 Require Import SoundBase.
 Require Import SoundForget.
 Require Import SoundReduceMaydiff.
+Require Import memory_props.
 
 Set Implicit Arguments.
 
@@ -248,8 +249,20 @@ Proof.
   -
     econs; eauto; [].
     unfold postcond_cmd_add_lessdef. ss.
-    inv CMDS.
-    admit.
+    (* inv CMDS. *)
+    (* exploit memory_props.MemProps.malloc_result; eauto; []; i; des. (* should not use ii here *) *)
+    (* subst. *)
+    des_ifs.
+    + apply lessdef_add; ss; rewrite ? InvState.Unary.sem_valueT_physical in *; ss;
+        rewrite ? InvState.Unary.sem_valueT_physical in *; ss;
+          apply AtomSetImpl_from_list_inter_is_empty in POSTCOND_CHECK; [];
+            repeat match goal with
+                   | [ v: value |- _ ] => destruct v
+                   end; u; ss; simpl_list; des_lookupAL_updateAddAL; des_ifs.
+      admit.
+      admit.
+    +
+      admit.
   - admit.
   - admit.
   - admit.
