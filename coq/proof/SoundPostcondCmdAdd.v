@@ -155,11 +155,11 @@ Ltac simpl_list :=
 
 Ltac des_lookupAL_updateAddAL :=
   repeat match goal with
-         | [ H: lookupAL ?t (updateAddAL ?t _ ?idA _) ?idB = _ |- _ ] =>
+         | [ H: context[lookupAL ?t (updateAddAL ?t _ ?idA _) ?idB] |- _ ] =>
            destruct (eq_atom_dec idB idA);
            [ss; clarify; rewrite lookupAL_updateAddAL_eq in H |
             ss; clarify; rewrite <- lookupAL_updateAddAL_neq in H]; ss; clarify
-         | [ |- lookupAL ?t (updateAddAL ?t _ ?idA _) ?idB = _ ] =>
+         | [ |- context[lookupAL ?t (updateAddAL ?t _ ?idA _) ?idB] ] =>
            destruct (eq_atom_dec idB idA);
            [ss; clarify; rewrite lookupAL_updateAddAL_eq |
             ss; clarify; rewrite <- lookupAL_updateAddAL_neq]; ss; clarify
@@ -238,96 +238,18 @@ Lemma postcond_cmd_add_lessdef_unary_sound
 Proof.
   destruct inv0.
   unfold Invariant.update_lessdef. ss.
-  destruct cmd; ss; try by inv NONCALL.
-  - (* bop *)
-    clear MEM.
-    inv STATE. ss.
-    cbn. econs; eauto. ss.
-    clear NOALIAS UNIQUE PRIVATE.
-    apply lessdef_add; ss.
-    inv STEP; ss. clarify.
-    unfold BOP in H. simtac. ss.
-    rewrite ? InvState.Unary.sem_valueT_physical in *. ss.
+  destruct cmd; ss; (inv NONCALL; []); (inv STATE; []); ss; ((inv STEP; ss); []);
+    try (econs; eauto; []; apply lessdef_add; ss;
+         rewrite ? InvState.Unary.sem_valueT_physical in *; ss;
+         apply AtomSetImpl_from_list_inter_is_empty in POSTCOND_CHECK; [];
+         repeat match goal with
+                | [ v: value |- _ ] => destruct v
+                end; u; ss; simpl_list; des_lookupAL_updateAddAL; des_ifs; fail).
+  -
+    econs; eauto; [].
+    unfold postcond_cmd_add_lessdef. ss.
+    inv CMDS.
     admit.
-    (*   rewrite COND. , COND0. *)
-    (*   clear LESSDEF. *)
-    (*   inv STEP; inv CMDS; []; ss. *)
-    (*   { *)
-    (*     exists gvs3. *)
-    (*     splits. *)
-    (*     - u. ss. *)
-    (*       des_lookupAL_updateAddAL. *)
-    (*     - des_ifs. *)
-    (*       exploit opsem_props.OpsemProps.BOP_inversion; eauto; []; ii; des. *)
-    (*       rewrite InvState.Unary.sem_valueT_physical in *. ss. *)
-    (*       u. ss. simpl_list. *)
-    (*       destruct value1, value2; ss; clarify; *)
-    (*         simpl_list; des_lookupAL_updateAddAL; *)
-    (*         try apply GVs.lessdef_refl. *)
-    (*   } *)
-    (*   (* { *) *)
-    (*   (*   exists gvs3. *) *)
-    (*   (*   des_ifs; clarify; []. *) *)
-    (*   (*   exploit opsem_props.OpsemProps.BOP_inversion; eauto; []; ii; des. *) *)
-    (*   (*   esplits; eauto. *) *)
-    (*   (*   * unfold InvState.Unary.sem_idT. ss. *) *)
-    (*   (*     rewrite lookupAL_updateAddAL_eq. ss. *) *)
-    (*   (*   * rewrite InvState.Unary.sem_valueT_physical in *. ss. *) *)
-    (*   (*     clear MEM LESSDEF. *) *)
-    (*   (*     cbn in Heq. *) *)
-    (*   (*     destruct value1, value2; ss; clarify; *) *)
-    (*   (*       repeat simpl_list; *) *)
-    (*   (*       repeat des_lookupAL_updateAddAL; try apply GVs.lessdef_refl. *) *)
-    (*   (* } *) *)
-    (* + clear LESSDEF. *)
-    (*   inv STEP; inv CMDS; []. *)
-    (*   exists gvs3. *)
-    (*   { *)
-    (*     splits. *)
-    (*     - *)
-    (*       cbn in VAL1. des_lookupAL_updateAddAL. *)
-    (*       unfold BOP in H. *)
-    (*       destruct value1, value2; ss; u; ss; des_ifs; *)
-    (*         simpl_list; des_lookupAL_updateAddAL. *)
-    (*     - ss. *)
-    (*       exploit opsem_props.OpsemProps.BOP_inversion; eauto; []; ii; des. *)
-    (*       u. ss. simpl_list. *)
-    (*       destruct value1, value2; ss; clarify; *)
-    (*         simpl_list; des_lookupAL_updateAddAL; *)
-    (*           try apply GVs.lessdef_refl. *)
-    (*   } *)
-      (* { *)
-      (* exploit opsem_props.OpsemProps.BOP_inversion; eauto; []; ii; des. *)
-      (* u. simpl in POSTCOND_UNARY. simpl_list. *)
-      (* destruct value1, value2; ss; clarify; *)
-      (*   simpl_list; unfold InvState.Unary.sem_idT; ss; *)
-      (*     des_ifs; des_lookupAL_updateAddAL. *)
-      (* * esplits; eauto. *)
-      (*   cbn in VAL1. *)
-      (*   des_ifs; des_lookupAL_updateAddAL. *)
-      (*   apply GVs.lessdef_refl. *)
-      (* * esplits; eauto. *)
-      (*   cbn in VAL1. *)
-      (*   des_ifs; des_lookupAL_updateAddAL. *)
-      (*   apply GVs.lessdef_refl. *)
-      (* * esplits; eauto. *)
-      (*   cbn in VAL1. *)
-      (*   des_ifs; des_lookupAL_updateAddAL. *)
-      (*   apply GVs.lessdef_refl. *)
-      (* * esplits; eauto. *)
-      (*   cbn in VAL1. *)
-      (*   des_ifs; des_lookupAL_updateAddAL. *)
-      (*   apply GVs.lessdef_refl. *)
-      (* } *)
-  - admit.
-  - admit.
-  - admit.
-  - admit.
-  - admit.
-  - admit.
-  - admit.
-  - admit.
-  - admit.
   - admit.
   - admit.
   - admit.
