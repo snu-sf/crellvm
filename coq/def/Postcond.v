@@ -674,12 +674,6 @@ Definition postcond_cmd_inject_event
   (* | insn_alloca _ _ _ _, _ => false *)
   (* | _, insn_alloca _ _ _ _ => false *)
 
-  | insn_malloc x1 t1 v1 a1, insn_malloc x2 t2 v2 a2 =>
-    id_dec x1 x2 &&
-    typ_dec t1 t2 &&
-    (Invariant.inject_value
-       inv (ValueT.lift Tag.physical v1) (ValueT.lift Tag.physical v2)) &&
-    align_dec a1 a2
   | insn_malloc _ _ _ _, _ => false
   | _, insn_malloc _ _ _ _ => false
 
