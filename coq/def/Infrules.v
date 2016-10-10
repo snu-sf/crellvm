@@ -936,17 +936,23 @@ Definition apply_infrule
   | Infrule.ptrtoint_inttoptr src mid dst srcty midty dstty =>
     let srcty_sz_opt := get_bitsize srcty m_src in
     let midty_sz_opt := get_bitsize midty m_src in
+    let dstty_sz_opt := get_bitsize dstty m_src in
     match srcty_sz_opt with
     | Some srcty_sz =>
       match midty_sz_opt with
       | Some midty_sz => 
-        if $$ inv0 |-src (Expr.value mid) >= (Expr.cast castop_inttoptr srcty src midty) $$ &&
-           $$ inv0 |-src (Expr.value dst) >= (Expr.cast castop_ptrtoint midty mid dstty) $$ &&
-           cond_le (Size.ThirtyTwo)
-                   (INTEGER.of_Z (Size.to_Z Size.ThirtyTwo) (Size.to_Z srcty_sz) true) 
-                   (INTEGER.of_Z (Size.to_Z Size.ThirtyTwo) (Size.to_Z midty_sz) true)
-        then {{ inv0 +++src (Expr.value dst) >= (Expr.cast castop_bitcast srcty src dstty) }}
-        else apply_fail tt
+        match dstty_sz_opt with
+        | Some dstty_sz =>
+          if $$ inv0 |-src (Expr.value mid) >= (Expr.cast castop_inttoptr srcty src midty) $$ &&
+             $$ inv0 |-src (Expr.value dst) >= (Expr.cast castop_ptrtoint midty mid dstty) $$ &&
+             cond_le (Size.ThirtyTwo)
+                     (INTEGER.of_Z (Size.to_Z Size.ThirtyTwo) (Size.to_Z srcty_sz) true) 
+                     (INTEGER.of_Z (Size.to_Z Size.ThirtyTwo) (Size.to_Z midty_sz) true) &&
+             sz_dec srcty_sz dstty_sz
+          then {{ inv0 +++src (Expr.value dst) >= (Expr.cast castop_bitcast srcty src dstty) }}
+          else apply_fail tt
+        | None => apply_fail tt
+        end
       | None => apply_fail tt
       end
     | None => apply_fail tt
