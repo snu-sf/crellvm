@@ -55,6 +55,26 @@ Definition AtomSetImpl_from_list
            (ids:list id): AtomSetImpl.t :=
   fold_left (flip AtomSetImpl.add) ids AtomSetImpl.empty.
 
+(* AtomSetImpl, AtomSetFacts // IdTSet, IdTSetFacts *)
+Lemma AtomSetImpl_from_list_spec ids:
+  forall id, AtomSetImpl.mem id (AtomSetImpl_from_list ids) <-> In id ids.
+Proof.
+  unfold AtomSetImpl_from_list. rewrite <- fold_left_rev_right.
+  intros. rewrite in_rev.
+  match goal with
+  | [|- context[@rev ?T ?ids]] => induction (@rev T ids)
+  end; simpl.
+  - rewrite AtomSetFacts.empty_b. intuition.
+  - unfold flip in *. rewrite AtomSetFacts.add_b.
+    unfold AtomSetFacts.eqb. constructor; intros.
+    + apply orb_true_iff in H. destruct H.
+      * left. destruct (AtomDT.eq_dec a id0); intuition.
+      * right. apply IHl0. auto.
+    + apply orb_true_intro. destruct H.
+      * subst. destruct (AtomDT.eq_dec id0 id0); auto.
+      * right. apply IHl0. auto.
+Qed.
+
 (* TODO: move *)
 Definition IdTSet_from_list
            (ids:list IdT.t): IdTSet.t :=

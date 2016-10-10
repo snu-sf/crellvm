@@ -52,10 +52,11 @@ Proof.
 Qed.
 
 Lemma postcond_cmd_sound
-      conf_src st0_src cmd_src cmds_src
-      conf_tgt st0_tgt cmd_tgt cmds_tgt
+      m_src conf_src st0_src cmd_src cmds_src
+      m_tgt conf_tgt st0_tgt cmd_tgt cmds_tgt
       invst0 invmem0 inv0
       st1_tgt evt inv1
+      (CONF: InvState.valid_conf m_src m_tgt conf_src conf_tgt)
       (POSTCOND: Postcond.postcond_cmd cmd_src cmd_tgt inv0 = Some inv1)
       (STATE: InvState.Rel.sem conf_src conf_tgt st0_src st0_tgt invst0 invmem0 inv0)
       (MEM: InvMem.Rel.sem conf_src conf_tgt st0_src.(Mem) st0_tgt.(Mem) invmem0)
