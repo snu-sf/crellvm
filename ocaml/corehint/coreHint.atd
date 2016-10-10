@@ -663,11 +663,6 @@ type bitcastptr = {
   bitcastinst : expr;
 }
 
-type bitcastptr_const = {
-  vprime : constant;
-  bitcastinst : constant_expr;
-}
-
 type bitcast_fpext = {
     src : value;
     mid : value;
@@ -897,11 +892,6 @@ type fptrunc_fpext = {
 type gepzero = {
   vprime : value;
   gepinst : expr;
-}
-
-type gepzero_const = {
-  vprime : constant;
-  gepinst : constant_expr;
 }
 
 type gep_inbounds_remove = {
@@ -2014,7 +2004,6 @@ type infrule = [
   | BitcastUitofp of bitcast_uitofp
   | BitcastZext of bitcast_zext
   | Bitcastptr of bitcastptr
-  | BitcastptrConst of bitcastptr_const
   | BopAssociative of bop_associative
   | BopCommutative of bop_commutative
   | BopDistributiveOverSelectinst of bop_distributive_over_selectinst
@@ -2036,7 +2025,6 @@ type infrule = [
   | FptruncBitcast of fptrunc_bitcast
   | FptruncFpext of fptrunc_fpext
   | Gepzero of gepzero
-  | GepzeroConst of gepzero_const
   | GepInboundsRemove of gep_inbounds_remove
   | GepInboundsAdd of gep_inbounds_add
   | IntroGhost of intro_ghost
