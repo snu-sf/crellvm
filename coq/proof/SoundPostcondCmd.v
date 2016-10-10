@@ -38,7 +38,7 @@ Lemma postcond_cmd_is_call
 Proof.
   unfold
     Postcond.postcond_cmd,
-    Postcond.postcond_cmd_check in *.
+  Postcond.postcond_cmd_check in *.
   destruct c_src, c_tgt; ss; des_ifs.
 Qed.
 
@@ -171,16 +171,23 @@ Admitted.
 Lemma step_equiv_except_mem
       conf st0 st1 evt
       cmd cmds
+      invst0 invmem0 inv0 inv1
+      public gmax
+      (STATE: InvState.Unary.sem conf st0 invst0 invmem0 inv0)
+      (MEM: InvMem.Unary.sem conf gmax public st0.(Mem) invmem0)
       (NONCALL: Instruction.isCallInst cmd = false)
       (CMDS: CurCmds st0.(EC) = cmd :: cmds)
+      (FORGET: inv_unary_forgot inv1 (AtomSetImpl_from_list (option_to_list (Cmd.get_def cmd))))
       (STEP: sInsn conf st0 st1 evt)
   : exists mc,
-    <<MEM_CH_REL:mem_change_rel conf st0 mc cmd>> /\
+    <<MEM_CH_REL: mem_change_cmd conf st0 mc cmd>> /\
     <<STATE_EQUIV: state_equiv_except_mem conf (mkState st1.(EC) st1.(ECS) st0.(Mem)) st1 mc>>.
 Proof.
   inv STEP; destruct cmd; inv CMDS; ss;
     try by esplits; eauto; econs; eauto; econs; eauto.
-Qed.
+  - admit. (* malloc , should know newly allocated block is unique *)
+  - admit. (* alloca *)
+Admitted.
 
 Lemma step_unique_preserved_mem
       conf st0 st1 evt
@@ -202,18 +209,20 @@ Proof.
   { admit. (* load after store *) }
 Admitted.
 
-Lemma mem_change_rel_state_transition
-      conf st0 st1 evt cmd cmds mc
+Lemma mem_change_cmd_state_transition
+      conf st0 st1 evt cmd cmds mc inv0
       (CMD: CurCmds (EC st0) = cmd :: cmds)
       (NONCALL: Instruction.isCallInst cmd = false)
       (STEP: sInsn conf st0 st1 evt)
-      (MEM_CH_rel: mem_change_rel conf st0 mc cmd)
-  : mem_change_rel2 conf {| EC := EC st1; ECS := ECS st1; Mem := Mem st0 |} mc cmd.
+      (MEM_CH_REL: mem_change_cmd conf st0 mc cmd)
+      (FORGET: inv_unary_forgot inv0 (AtomSetImpl_from_list (option_to_list (Cmd.get_def cmd))))
+  : mem_change_cmd_after conf {| EC := EC st1; ECS := ECS st1; Mem := Mem st0 |} mc cmd inv0.
 Proof.
   destruct cmd; ss;
     inv STEP; ss;
       des; esplits; eauto.
-Qed.
+  admit. (* easy *)
+Admitted.
 
 Ltac exploit_inject_value :=
   repeat (match goal with
@@ -235,28 +244,6 @@ Ltac inv_conf :=
     destruct H as [[TD GL]]; rewrite TD in *; rewrite GL in *
   end.
 
-Ltac inject_clarify :=
-  repeat
-    match goal with
-    | [H1: getTypeAllocSize ?TD ?ty = Some ?tsz1,
-           H2: getTypeAllocSize ?TD ?ty = Some ?tsz2 |- _] =>
-      rewrite H1 in H2; inv H2
-    | [H: proj_sumbool ?dec = true |- _] =>
-      destruct dec; ss; subst
-    | [H1: getOperandValue (CurTargetData ?conf) ?v (Locals (EC ?st)) ?GL = Some ?gv1,
-           H2: InvState.Unary.sem_valueT ?conf ?st ?invst (ValueT.lift Tag.physical ?v) =
-               Some ?gv2 |- _] =>
-      let Hnew := fresh in
-      assert (Hnew: InvState.Unary.sem_valueT conf st invst (ValueT.lift Tag.physical v) = Some gv1);
-      [ destruct v; [ss; unfold IdT.lift; solve_sem_idT; eauto | ss] | ];
-      rewrite Hnew in H2; clear Hnew; inv H2
-    | [H1: getOperandValue (CurTargetData ?conf) (value_id ?x) (Locals (EC ?st)) ?GL = Some ?gv1 |-
-       InvState.Unary.sem_idT ?st ?invst (Tag.physical, ?x) = Some ?gv2] =>
-      let Hnew := fresh in
-      assert (Hnew: InvState.Unary.sem_idT st invst (Tag.physical, x) = Some gv1); [ss|];
-      apply Hnew; clear Hnew
-    end.
-
 Lemma inject_event_implies_mem_change_inject
       m_src conf_src st0_src mc_src cmd_src
       m_tgt conf_tgt st0_tgt mc_tgt cmd_tgt
@@ -265,8 +252,8 @@ Lemma inject_event_implies_mem_change_inject
       (STATE : InvState.Rel.sem conf_src conf_tgt st0_src st0_tgt invst0 invmem0 inv0)
       (MEM : InvMem.Rel.sem conf_src conf_tgt (Mem st0_src) (Mem st0_tgt) invmem0)
       (INJECT: postcond_cmd_inject_event cmd_src cmd_tgt inv0 = true)
-      (MEM_CH_REL_SRC: mem_change_rel conf_src st0_src mc_src cmd_src)
-      (MEM_CH_REL_TGT: mem_change_rel conf_tgt st0_tgt mc_tgt cmd_tgt)
+      (MEM_CH_REL_SRC: mem_change_cmd conf_src st0_src mc_src cmd_src)
+      (MEM_CH_REL_TGT: mem_change_cmd conf_tgt st0_tgt mc_tgt cmd_tgt)
   : mem_change_inject conf_src conf_tgt invmem0 mc_src mc_tgt.
 Proof.
   destruct cmd_src; destruct cmd_tgt; ss;
@@ -284,23 +271,7 @@ Proof.
   econs; eauto.
 Qed.
 
-(* TODO: move *)
-
-
-Lemma inject_value_monotone
-      v1 def_mem_src def_src use_src
-      v2 def_mem_tgt def_tgt use_tgt
-      inv0
-      (INJECT: Invariant.inject_value
-                 (ForgetMemory.t def_mem_src def_mem_tgt
-                                 (Forget.t def_src def_tgt use_src use_tgt inv0)) v1 v2)
-  : Invariant.inject_value inv0 v1 v2.
-Proof.
-  eapply inject_value_forget_monotone; eauto.
-  eapply inject_value_forget_memory_monotone; eauto.
-Qed.
-
-Lemma postcond_cmd_check_monotone
+Lemma postcond_cmd_check_forgets_Subset
       cmd_src cmd_tgt inv0
       (COND : postcond_cmd_check
                 cmd_src cmd_tgt
@@ -327,79 +298,10 @@ Proof.
   rename Heq1 into INJECT_F. rename Heq2 into INJECT_T.
   apply negb_false_iff in INJECT_T.
   apply negb_true_iff in INJECT_F.
-  destruct cmd_src; destruct cmd_tgt; ss.
-  - apply ExprPairSet.exists_2 in INJECT_T; try by solve_compat_bool.
-    inv INJECT_T. des.
-    apply ExprPairSet.filter_1 in H; try by solve_compat_bool.
-    exploit ExprPairSet.exists_1; try by solve_compat_bool.
-    unfold ExprPairSet.Exists.
-    esplits; eauto.
-  - simtac.
-    inject_clarify.
-    rewrite andb_true_r in *.
-    exploit inject_value_forget_monotone; eauto.
-  - simtac.
-    exploit inject_value_monotone; eauto.
-  - simtac.
-    inject_clarify.
-    rewrite andb_true_r in *.
-    exploit inject_value_forget_monotone; eauto.
-  - simtac.
-    inject_clarify.
-    rewrite andb_true_r in *.
-    exploit inject_value_forget_monotone; eauto.
-  - unfold Invariant.is_private in *. des_ifs.
-    + ss. unfold ForgetMemory.unary in *.
-      des_ifs; ss;
-        unfold Forget.unary in *;
-        rewrite IdTSetFacts.filter_b in INJECT_T; try by solve_compat_bool; clarify.
-    + ss.
-      rewrite IdTSetFacts.filter_b in INJECT_T; try by solve_compat_bool; clarify.
-  - simtac.
-    repeat solve_des_bool; clarify.
-    + exploit inject_value_monotone; try exact H2; eauto.
-    + exploit inject_value_monotone; try exact H0; eauto.
-  - simtac.
-    + solve_des_bool.
-      * exploit inject_value_forget_monotone; eauto.
-      * exploit list_forallb2_spec.
-        { apply H0. }
-        { instantiate
-            (1:=(fun p1 p2 => let
-                     '(_, attr1, v1) := p1 in
-                   let
-                     '(_, attr2, v2) := p2 in
-                   attributes_dec attr1 attr2 &&
-                   Invariant.inject_value inv0
-                   (ValueT.lift Tag.physical v1) (ValueT.lift Tag.physical v2))).
-          i. ss.
-          destruct a1. destruct a2.
-          destruct p. destruct p0.
-          simtac.
-          exploit inject_value_forget_monotone; eauto. i.
-          des_ifs.
-        }
-        i. clarify.
-    + solve_des_bool.
-      * exploit inject_value_forget_monotone; eauto.
-      * exploit list_forallb2_spec.
-        { apply H0. }
-        { instantiate
-            (1:=(fun p1 p2 => let
-                     '(_, attr1, v1) := p1 in
-                   let
-                     '(_, attr2, v2) := p2 in
-                   attributes_dec attr1 attr2 &&
-                   Invariant.inject_value inv0
-                   (ValueT.lift Tag.physical v1) (ValueT.lift Tag.physical v2))).
-          i. ss.
-          destruct a1. destruct a2.
-          destruct p. destruct p0.
-          simtac.
-          exploit inject_value_forget_monotone; eauto. i.
-          des_ifs.
-        }
-        i. clarify.
+  exploit postcond_cmd_inject_event_Subset; eauto.
+  etransitivity.
+  - eapply forget_memory_Subset.
+  - eapply forget_Subset.
 Qed.
 
 Lemma postcond_cmd_sound
@@ -444,14 +346,20 @@ Proof.
   { hexploit step_state_equiv_except; try exact CMDS_TGT; eauto. }
   { inv STATE. inv SRC. hexploit step_unique_preserved_except; try exact CMDS_SRC; eauto. }
   { inv STATE. inv TGT. hexploit step_unique_preserved_except; try exact CMDS_TGT; eauto. }
-  intro STATE_FORGET. des.
-  hexploit step_equiv_except_mem; try exact NONCALL_SRC; eauto. i. des.
-  hexploit step_equiv_except_mem; try exact NONCALL_TGT; eauto. i. des.
+  i. des.
+  hexploit step_equiv_except_mem; try exact NONCALL_SRC; try exact FORGET_SRC; eauto.
+  { inv STATE. eauto. }
+  { inv MEM; eauto. }
+  i. des.
+  hexploit step_equiv_except_mem; try exact NONCALL_TGT; eauto.
+  { inv STATE. eauto. }
+  { inv MEM; eauto. }
+  i. des.
   exploit forget_memory_sound; try exact STATE_FORGET; eauto.
-  { eapply mem_change_rel_state_transition; eauto. }
-  { eapply mem_change_rel_state_transition; eauto. }
+  { eapply mem_change_cmd_state_transition; eauto. }
+  { eapply mem_change_cmd_state_transition; eauto. }
   { exploit inject_event_implies_mem_change_inject; try exact STATE; eauto.
-    exploit postcond_cmd_check_monotone; eauto. i.
+    exploit postcond_cmd_check_forgets_Subset; eauto. i.
     unfold postcond_cmd_check in *. des_ifs.
     apply negb_false_iff. eauto.
   }

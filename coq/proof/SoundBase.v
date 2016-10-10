@@ -126,6 +126,66 @@ Proof.
   admit.
 Admitted.
 
+(* inject_event_subset *)
+
+Ltac inject_clarify :=
+  repeat
+    match goal with
+    | [H1: getTypeAllocSize ?TD ?ty = Some ?tsz1,
+           H2: getTypeAllocSize ?TD ?ty = Some ?tsz2 |- _] =>
+      rewrite H1 in H2; inv H2
+    | [H: proj_sumbool ?dec = true |- _] =>
+      destruct dec; ss; subst
+    | [H1: getOperandValue (CurTargetData ?conf) ?v (Locals (EC ?st)) ?GL = Some ?gv1,
+           H2: InvState.Unary.sem_valueT ?conf ?st ?invst (Exprs.ValueT.lift Exprs.Tag.physical ?v) =
+               Some ?gv2 |- _] =>
+      let Hnew := fresh in
+      assert (Hnew: InvState.Unary.sem_valueT conf st invst (Exprs.ValueT.lift Exprs.Tag.physical v) = Some gv1);
+      [ destruct v; [ss; unfold Exprs.IdT.lift; unfold InvState.Unary.sem_idT in *; eauto | ss] | ];
+      rewrite Hnew in H2; clear Hnew; inv H2
+    | [H1: getOperandValue (CurTargetData ?conf) (value_id ?x) (Locals (EC ?st)) ?GL = Some ?gv1 |-
+       InvState.Unary.sem_idT ?st ?invst (Exprs.Tag.physical, ?x) = Some ?gv2] =>
+      let Hnew := fresh in
+      assert (Hnew: InvState.Unary.sem_idT st invst (Exprs.Tag.physical, x) = Some gv1); [ss|];
+      apply Hnew; clear Hnew
+    end.
+
+Lemma postcond_cmd_inject_event_Subset cmd_src cmd_tgt inv0 inv1
+      (INJECT_EVENT: Postcond.postcond_cmd_inject_event cmd_src cmd_tgt inv0)
+      (SUBSET: Hints.Invariant.Subset inv0 inv1)
+  :
+    <<INJECT_EVENT: Postcond.postcond_cmd_inject_event cmd_src cmd_tgt inv1>>
+.
+Proof.
+  red.
+  destruct cmd_src; destruct cmd_tgt; ss;
+    try by 
+      (unfold is_true in *; repeat (des_bool; des);
+       inject_clarify; try rewrite andb_true_r; try (rewrite andb_true_iff; split);
+       eapply InvState.Subset.inject_value_Subset; eauto).
+  - apply Exprs.ExprPairSet.exists_2 in INJECT_EVENT; try by solve_compat_bool.
+    inv INJECT_EVENT. des.
+    exploit Exprs.ExprPairSet.exists_1; try by solve_compat_bool.
+    inv SUBSET. inv SUBSET_SRC.
+    exploit SUBSET_LESSDEF; eauto. i.
+    econs; eauto.
+  - unfold Hints.Invariant.is_private in *. des_ifs.
+    inv SUBSET. inv SUBSET_SRC.
+    unfold is_true in *.
+    InvState.Subset.conv_mem2In.
+    exploit SUBSET_PRIVATE; eauto.
+  - unfold is_true in *; repeat (des_bool; des).
+    inject_clarify.
+    rewrite andb_true_iff; split.
+    + eapply InvState.Subset.inject_value_Subset; eauto.
+    + eapply list_forallb2_spec; eauto.
+      i. ss.
+      destruct a1; destruct a2.
+      destruct p; destruct p0.
+      des_bool; des. clarify. ss.
+      eapply InvState.Subset.inject_value_Subset; eauto.
+Qed.
+
 (* tactics from yoonseung *)
 Ltac solve_match_bool :=
   repeat (let MATCH := fresh "MATCH" in

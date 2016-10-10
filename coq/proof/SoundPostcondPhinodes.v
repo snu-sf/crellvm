@@ -338,7 +338,8 @@ Proof.
     (* unfold unique_preserved_except. *)
   }
   { admit. }
-  intro STATE_FORGET. des. inversion STATE_FORGET.
+  i. des.
+  inv STATE_FORGET.
   exploit phinodes_add_lessdef_sound; try exact SRC; eauto; i.
   exploit phinodes_add_lessdef_sound; try exact TGT; eauto; i.
   { rewrite L_TGT. eauto. }
