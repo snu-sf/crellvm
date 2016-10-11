@@ -83,6 +83,9 @@ Lemma postcond_cmd_add_inject_sound
                   (Postcond.postcond_cmd_add_inject cmd_src cmd_tgt inv0)>>
 .
 Proof.
+  remember (st0_src.(Mem).(Memory.Mem.nextblock)) as src_nxt.
+  remember (st0_tgt.(Mem).(Memory.Mem.nextblock)) as tgt_nxt.
+  assert(ALLOC_INJEECT: InvMem.Rel.inject invmem0 src_nxt = Some(tgt_nxt, 0)) by admit.
   destruct (classic (Postcond.postcond_cmd_add_inject cmd_src cmd_tgt inv0 = inv0)).
   { rewrite H in *. esplits; eauto. reflexivity. }
   destruct cmd_src, cmd_tgt; ss.
