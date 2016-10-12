@@ -132,16 +132,19 @@ Definition mem_change_cmd_after conf st mc cmd inv0: Prop :=
 
 (* proof for private_parent *)
 
-Definition mem_change_no_private_parent conf mc pp: Prop :=
+Definition is_mem_change_updating (mc:mem_change): option GenericValue :=
   match mc with
   | mem_change_store ptr _ _ _
-  | mem_change_free ptr =>
-    forall b ofs
-           (PTR: GV2ptr conf.(CurTargetData) conf.(CurTargetData).(getPointerSize) ptr =
-                 Some (Values.Vptr b ofs)),
-      ~ In b pp
-  | _ => True
+  | mem_change_free ptr => Some ptr
+  | _ => None
   end.
+
+Definition mem_change_no_private_parent conf mc pp: Prop :=
+  forall ptr b ofs
+         (UPDATE: is_mem_change_updating mc = Some ptr)
+         (PTR: GV2ptr conf.(CurTargetData) conf.(CurTargetData).(getPointerSize) ptr =
+                 Some (Values.Vptr b ofs)),
+    ~ In b pp.
 
 Lemma gv_inject_ptr_public_src
       invmem ptr0 ptr1 b ofs conf_src
@@ -163,7 +166,7 @@ Lemma mem_change_inject_no_private_parent_src
 Proof.
   inv SEM.
   inv SRC.
-  inv INJECT; try econs; ii.
+  inv INJECT; try econs; ii; ss; inv UPDATE.
   - exploit PRIVATE_PARENT; eauto. i. des.
     hexploit gv_inject_ptr_public_src; try apply PTR; eauto.
   - rewrite PTR in GV2PTR. clarify.
@@ -212,7 +215,7 @@ Lemma mem_change_inject_no_private_parent_tgt
 Proof.
   inv SEM.
   inv TGT.
-  inv INJECT; try econs; ii.
+  inv INJECT; try econs; ii; ss; inv UPDATE.
   - exploit PRIVATE_PARENT; eauto. i. des.
     hexploit gv_inject_ptr_public_tgt; try apply PTR; eauto.
   - exploit PRIVATE_PARENT; eauto. i. des.
@@ -269,40 +272,6 @@ Proof.
   exploit sem_valueT_eq_locals; eauto. intro EQ_VAL.
   rewrite EQ_VAL. rewrite IHlsv. eauto.
 Qed.
-
-(* Lemma sem_expr_equiv_except_mem *)
-(*       conf st0 st1 invst0 invmem0 inv0 *)
-(*       (* cmd  *)mc def_memory e *)
-(*       (STATE : InvState.Unary.sem conf st0 invst0 invmem0 inv0) *)
-(*       (* (MEM_CHANGE : mem_change_cmd2 conf st0 mc cmd) *) *)
-(*       (* (DEF_MEM : Cmd.get_def_memory cmd = Some def_memory) *) *)
-(*       (MEM_EQUIV: state_equiv_except_mem conf st0 st1 mc) *)
-(*       (DEF_MEM_SEP: mem_change_noalias_expr mc e = true) *)
-(*       InvState.Unary.sem_valueT conf st0 invst0 *)
-(*       InvState. *)
-(*       Ptr.t *)
-(*                     (* Invariant.is_unique_ptr inv0 def_memory = true \/ *) *)
-(*                     (* ForgetMemory.is_noalias_Expr inv0 def_memory e = true) *) *)
-(*   : InvState.Unary.sem_expr conf st0 invst0 e = InvState.Unary.sem_expr conf st1 invst0 e. *)
-(* Proof. *)
-(*   ii. inv MEM_EQUIV. *)
-(*   destruct e; ss; *)
-(*     sem_value_st; eauto. *)
-(*   des_ifs. *)
-(*   destruct mc. *)
-(*   - inv MEM_CHANGE_EQUIV. *)
-(*     inv STATE. *)
-(*     des. *)
-(*     + unfold Invariant.is_unique_ptr in *. *)
-(*       unfold Invariant.is_unique_value in *. *)
-(*       destruct def_memory as [[[[] x]|] ty]; ss. *)
-(*       exploit UNIQUE. *)
-(*       { apply AtomSetFacts.mem_iff; eauto. } *)
-(*       i. *)
-(*       inv x0. *)
-
-(*       InvState.Unary.sem_noalias conf g _ t _ *)
-
 
 (* for same locals and memories *)
 Lemma sem_expr_eq_locals_mem
@@ -542,7 +511,38 @@ Admitted.
 
 (* until here *)
 
+(* Lemma sem_expr_equiv_except_mem *)
+(*       conf st0 st1 invst0 invmem0 inv0 *)
+(*       (* cmd  *)mc def_memory e *)
+(*       (STATE : InvState.Unary.sem conf st0 invst0 invmem0 inv0) *)
+(*       (* (MEM_CHANGE : mem_change_cmd2 conf st0 mc cmd) *) *)
+(*       (* (DEF_MEM : Cmd.get_def_memory cmd = Some def_memory) *) *)
+(*       (MEM_EQUIV: state_equiv_except_mem conf st0 st1 mc) *)
+(*       (DEF_MEM_SEP: mem_change_noalias_expr mc e = true) *)
+(*       InvState.Unary.sem_valueT conf st0 invst0 *)
+(*       InvState. *)
+(*       Ptr.t *)
+(*                     (* Invariant.is_unique_ptr inv0 def_memory = true \/ *) *)
+(*                     (* ForgetMemory.is_noalias_Expr inv0 def_memory e = true) *) *)
+(*   : InvState.Unary.sem_expr conf st0 invst0 e = InvState.Unary.sem_expr conf st1 invst0 e. *)
+(* Proof. *)
+(*   ii. inv MEM_EQUIV. *)
+(*   destruct e; ss; *)
+(*     sem_value_st; eauto. *)
+(*   des_ifs. *)
+(*   destruct mc. *)
+(*   - inv MEM_CHANGE_EQUIV. *)
+(*     inv STATE. *)
+(*     des. *)
+(*     + unfold Invariant.is_unique_ptr in *. *)
+(*       unfold Invariant.is_unique_value in *. *)
+(*       destruct def_memory as [[[[] x]|] ty]; ss. *)
+(*       exploit UNIQUE. *)
+(*       { apply AtomSetFacts.mem_iff; eauto. } *)
+(*       i. *)
+(*       inv x0. *)
 
+(*       InvState.Unary.sem_noalias conf g _ t _ *)
 
 (* Lemma forget_memory_unary_sound_with_def_memory *)
 (*       conf st0 invst0 invmem0 inv0 *)

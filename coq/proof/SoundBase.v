@@ -178,10 +178,11 @@ Proof.
     inject_clarify.
     rewrite andb_true_iff; split.
     + eapply InvState.Subset.inject_value_Subset; eauto.
-    + eapply list_forallb2_spec; eauto.
+    + eapply TODO.list_forallb2_implies; eauto.
       i. ss.
-      destruct a1; destruct a2.
-      destruct p; destruct p0.
+      repeat match goal with
+             | [a: ?t * ?s |- _] => destruct a
+             end.
       des_bool; des. clarify. ss.
       eapply InvState.Subset.inject_value_Subset; eauto.
 Qed.

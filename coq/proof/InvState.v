@@ -770,17 +770,20 @@ Module Subset.
     des.
     - left. left. left.
       des_bool. des.
-      apply andb_true_iff; split; eauto using not_in_maydiff_Subset.
+      apply andb_true_iff.
+      split; eauto.
+      eapply not_in_maydiff_Subset; eauto.
     - left. left. right.
       des_bool. des.
-      apply andb_true_iff; split; eauto using not_in_maydiff_Subset.
+      apply andb_true_iff.
+      split; eauto; try by eapply not_in_maydiff_Subset; eauto.
       inv SUBSET.
       inv SUBSET_TGT.
       conv_mem2In.
       exploit SUBSET_LESSDEF; eauto.
     - left. right.
       des_bool. des.
-      apply andb_true_iff; split; eauto using not_in_maydiff_Subset.
+      apply andb_true_iff; split; eauto; try by eapply not_in_maydiff_Subset; eauto.
       inv SUBSET. inv SUBSET_SRC.
       conv_mem2In.
       exploit SUBSET_LESSDEF; eauto.
@@ -803,10 +806,7 @@ Module Subset.
           eapply forallb_forall in INJECT2; eauto.
           eapply not_in_maydiff_Subset; eauto.
   Qed.
-  
 
-
-  
 End Subset.
 
 (* GEPPPPPPPPPPPPPPPPPPPPPPP *)
