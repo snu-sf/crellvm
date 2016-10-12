@@ -537,26 +537,27 @@ Definition add_terminator_cond_lessdef
     if (l_dec l1 l2)
     then inv0
     else
-      let cond_val := if (l_dec l_to l1) then 1%Z else 0%Z in
+    let cond_val := if (l_dec l_to l1) then 1%Z else 0%Z in
+    let expr1 := Expr.value (ValueT.lift Tag.physical v) in
+    let expr2 := Expr.value
+                   (ValueT.const (const_int Size.One (INTEGER.of_Z (Size.to_Z Size.One) cond_val true))) in
+    ExprPairSet.add
+      (expr1, expr2)
+      (ExprPairSet.add (expr2, expr1) inv0)
+  | insn_switch _ ty v l_dflt cl_l =>
+    if (l_dec l_to l_dflt)
+    then inv0
+    else
+    match filter (fun cl => (l_dec l_to (snd cl))) cl_l with
+    | cl::nil =>
       let expr1 := Expr.value (ValueT.lift Tag.physical v) in
       let expr2 := Expr.value
-                     (ValueT.const (const_int Size.One (INTEGER.of_Z (Size.to_Z Size.One) cond_val true))) in
+                     (ValueT.const (fst cl)) in
       ExprPairSet.add
         (expr1, expr2)
         (ExprPairSet.add (expr2, expr1) inv0)
-  | insn_switch _ ty v l_dflt cl_l =>
-    if (l_dec l_to l_dflt) then inv0
-    else
-      match filter (fun cl => (l_dec l_to (snd cl))) cl_l with
-      | cl::nil =>
-        let expr1 := Expr.value (ValueT.lift Tag.physical v) in
-        let expr2 := Expr.value
-                       (ValueT.const (fst cl)) in
-        ExprPairSet.add
-          (expr1, expr2)
-          (ExprPairSet.add (expr2, expr1) inv0)
-      | _ => inv0
-      end
+    | _ => inv0
+    end
   | _ => inv0
   end.
 
