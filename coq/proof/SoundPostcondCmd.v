@@ -131,22 +131,17 @@ Lemma step_unique_preserved_except
       (CMDS : CurCmds st0.(EC) = cmd :: cmds)
       (STEP : sInsn conf st0 st1 evt)
   : unique_preserved_except conf inv0 (mkState st1.(EC) st1.(ECS) st0.(Mem))
-                            (AtomSetImpl_from_list (Cmd.get_def cmd))
-                            (AtomSetImpl_from_list (Cmd.get_leaked_ids cmd)).
+                            (AtomSetImpl.union (AtomSetImpl_from_list (Cmd.get_def cmd))
+                                               (AtomSetImpl_from_list (Cmd.get_leaked_ids cmd))).
 Proof.
   inv STEP; ss.
-  {
-    inv CMDS.
-    ii.
-
-    apply AtomSetFacts.mem_iff in MEM.
+  { inv CMDS.
+    ii. apply AtomSetFacts.mem_iff in MEM.
     specialize (STATE _ MEM).
-
     inv STATE. ss.
     econs; ss; eauto.
   }
-  {
-    inv CMDS.
+  { inv CMDS.
     ii.
     rewrite AtomSetFacts.union_b in NO_LEAK. ss.
     solve_des_bool.
@@ -168,61 +163,62 @@ Proof.
   }
 Admitted.
 
-Lemma step_equiv_except_mem
-      conf st0 st1 evt
-      cmd cmds
-      invst0 invmem0 inv0 inv1
-      public gmax
-      (STATE: InvState.Unary.sem conf st0 invst0 invmem0 inv0)
-      (MEM: InvMem.Unary.sem conf gmax public st0.(Mem) invmem0)
-      (NONCALL: Instruction.isCallInst cmd = false)
-      (CMDS: CurCmds st0.(EC) = cmd :: cmds)
-      (FORGET: inv_unary_forgot inv1 (AtomSetImpl_from_list (option_to_list (Cmd.get_def cmd))))
-      (STEP: sInsn conf st0 st1 evt)
-  : exists mc,
-    <<MEM_CH_REL: mem_change_cmd conf st0 mc cmd>> /\
-    <<STATE_EQUIV: state_equiv_except_mem conf (mkState st1.(EC) st1.(ECS) st0.(Mem)) st1 mc>>.
-Proof.
-  inv STEP; destruct cmd; inv CMDS; ss;
-    try by esplits; eauto; econs; eauto; econs; eauto.
-  - admit. (* malloc , should know newly allocated block is unique *)
-  - admit. (* alloca *)
-Admitted.
+(* Lemma step_equiv_except_mem *)
+(*       conf st0 st1 evt *)
+(*       cmd cmds *)
+(*       invst0 invmem0 inv0 inv1 *)
+(*       public gmax *)
+(*       (STATE: InvState.Unary.sem conf st0 invst0 invmem0 inv0) *)
+(*       (MEM: InvMem.Unary.sem conf gmax public st0.(Mem) invmem0) *)
+(*       (NONCALL: Instruction.isCallInst cmd = false) *)
+(*       (CMDS: CurCmds st0.(EC) = cmd :: cmds) *)
+(*       (FORGET: inv_unary_forgot inv1 (AtomSetImpl_from_list (option_to_list (Cmd.get_def cmd)))) *)
+(*       (STEP: sInsn conf st0 st1 evt) *)
+(*   : exists mc, *)
+(*     <<MEM_CH_REL: mem_change_cmd conf st0 mc cmd>> /\ *)
+(*     <<STATE_EQUIV: state_equiv_except_mem conf (mkState st1.(EC) st1.(ECS) st0.(Mem)) st1 mc>>. *)
+(* Proof. *)
+(*   inv STEP; destruct cmd; inv CMDS; ss; *)
+(*     try by esplits; eauto; econs; eauto; econs; eauto. *)
+(*   - admit. (* malloc , should know newly allocated block is unique *) *)
+(*   - admit. (* alloca *) *)
+(* Admitted. *)
 
-Lemma step_unique_preserved_mem
-      conf st0 st1 evt
-      cmd cmds inv0
-      (STATE: AtomSetImpl.For_all (InvState.Unary.sem_unique conf (mkState st1.(EC) st1.(ECS) st0.(Mem)))
-                                  inv0.(Invariant.unique))
-      (NONCALL: Instruction.isCallInst cmd = false)
-      (CMDS: CurCmds st0.(EC) = cmd :: cmds)
-      (STEP: sInsn conf st0 st1 evt)
-      (LEAKED_NOT_UNIQUE: AtomSetImpl.disjoint inv0.(Invariant.unique) (AtomSetImpl_from_list (Cmd.get_leaked_ids cmd)))
-  : unique_preserved_mem conf st1 inv0.
-Proof.
-  inv STEP; ss;
-    try (inv CMDS; ss;
-         ii; specialize_unique; eauto).
-  { admit. (* load malloc -> undef *) }
-  { admit. (* load after free: use Memory.Mem.load_free_2 maybe *) }
-  { admit. (* load alloca *) }
-  { admit. (* load after store *) }
-Admitted.
+(* Lemma step_unique_preserved_mem *)
+(*       conf st0 st1 evt *)
+(*       cmd cmds inv0 *)
+(*       (STATE: AtomSetImpl.For_all (InvState.Unary.sem_unique conf (mkState st1.(EC) st1.(ECS) st0.(Mem))) *)
+(*                                   inv0.(Invariant.unique)) *)
+(*       (NONCALL: Instruction.isCallInst cmd = false) *)
+(*       (CMDS: CurCmds st0.(EC) = cmd :: cmds) *)
+(*       (STEP: sInsn conf st0 st1 evt) *)
+(*       (UNIQUE_NOT_LEAKED: forall x (MEM:AtomSetImpl.mem x inv0.(Invariant.unique) = true), *)
+(*                                  AtomSetImpl.mem x (AtomSetImpl_from_list (Cmd.get_leaked_ids cmd)) = false) *)
+(*   : unique_preserved_mem conf st1 inv0. *)
+(* Proof. *)
+(*   inv STEP; ss; *)
+(*     try (inv CMDS; ss; *)
+(*          ii; specialize_unique; eauto). *)
+(*   { admit. (* load malloc -> undef *) } *)
+(*   { admit. (* load after free: use Memory.Mem.load_free_2 maybe *) } *)
+(*   { admit. (* load alloca *) } *)
+(*   { admit. (* load after store *) } *)
+(* Admitted. *)
 
-Lemma mem_change_cmd_state_transition
-      conf st0 st1 evt cmd cmds mc inv0
-      (CMD: CurCmds (EC st0) = cmd :: cmds)
-      (NONCALL: Instruction.isCallInst cmd = false)
-      (STEP: sInsn conf st0 st1 evt)
-      (MEM_CH_REL: mem_change_cmd conf st0 mc cmd)
-      (FORGET: inv_unary_forgot inv0 (AtomSetImpl_from_list (option_to_list (Cmd.get_def cmd))))
-  : mem_change_cmd_after conf {| EC := EC st1; ECS := ECS st1; Mem := Mem st0 |} mc cmd inv0.
-Proof.
-  destruct cmd; ss;
-    inv STEP; ss;
-      des; esplits; eauto.
-  admit. (* easy *)
-Admitted.
+(* Lemma mem_change_cmd_state_transition *)
+(*       conf st0 st1 evt cmd cmds mc inv0 *)
+(*       (CMD: CurCmds (EC st0) = cmd :: cmds) *)
+(*       (NONCALL: Instruction.isCallInst cmd = false) *)
+(*       (STEP: sInsn conf st0 st1 evt) *)
+(*       (MEM_CH_REL: mem_change_cmd conf st0 mc cmd) *)
+(*       (FORGET: inv_unary_forgot inv0 (AtomSetImpl_from_list (option_to_list (Cmd.get_def cmd)))) *)
+(*   : mem_change_cmd_after conf {| EC := EC st1; ECS := ECS st1; Mem := Mem st0 |} mc cmd inv0. *)
+(* Proof. *)
+(*   destruct cmd; ss; *)
+(*     inv STEP; ss; *)
+(*       des; esplits; eauto. *)
+(*   admit. (* easy *) *)
+(* Admitted. *)
 
 Ltac exploit_inject_value :=
   repeat (match goal with
@@ -244,32 +240,32 @@ Ltac inv_conf :=
     destruct H as [[TD GL]]; rewrite TD in *; rewrite GL in *
   end.
 
-Lemma inject_event_implies_mem_change_inject
-      m_src conf_src st0_src mc_src cmd_src
-      m_tgt conf_tgt st0_tgt mc_tgt cmd_tgt
-      invst0 invmem0 inv0
-      (CONF: InvState.valid_conf m_src m_tgt conf_src conf_tgt)
-      (STATE : InvState.Rel.sem conf_src conf_tgt st0_src st0_tgt invst0 invmem0 inv0)
-      (MEM : InvMem.Rel.sem conf_src conf_tgt (Mem st0_src) (Mem st0_tgt) invmem0)
-      (INJECT: postcond_cmd_inject_event cmd_src cmd_tgt inv0 = true)
-      (MEM_CH_REL_SRC: mem_change_cmd conf_src st0_src mc_src cmd_src)
-      (MEM_CH_REL_TGT: mem_change_cmd conf_tgt st0_tgt mc_tgt cmd_tgt)
-  : mem_change_inject conf_src conf_tgt invmem0 mc_src mc_tgt.
-Proof.
-  destruct cmd_src; destruct cmd_tgt; ss;
-    (try by des; subst; econs); des; subst; simtac;
-      (try by exploit_inject_value; inv_conf; inject_clarify; econs; eauto).
-  unfold Invariant.is_private in *. des_ifs.
-  destruct x as [t x]; unfold ValueT.lift in *. des_ifs.
-  inv STATE. inv SRC.
-  exploit PRIVATE.
-  { apply IdTSet.mem_2; eauto. }
-  { inv_conf.
-    inject_clarify.
-  }
-  i. des_ifs.
-  econs; eauto.
-Qed.
+(* Lemma inject_event_implies_mem_change_inject *)
+(*       m_src conf_src st0_src mc_src cmd_src *)
+(*       m_tgt conf_tgt st0_tgt mc_tgt cmd_tgt *)
+(*       invst0 invmem0 inv0 *)
+(*       (CONF: InvState.valid_conf m_src m_tgt conf_src conf_tgt) *)
+(*       (STATE : InvState.Rel.sem conf_src conf_tgt st0_src st0_tgt invst0 invmem0 inv0) *)
+(*       (MEM : InvMem.Rel.sem conf_src conf_tgt (Mem st0_src) (Mem st0_tgt) invmem0) *)
+(*       (INJECT: postcond_cmd_inject_event cmd_src cmd_tgt inv0 = true) *)
+(*       (MEM_CH_REL_SRC: mem_change_cmd conf_src st0_src mc_src cmd_src) *)
+(*       (MEM_CH_REL_TGT: mem_change_cmd conf_tgt st0_tgt mc_tgt cmd_tgt) *)
+(*   : mem_change_inject conf_src conf_tgt invmem0 mc_src mc_tgt. *)
+(* Proof. *)
+(*   destruct cmd_src; destruct cmd_tgt; ss; *)
+(*     (try by des; subst; econs); des; subst; simtac; *)
+(*       (try by exploit_inject_value; inv_conf; inject_clarify; econs; eauto). *)
+(*   unfold Invariant.is_private in *. des_ifs. *)
+(*   destruct x as [t x]; unfold ValueT.lift in *. des_ifs. *)
+(*   inv STATE. inv SRC. *)
+(*   exploit PRIVATE. *)
+(*   { apply IdTSet.mem_2; eauto. } *)
+(*   { inv_conf. *)
+(*     inject_clarify. *)
+(*   } *)
+(*   i. des_ifs. *)
+(*   econs; eauto. *)
+(* Qed. *)
 
 Lemma postcond_cmd_check_forgets_Subset
       cmd_src cmd_tgt inv0
@@ -303,6 +299,110 @@ Proof.
   - eapply forget_memory_Subset.
   - eapply forget_Subset.
 Qed.
+
+(* Lemma step_mem_change_inject *)
+(*       m_src conf_src st0_src st1_src evt_src cmd_src cmds_src  *)
+(*       m_tgt conf_tgt st0_tgt st1_tgt evt_tgt cmd_tgt cmds_tgt  *)
+(*       invst0 invmem0 inv0 inv1 *)
+(*       (CONF: InvState.valid_conf m_src m_tgt conf_src conf_tgt) *)
+(*       (STATE: InvState.Rel.sem conf_src conf_tgt st0_src st0_tgt invst0 invmem0 inv0) *)
+(*       (MEM: InvMem.Rel.sem conf_src conf_tgt st0_src.(Mem) st0_tgt.(Mem)invmem0) *)
+(*       (NONCALL_SRC: Instruction.isCallInst cmd_src = false) *)
+(*       (NONCALL_TGT: Instruction.isCallInst cmd_tgt = false) *)
+(*       (CMDS_SRC: CurCmds st0_src.(EC) = cmd_src :: cmds_src) *)
+(*       (CMDS_TGT: CurCmds st0_tgt.(EC) = cmd_tgt :: cmds_tgt) *)
+(*       (FORGET_SRC: inv_unary_forgot inv1.(Invariant.src) (AtomSetImpl_from_list (option_to_list (Cmd.get_def cmd_src)))) *)
+(*       (FORGET_TGT: inv_unary_forgot inv1.(Invariant.tgt) (AtomSetImpl_from_list (option_to_list (Cmd.get_def cmd_tgt)))) *)
+(*       (STEP_SRC: sInsn conf_src st0_src st1_src evt_src) *)
+(*       (STEP_TGT: sInsn conf_tgt st0_tgt st1_tgt evt_tgt) *)
+(*       (INJECT: postcond_cmd_inject_event cmd_src cmd_tgt inv0 = true) *)
+(*   : exists mc_src mc_tgt, *)
+(*     <<MEM_CH_INJECT: mem_change_inject conf_src conf_tgt invmem0 mc_src mc_tgt>> /\ *)
+(*     <<MEM_CH_CMD_SRC: mem_change_cmd_after conf_src (mkState st1_src.(EC) st1_src.(ECS) st0_src.(Mem)) mc_src cmd_src inv1.(Invariant.src)>> /\ *)
+(*     <<MEM_CH_CMD_TGT: mem_change_cmd_after conf_tgt (mkState st1_tgt.(EC) st1_tgt.(ECS) st0_tgt.(Mem)) mc_tgt cmd_tgt inv1.(Invariant.tgt)>> /\ *)
+(*     <<STATE_EQUIV_SRC: state_equiv_except_mem conf_src (mkState st1_src.(EC) st1_src.(ECS) st0_src.(Mem)) st1_src mc_src>> /\ *)
+(*     <<STATE_EQUIV_TGT: state_equiv_except_mem conf_tgt (mkState st1_tgt.(EC) st1_tgt.(ECS) st0_tgt.(Mem)) st1_tgt mc_tgt>>. *)
+(* Proof. *)
+(*   destruct cmd_src; inv STEP_SRC; ss. *)
+(*   Time destruct cmd_src eqn:CMD_SRC; destruct cmd_tgt eqn:CMD_TGT; ss; *)
+(*     destruct st0_src; destruct EC0; inv STEP_SRC. *)
+(*     inv STEP_SRC. *)
+  
+(*   destruct st0_src; ss. destruct EC0; ss. inv STEP_SRC; ss. *)
+(*     try inv STEP_SRC; ss; inv STEP_TGT; ss. *)
+(*       esplits; auto; *)
+(*         econs; ss; econs; ss. *)
+(*       - inv STEP_SRC; ss; inv STEP_TGT; ss; *)
+(*       esplits; auto; *)
+(*         econs; ss; econs; ss. *)
+(*       - inv STEP_SRC; ss; inv STEP_TGT; ss; *)
+(*       esplits; auto; *)
+(*         econs; ss; econs; ss. *)
+  
+(*     try by inv STEP_SRC; ss; inv STEP_TGT; ss; *)
+(*       esplits; auto; *)
+(*         econs; ss; econs; ss. *)
+(*     esplits; eauto. *)
+(*     + econs. *)
+(*     + econs; ss. *)
+(*       inv STEP_SRC; ss. *)
+(*       econs; ss. *)
+(*     + econs; ss. *)
+(*       inv STEP_TGT; ss. *)
+(*       econs; ss. *)
+
+(*     admit. (* nop nop *) *)
+(*   - *)
+(*   unfold postcond_cmd_inject_event in *. *)
+  
+(* Admitted. *)
+
+Lemma step_unique_preserved_mem
+      conf st0 st1 evt
+      cmd cmds inv0
+      (STATE: AtomSetImpl.For_all (InvState.Unary.sem_unique conf (mkState st1.(EC) st1.(ECS) st0.(Mem)))
+                                  inv0.(Invariant.unique))
+      (NONCALL: Instruction.isCallInst cmd = false)
+      (CMDS: CurCmds st0.(EC) = cmd :: cmds)
+      (STEP: sInsn conf st0 st1 evt)
+      (UNIQUE_NOT_LEAKED: forall x (MEM:AtomSetImpl.mem x inv0.(Invariant.unique) = true),
+                                 AtomSetImpl.mem x (AtomSetImpl_from_list (Cmd.get_leaked_ids cmd)) = false)
+  : unique_preserved_mem conf st1 inv0.
+Proof.
+  inv STEP; ss;
+    try (inv CMDS; ss;
+         ii; specialize_unique; eauto).
+  { admit. (* load malloc -> undef *) }
+  { admit. (* load after free: use Memory.Mem.load_free_2 maybe *) }
+  { admit. (* load alloca *) }
+  { admit. (* load after store *) }
+Admitted.
+
+(* Lemma step_equiv_except_mem *)
+(*       conf st0 st1 evt *)
+(*       cmd cmds *)
+(*       invst0 invmem0 inv0 inv1 *)
+(*       public gmax *)
+(*       (STATE: InvState.Unary.sem conf st0 invst0 invmem0 inv0) *)
+(*       (STATE_FORGET: InvState.Unary.sem conf (mkState st1.(EC) st1.(ECS) st0.(Mem)) invst0 invmem0 inv1) *)
+(*       (MEM: InvMem.Unary.sem conf gmax public st0.(Mem) invmem0) *)
+(*       (NONCALL: Instruction.isCallInst cmd = false) *)
+(*       (CMDS: CurCmds st0.(EC) = cmd :: cmds) *)
+(*       (FORGET: inv_unary_forgot inv1 (AtomSetImpl_from_list (option_to_list (Cmd.get_def cmd)))) *)
+(*       (STEP: sInsn conf st0 st1 evt) *)
+(*   : exists mc, *)
+(*     <<MEM_CH_CMD: mem_change_cmd_after conf (mkState st1.(EC) st1.(ECS) st0.(Mem)) mc cmd inv1>> /\ *)
+(*                   <<STATE_EQUIV: state_equiv_except_mem conf (mkState st1.(EC) st1.(ECS) st0.(Mem)) st1 mc>>. *)
+(* Proof. *)
+(*   inv STEP; destruct cmd; inv CMDS; ss; *)
+(*     try by esplits; eauto; econs; eauto; econs; eauto. *)
+(*   - admit. (* malloc *) *)
+(*   - esplits; eauto. *)
+(*     econs; eauto. *)
+(*     econs; eauto. *)
+(*     + admit. (* malloc , should know newly allocated block is unique *) *)
+(*     + ss. apply lookupAL_updateAddAL_eq. *)
+(* Admitted. *)
 
 Lemma postcond_cmd_sound
       m_src conf_src st0_src cmd_src cmds_src
@@ -347,30 +447,23 @@ Proof.
   { inv STATE. inv SRC. hexploit step_unique_preserved_except; try exact CMDS_SRC; eauto. }
   { inv STATE. inv TGT. hexploit step_unique_preserved_except; try exact CMDS_TGT; eauto. }
   i. des.
-  hexploit step_equiv_except_mem; try exact NONCALL_SRC; try exact FORGET_SRC; eauto.
-  { inv STATE. eauto. }
-  { inv MEM; eauto. }
-  i. des.
-  hexploit step_equiv_except_mem; try exact NONCALL_TGT; eauto.
-  { inv STATE. eauto. }
-  { inv MEM; eauto. }
-  i. des.
-  exploit forget_memory_sound; try exact STATE_FORGET; eauto.
-  { eapply mem_change_cmd_state_transition; eauto. }
-  { eapply mem_change_cmd_state_transition; eauto. }
-  { exploit inject_event_implies_mem_change_inject; try exact STATE; eauto.
-    exploit postcond_cmd_check_forgets_Subset; eauto. i.
-    unfold postcond_cmd_check in *. des_ifs.
-    apply negb_false_iff. eauto.
-  }
-  { inv STATE_FORGET.
-    hexploit step_unique_preserved_mem; try exact NONCALL_SRC; inv SRC; eauto.
-    apply forget_unique_leak_disjoint.
-  }
-  { inv STATE_FORGET.
-    hexploit step_unique_preserved_mem; try exact NONCALL_TGT; inv TGT; eauto.
-    apply forget_unique_leak_disjoint.
-  }
+  (* forget-memory *)
+  exploit postcond_cmd_check_forgets_Subset; eauto. intro CHECK_BEFORE_FORGET.
+  unfold postcond_cmd_check in CHECK_BEFORE_FORGET. des_ifs.
+  match goal with
+  | [H: negb (postcond_cmd_inject_event _ _ _) = false |- _] =>
+    rename H into INJECT_EVENT;
+      apply negb_false_iff in INJECT_EVENT
+  end.
+  exploit forget_memory_sound; try exact MEM; eauto.
+  { ss. inv STATE_FORGET. inv SRC.
+    eapply step_unique_preserved_mem; try exact NONCALL_SRC; eauto.
+    i. exploit forget_unique_no_leaks; ss; eauto.
+    i. des. eauto. }
+  { ss. inv STATE_FORGET. inv TGT.
+    eapply step_unique_preserved_mem; try exact NONCALL_TGT; eauto.
+    i. exploit forget_unique_no_leaks; ss; eauto.
+    i. des. eauto. }
   i. des.
   (* TODO: add lessdef_add *)
 Admitted.

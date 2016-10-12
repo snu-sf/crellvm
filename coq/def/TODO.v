@@ -7,6 +7,7 @@ Require Import infrastructure.
 Require Import Metatheory.
 Require Import sflib.
 Require Import String.
+Require Import paco.
 Import LLVMsyntax.
 Import LLVMinfra.
 
@@ -410,14 +411,16 @@ Proof.
     destruct (x_eq_dec x a) eqn:T; ss.
 Qed.
 
-Lemma list_forallb2_spec A (P1 P2: A -> A -> bool) l1 l2
+Lemma list_forallb2_implies A (P1 P2: A -> A -> bool) l1 l2
       (COND: list_forallb2 P1 l1 l2 = true)
-      (INC: forall a1 a2, P1 a1 a2 = true -> P2 a1 a2 = true)
+      (INC: P1 <2= P2)
   : list_forallb2 P2 l1 l2 = true.
 Proof.
   revert l2 COND.
   induction l1; ss.
   i. destruct l2; ss.
   apply andb_true_iff in COND. des.
-  apply andb_true_iff. eauto.
+  apply andb_true_iff.
+  split; auto.
+  apply INC; auto.
 Qed.

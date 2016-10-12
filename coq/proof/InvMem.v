@@ -81,7 +81,8 @@ Module Rel.
   | sem_intro
       (SRC: Unary.sem conf_src inv.(gmax) (public_src inv.(inject)) mem_src inv.(src))
       (TGT: Unary.sem conf_tgt inv.(gmax) (public_tgt inv.(inject)) mem_tgt inv.(tgt))
-      (INJECT: Mem.inject inv.(inject) mem_src mem_tgt)
+      (INJECT: MoreMem.mem_inj inv.(inject) mem_src mem_tgt)
+      (WF: genericvalues_inject.wf_sb_mi inv.(gmax) inv.(inject) mem_src mem_tgt)
   .
 
   (* TODO: not sure if inject_incr is enough.

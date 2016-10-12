@@ -15,6 +15,7 @@ Require Import GenericValues.
 Require Import Inject.
 Require InvMem.
 Require Import TODO.
+Require Import paco.
 
 Set Implicit Arguments.
 
@@ -742,13 +743,13 @@ Module Subset.
   Qed.
 
   Lemma not_in_maydiff_Subset
-        inv0 inv1 v
-        (NOT_IN_MAYDIFF: Invariant.not_in_maydiff inv0 v = true)
-        (SUBSET: Invariant.Subset inv0 inv1)
-  : Invariant.not_in_maydiff inv1 v = true.
+        inv0 inv1
+         (SUBSET: Invariant.Subset inv0 inv1)
+  : Invariant.not_in_maydiff inv0 <1= Invariant.not_in_maydiff inv1.
   Proof.
     unfold Invariant.not_in_maydiff in *.
-    destruct v; eauto.
+    i. des_ifs.
+    des_bool.
     rewrite negb_true_iff in *.
     inv SUBSET.
     conv_mem2In.

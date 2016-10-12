@@ -134,9 +134,9 @@ Proof.
   - inv EQUIV. rewrite <- MEM. eauto.
 Qed.
 
-Definition unique_preserved_except conf inv st1 defs leaks : Prop :=
+Definition unique_preserved_except conf inv st1 except_for : Prop :=
   forall u (MEM: AtomSetImpl.mem u inv.(Invariant.unique) = true)
-         (NO_LEAK: AtomSetImpl.mem u (AtomSetImpl.union defs leaks) = false),
+         (NO_LEAK: AtomSetImpl.mem u except_for = false),
     InvState.Unary.sem_unique conf st1 u.
 
 Lemma forget_unary_Subset
@@ -171,86 +171,18 @@ Proof.
   apply IdTSet.union_3. eauto.
 Qed.  
 
-(* (* monotonic features of Forget *) *)
-(* (* useful lemmas for postcond *) *)
-(* Lemma not_in_maydiff_forget_monotone *)
-(*       def_src use_src *)
-(*       def_tgt use_tgt *)
-(*       inv0 v *)
-(*       (NOT_MD: Invariant.not_in_maydiff (Forget.t def_src def_tgt use_src use_tgt inv0) v = true) *)
-(*   : Invariant.not_in_maydiff inv0 v = true. *)
-(* Proof. *)
-(*   unfold Invariant.not_in_maydiff in *. *)
-(*   destruct v; eauto. *)
-(*   rewrite negb_true_iff in *. *)
-  
-(*   unfold Forget.t in *. ss. *)
-(*   rewrite IdTSetFacts.union_b in *. *)
-(*   solve_des_bool. eauto. *)
-(* Qed. *)
-
-(* Lemma inject_value_forget_monotone *)
-(*       v1 def_src use_src *)
-(*       v2 def_tgt use_tgt *)
-(*       inv0 *)
-(*       (INJECT: Invariant.inject_value *)
-(*                  (Forget.t def_src def_tgt use_src use_tgt inv0) v1 v2) *)
-(*   : Invariant.inject_value inv0 v1 v2. *)
-(* Proof. *)
-(*   unfold Invariant.inject_value in *. *)
-(*   unfold is_true in *. *)
-(*   simtac. *)
-(*   repeat rewrite orb_true_iff in INJECT. *)
-(*   repeat rewrite orb_true_iff. *)
-(*   des. *)
-(*   - left. left. left. *)
-(*     solve_des_bool. *)
-(*     apply andb_true_iff; split; eauto using not_in_maydiff_forget_monotone. *)
-(*   - left. left. right. *)
-(*     solve_des_bool. *)
-(*     apply andb_true_iff; split; eauto using not_in_maydiff_forget_monotone. *)
-(*     rewrite ExprPairSetFacts.filter_b in *; try by solve_compat_bool. *)
-(*     solve_des_bool. eauto. *)
-(*   - left. right. *)
-(*     solve_des_bool. *)
-(*     apply andb_true_iff; split; eauto using not_in_maydiff_forget_monotone. *)
-(*     rewrite ExprPairSetFacts.filter_b in *; try by solve_compat_bool. *)
-(*     solve_des_bool. eauto. *)
-(*   - right. *)
-(*     rewrite <- ExprPairSetFacts.exists_iff in *;try by solve_compat_bool. *)
-(*     unfold ExprPairSet.Exists in *. des. *)
-(*     apply InvState.get_rhs_in_spec in INJECT. des. *)
-(*     esplits. *)
-(*     + eapply ExprPairSetFacts.filter_iff in INJECT1; try by solve_compat_bool. des. *)
-(*       eapply InvState.get_rhs_in_spec2; eauto. *)
-(*     + solve_des_bool. *)
-(*       apply andb_true_iff. *)
-(*       split. *)
-(*       * rewrite ExprPairSetFacts.filter_b in *; try by solve_compat_bool. *)
-(*         solve_des_bool. eauto. *)
-(*       * unfold Invariant.not_in_maydiff_expr in *. *)
-(*         apply forallb_forall. i. *)
-(*         eapply forallb_forall in INJECT2; eauto. *)
-(*         eapply not_in_maydiff_forget_monotone; eauto. *)
-(* Qed. *)
-
 (* soundness *)
 
-Lemma forget_unique_leak_disjoint
-      defs leaks inv0
-  : AtomSetImpl.disjoint (Invariant.unique (Forget.unary defs leaks inv0)) leaks.
+Lemma forget_unique_no_leaks
+      defs leaks inv0 x
+      (IN_FORGET_UNIQUE: AtomSetImpl.mem x (Invariant.unique (Forget.unary defs leaks inv0)) = true)
+  : <<NOT_MEM_DEFS: AtomSetImpl.mem x defs = false>> /\
+    <<NOT_MEM_LEAKS: AtomSetImpl.mem x leaks = false>>.
 Proof.
-  unfold Forget.unary. ss.
-  unfold AtomSetImpl.disjoint.
-  unfold AtomSetImpl.Equal.
-  i.
-  rewrite AtomSetFacts.empty_iff.
-  split; try done.
-  i. apply AtomSetFacts.inter_iff in H. des.
-  apply AtomSetFacts.filter_iff in H; [| solve_compat_bool]. des.
-  apply negb_true_iff in H1.
-  rewrite AtomSetFacts.union_b in H1. solve_des_bool.
-  apply AtomSetFacts.mem_iff in H0. clarify.
+  unfold Forget.unary in *. ss.
+  rewrite AtomSetFacts.filter_b in IN_FORGET_UNIQUE; try by solve_compat_bool.
+  des_bool. des. des_bool.
+  rewrite AtomSetFacts.union_b in *. des_bool. auto.
 Qed.
 
 Inductive inv_unary_forgot inv defs : Prop :=
@@ -279,12 +211,11 @@ Lemma forget_not_in_value_list
       defs (lsv: list (sz * ValueT.t)) x
       (CHECK : existsb (LiftPred.ValueT (fun y : Tag.t * id => IdTSet.mem y (lift_physical_atoms_idtset defs)) <*> snd) lsv = false)
       (IN_DEF: AtomSetImpl.mem x defs = true)
-      (IN: In (Tag.physical, x) (filter_map ValueT.get_idTs (List.map snd lsv)))
-  : False.
+  : ~ In (Tag.physical, x) (filter_map ValueT.get_idTs (List.map snd lsv)).
 Proof.
-  revert lsv CHECK IN.
+  revert lsv CHECK.
   induction lsv; ss.
-  i. des_ifs.
+  ii. des_ifs.
   - destruct a as [s v]. ss.
     destruct v; ss. inv Heq. des.
     + des_bool. des. subst.
@@ -326,7 +257,7 @@ Lemma forget_unary_sound
       defs leaks st0 st1
       conf invst invmem inv0
       (EQUIV: state_equiv_except defs st0 st1)
-      (UNIQUE_PRSV: unique_preserved_except conf inv0 st1 defs leaks)
+      (UNIQUE_PRSV: unique_preserved_except conf inv0 st1 (AtomSetImpl.union defs leaks))
       (STATE: InvState.Unary.sem conf st0 invst invmem inv0)
   : <<STATE: InvState.Unary.sem conf st1 invst invmem (Forget.unary defs leaks inv0)>> /\
     <<NOT_INC: inv_unary_forgot (Forget.unary defs leaks inv0) defs>>.
@@ -439,8 +370,8 @@ Lemma forget_sound
       (STATE: InvState.Rel.sem conf_src conf_tgt st0_src st0_tgt invst invmem inv0)
       (EQUIV_SRC: state_equiv_except s_src st0_src st1_src)
       (EQUIV_TGT: state_equiv_except s_tgt st0_tgt st1_tgt)
-      (UNIQUE_SRC: unique_preserved_except conf_src inv0.(Invariant.src) st1_src s_src l_src)
-      (UNIQUE_TGT: unique_preserved_except conf_tgt inv0.(Invariant.tgt) st1_tgt s_tgt l_tgt)
+      (UNIQUE_SRC: unique_preserved_except conf_src inv0.(Invariant.src) st1_src (AtomSetImpl.union s_src l_src))
+      (UNIQUE_TGT: unique_preserved_except conf_tgt inv0.(Invariant.tgt) st1_tgt (AtomSetImpl.union s_tgt l_tgt))
   : <<STATE_FORGET: InvState.Rel.sem conf_src conf_tgt st1_src st1_tgt
                             invst invmem (Forget.t s_src s_tgt l_src l_tgt inv0)>> /\
     <<FORGET_SRC: inv_unary_forgot (Forget.unary s_src l_src inv0.(Invariant.src)) s_src>> /\
