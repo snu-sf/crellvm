@@ -15,6 +15,7 @@ Require Import GenericValues.
 Require Import Inject.
 Require InvMem.
 Require Import TODO.
+Require Import paco.
 
 Set Implicit Arguments.
 
@@ -61,6 +62,20 @@ Proof.
   rewrite ExprPairSetFacts.filter_iff in RHS; cycle 1.
   { solve_compat_bool. }
   des. des_sumbool. ss.
+Qed.
+
+Lemma get_rhs_in_spec2
+      (ld: ExprPairSet.t) (lhs: Expr.t) (x: Expr.t * Expr.t)
+      (LHS: fst x = lhs)
+      (IN: ExprPairSet.In x ld)
+  : ExprPairSet.In x (Invariant.get_rhs ld lhs).
+Proof.
+  i. des.
+  unfold Invariant.get_rhs, flip.
+  apply ExprPairSet.filter_3; try by solve_compat_bool.
+  subst.
+  unfold proj_sumbool.
+  des_ifs.
 Qed.
 
 Module Unary.
@@ -242,7 +257,7 @@ Module Unary.
            sem_noalias conf gptr1 gptr2 ptr1.(snd) ptr2.(snd))
   .
 
-  Inductive sem_unique (conf:Config) (st:State) (invst:t) (a:atom): Prop :=
+  Inductive sem_unique (conf:Config) (st:State) (a:atom): Prop :=
   | sem_unique_intro
       val
       (VAL: lookupAL _ st.(EC).(Locals) a = Some val)
@@ -266,7 +281,7 @@ Module Unary.
   | sem_intro
       (LESSDEF: ExprPairSet.For_all (sem_lessdef conf st invst) inv.(Invariant.lessdef))
       (NOALIAS: sem_alias conf st invst inv.(Invariant.alias))
-      (UNIQUE: AtomSetImpl.For_all (sem_unique conf st invst) inv.(Invariant.unique))
+      (UNIQUE: AtomSetImpl.For_all (sem_unique conf st) inv.(Invariant.unique))
       (PRIVATE: IdTSet.For_all (sem_private conf st invst invmem.(InvMem.Unary.private)) inv.(Invariant.private))
   .
 
@@ -642,6 +657,157 @@ Module Rel.
       admit.
   Admitted.
 End Rel.
+
+Module Subset.
+  Ltac conv_mem2In :=
+    repeat 
+      match goal with
+      | [H: IdTSet.mem ?x ?inv = true |- _] =>
+        apply IdTSetFacts.mem_iff in H
+      | [H: ValueTSet.mem ?x ?inv = true |- _] =>
+        apply ValueTSetFacts.mem_iff in H
+      | [H: ValueTPairSet.mem ?x ?inv = true |- _] =>
+        apply ValueTPairSetFacts.mem_iff in H
+      | [H: ExprPairSet.mem ?x ?inv = true |- _] =>
+        apply ExprPairSetFacts.mem_iff in H
+      | [H: PtrSet.mem ?x ?inv = true |- _] =>
+        apply PtrSetFacts.mem_iff in H
+      | [H: PtrPairSet.mem ?x ?inv = true |- _] =>
+        apply PtrPairSetFacts.mem_iff in H
+      | [H: AtomSetImpl.mem ?x ?inv = true |- _] =>
+        apply AtomSetFacts.mem_iff in H
+
+      | [_:_ |- IdTSet.mem ?x ?inv = true] =>
+        apply IdTSetFacts.mem_iff
+      | [_:_ |- ValueTSet.mem ?x ?inv = true] =>
+        apply ValueTSetFacts.mem_iff
+      | [_:_ |- ValueTPairSet.mem ?x ?inv = true] =>
+        apply ValueTPairSetFacts.mem_iff
+      | [_:_ |- ExprPairSet.mem ?x ?inv = true] =>
+        apply ExprPairSetFacts.mem_iff
+      | [_:_ |- PtrSet.mem ?x ?inv = true] =>
+        apply PtrSetFacts.mem_iff
+      | [_:_ |- PtrPairSet.mem ?x ?inv = true] =>
+        apply PtrPairSetFacts.mem_iff
+      | [_:_ |- AtomSetImpl.mem ?x ?inv = true] =>
+        apply AtomSetFacts.mem_iff
+
+      | [H: IdTSet.mem ?x ?inv = false |- _] =>
+        apply IdTSetFacts.not_mem_iff in H
+      | [H: ValueTSet.mem ?x ?inv = false |- _] =>
+        apply ValueTSetFacts.not_mem_iff in H
+      | [H: ValueTPairSet.mem ?x ?inv = false |- _] =>
+        apply ValueTPairSetFacts.not_mem_iff in H
+      | [H: ExprPairSet.mem ?x ?inv = false |- _] =>
+        apply ExprPairSetFacts.not_mem_iff in H
+      | [H: PtrSet.mem ?x ?inv = false |- _] =>
+        apply PtrSetFacts.not_mem_iff in H
+      | [H: PtrPairSet.mem ?x ?inv = false |- _] =>
+        apply PtrPairSetFacts.not_mem_iff in H
+      | [H: AtomSetImpl.mem ?x ?inv = false |- _] =>
+        apply AtomSetFacts.not_mem_iff in H
+
+      | [_:_ |- IdTSet.mem ?x ?inv = false] =>
+        apply IdTSetFacts.not_mem_iff
+      | [_:_ |- ValueTSet.mem ?x ?inv = false] =>
+        apply ValueTSetFacts.not_mem_iff
+      | [_:_ |- ValueTPairSet.mem ?x ?inv = false] =>
+        apply ValueTPairSetFacts.not_mem_iff
+      | [_:_ |- ExprPairSet.mem ?x ?inv = false] =>
+        apply ExprPairSetFacts.not_mem_iff
+      | [_:_ |- PtrSet.mem ?x ?inv = false] =>
+        apply PtrSetFacts.not_mem_iff
+      | [_:_ |- PtrPairSet.mem ?x ?inv = false] =>
+        apply PtrPairSetFacts.not_mem_iff
+      | [_:_ |- AtomSetImpl.mem ?x ?inv = false] =>
+        apply AtomSetFacts.not_mem_iff
+      end
+  .
+
+  Program Instance PreOrder_Subset_unary : PreOrder Invariant.Subset_unary.
+  Next Obligation.
+    econs; try econs; reflexivity.
+  Qed.
+  Next Obligation.
+    ii. inv H. inv H0. inv SUBSET_NOALIAS. inv SUBSET_NOALIAS0.
+    econs; try econs; etransitivity; eauto.
+  Qed.
+  
+  Program Instance PreOrder_Subset : PreOrder Invariant.Subset.
+  Next Obligation.
+    econs; reflexivity.
+  Qed.
+  Next Obligation.
+    ii. inv H. inv H0.
+    econs; etransitivity; eauto.
+  Qed.
+
+  Lemma not_in_maydiff_Subset
+        inv0 inv1
+         (SUBSET: Invariant.Subset inv0 inv1)
+  : Invariant.not_in_maydiff inv0 <1= Invariant.not_in_maydiff inv1.
+  Proof.
+    unfold Invariant.not_in_maydiff in *.
+    i. des_ifs.
+    des_bool.
+    rewrite negb_true_iff in *.
+    inv SUBSET.
+    conv_mem2In.
+    ii. exploit SUBSET_MAYDIFF; eauto.
+  Qed.
+
+  Lemma inject_value_Subset
+        v1 v2
+        inv0 inv1
+        (INJECT: Invariant.inject_value inv0 v1 v2)
+        (SUBSET: Invariant.Subset inv0 inv1)
+  : Invariant.inject_value inv1 v1 v2.
+  Proof.
+    unfold Invariant.inject_value in *.
+    unfold sflib.is_true in *.
+    repeat rewrite orb_true_iff in INJECT.
+    repeat rewrite orb_true_iff.
+    des.
+    - left. left. left.
+      des_bool. des.
+      apply andb_true_iff.
+      split; eauto.
+      eapply not_in_maydiff_Subset; eauto.
+    - left. left. right.
+      des_bool. des.
+      apply andb_true_iff.
+      split; eauto; try by eapply not_in_maydiff_Subset; eauto.
+      inv SUBSET.
+      inv SUBSET_TGT.
+      conv_mem2In.
+      exploit SUBSET_LESSDEF; eauto.
+    - left. right.
+      des_bool. des.
+      apply andb_true_iff; split; eauto; try by eapply not_in_maydiff_Subset; eauto.
+      inv SUBSET. inv SUBSET_SRC.
+      conv_mem2In.
+      exploit SUBSET_LESSDEF; eauto.
+    - right.
+      rewrite <- ExprPairSetFacts.exists_iff in *;try by solve_compat_bool.
+      unfold ExprPairSet.Exists in *. des.
+      apply get_rhs_in_spec in INJECT. des.
+      esplits.
+      + eapply get_rhs_in_spec2; eauto.
+        inv SUBSET. inv SUBSET_SRC.
+        exploit SUBSET_LESSDEF; eauto.
+      + des_bool. des.
+        apply andb_true_iff.
+        split.
+        * inv SUBSET. inv SUBSET_TGT.
+          conv_mem2In.
+          exploit SUBSET_LESSDEF; eauto.
+        * unfold Invariant.not_in_maydiff_expr in *.
+          apply forallb_forall. i.
+          eapply forallb_forall in INJECT2; eauto.
+          eapply not_in_maydiff_Subset; eauto.
+  Qed.
+
+End Subset.
 
 (* GEPPPPPPPPPPPPPPPPPPPPPPP *)
 (* 2 focused subgoals *)

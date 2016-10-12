@@ -26,14 +26,10 @@ Module Cmd.
 
   Definition get_def_memory (c:t): option Ptr.t :=
     match c with
-    | insn_free x ty v =>
-      TODO.lift_option
-        (fun id => (ValueT.id (IdT.lift Tag.physical id), ty))
-        (getValueID v)
+    | insn_free x ty p =>
+      Some (ValueT.lift Tag.physical p, ty)
     | insn_store x ty v p a =>
-      TODO.lift_option
-        (fun id => (ValueT.id (IdT.lift Tag.physical id), typ_pointer ty))
-        (getValueID p)
+      Some (ValueT.lift Tag.physical p, ty)
     | _ => None
     end.
 
@@ -403,7 +399,7 @@ Module ForgetMemory.
     in
     let inv2 :=
         match s_tgt with
-        | Some s_tgt => Invariant.update_src (unary s_tgt) inv1
+        | Some s_tgt => Invariant.update_tgt (unary s_tgt) inv1
         | None => inv1
         end
     in
@@ -634,10 +630,13 @@ Definition postcond_cmd_inject_event
     insn_store _ t2 v2 p2 a2 =>
     typ_dec t1 t2 &&
     (Invariant.inject_value
-       inv (ValueT.lift Tag.physical v1) (ValueT.lift Tag.physical v2))
+       inv (ValueT.lift Tag.physical v1) (ValueT.lift Tag.physical v2)) &&
+    (Invariant.inject_value
+       inv (ValueT.lift Tag.physical p1) (ValueT.lift Tag.physical p2)) &&
+    align_dec a1 a2
   | insn_store _ t1 v1 p1 a1, insn_nop _ =>
     Invariant.is_private inv.(Invariant.src) (ValueT.lift Tag.physical p1)
-  (* | insn_store _ _ _ _ _, _ *)
+  | insn_store _ _ _ _ _, _
   | _, insn_store _ _ _ _ _ => false
 
   | insn_load x1 t1 v1 a1, insn_load x2 t2 v2 a2 =>
