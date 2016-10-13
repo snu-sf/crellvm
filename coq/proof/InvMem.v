@@ -71,16 +71,16 @@ Module Rel.
     inject: MoreMem.meminj;
   }.
 
-  Definition public_src (inv:t) (b:mblock): Prop :=
-    inv.(inject) b <> None.
+  Definition public_src (inject:meminj) (b:mblock): Prop :=
+    inject b <> None.
 
-  Definition public_tgt (inv:t) (b:mblock): Prop :=
-    exists b_src offset, inv.(inject) b_src = Some (b, offset).
+  Definition public_tgt (inject:meminj) (b:mblock): Prop :=
+    exists b_src offset, inject b_src = Some (b, offset).
 
   Inductive sem (conf_src conf_tgt:Config) (mem_src mem_tgt:mem) (inv:t): Prop :=
   | sem_intro
-      (SRC: Unary.sem conf_src inv.(gmax) (public_src inv) mem_src inv.(src))
-      (TGT: Unary.sem conf_tgt inv.(gmax) (public_tgt inv) mem_tgt inv.(tgt))
+      (SRC: Unary.sem conf_src inv.(gmax) (public_src inv.(inject)) mem_src inv.(src))
+      (TGT: Unary.sem conf_tgt inv.(gmax) (public_tgt inv.(inject)) mem_tgt inv.(tgt))
       (INJECT: MoreMem.mem_inj inv.(inject) mem_src mem_tgt)
       (WF: genericvalues_inject.wf_sb_mi inv.(gmax) inv.(inject) mem_src mem_tgt)
   .

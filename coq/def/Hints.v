@@ -302,6 +302,24 @@ Module Invariant.
     (get_idTs_unary inv.(src))
       ++ (get_idTs_unary inv.(tgt))
       ++ (IdTSet.elements inv.(maydiff)).
+
+  (* Subset predicates *)
+
+  Inductive Subset_unary (inv1 inv2: unary): Prop :=
+  | Subset_unary_intro
+      (SUBSET_LESSDEF: ExprPairSet.Subset inv1.(lessdef) inv2.(lessdef))
+      (SUBSET_NOALIAS: ValueTPairSet.Subset inv1.(alias).(diffblock) inv2.(alias).(diffblock) /\
+                       PtrPairSet.Subset inv1.(alias).(noalias) inv2.(alias).(noalias))
+      (SUBSET_UNIQUE: AtomSetImpl.Subset inv1.(unique) inv2.(unique))
+      (SUBSET_PRIVATE: IdTSet.Subset inv1.(private) inv2.(private))
+  .
+
+  Inductive Subset (inv1 inv2: t): Prop :=
+  | Subset_intro
+      (SUBSET_SRC: Subset_unary inv1.(src) inv2.(src))
+      (SUBSET_TGT: Subset_unary inv1.(tgt) inv2.(tgt))
+      (SUBSET_MAYDIFF: IdTSet.Subset inv2.(maydiff) inv1.(maydiff))
+  .
 End Invariant.
 
 Module Infrule.
