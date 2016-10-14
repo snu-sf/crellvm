@@ -68,7 +68,7 @@ type const_int = {
 }
 
 type const_float = {
-  float_value : float;
+  float_value : string;
   float_type : float_type;
 }
 
