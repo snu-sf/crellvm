@@ -53,61 +53,6 @@ Proof.
   inv STEP; ss. inv CMDS. ss.
 Qed.
 
-(* TODO: let's ignore insn_malloc for now.  Revise the validator so that it rejects any occurence of insn_malloc. *)
-Lemma postcond_cmd_add_inject_sound
-      conf_src st0_src st1_src cmd_src cmds_src def_src uses_src
-      conf_tgt st0_tgt st1_tgt cmd_tgt cmds_tgt def_tgt uses_tgt
-      invst0 invmem0 inv0
-      evt
-      (POSTCOND: Postcond.postcond_cmd_check
-                   cmd_src cmd_tgt def_src def_tgt uses_src uses_tgt inv0)
-      (STATE: InvState.Rel.sem conf_src conf_tgt st1_src st1_tgt invst0 invmem0 inv0)
-      (MEM: InvMem.Rel.sem conf_src conf_tgt st1_src.(Mem) st1_tgt.(Mem) invmem0)
-      (STEP_SRC: sInsn conf_src st0_src st1_src evt)
-      (STEP_TGT: sInsn conf_tgt st0_tgt st1_tgt evt)
-      (CMDS_SRC: st0_src.(EC).(CurCmds) = cmd_src :: cmds_src)
-      (CMDS_TGT: st0_tgt.(EC).(CurCmds) = cmd_tgt :: cmds_tgt)
-      (NONCALL_SRC: Instruction.isCallInst cmd_src = false)
-      (NONCALL_TGT: Instruction.isCallInst cmd_tgt = false)
-      (DEF_SRC: def_src = AtomSetImpl_from_list (option_to_list (Cmd.get_def cmd_src)))
-      (DEF_TGT: def_tgt = AtomSetImpl_from_list (option_to_list (Cmd.get_def cmd_tgt)))
-      (USES_SRC: uses_src = AtomSetImpl_from_list (Cmd.get_ids cmd_src))
-      (USES_TGT: uses_tgt = AtomSetImpl_from_list (Cmd.get_ids cmd_tgt)):
-  exists invmem1,
-    <<STATE: InvState.Rel.sem
-               conf_src conf_tgt st1_src st1_tgt invst0 invmem1
-               (Postcond.postcond_cmd_add_inject cmd_src cmd_tgt inv0)>> /\
-    <<MEM: InvMem.Rel.sem conf_src conf_tgt st1_src.(Mem) st1_tgt.(Mem) invmem1>> /\
-    <<MEMLE: InvMem.Rel.le invmem0 invmem1>> /\
-    <<POSTCOND: Postcond.postcond_cmd_check
-                  cmd_src cmd_tgt def_src def_tgt uses_src uses_tgt
-                  (Postcond.postcond_cmd_add_inject cmd_src cmd_tgt inv0)>>
-.
-Proof.
-  remember (st0_src.(Mem).(Memory.Mem.nextblock)) as src_nxt.
-  remember (st0_tgt.(Mem).(Memory.Mem.nextblock)) as tgt_nxt.
-  assert(ALLOC_INJEECT: InvMem.Rel.inject invmem0 src_nxt = Some(tgt_nxt, 0)) by admit.
-  destruct (classic (Postcond.postcond_cmd_add_inject cmd_src cmd_tgt inv0 = inv0)).
-  { rewrite H in *. esplits; eauto. reflexivity. }
-  destruct cmd_src, cmd_tgt; ss.
-  - admit. (* alloca, nop *)
-    (* invmem1 = invmem0 *)
-    (* roughly, degenerate case for the last one *)
-  - admit. (* nop, allica *)
-  - (* alloca, alloca *)
-    (*
-     * invmem1 = invmem0 + (newl_src -> newl_tgt)
-     * invstate.rel.sem inv0: possible (monotone w.r.t. invmem)
-     * invstate.rel.sem unique (added): newl <> old locations
-         * newl: st0.mem.nextblock,
-           wf: st0's old locations < st0.mem.nextblock (genericvalues_inject.wf_sb_mi)
-     * invstate.rel.sem remove_def_from_maydiff (add): possible
-     * invmem.rel.sem: adding (newl_src -> newl_tgt)
-     * invmem.rel.le: possible
-     * postcond_cmd_check: monotonicity
-     *)
-Admitted.
-
 (* TODO Add To Metatheory?? *)
 (* Lemma AtomSetImpl_from_list_inter {X: Type} x l1 l2 *)
 (*       (IN1: List.In x l1) *)
@@ -190,6 +135,198 @@ Ltac des_lookupAL_updateAddAL :=
             ss; clarify; rewrite <- lookupAL_updateAddAL_neq]; ss; clarify
          end.
 
+Ltac simpl_ep_set :=
+  repeat
+    match goal with
+    | [H: ExprPairSet.In _ (ExprPairSet.add _ _) |- _] =>
+      eapply ExprPairSetFacts.add_iff in H; des; clarify
+    end.
+
+Ltac u := autounfold in *.
+Hint Unfold InvState.Unary.sem_idT.
+Hint Unfold Cmd.get_ids.
+Hint Unfold getOperandValue.
+
+Ltac clear_true :=
+  repeat match goal with
+         | [ H: is_true true |- _ ] => clear H
+         | [ H: True |- _ ] => clear H
+         | [ H: ?x = ?x |- _ ] => clear H
+         end.
+
+(* TODO: let's ignore insn_malloc for now.  Revise the validator so that it rejects any occurence of insn_malloc. *)
+Lemma postcond_cmd_add_inject_sound
+      conf_src st0_src st1_src cmd_src cmds_src def_src uses_src
+      conf_tgt st0_tgt st1_tgt cmd_tgt cmds_tgt def_tgt uses_tgt
+      invst0 invmem0 inv0
+      evt
+      (POSTCOND_CHECK: Postcond.postcond_cmd_check
+                   cmd_src cmd_tgt def_src def_tgt uses_src uses_tgt inv0)
+      (STATE: InvState.Rel.sem conf_src conf_tgt st1_src st1_tgt invst0 invmem0 inv0)
+      (MEM: InvMem.Rel.sem conf_src conf_tgt st1_src.(Mem) st1_tgt.(Mem) invmem0)
+      (STEP_SRC: sInsn conf_src st0_src st1_src evt)
+      (STEP_TGT: sInsn conf_tgt st0_tgt st1_tgt evt)
+      (CMDS_SRC: st0_src.(EC).(CurCmds) = cmd_src :: cmds_src)
+      (CMDS_TGT: st0_tgt.(EC).(CurCmds) = cmd_tgt :: cmds_tgt)
+      (NONCALL_SRC: Instruction.isCallInst cmd_src = false)
+      (NONCALL_TGT: Instruction.isCallInst cmd_tgt = false)
+      (DEF_SRC: def_src = AtomSetImpl_from_list (option_to_list (Cmd.get_def cmd_src)))
+      (DEF_TGT: def_tgt = AtomSetImpl_from_list (option_to_list (Cmd.get_def cmd_tgt)))
+      (USES_SRC: uses_src = AtomSetImpl_from_list (Cmd.get_ids cmd_src))
+      (USES_TGT: uses_tgt = AtomSetImpl_from_list (Cmd.get_ids cmd_tgt))
+  :
+    <<STATE: InvState.Rel.sem
+               conf_src conf_tgt st1_src st1_tgt invst0 invmem0
+               (Postcond.postcond_cmd_add_inject cmd_src cmd_tgt inv0)>> /\
+    <<POSTCOND: Postcond.postcond_cmd_check
+                  cmd_src cmd_tgt def_src def_tgt uses_src uses_tgt
+                  (Postcond.postcond_cmd_add_inject cmd_src cmd_tgt inv0)>>
+.
+Proof.
+  remember (st0_src.(Mem).(Memory.Mem.nextblock)) as src_nxt.
+  remember (st0_tgt.(Mem).(Memory.Mem.nextblock)) as tgt_nxt.
+  assert(ALLOC_INJECT: InvMem.Rel.inject invmem0 src_nxt = Some(tgt_nxt, 0)) by admit.
+  destruct (classic (Postcond.postcond_cmd_add_inject cmd_src cmd_tgt inv0 = inv0)).
+  { rewrite H in *. esplits; eauto. }
+  destruct cmd_src, cmd_tgt; ss.
+  - (* alloca, nop *)
+    (* roughly, degenerate case for the last one *)
+    admit.
+  - admit. (* nop, allica *)
+  - (* alloca, alloca *)
+    (*
+     * invmem1 = invmem0 + (newl_src -> newl_tgt)
+     * invstate.rel.sem inv0: possible (monotone w.r.t. invmem)
+     * invstate.rel.sem unique (added): newl <> old locations
+         * newl: st0.mem.nextblock,
+           wf: st0's old locations < st0.mem.nextblock (genericvalues_inject.wf_sb_mi)
+     * invstate.rel.sem remove_def_from_maydiff (add): possible
+     * invmem.rel.sem: adding (newl_src -> newl_tgt)
+     * invmem.rel.le: possible
+     * postcond_cmd_check: monotonicity
+     *)
+    (* unfold postcond_cmd_check in POSTCOND_CHECK. des_ifs; des_bool; clarify. *)
+    unfold postcond_cmd_check in *. des_ifs; des_bool; clarify.
+    {
+      erewrite postcond_cmd_inject_event_Subset in Heq1; clarify.
+      ss.
+      repeat (des_bool; des); des_sumbool; clarify.
+      clear - inv0.
+      destruct inv0; ss.
+      destruct src; ss.
+      destruct tgt; ss.
+      unfold Invariant.update_src, Invariant.update_tgt,
+        remove_def_from_maydiff, Invariant.update_maydiff. ss.
+      destruct (id_dec id0 id0); clarify.
+      unfold Invariant.update_unique; ss.
+      econs; ss; try (econs; try splits; ss).
+      -
+        ii.
+        eapply AtomSetFacts.add_s_m. eauto.
+        apply AtomSetFacts.Subset_refl.
+        info_eauto. (* SUGOI!!!!!!!!!!!!!!!!!!!!!!!! *)
+      -
+        ii.
+        eapply AtomSetFacts.add_s_m. eauto.
+        apply AtomSetFacts.Subset_refl.
+        info_eauto. (* SUGOI!!!!!!!!!!!!!!!!!!!!!!!! *)
+      -
+        ii.
+        rewrite IdTSetFacts.mem_iff in *.
+        rewrite IdTSetFacts.remove_b in H.
+        des_bool; des; ss.
+    }
+    ss. repeat (des_bool; des; des_sumbool). subst.
+    clear_true.
+    splits; ss.
+    unfold remove_def_from_maydiff.
+    destruct (id_dec id0 id0); clarify.
+    apply_all_once AtomSetImpl_from_list_inter_is_empty.
+    simpl_list.
+    inv STATE.
+    destruct inv0. ss.
+    cbn.
+    unfold Invariant.update_src. ss.
+    unfold Invariant.update_tgt. ss.
+    unfold Invariant.update_maydiff. ss.
+    clear_true.
+
+    econs; eauto; ss.
+    +
+      {
+        clear TGT MAYDIFF.
+        inv SRC. econs; eauto. clear LESSDEF NOALIAS PRIVATE.
+        ii.
+        apply AtomSetFacts.add_iff in H0.
+        des; [|apply UNIQUE; auto].
+        subst.
+        move ALLOC_INJECT at bottom.
+        ((inv STEP_SRC; ss); []).
+        ((inv STEP_TGT; ss); []).
+        econs; ss; eauto.
+        - des_lookupAL_updateAddAL.
+        - ii. des_lookupAL_updateAddAL.
+          unfold InvState.Unary.sem_diffblock. ss.
+          destruct val' eqn:VAL; ss.
+          destruct p; ss.
+          destruct v; ss.
+          destruct g; ss.
+          unfold GV2ptr. ss.
+          rename b into bbbbbbbbbbbbbbb.
+          admit.
+        - ii.
+          destruct val' eqn:VAL; ss.
+          destruct p; ss.
+          destruct v1; ss.
+          cbn.
+          destruct g; ss.
+          des_ifs.
+          admit.
+      }
+    + admit.
+    +
+      {
+        ((inv STEP_SRC; ss); []).
+        ((inv STEP_TGT; ss); []).
+        i.
+        rewrite IdTSetFacts.remove_b in NOTIN.
+        repeat (des_bool; des).
+        { apply MAYDIFF; auto. }
+        unfold IdTSetFacts.eqb in NOTIN.
+        des_ifs; [].
+        clear_true.
+        (* econs. (* DONT USE econs HERE!! Early Binding !! *) *)
+        unfold InvState.Rel.sem_inject.
+        i.
+        u; ss.
+        des_lookupAL_updateAddAL.
+        esplits; eauto.
+        clear_true.
+        move H7 at bottom.
+        move H3 at bottom.
+        simpl.
+        (* compute *)
+        unfold blk2GV. unfold ptr2GV. cbn.
+        unfold getPointerSize.
+        unfold getPointerSize0.
+        cbn.
+        hnf.
+        simpl.
+        destruct TD; simpl.
+        destruct TD0; simpl.
+        unfold val2GV.
+        move ALLOC_INJECT at bottom.
+        exploit MemProps.malloc_result; try apply H7; eauto; []; ii; des.
+        exploit MemProps.malloc_result; try apply H3; eauto; []; ii; des.
+        subst.
+
+        econs; eauto.
+(* MemProps.nextblock_malloc: *)
+(* MemProps.malloc_result: *)
+      }
+
+Admitted.
+
 Lemma postcond_cmd_inject_event_Subset src tgt inv0 inv1
       (INJECT_EVENT: postcond_cmd_inject_event src tgt inv0)
       (SUBSET_SRC: ExprPairSet.Subset
@@ -215,18 +352,6 @@ Proof.
     apply andb_true_iff; splits; [auto|]. (* TODO Why des_bool does not clear this?????? *)
     admit.
 Admitted.
-
-Ltac simpl_ep_set :=
-  repeat
-    match goal with
-    | [H: ExprPairSet.In _ (ExprPairSet.add _ _) |- _] =>
-      eapply ExprPairSetFacts.add_iff in H; des; clarify
-    end.
-
-Ltac u := autounfold in *.
-Hint Unfold InvState.Unary.sem_idT.
-Hint Unfold Cmd.get_ids.
-Hint Unfold getOperandValue.
 
 Lemma lessdef_add
       conf st invst lessdef lhs rhs
