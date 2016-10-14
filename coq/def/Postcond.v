@@ -370,14 +370,15 @@ End Forget.
 Module ForgetMemory.
   Definition is_noalias_Ptr
              (inv:Invariant.unary) (ps:Ptr.t) (p:Ptr.t): bool :=
-    Invariant.is_unique_ptr inv p ||
+    ((negb (ValueT.eq_dec ps.(fst) p.(fst))) && Invariant.is_unique_ptr inv p && Invariant.values_diffblock_from_unique (fst ps)) ||
+    ((negb (ValueT.eq_dec ps.(fst) p.(fst))) && Invariant.is_unique_ptr inv ps && Invariant.values_diffblock_from_unique (fst p)) ||
     Invariant.is_noalias inv p ps ||
     Invariant.is_diffblock inv p ps.
 
   Definition is_noalias_Expr
              (inv:Invariant.unary) (ps:Ptr.t) (e:Expr.t): bool :=
     match e with
-      | Expr.load v ty al => is_noalias_Ptr inv ps (v, typ_pointer ty)
+      | Expr.load v ty al => is_noalias_Ptr inv ps (v, ty)
       | _ => true
     end.
 
@@ -386,9 +387,7 @@ Module ForgetMemory.
     is_noalias_Expr inv ps ep.(fst) && is_noalias_Expr inv ps ep.(snd).
 
   Definition unary (ps:Ptr.t) (inv0:Invariant.unary): Invariant.unary :=
-    if Invariant.is_unique_ptr inv0 ps
-    then inv0
-    else Invariant.update_lessdef (ExprPairSet.filter (is_noalias_ExprPair inv0 ps)) inv0.
+    Invariant.update_lessdef (ExprPairSet.filter (is_noalias_ExprPair inv0 ps)) inv0.
 
   Definition t (s_src s_tgt:option Ptr.t) (inv0:Invariant.t): Invariant.t :=
     let inv1 :=
