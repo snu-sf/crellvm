@@ -1176,29 +1176,208 @@ Proof.
     inv STATE_EQUIV. destruct st1; eauto.
 Admitted.
 
-Lemma forget_memory_equiv_except_mem
-      conf_src mem0_src st1_src mc_src cmd_src lc_src
-      conf_tgt mem0_tgt st1_tgt mc_tgt cmd_tgt lc_tgt
+Lemma forget_memory_maydiff_preserved
+      conf_src mem0_src st1_src mem_change_src def_mem_src
+      conf_tgt mem0_tgt st1_tgt mem_change_tgt def_mem_tgt
+      invst0 invmem0 inv0
+      (MEM_EQUIV_SRC : states_mem_change conf_src mem0_src st1_src.(Mem) mem_change_src)
+      (MEM_EQUIV_TGT : states_mem_change conf_tgt mem0_tgt st1_tgt.(Mem) mem_change_tgt)
+      (MAYDIFF : forall id : Tag.t * id,
+          IdTSet.mem id (Invariant.maydiff inv0) = false ->
+          InvState.Rel.sem_inject (mkState st1_src.(EC) st1_src.(ECS) mem0_src)
+                                  (mkState st1_tgt.(EC) st1_tgt.(ECS) mem0_tgt)
+                                  invst0 (InvMem.Rel.inject invmem0) id)
+  : <<RES: forall id : Tag.t * id,
+      IdTSet.mem id (Invariant.maydiff (ForgetMemory.t def_mem_src def_mem_tgt inv0)) = false ->
+      InvState.Rel.sem_inject st1_src st1_tgt invst0 (InvMem.Rel.inject invmem0) id>>.
+Proof.
+  ii.
+  assert (DROP_FORGET_MEMORY:IdTSet.mem id0 (Invariant.maydiff inv0) = false).
+  { destruct def_mem_src; destruct def_mem_tgt; ss. }
+  exploit MAYDIFF; eauto.
+  (* { inv MEM_EQUIV_SRC. *)
+  (*   unfold InvState.Unary.sem_idT in *. *)
+  (*   destruct id0 as [[] x]; eauto. *)
+  (*   ss. rewrite LOCALS_EQ. eauto. *)
+  (* } *)
+  (* i. des. *)
+  (* esplits; eauto. *)
+  (* inv MEM_EQUIV_TGT. *)
+  (* unfold InvState.Unary.sem_idT in *. *)
+  (* destruct id0 as [[] x]; eauto. *)
+  (* ss. rewrite <- LOCALS_EQ. eauto. *)
+Qed.
+
+Lemma forget_memory_sem_unary_with_defmem
+      conf st0 st1 mc cmd def_mem
       inv1 invst0 invmem0
+      (LOCALS_EQUIV: locals_equiv_except (AtomSetImpl_from_list (Cmd.get_def cmd)) st0.(EC).(Locals) st1.(EC).(Locals))
+      (STATE_FORGET: InvState.Unary.sem conf (mkState st1.(EC) st1.(ECS) st0.(Mem)) invst0 invmem0 inv1)
+      (MC_SOME : mem_change_of_cmd conf cmd st0.(EC).(Locals) = Some mc)
+      (STATE_MC : states_mem_change conf st0.(Mem) (Mem st1) mc)
+      (DEF_MEM: Cmd.get_def_memory cmd = Some def_mem)
+  : InvState.Unary.sem conf st1 invst0 invmem0 (ForgetMemory.unary def_mem inv1).
+Proof.
+  destruct mc;
+    destruct cmd; ss; des_ifs.
+  - rename value1 into v_sval.
+    rename value2 into v_sptr.
+    rename Heq into SVAL.
+    rename Heq0 into SPTR.
+    inv STATE_MC.
+    inv STATE_FORGET.
+    econs.
+    + ii.
+      destruct x as [e1 e2].
+      admit.
+      (* should prove that e1 and e2 doesn't have modified ptr inside *)
+      (* and then exploit LESSDEF *)
+    + inv NOALIAS.
+      econs; eauto.
+    + ii. ss.
+      unfold locals_equiv_except in *.
+
+      exploit UNIQUE; eauto. intro UNIQUE_X.
+      inv UNIQUE_X.
+      econs; eauto. i.
+
+      (* TODO: difficult *)
+      (* 1. ptr is (b, ofs) from STORE *)
+      (* 2. mptr is (b, ofs) from LOAD *)
+      (* 3-1. if ptr = mptr, *)
+      (* val' = gv somehow *)
+      (* 3-2. otherwise, mload is preserved => diffblock, so uniqueness holds *)
+      admit.
+      
+      (* i. exploit MEM0; eauto. ss. *)
+      
+      (* destruct v_sptr as [x_sptr | c_sptr]. *)
+      (* { ss. rewrite LOCALS in SPTR; cycle 1. *)
+      (*   { unfold AtomSetImpl_from_list. ss. *)
+      (*     apply AtomSetFacts.empty_b. } *)
+      (*   inv UNIQUE_X. *)
+      (*   econs; eauto. *)
+    + ss.
+  - inv STATE_MC.
+    inv STATE_FORGET.
+    econs; eauto.
+    + ii.
+      (* x is noalias with value5, so sem_expr is preserved *)
+      admit.
+    + inv NOALIAS.
+      econs; eauto.
+    + ii. ss.
+      exploit UNIQUE; eauto. intro UNIQUE_X.
+      inv UNIQUE_X.
+      econs; eauto.
+      i. exploit MEM; eauto.
+      ss.
+      admit. (* load after free succeeds -> load before free succeeds and has same value *)
+Admitted.
+
+Lemma forget_memory_sem_unary_without_defmem
+      conf mem0 st1 mc cmd lc
+      inv1 invst0 invmem0
+      (STATE_FORGET: InvState.Unary.sem conf (mkState st1.(EC) st1.(ECS) mem0) invst0 invmem0 inv1)
+      (MC_SOME : mem_change_of_cmd conf cmd lc = Some mc)
+      (STATE_MC : states_mem_change conf mem0 (Mem st1) mc)
+      (DEF_MEM: Cmd.get_def_memory cmd = None)
+  : InvState.Unary.sem conf st1 invst0 invmem0 inv1.
+Proof.
+  destruct mc.
+  - destruct cmd; ss; des_ifs.
+    inv STATE_MC.
+    inv STATE_FORGET.
+    econs.
+    + (* lessdef *)
+      admit. (* need new alloc -> unique *)
+    + destruct NOALIAS. econs; eauto.
+    + ii.
+      exploit UNIQUE; eauto. intro UNIQUE_FORGET.
+      inv UNIQUE_FORGET.
+      econs; eauto.
+      intros mptr_l typ_l align_l val_l LOAD.
+      destruct (GV2ptr conf.(CurTargetData) conf.(CurTargetData).(getPointerSize) mptr_l) eqn:GV2PTR;
+        cycle 1.
+      { unfold mload in LOAD. rewrite GV2PTR in *. congruence. }
+      apply external_intrinsics.GV2ptr_inv in GV2PTR.
+      destruct GV2PTR as [b_l [ofs_l [ch_l]]]. des. subst.
+      destruct (Values.eq_block b_l mb).
+      { admit. (* need new alloc -> unique *) }
+      { eapply MEM; eauto. ss.
+        rewrite <- LOAD. ss.
+        admit. (* mload preserved: mload lemma required *)
+      }
+    + ss.
+  - destruct cmd; ss; des_ifs.
+  - destruct cmd; ss; des_ifs.
+  - inv STATE_MC. destruct st1. ss.
+Admitted.
+
+Lemma forget_memory_sem
+      conf_src st0_src st1_src mc_src cmd_src
+      conf_tgt st0_tgt st1_tgt mc_tgt cmd_tgt
+      inv1 invst0 invmem0
+      (LOCALS_EQUIV_SRC: locals_equiv_except (AtomSetImpl_from_list (Cmd.get_def cmd_src)) st0_src.(EC).(Locals) st1_src.(EC).(Locals))
+      (LOCALS_EQUIV_TGT: locals_equiv_except (AtomSetImpl_from_list (Cmd.get_def cmd_tgt)) st0_tgt.(EC).(Locals) st1_tgt.(EC).(Locals))
       (STATE_FORGET : InvState.Rel.sem conf_src conf_tgt
-                                       (mkState st1_src.(EC) st1_src.(ECS) mem0_src)
-                                       (mkState st1_tgt.(EC) st1_tgt.(ECS) mem0_tgt)
+                                       (mkState st1_src.(EC) st1_src.(ECS) st0_src.(Mem))
+                                       (mkState st1_tgt.(EC) st1_tgt.(ECS) st0_tgt.(Mem))
                                        invst0 invmem0 inv1)
-      (MC_SOME_SRC : mem_change_of_cmd conf_src cmd_src lc_src = Some mc_src)
-      (MC_SOME_TGT : mem_change_of_cmd conf_tgt cmd_tgt lc_tgt = Some mc_tgt)
-      (STATE_EQUIV_SRC : states_mem_change conf_src mem0_src st1_src.(Mem) mc_src)
-      (STATE_EQUIV_TGT : states_mem_change conf_tgt mem0_tgt st1_tgt.(Mem) mc_tgt)
+      (MC_SOME_SRC : mem_change_of_cmd conf_src cmd_src st0_src.(EC).(Locals) = Some mc_src)
+      (MC_SOME_TGT : mem_change_of_cmd conf_tgt cmd_tgt st0_tgt.(EC).(Locals) = Some mc_tgt)
+      (STATE_MC_SRC : states_mem_change conf_src st0_src.(Mem) st1_src.(Mem) mc_src)
+      (STATE_MC_TGT : states_mem_change conf_tgt st0_tgt.(Mem) st1_tgt.(Mem) mc_tgt)
   : InvState.Rel.sem conf_src conf_tgt st1_src st1_tgt invst0 invmem0
                      (ForgetMemory.t (Cmd.get_def_memory cmd_src) (Cmd.get_def_memory cmd_tgt) inv1).
 Proof.
-  (* inv STATE_FORGET. *)
-  (* econs. *)
-  (* { (* SRC *) *)
-  (*   inv SRC. *)
-  (*   econs. *)
-  (*   - ii. *)
-  
-Admitted.
+  inv STATE_FORGET.
+  unfold ForgetMemory.t.
+  econs.
+  - destruct (Cmd.get_def_memory cmd_src) eqn:DEF_MEM_SRC.
+    + destruct (Cmd.get_def_memory cmd_tgt) eqn:DEF_MEM_TGT; ss;
+        eapply forget_memory_sem_unary_with_defmem; eauto.
+    + destruct (Cmd.get_def_memory cmd_tgt) eqn:DEF_MEM_TGT; ss;
+        eapply forget_memory_sem_unary_without_defmem; eauto.
+  - destruct (Cmd.get_def_memory cmd_tgt) eqn:DEF_MEM_TGT.
+    + destruct (Cmd.get_def_memory cmd_src) eqn:DEF_MEM_SRC; ss;
+        eapply forget_memory_sem_unary_with_defmem; eauto.
+    + destruct (Cmd.get_def_memory cmd_src) eqn:DEF_MEM_SRC; ss;
+        eapply forget_memory_sem_unary_without_defmem; eauto.
+  - eapply forget_memory_maydiff_preserved; eauto.
+Qed.
+
+Lemma inv_state_sem_monotone_wrt_invmem
+      invmem0 invmem1 invst0 inv1
+        conf_src st_src
+        conf_tgt st_tgt
+        (MEM_LE:InvMem.Rel.le invmem0 invmem1)
+        (STATE:InvState.Rel.sem conf_src conf_tgt st_src st_tgt invst0 invmem0 inv1)
+    : InvState.Rel.sem conf_src conf_tgt st_src st_tgt invst0 invmem1 inv1.
+  Proof.
+    destruct STATE as [STATE_SRC STATE_TGT STATE_MAYDIFF].
+    inv MEM_LE.
+    econs.
+    - inv SRC.
+      inv STATE_SRC.
+      econs; eauto.
+      ii. exploit PRIVATE; eauto. i.
+      des_ifs.
+      (* problem: should InvMem.Unary.le provide private is only expanding?  *)
+      admit.
+    - inv TGT.
+      inv STATE_TGT.
+      econs; eauto.
+      ii. exploit PRIVATE; eauto. i.
+      des_ifs.
+      (* ditto *)
+      admit.
+    - i. hexploit STATE_MAYDIFF; eauto.
+      intros SEM_INJECT.
+      ii. exploit SEM_INJECT; eauto. i. des.
+      esplits; eauto.
+      eapply genericvalues_inject.gv_inject_incr; eauto.
+  Admitted.
 
 Lemma forget_memory_sound
       m_src conf_src st0_src st1_src cmd_src cmds_src evt_src
@@ -1208,6 +1387,8 @@ Lemma forget_memory_sound
       (STATE: InvState.Rel.sem conf_src conf_tgt st0_src st0_tgt invst0 invmem0 inv0)
       (CMD_SRC: st0_src.(EC).(CurCmds) = cmd_src::cmds_src)
       (CMD_TGT: st0_tgt.(EC).(CurCmds) = cmd_tgt::cmds_tgt)
+      (LOCALS_EQUIV_SRC: locals_equiv_except (AtomSetImpl_from_list (Cmd.get_def cmd_src)) st0_src.(EC).(Locals) st1_src.(EC).(Locals))
+      (LOCALS_EQUIV_TGT: locals_equiv_except (AtomSetImpl_from_list (Cmd.get_def cmd_tgt)) st0_tgt.(EC).(Locals) st1_tgt.(EC).(Locals))
       (NONCALL_SRC: Instruction.isCallInst cmd_src = false)
       (NONCALL_TGT: Instruction.isCallInst cmd_tgt = false)
       (STEP_SRC: sInsn conf_src st0_src st1_src evt_src)
@@ -1239,9 +1420,10 @@ Proof.
   exploit inject_invmem; try exact INJECT_EVENT; eauto. i. des.
   esplits; eauto.
 
-  eapply forget_memory_equiv_except_mem; eauto.
-  admit. (* InvState.Rel.mem monotone w.r.t. invmem1 *)
-Admitted.
+  eapply forget_memory_sem; eauto.
+
+  eapply inv_state_sem_monotone_wrt_invmem; eauto.
+Qed.
 
 (* until here *)
 

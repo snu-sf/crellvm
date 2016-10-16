@@ -266,7 +266,11 @@ Proof.
     rename H into INJECT_EVENT;
       apply negb_false_iff in INJECT_EVENT
   end.
-  exploit forget_memory_sound; try exact MEM; eauto; eauto.
+  hexploit forget_memory_sound; try exact MEM; eauto; eauto.
+  { hexploit step_state_equiv_except; try exact CMDS_SRC; eauto.
+    intro ST_EQ. inv ST_EQ. ss. }
+  { hexploit step_state_equiv_except; try exact CMDS_TGT; eauto.
+    intro ST_EQ. inv ST_EQ. ss. }
   { ss. inv STATE_FORGET. inv SRC.
     eapply step_unique_preserved_mem; try exact NONCALL_SRC; eauto.
     i. exploit forget_unique_no_leaks; ss; eauto.
