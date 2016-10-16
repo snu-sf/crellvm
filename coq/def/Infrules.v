@@ -38,6 +38,22 @@ Definition is_ghost (g:IdT.t) :=
   | (tag, _) => if Tag.eq_dec tag Tag.ghost then true else false
   end.
 
+Definition get_bitsize (ty:typ) (m:module) : option sz :=
+  match ty with
+  | typ_int sz1 => Some sz1
+  | typ_pointer _ => Some
+    (match m with
+     | module_intro ls _ _ =>
+       match (List.find 
+          (fun h => match h with| layout_ptr _ _ _ => true | _ => false end) ls) with
+       | None => Size.from_Z 0%Z
+       | Some (layout_ptr sz _ _) => sz
+       | Some _ => Size.from_Z 0%Z
+       end
+     end)
+  | _ => None 
+  end.
+
 Definition cond_uint_fitinsize (s:sz) (c:INTEGER.t) : bool :=
   Z.leb 0%Z (INTEGER.to_Z c) && Z.ltb (INTEGER.to_Z c) (Zpos (power_sz s)).
 
@@ -917,6 +933,30 @@ Definition apply_infrule
        $$ inv0 |-src (Expr.value dst) >= (Expr.cast castop_ptrtoint midty mid dstty) $$
     then {{ inv0 +++src (Expr.value dst) >= (Expr.cast castop_ptrtoint srcty src dstty) }}
     else apply_fail tt
+  | Infrule.ptrtoint_inttoptr src mid dst srcty midty dstty =>
+    let srcty_sz_opt := get_bitsize srcty m_src in
+    let midty_sz_opt := get_bitsize midty m_src in
+    let dstty_sz_opt := get_bitsize dstty m_src in
+    match srcty_sz_opt with
+    | Some srcty_sz =>
+      match midty_sz_opt with
+      | Some midty_sz => 
+        match dstty_sz_opt with
+        | Some dstty_sz =>
+          if $$ inv0 |-src (Expr.value mid) >= (Expr.cast castop_inttoptr srcty src midty) $$ &&
+             $$ inv0 |-src (Expr.value dst) >= (Expr.cast castop_ptrtoint midty mid dstty) $$ &&
+             cond_le (Size.ThirtyTwo)
+                     (INTEGER.of_Z (Size.to_Z Size.ThirtyTwo) (Size.to_Z srcty_sz) true) 
+                     (INTEGER.of_Z (Size.to_Z Size.ThirtyTwo) (Size.to_Z midty_sz) true) &&
+             sz_dec srcty_sz dstty_sz
+          then {{ inv0 +++src (Expr.value dst) >= (Expr.cast castop_bitcast srcty src dstty) }}
+          else apply_fail tt
+        | None => apply_fail tt
+        end
+      | None => apply_fail tt
+      end
+    | None => apply_fail tt
+    end
   | Infrule.ptrtoint_load ptr ptrty v1 intty v2 a =>
     if $$ inv0 |-src (Expr.load ptr ptrty a) >= (Expr.value v1) $$ &&
        $$ inv0 |-src (Expr.cast castop_ptrtoint ptrty v1 intty) >= (Expr.value v2) $$ &&
@@ -1130,6 +1170,18 @@ Definition apply_infrule
        cond_inttyp srcty
     then {{ inv0 +++src (Expr.value dst) >= (Expr.ext extop_s srcty src dstty) }}
     else apply_fail tt
+  | Infrule.sext_trunc_ashr z x x' v s1 s2 i3 =>
+    let i1 := INTEGER.of_Z (Size.to_Z s1) (Size.to_Z s1) true in
+    let i2 := INTEGER.of_Z (Size.to_Z s1) (Size.to_Z s2) true in
+    let vs3 := ValueT.const (const_newint s1 i3) in
+    if $$ inv0 |-tgt (Expr.trunc truncop_int (typ_int s1) v (typ_int s2)) >= (Expr.value x) $$ &&
+       $$ inv0 |-tgt (Expr.bop bop_shl s1 v vs3) >= (Expr.value x') $$ &&
+       $$ inv0 |-tgt (Expr.bop bop_ashr s1 x' vs3) >= (Expr.value z) $$ &&
+       cond_plus s1 i3 i2 i1
+    then
+      {{ inv0 +++tgt (Expr.ext extop_s (typ_int s2) x (typ_int s1)) >= (Expr.value z) }}
+    else 
+      apply_fail tt
   | Infrule.shift_undef1 z y s =>
     let vundef := ValueT.const (const_undef (typ_int s)) in
     if $$ inv0 |-src (Expr.value z) >= (Expr.bop bop_shl s y vundef) $$ ||

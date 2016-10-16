@@ -1148,6 +1148,15 @@ type ptrtoint_bitcast = {
     dstty : value_type;
 }
 
+type ptrtoint_inttoptr = {
+    src : value;
+    mid : value;
+    dst : value;
+    srcty : value_type;
+    midty : value_type;
+    dstty : value_type;
+}
+
 type ptrtoint_load = {
     ptr : value;
     ptrty : value_type;
@@ -1345,6 +1354,16 @@ type sext_trunc = {
   c : const_int;
   sz1 : size;
   sz2 : size;
+}
+
+type sext_trunc_ashr = {
+    z : value;
+    x : value;
+    xprime : value;
+    v : value;
+    s1 : size;
+    s2 : size;
+    i3 : const_int;
 }
 
 type shift_undef1 = {
@@ -2018,6 +2037,7 @@ type infrule = [
   | OrXor4 of or_xor4
   | OrZero of or_zero
   | PtrtointBitcast of ptrtoint_bitcast
+  | PtrtointInttoptr of ptrtoint_inttoptr
   | PtrtointLoad of ptrtoint_load
   | PtrtointZero of ptrtoint_zero
   | MulBool of mul_bool
@@ -2048,6 +2068,7 @@ type infrule = [
   | SelectIcmpUltConst of select_icmp_ult_const
   | SextBitcast of sext_bitcast
   | SextSext of sext_sext
+  | SextTruncAshr of sext_trunc_ashr
   | SextZext of sext_zext
   | ShiftUndef1 of shift_undef1
   | ShiftUndef2 of shift_undef2
