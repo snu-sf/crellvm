@@ -190,10 +190,8 @@ Proof.
   rename Heq1 into INJECT_F. rename Heq2 into INJECT_T.
   apply negb_false_iff in INJECT_T.
   apply negb_true_iff in INJECT_F.
-  exploit postcond_cmd_inject_event_Subset; eauto.
-  etransitivity.
-  - eapply forget_memory_Subset.
-  - eapply forget_Subset.
+  exploit postcond_cmd_inject_event_Subset; eauto;
+    (etransitivity; [eapply forget_memory_Subset | eapply forget_Subset]).
 Qed.
 
 Lemma step_unique_preserved_mem

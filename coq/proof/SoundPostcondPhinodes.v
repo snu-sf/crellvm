@@ -42,14 +42,37 @@ Lemma add_terminator_cond_br_uncond
 Proof. destruct inv, src, tgt. ss. Qed.
 
 Lemma add_terminator_cond_switch
-      inv bid_src bid_tgt ty val_src val_tgt l0 cls l:
-  Postcond.add_terminator_cond
-    inv
-    (insn_switch bid_src ty val_src l0 cls)
-    (insn_switch bid_tgt ty val_tgt l0 cls)
-    l =
-  inv.
-Proof. destruct inv, src, tgt. ss. Qed.
+      conf_src conf_tgt
+      st_src st_tgt
+      invst invmem inv
+      ty cases l_dflt l_dest
+      id_src val_src gval_src
+      id_tgt val_tgt gval_tgt
+      (STATE: InvState.Rel.sem
+                conf_src conf_tgt st_src st_tgt
+                invst invmem inv)
+      (VAL_SRC: getOperandValue
+                  conf_src.(CurTargetData)
+                  val_src
+                  st_src.(EC).(Locals)
+                  conf_src.(Globals) = Some gval_src)
+      (VAL_TGT: getOperandValue
+                  conf_tgt.(CurTargetData)
+                  val_tgt
+                  st_tgt.(EC).(Locals)
+                  conf_tgt.(Globals) = Some gval_tgt)
+      (DECIDE_SRC: get_switch_branch conf_src.(CurTargetData) ty gval_src cases l_dflt = Some l_dest)
+      (DECIDE_TGT: get_switch_branch conf_tgt.(CurTargetData) ty gval_tgt cases l_dflt = Some l_dest)
+  : InvState.Rel.sem
+      conf_src conf_tgt
+      st_src st_tgt
+      invst invmem
+      (Postcond.add_terminator_cond
+         inv
+         (insn_switch id_src ty val_src l_dflt cases)
+         (insn_switch id_tgt ty val_tgt l_dflt cases) l_dest).
+Proof.
+Admitted.
 
 Lemma add_terminator_cond_br
       conf_src conf_tgt

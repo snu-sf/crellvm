@@ -233,8 +233,8 @@ Proof.
       eapply _sim_local_step.
       { admit. (* tgt not stuck *) }
       i. inv STEP. unfold valid_phinodes in *. simtac.
-      rewrite add_terminator_cond_switch in *.
-      rewrite lookupBlockViaLabelFromFdef_spec in *.
+      (* rewrite add_terminator_cond_switch in *. *)
+      (* rewrite lookupBlockViaLabelFromFdef_spec in *. *)
       admit.
     + (* unreachable *)
       exploit nerror_nfinal_nstuck; eauto. i. des. inv x0.
