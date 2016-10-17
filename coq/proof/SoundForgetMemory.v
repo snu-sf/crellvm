@@ -9,6 +9,7 @@ Require Import Metatheory.
 Import LLVMsyntax.
 Import LLVMinfra.
 Require Import opsem.
+Require Import memory_props.
 
 Require Import sflib.
 Require Import paco.
@@ -514,6 +515,65 @@ Qed.
 
 (* end of malloc *)
 
+(* required lemmas for mload, mstore, malloc *)
+
+(* Lemma mload_aux_malloc_other *)
+(*       TD mem0 bsz gn a mem1 mb *)
+(*       ch b ofs gv *)
+(*       (MALLOC: malloc TD mem0 bsz gn a = Some (mem1, mb)) *)
+(*       (MLOAD: mload_aux mem0 ch b ofs = Some gv) *)
+(*   : mload_aux mem1 ch b ofs = Some gv. *)
+(* Proof. *)
+(* Admitted. *)
+
+Lemma malloc_preserves_mload_aux_other_eq
+      TD mem0 bsz gn a mem1 mb
+      ch b ofs
+      (MALLOC: malloc TD mem0 bsz gn a = Some (mem1, mb))
+      (DIFFBLOCK: b <> mb)
+  : mload_aux mem0 ch b ofs = mload_aux mem1 ch b ofs.
+Proof.
+  clarify_malloc.
+  destruct (mload_aux mem1 ch b ofs) eqn:LOAD1.
+  - exploit MemProps.alloc_preserves_mload_aux_inv; eauto. i. des; congruence.
+  - destruct (mload_aux mem0 ch b ofs) eqn:LOAD0; eauto.
+    exploit MemProps.alloc_preserves_mload_aux; eauto. i. congruence.
+Qed.
+
+Lemma malloc_preserves_mload_other_eq
+      TD mem0 bsz gn a mem1 mb
+      ptr b ofs tyl al
+      (MALLOC: malloc TD mem0 bsz gn a = Some (mem1, mb))
+      (GV2PTR: GV2ptr TD (getPointerSize TD) ptr = Some (Values.Vptr b ofs))
+      (DIFFBLOCK: b <> mb)
+  : mload TD mem0 ptr tyl al = mload TD mem1 ptr tyl al.
+Proof.
+  unfold mload. rewrite GV2PTR.
+  destruct (flatten_typ TD tyl); ss.
+  eapply malloc_preserves_mload_aux_other_eq; eauto.
+Qed.
+
+Lemma bounds_malloc: forall TD M tsz gn M' align0 mb
+                            (H: malloc TD M tsz gn align0 = Some (M', mb)),
+    exists n,
+      GV2int TD Size.ThirtyTwo gn = Some n /\
+      forall b' : Values.block,
+        Memory.Mem.bounds M' b' =
+        (if Values.eq_block b' mb then (0, Size.to_Z tsz * n) else Memory.Mem.bounds M b').
+Proof.
+  intros.
+  apply malloc_inv in H.
+  (* destruct H. *)
+  (* destruct H as [n [J1 [J2 J3]]]. *)
+  des_ifs; cycle 1.
+  { admit. (* GV2int none case will be removed *) }
+  exists z.
+  split; auto.
+  eapply Memory.Mem.bounds_alloc; eauto.
+Admitted.
+
+(* end of required lemmans for mstore, .. *)
+
 Lemma invmem_unary_src_alloc_preserved
       conf invmem0 mem0 mem1
       public gmax mb
@@ -533,10 +593,12 @@ Proof.
     split; eauto.
     eapply Pos.lt_trans; eauto.
     rewrite NEXT_BLOCK. apply Plt_succ'.
-  - i. exploit MEM_PARENT; eauto. i.
-    rewrite x.
-    admit. (* We can deduce b <> (mem0.nextblock) so mload_aux is preserved *)
-Admitted.
+  - i. exploit MEM_PARENT; eauto. intro LOAD_AUX.
+    rewrite LOAD_AUX.
+    eapply malloc_preserves_mload_aux_other_eq; eauto.
+    ii. exploit PRIVATE_PARENT; eauto. i. des.
+    subst. eapply Pos.lt_irrefl; eauto.
+Qed.
 
 (* TODO: simplify proof script *)
 
@@ -580,6 +642,46 @@ Proof.
     end.
     eexists.
     instantiate (1:= InvMem.Rel.mk _ _ _ (fun b => if Values.eq_block b mb_src then Some (mb_tgt, 0%Z) else invmem0.(InvMem.Rel.inject) b)).
+                    Ltac psimpl :=
+                      unfold Ple, Plt in *;
+              subst;
+              try repeat match goal with
+              | [H1: ?y = Pos.succ ?x |- _] =>
+                let le := fresh "PLE" in
+                let lt := fresh "PLT" in
+                assert(le : (x <= y)%positive);
+                [by rewrite H1; apply Ple_succ|];
+                assert(lt : (x < y)%positive);
+                [by rewrite H1; apply Plt_succ|];
+                clear H1
+              end;
+              repeat
+                match goal with
+                | [H: ~ (?x < ?y)%positive |- _] =>
+                  apply Pos.le_nlt in H
+                | [H: (?a >= ?b)%positive |- _] =>
+                  apply Pos.ge_le in H
+                | [H: _ |- (?a >= ?b)%positive] =>
+                  apply Pos.le_ge
+                end;
+              try (by apply Ple_refl);
+              try (by assumption);
+              match goal with
+              | [H: (?x < ?x)%positive |- _] =>
+                by apply Pos.lt_irrefl in H; inv H
+              | [H1: (?x <= ?y)%positive,
+                     H2: (?y <= ?z)%positive |-
+                 (?x <= ?z)%positive ] =>
+                  by eapply Pos.le_trans; eauto
+              | [H1: (?x < ?y)%positive,
+                     H2: (?y < ?z)%positive |-
+                 (?x < ?z)%positive ] =>
+                  by eapply Pos.lt_trans; eauto
+              | [H: (Pos.succ ?x <= ?x)%positive |- _] =>
+                  by generalize H; apply Pos.lt_nle; apply Plt_succ'
+              end.
+
+
     esplits.
     + (* alloc_inject *)
       ii. ss.
@@ -597,8 +699,7 @@ Proof.
           i. exploit PRIVATE; eauto. i.
           des.
           destruct (Values.eq_block b mb_src) eqn:EQ_MB.
-          - subst.
-            exploit Pos.lt_irrefl; eauto. contradiction.
+          - subst. psimpl.
           - split.
             + ii.
               match goal with
@@ -606,18 +707,15 @@ Proof.
                 apply H
               end.
               unfold InvMem.Rel.public_src in *. rewrite EQ_MB in *. eauto.
-            + eapply Pos.lt_trans; eauto.
-              apply Pos.le_succ_l. rewrite NEXT_BLOCK. apply Pos.le_refl.
+            + psimpl.
         }
         { i. exploit PRIVATE_PARENT; eauto. i. des.
           destruct (Values.eq_block b mb_src) eqn:EQ_MB.
-          - subst.
-            exploit Pos.lt_irrefl; eauto. contradiction.
+          - subst. psimpl.
           - split.
             + ii. apply x.
               unfold InvMem.Rel.public_src in *. rewrite EQ_MB in *. eauto.
-            + eapply Pos.lt_trans; eauto.
-              apply Pos.le_succ_l. rewrite NEXT_BLOCK. apply Pos.le_refl.
+            + psimpl.
         }
         { i. exploit MEM_PARENT; eauto. i.
           match goal with
@@ -625,7 +723,8 @@ Proof.
             rewrite H
           end.
           exploit PRIVATE_PARENT; eauto. i. des.
-          admit. (* b is less than Mem0's nextblock, and Mem0 -alloc-> Mem' so mload_aux is preserved *)
+          eapply malloc_preserves_mload_aux_other_eq; eauto.
+          ii. psimpl.
         }
       }
       { (* TGT *)
@@ -643,12 +742,10 @@ Proof.
             end.
             unfold InvMem.Rel.public_tgt in *. des.
             destruct (Values.eq_block b_src mb_src).
-            { clarify. exfalso. eapply Pos.lt_irrefl; eauto. }
+            { clarify. exfalso. psimpl. }
             { esplits; eauto. }
           }
-          { eapply Pos.lt_trans; eauto.
-            apply Pos.le_succ_l. rewrite NEXT_BLOCK. apply Pos.le_refl.
-          }
+          { psimpl. }
         }
         { i. exploit PRIVATE_PARENT; eauto. i. des.
           split.
@@ -659,12 +756,10 @@ Proof.
             end.
             unfold InvMem.Rel.public_tgt in *. des.
             destruct (Values.eq_block b_src mb_src).
-            { clarify. exfalso. eapply Pos.lt_irrefl; eauto. }
+            { clarify. exfalso. psimpl. }
             { esplits; eauto. }
           }
-          { eapply Pos.lt_trans; eauto.
-            apply Pos.le_succ_l. rewrite NEXT_BLOCK. apply Pos.le_refl.
-          }
+          { psimpl. }
         }
         { i. exploit MEM_PARENT; eauto. i.
           match goal with
@@ -672,7 +767,8 @@ Proof.
             rewrite H
           end.
           exploit PRIVATE_PARENT; eauto. i. des.
-          admit. (* b is less than Mem0's nextblock, and Mem0 -alloc-> Mem' so mload_aux is preserved *)
+          eapply malloc_preserves_mload_aux_other_eq; eauto.
+          ii. psimpl.
         }
       }
       { (* inject *)
@@ -688,6 +784,7 @@ Proof.
           { clarify.
             eapply valid_access_malloc_same; eauto.
             admit. (* gn >= gn2 *)
+            (* malloc should succeed only when gn is concrete *)
           }
           { exploit mi_access; eauto.
             eapply valid_access_malloc_other; eauto.
@@ -705,8 +802,7 @@ Proof.
               { exploit genericvalues_inject.Hmap2; eauto. i.
                 exploit (Memory.Mem.alloc_result mem0_tgt); eauto.
                 { clarify_malloc. eauto. }
-                ii. subst.
-                eapply Pos.lt_irrefl. eauto.
+                ii. psimpl.
               }
               eapply malloc_contents_other in DIFF_BLK_TGT; eauto.
               rewrite DIFF_BLK_TGT.
@@ -724,7 +820,7 @@ Proof.
                 { instantiate (1:=mb_src).
                   clarify_malloc.
                   exploit (Memory.Mem.alloc_result mem0_src); eauto. i.
-                  subst. apply Pos.le_ge. apply Pos.le_refl. }
+                  psimpl. }
                 i. congruence.
               }
               eauto.
@@ -740,10 +836,8 @@ Proof.
           ii.
           destruct (Values.eq_block b1 mb_src);
             destruct (Values.eq_block b2 mb_src); clarify.
-          + exploit Hmap2; eauto. i.
-            eapply Pos.lt_irrefl; eauto.
-          + exploit Hmap2; eauto. i.
-            eapply Pos.lt_irrefl; eauto.
+          + exploit Hmap2; eauto. i. psimpl.
+          + exploit Hmap2; eauto. i. psimpl.
           + eapply Hno_overlap with (b1:=b1) (b2:=b2); eauto.
         - (* destruct (Values.eq_block Memory.Mem.nullptr mb_src). *)
           (* - subst. *)
@@ -756,27 +850,14 @@ Proof.
           i. destruct (Values.eq_block b mb_src).
           + subst.
             rewrite NEXT_BLOCK_SRC in *.
-            exfalso.
-            eapply Pos.lt_nle.
-            { apply Plt_succ'. }
-            apply Pos.ge_le.
-            eauto.
-          + apply Hmap1.
-            apply Pos.le_ge.
-            eapply Pos.le_trans.
-            { apply Ple_succ. }
-            { rewrite NEXT_BLOCK_SRC in *.
-              apply Pos.ge_le. eauto.
-            }
+            exfalso. psimpl.
+          + apply Hmap1. psimpl.
         - (* Hmap2 *)
           i. destruct (Values.eq_block b1 mb_src).
           + clarify.
             subst. rewrite NEXT_BLOCK_TGT in *.
             apply Plt_succ'.
-          + exploit Hmap2; eauto. i.
-            eapply Pos.lt_trans; eauto.
-            rewrite NEXT_BLOCK_TGT.
-            apply Plt_succ'.
+          + exploit Hmap2; eauto. i. psimpl.
         - (* mi_freeblocks *)
           intros b NOT_VALID_BLOCK.
           destruct (Values.eq_block b mb_src).
@@ -784,20 +865,16 @@ Proof.
             exfalso.
             apply NOT_VALID_BLOCK.
             unfold Memory.Mem.valid_block.
-            rewrite NEXT_BLOCK_SRC.
-            eapply Plt_succ'.
+            psimpl.
           + apply mi_freeblocks. intros VALID_BLOCK.
             apply NOT_VALID_BLOCK.
             unfold Memory.Mem.valid_block in *.
-            rewrite NEXT_BLOCK_SRC.
-            eapply Pos.lt_trans; eauto.
-            apply Plt_succ'.
+            psimpl.
         - (* mi_mappedblocks *)
           i. destruct (Values.eq_block b mb_src).
           + clarify.
             unfold Memory.Mem.valid_block in *.
-            rewrite NEXT_BLOCK_TGT.
-            apply Plt_succ'.
+            psimpl.
           + eapply Memory.Mem.valid_block_alloc.
             { clarify_malloc. eauto. }
             eapply mi_mappedblocks; eauto.
@@ -813,12 +890,12 @@ Proof.
             erewrite Memory.Mem.bounds_alloc_same; cycle 1.
             { clarify_malloc. exact MALLOC_TGT. }
             apply injective_projections; ss.
+            (* malloc succeeds only when gn concrete *)
             admit. (* GV2int returns 0 => malloc 0-sized space *)
           + erewrite Memory.Mem.bounds_alloc_other with (b':=b); eauto; cycle 1.
             { clarify_malloc. exact MALLOC_SRC. }
             assert (NEQ_BLK_TGT: b' <> mb_tgt).
-            { exploit Hmap2; eauto. ii. subst.
-              eapply Plt_irrefl. eauto. }
+            { exploit Hmap2; eauto. ii. psimpl. }
             erewrite Memory.Mem.bounds_alloc_other with (b':=b'); try exact NEQ_BLK_TGT; cycle 1.
             { clarify_malloc. exact MALLOC_TGT. }
             eapply mi_bounds; eauto.
@@ -827,9 +904,7 @@ Proof.
           + subst.
             exploit mi_globals; eauto. i.
             exploit Hmap1.
-            { apply Pos.le_ge.
-              apply Pos.le_refl.
-            }
+            { psimpl. }
             i. congruence.
           + exploit mi_globals; eauto.
       }
@@ -843,7 +918,7 @@ Proof.
       subst.
       inv MEM. inv WF.
       exploit Hmap1.
-      { apply Pos.le_ge. apply Pos.le_refl. }
+      { psimpl. }
       i. congruence.
   - (* alloc - none *)
     esplits; eauto.
@@ -858,39 +933,138 @@ Proof.
     + inv MEM.
       inv STATE_EQUIV_TGT. rewrite <- MEM_EQ in *.
       inv STATE_EQUIV_SRC.
+      hexploit malloc_result.
+      { symmetry. eauto. }
+      i. des.
       econs; eauto.
       * eapply invmem_unary_src_alloc_preserved; eauto.
       * inv INJECT.
         econs.
         { (* mi-access *)
           i. exploit mi_access; eauto.
-          (* we can deduce b1 is less than nextblock *)
-          (* then valid_access_malloc_inv trivially solves the problem *)
-          admit.
+          assert (DIFFBLOCK_ALLOC: b1 <> Memory.Mem.nextblock (Mem st0_src)).
+          { inv WF. clear Hnull.
+            ii. exploit Hmap1.
+            { instantiate (1:= Memory.Mem.nextblock (Mem st0_src)).
+              psimpl. }
+            i. subst. congruence.
+          }
+          exploit valid_access_malloc_inv; eauto.
+          des_ifs.
         }
         { (* mi_memval *)
-          i. exploit mi_memval; eauto.
-          { (* use Memory.Mem.perm_alloc_inv *)
-            admit. }
-          i. (* b1 is less then nextblock *)
-          exploit malloc_contents_other; eauto.
-          { admit. }
+          i.
+          assert (DIFFBLOCK_ALLOC: b1 <> Memory.Mem.nextblock (Mem st0_src)).
+          { inv WF. clear Hnull.
+            ii. exploit Hmap1.
+            { instantiate (1:= Memory.Mem.nextblock (Mem st0_src)).
+              psimpl. }
+            i. subst. congruence.
+          }
+          exploit mi_memval; eauto.
+          { hexploit Memory.Mem.perm_alloc_inv; eauto.
+            { symmetry. clarify_malloc. eauto. }
+            des_ifs. eauto.
+          }
+          i. exploit malloc_contents_other; eauto.
           intro CONTENTS.
           rewrite CONTENTS. eauto.
         }
       * inv WF.
         econs; eauto.
-        { (* Hmap1 *)
-          (* b >= nextblock mem1 >= nextblock mem0 *)
-          admit. }
-        { (* same *)
-          admit. }
-        { (* b >= nextblock, so bounds preserved *)
-          (* Memory.Mem.bounds_alloc *)
-          admit. }
+        { i. apply Hmap1.
+          psimpl.
+        }
+        { i. apply Hmap1.
+          unfold Memory.Mem.valid_block in *.
+          psimpl.
+        }
+        { idtac. (* b >= nextblock, so bounds preserved *)
+          i. exploit mi_bounds; eauto.
+          intro BOUNDS. rewrite <- BOUNDS.
+          hexploit bounds_malloc; eauto. intro BOUNDS_MALLOC.
+          destruct BOUNDS_MALLOC as [n [_ BOUNDS_MALLOC]].
+          specialize (BOUNDS_MALLOC b).
+          des_ifs.
+          exploit Hmap1.
+          { psimpl. }
+          i. congruence.
+        }
     + reflexivity.
   - (* none - alloc *)
-    admit.
+    esplits; eauto.
+    + ii.
+      solve_alloc_inject.
+    + inv MEM.
+      inv STATE_EQUIV_TGT.
+      inv STATE_EQUIV_SRC.
+      rewrite <- MEM_EQ in *.
+      hexploit malloc_result.
+      { symmetry. eauto. }
+      i. des.
+      econs; eauto.
+      * eapply invmem_unary_src_alloc_preserved; eauto.
+      * inv INJECT.
+        (* econs. *)
+        (* { (* mi-access *) *)
+    (*       i. exploit mi_access; eauto. i. *)
+    (*       assert (DIFFBLOCK_ALLOC: b2 <> Memory.Mem.nextblock (Mem st0_tgt)). *)
+    (*       { inv WF. clear Hnull. *)
+    (*         ii. exploit Hmap2; eauto. *)
+    (*         i. psimpl. *)
+    (*       } *)
+    (*       i. *)
+    (*       exploit valid_access_malloc_inv; eauto. *)
+    (*       des_ifs. *)
+    (*     } *)
+    (*     { (* mi_memval *) *)
+    (*       i. *)
+    (*       assert (DIFFBLOCK_ALLOC: b1 <> Memory.Mem.nextblock (Mem st0_src)). *)
+    (*       { inv WF. clear Hnull. *)
+    (*         ii. exploit Hmap1. *)
+    (*         { apply Pos.le_ge. apply Ple_refl. } *)
+    (*         i. subst. congruence. *)
+    (*       } *)
+    (*       exploit mi_memval; eauto. *)
+    (*       { hexploit Memory.Mem.perm_alloc_inv; eauto. *)
+    (*         { symmetry. clarify_malloc. eauto. } *)
+    (*         des_ifs. eauto. *)
+    (*       } *)
+    (*       i. exploit malloc_contents_other; eauto. *)
+    (*       intro CONTENTS. *)
+    (*       rewrite CONTENTS. eauto. *)
+    (*     } *)
+    (*   * inv WF. *)
+    (*     econs; eauto. *)
+    (*     { i. apply Hmap1. *)
+    (*       apply Pos.le_ge. *)
+    (*       eapply Pos.le_trans; cycle 1. *)
+    (*       { apply Pos.ge_le. eauto. } *)
+    (*       eauto. *)
+    (*       rewrite NEXT_BLOCK. apply Ple_succ. *)
+    (*     } *)
+    (*     { i. apply Hmap1. *)
+    (*       apply Pos.le_ge. *)
+    (*       eapply Pos.le_trans; cycle 1. *)
+    (*       { apply Pos.ge_le. eauto. } *)
+    (*       eauto. *)
+    (*       rewrite NEXT_BLOCK. apply Ple_succ. *)
+    (*     } *)
+    (*     { idtac. (* b >= nextblock, so bounds preserved *) *)
+    (*       i. exploit mi_bounds; eauto. *)
+    (*       intro BOUNDS. rewrite <- BOUNDS. *)
+    (*       hexploit bounds_malloc; eauto. intro BOUNDS_MALLOC. *)
+    (*       destruct BOUNDS_MALLOC as [n [_ BOUNDS_MALLOC]]. *)
+    (*       specialize (BOUNDS_MALLOC b). *)
+    (*       des_ifs. *)
+    (*       exploit Hmap1. *)
+    (*       { apply Pos.le_ge. apply Ple_refl. } *)
+    (*       i. congruence. *)
+    (*     } *)
+    (* + reflexivity. *)
+        admit.
+      * admit.
+    + admit.
   - (* store - store *)
     admit.
   - (* store - none *)
@@ -910,6 +1084,11 @@ Lemma mstore_noalias_mload
       (NOALIAS: InvState.Unary.sem_noalias conf sptr lptr sty lty)
   : mload TD mem1 lptr lty la = mload TD mem0 lptr lty la.
 Proof.
+  (* destruct (mload TD mem1 lptr lty la) eqn:LOAD1. *)
+  (* - exploit MemProps.mstore_preserves_mload_inv'; eauto. *)
+  (* MemProps.mstore_preserves_mload *)
+
+  (* MemProps.no_alias is diffblock for us, so we cannot prove this right now *)
 Admitted.
 
 Lemma diffblock_comm
@@ -1168,6 +1347,7 @@ Proof.
       des_ifs.
       apply ExprPairSetFacts.filter_iff in FORGET_MEMORY; try by solve_compat_bool.
       destruct FORGET_MEMORY as [FORGET_MEMORY_IN FORGET_MEMORY_NOALIAS].
+
       eapply mstore_noalias_mload; eauto.
       exploit forget_memory_is_noalias_exprpair; eauto.
   - (* free *)
@@ -1248,7 +1428,7 @@ Proof.
       (* val' = gv somehow *)
       (* 3-2. otherwise, mload is preserved => diffblock, so uniqueness holds *)
       admit.
-      
+
       (* i. exploit MEM0; eauto. ss. *)
       
       (* destruct v_sptr as [x_sptr | c_sptr]. *)
@@ -1272,7 +1452,7 @@ Proof.
       econs; eauto.
       i. exploit MEM; eauto.
       ss.
-      admit. (* load after free succeeds -> load before free succeeds and has same value *)
+      eapply MemProps.free_preserves_mload_inv; eauto.
 Admitted.
 
 Lemma forget_memory_sem_unary_without_defmem
@@ -1305,8 +1485,8 @@ Proof.
       destruct (Values.eq_block b_l mb).
       { admit. (* need new alloc -> unique *) }
       { eapply MEM; eauto. ss.
-        rewrite <- LOAD. ss.
-        admit. (* mload preserved: mload lemma required *)
+        rewrite <- LOAD.
+        eapply malloc_preserves_mload_other_eq; ss; eauto.
       }
     + ss.
   - destruct cmd; ss; des_ifs.
