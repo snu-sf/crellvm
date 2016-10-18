@@ -18,10 +18,10 @@ mkdir -p $OBJDIR
 cd $OBJDIR
 
 if [ ! -f $OBJDIR/Makefile ]; then
-  cmake $SRCDIR
+  cmake3 $SRCDIR
 fi
 
-cmake --build . -- -j$1
+cmake3 --build . -- -j$1
 make ocaml_doc
 #make -j$JOBS; check_exit "llvm/make"
 #cp bindings/ocaml/llvm/META.llvm bindings/ocaml/llvm/Release/META.llvm

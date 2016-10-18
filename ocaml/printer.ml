@@ -237,6 +237,10 @@ module PrintHints = struct
                                                 ExprsToString.of_expr a ^ " ≥ " ^
                                                   ExprsToString.of_expr b ^ " ≥ " ^
                                                     ExprsToString.of_expr c
+      | Infrule.Coq_transitivity_tgt (a, b, c) -> "transitivityTgt : " ^
+                                                ExprsToString.of_expr a ^ " ≥ " ^
+                                                  ExprsToString.of_expr b ^ " ≥ " ^
+                                                    ExprsToString.of_expr c
       | Infrule.Coq_substitute (x, y, e) ->
          "substitute : "
          ^ ExprsToString.of_expr e ^ " ≥ ([ "
