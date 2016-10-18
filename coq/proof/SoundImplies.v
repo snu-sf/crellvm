@@ -118,7 +118,7 @@ Qed.
 (* TODO: premise for unique *)
 Lemma implies_alias_sound
       inv0 inv1 conf st invst
-      (UNIQUE: AtomSetImpl.For_all (InvState.Unary.sem_unique conf st invst) (Invariant.unique inv0))
+      (UNIQUE: AtomSetImpl.For_all (InvState.Unary.sem_unique conf st) (Invariant.unique inv0))
       (IMPLIES_ALIAS: Invariant.implies_alias inv0 inv0.(Invariant.alias) inv1.(Invariant.alias) = true)
       (ALIAS: InvState.Unary.sem_alias conf st invst (Invariant.alias inv0)):
   <<ALIAS: InvState.Unary.sem_alias conf st invst (Invariant.alias inv1)>>.
@@ -165,13 +165,13 @@ Proof.
 Admitted.
 
 Lemma implies_unique_sound
-      inv0 inv1 conf st invst
+      inv0 inv1 conf st
       (IMPLIES_UNIQUE:AtomSetImpl.subset (Invariant.unique inv1) (Invariant.unique inv0) = true)
-      (UNIQUE : AtomSetImpl.For_all (InvState.Unary.sem_unique conf st invst)
+      (UNIQUE : AtomSetImpl.For_all (InvState.Unary.sem_unique conf st)
                                     (Invariant.unique inv0)):
   <<UNIQUE:
     AtomSetImpl.For_all
-      (InvState.Unary.sem_unique conf st invst)
+      (InvState.Unary.sem_unique conf st)
       (Invariant.unique inv1)>>.
 Proof.
   ii. apply AtomSetImpl.subset_2 in IMPLIES_UNIQUE; eauto.

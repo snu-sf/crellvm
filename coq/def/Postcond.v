@@ -26,14 +26,10 @@ Module Cmd.
 
   Definition get_def_memory (c:t): option Ptr.t :=
     match c with
-    | insn_free x ty v =>
-      TODO.lift_option
-        (fun id => (ValueT.id (IdT.lift Tag.physical id), ty))
-        (getValueID v)
+    | insn_free x ty p =>
+      Some (ValueT.lift Tag.physical p, ty)
     | insn_store x ty v p a =>
-      TODO.lift_option
-        (fun id => (ValueT.id (IdT.lift Tag.physical id), typ_pointer ty))
-        (getValueID p)
+      Some (ValueT.lift Tag.physical p, ty)
     | _ => None
     end.
 
@@ -403,7 +399,7 @@ Module ForgetMemory.
     in
     let inv2 :=
         match s_tgt with
-        | Some s_tgt => Invariant.update_src (unary s_tgt) inv1
+        | Some s_tgt => Invariant.update_tgt (unary s_tgt) inv1
         | None => inv1
         end
     in
@@ -534,6 +530,9 @@ Definition add_terminator_cond_lessdef
            (inv0:ExprPairSet.t): ExprPairSet.t :=
   match term with
   | insn_br _ v l1 l2 =>
+    if (l_dec l1 l2)
+    then inv0
+    else
     let cond_val := if (l_dec l_to l1) then 1%Z else 0%Z in
     let expr1 := Expr.value (ValueT.lift Tag.physical v) in
     let expr2 := Expr.value
@@ -541,6 +540,20 @@ Definition add_terminator_cond_lessdef
     ExprPairSet.add
       (expr1, expr2)
       (ExprPairSet.add (expr2, expr1) inv0)
+  | insn_switch _ ty v l_dflt cl_l =>
+    if (l_dec l_to l_dflt)
+    then inv0
+    else
+    match filter (fun cl => (l_dec l_to (snd cl))) cl_l with
+    | cl::nil =>
+      let expr1 := Expr.value (ValueT.lift Tag.physical v) in
+      let expr2 := Expr.value
+                     (ValueT.const (fst cl)) in
+      ExprPairSet.add
+        (expr1, expr2)
+        (ExprPairSet.add (expr2, expr1) inv0)
+    | _ => inv0
+    end
   | _ => inv0
   end.
 
@@ -634,10 +647,13 @@ Definition postcond_cmd_inject_event
     insn_store _ t2 v2 p2 a2 =>
     typ_dec t1 t2 &&
     (Invariant.inject_value
-       inv (ValueT.lift Tag.physical v1) (ValueT.lift Tag.physical v2))
+       inv (ValueT.lift Tag.physical v1) (ValueT.lift Tag.physical v2)) &&
+    (Invariant.inject_value
+       inv (ValueT.lift Tag.physical p1) (ValueT.lift Tag.physical p2)) &&
+    align_dec a1 a2
   | insn_store _ t1 v1 p1 a1, insn_nop _ =>
     Invariant.is_private inv.(Invariant.src) (ValueT.lift Tag.physical p1)
-  (* | insn_store _ _ _ _ _, _ *)
+  | insn_store _ _ _ _ _, _
   | _, insn_store _ _ _ _ _ => false
 
   | insn_load x1 t1 v1 a1, insn_load x2 t2 v2 a2 =>
@@ -674,19 +690,25 @@ Definition postcond_cmd_inject_event
   (* | insn_alloca _ _ _ _, _ => false *)
   (* | _, insn_alloca _ _ _ _ => false *)
 
-  | insn_malloc x1 t1 v1 a1, insn_malloc x2 t2 v2 a2 =>
-    id_dec x1 x2 &&
-    typ_dec t1 t2 &&
-    (Invariant.inject_value
-       inv (ValueT.lift Tag.physical v1) (ValueT.lift Tag.physical v2)) &&
-    align_dec a1 a2
   | insn_malloc _ _ _ _, _ => false
   | _, insn_malloc _ _ _ _ => false
 
   | _, _ => true
   end.
 
-Definition postcond_cmd_add_private_unique
+
+(* TODO: we will not consider insn_malloc more. *)
+
+(* This removes the defined register from maydiff in 2 cases *)
+(* (alloca, call) because postcond do not *)
+(* produce any lessdef information from them *)
+(* so that reduce_maydiff doesn't remove them.   *)
+Definition remove_def_from_maydiff (src tgt:id) (inv:Invariant.t): Invariant.t :=
+  if id_dec src tgt
+  then Invariant.update_maydiff (IdTSet.remove (IdT.lift Tag.physical src)) inv
+  else inv.
+
+Definition postcond_cmd_add_inject
            (src tgt:cmd)
            (inv0:Invariant.t): Invariant.t :=
   match src, tgt with
@@ -699,7 +721,9 @@ Definition postcond_cmd_add_private_unique
         Invariant.update_tgt
           (Invariant.update_unique
              (AtomSetImpl.add aid_tgt)) inv1 in
-    inv2
+    let inv3 := remove_def_from_maydiff aid_src aid_tgt inv2 in
+    inv3
+
   | insn_alloca aid_src _ _ _, insn_nop _ =>
     let inv1 :=
         Invariant.update_src
@@ -710,6 +734,7 @@ Definition postcond_cmd_add_private_unique
           (Invariant.update_private
              (IdTSet.add (IdT.lift Tag.physical aid_src))) inv1 in
     inv2
+
   | insn_nop _, insn_alloca aid_tgt _ _ _ =>
     let inv1 :=
         Invariant.update_tgt
@@ -720,6 +745,10 @@ Definition postcond_cmd_add_private_unique
           (Invariant.update_private
              (IdTSet.add (IdT.lift Tag.physical aid_tgt))) inv1 in
     inv2
+
+  | insn_call id_src _ _ _ _ _ _, insn_call id_tgt _ _ _ _ _ _ =>
+    remove_def_from_maydiff id_src id_tgt inv0
+
   | _, _ => inv0
   end.
 
@@ -764,20 +793,19 @@ Definition postcond_cmd_add_lessdef
     end
   end.
 
- (* This removes the defined register from maydiff in 3 cases *)
- (* (alloca, malloc, call) because postcond do not *)
- (* produce any lessdef information from them *)
- (* so that reduce_maydiff doesn't remove them.   *)
-Definition remove_def_from_maydiff (src tgt:cmd) (inv:Invariant.t): Invariant.t :=
-  match src, tgt with
-    | insn_alloca x _ _ _, insn_alloca x' _ _ _
-    | insn_malloc x _ _ _, insn_malloc x' _ _ _
-    | insn_call x _ _ _ _ _ _, insn_call x' _ _ _ _ _ _ =>
-      if (id_dec x x')
-      then Invariant.update_maydiff (IdTSet.remove (IdT.lift Tag.physical x)) inv
-      else inv
-    | _, _ => inv
-  end.
+Lemma postcond_cmd_add_lessdef_Subset c inv0
+  :
+    ExprPairSet.Subset inv0 (postcond_cmd_add_lessdef c inv0).
+Proof.
+  ii.
+  destruct c;
+    cbn; des_ifs;
+    repeat (apply ExprPairSetFacts.add_iff; right); ss.
+  unfold postcond_cmd_add_lessdef.
+  unfold postcond_cmd_get_lessdef.
+  ss.
+  des_ifs.
+Qed.
 
 Definition filter_leaked
            (c:cmd) (uniq0:atoms): atoms :=
@@ -824,14 +852,13 @@ Definition postcond_cmd_check
 Definition postcond_cmd_add
            (src tgt:cmd)
            (inv0:Invariant.t): Invariant.t :=
-  let inv1 := postcond_cmd_add_private_unique src tgt inv0 in
+  let inv1 := postcond_cmd_add_inject src tgt inv0 in
   let inv2 := Invariant.update_src
                 (Invariant.update_lessdef (postcond_cmd_add_lessdef src)) inv1 in
   let inv3 := Invariant.update_tgt
                 (Invariant.update_lessdef (postcond_cmd_add_lessdef tgt)) inv2 in
-  let inv4 := remove_def_from_maydiff src tgt inv3 in
-  let inv5 := reduce_maydiff inv4 in
-  inv5.
+  let inv4 := reduce_maydiff inv3 in
+  inv4.
 
 Definition postcond_cmd
            (src tgt:cmd)

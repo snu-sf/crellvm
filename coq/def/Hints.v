@@ -302,6 +302,24 @@ Module Invariant.
     (get_idTs_unary inv.(src))
       ++ (get_idTs_unary inv.(tgt))
       ++ (IdTSet.elements inv.(maydiff)).
+
+  (* Subset predicates *)
+
+  Inductive Subset_unary (inv1 inv2: unary): Prop :=
+  | Subset_unary_intro
+      (SUBSET_LESSDEF: ExprPairSet.Subset inv1.(lessdef) inv2.(lessdef))
+      (SUBSET_NOALIAS: ValueTPairSet.Subset inv1.(alias).(diffblock) inv2.(alias).(diffblock) /\
+                       PtrPairSet.Subset inv1.(alias).(noalias) inv2.(alias).(noalias))
+      (SUBSET_UNIQUE: AtomSetImpl.Subset inv1.(unique) inv2.(unique))
+      (SUBSET_PRIVATE: IdTSet.Subset inv1.(private) inv2.(private))
+  .
+
+  Inductive Subset (inv1 inv2: t): Prop :=
+  | Subset_intro
+      (SUBSET_SRC: Subset_unary inv1.(src) inv2.(src))
+      (SUBSET_TGT: Subset_unary inv1.(tgt) inv2.(tgt))
+      (SUBSET_MAYDIFF: IdTSet.Subset inv2.(maydiff) inv1.(maydiff))
+  .
 End Invariant.
 
 Module Infrule.
@@ -334,9 +352,9 @@ Module Infrule.
   | bop_commutative (e:Expr.t) (opcode:bop) (x:ValueT.t) (y:ValueT.t) (s:sz)
   | bop_distributive_over_selectinst (opcode:bop) (r:IdT.t) (s:IdT.t) (t':IdT.t) (t0:IdT.t) (x:ValueT.t) (y:ValueT.t) (z:ValueT.t) (c:ValueT.t) (bopsz:sz) (selty:typ)
   | bop_distributive_over_selectinst2 (opcode:bop) (r:IdT.t) (s:IdT.t) (t':IdT.t) (t0:IdT.t) (x:ValueT.t) (y:ValueT.t) (z:ValueT.t) (c:ValueT.t) (bopsz:sz) (selty:typ)
-  | bitcastptr (v:ValueT.t) (v':ValueT.t) (bitcastinst:Expr.t)
+  | bitcastptr (v':ValueT.t) (bitcastinst:Expr.t)
   | bitcast_bitcast (src:ValueT.t) (mid:ValueT.t) (dst:ValueT.t) (srcty:typ) (midty:typ) (dstty:typ)
-  | bitcast_load (ptr:ValueT.t) (ptrty:typ) (v1:ValueT.t) (ptrty2:typ) (v2:ValueT.t) (a:align)
+  | bitcast_load (ptr:ValueT.t) (ty:typ) (v1:ValueT.t) (ty2:typ) (v2:ValueT.t) (a:align)
   | bitcast_fpext (src:ValueT.t) (mid:ValueT.t) (dst:ValueT.t) (srcty:typ) (midty:typ) (dstty:typ)
   | bitcast_fptosi (src:ValueT.t) (mid:ValueT.t) (dst:ValueT.t) (srcty:typ) (midty:typ) (dstty:typ)
   | bitcast_fptoui (src:ValueT.t) (mid:ValueT.t) (dst:ValueT.t) (srcty:typ) (midty:typ) (dstty:typ)
@@ -349,7 +367,8 @@ Module Infrule.
   | bitcast_trunc (src:ValueT.t) (mid:ValueT.t) (dst:ValueT.t) (srcty:typ) (midty:typ) (dstty:typ)
   | bitcast_uitofp (src:ValueT.t) (mid:ValueT.t) (dst:ValueT.t) (srcty:typ) (midty:typ) (dstty:typ)
   | bitcast_zext (src:ValueT.t) (mid:ValueT.t) (dst:ValueT.t) (srcty:typ) (midty:typ) (dstty:typ)
-  | diffblock_global_alloca (gx:const) (y:IdT.t)
+  | diffblock_unique (x:IdT.t) (y:IdT.t)
+  | diffblock_global_unique (gx:const) (y:IdT.t)
   | diffblock_global_global (gx:const) (gy:const)
   | diffblock_lessthan (x:ValueT.t) (y:ValueT.t) (x':ValueT.t) (y':ValueT.t)
   | diffblock_noalias (x:ValueT.t) (y:ValueT.t) (x':Ptr.t) (y':Ptr.t)
@@ -364,8 +383,9 @@ Module Infrule.
   | fptoui_fpext (src:ValueT.t) (mid:ValueT.t) (dst:ValueT.t) (srcty:typ) (midty:typ) (dstty:typ)
   | fptrunc_bitcast (src:ValueT.t) (mid:ValueT.t) (dst:ValueT.t) (srcty:typ) (midty:typ) (dstty:typ)
   | fptrunc_fpext (src:ValueT.t) (mid:ValueT.t) (dst:ValueT.t) (srcty:typ) (midty:typ) (dstty:typ)
-  | gepzero (v:ValueT.t) (v':ValueT.t) (gepinst:Expr.t)
+  | gepzero (v':ValueT.t) (gepinst:Expr.t)
   | gep_inbounds_remove (gepinst:Expr.t)
+  | gep_inbounds_add (v:ValueT.t) (ptr:ValueT.t) (loadty:typ) (al:align) (e:Expr.t)
   | inttoptr_bitcast (src:ValueT.t) (mid:ValueT.t) (dst:ValueT.t) (srcty:typ) (midty:typ) (dstty:typ)
   | inttoptr_ptrtoint (src:ValueT.t) (mid:ValueT.t) (dst:ValueT.t) (srcty:typ) (midty:typ) (dstty:typ)
   | inttoptr_zext (src:ValueT.t) (mid:ValueT.t) (dst:ValueT.t) (srcty:typ) (midty:typ) (dstty:typ)
@@ -393,7 +413,9 @@ Module Infrule.
   | or_xor4 (z:ValueT.t) (x:ValueT.t) (y:ValueT.t) (a:ValueT.t) (b:ValueT.t) (nb:ValueT.t) (s:sz)
   | or_zero (z:ValueT.t) (a:ValueT.t) (s:sz)
   | ptrtoint_bitcast (src:ValueT.t) (mid:ValueT.t) (dst:ValueT.t) (srcty:typ) (midty:typ) (dstty:typ)
+  | ptrtoint_inttoptr (src:ValueT.t) (mid:ValueT.t) (dst:ValueT.t) (srcty:typ) (midty:typ) (dstty:typ)
   | ptrtoint_load (ptr:ValueT.t) (ptrty:typ) (v1:ValueT.t) (intty:typ) (v2:ValueT.t) (a:align)
+  | ptrtoint_zero (ptrty:typ) (intty:typ)
   | replace_rhs (x:IdT.t) (y:ValueT.t) (e1:Expr.t) (e2:Expr.t) (e2':Expr.t)
   | replace_rhs_opt	(x:IdT.t) (y:ValueT.t) (e1:Expr.t) (e2:Expr.t) (e2':Expr.t)
   | rem_neg (z:IdT.t) (my:ValueT.t) (x:ValueT.t) (y:ValueT.t) (sz:sz)
@@ -416,6 +438,7 @@ Module Infrule.
   | select_icmp_ult_const (z:IdT.t) (y x:ValueT.t) (c c':INTEGER.t) (selcomm:bool) (s:sz) 
   | sext_bitcast (src:ValueT.t) (mid:ValueT.t) (dst:ValueT.t) (srcty:typ) (midty:typ) (dstty:typ)
   | sext_sext (src:ValueT.t) (mid:ValueT.t) (dst:ValueT.t) (srcty:typ) (midty:typ) (dstty:typ)
+  | sext_trunc_ashr (z x x' v:ValueT.t) (s1 s2:sz) (i3:INTEGER.t)
   | sext_zext (src:ValueT.t) (mid:ValueT.t) (dst:ValueT.t) (srcty:typ) (midty:typ) (dstty:typ)
   | shift_undef1 (z:ValueT.t) (y:ValueT.t) (s:sz)
   | shift_undef2 (z:ValueT.t) (y:ValueT.t) (c:INTEGER.t) (s:sz)
@@ -465,8 +488,8 @@ Module Infrule.
   | zext_xor (z:ValueT.t) (y:ValueT.t) (y':ValueT.t) (x:ValueT.t) (s:sz)
   | zext_zext (src:ValueT.t) (mid:ValueT.t) (dst:ValueT.t) (srcty:typ) (midty:typ) (dstty:typ)
   | intro_ghost (x:Expr.t) (g:id)
-  | intro_eq (x:ValueT.t)
-  | intro_eq_tgt (x:ValueT.t)
+  | intro_eq (x:Expr.t)
+  | intro_eq_tgt (x:Expr.t)
   | icmp_inverse (c:cond) (ty:typ) (x:ValueT.t) (y:ValueT.t) (v:INTEGER.t)
   | icmp_inverse_rhs (c:cond) (ty:typ) (x:ValueT.t) (y:ValueT.t) (v:INTEGER.t)
   | icmp_swap_operands (c:cond) (ty:typ) (x:ValueT.t) (y:ValueT.t) (z:ValueT.t)

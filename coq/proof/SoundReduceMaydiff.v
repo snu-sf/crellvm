@@ -179,7 +179,7 @@ Section Filter.
         (STATE: InvState.Unary.sem conf st invst invmem inv):
     InvState.Unary.sem conf st (filter preserved invst) invmem inv.
   Proof.
-    inv STATE. econs.
+    inv STATE. econs; eauto.
     - ii.
       exploit filter_subset_expr; eauto. i. des.
       exploit LESSDEF; eauto. i. des.
@@ -196,8 +196,6 @@ Section Filter.
       + eapply NOALIAS0; eauto.
         * eapply filter_subset_valueT; eauto.
         * eapply filter_subset_valueT; eauto.
-    - ii. exploit UNIQUE; eauto. i. inv x0.
-      econs; eauto.
     - ii. exploit PRIVATE; eauto.
       eapply filter_subset_idT; eauto.
   Qed.
