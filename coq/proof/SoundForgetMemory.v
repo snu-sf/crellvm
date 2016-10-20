@@ -513,19 +513,6 @@ Proof.
   des_ifs.
 Qed.
 
-(* end of malloc *)
-
-(* required lemmas for mload, mstore, malloc *)
-
-(* Lemma mload_aux_malloc_other *)
-(*       TD mem0 bsz gn a mem1 mb *)
-(*       ch b ofs gv *)
-(*       (MALLOC: malloc TD mem0 bsz gn a = Some (mem1, mb)) *)
-(*       (MLOAD: mload_aux mem0 ch b ofs = Some gv) *)
-(*   : mload_aux mem1 ch b ofs = Some gv. *)
-(* Proof. *)
-(* Admitted. *)
-
 Lemma malloc_preserves_mload_aux_other_eq
       TD mem0 bsz gn a mem1 mb
       ch b ofs
@@ -552,25 +539,6 @@ Proof.
   destruct (flatten_typ TD tyl); ss.
   eapply malloc_preserves_mload_aux_other_eq; eauto.
 Qed.
-
-Lemma bounds_malloc: forall TD M tsz gn M' align0 mb
-                            (H: malloc TD M tsz gn align0 = Some (M', mb)),
-    exists n,
-      GV2int TD Size.ThirtyTwo gn = Some n /\
-      forall b' : Values.block,
-        Memory.Mem.bounds M' b' =
-        (if Values.eq_block b' mb then (0, Size.to_Z tsz * n) else Memory.Mem.bounds M b').
-Proof.
-  intros.
-  apply malloc_inv in H.
-  (* destruct H. *)
-  (* destruct H as [n [J1 [J2 J3]]]. *)
-  des_ifs; cycle 1.
-  { admit. (* GV2int none case will be removed *) }
-  exists z.
-  split; auto.
-  eapply Memory.Mem.bounds_alloc; eauto.
-Admitted.
 
 Lemma mstore_aux_valid_access
       mem0 mem1 gv p
@@ -699,6 +667,21 @@ Proof.
   - destruct (mload_aux mem1 mc b ofs) eqn:MLOAD1; eauto.
     exploit MemProps.free_preserves_mload_aux_inv; eauto. i.
     congruence.
+Qed.
+
+Lemma mstore_aux_getN_out
+      (chunk : list AST.memory_chunk) (m1 : Memory.Mem.mem) (b : Values.block) (ofs : Z) 
+      (gv : GenericValue) (m2 : Memory.Mem.mem)
+      (STORE: mstore_aux m1 chunk gv b ofs = Some m2)
+      (blk : Values.block) (ofs1 : Z) (sz : nat)
+      (DIFFBLOCK: blk <> b)
+  : Memory.Mem.getN sz ofs1 (Maps.PMap.get blk (Memory.Mem.mem_contents m1)) =
+    Memory.Mem.getN sz ofs1 (Maps.PMap.get blk (Memory.Mem.mem_contents m2)).
+Proof.
+  revert m1 ofs gv STORE.
+  induction chunk; i; ss; des_ifs.
+  eapply IHchunk in STORE. rewrite <- STORE.
+  eapply Memory.Mem.store_getN_out; eauto.
 Qed.
 
 Ltac solve_alloc_inject :=
@@ -860,8 +843,10 @@ Proof.
           destruct (Values.eq_block b1 mb_src).
           { clarify.
             eapply valid_access_malloc_same; eauto.
-            admit. (* gn >= gn2 *)
-            (* malloc should succeed only when gn is concrete *)
+            repeat rewrite Z.add_0_r.
+            des. splits; eauto.
+            exploit genericvalues_inject.simulation__eq__GV2int; eauto. intro GV2INT_INJECT.
+            rewrite <- GV2INT_INJECT. eauto.
           }
           { exploit mi_access; eauto.
             eapply valid_access_malloc_other; eauto.
@@ -967,8 +952,9 @@ Proof.
             erewrite Memory.Mem.bounds_alloc_same; cycle 1.
             { clarify_malloc. exact MALLOC_TGT. }
             apply injective_projections; ss.
-            (* malloc succeeds only when gn concrete *)
-            admit. (* GV2int returns 0 => malloc 0-sized space *)
+            solve_match_bool. clarify.
+            exploit genericvalues_inject.simulation__eq__GV2int; eauto. intro GV2INT_INJECT.
+            rewrite <- GV2INT_INJECT. eauto.
           + erewrite Memory.Mem.bounds_alloc_other with (b':=b); eauto; cycle 1.
             { clarify_malloc. exact MALLOC_SRC. }
             assert (NEQ_BLK_TGT: b' <> mb_tgt).
@@ -1043,20 +1029,19 @@ Proof.
       }
     + inv WF.
       econs; eauto.
-      { i. apply Hmap1. psimpl. }
-      { i. apply Hmap1.
-        unfold Memory.Mem.valid_block in *. psimpl. }
-        { idtac. (* b >= nextblock, so bounds preserved *)
-          i. exploit mi_bounds; eauto.
-          intro BOUNDS. rewrite <- BOUNDS.
-          hexploit bounds_malloc; eauto. intro BOUNDS_MALLOC.
-          destruct BOUNDS_MALLOC as [n [_ BOUNDS_MALLOC]].
-          specialize (BOUNDS_MALLOC b).
-          des_ifs.
+      * i. apply Hmap1. psimpl.
+      * i. apply Hmap1.
+        unfold Memory.Mem.valid_block in *. psimpl.
+      * i.
+        assert (ALLOC_PRIVATE: b <> Memory.Mem.nextblock (Mem st0_src)).
+        { clear Hnull.
+          ii. subst.
           exploit Hmap1.
           { psimpl. }
-          i. congruence.
-        }
+          i. congruence. }
+        erewrite Memory.Mem.bounds_alloc_other; try exact ALLOC_PRIVATE; cycle 1.
+        { eapply malloc_inv. symmetry. exact MALLOC. }
+        eapply mi_bounds; eauto.
   - (* none - alloc *)
     esplits; eauto; [solve_alloc_inject| |reflexivity].
     inv MEM.
@@ -1093,18 +1078,17 @@ Proof.
       }
     + inv WF.
       econs; eauto.
-      { i. exploit Hmap2; eauto. i. psimpl. }
-      { i. exploit Hmap2; eauto. i.
-        unfold Memory.Mem.valid_block. psimpl. }
-      { i. exploit mi_bounds; eauto.
-        intro BOUNDS. rewrite BOUNDS.
-        hexploit bounds_malloc; eauto. intro BOUNDS_MALLOC.
-        destruct BOUNDS_MALLOC as [n [_ BOUNDS_MALLOC]].
-        specialize (BOUNDS_MALLOC b').
-        des_ifs.
-        exploit Hmap2; eauto.
-        i. psimpl.
-      }
+      * i. exploit Hmap2; eauto. i. psimpl.
+      * i. exploit Hmap2; eauto. i.
+        unfold Memory.Mem.valid_block. psimpl.
+      * i.
+        assert (ALLOC_PRIVATE: b' <> Memory.Mem.nextblock (Mem st0_tgt)).
+        { clear Hnull.
+          ii. subst.
+          exploit Hmap2; eauto. i. psimpl. }
+        erewrite Memory.Mem.bounds_alloc_other with (b':=b'); try exact ALLOC_PRIVATE; cycle 1.
+        { eapply malloc_inv. symmetry. exact MALLOC. }
+        eapply mi_bounds; eauto.
   - (* store - store *)
     esplits; eauto; [solve_alloc_inject| |reflexivity].
     rename ptr0 into ptr_src. rename gv0 into gv_src.
@@ -1121,8 +1105,6 @@ Proof.
     rename b into sb_tgt. rename i0 into sofs_tgt. rename Heq into GV2PTR_TGT.
     rename l0 into chunkl_tgt. rename Heq0 into FLATTEN_TGT.
     assert(SPTR_INJECT: InvMem.Rel.inject invmem0 sb_src = Some (sb_tgt, 0) /\ sofs_src = sofs_tgt).
-                        (* Integers.Int.signed 31 sofs_src = Integers.Int.signed 31 sofs_tgt). *)
-                                        (* Integers.Int.signed 31 sofs_tgt = (Integers.Int.signed 31 sofs_src) + ofs_inj). *)
     { inv PTR_INJECT; ss.
       des_ifs.
       match goal with
@@ -1213,10 +1195,17 @@ Proof.
         i. exploit mi_memval; eauto.
         { eapply mstore_aux_preserves_perm; eauto. }
         i.
-        admit.
-        (* when b1 <> sb_src /\ b2 <> sb_tgt, we can use Memory.Mem.store_getN_out *)
-        (* otherwise, we somehow use Memory.Mem.store_mem_contents *)
-        (* see genericvalues_inject.mem_inj_mstore_aux / hint/validator_props.v #1728 *)
+        assert(STORE_DIFFBLOCK: b1 <> b).
+        { ii. subst.
+          inv SRC.
+          exploit PRIVATE; eauto. intros [NOT_PUBLIC _].
+          apply NOT_PUBLIC.
+          unfold InvMem.Rel.public_src. congruence. }
+        assert (GET_ONE: Memory.Mem.getN 1 ofs0 (Maps.PMap.get b1 (Memory.Mem.mem_contents (Mem st0_src))) =
+                Memory.Mem.getN 1 ofs0 (Maps.PMap.get b1 (Memory.Mem.mem_contents (Mem st1_src)))).
+        { eapply mstore_aux_getN_out; eauto. }
+        ss. inv GET_ONE.
+        eauto.
       }
     + (* WF *)
       inv WF.
@@ -1553,8 +1542,6 @@ Lemma exprpair_forget_memory_disjoint
       conf st1 mem0 invst0 invmem0 inv1 lc
       cmd mc ptr
       (STATE: InvState.Unary.sem conf (mkState st1.(EC) st1.(ECS) mem0) invst0 invmem0 inv1)
-      (* (UNIQUE: AtomSetImpl.For_all (InvState.Unary.sem_unique conf (mkState st1.(EC) st1.(ECS) mem0)) *)
-      (*                                                         (Invariant.unique inv1)) *)
       (MC_SOME : mem_change_of_cmd conf cmd lc = Some mc)
       (LOCALS_EQUIV: locals_equiv_except (AtomSetImpl_from_list (Cmd.get_def cmd)) lc st1.(EC).(Locals))
       (STATE_EQUIV : states_mem_change conf mem0 st1.(Mem) mc)
@@ -1628,17 +1615,6 @@ Proof.
   assert (DROP_FORGET_MEMORY:IdTSet.mem id0 (Invariant.maydiff inv0) = false).
   { destruct def_mem_src; destruct def_mem_tgt; ss. }
   exploit MAYDIFF; eauto.
-  (* { inv MEM_EQUIV_SRC. *)
-  (*   unfold InvState.Unary.sem_idT in *. *)
-  (*   destruct id0 as [[] x]; eauto. *)
-  (*   ss. rewrite LOCALS_EQ. eauto. *)
-  (* } *)
-  (* i. des. *)
-  (* esplits; eauto. *)
-  (* inv MEM_EQUIV_TGT. *)
-  (* unfold InvState.Unary.sem_idT in *. *)
-  (* destruct id0 as [[] x]; eauto. *)
-  (* ss. rewrite <- LOCALS_EQ. eauto. *)
 Qed.
 
 Lemma forget_memory_sem_unary_with_defmem
@@ -1684,15 +1660,6 @@ Proof.
       (* val' = gv somehow *)
       (* 3-2. otherwise, mload is preserved => diffblock, so uniqueness holds *)
       admit.
-
-      (* i. exploit MEM0; eauto. ss. *)
-      
-      (* destruct v_sptr as [x_sptr | c_sptr]. *)
-      (* { ss. rewrite LOCALS in SPTR; cycle 1. *)
-      (*   { unfold AtomSetImpl_from_list. ss. *)
-      (*     apply AtomSetFacts.empty_b. } *)
-      (*   inv UNIQUE_X. *)
-      (*   econs; eauto. *)
     + ss.
   - inv STATE_MC.
     inv STATE_FORGET.
