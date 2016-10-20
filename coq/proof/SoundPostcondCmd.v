@@ -159,7 +159,8 @@ Proof.
         (* can believe it even without proofs *)
       + exploit LOCALS; eauto.
         rewrite <- lookupAL_updateAddAL_neq in *; eauto.
-    - i. eauto.
+    - eauto.
+    - eauto.
   }
 Admitted.
 

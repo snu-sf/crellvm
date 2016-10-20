@@ -268,6 +268,9 @@ Module Unary.
       (MEM: forall mptr typ align val'
               (LOAD: mload conf.(CurTargetData) st.(Mem) mptr typ align = Some val'),
           sem_diffblock conf val val')
+      (GLOBALS: forall gid val'
+                       (VAL': lookupAL _ conf.(Globals) gid = Some val'),
+          sem_diffblock conf val val')
   .
 
   Definition sem_private (conf:Config) (st:State) (invst:t) (private:list mblock) (a:IdT.t): Prop :=

@@ -901,21 +901,14 @@ Proof.
           + exploit Hmap2; eauto. i. psimpl.
           + exploit Hmap2; eauto. i. psimpl.
           + eapply Hno_overlap with (b1:=b1) (b2:=b2); eauto.
-        - (* destruct (Values.eq_block Memory.Mem.nullptr mb_src). *)
-          (* - subst. *)
-          (*   hexploit Memory.Mem.alloc_result. *)
-          (*   { clarify_malloc. exact MALLOC_SRC. } *)
-          (*   i. *)
-          (* - done. *)
-          admit. (* nullptr will be removed *)
         - (* Hmap1 *)
-          i. destruct (Values.eq_block b mb_src).
+          intro b_src. i. destruct (Values.eq_block b_src mb_src).
           + subst.
             rewrite NEXT_BLOCK_SRC in *.
             exfalso. psimpl.
           + apply Hmap1. psimpl.
         - (* Hmap2 *)
-          i. destruct (Values.eq_block b1 mb_src).
+          intros b_src b_tgt. i. destruct (Values.eq_block b_src mb_src).
           + clarify.
             subst. rewrite NEXT_BLOCK_TGT in *.
             apply Plt_succ'.
@@ -1000,7 +993,7 @@ Proof.
       { (* mi-access *)
         i. exploit mi_access; eauto.
         assert (DIFFBLOCK_ALLOC: b1 <> Memory.Mem.nextblock (Mem st0_src)).
-        { inv WF. clear Hnull.
+        { inv WF.
           ii. exploit Hmap1.
           { instantiate (1:= Memory.Mem.nextblock (Mem st0_src)).
             psimpl. }
@@ -1012,7 +1005,7 @@ Proof.
       { (* mi_memval *)
         i.
         assert (DIFFBLOCK_ALLOC: b1 <> Memory.Mem.nextblock (Mem st0_src)).
-        { inv WF. clear Hnull.
+        { inv WF.
           ii. exploit Hmap1.
           { instantiate (1:= Memory.Mem.nextblock (Mem st0_src)).
             psimpl. }
@@ -1034,8 +1027,7 @@ Proof.
         unfold Memory.Mem.valid_block in *. psimpl.
       * i.
         assert (ALLOC_PRIVATE: b <> Memory.Mem.nextblock (Mem st0_src)).
-        { clear Hnull.
-          ii. subst.
+        { ii. subst.
           exploit Hmap1.
           { psimpl. }
           i. congruence. }
@@ -1058,7 +1050,7 @@ Proof.
       { (* mi-access *)
         i. exploit mi_access; eauto. i.
         assert (DIFFBLOCK_ALLOC: b2 <> Memory.Mem.nextblock (Mem st0_tgt)).
-        { inv WF. clear Hnull.
+        { inv WF.
           ii. exploit Hmap2; eauto.
           i. psimpl.
         }
@@ -1067,7 +1059,7 @@ Proof.
       { (* mi_memval *)
         i.
         assert (DIFFBLOCK_ALLOC: b2 <> Memory.Mem.nextblock (Mem st0_tgt)).
-        { inv WF. clear Hnull.
+        { inv WF.
           ii. exploit Hmap2; eauto.
           i. psimpl.
         }
@@ -1083,8 +1075,7 @@ Proof.
         unfold Memory.Mem.valid_block. psimpl.
       * i.
         assert (ALLOC_PRIVATE: b' <> Memory.Mem.nextblock (Mem st0_tgt)).
-        { clear Hnull.
-          ii. subst.
+        { ii. subst.
           exploit Hmap2; eauto. i. psimpl. }
         erewrite Memory.Mem.bounds_alloc_other with (b':=b'); try exact ALLOC_PRIVATE; cycle 1.
         { eapply malloc_inv. symmetry. exact MALLOC. }
@@ -1111,7 +1102,7 @@ Proof.
       | [H: memory_sim.MoreMem.val_inject _ (Values.Vptr _ _) (Values.Vptr _ _) |- _] =>
         inv H
       end.
-      inv WF. clear Hnull.
+      inv WF.
       exploit mi_range_block; eauto. i. subst.
       esplits; eauto.
       rewrite Integers.Int.add_zero. reflexivity.
@@ -1240,7 +1231,7 @@ Proof.
       | [H: memory_sim.MoreMem.val_inject _ (Values.Vptr _ _) (Values.Vptr _ _) |- _] =>
         inv H
       end.
-      inv WF. clear Hnull.
+      inv WF.
       exploit mi_bounds; eauto. intros BOUNDS.
       rewrite BOUNDS_SRC in BOUNDS.
       rewrite BOUNDS_TGT in BOUNDS.
@@ -1288,7 +1279,7 @@ Proof.
     inv STATE_EQUIV_SRC. rewrite <- MEM_EQ. clear MEM_EQ.
     inv STATE_EQUIV_TGT. rewrite <- MEM_EQ. clear MEM_EQ.
     esplits; eauto; [solve_alloc_inject|reflexivity].
-Admitted.
+Qed.
 
 (* We use this as an axiom for now *)
 Lemma mstore_noalias_mload
@@ -1340,15 +1331,15 @@ Proof.
 Qed.
 
 (* TODO: prove this after adding unique<>globals*)
-Lemma const_unique_diffblock
-      conf c gv_c
-      st1 x_inv gv_inv val
-      (FORGET_PTR : const2GV (CurTargetData conf) (Globals conf) c = Some gv_c)
-      (VAL : lookupAL GenericValue (Locals (EC st1)) x_inv = Some gv_inv)
-      (XX : forall (gid : atom) (gptr : GenericValue),
-          lookupAL GenericValue (Globals conf) gid = Some gptr -> InvState.Unary.sem_diffblock conf val gptr)
-  : InvState.Unary.sem_diffblock conf gv_c gv_inv.
-Proof.
+(* Lemma const_unique_diffblock *)
+(*       conf c gv_c *)
+(*       st1 x_inv gv_inv val *)
+(*       (FORGET_PTR : const2GV (CurTargetData conf) (Globals conf) c = Some gv_c) *)
+(*       (VAL : lookupAL GenericValue (Locals (EC st1)) x_inv = Some gv_inv) *)
+(*       (XX : forall (gid : atom) (gptr : GenericValue), *)
+(*           lookupAL GenericValue (Globals conf) gid = Some gptr -> InvState.Unary.sem_diffblock conf val gptr) *)
+(*   : InvState.Unary.sem_diffblock conf gv_c gv_inv. *)
+(* Proof. *)
 (* destruct c. *)
 (* - unfold InvState.Unary.sem_diffblock. *)
 (*   des_ifs. *)
@@ -1357,7 +1348,7 @@ Proof.
 (*   unfold zeroconst2GV in *. des_ifs. ss. *)
 (*   unfold zeroconst2GV_aux in *. *)
 (*   unfold GV2ptr in *. des_ifs. *)
-Admitted.
+(* Admitted. *)
 
 Lemma is_diffblock_sem
       conf st invst invmem inv
@@ -1442,11 +1433,11 @@ Proof.
     inv STATE.
     exploit UNIQUE; eauto.
     { apply AtomSetFacts.mem_iff; eauto. }
-    intro UNIQUE_X. inv UNIQUE_X.
-
+    intro UNIQUE_X.
     unfold Invariant.values_diffblock_from_unique in *.
     destruct v_forget as [x_forget| c_forget]; ss.
-    + assert (IDS_NEQ: x_forget <> x_inv).
+    + inv UNIQUE_X.
+      assert (IDS_NEQ: x_forget <> x_inv).
       { unfold IdT.lift in *.
         match goal with
         | [H: _ <> _ |- _] =>
@@ -1455,16 +1446,27 @@ Proof.
       apply diffblock_implies_noalias.
       unfold InvState.Unary.sem_idT in *. ss. clarify.
       apply diffblock_comm.
-      
       eapply LOCALS; eauto.
-    + assert (XX:
-                forall gid gptr,
-                  lookupAL _ conf.(Globals) gid = Some gptr ->
-                  InvState.Unary.sem_diffblock conf val gptr).
-      { admit. (* sem_unique seems to have to guarantee this *) }
-      apply diffblock_implies_noalias.
+    + apply diffblock_implies_noalias.
       unfold InvState.Unary.sem_idT in *. ss. clarify.
-      eapply const_unique_diffblock; eauto.
+      Lemma unique_const_diffblock
+            conf st x gv_x c gv_c (* S ty *)
+            (UNIQUE_X : InvState.Unary.sem_unique conf st x)
+            (INV_PTR : lookupAL GenericValue (Locals (EC st)) x = Some gv_x)
+            (* (WF_CONST: wf_const S conf.(CurTargetData) c ty) *)
+            (FORGET_PTR : const2GV (CurTargetData conf) (Globals conf) c = Some gv_c)
+        : InvState.Unary.sem_diffblock conf gv_c gv_x.
+      Proof.
+        (* exploit MemProps.const2GV_valid_ptrs; eauto. *)
+        (* { admit. } *)
+        (* inv UNIQUE_X. *)
+        (* i. unfold InvState.Unary.sem_diffblock. des_ifs. *)
+        (* ii. subst.  *)
+        (* we can use the lemma below if we have MemProps.wf_globals and wf_const *)
+        (* MemProps.const2GV_valid_ptrs *)
+        (* wf_globals requires a system.. *)
+      Admitted.
+      eapply unique_const_diffblock; eauto.
   - rename NOALIAS_PTR0 into DIFFBLOCK_FROM_UNIQUE.
     des_bool. des. des_bool.
     rename NOALIAS_PTR0 into INV_UNIQUE.
@@ -1482,11 +1484,12 @@ Proof.
     inv STATE.
     exploit UNIQUE; eauto.
     { apply AtomSetFacts.mem_iff; eauto. }
-    intro UNIQUE_X. inv UNIQUE_X.
+    intro UNIQUE_X.
 
     unfold Invariant.values_diffblock_from_unique in *.
     destruct vt_inv as [[[] x_inv]| c_inv]; ss.
-    + assert (IDS_NEQ: x_forget <> x_inv).
+    + inv UNIQUE_X.
+      assert (IDS_NEQ: x_forget <> x_inv).
       { unfold IdT.lift in *.
         match goal with
         | [H: _ <> _ |- _] =>
@@ -1496,15 +1499,10 @@ Proof.
       unfold InvState.Unary.sem_idT in *. ss. clarify.
       
       eapply LOCALS; eauto.
-    + assert (XX:
-                forall gid gptr,
-                  lookupAL _ conf.(Globals) gid = Some gptr ->
-                  InvState.Unary.sem_diffblock conf val gptr).
-      { admit. (* sem_unique seems to have to guarantee this *) }
-      apply diffblock_implies_noalias.
+    + apply diffblock_implies_noalias.
       apply diffblock_comm.
       unfold InvState.Unary.sem_idT in *. ss. clarify.
-      eapply const_unique_diffblock; eauto.
+      eapply unique_const_diffblock; eauto.
   - exploit is_noalias_sem.
     { eauto. }
     { eauto. }
@@ -1518,7 +1516,7 @@ Proof.
     { destruct v_forget as [x_forget|c_forget]; eauto. }
     i. apply diffblock_implies_noalias.
     apply diffblock_comm. eauto.
-Admitted.
+Qed.
 
 Lemma forget_memory_is_noalias_exprpair
       conf st1 invst0 invmem0 inv1 mem0
