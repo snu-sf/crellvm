@@ -1330,26 +1330,6 @@ Proof.
   unfold InvState.Unary.sem_diffblock, InvState.Unary.sem_noalias in *. des_ifs.
 Qed.
 
-(* TODO: prove this after adding unique<>globals*)
-(* Lemma const_unique_diffblock *)
-(*       conf c gv_c *)
-(*       st1 x_inv gv_inv val *)
-(*       (FORGET_PTR : const2GV (CurTargetData conf) (Globals conf) c = Some gv_c) *)
-(*       (VAL : lookupAL GenericValue (Locals (EC st1)) x_inv = Some gv_inv) *)
-(*       (XX : forall (gid : atom) (gptr : GenericValue), *)
-(*           lookupAL GenericValue (Globals conf) gid = Some gptr -> InvState.Unary.sem_diffblock conf val gptr) *)
-(*   : InvState.Unary.sem_diffblock conf gv_c gv_inv. *)
-(* Proof. *)
-(* destruct c. *)
-(* - unfold InvState.Unary.sem_diffblock. *)
-(*   des_ifs. *)
-(*   unfold const2GV in *. des_ifs. *)
-(*   unfold _const2GV in *. des_ifs. *)
-(*   unfold zeroconst2GV in *. des_ifs. ss. *)
-(*   unfold zeroconst2GV_aux in *. *)
-(*   unfold GV2ptr in *. des_ifs. *)
-(* Admitted. *)
-
 Lemma is_diffblock_sem
       conf st invst invmem inv
       v1 ty1 v2 ty2 gv1 gv2
@@ -1464,7 +1444,7 @@ Proof.
         (* ii. subst.  *)
         (* we can use the lemma below if we have MemProps.wf_globals and wf_const *)
         (* MemProps.const2GV_valid_ptrs *)
-        (* wf_globals requires a system.. *)
+        (* wf_const requires a system.. *)
       Admitted.
       eapply unique_const_diffblock; eauto.
   - rename NOALIAS_PTR0 into DIFFBLOCK_FROM_UNIQUE.

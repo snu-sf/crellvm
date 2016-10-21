@@ -7,6 +7,7 @@ Require Import Coqlib.
 Require Import infrastructure.
 Require Import Metatheory.
 Require Import vellvm.
+Require Import memory_props.
 Import Opsem.
 
 Require Import Exprs.
@@ -286,6 +287,7 @@ Module Unary.
       (NOALIAS: sem_alias conf st invst inv.(Invariant.alias))
       (UNIQUE: AtomSetImpl.For_all (sem_unique conf st) inv.(Invariant.unique))
       (PRIVATE: IdTSet.For_all (sem_private conf st invst invmem.(InvMem.Unary.private)) inv.(Invariant.private))
+      (WF_LOCAL: MemProps.wf_lc st.(Mem) st.(EC).(Locals))
   .
 
   Lemma sem_empty
