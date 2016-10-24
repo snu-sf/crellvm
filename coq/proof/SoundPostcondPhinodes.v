@@ -328,6 +328,7 @@ Proof.
   unfold Postcond.postcond_phinodes_assigns in *.
   simtac.
   exploit snapshot_sound; eauto. i. des.
+  exploit forget_unique_sound; eauto. i. des.
   exploit forget_sound; eauto.
 (*   exploit forget_sound; eauto. *)
   { instantiate (1 := mkState (mkEC _ _ _ _ _ _) _ _). econs; s; eauto.
@@ -337,31 +338,11 @@ Proof.
     eapply locals_equiv_after_phinode; eauto.
     rewrite L_TGT. eauto.
   }
-  { instantiate (1 := AtomSetImpl_from_list ((filter_map Postcond.Phinode.get_use l0))).
-    ii.
-    inv STATE_SNAPSHOT.
-    inv SRC.
-    exploit UNIQUE; eauto.
-    { apply AtomSetFacts.mem_iff; eauto. }
-    i.
-    admit.
-    (* apply IdTSet_from_list_spec in MEM_X. *)
-    (* apply IdTSet_from_list_spec' in UNIQUE_NO_USE. *)
-    
-    (* contradict  *)
-    
-    (* Set Printing All. idtac. *)
-    
-    (* eapply eq_true_false_abs in UNIQUE_NO_USE. *)
-    (* bool *)
-    (* apply IdTSet_from_list_spec in UNIQUE_NO_USE. *)
-    (* IdTSetFacts.mem_ *)
-    
-
-    (* unfold unique_preserved_except. *)
-  }
-  { admit. }
-  i. des.
+  { admit. (* unique_holds *)}
+  { admit. (* unique_holds *)}
+  { inv STATE. inv SRC. ss. admit. (* wf_lc *) }
+  { inv STATE. inv TGT. ss. admit. (* wf_lc *) }
+  intros STATE_FORGET. des.
   inv STATE_FORGET.
   exploit phinodes_add_lessdef_sound; try exact SRC; eauto; i.
   exploit phinodes_add_lessdef_sound; try exact TGT; eauto; i.
@@ -370,5 +351,5 @@ Proof.
   { instantiate (1 := Hints.Invariant.mk _ _ _). econs; eauto. }
   { eauto. }
   { eauto. }
-  { i. match goal with [H:exists _, _ |- _] => exact H end.
+  intro STATE_MAYDIFF. exact STATE_MAYDIFF.
 Admitted.

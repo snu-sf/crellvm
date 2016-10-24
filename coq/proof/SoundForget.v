@@ -28,6 +28,81 @@ Require Import Inject. (* TODO: for simtac *)
 
 Set Implicit Arguments.
 
+(* ForgetUnique *)
+
+Lemma forget_unique_sound
+      conf_src st0_src d_src l_src
+      conf_tgt st0_tgt d_tgt l_tgt
+      invst invmem inv0
+      (STATE: InvState.Rel.sem conf_src conf_tgt st0_src st0_tgt invst invmem inv0)
+  : <<STATE_FORGET_UNIQUE: InvState.Rel.sem conf_src conf_tgt st0_src st0_tgt
+                                            invst invmem (ForgetUnique.t d_src d_tgt l_src l_tgt inv0)>>.
+Proof.
+  red. unfold ForgetUnique.t.
+  inv STATE.
+  econs; eauto; [inv SRC | inv TGT];
+    econs; eauto;
+    intros x IN; apply UNIQUE; ss;
+    apply AtomSetFacts.filter_iff in IN; try by solve_compat_bool;
+    des; eauto.
+Qed.
+
+Definition unary_no_leaks defs leaks inv0: Prop :=
+  forall x,
+    AtomSetImpl.mem x (AtomSetImpl.union defs leaks) = true ->
+    AtomSetImpl.mem x inv0.(Invariant.unique) = false.
+
+Lemma forget_unique_unary_no_leaks defs leaks inv0:
+  unary_no_leaks defs leaks (ForgetUnique.unary defs leaks inv0).
+Proof.
+  unfold unary_no_leaks. ii.
+  ss. rewrite AtomSetFacts.filter_b; try by solve_compat_bool.
+  apply andb_false_iff. right.
+  apply negb_false_iff. eauto.
+Qed.
+
+Lemma unary_no_leaks_Subset
+      defs leaks inv0 inv1
+      (SUBSET: Invariant.Subset_unary inv1 inv0)
+      (NO_LEAKS: unary_no_leaks defs leaks inv0)
+  : unary_no_leaks defs leaks inv1.
+Proof.
+  unfold unary_no_leaks in *.
+  i. exploit NO_LEAKS; eauto. i.
+  inv SUBSET. eauto.
+  destruct (AtomSetImpl.mem x (Invariant.unique inv1)) eqn:MEM; ss.
+  apply AtomSetFacts.mem_iff in MEM.
+  apply SUBSET_UNIQUE in MEM.
+  apply AtomSetFacts.mem_iff in MEM.
+  congruence.
+Qed.
+
+(* TODO: if not needed, delete *)
+
+Lemma forget_unique_unary_Subset
+      defs leaks inv0
+  : Invariant.Subset_unary (ForgetUnique.unary defs leaks inv0) inv0.
+Proof.
+  unfold ForgetUnique.unary.
+  econs; ss; ii.
+  - split; ss.
+  - eapply AtomSetFacts.filter_iff in H; try by solve_compat_bool.
+    des. eauto.
+Qed.
+
+Lemma forget_unique_Subset
+      def_src leaks_src
+      def_tgt leaks_tgt
+      inv0
+  : Invariant.Subset (ForgetUnique.t def_src def_tgt leaks_src leaks_tgt inv0) inv0.
+Proof.
+  unfold ForgetUnique.t.
+  econs; ss;
+    try apply forget_unique_unary_Subset.
+Qed.
+
+(* Forget *)
+
 Definition locals_equiv_except (ids:AtomSetImpl.t) (locals0 locals1:GVsMap): Prop :=
   forall id (NOT_MEM: AtomSetImpl.mem id ids = false),
     lookupAL _ locals0 id = lookupAL _ locals1 id.
@@ -106,7 +181,6 @@ Proof.
 Qed.
 
 Ltac solve_equiv_except_val st0 :=
-  (* apply orb_false_iff in FILTER; des; *)
   repeat match goal with
        | [H: _ || LiftPred.ValueT _ _ = false |- _] =>
          apply orb_false_iff in H;des
@@ -134,14 +208,9 @@ Proof.
   - inv EQUIV. rewrite <- MEM. eauto.
 Qed.
 
-Definition unique_preserved_except conf inv st1 except_for : Prop :=
-  forall u (MEM: AtomSetImpl.mem u inv.(Invariant.unique) = true)
-         (NO_LEAK: AtomSetImpl.mem u except_for = false),
-    InvState.Unary.sem_unique conf st1 u.
-
 Lemma forget_unary_Subset
-      defs uses inv0
-  : Invariant.Subset_unary (Forget.unary defs uses inv0) inv0.
+      defs inv0
+  : Invariant.Subset_unary (Forget.unary defs inv0) inv0.
 Proof.
   unfold Forget.unary.
   econs; ss; ii.
@@ -152,212 +221,74 @@ Proof.
       des. eauto.
     + eapply PtrPairSetFacts.filter_iff in H; try by solve_compat_bool.
       des. eauto.
-  - eapply AtomSetFacts.filter_iff in H; try by solve_compat_bool.
-    des. eauto.
   - eapply IdTSetFacts.filter_iff in H; try by solve_compat_bool.
     des. eauto.
 Qed.
 
 Lemma forget_Subset
-      def_src use_src
-      def_tgt use_tgt
-      inv0
-  : Invariant.Subset (Forget.t def_src def_tgt use_src use_tgt inv0) inv0.
+      def_src def_tgt inv0
+  : Invariant.Subset (Forget.t def_src def_tgt inv0) inv0.
 Proof.
   unfold Forget.t.
   econs; ss;
     try apply forget_unary_Subset.
   ii.
   apply IdTSet.union_3. eauto.
-Qed.  
+Qed.
 
 (* soundness *)
 
-Lemma forget_unique_no_leaks
-      defs leaks inv0 x
-      (IN_FORGET_UNIQUE: AtomSetImpl.mem x (Invariant.unique (Forget.unary defs leaks inv0)) = true)
-  : <<NOT_MEM_DEFS: AtomSetImpl.mem x defs = false>> /\
-    <<NOT_MEM_LEAKS: AtomSetImpl.mem x leaks = false>>.
-Proof.
-  unfold Forget.unary in *. ss.
-  rewrite AtomSetFacts.filter_b in IN_FORGET_UNIQUE; try by solve_compat_bool.
-  des_bool. des. des_bool.
-  rewrite AtomSetFacts.union_b in *. des_bool. auto.
-Qed.
-
-Inductive inv_unary_forgot inv defs : Prop :=
-| inv_unary_forgot_intro
-    (NOT_INC_LESSDEF: forall e1 e2 x
-                             (DEFS_MEM: AtomSetImpl.mem x defs)
-                             (EP_MEM: ExprPairSet.mem (e1, e2) inv.(Invariant.lessdef)),
-        ~ In (Tag.physical, x) (Expr.get_idTs e1) /\ ~ In (Tag.physical, x) (Expr.get_idTs e2))
-    (NOT_INC_DIFFBLOCK: forall v1 v2 x
-                             (DEFS_MEM: AtomSetImpl.mem x defs)
-                             (VP_MEM: ValueTPairSet.mem (v1, v2) inv.(Invariant.alias).(Invariant.diffblock)),
-        ValueT.id (Tag.physical, x) <> v1 /\ ValueT.id (Tag.physical, x) <> v2)
-    (NOT_INC_NOALIAS: forall p1 p2 x
-                             (DEFS_MEM: AtomSetImpl.mem x defs)
-                             (VP_MEM: PtrPairSet.mem (p1, p2) inv.(Invariant.alias).(Invariant.noalias)),
-        ValueT.id (Tag.physical, x) <> p1.(fst) /\ ValueT.id (Tag.physical, x) <> p2.(fst))
-    (NOT_INC_UNIQUE: forall u x
-                             (DEFS_MEM: AtomSetImpl.mem x defs)
-                             (VP_MEM: AtomSetImpl.mem u inv.(Invariant.unique)), u <> x)
-    (NOT_INC_PRIVATE: forall p x
-                             (DEFS_MEM: AtomSetImpl.mem x defs)
-                             (VP_MEM: IdTSet.mem p inv.(Invariant.private)), p <> (Tag.physical, x))
-.
-
-Lemma forget_not_in_value_list
-      defs (lsv: list (sz * ValueT.t)) x
-      (CHECK : existsb (LiftPred.ValueT (fun y : Tag.t * id => IdTSet.mem y (lift_physical_atoms_idtset defs)) <*> snd) lsv = false)
-      (IN_DEF: AtomSetImpl.mem x defs = true)
-  : ~ In (Tag.physical, x) (filter_map ValueT.get_idTs (List.map snd lsv)).
-Proof.
-  revert lsv CHECK.
-  induction lsv; ss.
-  ii. des_ifs.
-  - destruct a as [s v]. ss.
-    destruct v; ss. inv Heq. des.
-    + des_bool. des. subst.
-      unfold compose in *. ss.
-      rewrite lift_physical_atoms_idtset_spec1 in CHECK. congruence.
-    + des_bool. des. subst.
-      exploit IHlsv; eauto.
-  - des_bool. des.
-    exploit IHlsv; eauto.
-Qed.
-
-Lemma forget_check_not_in_expr
-      defs x e
-      (DEFS_MEM: AtomSetImpl.mem x defs = true)
-      (CHECK: LiftPred.Expr (fun y : Tag.t * id => IdTSet.mem y (lift_physical_atoms_idtset defs)) e = false)
-  : ~ In (Tag.physical, x) (Expr.get_idTs e).
-Proof.
-  Ltac not_in_for_each_value :=
-    match goal with
-    | [H: ValueT.get_idTs ?v = Some (Tag.physical, _),
-          CHECK: LiftPred.ValueT _ ?v = false |- _] =>
-      destruct v; ss;
-      inv H;
-      rewrite lift_physical_atoms_idtset_spec1 in CHECK;
-      congruence
-    | [H: In (Tag.physical, _) (filter_map _ (List.map snd ?lsv)),
-          CHECK: existsb _ ?lsv = false |- False] =>
-      eapply forget_not_in_value_list; eauto
-    end.
-
-  destruct e; ii;
-    ss; des_bool; des; des_bool; des;
-      unfold Expr.get_idTs in *; ss;
-        des_ifs;
-        ss; des; ss; subst; not_in_for_each_value.
-Qed.
+Definition unique_holds conf st inv: Prop :=
+  forall u, AtomSetImpl.mem u inv.(Invariant.unique) ->
+            InvState.Unary.sem_unique conf st u.
 
 Lemma forget_unary_sound
-      defs leaks st0 st1
-      conf invst invmem inv0
-      (EQUIV: state_equiv_except defs st0 st1)
-      (UNIQUE_PRSV: unique_preserved_except conf inv0 st1 (AtomSetImpl.union defs leaks))
-      (STATE: InvState.Unary.sem conf st0 invst invmem inv0)
-  : <<STATE: InvState.Unary.sem conf st1 invst invmem (Forget.unary defs leaks inv0)>> /\
-    <<NOT_INC: inv_unary_forgot (Forget.unary defs leaks inv0) defs>>.
+      conf defs st0 st1
+      inv invst invmem
+      (EQUIV : state_equiv_except defs st0 st1)
+      (UNIQUE : unique_holds conf st1 inv)
+      (STATE : InvState.Unary.sem conf st0 invst invmem inv)
+      (WF_LC: memory_props.MemProps.wf_lc st1.(Mem) st1.(EC).(Locals))
+  : InvState.Unary.sem conf st1 invst invmem (Forget.unary defs inv).
 Proof.
   inv STATE.
   assert (EQUIV_REV: state_equiv_except defs st1 st0).
   { symmetry. eauto. }
-  esplits.
-  { econs.
-    - ii.
-      destruct x as [e1 e2]. ss.
-      apply ExprPairSetFacts.filter_iff in H; [| solve_compat_bool]. des.
+  econs; eauto.
+  - ii.
+    destruct x as [e1 e2]. ss.
+    apply ExprPairSetFacts.filter_iff in H; [| solve_compat_bool]. des.
+    solve_negb_liftpred.
+    exploit sem_expr_equiv_except; try exact EQUIV_REV; try exact VAL1; eauto.
+    i. des.
+    exploit LESSDEF; eauto.
+    i. des. ss.
+    exploit sem_expr_equiv_except; try exact EQUIV; try exact VAL2; eauto.
+  - inv NOALIAS.
+    econs.
+    + i. ss.
+      rewrite ValueTPairSetFacts.filter_b in MEM; try by solve_compat_bool. des_ifs.
+      unfold sflib.is_true in MEM.
       solve_negb_liftpred.
-      exploit sem_expr_equiv_except; try exact EQUIV_REV; try exact VAL1; eauto.
-      i. des.
-
-      exploit LESSDEF; eauto.
-      i. des. ss.
-      exploit sem_expr_equiv_except; try exact EQUIV; try exact VAL2; eauto.
-    - inv NOALIAS.
-      econs.
-      + i. ss.
-        rewrite ValueTPairSetFacts.filter_b in MEM; [| solve_compat_bool]. des_ifs.
-        unfold sflib.is_true in MEM.
-        solve_negb_liftpred.
-        exploit sem_valueT_equiv_except; try exact EQUIV_REV; try exact VAL1; eauto. i. des.
-        exploit sem_valueT_equiv_except; try exact EQUIV_REV; try exact VAL2; eauto.
-      + i. ss.
-        rewrite PtrPairSetFacts.filter_b in MEM; [| solve_compat_bool]. des_ifs.
-        unfold sflib.is_true in MEM.
-        solve_negb_liftpred.
-        exploit sem_valueT_equiv_except; try exact EQUIV_REV; try exact VAL1; eauto. i. des.
-        exploit sem_valueT_equiv_except; try exact EQUIV_REV; try exact VAL2; eauto.
-    - ii. ss.
-      apply AtomSetFacts.filter_iff in H; [| solve_compat_bool]. des.
-      apply negb_true_iff in H0.
-
-      unfold unique_preserved_except in *.
-
-      apply UNIQUE_PRSV; eauto.
-      apply AtomSetFacts.mem_iff; eauto.
-    - ii. ss.
-      apply IdTSetFacts.filter_iff in H; [| solve_compat_bool]. des.
-      unfold flip, compose in *.
-      apply negb_true_iff in H0.
-
-      destruct x as [t x].
-      destruct t; try (exploit PRIVATE; eauto; fail).
-
-      exploit sem_idT_equiv_except; eauto.
-      { rewrite <- lift_physical_atoms_idtset_spec1. eauto. }
-      i. des.
-      exploit PRIVATE; eauto.
-  }
-  { econs.
-    - i. ss.
-      rewrite ExprPairSetFacts.filter_b in EP_MEM; try by solve_compat_bool.
-      unfold is_true, compose, flip in *.
-      des_bool. des. des_bool.
-      unfold LiftPred.ExprPair in *. des_bool. des. ss.
-      split; eapply forget_check_not_in_expr; eauto.
-    - i. ss.
-      rewrite ValueTPairSetFacts.filter_b in VP_MEM; try by solve_compat_bool.
-      unfold is_true, compose, flip in *.
-      des_bool. des. des_bool.
-      unfold LiftPred.ValueTPair in *. des_bool. des. ss.
-      unfold LiftPred.ValueT in *.
-      split; ii; subst;
-        match goal with
-        | [H: IdTSet.mem (Tag.physical, x) (lift_physical_atoms_idtset defs) = false |- _] =>
-          rewrite lift_physical_atoms_idtset_spec1 in H; congruence
-        end.
-    - i. ss.
-      rewrite PtrPairSetFacts.filter_b in VP_MEM; try by solve_compat_bool.
-      unfold is_true, compose, flip in *.
-      des_bool. des. des_bool.
-      unfold LiftPred.PtrPair in *. des_bool. des. ss.
-      destruct p1; destruct p2.
-      unfold LiftPred.Ptr in *; unfold LiftPred.ValueT in *; ss.
-      split; ii; subst;
-        match goal with
-        | [H: IdTSet.mem (Tag.physical, x) (lift_physical_atoms_idtset defs) = false |- _] =>
-          rewrite lift_physical_atoms_idtset_spec1 in H; congruence
-        end.
-    - i. ss.
-      ii. subst.
-      rewrite AtomSetFacts.filter_b in VP_MEM; try by solve_compat_bool.
-      unfold is_true in *.
-      des_bool. des. des_bool.
-      rewrite AtomSetFacts.union_b in *. des_bool. des. congruence.
-    - i. ss.
-      ii. subst.
-      rewrite IdTSetFacts.filter_b in VP_MEM; try by solve_compat_bool.
-      unfold is_true, compose, flip in *.
-      des_bool. des. des_bool.
-      match goal with
-      | [H: IdTSet.mem (Tag.physical, x) (lift_physical_atoms_idtset defs) = false |- _] =>
-        rewrite lift_physical_atoms_idtset_spec1 in H; congruence
-      end.
-  }
+      exploit sem_valueT_equiv_except; try exact EQUIV_REV; try exact VAL1; eauto. i. des.
+      exploit sem_valueT_equiv_except; try exact EQUIV_REV; try exact VAL2; eauto.
+    + i. ss.
+      rewrite PtrPairSetFacts.filter_b in MEM; try by solve_compat_bool. des_ifs.
+      unfold sflib.is_true in MEM.
+      solve_negb_liftpred.
+      exploit sem_valueT_equiv_except; try exact EQUIV_REV; try exact VAL1; eauto. i. des.
+      exploit sem_valueT_equiv_except; try exact EQUIV_REV; try exact VAL2; eauto.
+  - ii. ss. apply UNIQUE. apply AtomSetFacts.mem_iff. eauto.
+  - ii. ss.
+    apply IdTSetFacts.filter_iff in H; [| solve_compat_bool]. des.
+    unfold flip, compose in *.
+    apply negb_true_iff in H0.
+    destruct x as [t x].
+    destruct t; try (exploit PRIVATE; eauto; fail).
+    exploit sem_idT_equiv_except; eauto.
+    { rewrite <- lift_physical_atoms_idtset_spec1. eauto. }
+    i. des.
+    exploit PRIVATE; eauto.
 Qed.
 
 Lemma forget_sound
@@ -365,24 +296,19 @@ Lemma forget_sound
       conf_tgt st0_tgt
       st1_src st1_tgt
       invst invmem inv0
-      s_src s_tgt
-      l_src l_tgt
+      defs_src defs_tgt
       (STATE: InvState.Rel.sem conf_src conf_tgt st0_src st0_tgt invst invmem inv0)
-      (EQUIV_SRC: state_equiv_except s_src st0_src st1_src)
-      (EQUIV_TGT: state_equiv_except s_tgt st0_tgt st1_tgt)
-      (UNIQUE_SRC: unique_preserved_except conf_src inv0.(Invariant.src) st1_src (AtomSetImpl.union s_src l_src))
-      (UNIQUE_TGT: unique_preserved_except conf_tgt inv0.(Invariant.tgt) st1_tgt (AtomSetImpl.union s_tgt l_tgt))
+      (EQUIV_SRC: state_equiv_except defs_src st0_src st1_src)
+      (EQUIV_TGT: state_equiv_except defs_tgt st0_tgt st1_tgt)
+      (UNIQUE_SRC: unique_holds conf_src st1_src inv0.(Invariant.src))
+      (UNIQUE_TGT: unique_holds conf_tgt st1_tgt inv0.(Invariant.tgt))
+      (WF_LC_SRC: memory_props.MemProps.wf_lc st1_src.(Mem) st1_src.(EC).(Locals))
+      (WF_LC_TGT: memory_props.MemProps.wf_lc st1_tgt.(Mem) st1_tgt.(EC).(Locals))
   : <<STATE_FORGET: InvState.Rel.sem conf_src conf_tgt st1_src st1_tgt
-                            invst invmem (Forget.t s_src s_tgt l_src l_tgt inv0)>> /\
-    <<FORGET_SRC: inv_unary_forgot (Forget.unary s_src l_src inv0.(Invariant.src)) s_src>> /\
-    <<FORGET_TGT: inv_unary_forgot (Forget.unary s_tgt l_tgt inv0.(Invariant.tgt)) s_tgt>>
-.
+                            invst invmem (Forget.t defs_src defs_tgt inv0)>>.
 Proof.
   inv STATE.
-  exploit forget_unary_sound; try exact EQUIV_SRC; eauto. i. des.
-  exploit forget_unary_sound; try exact EQUIV_TGT; eauto. i. des.
-  esplits; eauto.
-  econs.
+  econs; ss.
   - eapply forget_unary_sound; eauto.
   - eapply forget_unary_sound; eauto.
   - i. ss.

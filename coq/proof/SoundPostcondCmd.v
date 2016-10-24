@@ -9,6 +9,7 @@ Require Import Metatheory.
 Import LLVMsyntax.
 Import LLVMinfra.
 Require Import opsem.
+Require Import memory_props.
 
 Require Import sflib.
 Require Import paco.
@@ -106,7 +107,7 @@ Lemma step_state_equiv_except
       (CMDS : CurCmds st0.(EC) = cmd :: cmds)
       (STEP: sInsn conf st0 st1 evt)
   : state_equiv_except (AtomSetImpl_from_list (Cmd.get_def cmd))
-                       st0 (mkState st1.(EC) st1.(ECS) st0.(Mem)).
+                       (mkState st0.(EC) st0.(ECS) st1.(Mem)) st1.
 Proof.
   inv STEP; ss;
     inv CMDS; econs; ss; ii;
@@ -122,48 +123,6 @@ Ltac specialize_unique :=
     specialize (H1 _ H2)
   end.
 
-Lemma step_unique_preserved_except
-      conf st0 st1 evt inv0
-      cmd cmds
-      (STATE: AtomSetImpl.For_all (InvState.Unary.sem_unique conf st0)
-                                  inv0.(Invariant.unique))
-      (NONCALL: Instruction.isCallInst cmd = false)
-      (CMDS : CurCmds st0.(EC) = cmd :: cmds)
-      (STEP : sInsn conf st0 st1 evt)
-  : unique_preserved_except conf inv0 (mkState st1.(EC) st1.(ECS) st0.(Mem))
-                            (AtomSetImpl.union (AtomSetImpl_from_list (Cmd.get_def cmd))
-                                               (AtomSetImpl_from_list (Cmd.get_leaked_ids cmd))).
-Proof.
-  inv STEP; ss.
-  { inv CMDS.
-    ii. apply AtomSetFacts.mem_iff in MEM.
-    specialize (STATE _ MEM).
-    inv STATE. ss.
-    econs; ss; eauto.
-  }
-  { inv CMDS.
-    ii.
-    rewrite AtomSetFacts.union_b in NO_LEAK. ss.
-    solve_des_bool.
-    apply AtomSetImpl_singleton_mem_false in NO_LEAK.
-
-    specialize_unique.
-    inv STATE.
-
-    econs; ss.
-    - rewrite <- lookupAL_updateAddAL_neq; eauto.
-    - i.
-      destruct (id_dec id0 reg).
-      + admit. (* bop: operand not unique => result not unique *)
-        (* TODO: result of inst not containing unique *)
-        (* can believe it even without proofs *)
-      + exploit LOCALS; eauto.
-        rewrite <- lookupAL_updateAddAL_neq in *; eauto.
-    - eauto.
-    - eauto.
-  }
-Admitted.
-
 Lemma postcond_cmd_check_forgets_Subset
       cmd_src cmd_tgt inv0
       (COND : postcond_cmd_check
@@ -172,11 +131,12 @@ Lemma postcond_cmd_check_forgets_Subset
                 (AtomSetImpl_from_list (Cmd.get_def cmd_tgt))
                 (AtomSetImpl_from_list (Cmd.get_ids cmd_src))
                 (AtomSetImpl_from_list (Cmd.get_ids cmd_tgt))
-                (ForgetMemory.t (Cmd.get_def_memory cmd_src) (Cmd.get_def_memory cmd_tgt)
-                                (Forget.t (AtomSetImpl_from_list (Cmd.get_def cmd_src))
-                                          (AtomSetImpl_from_list (Cmd.get_def cmd_tgt))
-                                          (AtomSetImpl_from_list (Cmd.get_leaked_ids cmd_src))
-                                          (AtomSetImpl_from_list (Cmd.get_leaked_ids cmd_tgt)) inv0)) = true)
+                (Forget.t
+                   (AtomSetImpl_from_list (Cmd.get_def cmd_src))
+                   (AtomSetImpl_from_list (Cmd.get_def cmd_tgt))
+                   (ForgetMemory.t
+                      (Cmd.get_def_memory cmd_src) (Cmd.get_def_memory cmd_tgt)
+                      inv0)) = true)
   : postcond_cmd_check
       cmd_src cmd_tgt
       (AtomSetImpl_from_list (Cmd.get_def cmd_src))
@@ -192,28 +152,222 @@ Proof.
   apply negb_false_iff in INJECT_T.
   apply negb_true_iff in INJECT_F.
   exploit postcond_cmd_inject_event_Subset; eauto;
-    (etransitivity; [eapply forget_memory_Subset | eapply forget_Subset]).
+    (etransitivity; [apply forget_Subset | apply forget_memory_Subset]).
 Qed.
 
-Lemma step_unique_preserved_mem
-      conf st0 st1 evt
-      cmd cmds inv0
-      (STATE: AtomSetImpl.For_all (InvState.Unary.sem_unique conf (mkState st1.(EC) st1.(ECS) st0.(Mem)))
-                                  inv0.(Invariant.unique))
-      (NONCALL: Instruction.isCallInst cmd = false)
-      (CMDS: CurCmds st0.(EC) = cmd :: cmds)
-      (STEP: sInsn conf st0 st1 evt)
-      (UNIQUE_NOT_LEAKED: forall x (MEM:AtomSetImpl.mem x inv0.(Invariant.unique) = true),
-                                 AtomSetImpl.mem x (AtomSetImpl_from_list (Cmd.get_leaked_ids cmd)) = false)
-  : unique_preserved_mem conf st1 inv0.
+Lemma no_leaked_unique_val_preserved
+      id0 leaked inv0
+      u val lc gvs
+      (NO_LEAK : forall x : atom,
+          AtomSetImpl.mem x (union (AtomSetImpl_from_list [id0]) leaked) = true ->
+          AtomSetImpl.mem x (Invariant.unique inv0) = false)
+      (MEM : AtomSetImpl.mem u (Invariant.unique inv0))
+      (VAL : lookupAL GenericValue lc u = Some val)
+  : lookupAL GenericValue (updateAddAL GenericValue lc id0 gvs) u = Some val.
 Proof.
-  inv STEP; ss;
-    try (inv CMDS; ss;
-         ii; specialize_unique; eauto).
-  { admit. (* load malloc -> undef *) }
-  { admit. (* load after free: use Memory.Mem.load_free_2 maybe *) }
-  { admit. (* load alloca *) }
-  { admit. (* load after store *) }
+  assert (implies_false: false = true -> False).
+  { i. inv H. }
+  rewrite <- lookupAL_updateAddAL_neq; eauto.
+  ii. subst.
+  apply implies_false. erewrite <- NO_LEAK; eauto.
+  rewrite AtomSetFacts.union_b.
+  apply orb_true_iff.
+  left. apply AtomSetImpl_from_list_spec. ss. eauto.
+Qed.
+
+Lemma step_unique_holds
+      conf invst0 invmem1 inv0
+      st0 st1 cmd cmds evt
+      (WF_LOCAL_BEFORE : memory_props.MemProps.wf_lc st0.(Mem) st0.(EC).(Locals))
+      (STATE: InvState.Unary.sem conf (mkState st0.(EC) st0.(ECS) st1.(Mem))
+                                 invst0 invmem1 inv0)
+      (CMDS: st0.(EC).(CurCmds) = cmd::cmds)
+      (STEP: sInsn conf st0 st1 evt)
+      (NO_LEAK: unary_no_leaks (AtomSetImpl_from_list (Cmd.get_def cmd))
+                               (AtomSetImpl_from_list (Cmd.get_leaked_ids cmd))
+                               inv0)
+  : unique_holds conf st1 inv0.
+Proof.
+  intros u MEM.
+  assert (IN: AtomSetImpl.In u (Invariant.unique inv0)).
+  { apply AtomSetFacts.mem_iff; eauto. }
+  unfold unary_no_leaks in *.
+  inv STATE.
+  exploit UNIQUE; eauto. intro UNIQUE_BEF. inv UNIQUE_BEF.
+
+  inv STEP; destruct cmd; ss;
+    try by econs; eauto.
+  - (* bop *)
+    econs; eauto.
+    + ss. inv CMDS. eapply no_leaked_unique_val_preserved; eauto.
+    + i. ss.
+      destruct (id_dec id0 reg).
+      * admit. (* res of bop not producing unique-ptr *)
+      * eapply LOCALS; eauto.
+        erewrite lookupAL_updateAddAL_neq; eauto.
+  - (* fbop *)
+    econs; eauto.
+    + ss. inv CMDS. eapply no_leaked_unique_val_preserved; eauto.
+    + i. ss.
+      destruct (id_dec id0 reg).
+      * admit. (* res of fbop not producing unique-ptr *)
+      * eapply LOCALS; eauto.
+        erewrite lookupAL_updateAddAL_neq; eauto.
+  - (* extractvalue *)
+    econs; eauto.
+    + ss. inv CMDS. eapply no_leaked_unique_val_preserved; eauto.
+    + i. ss.
+      destruct (id_dec id0 reg).
+      * admit. (* res of fbop not producing unique-ptr *)
+      * eapply LOCALS; eauto.
+        erewrite lookupAL_updateAddAL_neq; eauto.
+  - (* insertvalue *)
+    econs; eauto.
+    + ss. inv CMDS. eapply no_leaked_unique_val_preserved; eauto.
+    + i. ss.
+      destruct (id_dec id0 reg).
+      * admit. (* res of fbop not producing unique-ptr *)
+      * eapply LOCALS; eauto.
+        erewrite lookupAL_updateAddAL_neq; eauto.
+  - (* malloc *)
+    admit. (* no malloc *)
+  - (* alloca *)
+    econs; eauto.
+    + ss. inv CMDS. eapply no_leaked_unique_val_preserved; eauto.
+    + i. ss.
+      destruct (id_dec id0 reg).
+      * subst. rewrite lookupAL_updateAddAL_eq in *. clarify.
+        exploit WF_LOCAL_BEFORE; eauto. i.
+        unfold InvState.Unary.sem_diffblock.
+        des_ifs. ii. ss. clarify.
+        exploit external_intrinsics.GV2ptr_inv; eauto. i. des.
+        clarify. ss. des.
+        exploit MemProps.malloc_result; eauto. i. subst.
+        eapply Pos.lt_irrefl; eauto.
+      * eapply LOCALS; eauto.
+        erewrite lookupAL_updateAddAL_neq; eauto.
+  - (* load *)
+    econs; eauto.
+    + ss. inv CMDS. eapply no_leaked_unique_val_preserved; eauto.
+    + i. ss.
+      destruct (id_dec id0 reg).
+      * subst.
+        rewrite lookupAL_updateAddAL_eq in *. clarify.
+        eapply MEM0; eauto.
+      * eapply LOCALS; eauto.
+        erewrite lookupAL_updateAddAL_neq; eauto.
+  - (* gep *)
+    econs; eauto.
+    + ss. inv CMDS. eapply no_leaked_unique_val_preserved; eauto.
+    + i. ss.
+      destruct (id_dec id0 reg).
+      * admit. (* res of fbop not producing unique-ptr *)
+      * eapply LOCALS; eauto.
+        erewrite lookupAL_updateAddAL_neq; eauto.
+  - (* trunc *)
+    econs; eauto.
+    + ss. inv CMDS. eapply no_leaked_unique_val_preserved; eauto.
+    + i. ss.
+      destruct (id_dec id0 reg).
+      * admit. (* res of fbop not producing unique-ptr *)
+      * eapply LOCALS; eauto.
+        erewrite lookupAL_updateAddAL_neq; eauto.
+  - (* ext *)
+    econs; eauto.
+    + ss. inv CMDS. eapply no_leaked_unique_val_preserved; eauto.
+    + i. ss.
+      destruct (id_dec id0 reg).
+      * admit. (* res of fbop not producing unique-ptr *)
+      * eapply LOCALS; eauto.
+        erewrite lookupAL_updateAddAL_neq; eauto.
+  - (* cast *)
+    econs; eauto.
+    + ss. inv CMDS. eapply no_leaked_unique_val_preserved; eauto.
+    + i. ss.
+      destruct (id_dec id0 reg).
+      * admit. (* res of fbop not producing unique-ptr *)
+      * eapply LOCALS; eauto.
+        erewrite lookupAL_updateAddAL_neq; eauto.
+  - (* icmp *)
+    econs; eauto.
+    + ss. inv CMDS. eapply no_leaked_unique_val_preserved; eauto.
+    + i. ss.
+      destruct (id_dec id0 reg).
+      * admit. (* res of fbop not producing unique-ptr *)
+      * eapply LOCALS; eauto.
+        erewrite lookupAL_updateAddAL_neq; eauto.
+  - (* fcmp *)
+    econs; eauto.
+    + ss. inv CMDS. eapply no_leaked_unique_val_preserved; eauto.
+    + i. ss.
+      destruct (id_dec id0 reg).
+      * admit. (* res of fbop not producing unique-ptr *)
+      * eapply LOCALS; eauto.
+        erewrite lookupAL_updateAddAL_neq; eauto.
+  - (* select *)
+    econs; eauto.
+    + ss. inv CMDS. eapply no_leaked_unique_val_preserved; eauto.
+    + i. ss.
+      destruct (id_dec id0 reg).
+      * admit. (* res of fbop not producing unique-ptr *)
+      * eapply LOCALS; eauto.
+        erewrite lookupAL_updateAddAL_neq; eauto.
+  - admit. (* no call *)
+  - admit. (* no call *)
+Admitted.
+
+Lemma step_wf_lc
+      conf st0 st1 evt
+      cmd cmds
+      (WF_MEM: MemProps.wf_Mem conf.(CurTargetData) st0.(Mem))
+      (WF_LC: MemProps.wf_lc st0.(Mem) st0.(EC).(Locals))
+      (STEP: sInsn conf st0 st1 evt)
+      (CMDS: st0.(EC).(CurCmds) = cmd :: cmds)
+      (NONCALL_SRC: Instruction.isCallInst cmd = false)
+  : <<WF_LOCAL: MemProps.wf_lc st1.(Mem) st1.(EC).(Locals)>> /\
+    <<WF_MEM: MemProps.wf_Mem conf.(CurTargetData) st1.(Mem)>>.
+Proof.
+  inv STEP; destruct cmd; ss;
+    try (split; [apply MemProps.updateAddAL__wf_lc; eauto; [] | by auto]).
+  - admit. (* bop *)
+  - admit. (* fbop *)
+  - admit. (* extractvalue *)
+  - admit. (* insertvalue *)
+  - admit. (* malloc *)
+  - split. (* free *)
+    + eapply MemProps.free_preserves_wf_lc; eauto.
+    + eapply MemProps.free_preserves_wf_Mem; eauto.
+  - split. (* alloca *)
+    + exploit malloc_result; eauto. i. des.
+      ii. destruct (id_dec id0 id1).
+      * subst.
+        rewrite lookupAL_updateAddAL_eq in *. clarify. ss.
+        split; auto.
+        rewrite NEXT_BLOCK. apply Plt_succ.
+      * rewrite <- lookupAL_updateAddAL_neq in *; eauto.
+        eapply MemProps.malloc_preserves_wf_lc_in_tail; eauto.
+    + eapply MemProps.malloc_preserves_wf_Mem; eauto.
+  - split; auto. (* load *)
+    ii. destruct (id_dec id0 id1).
+    + subst. rewrite lookupAL_updateAddAL_eq in *. clarify. ss. eauto.
+    + rewrite <- lookupAL_updateAddAL_neq in *; eauto.
+  - (* store *)
+    split.
+    + eapply MemProps.mstore_preserves_wf_lc; eauto.
+    + admit. (* store preserves wf_Mem when stored value is from lc and wf_lc holds *)
+  - admit. (* gep *)
+  - admit. (* trunc *)
+  - admit. (* extop *)
+  - admit. (* cast *)
+  - admit. (* icmp: always bool *)
+  - admit. (* fcmp *)
+  - destruct decision.
+    + destruct v1.
+      * eapply WF_LC; eauto.
+      * admit. (* wf_const *)
+    + destruct v2.
+      * eapply WF_LC; eauto.
+      * admit. (* wf_const *)
 Admitted.
 
 Lemma postcond_cmd_sound
@@ -246,40 +400,52 @@ Proof.
 
   destruct (s_isFinialState conf_src st0_src) eqn:FINAL.
   { unfold s_isFinialState in FINAL. simtac. }
-  exploit nerror_nfinal_nstuck; eauto. intros [st1_src]. i. des.
-  replace e with evt in *; cycle 1.
+  exploit nerror_nfinal_nstuck; eauto. intros [st1_src]. intros [evt_src STEP_SRC].
+  replace evt_src with evt in *; cycle 1.
   { unfold postcond_cmd_check in COND. simtac.
     exploit (@noncall_event conf_src); eauto. i.
     exploit (@noncall_event conf_tgt); eauto. i.
     subst. ss.
   }
+  exploit postcond_cmd_check_forgets_Subset; eauto. intro COND_INIT.
+
+  (* forget-unique *)
+  exploit forget_unique_sound; eauto. intro STATE_FORGET_UNIQUE. des.
+
+  (* forget-memory *)
+  exploit forget_memory_sound; eauto.
+  { ss. apply forget_unique_unary_no_leaks. }
+  { ss. apply forget_unique_unary_no_leaks. }
+  { unfold postcond_cmd_check in COND_INIT.
+    des_ifs. des_bool. eauto. }
+  i. des.
+  rename STATE0 into STATE_FORGET_MEMORY.
+  rename MEM0 into MEM_FORGET_MEMORY.
+  (* forget *)
   exploit forget_sound; eauto.
   { hexploit step_state_equiv_except; try exact CMDS_SRC; eauto. }
   { hexploit step_state_equiv_except; try exact CMDS_TGT; eauto. }
-  { inv STATE. inv SRC. hexploit step_unique_preserved_except; try exact CMDS_SRC; eauto. }
-  { inv STATE. inv TGT. hexploit step_unique_preserved_except; try exact CMDS_TGT; eauto. }
+  { inv STATE_FORGET_MEMORY.
+    hexploit step_unique_holds; try exact STEP_SRC; eauto.
+    { inv STATE. inv SRC0. eauto. }
+    eapply unary_no_leaks_Subset.
+    - exploit forget_memory_Subset; eauto. intro SUBSET.
+      inv SUBSET. apply SUBSET_SRC.
+    - ss. apply forget_unique_unary_no_leaks.
+  }
+  { inv STATE_FORGET_MEMORY.
+    hexploit step_unique_holds; try exact STEP_TGT; eauto.
+    { inv STATE. inv TGT0. eauto. }
+    eapply unary_no_leaks_Subset.
+    - exploit forget_memory_Subset; eauto. intro SUBSET.
+      inv SUBSET. apply SUBSET_TGT.
+    - ss. apply forget_unique_unary_no_leaks.
+  }
+  { eapply step_wf_lc; try exact STEP_SRC; eauto.
+    - inv MEM. inv SRC. eauto.
+    - inv STATE. inv SRC. eauto. }
+  { eapply step_wf_lc; try exact STEP_TGT; eauto.
+    - inv MEM. inv TGT. eauto.
+    - inv STATE. inv TGT. eauto. }
   i. des.
-  (* forget-memory *)
-  exploit postcond_cmd_check_forgets_Subset; eauto. intro CHECK_BEFORE_FORGET.
-  unfold postcond_cmd_check in CHECK_BEFORE_FORGET. des_ifs.
-  match goal with
-  | [H: negb (postcond_cmd_inject_event _ _ _) = false |- _] =>
-    rename H into INJECT_EVENT;
-      apply negb_false_iff in INJECT_EVENT
-  end.
-  hexploit forget_memory_sound; try exact MEM; eauto; eauto.
-  { hexploit step_state_equiv_except; try exact CMDS_SRC; eauto.
-    intro ST_EQ. inv ST_EQ. ss. }
-  { hexploit step_state_equiv_except; try exact CMDS_TGT; eauto.
-    intro ST_EQ. inv ST_EQ. ss. }
-  { ss. inv STATE_FORGET. inv SRC.
-    eapply step_unique_preserved_mem; try exact NONCALL_SRC; eauto.
-    i. exploit forget_unique_no_leaks; ss; eauto.
-    i. des. eauto. }
-  { ss. inv STATE_FORGET. inv TGT.
-    eapply step_unique_preserved_mem; try exact NONCALL_TGT; eauto.
-    i. exploit forget_unique_no_leaks; ss; eauto.
-    i. des. eauto. }
-  i. des.
-  (* TODO: add lessdef_add *)
 Admitted.
