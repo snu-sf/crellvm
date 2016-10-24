@@ -134,8 +134,11 @@ Lemma postcond_cmd_check_forgets_Subset
                 (Forget.t
                    (AtomSetImpl_from_list (Cmd.get_def cmd_src))
                    (AtomSetImpl_from_list (Cmd.get_def cmd_tgt))
+                   (AtomSetImpl_from_list (Cmd.get_leaked_ids cmd_src))
+                   (AtomSetImpl_from_list (Cmd.get_leaked_ids cmd_tgt))
                    (ForgetMemory.t
                       (Cmd.get_def_memory cmd_src) (Cmd.get_def_memory cmd_tgt)
+                      (Cmd.get_leaked_ids_to_memory cmd_src) (Cmd.get_leaked_ids_to_memory cmd_tgt)
                       inv0)) = true)
   : postcond_cmd_check
       cmd_src cmd_tgt
@@ -174,147 +177,6 @@ Proof.
   apply orb_true_iff.
   left. apply AtomSetImpl_from_list_spec. ss. eauto.
 Qed.
-
-Lemma step_unique_holds
-      conf invst0 invmem1 inv0
-      st0 st1 cmd cmds evt
-      (WF_LOCAL_BEFORE : memory_props.MemProps.wf_lc st0.(Mem) st0.(EC).(Locals))
-      (STATE: InvState.Unary.sem conf (mkState st0.(EC) st0.(ECS) st1.(Mem))
-                                 invst0 invmem1 inv0)
-      (CMDS: st0.(EC).(CurCmds) = cmd::cmds)
-      (STEP: sInsn conf st0 st1 evt)
-      (NO_LEAK: unary_no_leaks (AtomSetImpl_from_list (Cmd.get_def cmd))
-                               (AtomSetImpl_from_list (Cmd.get_leaked_ids cmd))
-                               inv0)
-  : unique_holds conf st1 inv0.
-Proof.
-  intros u MEM.
-  assert (IN: AtomSetImpl.In u (Invariant.unique inv0)).
-  { apply AtomSetFacts.mem_iff; eauto. }
-  unfold unary_no_leaks in *.
-  inv STATE.
-  exploit UNIQUE; eauto. intro UNIQUE_BEF. inv UNIQUE_BEF.
-
-  inv STEP; destruct cmd; ss;
-    try by econs; eauto.
-  - (* bop *)
-    econs; eauto.
-    + ss. inv CMDS. eapply no_leaked_unique_val_preserved; eauto.
-    + i. ss.
-      destruct (id_dec id0 reg).
-      * admit. (* res of bop not producing unique-ptr *)
-      * eapply LOCALS; eauto.
-        erewrite lookupAL_updateAddAL_neq; eauto.
-  - (* fbop *)
-    econs; eauto.
-    + ss. inv CMDS. eapply no_leaked_unique_val_preserved; eauto.
-    + i. ss.
-      destruct (id_dec id0 reg).
-      * admit. (* res of fbop not producing unique-ptr *)
-      * eapply LOCALS; eauto.
-        erewrite lookupAL_updateAddAL_neq; eauto.
-  - (* extractvalue *)
-    econs; eauto.
-    + ss. inv CMDS. eapply no_leaked_unique_val_preserved; eauto.
-    + i. ss.
-      destruct (id_dec id0 reg).
-      * admit. (* res of fbop not producing unique-ptr *)
-      * eapply LOCALS; eauto.
-        erewrite lookupAL_updateAddAL_neq; eauto.
-  - (* insertvalue *)
-    econs; eauto.
-    + ss. inv CMDS. eapply no_leaked_unique_val_preserved; eauto.
-    + i. ss.
-      destruct (id_dec id0 reg).
-      * admit. (* res of fbop not producing unique-ptr *)
-      * eapply LOCALS; eauto.
-        erewrite lookupAL_updateAddAL_neq; eauto.
-  - (* malloc *)
-    admit. (* no malloc *)
-  - (* alloca *)
-    econs; eauto.
-    + ss. inv CMDS. eapply no_leaked_unique_val_preserved; eauto.
-    + i. ss.
-      destruct (id_dec id0 reg).
-      * subst. rewrite lookupAL_updateAddAL_eq in *. clarify.
-        exploit WF_LOCAL_BEFORE; eauto. i.
-        unfold InvState.Unary.sem_diffblock.
-        des_ifs. ii. ss. clarify.
-        exploit external_intrinsics.GV2ptr_inv; eauto. i. des.
-        clarify. ss. des.
-        exploit MemProps.malloc_result; eauto. i. subst.
-        eapply Pos.lt_irrefl; eauto.
-      * eapply LOCALS; eauto.
-        erewrite lookupAL_updateAddAL_neq; eauto.
-  - (* load *)
-    econs; eauto.
-    + ss. inv CMDS. eapply no_leaked_unique_val_preserved; eauto.
-    + i. ss.
-      destruct (id_dec id0 reg).
-      * subst.
-        rewrite lookupAL_updateAddAL_eq in *. clarify.
-        eapply MEM0; eauto.
-      * eapply LOCALS; eauto.
-        erewrite lookupAL_updateAddAL_neq; eauto.
-  - (* gep *)
-    econs; eauto.
-    + ss. inv CMDS. eapply no_leaked_unique_val_preserved; eauto.
-    + i. ss.
-      destruct (id_dec id0 reg).
-      * admit. (* res of fbop not producing unique-ptr *)
-      * eapply LOCALS; eauto.
-        erewrite lookupAL_updateAddAL_neq; eauto.
-  - (* trunc *)
-    econs; eauto.
-    + ss. inv CMDS. eapply no_leaked_unique_val_preserved; eauto.
-    + i. ss.
-      destruct (id_dec id0 reg).
-      * admit. (* res of fbop not producing unique-ptr *)
-      * eapply LOCALS; eauto.
-        erewrite lookupAL_updateAddAL_neq; eauto.
-  - (* ext *)
-    econs; eauto.
-    + ss. inv CMDS. eapply no_leaked_unique_val_preserved; eauto.
-    + i. ss.
-      destruct (id_dec id0 reg).
-      * admit. (* res of fbop not producing unique-ptr *)
-      * eapply LOCALS; eauto.
-        erewrite lookupAL_updateAddAL_neq; eauto.
-  - (* cast *)
-    econs; eauto.
-    + ss. inv CMDS. eapply no_leaked_unique_val_preserved; eauto.
-    + i. ss.
-      destruct (id_dec id0 reg).
-      * admit. (* res of fbop not producing unique-ptr *)
-      * eapply LOCALS; eauto.
-        erewrite lookupAL_updateAddAL_neq; eauto.
-  - (* icmp *)
-    econs; eauto.
-    + ss. inv CMDS. eapply no_leaked_unique_val_preserved; eauto.
-    + i. ss.
-      destruct (id_dec id0 reg).
-      * admit. (* res of fbop not producing unique-ptr *)
-      * eapply LOCALS; eauto.
-        erewrite lookupAL_updateAddAL_neq; eauto.
-  - (* fcmp *)
-    econs; eauto.
-    + ss. inv CMDS. eapply no_leaked_unique_val_preserved; eauto.
-    + i. ss.
-      destruct (id_dec id0 reg).
-      * admit. (* res of fbop not producing unique-ptr *)
-      * eapply LOCALS; eauto.
-        erewrite lookupAL_updateAddAL_neq; eauto.
-  - (* select *)
-    econs; eauto.
-    + ss. inv CMDS. eapply no_leaked_unique_val_preserved; eauto.
-    + i. ss.
-      destruct (id_dec id0 reg).
-      * admit. (* res of fbop not producing unique-ptr *)
-      * eapply LOCALS; eauto.
-        erewrite lookupAL_updateAddAL_neq; eauto.
-  - admit. (* no call *)
-  - admit. (* no call *)
-Admitted.
 
 Lemma step_wf_lc
       conf st0 st1 evt
@@ -409,13 +271,10 @@ Proof.
   }
   exploit postcond_cmd_check_forgets_Subset; eauto. intro COND_INIT.
 
-  (* forget-unique *)
-  exploit forget_unique_sound; eauto. intro STATE_FORGET_UNIQUE. des.
-
   (* forget-memory *)
   exploit forget_memory_sound; eauto.
-  { ss. apply forget_unique_unary_no_leaks. }
-  { ss. apply forget_unique_unary_no_leaks. }
+  (* { ss. apply forget_unique_unary_no_leaks. } *)
+  (* { ss. apply forget_unique_unary_no_leaks. } *)
   { unfold postcond_cmd_check in COND_INIT.
     des_ifs. des_bool. eauto. }
   i. des.
@@ -425,22 +284,24 @@ Proof.
   exploit forget_sound; eauto.
   { hexploit step_state_equiv_except; try exact CMDS_SRC; eauto. }
   { hexploit step_state_equiv_except; try exact CMDS_TGT; eauto. }
-  { inv STATE_FORGET_MEMORY.
-    hexploit step_unique_holds; try exact STEP_SRC; eauto.
-    { inv STATE. inv SRC0. eauto. }
-    eapply unary_no_leaks_Subset.
-    - exploit forget_memory_Subset; eauto. intro SUBSET.
-      inv SUBSET. apply SUBSET_SRC.
-    - ss. apply forget_unique_unary_no_leaks.
-  }
-  { inv STATE_FORGET_MEMORY.
-    hexploit step_unique_holds; try exact STEP_TGT; eauto.
-    { inv STATE. inv TGT0. eauto. }
-    eapply unary_no_leaks_Subset.
-    - exploit forget_memory_Subset; eauto. intro SUBSET.
-      inv SUBSET. apply SUBSET_TGT.
-    - ss. apply forget_unique_unary_no_leaks.
-  }
+  (* { inv STATE_FORGET_MEMORY. *)
+  (*   hexploit step_unique_holds; try exact STEP_SRC; eauto. *)
+  (*   { inv STATE. inv SRC0. eauto. } *)
+  (*   eapply unary_no_leaks_Subset. *)
+  (*   - exploit forget_memory_Subset; eauto. intro SUBSET. *)
+  (*     inv SUBSET. apply SUBSET_SRC. *)
+  (*   - ss. apply forget_unique_unary_no_leaks. *)
+  (* } *)
+  (* { inv STATE_FORGET_MEMORY. *)
+  (*   hexploit step_unique_holds; try exact STEP_TGT; eauto. *)
+  (*   { inv STATE. inv TGT0. eauto. } *)
+  (*   eapply unary_no_leaks_Subset. *)
+  (*   - exploit forget_memory_Subset; eauto. intro SUBSET. *)
+  (*     inv SUBSET. apply SUBSET_TGT. *)
+  (*   - ss. apply forget_unique_unary_no_leaks. *)
+  (* } *)
+  { admit. (* unique_preserved_except src *) }
+  { admit. (* unique_preserved_except tgt *) }
   { eapply step_wf_lc; try exact STEP_SRC; eauto.
     - inv MEM. inv SRC. eauto.
     - inv STATE. inv SRC. eauto. }
@@ -449,3 +310,146 @@ Proof.
     - inv STATE. inv TGT. eauto. }
   i. des.
 Admitted.
+
+(* unused *)
+(* Lemma step_unique_holds *)
+(*       conf invst0 invmem1 inv0 *)
+(*       st0 st1 cmd cmds evt *)
+(*       (WF_LOCAL_BEFORE : memory_props.MemProps.wf_lc st0.(Mem) st0.(EC).(Locals)) *)
+(*       (STATE: InvState.Unary.sem conf (mkState st0.(EC) st0.(ECS) st1.(Mem)) *)
+(*                                  invst0 invmem1 inv0) *)
+(*       (CMDS: st0.(EC).(CurCmds) = cmd::cmds) *)
+(*       (STEP: sInsn conf st0 st1 evt) *)
+(*       (NO_LEAK: unary_no_leaks (AtomSetImpl_from_list (Cmd.get_def cmd)) *)
+(*                                (AtomSetImpl_from_list (Cmd.get_leaked_ids cmd)) *)
+(*                                inv0) *)
+(*   : unique_holds conf st1 inv0. *)
+(* Proof. *)
+(*   intros u MEM. *)
+(*   assert (IN: AtomSetImpl.In u (Invariant.unique inv0)). *)
+(*   { apply AtomSetFacts.mem_iff; eauto. } *)
+(*   unfold unary_no_leaks in *. *)
+(*   inv STATE. *)
+(*   exploit UNIQUE; eauto. intro UNIQUE_BEF. inv UNIQUE_BEF. *)
+
+(*   inv STEP; destruct cmd; ss; *)
+(*     try by econs; eauto. *)
+(*   - (* bop *) *)
+(*     econs; eauto. *)
+(*     + ss. inv CMDS. eapply no_leaked_unique_val_preserved; eauto. *)
+(*     + i. ss. *)
+(*       destruct (id_dec id0 reg). *)
+(*       * admit. (* res of bop not producing unique-ptr *) *)
+(*       * eapply LOCALS; eauto. *)
+(*         erewrite lookupAL_updateAddAL_neq; eauto. *)
+(*   - (* fbop *) *)
+(*     econs; eauto. *)
+(*     + ss. inv CMDS. eapply no_leaked_unique_val_preserved; eauto. *)
+(*     + i. ss. *)
+(*       destruct (id_dec id0 reg). *)
+(*       * admit. (* res of fbop not producing unique-ptr *) *)
+(*       * eapply LOCALS; eauto. *)
+(*         erewrite lookupAL_updateAddAL_neq; eauto. *)
+(*   - (* extractvalue *) *)
+(*     econs; eauto. *)
+(*     + ss. inv CMDS. eapply no_leaked_unique_val_preserved; eauto. *)
+(*     + i. ss. *)
+(*       destruct (id_dec id0 reg). *)
+(*       * admit. (* res of fbop not producing unique-ptr *) *)
+(*       * eapply LOCALS; eauto. *)
+(*         erewrite lookupAL_updateAddAL_neq; eauto. *)
+(*   - (* insertvalue *) *)
+(*     econs; eauto. *)
+(*     + ss. inv CMDS. eapply no_leaked_unique_val_preserved; eauto. *)
+(*     + i. ss. *)
+(*       destruct (id_dec id0 reg). *)
+(*       * admit. (* res of fbop not producing unique-ptr *) *)
+(*       * eapply LOCALS; eauto. *)
+(*         erewrite lookupAL_updateAddAL_neq; eauto. *)
+(*   - (* malloc *) *)
+(*     admit. (* no malloc *) *)
+(*   - (* alloca *) *)
+(*     econs; eauto. *)
+(*     + ss. inv CMDS. eapply no_leaked_unique_val_preserved; eauto. *)
+(*     + i. ss. *)
+(*       destruct (id_dec id0 reg). *)
+(*       * subst. rewrite lookupAL_updateAddAL_eq in *. clarify. *)
+(*         exploit WF_LOCAL_BEFORE; eauto. i. *)
+(*         unfold InvState.Unary.sem_diffblock. *)
+(*         des_ifs. ii. ss. clarify. *)
+(*         exploit external_intrinsics.GV2ptr_inv; eauto. i. des. *)
+(*         clarify. ss. des. *)
+(*         exploit MemProps.malloc_result; eauto. i. subst. *)
+(*         eapply Pos.lt_irrefl; eauto. *)
+(*       * eapply LOCALS; eauto. *)
+(*         erewrite lookupAL_updateAddAL_neq; eauto. *)
+(*   - (* load *) *)
+(*     econs; eauto. *)
+(*     + ss. inv CMDS. eapply no_leaked_unique_val_preserved; eauto. *)
+(*     + i. ss. *)
+(*       destruct (id_dec id0 reg). *)
+(*       * subst. *)
+(*         rewrite lookupAL_updateAddAL_eq in *. clarify. *)
+(*         eapply MEM0; eauto. *)
+(*       * eapply LOCALS; eauto. *)
+(*         erewrite lookupAL_updateAddAL_neq; eauto. *)
+(*   - (* gep *) *)
+(*     econs; eauto. *)
+(*     + ss. inv CMDS. eapply no_leaked_unique_val_preserved; eauto. *)
+(*     + i. ss. *)
+(*       destruct (id_dec id0 reg). *)
+(*       * admit. (* res of fbop not producing unique-ptr *) *)
+(*       * eapply LOCALS; eauto. *)
+(*         erewrite lookupAL_updateAddAL_neq; eauto. *)
+(*   - (* trunc *) *)
+(*     econs; eauto. *)
+(*     + ss. inv CMDS. eapply no_leaked_unique_val_preserved; eauto. *)
+(*     + i. ss. *)
+(*       destruct (id_dec id0 reg). *)
+(*       * admit. (* res of fbop not producing unique-ptr *) *)
+(*       * eapply LOCALS; eauto. *)
+(*         erewrite lookupAL_updateAddAL_neq; eauto. *)
+(*   - (* ext *) *)
+(*     econs; eauto. *)
+(*     + ss. inv CMDS. eapply no_leaked_unique_val_preserved; eauto. *)
+(*     + i. ss. *)
+(*       destruct (id_dec id0 reg). *)
+(*       * admit. (* res of fbop not producing unique-ptr *) *)
+(*       * eapply LOCALS; eauto. *)
+(*         erewrite lookupAL_updateAddAL_neq; eauto. *)
+(*   - (* cast *) *)
+(*     econs; eauto. *)
+(*     + ss. inv CMDS. eapply no_leaked_unique_val_preserved; eauto. *)
+(*     + i. ss. *)
+(*       destruct (id_dec id0 reg). *)
+(*       * admit. (* res of fbop not producing unique-ptr *) *)
+(*       * eapply LOCALS; eauto. *)
+(*         erewrite lookupAL_updateAddAL_neq; eauto. *)
+(*   - (* icmp *) *)
+(*     econs; eauto. *)
+(*     + ss. inv CMDS. eapply no_leaked_unique_val_preserved; eauto. *)
+(*     + i. ss. *)
+(*       destruct (id_dec id0 reg). *)
+(*       * admit. (* res of fbop not producing unique-ptr *) *)
+(*       * eapply LOCALS; eauto. *)
+(*         erewrite lookupAL_updateAddAL_neq; eauto. *)
+(*   - (* fcmp *) *)
+(*     econs; eauto. *)
+(*     + ss. inv CMDS. eapply no_leaked_unique_val_preserved; eauto. *)
+(*     + i. ss. *)
+(*       destruct (id_dec id0 reg). *)
+(*       * admit. (* res of fbop not producing unique-ptr *) *)
+(*       * eapply LOCALS; eauto. *)
+(*         erewrite lookupAL_updateAddAL_neq; eauto. *)
+(*   - (* select *) *)
+(*     econs; eauto. *)
+(*     + ss. inv CMDS. eapply no_leaked_unique_val_preserved; eauto. *)
+(*     + i. ss. *)
+(*       destruct (id_dec id0 reg). *)
+(*       * admit. (* res of fbop not producing unique-ptr *) *)
+(*       * eapply LOCALS; eauto. *)
+(*         erewrite lookupAL_updateAddAL_neq; eauto. *)
+(*   - admit. (* no call *) *)
+(*   - admit. (* no call *) *)
+(* Admitted. *)
+

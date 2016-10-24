@@ -97,9 +97,16 @@ Module Cmd.
       | insn_call x nr attr ty va f ps => f :: (List.map snd ps)
     end.
 
+    Definition get_leaked_values_to_memory (c: t): option value :=
+    match c with
+      | insn_store x ty v p a => Some v
+      | _ => None
+    end.
+
     Definition get_leaked_values (c: t): list value :=
     match c with
       | insn_nop _ => []
+      | insn_store _ _ _ _ _ => []
       | insn_bop x b s v1 v2 => [v1 ; v2]
       | insn_fbop x fb fp v1 v2 => [v1 ; v2]
       | insn_extractvalue x ty1 v lc ty2 => [v]
@@ -108,7 +115,6 @@ Module Cmd.
       | insn_free x ty v => [v]
       | insn_alloca x ty v a => [v]
       | insn_load x ty p a => []
-      | insn_store x ty v p a => [v]
       | insn_gep x ib ty1 v lsv ty2 => v :: (List.map snd lsv)
       | insn_trunc x trop ty1 v ty2 => [v]
       | insn_ext x eop ty1 v ty2 => [v]
@@ -124,6 +130,12 @@ Module Cmd.
 
   Definition get_leaked_ids (c: t): list id :=
     TODO.filter_map Value.get_ids (get_leaked_values c).
+
+  Definition get_leaked_ids_to_memory (c: t): option id :=
+    match get_leaked_values_to_memory c with
+    | Some v => Value.get_ids v
+    | None => None
+    end.
 End Cmd.
 
 Module LiftPred.
@@ -329,22 +341,6 @@ Lemma lift_physical_atoms_idtset_spec1
 Proof.
 Admitted.
 
-Module ForgetUnique.
-  Definition unique (ids:AtomSetImpl.t) (uniq0:atoms): atoms :=
-    AtomSetImpl.filter
-      (fun i => negb (AtomSetImpl.mem i ids)) uniq0.
-
-  Definition unary (defs leaks:AtomSetImpl.t) (inv0:Invariant.unary): Invariant.unary :=
-    Invariant.update_unique
-      (AtomSetImpl.filter
-         (fun i => negb (AtomSetImpl.mem i (AtomSetImpl.union defs leaks)))) inv0.
-
-  Definition t (defs_src defs_tgt leaks_src leaks_tgt:AtomSetImpl.t) (inv0:Invariant.t): Invariant.t :=
-    let inv1 := Invariant.update_src (unary defs_src leaks_src) inv0 in
-    let inv2 := Invariant.update_tgt (unary defs_tgt leaks_tgt) inv1 in
-    inv2.
-End ForgetUnique.
-
 Module Forget.
   Definition alias (ids:AtomSetImpl.t) (inv0:Invariant.aliasrel): Invariant.aliasrel :=
     let inv1 :=
@@ -357,20 +353,22 @@ Module Forget.
              (compose negb (LiftPred.PtrPair (flip IdTSet.mem (lift_physical_atoms_idtset ids))))) inv1 in
     inv2.
 
-  Definition unary (defs:AtomSetImpl.t) (inv0:Invariant.unary): Invariant.unary :=
+  Definition unary (defs leaks:AtomSetImpl.t) (inv0:Invariant.unary): Invariant.unary :=
     let inv1 :=
         Invariant.update_lessdef
           (ExprPairSet.filter
              (negb <*> (LiftPred.ExprPair (flip IdTSet.mem (lift_physical_atoms_idtset defs))))) inv0 in
     let inv2 := Invariant.update_alias (alias defs) inv1 in
-    let inv3 :=
+    let inv3 := Invariant.update_unique (AtomSetImpl.filter
+         (fun i => negb (AtomSetImpl.mem i (AtomSetImpl.union defs leaks)))) inv2 in
+    let inv4 :=
         Invariant.update_private
-          (IdTSet.filter (compose negb (flip IdTSet.mem (lift_physical_atoms_idtset defs)))) inv2 in
-    inv3.
+          (IdTSet.filter (compose negb (flip IdTSet.mem (lift_physical_atoms_idtset defs)))) inv3 in
+    inv4.
 
-  Definition t (defs_src defs_tgt:AtomSetImpl.t) (inv0:Invariant.t): Invariant.t :=
-    let inv1 := Invariant.update_src (unary defs_src) inv0 in
-    let inv2 := Invariant.update_tgt (unary defs_tgt) inv1 in
+  Definition t (defs_src defs_tgt leaks_src leaks_tgt :AtomSetImpl.t) (inv0:Invariant.t): Invariant.t :=
+    let inv1 := Invariant.update_src (unary defs_src leaks_src) inv0 in
+    let inv2 := Invariant.update_tgt (unary defs_tgt leaks_tgt) inv1 in
     let inv3 := Invariant.update_maydiff (IdTSet.union (lift_physical_atoms_idtset (AtomSetImpl.union defs_src defs_tgt))) inv2 in
     inv3.
 End Forget.
@@ -394,22 +392,24 @@ Module ForgetMemory.
              (inv:Invariant.unary) (ps:Ptr.t) (ep:ExprPair.t): bool :=
     is_noalias_Expr inv ps ep.(fst) && is_noalias_Expr inv ps ep.(snd).
 
-  Definition unary (ps:Ptr.t) (inv0:Invariant.unary): Invariant.unary :=
-    Invariant.update_lessdef (ExprPairSet.filter (is_noalias_ExprPair inv0 ps)) inv0.
-
-  Definition t (dm_src dm_tgt:option Ptr.t) (inv0:Invariant.t): Invariant.t :=
+  Definition unary (def_mem:option Ptr.t) (leak_mem:option id) (inv0:Invariant.unary): Invariant.unary :=
     let inv1 :=
-        match dm_src with
-        | Some dm_src => Invariant.update_src (unary dm_src) inv0
+        match def_mem with
+        | Some def_mem => Invariant.update_lessdef (ExprPairSet.filter (is_noalias_ExprPair inv0 def_mem)) inv0
         | None => inv0
         end
     in
     let inv2 :=
-        match dm_tgt with
-        | Some dm_tgt => Invariant.update_tgt (unary dm_tgt) inv1
+        match leak_mem with
+        | Some leak_mem => Invariant.update_unique (AtomSetImpl.remove leak_mem) inv1
         | None => inv1
         end
     in
+    inv2.
+
+  Definition t (dm_src dm_tgt:option Ptr.t) (leak_mem_src leak_mem_tgt:option id) (inv0:Invariant.t): Invariant.t :=
+    let inv1 := Invariant.update_src (unary dm_src leak_mem_src) inv0 in
+    let inv2 := Invariant.update_tgt (unary dm_tgt leak_mem_tgt) inv1 in
     inv2.
 End ForgetMemory.
 
@@ -600,23 +600,20 @@ Definition postcond_phinodes_assigns
   else
 
   let inv1 := Snapshot.t inv0 in
-  let inv2 := ForgetUnique.t (AtomSetImpl_from_list defs_src)
-                             (AtomSetImpl_from_list defs_tgt)
-                             (AtomSetImpl_from_list uses_src)
-                             (AtomSetImpl_from_list uses_tgt)
-                             inv1 in
-  let inv3 := Forget.t (AtomSetImpl_from_list defs_src)
+  let inv2 := Forget.t (AtomSetImpl_from_list defs_src)
                        (AtomSetImpl_from_list defs_tgt)
-                       inv2
+                       (AtomSetImpl_from_list uses_src)
+                       (AtomSetImpl_from_list uses_tgt)
+                       inv1
   in
-  let inv4 :=
+  let inv3 :=
       Invariant.update_src
-        (Invariant.update_lessdef (postcond_phinodes_add_lessdef assigns_src)) inv3 in
-  let inv5 :=
+        (Invariant.update_lessdef (postcond_phinodes_add_lessdef assigns_src)) inv2 in
+  let inv4 :=
       Invariant.update_tgt
-        (Invariant.update_lessdef (postcond_phinodes_add_lessdef assigns_tgt)) inv4 in
-  let inv6 := reduce_maydiff inv5 in
-  Some inv6.
+        (Invariant.update_lessdef (postcond_phinodes_add_lessdef assigns_tgt)) inv3 in
+  let inv5 := reduce_maydiff inv4 in
+  Some inv5.
 
 Definition postcond_phinodes
            (l_from:l)
@@ -881,14 +878,16 @@ Definition postcond_cmd
   let leaks_tgt := AtomSetImpl_from_list (Cmd.get_leaked_ids tgt) in
   let def_memory_src := Cmd.get_def_memory src in
   let def_memory_tgt := Cmd.get_def_memory tgt in
+  let leaks_memory_src := Cmd.get_leaked_ids_to_memory src in
+  let leaks_memory_tgt := Cmd.get_leaked_ids_to_memory tgt in
 
-  let inv1 := ForgetUnique.t def_src def_tgt leaks_src leaks_tgt inv0 in
-  let inv2 :=
+  (* let inv1 := ForgetUnique.t def_src def_tgt leaks_src leaks_tgt inv0 in *)
+  let inv1 :=
       if Instruction.isCallInst src
-      then ForgetMemoryCall.t inv1
-      else ForgetMemory.t def_memory_src def_memory_tgt inv1
+      then ForgetMemoryCall.t inv0
+      else ForgetMemory.t def_memory_src def_memory_tgt leaks_memory_src leaks_memory_tgt inv0
   in
-  let inv3 := Forget.t def_src def_tgt inv2 in
-  if postcond_cmd_check src tgt def_src def_tgt uses_src uses_tgt inv3
-  then Some (postcond_cmd_add src tgt inv3)
+  let inv2 := Forget.t def_src def_tgt leaks_src leaks_tgt inv1 in
+  if postcond_cmd_check src tgt def_src def_tgt uses_src uses_tgt inv2
+  then Some (postcond_cmd_add src tgt inv2)
   else None.

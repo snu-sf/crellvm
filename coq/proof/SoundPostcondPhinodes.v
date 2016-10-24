@@ -328,9 +328,7 @@ Proof.
   unfold Postcond.postcond_phinodes_assigns in *.
   simtac.
   exploit snapshot_sound; eauto. i. des.
-  exploit forget_unique_sound; eauto. i. des.
   exploit forget_sound; eauto.
-(*   exploit forget_sound; eauto. *)
   { instantiate (1 := mkState (mkEC _ _ _ _ _ _) _ _). econs; s; eauto.
     eapply locals_equiv_after_phinode; eauto.
   }
@@ -338,8 +336,8 @@ Proof.
     eapply locals_equiv_after_phinode; eauto.
     rewrite L_TGT. eauto.
   }
-  { admit. (* unique_holds *)}
-  { admit. (* unique_holds *)}
+  { admit. (* unique_preserved *)}
+  { admit. (* unique_preserved *)}
   { inv STATE. inv SRC. ss. admit. (* wf_lc *) }
   { inv STATE. inv TGT. ss. admit. (* wf_lc *) }
   intros STATE_FORGET. des.
