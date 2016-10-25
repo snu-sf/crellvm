@@ -187,8 +187,7 @@ Proof.
   assert (EQUIV_REV: state_equiv_except defs st1 st0).
   { symmetry. eauto. }
   econs; eauto.
-  - ii.
-    destruct x as [e1 e2]. ss.
+  - ii. destruct x as [e1 e2]. ss.
     apply ExprPairSetFacts.filter_iff in H; [| solve_compat_bool]. des.
     solve_negb_liftpred.
     exploit sem_expr_equiv_except; try exact EQUIV_REV; try exact VAL1; eauto.
@@ -213,9 +212,7 @@ Proof.
   - ii. ss.
     apply AtomSetFacts.filter_iff in H; [| solve_compat_bool]. des.
     apply negb_true_iff in H0.
-
     unfold unique_preserved_except in *.
-
     apply UNIQUE; eauto.
     apply AtomSetFacts.mem_iff; eauto.
   - ii. ss.

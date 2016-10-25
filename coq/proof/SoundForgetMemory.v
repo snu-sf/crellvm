@@ -216,54 +216,6 @@ Proof.
   rewrite EQ_VAL. rewrite IHlsv. eauto.
 Qed.
 
-(* for same locals and memories *)
-Lemma sem_expr_eq_locals_mem
-      conf st0 st1 invst0 e
-      (LOCALS_EQ: Locals (EC st0) = Locals (EC st1))
-      (MEM_EQ: Mem st0 = Mem st1)
-  : InvState.Unary.sem_expr conf st1 invst0 e = InvState.Unary.sem_expr conf st0 invst0 e.
-Proof.
-  Ltac sem_value_st :=
-      let H' := fresh in
-      repeat
-        match goal with
-        | [LOCALS_EQ: Locals (EC ?st0) = Locals (EC ?st1) |-
-           context[ InvState.Unary.sem_valueT ?conf ?st1 ?invst0 ?v ] ] =>
-          exploit sem_valueT_eq_locals; try exact LOCALS_EQ; intro H';
-          rewrite H'; clear H'
-        | [LOCALS_EQ: Locals (EC ?st0) = Locals (EC ?st1) |-
-           context[ InvState.Unary.sem_list_valueT ?conf ?st1 ?invst0 ?lsv ] ] =>
-          exploit sem_list_valueT_eq_locals; try exact LOCALS_EQ; intro H';
-          rewrite H'; clear H'
-        end.
-  destruct e; ss; try rewrite <- MEM_EQ; sem_value_st; eauto.
-Qed.
-
-Lemma unary_sem_eq_locals_mem
-      conf st0 st1 invst0 invmem0 inv0
-      (LOCALS_EQ: Locals (EC st0) = Locals (EC st1))
-      (MEM_EQ : Mem st0 = Mem st1)
-      (STATE: InvState.Unary.sem conf st0 invst0 invmem0 inv0)
-  : InvState.Unary.sem conf st1 invst0 invmem0 inv0.
-Proof.
-  inv STATE.
-  econs.
-  - ii.
-    exploit LESSDEF; eauto.
-    { erewrite sem_expr_eq_locals_mem; eauto. }
-    i. des.
-    esplits; eauto.
-    erewrite sem_expr_eq_locals_mem; eauto.
-  - inv NOALIAS.
-    econs; i; [exploit DIFFBLOCK | exploit NOALIAS0]; eauto;
-      erewrite sem_valueT_eq_locals; eauto.
-  - ii. exploit UNIQUE; eauto. intro UNIQ_X. inv UNIQ_X.
-    econs; try rewrite <- LOCALS_EQ; try rewrite <- MEM_EQ; eauto.
-  - ii. exploit PRIVATE; eauto.
-    erewrite sem_idT_eq_locals; eauto.
-  - rewrite <- LOCALS_EQ. rewrite <- MEM_EQ. eauto.
-Qed.
-
 (* soundness proof *)
 
 Definition alloc_inject_unary conf st1 x b :=
@@ -487,70 +439,6 @@ Proof.
     eapply Memory.Mem.store_valid_access_2; eauto.
 Qed.
 
-(* end of required lemmans for mstore, .. *)
-Ltac psimpl :=
-  unfold Ple, Plt in *;
-  subst;
-  try repeat match goal with
-             | [H1: ?y = Pos.succ ?x |- _] =>
-               let le := fresh "PLE" in
-               let lt := fresh "PLT" in
-               assert(le : (x <= y)%positive);
-               [by rewrite H1; apply Ple_succ|];
-               assert(lt : (x < y)%positive);
-               [by rewrite H1; apply Plt_succ|];
-               clear H1
-             end;
-  repeat
-    match goal with
-    | [H: ~ (?x < ?y)%positive |- _] =>
-      apply Pos.le_nlt in H
-    | [H: (?a >= ?b)%positive |- _] =>
-      apply Pos.ge_le in H
-    | [H: _ |- (?a >= ?b)%positive] =>
-      apply Pos.le_ge
-    end;
-  try (by apply Ple_refl);
-  try (by assumption);
-  match goal with
-  | [H: (?x < ?x)%positive |- _] =>
-      by apply Pos.lt_irrefl in H; inv H
-  | [H1: (?x <= ?y)%positive,
-         H2: (?y <= ?z)%positive |-
-     (?x <= ?z)%positive ] =>
-      by eapply Pos.le_trans; eauto
-  | [H1: (?x < ?y)%positive,
-         H2: (?y < ?z)%positive |-
-     (?x < ?z)%positive ] =>
-      by eapply Pos.lt_trans; eauto
-  | [H: (Pos.succ ?x <= ?x)%positive |- _] =>
-      by generalize H; apply Pos.lt_nle; apply Plt_succ'
-  end.
-
-Lemma invmem_unary_src_alloc_preserved
-      conf invmem0 mem0 mem1
-      public gmax mb
-      gsz gn a
-      (SRC : InvMem.Unary.sem conf gmax public mem0 invmem0)
-      (MALLOC : Some (mem1, mb) = malloc (CurTargetData conf) mem0 gsz gn a)
-  : InvMem.Unary.sem conf gmax public mem1 invmem0.
-Proof.
-  exploit malloc_result; eauto. i. des.
-  inv SRC.
-  econs; eauto.
-  - eapply MemProps.malloc_preserves_wf_Mem; eauto.
-  - i. exploit PRIVATE; eauto. i. des.
-    split; eauto. psimpl.
-  - i. exploit PRIVATE_PARENT; eauto. i. des.
-    split; eauto. psimpl.
-  - i. exploit MEM_PARENT; eauto. intro LOAD_AUX.
-    rewrite LOAD_AUX.
-    eapply malloc_preserves_mload_aux_other_eq; eauto.
-    ii. exploit PRIVATE_PARENT; eauto. i. des. psimpl.
-Qed.
-
-(* TODO: simplify proof script *)
-
 Lemma mstore_aux_preserves_mload_aux_eq
       Mem Mem' gv
       mc1 b1 ofs1
@@ -612,6 +500,95 @@ Proof.
   eapply Memory.Mem.store_getN_out; eauto.
 Qed.
 
+(* We use this as an axiom for now *)
+Lemma mstore_noalias_mload
+      conf mem0 mem1 TD
+      sptr sty gv sa
+      lptr lty la
+      (STORE: Some mem1 = mstore TD mem0 sptr sty gv sa)
+      (NOALIAS: InvState.Unary.sem_noalias conf sptr lptr sty lty)
+  : mload TD mem1 lptr lty la = mload TD mem0 lptr lty la.
+Proof.
+  (* destruct (mload TD mem1 lptr lty la) eqn:LOAD1. *)
+  (* - exploit MemProps.mstore_preserves_mload_inv'; eauto. *)
+  (* MemProps.mstore_preserves_mload *)
+
+  (* MemProps.no_alias is diffblock for us, so we cannot prove this right now *)
+Admitted.
+
+Lemma mfree_noalias_mload
+      conf mem0 mem1 TD
+      ptr ty lptr lty la
+      (FREE: free TD mem0 ptr = Some mem1)
+      (NOALIAS: InvState.Unary.sem_noalias conf ptr lptr ty lty)
+  : mload TD mem1 lptr lty la = mload TD mem0 lptr lty la.
+Proof.
+Admitted.
+
+(* tactic for positive. TODO: can we use Hint instead this? *)
+Ltac psimpl :=
+  unfold Ple, Plt in *;
+  subst;
+  try repeat match goal with
+             | [H1: ?y = Pos.succ ?x |- _] =>
+               let le := fresh "PLE" in
+               let lt := fresh "PLT" in
+               assert(le : (x <= y)%positive);
+               [by rewrite H1; apply Ple_succ|];
+               assert(lt : (x < y)%positive);
+               [by rewrite H1; apply Plt_succ|];
+               clear H1
+             end;
+  repeat
+    match goal with
+    | [H: ~ (?x < ?y)%positive |- _] =>
+      apply Pos.le_nlt in H
+    | [H: (?a >= ?b)%positive |- _] =>
+      apply Pos.ge_le in H
+    | [H: _ |- (?a >= ?b)%positive] =>
+      apply Pos.le_ge
+    end;
+  try (by apply Ple_refl);
+  try (by assumption);
+  match goal with
+  | [H: (?x < ?x)%positive |- _] =>
+      by apply Pos.lt_irrefl in H; inv H
+  | [H1: (?x <= ?y)%positive,
+         H2: (?y <= ?z)%positive |-
+     (?x <= ?z)%positive ] =>
+      by eapply Pos.le_trans; eauto
+  | [H1: (?x < ?y)%positive,
+         H2: (?y < ?z)%positive |-
+     (?x < ?z)%positive ] =>
+      by eapply Pos.lt_trans; eauto
+  | [H: (Pos.succ ?x <= ?x)%positive |- _] =>
+      by generalize H; apply Pos.lt_nle; apply Plt_succ'
+  end.
+
+(* invmem *)
+
+Lemma invmem_unary_src_alloc_preserved
+      conf invmem0 mem0 mem1
+      public gmax mb
+      gsz gn a
+      (SRC : InvMem.Unary.sem conf gmax public mem0 invmem0)
+      (MALLOC : Some (mem1, mb) = malloc (CurTargetData conf) mem0 gsz gn a)
+  : InvMem.Unary.sem conf gmax public mem1 invmem0.
+Proof.
+  exploit malloc_result; eauto. i. des.
+  inv SRC.
+  econs; eauto.
+  - eapply MemProps.malloc_preserves_wf_Mem; eauto.
+  - i. exploit PRIVATE; eauto. i. des.
+    split; eauto. psimpl.
+  - i. exploit PRIVATE_PARENT; eauto. i. des.
+    split; eauto. psimpl.
+  - i. exploit MEM_PARENT; eauto. intro LOAD_AUX.
+    rewrite LOAD_AUX.
+    eapply malloc_preserves_mload_aux_other_eq; eauto.
+    ii. exploit PRIVATE_PARENT; eauto. i. des. psimpl.
+Qed.
+
 Ltac solve_alloc_inject :=
   by ii;
   match goal with
@@ -626,7 +603,6 @@ Ltac solve_alloc_inject :=
     rewrite ALLOCA in MC_SOME; ss; des_ifs
   end.
 
-(* TODO: doing here *)
 Lemma inject_invmem
       m_src conf_src st0_src st1_src cmd_src cmds_src evt_src
       m_tgt conf_tgt st0_tgt st1_tgt cmd_tgt cmds_tgt evt_tgt
@@ -1221,30 +1197,7 @@ Proof.
     esplits; eauto; [solve_alloc_inject|reflexivity].
 Admitted.
 
-(* We use this as an axiom for now *)
-Lemma mstore_noalias_mload
-      conf mem0 mem1 TD
-      sptr sty gv sa
-      lptr lty la
-      (STORE: Some mem1 = mstore TD mem0 sptr sty gv sa)
-      (NOALIAS: InvState.Unary.sem_noalias conf sptr lptr sty lty)
-  : mload TD mem1 lptr lty la = mload TD mem0 lptr lty la.
-Proof.
-  (* destruct (mload TD mem1 lptr lty la) eqn:LOAD1. *)
-  (* - exploit MemProps.mstore_preserves_mload_inv'; eauto. *)
-  (* MemProps.mstore_preserves_mload *)
-
-  (* MemProps.no_alias is diffblock for us, so we cannot prove this right now *)
-Admitted.
-
-Lemma mfree_noalias_mload
-      conf mem0 mem1 TD
-      ptr ty lptr lty la
-      (FREE: free TD mem0 ptr = Some mem1)
-      (NOALIAS: InvState.Unary.sem_noalias conf ptr lptr ty lty)
-  : mload TD mem1 lptr lty la = mload TD mem0 lptr lty la.
-Proof.
-Admitted.
+(* invariant *)
 
 Lemma diffblock_comm
       conf gv1 gv2
@@ -1601,7 +1554,8 @@ Proof.
           - left. reflexivity.
           - inversion 1. }
     + ss. eapply MemProps.malloc_preserves_wf_lc_in_tail; eauto.
-  - destruct cmd; ss; des_ifs.
+  - (* store *)
+    destruct cmd; ss; des_ifs.
     { (* id *)
       destruct value1; ss.
       rename value2 into v_sptr.
@@ -1836,4 +1790,52 @@ Qed.
 (*   - destruct cmd; ss; des_ifs. *)
 (*   - inv STATE_MC. destruct st0. ss. *)
 (* Admitted. *)
+
+(* Lemma unary_sem_eq_locals_mem *)
+(*       conf st0 st1 invst0 invmem0 inv0 *)
+(*       (LOCALS_EQ: Locals (EC st0) = Locals (EC st1)) *)
+(*       (MEM_EQ : Mem st0 = Mem st1) *)
+(*       (STATE: InvState.Unary.sem conf st0 invst0 invmem0 inv0) *)
+(*   : InvState.Unary.sem conf st1 invst0 invmem0 inv0. *)
+(* Proof. *)
+(*   inv STATE. *)
+(*   econs. *)
+(*   - ii. *)
+(*     exploit LESSDEF; eauto. *)
+(*     { erewrite sem_expr_eq_locals_mem; eauto. } *)
+(*     i. des. *)
+(*     esplits; eauto. *)
+(*     erewrite sem_expr_eq_locals_mem; eauto. *)
+(*   - inv NOALIAS. *)
+(*     econs; i; [exploit DIFFBLOCK | exploit NOALIAS0]; eauto; *)
+(*       erewrite sem_valueT_eq_locals; eauto. *)
+(*   - ii. exploit UNIQUE; eauto. intro UNIQ_X. inv UNIQ_X. *)
+(*     econs; try rewrite <- LOCALS_EQ; try rewrite <- MEM_EQ; eauto. *)
+(*   - ii. exploit PRIVATE; eauto. *)
+(*     erewrite sem_idT_eq_locals; eauto. *)
+(*   - rewrite <- LOCALS_EQ. rewrite <- MEM_EQ. eauto. *)
+(* Qed. *)
+
+(* for same locals and memories *)
+(* Lemma sem_expr_eq_locals_mem *)
+(*       conf st0 st1 invst0 e *)
+(*       (LOCALS_EQ: Locals (EC st0) = Locals (EC st1)) *)
+(*       (MEM_EQ: Mem st0 = Mem st1) *)
+(*   : InvState.Unary.sem_expr conf st1 invst0 e = InvState.Unary.sem_expr conf st0 invst0 e. *)
+(* Proof. *)
+(*   Ltac sem_value_st := *)
+(*       let H' := fresh in *)
+(*       repeat *)
+(*         match goal with *)
+(*         | [LOCALS_EQ: Locals (EC ?st0) = Locals (EC ?st1) |- *)
+(*            context[ InvState.Unary.sem_valueT ?conf ?st1 ?invst0 ?v ] ] => *)
+(*           exploit sem_valueT_eq_locals; try exact LOCALS_EQ; intro H'; *)
+(*           rewrite H'; clear H' *)
+(*         | [LOCALS_EQ: Locals (EC ?st0) = Locals (EC ?st1) |- *)
+(*            context[ InvState.Unary.sem_list_valueT ?conf ?st1 ?invst0 ?lsv ] ] => *)
+(*           exploit sem_list_valueT_eq_locals; try exact LOCALS_EQ; intro H'; *)
+(*           rewrite H'; clear H' *)
+(*         end. *)
+(*   destruct e; ss; try rewrite <- MEM_EQ; sem_value_st; eauto. *)
+(* Qed. *)
 
