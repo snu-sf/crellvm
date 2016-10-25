@@ -24,7 +24,7 @@ Require InvState.
 Require Import Inject.
 Require Import SoundBase.
 Require Import SoundSnapshot.
-Require Import SoundForget.
+Require Import SoundForgetStack.
 Require Import SoundReduceMaydiff.
 Require Import SoundImplies.
 
@@ -42,14 +42,37 @@ Lemma add_terminator_cond_br_uncond
 Proof. destruct inv, src, tgt. ss. Qed.
 
 Lemma add_terminator_cond_switch
-      inv bid_src bid_tgt ty val_src val_tgt l0 cls l:
-  Postcond.add_terminator_cond
-    inv
-    (insn_switch bid_src ty val_src l0 cls)
-    (insn_switch bid_tgt ty val_tgt l0 cls)
-    l =
-  inv.
-Proof. destruct inv, src, tgt. ss. Qed.
+      conf_src conf_tgt
+      st_src st_tgt
+      invst invmem inv
+      ty cases l_dflt l_dest
+      id_src val_src gval_src
+      id_tgt val_tgt gval_tgt
+      (STATE: InvState.Rel.sem
+                conf_src conf_tgt st_src st_tgt
+                invst invmem inv)
+      (VAL_SRC: getOperandValue
+                  conf_src.(CurTargetData)
+                  val_src
+                  st_src.(EC).(Locals)
+                  conf_src.(Globals) = Some gval_src)
+      (VAL_TGT: getOperandValue
+                  conf_tgt.(CurTargetData)
+                  val_tgt
+                  st_tgt.(EC).(Locals)
+                  conf_tgt.(Globals) = Some gval_tgt)
+      (DECIDE_SRC: get_switch_branch conf_src.(CurTargetData) ty gval_src cases l_dflt = Some l_dest)
+      (DECIDE_TGT: get_switch_branch conf_tgt.(CurTargetData) ty gval_tgt cases l_dflt = Some l_dest)
+  : InvState.Rel.sem
+      conf_src conf_tgt
+      st_src st_tgt
+      invst invmem
+      (Postcond.add_terminator_cond
+         inv
+         (insn_switch id_src ty val_src l_dflt cases)
+         (insn_switch id_tgt ty val_tgt l_dflt cases) l_dest).
+Proof.
+Admitted.
 
 Lemma add_terminator_cond_br
       conf_src conf_tgt
@@ -305,8 +328,7 @@ Proof.
   unfold Postcond.postcond_phinodes_assigns in *.
   simtac.
   exploit snapshot_sound; eauto. i. des.
-  exploit forget_sound; eauto.
-(*   exploit forget_sound; eauto. *)
+  exploit forget_stack_sound; eauto.
   { instantiate (1 := mkState (mkEC _ _ _ _ _ _) _ _). econs; s; eauto.
     eapply locals_equiv_after_phinode; eauto.
   }
@@ -314,31 +336,11 @@ Proof.
     eapply locals_equiv_after_phinode; eauto.
     rewrite L_TGT. eauto.
   }
-  { instantiate (1 := AtomSetImpl_from_list ((filter_map Postcond.Phinode.get_use l0))).
-    ii.
-    inv STATE_SNAPSHOT.
-    inv SRC.
-    exploit UNIQUE; eauto.
-    { apply AtomSetFacts.mem_iff; eauto. }
-    i.
-    admit.
-    (* apply IdTSet_from_list_spec in MEM_X. *)
-    (* apply IdTSet_from_list_spec' in UNIQUE_NO_USE. *)
-    
-    (* contradict  *)
-    
-    (* Set Printing All. idtac. *)
-    
-    (* eapply eq_true_false_abs in UNIQUE_NO_USE. *)
-    (* bool *)
-    (* apply IdTSet_from_list_spec in UNIQUE_NO_USE. *)
-    (* IdTSetFacts.mem_ *)
-    
-
-    (* unfold unique_preserved_except. *)
-  }
-  { admit. }
-  i. des.
+  { admit. (* unique_preserved *)}
+  { admit. (* unique_preserved *)}
+  { inv STATE. inv SRC. ss. admit. (* wf_lc *) }
+  { inv STATE. inv TGT. ss. admit. (* wf_lc *) }
+  intros STATE_FORGET. des.
   inv STATE_FORGET.
   exploit phinodes_add_lessdef_sound; try exact SRC; eauto; i.
   exploit phinodes_add_lessdef_sound; try exact TGT; eauto; i.
@@ -347,5 +349,5 @@ Proof.
   { instantiate (1 := Hints.Invariant.mk _ _ _). econs; eauto. }
   { eauto. }
   { eauto. }
-  { i. match goal with [H:exists _, _ |- _] => exact H end.
+  intro STATE_MAYDIFF. exact STATE_MAYDIFF.
 Admitted.

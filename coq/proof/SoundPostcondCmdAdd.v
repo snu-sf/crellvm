@@ -24,7 +24,6 @@ Require InvMem.
 Require InvState.
 Require Import Inject.
 Require Import SoundBase.
-Require Import SoundForget.
 Require Import SoundReduceMaydiff.
 Require Import memory_props.
 

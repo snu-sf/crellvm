@@ -16,6 +16,7 @@ Import Opsem.
 
 Require Import TODO.
 Require Import Decs.
+Require Import Exprs.
 Require Import Validator.
 Require Import GenericValues.
 Require Import Inject.
@@ -276,3 +277,51 @@ Ltac solve_sem_valueT :=
            let xtag := fresh "xtag" in
            destruct x as [xtag x]; destruct xtag; ss
          end.
+
+(* TODO: position *)
+(* spec for AtomSetImpl_from_list *)
+
+Lemma AtomSetImpl_spec_aux x l s
+  : x `in` fold_left (flip add) l s <-> In x l \/ x `in` s.
+Proof.
+  split.
+  - revert x s.
+    induction l; eauto.
+    i. ss.
+    exploit IHl; eauto. i.
+    unfold flip in *.
+    des; eauto.
+    rewrite -> AtomSetFacts.add_iff in *. des; eauto.
+  - revert x s.
+    induction l; i.
+    + ss. des; done.
+    + ss. des; (exploit IHl; [|eauto]); eauto;
+            right; apply AtomSetFacts.add_iff; eauto.
+Qed.
+
+Lemma AtomSetImpl_from_list_spec1 x l
+  : AtomSetImpl.In x (AtomSetImpl_from_list l) <-> In x l.
+Proof.
+  assert (EQUIV: In x l <-> In x l \/ x `in` empty).
+  { split; eauto.
+    i. des; eauto.
+    apply AtomSetFacts.empty_iff in H. done.
+  }
+  rewrite EQUIV.
+  apply AtomSetImpl_spec_aux.
+Qed.
+
+Lemma AtomSetImpl_from_list_spec2 x l
+  : ~ AtomSetImpl.In x (AtomSetImpl_from_list l) <-> ~ In x l.
+Proof.
+  split; ii; apply AtomSetImpl_from_list_spec1 in H0; done.
+Qed.
+
+Lemma AtomSetImpl_singleton_mem_false x y
+  : AtomSetImpl.mem x (AtomSetImpl_from_list [y]) = false -> x <> y.
+Proof.
+  i.
+  apply AtomSetFacts.not_mem_iff in H.
+  apply AtomSetImpl_from_list_spec2 in H.
+  apply elim_not_In_cons in H. eauto.
+Qed.

@@ -200,7 +200,7 @@ Proof.
   i. inv UNARY.
   unfold Invariant.implies_unary in IMPLIES_UNARY.
   solve_bool_true.
-  econs.
+  econs; eauto.
   - eapply implies_lessdef_sound; eauto.
   - eapply implies_alias_sound; eauto.
   - eapply implies_unique_sound; eauto.

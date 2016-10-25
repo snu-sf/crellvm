@@ -9,6 +9,7 @@ Require Import Metatheory.
 Require Import vellvm.
 Require Import memory_sim.
 Require Import genericvalues_inject.
+Require Import memory_props.
 Import Opsem.
 
 Require Import Exprs.
@@ -29,6 +30,7 @@ Module Unary.
   Inductive sem (conf:Config) (gmax:positive) (public:mblock -> Prop) (m:mem) (inv:t): Prop :=
   | sem_intro
       (GLOBALS: wf_globals gmax conf.(Globals))
+      (WF: MemProps.wf_Mem conf.(CurTargetData) m)
       (PRIVATE: forall b (IN: In b inv.(private)), ~ public b /\ (b < m.(Mem.nextblock))%positive)
       (PRIVATE_PARENT: forall b (IN: In b inv.(private_parent)), ~ public b /\ (b < m.(Mem.nextblock))%positive)
       (DISJOINT: list_disjoint inv.(private) inv.(private_parent))
