@@ -25,7 +25,7 @@ Require InvMem.
 Require InvState.
 Require Import Inject.
 Require Import SoundBase.
-Require Import SoundForget.
+Require Import SoundForgetStack.
 Require Import SoundForgetMemory.
 Require Import SoundPostcondCmdAdd.
 
@@ -55,66 +55,6 @@ Qed.
 
 (* TODO: move this *)
 
-Lemma AtomSetImpl_spec_aux x l s
-  : x `in` fold_left (flip add) l s <-> In x l \/ x `in` s.
-Proof.
-  split.
-  - revert x s.
-    induction l; eauto.
-    i. ss.
-    exploit IHl; eauto. i.
-    unfold flip in *.
-    des; eauto.
-    rewrite -> AtomSetFacts.add_iff in *. des; eauto.
-  - revert x s.
-    induction l; i.
-    + ss. des; done.
-    + ss. des; (exploit IHl; [|eauto]); eauto;
-            right; apply AtomSetFacts.add_iff; eauto.
-Qed.
-  
-Lemma AtomSetImpl_from_list_spec1 x l
-  : AtomSetImpl.In x (AtomSetImpl_from_list l) <-> In x l.
-Proof.
-  assert (EQUIV: In x l <-> In x l \/ x `in` empty).
-  { split; eauto.
-    i. des; eauto.
-    apply AtomSetFacts.empty_iff in H. done.
-  }
-  rewrite EQUIV.
-  apply AtomSetImpl_spec_aux.
-Qed.
-
-Lemma AtomSetImpl_from_list_spec2 x l
-  : ~ AtomSetImpl.In x (AtomSetImpl_from_list l) <-> ~ In x l.
-Proof.
-  split; ii; apply AtomSetImpl_from_list_spec1 in H0; done.
-Qed.
-
-Lemma AtomSetImpl_singleton_mem_false x y
-  : AtomSetImpl.mem x (AtomSetImpl_from_list [y]) = false -> x <> y.
-Proof.
-  i.
-  apply AtomSetFacts.not_mem_iff in H.
-  apply AtomSetImpl_from_list_spec2 in H.
-  apply elim_not_In_cons in H. eauto.
-Qed.
-
-Lemma step_state_equiv_except
-      conf st0 st1 evt
-      cmd cmds
-      (NONCALL: Instruction.isCallInst cmd = false)
-      (CMDS : CurCmds st0.(EC) = cmd :: cmds)
-      (STEP: sInsn conf st0 st1 evt)
-  : state_equiv_except (AtomSetImpl_from_list (Cmd.get_def cmd))
-                       (mkState st0.(EC) st0.(ECS) st1.(Mem)) st1.
-Proof.
-  inv STEP; ss;
-    inv CMDS; econs; ss; ii;
-      hexploit AtomSetImpl_singleton_mem_false; eauto; i;
-        eauto using lookupAL_updateAddAL_neq.
-Qed.
-
 Lemma postcond_cmd_check_forgets_Subset
       cmd_src cmd_tgt inv0
       (COND : postcond_cmd_check
@@ -123,7 +63,7 @@ Lemma postcond_cmd_check_forgets_Subset
                 (AtomSetImpl_from_list (Cmd.get_def cmd_tgt))
                 (AtomSetImpl_from_list (Cmd.get_ids cmd_src))
                 (AtomSetImpl_from_list (Cmd.get_ids cmd_tgt))
-                (Forget.t
+                (ForgetStack.t
                    (AtomSetImpl_from_list (Cmd.get_def cmd_src))
                    (AtomSetImpl_from_list (Cmd.get_def cmd_tgt))
                    (AtomSetImpl_from_list (Cmd.get_leaked_ids cmd_src))
@@ -147,7 +87,7 @@ Proof.
   apply negb_false_iff in INJECT_T.
   apply negb_true_iff in INJECT_F.
   exploit postcond_cmd_inject_event_Subset; eauto;
-    (etransitivity; [apply forget_Subset | apply forget_memory_Subset]).
+    (etransitivity; [apply forget_stack_Subset | apply forget_memory_Subset]).
 Qed.
 
 Lemma step_wf_lc
@@ -204,84 +144,6 @@ Proof.
       * admit. (* wf_const *)
 Admitted.
 
-Lemma step_unique_preserved_except
-      conf st0 st1 evt inv0
-      cmd cmds
-      (STATE: AtomSetImpl.For_all (InvState.Unary.sem_unique conf (mkState st0.(EC) st0.(ECS) st1.(Mem)))
-                                  inv0.(Invariant.unique))
-      (NONCALL: Instruction.isCallInst cmd = false)
-      (CMDS : CurCmds st0.(EC) = cmd :: cmds)
-      (STEP : sInsn conf st0 st1 evt)
-  : unique_preserved_except conf inv0 st1
-                            (AtomSetImpl.union (AtomSetImpl_from_list (Cmd.get_def cmd))
-                                               (AtomSetImpl_from_list (Cmd.get_leaked_ids cmd))).
-Proof.
-  Ltac rename_id_res x:=
-    match goal with
-    | [H: lookupAL _ (updateAddAL _ _ ?id _) ?reg = Some _ |- _] =>
-      rename id into x
-    end.
-  inv STEP; ss; destruct cmd; ss; inv CMDS.
-  - (* nop *)
-    ii. apply AtomSetFacts.mem_iff in MEM.
-    specialize (STATE _ MEM).
-    inv STATE. ss.
-    econs; ss; eauto.
-  - (* bop *)
-    ii. rewrite AtomSetFacts.union_b in NO_LEAK. ss.
-    solve_des_bool.
-    apply AtomSetImpl_singleton_mem_false in NO_LEAK.
-    apply AtomSetFacts.mem_iff in MEM.
-    specialize (STATE _ MEM).
-    inv STATE.
-
-    econs; ss; eauto.
-    + rewrite <- lookupAL_updateAddAL_neq; eauto.
-    + i. rename_id_res id_res.
-      destruct (id_dec id_res reg).
-      * admit. (* bop: operand not unique => result not unique *)
-        (* TODO: result of inst not containing unique *)
-        (* can believe it even without proofs *)
-      * exploit LOCALS; eauto.
-        rewrite <- lookupAL_updateAddAL_neq in *; eauto.
-  - (* fbop *)
-    ii. rewrite AtomSetFacts.union_b in NO_LEAK. ss.
-    solve_des_bool.
-    apply AtomSetImpl_singleton_mem_false in NO_LEAK.
-    apply AtomSetFacts.mem_iff in MEM.
-    specialize (STATE _ MEM).
-    inv STATE.
-
-    econs; ss; eauto.
-    + rewrite <- lookupAL_updateAddAL_neq; eauto.
-    + i. rename_id_res id_res.
-      destruct (id_dec id_res reg).
-      * admit. (* fbop: operand not unique => result not unique *)
-        (* TODO: result of inst not containing unique *)
-        (* can believe it even without proofs *)
-      * exploit LOCALS; eauto.
-        rewrite <- lookupAL_updateAddAL_neq in *; eauto.
-  - (* extractvalue *)
-    ii. rewrite AtomSetFacts.union_b in NO_LEAK. ss.
-    solve_des_bool.
-    apply AtomSetImpl_singleton_mem_false in NO_LEAK.
-    apply AtomSetFacts.mem_iff in MEM.
-    specialize (STATE _ MEM).
-    inv STATE.
-
-    econs; ss; eauto.
-    + rewrite <- lookupAL_updateAddAL_neq; eauto.
-    + i. rename_id_res id_res.
-      destruct (id_dec id_res reg).
-      * admit. (* bop: operand not unique => result not unique *)
-        (* TODO: result of inst not containing unique *)
-        (* can believe it even without proofs *)
-      * exploit LOCALS; eauto.
-        rewrite <- lookupAL_updateAddAL_neq in *; eauto.
-  - (* insertvalue *)
-    (* TODO: fill rest *)
-Admitted.
-
 Lemma postcond_cmd_sound
       m_src conf_src st0_src cmd_src cmds_src
       m_tgt conf_tgt st0_tgt cmd_tgt cmds_tgt
@@ -330,7 +192,7 @@ Proof.
   rename MEM0 into MEM_FORGET_MEMORY.
 
   (* forget *)
-  exploit forget_sound; eauto.
+  exploit forget_stack_sound; eauto.
   { hexploit step_state_equiv_except; try exact CMDS_SRC; eauto. }
   { hexploit step_state_equiv_except; try exact CMDS_TGT; eauto. }
   { eapply step_unique_preserved_except; try exact CMDS_SRC; eauto.

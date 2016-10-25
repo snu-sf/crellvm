@@ -136,11 +136,11 @@ Proof.
   - inv EQUIV. rewrite <- MEM. eauto.
 Qed.
 
-Lemma forget_unary_Subset
+Lemma forget_stack_unary_Subset
       defs leaks inv0
-  : Invariant.Subset_unary (Forget.unary defs leaks inv0) inv0.
+  : Invariant.Subset_unary (ForgetStack.unary defs leaks inv0) inv0.
 Proof.
-  unfold Forget.unary.
+  unfold ForgetStack.unary.
   econs; ss; ii.
   - eapply ExprPairSetFacts.filter_iff in H; try by solve_compat_bool.
     des. eauto.
@@ -155,14 +155,14 @@ Proof.
     des. eauto.
 Qed.
 
-Lemma forget_Subset
+Lemma forget_stack_Subset
       def_src def_tgt inv0
       leaks_src leaks_tgt
-  : Invariant.Subset (Forget.t def_src def_tgt leaks_src leaks_tgt inv0) inv0.
+  : Invariant.Subset (ForgetStack.t def_src def_tgt leaks_src leaks_tgt inv0) inv0.
 Proof.
-  unfold Forget.t.
+  unfold ForgetStack.t.
   econs; ss;
-    try apply forget_unary_Subset.
+    try apply forget_stack_unary_Subset.
   ii.
   apply IdTSet.union_3. eauto.
 Qed.
@@ -174,14 +174,107 @@ Definition unique_preserved_except conf inv st1 except_for : Prop :=
          (NO_LEAK: AtomSetImpl.mem u except_for = false),
     InvState.Unary.sem_unique conf st1 u.
 
-Lemma forget_unary_sound
+Lemma step_unique_preserved_except
+      conf st0 st1 evt inv0
+      cmd cmds
+      (STATE: AtomSetImpl.For_all (InvState.Unary.sem_unique conf (mkState st0.(EC) st0.(ECS) st1.(Mem)))
+                                  inv0.(Invariant.unique))
+      (NONCALL: Instruction.isCallInst cmd = false)
+      (CMDS : CurCmds st0.(EC) = cmd :: cmds)
+      (STEP : sInsn conf st0 st1 evt)
+  : unique_preserved_except conf inv0 st1
+                            (AtomSetImpl.union (AtomSetImpl_from_list (Cmd.get_def cmd))
+                                               (AtomSetImpl_from_list (Cmd.get_leaked_ids cmd))).
+Proof.
+  Ltac rename_id_res x:=
+    match goal with
+    | [H: lookupAL _ (updateAddAL _ _ ?id _) ?reg = Some _ |- _] =>
+      rename id into x
+    end.
+  inv STEP; ss; destruct cmd; ss; inv CMDS.
+  - (* nop *)
+    ii. apply AtomSetFacts.mem_iff in MEM.
+    specialize (STATE _ MEM).
+    inv STATE. ss.
+    econs; ss; eauto.
+  - (* bop *)
+    ii. rewrite AtomSetFacts.union_b in NO_LEAK. ss.
+    solve_des_bool.
+    apply AtomSetImpl_singleton_mem_false in NO_LEAK.
+    apply AtomSetFacts.mem_iff in MEM.
+    specialize (STATE _ MEM).
+    inv STATE.
+
+    econs; ss; eauto.
+    + rewrite <- lookupAL_updateAddAL_neq; eauto.
+    + i. rename_id_res id_res.
+      destruct (id_dec id_res reg).
+      * admit. (* bop: operand not unique => result not unique *)
+        (* TODO: result of inst not containing unique *)
+        (* can believe it even without proofs *)
+      * exploit LOCALS; eauto.
+        rewrite <- lookupAL_updateAddAL_neq in *; eauto.
+  - (* fbop *)
+    ii. rewrite AtomSetFacts.union_b in NO_LEAK. ss.
+    solve_des_bool.
+    apply AtomSetImpl_singleton_mem_false in NO_LEAK.
+    apply AtomSetFacts.mem_iff in MEM.
+    specialize (STATE _ MEM).
+    inv STATE.
+
+    econs; ss; eauto.
+    + rewrite <- lookupAL_updateAddAL_neq; eauto.
+    + i. rename_id_res id_res.
+      destruct (id_dec id_res reg).
+      * admit. (* fbop: operand not unique => result not unique *)
+        (* TODO: result of inst not containing unique *)
+        (* can believe it even without proofs *)
+      * exploit LOCALS; eauto.
+        rewrite <- lookupAL_updateAddAL_neq in *; eauto.
+  - (* extractvalue *)
+    ii. rewrite AtomSetFacts.union_b in NO_LEAK. ss.
+    solve_des_bool.
+    apply AtomSetImpl_singleton_mem_false in NO_LEAK.
+    apply AtomSetFacts.mem_iff in MEM.
+    specialize (STATE _ MEM).
+    inv STATE.
+
+    econs; ss; eauto.
+    + rewrite <- lookupAL_updateAddAL_neq; eauto.
+    + i. rename_id_res id_res.
+      destruct (id_dec id_res reg).
+      * admit. (* bop: operand not unique => result not unique *)
+        (* TODO: result of inst not containing unique *)
+        (* can believe it even without proofs *)
+      * exploit LOCALS; eauto.
+        rewrite <- lookupAL_updateAddAL_neq in *; eauto.
+  - (* insertvalue *)
+    (* TODO: fill rest *)
+Admitted.
+
+Lemma step_state_equiv_except
+      conf st0 st1 evt
+      cmd cmds
+      (NONCALL: Instruction.isCallInst cmd = false)
+      (CMDS : CurCmds st0.(EC) = cmd :: cmds)
+      (STEP: sInsn conf st0 st1 evt)
+  : state_equiv_except (AtomSetImpl_from_list (Cmd.get_def cmd))
+                       (mkState st0.(EC) st0.(ECS) st1.(Mem)) st1.
+Proof.
+  inv STEP; ss;
+    inv CMDS; econs; ss; ii;
+      hexploit AtomSetImpl_singleton_mem_false; eauto; i;
+        eauto using lookupAL_updateAddAL_neq.
+Qed.
+
+Lemma forget_stack_unary_sound
       conf defs leaks st0 st1
       inv invst invmem
       (EQUIV : state_equiv_except defs st0 st1)
       (UNIQUE : unique_preserved_except conf inv st1 (AtomSetImpl.union defs leaks))
       (STATE : InvState.Unary.sem conf st0 invst invmem inv)
       (WF_LC: memory_props.MemProps.wf_lc st1.(Mem) st1.(EC).(Locals))
-  : InvState.Unary.sem conf st1 invst invmem (Forget.unary defs leaks inv).
+  : InvState.Unary.sem conf st1 invst invmem (ForgetStack.unary defs leaks inv).
 Proof.
   inv STATE.
   assert (EQUIV_REV: state_equiv_except defs st1 st0).
@@ -227,7 +320,7 @@ Proof.
     exploit PRIVATE; eauto.
 Qed.
 
-Lemma forget_sound
+Lemma forget_stack_sound
       conf_src st0_src
       conf_tgt st0_tgt
       st1_src st1_tgt
@@ -242,12 +335,12 @@ Lemma forget_sound
       (WF_LC_SRC: memory_props.MemProps.wf_lc st1_src.(Mem) st1_src.(EC).(Locals))
       (WF_LC_TGT: memory_props.MemProps.wf_lc st1_tgt.(Mem) st1_tgt.(EC).(Locals))
   : <<STATE_FORGET: InvState.Rel.sem conf_src conf_tgt st1_src st1_tgt
-                            invst invmem (Forget.t defs_src defs_tgt leaks_src leaks_tgt inv0)>>.
+                            invst invmem (ForgetStack.t defs_src defs_tgt leaks_src leaks_tgt inv0)>>.
 Proof.
   inv STATE.
   econs; ss.
-  - eapply forget_unary_sound; eauto.
-  - eapply forget_unary_sound; eauto.
+  - eapply forget_stack_unary_sound; eauto.
+  - eapply forget_stack_unary_sound; eauto.
   - i. ss.
     rewrite IdTSetFacts.union_b in NOTIN.
     solve_des_bool.

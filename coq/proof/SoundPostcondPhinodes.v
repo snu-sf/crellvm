@@ -24,7 +24,7 @@ Require InvState.
 Require Import Inject.
 Require Import SoundBase.
 Require Import SoundSnapshot.
-Require Import SoundForget.
+Require Import SoundForgetStack.
 Require Import SoundReduceMaydiff.
 Require Import SoundImplies.
 
@@ -328,7 +328,7 @@ Proof.
   unfold Postcond.postcond_phinodes_assigns in *.
   simtac.
   exploit snapshot_sound; eauto. i. des.
-  exploit forget_sound; eauto.
+  exploit forget_stack_sound; eauto.
   { instantiate (1 := mkState (mkEC _ _ _ _ _ _) _ _). econs; s; eauto.
     eapply locals_equiv_after_phinode; eauto.
   }

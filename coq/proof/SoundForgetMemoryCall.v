@@ -24,7 +24,6 @@ Require InvMem.
 Require InvState.
 Require Import Inject.
 Require Import SoundBase.
-Require Import SoundForget.
 
 Set Implicit Arguments.
 

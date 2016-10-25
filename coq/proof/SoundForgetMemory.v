@@ -25,7 +25,6 @@ Require InvMem.
 Require InvState.
 Require Import Inject.
 Require Import SoundBase.
-Require Import SoundForget.
 
 Set Implicit Arguments.
 
@@ -83,6 +82,7 @@ Inductive states_mem_change conf mem0 mem1: mem_change -> Prop :=
   : states_mem_change conf mem0 mem1 (mem_change_alloc dv ty bsz gn a)
 | states_mem_change_store
     ptr ty gv a
+    (VALID_PTRS: MemProps.valid_ptrs mem0.(Memory.Mem.nextblock) gv)
     (STORE: mstore conf.(CurTargetData) mem0 ptr ty gv a = Some mem1)
   : states_mem_change conf mem0 mem1 (mem_change_store ptr ty gv a)
 | states_mem_change_free
@@ -234,6 +234,16 @@ Definition alloc_inject conf_src conf_tgt st1_src st1_tgt cmd_src cmd_tgt invmem
       alloc_inject_unary conf_tgt st1_tgt x b_tgt /\
       invmem1.(InvMem.Rel.inject) b_src = Some (b_tgt, 0).
 
+Lemma getOperandValue_wf_lc_valid_ptrs
+      TD lc gl
+      mem v gv
+      (VAL : getOperandValue TD v lc gl = Some gv)
+      (WF_LOCAL : MemProps.wf_lc mem lc)
+  : MemProps.valid_ptrs mem.(Memory.Mem.nextblock) gv.
+Proof.
+(* hope MemProps.operand__lt_nextblock helps *)
+Admitted.
+
 Lemma step_mem_change
       st0 st1 invst0 invmem0 inv0
       cmd cmds
@@ -251,7 +261,13 @@ Proof.
          esplits; ss; econs; eauto);
     try (by inv CMD;
          esplits; ss; [des_ifs | econs]; eauto).
-  - admit. (* not malloc *)
+  - admit. (* not malloc, easy *)
+  - inv CMD.
+    esplits; ss.
+    + des_ifs.
+    + econs; eauto.
+      inv STATE. ss.
+      eapply getOperandValue_wf_lc_valid_ptrs; eauto.
 Admitted.
 
 Ltac exploit_inject_value :=
@@ -500,7 +516,7 @@ Proof.
   eapply Memory.Mem.store_getN_out; eauto.
 Qed.
 
-(* We use this as an axiom for now *)
+(* noalias definition change can make this provable *)
 Lemma mstore_noalias_mload
       conf mem0 mem1 TD
       sptr sty gv sa
@@ -522,6 +538,39 @@ Lemma mfree_noalias_mload
       (FREE: free TD mem0 ptr = Some mem1)
       (NOALIAS: InvState.Unary.sem_noalias conf ptr lptr ty lty)
   : mload TD mem1 lptr lty la = mload TD mem0 lptr lty la.
+Proof.
+Admitted.
+
+Lemma mstore_aux_valid_ptrs_preserves_wf_Mem
+      conf mem0 mem1
+      b ofs ch gv
+      (WF_MEM : MemProps.wf_Mem conf.(CurTargetData) mem0)
+      (VALID_PTRS: MemProps.valid_ptrs mem0.(Memory.Mem.nextblock) gv)
+      (STORE : mstore_aux mem0 ch gv b ofs = Some mem1)
+  : MemProps.wf_Mem (CurTargetData conf) mem1.
+Proof.
+Admitted.
+
+Lemma mstore_const_leak_no_unique
+      conf st0 u gv c
+      ptr ty a mem1
+      (UNIQUE_U : InvState.Unary.sem_unique conf st0 u)
+      (* (DIFF_ID: x <> u) *)
+      (* (PTR: lookupAL GenericValue st0.(EC).(Locals) x = Some gv) *)
+      (PTR: const2GV conf.(CurTargetData) conf.(Globals) c = Some gv)
+      (STORE : mstore conf.(CurTargetData) st0.(Mem) ptr ty gv a = Some mem1)
+  : InvState.Unary.sem_unique conf (mkState st0.(EC) st0.(ECS) mem1) u.
+Proof.
+Admitted.
+
+Lemma mstore_register_leak_no_unique
+      conf st0 x u gv
+      ptr ty a mem1
+      (UNIQUE_U : InvState.Unary.sem_unique conf st0 u)
+      (DIFF_ID: x <> u)
+      (PTR: lookupAL GenericValue st0.(EC).(Locals) x = Some gv)
+      (STORE : mstore conf.(CurTargetData) st0.(Mem) ptr ty gv a = Some mem1)
+  : InvState.Unary.sem_unique conf (mkState st0.(EC) st0.(ECS) mem1) u.
 Proof.
 Admitted.
 
@@ -1034,7 +1083,7 @@ Proof.
         (*       (WF : MemProps.wf_Mem (CurTargetData conf_src) (Mem st0_src)) *)
         (* : MemProps.wf_Mem (CurTargetData conf_src) (Mem st1_src). *)
         (* we will not prove this *)
-        admit. (* somehow we require guarantee that stored value is wf *)
+        eapply mstore_aux_valid_ptrs_preserves_wf_Mem; eauto.
       * (* PRIVATE *)
         i. exploit PRIVATE; eauto. i. des.
         split; eauto.
@@ -1051,7 +1100,7 @@ Proof.
         exploit PRIVATE_PARENT; eauto. i. des. eauto.
     + inv TGT.
       econs; eauto.
-      * admit. (* store wf *)
+      * eapply mstore_aux_valid_ptrs_preserves_wf_Mem; eauto.
       * (* PRIVATE *)
         i. exploit PRIVATE; eauto. i. des.
         split; eauto.
@@ -1077,7 +1126,7 @@ Proof.
     + inv SRC.
       exploit PRIVATE; try exact IN. i. des.
       econs; eauto.
-      * admit. (* store wf *)
+      * eapply mstore_aux_valid_ptrs_preserves_wf_Mem; eauto.
       * (* PRIVATE *)
         i. exploit PRIVATE; eauto. i. des.
         split; eauto.
@@ -1195,7 +1244,7 @@ Proof.
     inv STATE_EQUIV_SRC. rewrite <- MEM_EQ. clear MEM_EQ.
     inv STATE_EQUIV_TGT. rewrite <- MEM_EQ. clear MEM_EQ.
     esplits; eauto; [solve_alloc_inject|reflexivity].
-Admitted.
+Qed.
 
 (* invariant *)
 
@@ -1279,6 +1328,7 @@ Proof.
     apply noalias_comm.
 Qed.
 
+(* TODO: jeehoon.kang *)
 Lemma unique_const_diffblock
       conf st x gv_x c gv_c (* S ty *)
       (UNIQUE_X : InvState.Unary.sem_unique conf st x)
@@ -1573,24 +1623,13 @@ Proof.
         erewrite EXPR_EQ in VAL2; try right; eauto.
       + inv NOALIAS.
         econs; eauto.
-      + ii. ss.
+      + ii. ss. clarify.
         rewrite AtomSetFacts.remove_iff in *. des.
         exploit UNIQUE; eauto.
-
         intro UNIQUE_X.
-        inv UNIQUE_X.
-        econs; eauto. i. ss.
-
-        (* TODO: difficult *)
-        (* 1. ptr is (b, ofs) from STORE *)
-        (* 2. mptr is (b, ofs) from LOAD *)
-        (* 3-1. if ptr = mptr, *)
-        (* val' = gv somehow *)
-        (* 3-2. otherwise, mload is preserved => diffblock, so uniqueness holds *)
-        (* define byte-level uniqueness *)
-        admit.
+        eapply mstore_register_leak_no_unique; eauto.
       + ss.
-      + ss. admit. (* store wf *)
+      + ss. eapply MemProps.mstore_preserves_wf_lc; eauto.
     }
     { destruct value1; ss.
       rename value2 into v_sptr.
@@ -1610,18 +1649,10 @@ Proof.
         econs; eauto.
       + ii. ss.
         exploit UNIQUE; eauto.
-
         intro UNIQUE_X.
-        inv UNIQUE_X.
-        econs; eauto. i. ss.
-        
-        (* stored gv, which is calculated from const, so it might be a global addr *)
-        (* if gv is really global ptr, GLOBALS solves the problem *)
-        (* otherwise stored val is not a ptr so unique is not leaked *)
-        (* define byte-level uniqueness *)
-        admit.
+        eapply mstore_const_leak_no_unique; eauto.
       + ss.
-      + ss. admit. (* store wf *)
+      + ss. eapply MemProps.mstore_preserves_wf_lc; eauto.
     }
   - destruct cmd; ss; des_ifs.
     inv STATE_MC.
@@ -1645,7 +1676,7 @@ Proof.
       ss.
       eapply MemProps.free_preserves_mload_inv; eauto.
     + ss. eapply MemProps.free_preserves_wf_lc; eauto.
-Admitted.
+Qed.
 
 Lemma forget_memory_sem
       conf_src st0_src mem1_src mc_src cmd_src
@@ -1838,4 +1869,3 @@ Qed.
 (*         end. *)
 (*   destruct e; ss; try rewrite <- MEM_EQ; sem_value_st; eauto. *)
 (* Qed. *)
-
