@@ -601,6 +601,14 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
      let a = Convert.value args.a in
      let sz = Convert.size args.sz in
     Infrule.Coq_or_zero (z, a, sz)
+  | CoreHint_t.PtrtointInttoptr (args:CoreHint_t.ptrtoint_inttoptr) -> 
+     let src = Convert.value args.src in
+     let mid = Convert.value args.mid in
+     let dst = Convert.value args.dst in
+     let srcty = Convert.value_type args.srcty in
+     let midty = Convert.value_type args.midty in
+     let dstty = Convert.value_type args.dstty in
+     Infrule.Coq_ptrtoint_inttoptr (src, mid, dst, srcty, midty, dstty)
   | CoreHint_t.PtrtointBitcast (args:CoreHint_t.ptrtoint_bitcast) -> 
      let src = Convert.value args.src in
      let mid = Convert.value args.mid in
@@ -811,6 +819,15 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
      let midty = Convert.value_type args.midty in
      let dstty = Convert.value_type args.dstty in
      Infrule.Coq_sext_sext (src, mid, dst, srcty, midty, dstty)
+  | CoreHint_t.SextTruncAshr (args:CoreHint_t.sext_trunc_ashr) -> 
+     let z = Convert.value args.z in
+     let x = Convert.value args.x in
+     let xprime = Convert.value args.xprime in
+     let v = Convert.value args.v in
+     let s1 = Convert.size args.s1 in
+     let s2 = Convert.size args.s2 in
+     let i3 = Convert.const_int args.i3 in
+     Infrule.Coq_sext_trunc_ashr (z, x, xprime, v, s1, s2, i3)
   | CoreHint_t.SextZext (args:CoreHint_t.sext_zext) -> 
      let src = Convert.value args.src in
      let mid = Convert.value args.mid in
