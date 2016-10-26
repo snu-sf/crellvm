@@ -91,15 +91,15 @@ Proof.
 Qed.
 
 Lemma step_wf_lc
-      conf st0 st1 evt
+      gmax conf st0 st1 evt
       cmd cmds
-      (WF_MEM: MemProps.wf_Mem conf.(CurTargetData) st0.(Mem))
+      (WF_MEM: MemProps.wf_Mem gmax conf.(CurTargetData) st0.(Mem))
       (WF_LC: MemProps.wf_lc st0.(Mem) st0.(EC).(Locals))
       (STEP: sInsn conf st0 st1 evt)
       (CMDS: st0.(EC).(CurCmds) = cmd :: cmds)
       (NONCALL_SRC: Instruction.isCallInst cmd = false)
   : <<WF_LOCAL: MemProps.wf_lc st1.(Mem) st1.(EC).(Locals)>> /\
-    <<WF_MEM: MemProps.wf_Mem conf.(CurTargetData) st1.(Mem)>>.
+    <<WF_MEM: MemProps.wf_Mem gmax conf.(CurTargetData) st1.(Mem)>>.
 Proof.
   inv STEP; destruct cmd; ss;
     try (split; [apply MemProps.updateAddAL__wf_lc; eauto; [] | by auto]).
@@ -121,10 +121,8 @@ Proof.
       * rewrite <- lookupAL_updateAddAL_neq in *; eauto.
         eapply MemProps.malloc_preserves_wf_lc_in_tail; eauto.
     + eapply MemProps.malloc_preserves_wf_Mem; eauto.
-  - split; auto. (* load *)
-    ii. destruct (id_dec id0 id1).
-    + subst. rewrite lookupAL_updateAddAL_eq in *. clarify. ss. eauto.
-    + rewrite <- lookupAL_updateAddAL_neq in *; eauto.
+  - unfold MemProps.wf_Mem in *. des.
+    eapply WF_MEM; eauto.
   - (* store *)
     split.
     + eapply MemProps.mstore_preserves_wf_lc; eauto.
@@ -369,4 +367,3 @@ Admitted.
 (*   apply orb_true_iff. *)
 (*   left. apply AtomSetImpl_from_list_spec. ss. eauto. *)
 (* Qed. *)
-

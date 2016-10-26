@@ -542,12 +542,12 @@ Proof.
 Admitted.
 
 Lemma mstore_aux_valid_ptrs_preserves_wf_Mem
-      conf mem0 mem1
+      gmax conf mem0 mem1
       b ofs ch gv
-      (WF_MEM : MemProps.wf_Mem conf.(CurTargetData) mem0)
+      (WF_MEM : MemProps.wf_Mem gmax conf.(CurTargetData) mem0)
       (VALID_PTRS: MemProps.valid_ptrs mem0.(Memory.Mem.nextblock) gv)
       (STORE : mstore_aux mem0 ch gv b ofs = Some mem1)
-  : MemProps.wf_Mem (CurTargetData conf) mem1.
+  : MemProps.wf_Mem gmax (CurTargetData conf) mem1.
 Proof.
 Admitted.
 
@@ -1178,8 +1178,8 @@ Proof.
     inv MEM.
     inv STATE_EQUIV_SRC. rename FREE into FREE_SRC.
     inv STATE_EQUIV_TGT. rename FREE into FREE_TGT.
-    specialize (MemProps.free_preserves_wf_Mem _ _ _ _ FREE_SRC). intro WF_SRC.
-    specialize (MemProps.free_preserves_wf_Mem _ _ _ _ FREE_TGT). intro WF_TGT.
+    specialize (MemProps.free_preserves_wf_Mem (InvMem.Rel.gmax invmem0) _ _ _ _ FREE_SRC). intro WF_SRC.
+    specialize (MemProps.free_preserves_wf_Mem (InvMem.Rel.gmax invmem0) _ _ _ _ FREE_TGT). intro WF_TGT.
 
     unfold free in FREE_SRC. des_ifs.
     rename b into fb_src. rename z into lo_src. rename z0 into hi_src.
