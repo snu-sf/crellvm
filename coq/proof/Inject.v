@@ -136,7 +136,6 @@ Proof.
     inv IH; inv_mbind; eapply gv_inject_app.
       by symmetry_ctx; eauto.
       eapply gv_inject_app; eauto using uninits_inject.
-  - inv Hz; unfold null; inv Hwfsim; eauto.
   - inv_mbind; symmetry_ctx; eauto.
 Qed.
 
@@ -187,7 +186,6 @@ Proof.
   destruct g; eauto. 
   destruct t; s; try by econs; eauto.
   - destruct floating_point5; econs; eauto.
-  - unfold null. inv WF. eauto.
 Qed.
 
 Lemma cgv2gv_inject_rev
