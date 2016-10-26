@@ -153,6 +153,42 @@ Ltac clear_true :=
          | [ H: ?x = ?x |- _ ] => clear H
          end.
 
+Lemma remove_def_from_maydiff_Subset
+      id0 inv0
+  :
+    Invariant.Subset
+      inv0
+      (remove_def_from_maydiff
+         id0 id0
+         (Invariant.update_tgt (Invariant.update_unique (add id0))
+                               (Invariant.update_src (Invariant.update_unique (add id0)) inv0)))
+.
+Proof.
+  destruct inv0; ss.
+  destruct src; ss.
+  destruct tgt; ss.
+  unfold Invariant.update_src, Invariant.update_tgt,
+  remove_def_from_maydiff, Invariant.update_maydiff. ss.
+  destruct (id_dec id0 id0); clarify.
+  unfold Invariant.update_unique; ss.
+  econs; ss; try (econs; try splits; ss).
+  -
+    ii.
+    eapply AtomSetFacts.add_s_m. eauto.
+    apply AtomSetFacts.Subset_refl.
+    info_eauto. (* SUGOI!!!!!!!!!!!!!!!!!!!!!!!! *)
+  -
+    ii.
+    eapply AtomSetFacts.add_s_m. eauto.
+    apply AtomSetFacts.Subset_refl.
+    info_eauto. (* SUGOI!!!!!!!!!!!!!!!!!!!!!!!! *)
+  -
+    ii.
+    rewrite IdTSetFacts.mem_iff in *.
+    rewrite IdTSetFacts.remove_b in H.
+    des_bool; des; ss.
+Qed.
+
 (* TODO: let's ignore insn_malloc for now.  Revise the validator so that it rejects any occurence of insn_malloc. *)
 Lemma postcond_cmd_add_inject_sound
       conf_src st0_src st1_src cmd_src cmds_src def_src uses_src
@@ -210,30 +246,7 @@ Proof.
       erewrite postcond_cmd_inject_event_Subset in Heq1; clarify.
       ss.
       repeat (des_bool; des); des_sumbool; clarify.
-      clear - inv0.
-      destruct inv0; ss.
-      destruct src; ss.
-      destruct tgt; ss.
-      unfold Invariant.update_src, Invariant.update_tgt,
-        remove_def_from_maydiff, Invariant.update_maydiff. ss.
-      destruct (id_dec id0 id0); clarify.
-      unfold Invariant.update_unique; ss.
-      econs; ss; try (econs; try splits; ss).
-      -
-        ii.
-        eapply AtomSetFacts.add_s_m. eauto.
-        apply AtomSetFacts.Subset_refl.
-        info_eauto. (* SUGOI!!!!!!!!!!!!!!!!!!!!!!!! *)
-      -
-        ii.
-        eapply AtomSetFacts.add_s_m. eauto.
-        apply AtomSetFacts.Subset_refl.
-        info_eauto. (* SUGOI!!!!!!!!!!!!!!!!!!!!!!!! *)
-      -
-        ii.
-        rewrite IdTSetFacts.mem_iff in *.
-        rewrite IdTSetFacts.remove_b in H.
-        des_bool; des; ss.
+      eapply remove_def_from_maydiff_Subset.
     }
     ss. repeat (des_bool; des; des_sumbool). subst.
     clear_true.
@@ -272,6 +285,9 @@ Proof.
           destruct g; ss.
           unfold GV2ptr. ss.
           rename b into bbbbbbbbbbbbbbb.
+          rename mb into mmmmmmmmmmmmmmmmmm.
+          unfold MemProps.wf_lc in WF_LOCAL.
+
           admit.
         - ii.
           destruct val' eqn:VAL; ss.
