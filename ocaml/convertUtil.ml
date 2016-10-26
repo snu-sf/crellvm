@@ -156,7 +156,8 @@ module Convert = struct
         | CoreHint_t.PPC_FP128Type -> Llvm.ppc_fp128_type cxt
         | CoreHint_t.X86_FP80Type -> Llvm.x86fp80_type cxt)
         cxt in
-    let lval:Llvm.llvalue = Llvm.const_float ty (const_float.float_value) in
+    let fv:float = float_of_string const_float.float_value in
+    let lval:Llvm.llvalue = Llvm.const_float ty fv in
     Llvm.APFloat.const_float_get_value lval
 
   let size (sz:CoreHint_t.size): LLVMsyntax.sz =
@@ -310,6 +311,9 @@ module Convert = struct
    | CoreHint_t.CondSle -> LLVMsyntax.Coq_cond_sle
 
   let expr (e:CoreHint_t.expr) (src_fdef:LLVMsyntax.fdef) (tgt_fdef:LLVMsyntax.fdef) : Expr.t = 
+    let to_const (x:int) = 
+      LLVMsyntax.Coq_const_int (32, (APInt.of_int64 32 (Int64.of_int x) true))
+    in
     match e with
     | CoreHint_t.Var reg ->
        Expr.Coq_value (ValueT.Coq_id (register reg))
@@ -392,5 +396,11 @@ module Convert = struct
        | CoreHint_t.UitofpInst arg ->
          Expr.Coq_cast (LLVMsyntax.Coq_castop_uitofp, value_type arg.fromty,
                 value arg.v, value_type arg.toty)
+       | CoreHint_t.InsertValueInst arg ->
+         Expr.Coq_insertvalue (value_type arg.aggrty, value arg.aggrv,
+                value_type arg.argty, value arg.argv, (List.map to_const arg.idx))
+       | CoreHint_t.ExtractValueInst arg ->
+         Expr.Coq_extractvalue (value_type arg.aggrty, value arg.aggrv,
+                (List.map to_const arg.idx), value_type arg.retty)
        )
 end
