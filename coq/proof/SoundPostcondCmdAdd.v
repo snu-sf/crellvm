@@ -448,12 +448,10 @@ Proof.
         subst EC_src.
         econs; eauto; [].
         ss.
-        (* clear TGT STEP_TGT. *)
         clear MAYDIFF LESSDEF NOALIAS PRIVATE.
         ii.
         apply AtomSetFacts.add_iff in H8.
         des; [clear UNIQUE; subst id0|apply UNIQUE; auto].
-        rename x into ___________x____________.
         econs; eauto; ss.
         +
           (* VAL *)
