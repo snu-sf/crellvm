@@ -465,32 +465,6 @@ if read from SRC_MEM_STEP - SRC_MEM -> undef
     }
 Admitted.
 
-Lemma postcond_cmd_inject_event_Subset src tgt inv0 inv1
-      (INJECT_EVENT: postcond_cmd_inject_event src tgt inv0)
-      (SUBSET_SRC: ExprPairSet.Subset
-                 (inv0.(Invariant.src).(Invariant.lessdef))
-                 (inv1.(Invariant.src).(Invariant.lessdef)))
-      (SUBSET_TGT: ExprPairSet.Subset
-                 (inv0.(Invariant.tgt).(Invariant.lessdef))
-                 (inv1.(Invariant.tgt).(Invariant.lessdef)))
-  :
-    <<INJECT_EVENT: postcond_cmd_inject_event src tgt inv1>>
-.
-Proof.
-  red.
-  destruct src, tgt; ss.
-  -
-    apply ExprPairSetFacts.exists_iff; try by solve_compat_bool.
-    apply ExprPairSetFacts.exists_iff in INJECT_EVENT; try by solve_compat_bool.
-    unfold ExprPairSet.Exists in *.
-    des.
-    esplits; eauto.
-  - repeat (des_bool; des).
-    clarify. repeat des_bool.
-    apply andb_true_iff; splits; [auto|]. (* TODO Why des_bool does not clear this?????? *)
-    admit.
-Admitted.
-
 Lemma lessdef_add
       conf st invst lessdef lhs rhs
       (FORALL: ExprPairSet.For_all
@@ -884,12 +858,18 @@ Proof.
   splits; eauto; ss.
   - unfold postcond_cmd_check. des_ifs. des_bool.
     exfalso.
-    eapply postcond_cmd_inject_event_Subset in Heq1.
+    eapply SoundBase.postcond_cmd_inject_event_Subset in Heq1.
     des. unfold is_true in Heq1.
     rewrite Heq1 in Heq3. ss.
-    ss.
-    eapply postcond_cmd_add_lessdef_Subset.
-    ss.
+    destruct inv0; ss.
+    unfold Invariant.update_src.
+    unfold Invariant.update_lessdef.
+    econs; eauto; ss.
+    + destruct src1; ss.
+      econs; eauto; ss.
+      eapply postcond_cmd_add_lessdef_Subset.
+      splits; ss.
+    + reflexivity.
 Qed.
 
 Lemma postcond_cmd_add_lessdef_tgt_sound
@@ -931,11 +911,18 @@ Proof.
   splits; eauto; ss.
   - unfold postcond_cmd_check. des_ifs. des_bool.
     exfalso.
-    eapply postcond_cmd_inject_event_Subset in Heq1.
+    eapply SoundBase.postcond_cmd_inject_event_Subset in Heq1.
     des. unfold is_true in Heq1.
     rewrite Heq1 in Heq3. ss.
-    ss.
-    eapply postcond_cmd_add_lessdef_Subset.
+    destruct inv0; ss.
+    unfold Invariant.update_src.
+    unfold Invariant.update_lessdef.
+    econs; eauto; ss.
+    + reflexivity.
+    + destruct tgt1; ss.
+      econs; eauto; ss.
+      eapply postcond_cmd_add_lessdef_Subset.
+      splits; ss.
 Qed.
 
 (* Lemma postcond_cmd_add_remove_def_from_maydiff_sound *)
