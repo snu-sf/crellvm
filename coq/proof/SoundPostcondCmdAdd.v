@@ -393,29 +393,33 @@ if read from SRC_MEM_STEP - SRC_MEM -> undef
           }
         +
           (* GLOBALS *)
-          move MEM_STEP at bottom.
-          inversion MEM_STEP; clear MEM_STEP. (* Using inv will ruin order of premisses *)
+          move MEM at bottom.
+          inversion MEM; clear MEM. (* Using inv will ruin order of premisses *)
           inversion SRC; clear SRC.
-          idtac.
           move mb at bottom.
-          clear - GLOBALS H3.
+          move WF0 at bottom.
+          clear - GLOBALS H3 WF0.
+          ii.
+          destruct val'; ss. red. ss.
+          destruct p; ss.
+          destruct v; ss.
+          destruct val'; ss.
           induction (Globals conf_src); ii; ss.
-          destruct a. des_ifs.
-          * des.
-            induction val'; ii; ss.
-            unfold InvState.Unary.sem_diffblock.
-            ss.
-            destruct a; ss.
-            destruct v; ss.
-            destruct val'; ss.
-            rename b into bbbbbb.
-            admit.
-          *
-            admit.
-
-
-          (* unfold genericvalues_inject.wf_globals in GLOBALS. *)
-          (* admit. *)
+          rename a into aaaaaaaaaaa.
+          subst.
+          destruct aaaaaaaaaaa; ss. des.
+          exploit IHg; eauto.
+          des_ifs.
+          unfold genericvalues_inject.wf_global in *. des.
+          unfold MemProps.wf_Mem in *.
+          des.
+          exploit MemProps.nextblock_malloc; try apply H3; []; ii; des.
+          exploit MemProps.malloc_result; try apply H3; []; ii; des.
+          subst.
+          clear - WF1 GLOBALS.
+          exploit Pos.le_lt_trans; eauto; []; ii; des.
+          exploit Pos.lt_irrefl; eauto; []; ii; des.
+          ss.
       -
         (* TGT *)
         admit.
