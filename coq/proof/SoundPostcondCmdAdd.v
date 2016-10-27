@@ -384,7 +384,12 @@ if read from SRC_MEM_STEP - SRC_MEM -> undef
                 clarify. subst.
                 exploit Pos.lt_irrefl; eauto.
               }
-            * admit.
+            * unfold not in x1.
+              unfold InvState.Unary.sem_diffblock.
+              destruct val'; ss.
+              destruct p; ss.
+              exploit x0; eauto; []; ii; des.
+              subst. ss.
           }
         +
           (* GLOBALS *)
