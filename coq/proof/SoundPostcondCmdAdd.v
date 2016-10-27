@@ -191,10 +191,11 @@ Qed.
 
 (* TODO: let's ignore insn_malloc for now.  Revise the validator so that it rejects any occurence of insn_malloc. *)
 Lemma postcond_cmd_add_inject_sound
-      conf_src st0_src st1_src cmd_src cmds_src def_src uses_src
-      conf_tgt st0_tgt st1_tgt cmd_tgt cmds_tgt def_tgt uses_tgt
+      m_src conf_src st0_src st1_src cmd_src cmds_src def_src uses_src
+      m_tgt conf_tgt st0_tgt st1_tgt cmd_tgt cmds_tgt def_tgt uses_tgt
       invst0 invmem0 inv0
       evt
+      (CONF: InvState.valid_conf m_src m_tgt conf_src conf_tgt)
       (POSTCOND_CHECK: Postcond.postcond_cmd_check
                    cmd_src cmd_tgt def_src def_tgt uses_src uses_tgt inv0)
       (STATE: InvState.Rel.sem conf_src conf_tgt st1_src st1_tgt invst0 invmem0 inv0)
@@ -251,96 +252,420 @@ Proof.
     ss. repeat (des_bool; des; des_sumbool). subst.
     clear_true.
     splits; ss.
-    unfold remove_def_from_maydiff.
-    destruct (id_dec id0 id0); clarify.
+    unfold remove_def_from_maydiff in *.
+    destruct (id_dec id0 id0); [clear_true|ss].
     apply_all_once AtomSetImpl_from_list_inter_is_empty.
     simpl_list.
+
     inv STATE.
-    destruct inv0. ss.
-    cbn.
-    unfold Invariant.update_src. ss.
-    unfold Invariant.update_tgt. ss.
-    unfold Invariant.update_maydiff. ss.
-    clear_true.
 
-    econs; eauto; ss.
-    +
-      {
-        clear TGT MAYDIFF.
-        inv SRC. econs; eauto. clear LESSDEF NOALIAS PRIVATE.
+    ((inv STEP_SRC; ss); []).
+    inv SRC.
+    inv CMDS_SRC.
+
+    ((inv STEP_TGT; ss); []).
+    inv TGT.
+    inv CMDS_TGT.
+    ss.
+
+    rename Mem0 into SRC_MEM.
+    rename Mem' into SRC_MEM_STEP.
+    rename Mem1 into TGT_MEM.
+    rename Mem'0 into TGT_MEM_STEP.
+
+    remember {| CurSystem := S; CurTargetData := TD;
+                CurProducts := Ps; Globals := gl; FunTable := fs |} as conf_src.
+    remember {| CurSystem := S0; CurTargetData := TD0;
+                CurProducts := Ps0; Globals := gl0; FunTable := fs0 |} as conf_tgt.
+    remember {|
+        EC := {|
+               CurFunction := F;
+               CurBB := B;
+               CurCmds := cmds_src;
+               Terminator := tmn;
+               Locals := updateAddAL GenericValue lc id0 (blk2GV TD mb);
+               Allocas := mb :: als |};
+        ECS := ECS0;
+        Mem := SRC_MEM_STEP |} as EC_src.
+    remember {|
+        EC := {|
+               CurFunction := F0;
+               CurBB := B0;
+               CurCmds := cmds_tgt;
+               Terminator := tmn0;
+               Locals := updateAddAL GenericValue lc0 id0 (blk2GV TD0 mb0);
+               Allocas := mb0 :: als0 |};
+        ECS := ECS1;
+        Mem := TGT_MEM_STEP |} as EC_tgt.
+
+    {
+      econs; eauto.
+      -
+        (* SRC *)
+        subst EC_src.
+        econs; eauto; [].
+        ss.
+        (* clear TGT STEP_TGT. *)
+        clear MAYDIFF LESSDEF NOALIAS PRIVATE.
         ii.
-        apply AtomSetFacts.add_iff in H0.
-        des; [|apply UNIQUE; auto].
-        subst.
-        move ALLOC_INJECT at bottom.
-        ((inv STEP_SRC; ss); []).
-        ((inv STEP_TGT; ss); []).
-        econs; ss; eauto.
-        - des_lookupAL_updateAddAL.
-        - ii. des_lookupAL_updateAddAL.
-          unfold InvState.Unary.sem_diffblock. ss.
-          destruct val' eqn:VAL; ss.
-          destruct p; ss.
-          destruct v; ss.
-          destruct g; ss.
-          unfold GV2ptr. ss.
-          rename b into bbbbbbbbbbbbbbb.
-          rename mb into mmmmmmmmmmmmmmmmmm.
-          unfold MemProps.wf_lc in WF_LOCAL.
+        apply AtomSetFacts.add_iff in H8.
+        des; [clear UNIQUE; subst id0|apply UNIQUE; auto].
+        rename x into ___________x____________.
+        econs; eauto; ss.
+        +
+          (* VAL *)
+          des_lookupAL_updateAddAL.
+        +
+          (* LOCALS *)
+          admit.
+          (* destruct val' eqn:T1; ss. *)
+          (* destruct p eqn:T2; ss. *)
+          (* destruct v eqn:T3; ss. *)
+          (* destruct g eqn:T4; ss. *)
+          (* des_lookupAL_updateAddAL. ss. *)
+          (* ii. *)
+          (* clarify. *)
+          (* move ALLOC_INJECT at bottom. *)
+          (* move MEM at bottom. *)
+          (* rename b into __________BBB__________. *)
+          (* (* TODO symmetry; clear dup in n/REG *) clear n. *)
+          (* rename Mem0 into Mem__________00000000000. *)
+          (* rename Mem' into Mem__________11111111111. *)
+          (* inv MEM. *)
+          (* rename st0_tgt into st_tgt_____________000000000000. *)
+          (* rename st1_tgt into st_tgt_____________111111111111. *)
+          (* { *)
+          (*   unfold MemProps.wf_lc in *. *)
+          (*   ii. *)
+          (*   exploit WF_LOCAL; eauto; []; ii; des; clear WF_LOCAL. *)
+          (*   red. des_ifs; clarify. *)
+          (*   rename b0 into __________AAA__________. *)
+          (*   rename b into __________BBB__________. *)
+          (*   destruct val' eqn:T1; ss. *)
+          (*   destruct p eqn:T2; ss. *)
+          (*   destruct v eqn:T3; ss. *)
+          (*   destruct g eqn:T4; ss. *)
+          (*   clarify. *)
+          (*   des; clear_true. *)
+          (*   des_lookupAL_updateAddAL. *)
+          (* } *)
 
-          admit.
-        - ii.
-          destruct val' eqn:VAL; ss.
-          destruct p; ss.
-          destruct v1; ss.
-          cbn.
-          destruct g; ss.
-          des_ifs.
-          admit.
-      }
-    + admit.
-    +
-      {
-        ((inv STEP_SRC; ss); []).
-        ((inv STEP_TGT; ss); []).
-        i.
-        rewrite IdTSetFacts.remove_b in NOTIN.
-        repeat (des_bool; des).
-        { apply MAYDIFF; auto. }
+          (* erewrite VAL' in WF_LOCAL. *)
+        +
+          (* MEM *)
+          {
+            move SRC_MEM at bottom.
+            move SRC_MEM_STEP at bottom.
+            move mb at bottom.
+            clear - SRC_MEM_STEP MEM mb H3 WF_LOCAL
+                         ALLOC_INJECT H3 SRC_MEM.
+            clear ___________x____________ WF_LOCAL.
+            inv MEM. clear TGT INJECT. rename WF into WF_REL.
+            inv SRC. clear GLOBALS PRIVATE PRIVATE_PARENT DISJOINT MEM_PARENT.
+            inversion WF as [WF_A WF_B]. clear WF.
+            ii.
+            exploit WF_A; try apply LOAD; eauto; []; clear WF_A; intros WF_A; des.
+            (*
+val' is valid in Mem'.nextblock
+             *)
+            unfold InvState.Unary.sem_diffblock. ss.
+            des_ifs.
+            unfold not; i; subst.
+            (*
+val' < Mem'.nextblock
+val' = b, i0
+b = Mem'.lastblock
+             *)
+            admit.
+          }
+          (*   rename mb into ___________newBlock__________. *)
+          (*   rename b into __________wfPtr_________. *)
+          (*   unfold not. i. subst. *)
+          (*   clear - WF H3 LOAD. *)
+          (*   apply mload_inv in LOAD. des. clarify. *)
+
+          (*   (* remember (mload_aux Mem' mc b (Integers.Int.signed 31 ofs)) as tmp. *) *)
+          (*   (* generalize dependent val'. *) *)
+          (*   (* induction mc; ii; ss; subst; clarify. *) *)
+
+          (*   remember (mload_aux Mem' mc b (Integers.Int.signed 31 ofs)) as tmp. *)
+          (*   generalize dependent mc. *)
+          (*   induction val'; ii; ss; subst. *)
+          (*   - destruct mc; ss. *)
+          (*   - *)
+          (*   unfold MemProps.valid_ptrs in WF. *)
+          (*   induction val'; ss. *)
+          (*   unfold mload in LOAD. ss. des_ifs. *)
+          (* } *)
+          (* { *)
+          (*   assert(LLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLINEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE: True) *)
+          (*     by auto. *)
+          (*   move Mem' at bottom. *)
+          (*   move mb at bottom. *)
+          (*   inversion MEM; clear MEM. clear TGT INJECT. *)
+          (*   inversion SRC; clear SRC. clear GLOBALS PRIVATE PRIVATE_PARENT DISJOINT MEM_PARENT. *)
+          (*   inversion WF0 as [WF_A WF_B]; clear WF0. *)
+          (*   ii. *)
+          (*   exploit WF_A; try apply LOAD; eauto; []; ii; des; clear WF_A. rename x into WF_A. *)
+          (*   unfold InvState.Unary.sem_diffblock. *)
+          (*   ss. *)
+          (*   destruct val' eqn:T1; ss. *)
+          (*   destruct p eqn:T2; ss. *)
+          (*   destruct v eqn:T3; ss. *)
+          (*   destruct g eqn:T4; ss. *)
+          (*   des. *)
+          (*   exploit MemProps.nextblock_malloc; try apply H3; []; ii; des. *)
+          (*   exploit MemProps.malloc_result; try apply H3; []; ii; des. *)
+          (*   subst mb. subst b. *)
+          (*   remember (Memory.Mem.nextblock Mem0) as Mem0Plus1. *)
+          (*   clear - x2 x. *)
+          (*   omega. *)
+
+
+
+
+
+
+
+
+
+            (* ii. *)
+            (* move mb at bottom. *)
+            (* unfold mload in *. des_ifs; ss. *)
+            (* unfold InvState.Unary.sem_diffblock. des_ifs; ss. *)
+            (* rename b0 into _______________B0_________________. *)
+            (* rename b1 into _______________B1_________________. *)
+            (* inv Heq1. *)
+            (* destruct val' eqn:T1; ss. *)
+            (* destruct p eqn:T2. *)
+            (* destruct v eqn:T3; ss. *)
+            (* destruct val' eqn:T4; ss. *)
+            (* destruct g eqn:T5; ss. *)
+            (* inv Heq2. *)
+            (* inv T1. *)
+            (* unfold not. ii. *)
+            (* clarify. *)
+            (* move typ0 at bottom. *)
+            (* assert(exists mcs, flatten_typ TD typ0 = Some mcs) by admit. des. *)
+            (* exploit MemProps.malloc_mload_aux_undef; try apply H3; eauto. *)
+            (* { unfold const2GV. unfold _const2GV. unfold gundef. rewrite H8. eauto. } *)
+            (* ii. *)
+
+
+            (* exploit MemProps.mload_aux_malloc_same'; eauto. *)
+            (* move typ0 at bottom. *)
+            (* admit. *)
+            (* ii. des. *)
+          (* unfold getTypeAllocSize in H5. *)
+          (* des_ifs. *)
+          (* exploit MemProps.malloc_mload_aux_undef. try apply LOAD; eauto. *)
+          (* MemProps.malloc_mload_aux_undef: *)
+          (* MemProps.mload_aux_malloc_same': *)
+          (* } *)
+          (* { *)
+          (* ii. *)
+          (* unfold InvState.Unary.sem_diffblock. *)
+          (* unfold mload in LOAD. *)
+          (* (* des_ifs will ruin premisses *) *)
+          (* des_ifs. ss. *)
+          (* rename b into ___________A___________. *)
+          (* rename b0 into ___________B___________. *)
+          (* idtac. *)
+          (* clarify. *)
+          (* unfold MemProps.wf_lc in *. *)
+          (* move WF_LOCAL0 at bottom. *)
+          (* move Mem0 at bottom. *)
+          (* rename Mem0 into _______________MemA______________. *)
+          (* rename Mem' into _______________MemA222222222______________. *)
+
+          (* rename Heq0 into BDefine. *)
+          (* rename H3 into ADefine. *)
+          (* move BDefine at bottom. *)
+          (* unfold GV2ptr in BDefine. *)
+          (* des_ifs. *)
+          (* rename LOAD into BDefine. *)
+
+          (* exploit MemProps.nextblock_malloc; try apply ADefine; []; ii; des. *)
+          (* exploit MemProps.malloc_result; try apply ADefine; []; ii; des. *)
+          (* subst. *)
+
+          (* des_lookupAL_updateAddAL. *)
+          (* } *)
+
+          (* destruct mptr0 eqn:T1; ss. *)
+          (* destruct p eqn:T2; ss. *)
+          (* destruct v eqn:T3; ss. *)
+          (* destruct m eqn:T4; ss. *)
+
+          (* destruct val' eqn:T5; ss. *)
+          (* destruct p0 eqn:T6; ss. *)
+          (* destruct v0 eqn:T7; ss. *)
+          (* destruct g eqn:T8; ss. *)
+          (* destruct  *)
+        +
+          (* GLOBALS *)
+          move MEM at bottom.
+          inversion MEM; clear MEM. (* Using inv will ruin order of premisses *)
+          inversion SRC; clear SRC.
+          idtac.
+          move mb at bottom.
+          clear - GLOBALS H3.
+          induction (Globals conf_src); ii; ss.
+          destruct a. des_ifs.
+          * des.
+            induction val'; ii; ss.
+            unfold InvState.Unary.sem_diffblock.
+            ss.
+            destruct a; ss.
+            destruct v; ss.
+            destruct val'; ss.
+            rename b into bbbbbb.
+            admit.
+          *
+            admit.
+
+
+          (* unfold genericvalues_inject.wf_globals in GLOBALS. *)
+          (* admit. *)
+      -
+        (* TGT *)
+        admit.
+      -
+        (* MAYDIFF *)
+        ii.
+        simpl in NOTIN.
+        rewrite IdTSetFacts.remove_b in NOTIN. repeat (des_bool; des).
+        { eapply MAYDIFF; eauto. }
         unfold IdTSetFacts.eqb in NOTIN.
-        des_ifs; [].
-        clear_true.
-        (* econs. (* DONT USE econs HERE!! Early Binding !! *) *)
-        unfold InvState.Rel.sem_inject.
-        i.
-        u; ss.
-        des_lookupAL_updateAddAL.
-        esplits; eauto.
-        clear_true.
-        move H7 at bottom.
-        move H3 at bottom.
-        simpl.
-        (* compute *)
-        unfold blk2GV. unfold ptr2GV. cbn.
-        unfold getPointerSize.
-        unfold getPointerSize0.
-        cbn.
-        hnf.
-        simpl.
-        destruct TD; simpl.
-        destruct TD0; simpl.
-        unfold val2GV.
-        move ALLOC_INJECT at bottom.
-        exploit MemProps.malloc_result; try apply H7; eauto; []; ii; des.
-        exploit MemProps.malloc_result; try apply H3; eauto; []; ii; des.
-        subst.
+        destruct (IdTSetFacts.eq_dec (IdT.lift Tag.physical id0) id1); [|ss].
+        clear_true. clarify.
+        u. ss.
 
+        des_lookupAL_updateAddAL.
+        clarify. clear_true.
+
+        esplits; eauto.
+        move H3 at bottom.
+        move H7 at bottom.
+        idtac.
+        unfold blk2GV.
+        unfold ptr2GV.
+        unfold val2GV.
+        Fail eapply genericvalues_inject.gv_inject_cons.
+        move CONF at bottom.
+        inv CONF. inv INJECT. simpl in TARGETDATA. clarify.
         econs; eauto.
+        rename mb into _____________mb______________.
+        rename mb0 into _____________mb0______________.
+        move WF_LOCAL0 at bottom.
+        move H7 at bottom.
+        move ALLOC_INJECT at bottom.
+
+        (* exploit MemProps.nextblock_malloc; try apply H3; []; ii; des. *)
+        (* exploit MemProps.nextblock_malloc; try apply H7; []; ii; des. *)
+        exploit MemProps.malloc_result; try apply H3; []; ii; des.
+        exploit MemProps.malloc_result; try apply H7; []; ii; des.
+        rewrite x0. rewrite x1. (* subst, clarify ruin ordering of premisses *)
+        unfold InvMem.Rel.inject in ALLOC_INJECT.
+        destruct invmem0. ss.
+        econs; eauto.
+    }
+Admitted.
+    (* { *)
+    (* destruct inv0. ss. *)
+    (* unfold Invariant.update_src. ss. *)
+    (* unfold Invariant.update_tgt. ss. *)
+    (* unfold Invariant.update_maydiff. ss. *)
+
+    (* econs; eauto; ss. *)
+    (* + *)
+    (*   { *)
+    (*     clear TGT MAYDIFF. *)
+    (*     inv SRC. econs; eauto. clear LESSDEF NOALIAS PRIVATE. *)
+    (*     ii. *)
+    (*     apply AtomSetFacts.add_iff in H0. *)
+    (*     des; [|apply UNIQUE; auto]. *)
+    (*     subst. *)
+    (*     move ALLOC_INJECT at bottom. *)
+    (*     unfold MemProps.wf_lc in WF_LOCAL. *)
+    (*     (* econs; eauto. *) *)
+    (*     ((inv STEP_SRC; ss); []). *)
+    (*     ((inv STEP_TGT; ss); []). *)
+    (*     exploit WF_LOCAL; des_lookupAL_updateAddAL; eauto; []; ii; des. *)
+    (*     inv x0. inv H9. *)
+    (*     econs; ss; eauto. *)
+    (*     - (* VAL *) des_lookupAL_updateAddAL. *)
+    (*     - (* LOCALS *) ii. des_lookupAL_updateAddAL. *)
+    (*       unfold InvState.Unary.sem_diffblock. ss. *)
+    (*       { *)
+    (*         des_ifs. *)
+    (*         rename b into bbbbbbbbbbbbbbb. *)
+    (*         rename mb into mmmmmmmmmmmmmmmmmm. *)
+    (*         unfold AtomSetImpl.For_all in UNIQUE. *)
+    (*       } *)
+    (*       { *)
+    (*         destruct val' eqn:VAL; ss. *)
+    (*         destruct p; ss. *)
+    (*         destruct v; ss. *)
+    (*         destruct g; ss. *)
+    (*         unfold GV2ptr. ss. *)
+    (*         rename b into bbbbbbbbbbbbbbb. *)
+    (*         rename mb into mmmmmmmmmmmmmmmmmm. *)
+    (*         admit. *)
+    (*       } *)
+    (*     - ii. *)
+    (*       destruct val' eqn:VAL; ss. *)
+    (*       destruct p; ss. *)
+    (*       destruct v1; ss. *)
+    (*       cbn. *)
+    (*       destruct g; ss. *)
+    (*       des_ifs. *)
+    (*       admit. *)
+    (*   } *)
+    (* + admit. *)
+    (* + *)
+    (*   { *)
+    (*     ((inv STEP_SRC; ss); []). *)
+    (*     ((inv STEP_TGT; ss); []). *)
+    (*     i. *)
+    (*     rewrite IdTSetFacts.remove_b in NOTIN. *)
+    (*     repeat (des_bool; des). *)
+    (*     { apply MAYDIFF; auto. } *)
+    (*     unfold IdTSetFacts.eqb in NOTIN. *)
+    (*     des_ifs; []. *)
+    (*     clear_true. *)
+    (*     (* econs. (* DONT USE econs HERE!! Early Binding !! *) *) *)
+    (*     unfold InvState.Rel.sem_inject. *)
+    (*     i. *)
+    (*     u; ss. *)
+    (*     des_lookupAL_updateAddAL. *)
+    (*     esplits; eauto. *)
+    (*     clear_true. *)
+    (*     move H7 at bottom. *)
+    (*     move H3 at bottom. *)
+    (*     simpl. *)
+    (*     (* compute *) *)
+    (*     unfold blk2GV. unfold ptr2GV. cbn. *)
+    (*     unfold getPointerSize. *)
+    (*     unfold getPointerSize0. *)
+    (*     cbn. *)
+    (*     hnf. *)
+    (*     simpl. *)
+    (*     destruct TD; simpl. *)
+    (*     destruct TD0; simpl. *)
+    (*     unfold val2GV. *)
+    (*     move ALLOC_INJECT at bottom. *)
+    (*     exploit MemProps.malloc_result; try apply H7; eauto; []; ii; des. *)
+    (*     exploit MemProps.malloc_result; try apply H3; eauto; []; ii; des. *)
+    (*     subst. *)
+
+    (*     econs; eauto. *)
+
 (* MemProps.nextblock_malloc: *)
 (* MemProps.malloc_result: *)
-      }
+(*       } *)
 
-Admitted.
+(* Admitted. *)
 
 Lemma postcond_cmd_inject_event_Subset src tgt inv0 inv1
       (INJECT_EVENT: postcond_cmd_inject_event src tgt inv0)
@@ -872,4 +1197,5 @@ Proof.
   exploit postcond_cmd_add_lessdef_tgt_sound; try apply STATE1; eauto; []; ii; des.
   exploit reduce_maydiff_sound; try apply STATE2; eauto; []; ii; des.
   esplits; eauto.
+  reflexivity.
 Qed.
