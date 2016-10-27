@@ -243,8 +243,8 @@ Proof.
     + (* call *)
       exploit postcond_cmd_is_call; eauto. i.
       destruct c; ss. destruct c0; ss.
-      exploit postcond_call_sound;
-        (try instantiate (1 := (mkState (mkEC _ _ _ _ _ _) _ _))); ss; eauto; ss.
+      exploit postcond_call_sound; try exact COND; eauto;
+        (try instantiate (2 := (mkState (mkEC _ _ _ _ _ _) _ _))); ss; eauto; ss.
       i. des. subst. do 24 simtac0.
       eapply _sim_local_call; ss; eauto; ss.
       i. exploit RETURN; eauto. i. des.

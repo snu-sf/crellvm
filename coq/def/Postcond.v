@@ -441,6 +441,11 @@ Module ForgetMemoryCall.
     inv2.
 End ForgetMemoryCall.
 
+Module ForgetStackCall.
+  Definition t (defs_src defs_tgt :AtomSetImpl.t) (inv0:Invariant.t): Invariant.t :=
+    ForgetStack.t defs_src defs_tgt AtomSetImpl.empty AtomSetImpl.empty inv0.
+End ForgetStackCall.
+
 (* Non-physical that is only in maydiff is safe to remove *)
 Definition reduce_maydiff_preserved (inv0: Invariant.t) :=
   let used_ids := (Invariant.get_idTs_unary inv0.(Invariant.src))
@@ -642,7 +647,7 @@ Definition postcond_cmd_inject_event
       (fun p1 p2 =>
          let '(ty1, attr1, v1) := p1 in
          let '(ty2, attr2, v2) := p2 in
-         typ_dec t1 t2 &&
+         typ_dec ty1 ty2 &&
          attributes_dec attr1 attr2 &&
          (Invariant.inject_value
             inv (ValueT.lift Tag.physical v1) (ValueT.lift Tag.physical v2)))
@@ -753,7 +758,7 @@ Definition postcond_cmd_add_inject
              (IdTSet.add (IdT.lift Tag.physical aid_tgt))) inv1 in
     inv2
 
-  | insn_call id_src _ _ _ _ _ _, insn_call id_tgt _ _ _ _ _ _ =>
+  | insn_call id_src false _ _ _ _ _, insn_call id_tgt false _ _ _ _ _ =>
     remove_def_from_maydiff id_src id_tgt inv0
 
   | _, _ => inv0
@@ -881,13 +886,15 @@ Definition postcond_cmd
   let leaks_memory_src := Cmd.get_leaked_ids_to_memory src in
   let leaks_memory_tgt := Cmd.get_leaked_ids_to_memory tgt in
 
-  (* let inv1 := ForgetUnique.t def_src def_tgt leaks_src leaks_tgt inv0 in *)
-  let inv1 :=
+  let inv2 :=
       if Instruction.isCallInst src
-      then ForgetMemoryCall.t inv0
-      else ForgetMemory.t def_memory_src def_memory_tgt leaks_memory_src leaks_memory_tgt inv0
+      then
+        let inv1 := ForgetMemoryCall.t inv0 in
+        ForgetStackCall.t def_src def_tgt inv1
+      else
+        let inv1 := ForgetMemory.t def_memory_src def_memory_tgt leaks_memory_src leaks_memory_tgt inv0 in
+        ForgetStack.t def_src def_tgt leaks_src leaks_tgt inv1
   in
-  let inv2 := ForgetStack.t def_src def_tgt leaks_src leaks_tgt inv1 in
   if postcond_cmd_check src tgt def_src def_tgt uses_src uses_tgt inv2
   then Some (postcond_cmd_add src tgt inv2)
   else None.
