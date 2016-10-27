@@ -204,7 +204,13 @@ Proof.
     - inv MEM. inv TGT. eauto.
     - inv STATE. inv TGT. eauto. }
   i. des.
-Admitted.
+
+  exploit postcond_cmd_add_sound; try apply CONF; try eapply STEP_SRC;
+    try eapply STEP_TGT; try apply x1; (* needed to prohibit applying STATE *) eauto; []; ii; des.
+  exploit x2; eauto; []; ii; des.
+  esplits; eauto.
+  etransitivity; eauto.
+Qed.
 
 (* unused *)
 (* Lemma step_unique_holds *)
