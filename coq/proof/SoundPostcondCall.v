@@ -25,6 +25,7 @@ Require Import Inject.
 Require Import SoundBase.
 Require Import SoundForgetStackCall.
 Require Import SoundForgetMemoryCall.
+Require Import SoundPostcondCmdAdd.
 
 Set Implicit Arguments.
 
@@ -97,6 +98,96 @@ Proof.
         { rewrite InvState.Unary.sem_valueT_physical. eauto. }
         rewrite InvState.Unary.sem_valueT_physical. i. des. clarify.
   }
+Qed.
+
+Lemma postcond_cmd_add_lessdef_call
+      id noret clattrs typ varg funval args s
+  : postcond_cmd_add_lessdef (insn_call id noret clattrs typ varg funval args) s = s.
+Proof.
+  unfold postcond_cmd_add_lessdef, postcond_cmd_get_lessdef. ss.
+  destruct noret; eauto.
+Qed.
+
+Lemma postcond_cmd_add_noret_call
+      id_src fun_src args_src
+      id_tgt fun_tgt args_tgt
+      clattrs typ varg inv
+  : postcond_cmd_add (insn_call id_src true clattrs typ varg fun_src args_src)
+                     (insn_call id_tgt true clattrs typ varg fun_tgt args_tgt) inv =
+    reduce_maydiff inv.
+Proof.
+  unfold postcond_cmd_add. ss.
+  unfold Invariant.update_src, Invariant.update_tgt, Invariant.update_lessdef. ss.
+  do 2 rewrite postcond_cmd_add_lessdef_call.
+  destruct inv. destruct src. destruct tgt. ss.
+Qed.
+
+Lemma postcond_cmd_add_ret_call
+      id_src fun_src args_src
+      id_tgt fun_tgt args_tgt
+      clattrs typ varg inv
+  : postcond_cmd_add (insn_call id_src false clattrs typ varg fun_src args_src)
+                     (insn_call id_tgt false clattrs typ varg fun_tgt args_tgt) inv =
+    reduce_maydiff (remove_def_from_maydiff id_src id_tgt inv).
+Proof.
+  unfold postcond_cmd_add. ss.
+  unfold Invariant.update_src, Invariant.update_tgt, Invariant.update_lessdef. ss.
+  do 2 rewrite postcond_cmd_add_lessdef_call.
+  remember (remove_def_from_maydiff id_src id_tgt inv) as inv'.
+  destruct inv'. destruct src. destruct tgt. ss.
+Qed.
+
+Lemma postcond_cmd_add_call
+      m_src conf_src st0_src retval1_src id_src fun_src args_src locals0_src
+      m_tgt conf_tgt st0_tgt retval1_tgt id_tgt fun_tgt args_tgt locals0_tgt
+      invst0 invmem inv0
+      noret clattrs typ varg
+      (CONF: InvState.valid_conf m_src m_tgt conf_src conf_tgt)
+      (STATE: InvState.Rel.sem conf_src conf_tgt st0_src st0_tgt invst0 invmem inv0)
+      (MEM: InvMem.Rel.sem conf_src conf_tgt st0_src.(Mem) st0_tgt.(Mem) invmem)
+      (RETURN_SRC : return_locals (CurTargetData conf_src) retval1_src id_src noret typ locals0_src = Some st0_src.(EC).(Locals))
+      (RETURN_TGT : return_locals (CurTargetData conf_tgt) retval1_tgt id_tgt noret typ locals0_tgt = Some st0_tgt.(EC).(Locals))
+      (RETVAL : lift2_option (genericvalues_inject.gv_inject (InvMem.Rel.inject invmem)) retval1_src retval1_tgt)
+  : exists invst1,
+    <<STATE: InvState.Rel.sem conf_src conf_tgt st0_src st0_tgt invst1 invmem
+                              (postcond_cmd_add
+                                 (insn_call id_src noret clattrs typ varg fun_src args_src)
+                                 (insn_call id_tgt noret clattrs typ varg fun_tgt args_tgt) inv0)>>.
+Proof.
+  unfold return_locals in *. des_ifs; ss.
+  - rewrite postcond_cmd_add_noret_call.
+    exploit SoundReduceMaydiff.reduce_maydiff_sound; eauto.
+  - rename H0 into LOCALS_TGT. rename H1 into LOCALS_SRC.
+    rewrite postcond_cmd_add_ret_call.
+    exploit SoundReduceMaydiff.reduce_maydiff_sound; try (by intro PR; exact PR); eauto.
+    unfold remove_def_from_maydiff.
+    des_ifs.
+    + inv STATE.
+      econs; eauto.
+      i. ss.
+      rewrite Exprs.IdTSetFacts.remove_b in *.
+      des_bool. des.
+      * eauto.
+      * simtac. unfold Exprs.IdTSetFacts.eqb in *.
+        des_ifs.
+        econs.
+        esplits.
+        { unfold InvState.Unary.sem_idT. ss.
+          rewrite <- LOCALS_TGT.
+          apply lookupAL_updateAddAL_eq. }
+        { unfold InvState.Unary.sem_idT in *. ss.
+          exploit genericvalues_inject.simulation__fit_gv; eauto.
+          { inv MEM. eauto. }
+          i. des.
+          inv CONF. inv INJECT.
+          rewrite TARGETDATA in *.
+          rewrite <- LOCALS_SRC in VAL_SRC.
+          rewrite lookupAL_updateAddAL_eq in VAL_SRC.
+          clarify.
+        }
+    + ss.
+  - rewrite postcond_cmd_add_noret_call.
+    exploit SoundReduceMaydiff.reduce_maydiff_sound; eauto.
 Qed.
 
 (* TODO: free allocas *)
@@ -174,34 +265,30 @@ Proof.
   des_ifs.
   rewrite negb_false_iff in *.
 
-  exploit postcond_cmd_inject_event_Subset; eauto.
-  { etransitivity.
-    - apply forget_stack_call_Subset.
-    - apply forget_memory_call_Subset. }
+  exploit postcond_cmd_inject_event_Subset; eauto;
+    try (etransitivity; [specialize (forget_stack_call_Subset (ForgetMemoryCall.t inv0)
+                                           (Exprs.AtomSetImpl_from_list (ite noret_src None (Some id_src)))
+                                           (Exprs.AtomSetImpl_from_list (ite noret_tgt None (Some id_tgt)))) |
+                         specialize (forget_memory_call_Subset inv0)];
+         intro SUBSET; inv SUBSET);
+    try (by inv SUBSET_SRC; apply SUBSET_LESSDEF);
+    try (by inv SUBSET_TGT; apply SUBSET_LESSDEF).
   i. des.
 
   exploit postcond_cmd_inject_event_call; eauto. i. des. subst.
   esplits; eauto. i.
 
-  exploit forget_memory_call_sound.
-  { exact CMDS_SRC. }
-  { exact CMDS_TGT. }
-  { exact STATE. }
-  { eauto. }
-  { eauto. }
-  { eauto. }
-  { instantiate (1:= InvMem.Rel.mk invmem0.(InvMem.Rel.src) invmem0.(InvMem.Rel.tgt)
-                                   invmem1.(InvMem.Rel.gmax) invmem1.(InvMem.Rel.inject)).
-    admit. }
-  { instantiate (2:= mem1_src). instantiate (1:= mem1_tgt).
-    admit. }
-
+  exploit forget_memory_call_sound; try exact STATE; eauto.
   i. des.
 
   exploit forget_stack_call_sound; eauto.
   { inv CONF. eauto. }
-  { instantiate (1:= retval1_tgt). admit. }
+  { rewrite MEM_INJ. eauto. }
   i. des.
+
+  exploit postcond_cmd_add_call; eauto.
+  { rewrite MEM_INJ. eauto. }
+  i. des.
+
   esplits; eauto.
-  (* TODO: postcond_cmd_add *)
-Admitted.
+Qed.

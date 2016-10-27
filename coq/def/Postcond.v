@@ -758,7 +758,7 @@ Definition postcond_cmd_add_inject
              (IdTSet.add (IdT.lift Tag.physical aid_tgt))) inv1 in
     inv2
 
-  | insn_call id_src _ _ _ _ _ _, insn_call id_tgt _ _ _ _ _ _ =>
+  | insn_call id_src false _ _ _ _ _, insn_call id_tgt false _ _ _ _ _ =>
     remove_def_from_maydiff id_src id_tgt inv0
 
   | _, _ => inv0
