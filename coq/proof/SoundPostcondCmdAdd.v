@@ -213,7 +213,23 @@ Proof.
   exploit Pos.lt_irrefl; eauto.
 Qed.
 
-Lemma wf_globals_malloc_diffblock
+Lemma locals_malloc_diffblock
+      conf_src conf_tgt st_src st_tgt invst0 invmem0 inv0
+      TD tsz gn align0 SRC_MEM_STEP mb
+      reg val
+      (MALLOC: malloc TD st_src.(Mem) tsz gn align0 = Some (SRC_MEM_STEP, mb))
+      (VAL: lookupAL GenericValue st_src.(EC).(Locals) reg = Some val)
+      (STATE : InvState.Rel.sem conf_src conf_tgt st_src st_tgt invst0 invmem0 inv0)
+  :
+  <<DIFFBLOCK: InvState.Unary.sem_diffblock conf_src (blk2GV TD mb) val>>
+.
+Proof.
+  inv STATE. inv SRC. clear PRIVATE UNIQUE NOALIAS LESSDEF MAYDIFF TGT.
+  exploit WF_LOCAL; eauto; []; intro WF; des.
+  eapply valid_ptr_malloc_diffblock; eauto.
+Qed.
+
+Lemma globals_malloc_diffblock_aux
       align0 invmem0 TD gn SRC_MEM SRC_MEM_STEP
       tsz conf_src mb gid val
       (WF_GLOBALS: genericvalues_inject.wf_globals (InvMem.Rel.gmax invmem0) (Globals conf_src))
@@ -246,7 +262,21 @@ Proof.
   ss.
 Qed.
 
-Lemma wf_mload_malloc_diffblock
+Lemma globals_malloc_diffblock
+      align0 invmem0 TD gn SRC_MEM SRC_MEM_STEP
+      tsz conf_src mb gid val TGT_MEM conf_tgt
+      (MALLOC: malloc TD SRC_MEM tsz gn align0 = Some (SRC_MEM_STEP, mb))
+      (VAL: lookupAL GenericValue (Globals conf_src) gid = Some val)
+      (MEM: InvMem.Rel.sem conf_src conf_tgt SRC_MEM TGT_MEM invmem0)
+  :
+    <<DIFFBLOCK: InvState.Unary.sem_diffblock conf_src (blk2GV TD mb) val>>
+.
+Proof.
+  inv MEM. inv SRC.
+  eapply globals_malloc_diffblock_aux; eauto.
+Qed.
+
+Lemma mload_malloc_diffblock_aux
   align0 invmem0 TD gn tsz conf_src TGT_MEM SRC_MEM SRC_MEM_STEP mb
   (MALLOC: malloc TD SRC_MEM tsz gn align0 = Some (SRC_MEM_STEP, mb))
   mptr0 typ0 align1 val'
@@ -281,6 +311,23 @@ Unshelve.
 eauto.
 Qed.
 
+(* CALL FOR DISCUSSION *)
+(* Stronger premise, *)
+(* easier to prove, harder to use in theory *)
+(* However, actually it is more convenient to use, as we do not need to inv MEM *)
+Lemma mload_malloc_diffblock
+  align0 invmem0 TD gn tsz conf_src conf_tgt TGT_MEM SRC_MEM SRC_MEM_STEP mb
+  (MALLOC: malloc TD SRC_MEM tsz gn align0 = Some (SRC_MEM_STEP, mb))
+  mptr0 typ0 align1 val'
+  (LOAD: mload (CurTargetData conf_src) SRC_MEM_STEP mptr0 typ0 align1 = Some val')
+  (MEM: InvMem.Rel.sem conf_src conf_tgt SRC_MEM TGT_MEM invmem0)
+  :
+  <<DIFFBLOCK: InvState.Unary.sem_diffblock conf_src (blk2GV TD mb) val'>>
+.
+Proof.
+  inv MEM. inv SRC.
+  eapply mload_malloc_diffblock_aux; eauto.
+Qed.
 
 (* TODO: let's ignore insn_malloc for now.  Revise the validator so that it rejects any occurence of insn_malloc. *)
 Lemma postcond_cmd_add_inject_sound
@@ -414,46 +461,17 @@ Proof.
         +
           (* LOCALS *)
           ii.
-          revert HeqEC_tgt.
-          revert Heqconf_src.
-          revert Heqconf_tgt.
           des_lookupAL_updateAddAL. (* TODO don't use clarify inside des_lookupAL!!!!! *)
-          ii.
-          (* TODO extend clear_true into clear_dup, remove VAL', n. Also duplicated premises *)
-          unfold MemProps.wf_lc in *.
-          move STATE at bottom.
-          inv STATE. inv SRC.
-          exploit WF_LOCAL1; eauto; []; intro WF; des.
-          ss.
-          move mb at bottom.
-          clear - WF H3.
-          remember {| CurSystem := S; CurTargetData := TD;
-                      CurProducts := Ps; Globals := gl; FunTable := fs |} as conf_src.
-          clear Heqconf_src.
-          eapply valid_ptr_malloc_diffblock; eauto.
+          clear - STATE H3 VAL'.
+          eapply locals_malloc_diffblock; ss; eauto.
+          { ss. eauto. } (* TODO WHY IT APPEARS???????? *)
+          { ss. eauto. }
         +
           (* MEM *)
-          move SRC_MEM at bottom.
-          move SRC_MEM_STEP at bottom.
-          move mb at bottom.
-          clear - SRC_MEM_STEP (* MEM_STEP *) MEM mb H3 WF_LOCAL
-                                              ALLOC_INJECT H3 SRC_MEM.
-          ii.
-          clear ___________x____________ WF_LOCAL.
-          clear ALLOC_INJECT.
-          inv MEM. clear TGT INJECT. rename WF into WF_REL.
-          inv SRC. clear GLOBALS PRIVATE PRIVATE_PARENT DISJOINT MEM_PARENT.
-          eapply wf_mload_malloc_diffblock; eauto.
+          ii. eapply mload_malloc_diffblock; eauto.
         +
           (* GLOBALS *)
-          move MEM at bottom.
-          inversion MEM; clear MEM. (* Using inv will ruin order of premisses *)
-          inversion SRC; clear SRC.
-          move mb at bottom.
-          move WF0 at bottom.
-          clear - GLOBALS H3 WF0.
-          ii.
-          eapply wf_globals_malloc_diffblock; eauto.
+          ii. eapply globals_malloc_diffblock; eauto.
       -
         (* TGT *)
         admit.
