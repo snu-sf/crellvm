@@ -371,7 +371,109 @@ Proof.
   - (* alloca, nop *)
     (* roughly, degenerate case for the last one *)
     admit.
-  - admit. (* nop, allica *)
+  - (* nop, allica *)
+    unfold postcond_cmd_check in *. des_ifs; des_bool; clarify.
+    ss. clear_true.
+    splits; ss.
+    apply_all_once AtomSetImpl_from_list_inter_is_empty.
+    simpl_list.
+    (* inv STATE_STEP. *)
+
+    (* ((inv STEP_SRC; ss); []). *)
+    (* inv SRC. *)
+    (* inv CMDS_SRC. *)
+
+    (* ((inv STEP_TGT; ss); []). *)
+    (* inv TGT. *)
+    (* inv CMDS_TGT. *)
+    (* ss. *)
+
+    (* rename Mem0 into SRC_MEM. *)
+    (* rename Mem' into SRC_MEM_STEP. *)
+    (* rename Mem1 into TGT_MEM. *)
+    (* rename Mem'0 into TGT_MEM_STEP. *)
+
+    (* remember {| CurSystem := S; CurTargetData := TD; *)
+    (*             CurProducts := Ps; Globals := gl; FunTable := fs |} as conf_src. *)
+    (* remember {| CurSystem := S0; CurTargetData := TD0; *)
+    (*             CurProducts := Ps0; Globals := gl0; FunTable := fs0 |} as conf_tgt. *)
+    (* remember {| *)
+    (*     EC := {| *)
+    (*            CurFunction := F; *)
+    (*            CurBB := B; *)
+    (*            CurCmds := cmds_src; *)
+    (*            Terminator := tmn; *)
+    (*            Locals := updateAddAL GenericValue lc id0 (blk2GV TD mb); *)
+    (*            Allocas := mb :: als |}; *)
+    (*     ECS := ECS0; *)
+    (*     Mem := SRC_MEM_STEP |} as EC_src. *)
+    (* remember {| *)
+    (*     EC := {| *)
+    (*            CurFunction := F0; *)
+    (*            CurBB := B0; *)
+    (*            CurCmds := cmds_tgt; *)
+    (*            Terminator := tmn0; *)
+    (*            Locals := updateAddAL GenericValue lc0 id0 (blk2GV TD0 mb0); *)
+    (*            Allocas := mb0 :: als0 |}; *)
+    (*     ECS := ECS1; *)
+    (*     Mem := TGT_MEM_STEP |} as EC_tgt. *)
+
+    inv STATE_STEP.
+
+    ((inv STEP_SRC; ss); []).
+    inv SRC.
+    inv CMDS_SRC.
+
+    econs; eauto; [].
+
+    ((inv STEP_TGT; ss); []).
+    inv TGT.
+    inv CMDS_TGT.
+    ss.
+    clear LESSDEF0 NOALIAS0 UNIQUE0 PRIVATE0 WF_LOCAL0 MAYDIFF.
+
+    econs; eauto.
+    clear LESSDEF NOALIAS.
+    + clear PRIVATE.
+      unfold Invariant.update_src. ss.
+      intros ____id____ IN.
+      eapply AtomSetFacts.add_iff in IN.
+      des; [|eauto]; [].
+      subst.
+      (* TODO BELOW IS EXACTLY COPIED FROM ALLOCA/ALLOCA CASE *)
+      (* PULL OF LEMMA? *)
+      econs; eauto; ss.
+      *
+        (* VAL *)
+        des_lookupAL_updateAddAL.
+      *
+        (* LOCALS *)
+        ii.
+        des_lookupAL_updateAddAL. (* TODO don't use clarify inside des_lookupAL!!!!! *)
+        clear - STATE H3 VAL'.
+        eapply locals_malloc_diffblock; ss; eauto.
+        { ss. eauto. } (* TODO WHY IT APPEARS???????? *)
+        { ss. eauto. }
+      *
+        (* MEM *)
+        ii. eapply mload_malloc_diffblock; eauto.
+      *
+        (* GLOBALS *)
+        ii. eapply globals_malloc_diffblock; eauto.
+    + clear UNIQUE.
+      unfold Invariant.update_private. ss.
+      intros ____id____ IN. (* SHOULD NOT USE ii HERE, OR BELOW eauto WILL NOT WORK!! WHY? *)
+      eapply IdTSetFacts.add_iff in IN.
+      des; [|eauto]; [].
+      subst.
+      ii. ss.
+      u. ss. des_lookupAL_updateAddAL. clear_true.
+      ss.
+      destruct invmem1; simpl. (* ss. itself may take long,
+also makes proof bigger, making later proofs to take longer *)
+      destruct src; simpl.
+      ss.
+      admit.
   - (* alloca, alloca *)
     (*
      * invmem1 = invmem0 + (newl_src -> newl_tgt)
