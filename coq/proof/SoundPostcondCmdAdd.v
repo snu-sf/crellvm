@@ -194,12 +194,13 @@ Lemma postcond_cmd_add_inject_sound
       m_src conf_src st0_src st1_src cmd_src cmds_src def_src uses_src
       m_tgt conf_tgt st0_tgt st1_tgt cmd_tgt cmds_tgt def_tgt uses_tgt
       invst1 invmem1 inv1
-      invmem0
+      invst0 invmem0 inv0
       evt
       (CONF: InvState.valid_conf m_src m_tgt conf_src conf_tgt)
       (POSTCOND_CHECK: Postcond.postcond_cmd_check
                    cmd_src cmd_tgt def_src def_tgt uses_src uses_tgt inv1)
-      (STATE: InvState.Rel.sem conf_src conf_tgt st1_src st1_tgt invst1 invmem1 inv1)
+      (STATE: InvState.Rel.sem conf_src conf_tgt st0_src st0_tgt invst0 invmem0 inv0)
+      (STATE_STEP: InvState.Rel.sem conf_src conf_tgt st1_src st1_tgt invst1 invmem1 inv1)
       (MEM: InvMem.Rel.sem conf_src conf_tgt st0_src.(Mem) st0_tgt.(Mem) invmem0)
       (MEM_STEP: InvMem.Rel.sem conf_src conf_tgt st1_src.(Mem) st1_tgt.(Mem) invmem1)
       (STEP_SRC: sInsn conf_src st0_src st1_src evt)
@@ -259,7 +260,7 @@ Proof.
     apply_all_once AtomSetImpl_from_list_inter_is_empty.
     simpl_list.
 
-    inv STATE.
+    inv STATE_STEP.
 
     ((inv STEP_SRC; ss); []).
     inv SRC.
@@ -324,45 +325,28 @@ Proof.
           revert Heqconf_src.
           revert Heqconf_tgt.
           des_lookupAL_updateAddAL. (* TODO don't use clarify inside des_lookupAL!!!!! *)
-          ii. (* TODO extend clear_true into clear_dup, remove VAL', n. Also duplicated premises *)
+          ii.
+          (* TODO extend clear_true into clear_dup, remove VAL', n. Also duplicated premises *)
           unfold MemProps.wf_lc in *.
-          exploit WF_LOCAL. des_lookupAL_updateAddAL. ii.
+          move STATE at bottom.
+          inv STATE. inv SRC.
+          exploit WF_LOCAL1; eauto; []; intro WF; des.
+          ss.
           move mb at bottom.
-          (* NEED wf_local before step *)
-          admit.
-          (* destruct val' eqn:T1; ss. *)
-          (* destruct p eqn:T2; ss. *)
-          (* destruct v eqn:T3; ss. *)
-          (* destruct g eqn:T4; ss. *)
-          (* des_lookupAL_updateAddAL. ss. *)
-          (* ii. *)
-          (* clarify. *)
-          (* move ALLOC_INJECT at bottom. *)
-          (* move MEM at bottom. *)
-          (* rename b into __________BBB__________. *)
-          (* (* TODO symmetry; clear dup in n/REG *) clear n. *)
-          (* rename Mem0 into Mem__________00000000000. *)
-          (* rename Mem' into Mem__________11111111111. *)
-          (* inv MEM. *)
-          (* rename st0_tgt into st_tgt_____________000000000000. *)
-          (* rename st1_tgt into st_tgt_____________111111111111. *)
-          (* { *)
-          (*   unfold MemProps.wf_lc in *. *)
-          (*   ii. *)
-          (*   exploit WF_LOCAL; eauto; []; ii; des; clear WF_LOCAL. *)
-          (*   red. des_ifs; clarify. *)
-          (*   rename b0 into __________AAA__________. *)
-          (*   rename b into __________BBB__________. *)
-          (*   destruct val' eqn:T1; ss. *)
-          (*   destruct p eqn:T2; ss. *)
-          (*   destruct v eqn:T3; ss. *)
-          (*   destruct g eqn:T4; ss. *)
-          (*   clarify. *)
-          (*   des; clear_true. *)
-          (*   des_lookupAL_updateAddAL. *)
-          (* } *)
+          clear - WF H3.
+          exploit MemProps.nextblock_malloc; try apply H3; []; ii; des.
+          exploit MemProps.malloc_result; try apply H3; []; ii; des.
+          subst.
 
-          (* erewrite VAL' in WF_LOCAL. *)
+
+          unfold InvState.Unary.sem_diffblock.
+          destruct val'; ss.
+          destruct p; ss.
+          destruct v; ss.
+          des.
+          destruct val'; ss.
+          unfold not; ii; subst.
+          exploit Pos.lt_irrefl; eauto.
         +
           (* MEM *)
           {
@@ -400,6 +384,8 @@ if read from SRC_MEM_STEP - SRC_MEM -> undef
                 clarify. subst.
                 exploit Pos.lt_irrefl; eauto.
               }
+            * admit.
+          }
         +
           (* GLOBALS *)
           move MEM_STEP at bottom.
@@ -1067,12 +1053,13 @@ Theorem postcond_cmd_add_sound
         m_src conf_src st0_src st1_src cmd_src cmds_src def_src uses_src
         m_tgt conf_tgt st0_tgt st1_tgt cmd_tgt cmds_tgt def_tgt uses_tgt
         invst1 invmem1 inv1
-        invmem0
+        invst0 invmem0 inv0
         evt
         (CONF: InvState.valid_conf m_src m_tgt conf_src conf_tgt)
         (POSTCOND: Postcond.postcond_cmd_check cmd_src cmd_tgt
                                                def_src def_tgt uses_src uses_tgt inv1)
-        (STATE: InvState.Rel.sem conf_src conf_tgt st1_src st1_tgt invst1 invmem1 inv1)
+        (STATE: InvState.Rel.sem conf_src conf_tgt st0_src st0_tgt invst0 invmem0 inv0)
+        (STATE_STEP: InvState.Rel.sem conf_src conf_tgt st1_src st1_tgt invst1 invmem1 inv1)
         (MEM: InvMem.Rel.sem conf_src conf_tgt st0_src.(Mem) st0_tgt.(Mem) invmem0)
         (MEM_STEP: InvMem.Rel.sem conf_src conf_tgt st1_src.(Mem) st1_tgt.(Mem) invmem1)
         (STEP_SRC: sInsn conf_src st0_src st1_src evt)
@@ -1086,7 +1073,7 @@ Theorem postcond_cmd_add_sound
         (USES_SRC: uses_src = AtomSetImpl_from_list (Cmd.get_ids cmd_src))
         (USES_TGT: uses_tgt = AtomSetImpl_from_list (Cmd.get_ids cmd_tgt)):
   exists invst2 invmem2,
-    <<STATE: InvState.Rel.sem conf_src conf_tgt st1_src st1_tgt invst2 invmem2
+    <<STATE_STEP: InvState.Rel.sem conf_src conf_tgt st1_src st1_tgt invst2 invmem2
                               (Postcond.postcond_cmd_add cmd_src cmd_tgt inv1)>> /\
              <<MEM: InvMem.Rel.sem conf_src conf_tgt st1_src.(Mem) st1_tgt.(Mem) invmem2>> /\
                     <<MEMLE: InvMem.Rel.le invmem1 invmem2>>.
@@ -1095,9 +1082,9 @@ Proof.
   exploit postcond_cmd_add_inject_sound; try apply CONF;
     try apply STEP_SRC; try apply STEP_TGT; eauto; []; ii; des.
   exploit x0; eauto; ii; des; clear x0.
-  exploit postcond_cmd_add_lessdef_src_sound; try apply STATE0; eauto; []; ii; des.
-  exploit postcond_cmd_add_lessdef_tgt_sound; try apply STATE1; eauto; []; ii; des.
-  exploit reduce_maydiff_sound; try apply STATE2; eauto; []; ii; des.
+  exploit postcond_cmd_add_lessdef_src_sound; try apply STATE_STEP0; eauto; []; ii; des.
+  exploit postcond_cmd_add_lessdef_tgt_sound; try apply STATE_STEP1; eauto; []; ii; des.
+  exploit reduce_maydiff_sound; try apply STATE_STEP2; eauto; []; ii; des.
   esplits; eauto.
   reflexivity.
 Qed.
