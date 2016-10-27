@@ -213,6 +213,39 @@ Proof.
   exploit Pos.lt_irrefl; eauto.
 Qed.
 
+Lemma wf_globals_malloc_diffblock
+      align0 invmem0 TD gn SRC_MEM SRC_MEM_STEP
+      tsz conf_src mb gid val
+      (WF_GLOBALS: genericvalues_inject.wf_globals (InvMem.Rel.gmax invmem0) (Globals conf_src))
+      (MALLOC: malloc TD SRC_MEM tsz gn align0 = Some (SRC_MEM_STEP, mb))
+      (WF_MEM: MemProps.wf_Mem (InvMem.Rel.gmax invmem0) (CurTargetData conf_src) SRC_MEM)
+      (VAL: lookupAL GenericValue (Globals conf_src) gid = Some val)
+  :
+    <<DIFFBLOCK: InvState.Unary.sem_diffblock conf_src (blk2GV TD mb) val>>
+.
+Proof.
+  destruct val; ss. red. ss.
+  destruct p; ss.
+  destruct v; ss.
+  destruct val; ss.
+  induction (Globals conf_src); ii; ss.
+  rename a into aaaaaaaaaaa.
+  subst.
+  destruct aaaaaaaaaaa; ss. des.
+  exploit IHg; eauto.
+  des_ifs.
+  unfold genericvalues_inject.wf_global in *. des.
+  unfold MemProps.wf_Mem in *.
+  des.
+  exploit MemProps.nextblock_malloc; try apply MALLOC; []; ii; des.
+  exploit MemProps.malloc_result; try apply MALLOC; []; ii; des.
+  subst.
+  clear - WF_MEM0 WF_GLOBALS.
+  exploit Pos.le_lt_trans; eauto; []; ii; des.
+  exploit Pos.lt_irrefl; eauto; []; ii; des.
+  ss.
+Qed.
+
 (* TODO: let's ignore insn_malloc for now.  Revise the validator so that it rejects any occurence of insn_malloc. *)
 Lemma postcond_cmd_add_inject_sound
       m_src conf_src st0_src st1_src cmd_src cmds_src def_src uses_src
@@ -370,11 +403,11 @@ Proof.
             move mb at bottom.
             clear - SRC_MEM_STEP (* MEM_STEP *) MEM mb H3 WF_LOCAL
                          ALLOC_INJECT H3 SRC_MEM.
+            ii.
             clear ___________x____________ WF_LOCAL.
             inv MEM. clear TGT INJECT. rename WF into WF_REL.
             inv SRC. clear GLOBALS PRIVATE PRIVATE_PARENT DISJOINT MEM_PARENT.
             inversion WF as [WF_A WF_B]. clear WF.
-            ii.
             (*
 WTS
 mb <-> val'
@@ -415,26 +448,7 @@ if read from SRC_MEM_STEP - SRC_MEM -> undef
           move WF0 at bottom.
           clear - GLOBALS H3 WF0.
           ii.
-          destruct val'; ss. red. ss.
-          destruct p; ss.
-          destruct v; ss.
-          destruct val'; ss.
-          induction (Globals conf_src); ii; ss.
-          rename a into aaaaaaaaaaa.
-          subst.
-          destruct aaaaaaaaaaa; ss. des.
-          exploit IHg; eauto.
-          des_ifs.
-          unfold genericvalues_inject.wf_global in *. des.
-          unfold MemProps.wf_Mem in *.
-          des.
-          exploit MemProps.nextblock_malloc; try apply H3; []; ii; des.
-          exploit MemProps.malloc_result; try apply H3; []; ii; des.
-          subst.
-          clear - WF1 GLOBALS.
-          exploit Pos.le_lt_trans; eauto; []; ii; des.
-          exploit Pos.lt_irrefl; eauto; []; ii; des.
-          ss.
+          eapply wf_globals_malloc_diffblock; eauto.
       -
         (* TGT *)
         admit.
