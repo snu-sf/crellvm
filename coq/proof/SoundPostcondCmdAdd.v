@@ -189,6 +189,30 @@ Proof.
     des_bool; des; ss.
 Qed.
 
+Lemma valid_ptr_malloc_diffblock
+      SRC_MEM val'
+      (VALID_PTR: MemProps.valid_ptrs (Memory.Mem.nextblock SRC_MEM) val')
+      TD align0 tsz gn SRC_MEM_STEP mb
+      (MALLOC: malloc TD SRC_MEM tsz gn align0 = Some (SRC_MEM_STEP, mb))
+      conf_src
+  :
+    <<DIFFBLOCK: InvState.Unary.sem_diffblock conf_src (blk2GV TD mb) val'>>
+.
+Proof.
+  exploit MemProps.nextblock_malloc; try apply MALLOC; []; ii; des.
+  exploit MemProps.malloc_result; try apply MALLOC; []; ii; des.
+  subst.
+
+  unfold InvState.Unary.sem_diffblock.
+  destruct val'; ss.
+  destruct p; ss.
+  destruct v; ss.
+  des.
+  destruct val'; ss.
+  unfold not; ii; subst.
+  exploit Pos.lt_irrefl; eauto.
+Qed.
+
 (* TODO: let's ignore insn_malloc for now.  Revise the validator so that it rejects any occurence of insn_malloc. *)
 Lemma postcond_cmd_add_inject_sound
       m_src conf_src st0_src st1_src cmd_src cmds_src def_src uses_src
@@ -334,19 +358,10 @@ Proof.
           ss.
           move mb at bottom.
           clear - WF H3.
-          exploit MemProps.nextblock_malloc; try apply H3; []; ii; des.
-          exploit MemProps.malloc_result; try apply H3; []; ii; des.
-          subst.
-
-
-          unfold InvState.Unary.sem_diffblock.
-          destruct val'; ss.
-          destruct p; ss.
-          destruct v; ss.
-          des.
-          destruct val'; ss.
-          unfold not; ii; subst.
-          exploit Pos.lt_irrefl; eauto.
+          remember {| CurSystem := S; CurTargetData := TD;
+                      CurProducts := Ps; Globals := gl; FunTable := fs |} as conf_src.
+          clear Heqconf_src.
+          eapply valid_ptr_malloc_diffblock; eauto.
         +
           (* MEM *)
           {
