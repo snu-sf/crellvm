@@ -116,9 +116,6 @@ Lemma postcond_cmd_add_noret_call
                      (insn_call id_tgt true clattrs typ varg fun_tgt args_tgt) inv =
     reduce_maydiff inv.
 Proof.
-  unfold postcond_cmd_add. ss.
-  unfold Invariant.update_src, Invariant.update_tgt, Invariant.update_lessdef. ss.
-  do 2 rewrite postcond_cmd_add_lessdef_call.
   destruct inv. destruct src. destruct tgt. ss.
 Qed.
 
@@ -131,11 +128,9 @@ Lemma postcond_cmd_add_ret_call
     reduce_maydiff (remove_def_from_maydiff id_src id_tgt inv).
 Proof.
   unfold postcond_cmd_add. ss.
-  unfold Invariant.update_src, Invariant.update_tgt, Invariant.update_lessdef. ss.
-  do 2 rewrite postcond_cmd_add_lessdef_call.
   remember (remove_def_from_maydiff id_src id_tgt inv) as inv'.
   destruct inv'. destruct src. destruct tgt. ss.
-Qed.
+Qed.  
 
 Lemma postcond_cmd_add_call
       m_src conf_src st0_src retval1_src id_src fun_src args_src locals0_src
@@ -190,7 +185,6 @@ Proof.
     exploit SoundReduceMaydiff.reduce_maydiff_sound; eauto.
 Qed.
 
-(* TODO: free allocas *)
 Lemma postcond_call_sound
       m_src conf_src st0_src id_src noret_src clattrs_src typ_src varg_src fun_src args_src cmds_src
       m_tgt conf_tgt st0_tgt id_tgt noret_tgt clattrs_tgt typ_tgt varg_tgt fun_tgt args_tgt cmds_tgt
