@@ -886,7 +886,6 @@ Definition postcond_cmd
   let leaks_memory_src := Cmd.get_leaked_ids_to_memory src in
   let leaks_memory_tgt := Cmd.get_leaked_ids_to_memory tgt in
 
-  (* let inv1 := ForgetUnique.t def_src def_tgt leaks_src leaks_tgt inv0 in *)
   let inv2 :=
       if Instruction.isCallInst src
       then
