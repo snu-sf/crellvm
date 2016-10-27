@@ -246,6 +246,42 @@ Proof.
   ss.
 Qed.
 
+Lemma wf_mload_malloc_diffblock
+  align0 invmem0 TD gn tsz conf_src TGT_MEM SRC_MEM SRC_MEM_STEP mb
+  (MALLOC: malloc TD SRC_MEM tsz gn align0 = Some (SRC_MEM_STEP, mb))
+  mptr0 typ0 align1 val'
+  (LOAD: mload (CurTargetData conf_src) SRC_MEM_STEP mptr0 typ0 align1 = Some val')
+  (WF_REL: genericvalues_inject.wf_sb_mi
+              (InvMem.Rel.gmax invmem0) (InvMem.Rel.inject invmem0) SRC_MEM TGT_MEM)
+  (WF: MemProps.wf_Mem (InvMem.Rel.gmax invmem0) (CurTargetData conf_src) SRC_MEM)
+  :
+  <<DIFFBLOCK: InvState.Unary.sem_diffblock conf_src (blk2GV TD mb) val'>>
+.
+Proof.
+  inversion WF as [WF_A WF_B]. clear WF.
+  (*
+WTS
+mb <-> val'
+val': read from SRC_MEM_STEP.
+if read from SRC_MEM -> use WF.
+if read from SRC_MEM_STEP - SRC_MEM -> undef
+   *)
+  exploit MemProps.malloc_preserves_mload_inv; try apply LOAD; eauto; []; ii.
+  des.
+  - exploit WF_A; try apply LOAD; eauto; []; clear WF_A; intros WF_A; des.
+    clear - MALLOC WF_A.
+    eapply valid_ptr_malloc_diffblock; eauto.
+  - unfold not in x1.
+    unfold InvState.Unary.sem_diffblock.
+    destruct val'; ss.
+    destruct p; ss.
+    exploit x0; eauto; []; ii; des.
+    subst. ss.
+Unshelve.
+eauto.
+Qed.
+
+
 (* TODO: let's ignore insn_malloc for now.  Revise the validator so that it rejects any occurence of insn_malloc. *)
 Lemma postcond_cmd_add_inject_sound
       m_src conf_src st0_src st1_src cmd_src cmds_src def_src uses_src
@@ -397,48 +433,17 @@ Proof.
           eapply valid_ptr_malloc_diffblock; eauto.
         +
           (* MEM *)
-          {
-            move SRC_MEM at bottom.
-            move SRC_MEM_STEP at bottom.
-            move mb at bottom.
-            clear - SRC_MEM_STEP (* MEM_STEP *) MEM mb H3 WF_LOCAL
-                         ALLOC_INJECT H3 SRC_MEM.
-            ii.
-            clear ___________x____________ WF_LOCAL.
-            inv MEM. clear TGT INJECT. rename WF into WF_REL.
-            inv SRC. clear GLOBALS PRIVATE PRIVATE_PARENT DISJOINT MEM_PARENT.
-            inversion WF as [WF_A WF_B]. clear WF.
-            (*
-WTS
-mb <-> val'
-val': read from SRC_MEM_STEP.
-if read from SRC_MEM -> use WF.
-if read from SRC_MEM_STEP - SRC_MEM -> undef
-             *)
-            exploit MemProps.malloc_preserves_mload_inv; try apply LOAD; eauto; []; ii.
-            des.
-            * exploit WF_A; try apply LOAD; eauto; []; clear WF_A; intros WF_A; des.
-              clear - H3 WF_A.
-              {
-                destruct val'; ss.
-                destruct p eqn:T1; ss.
-                destruct v eqn:T2; ss.
-                des.
-                unfold InvState.Unary.sem_diffblock in *.
-                ss.
-                destruct val'; ss.
-                exploit MemProps.nextblock_malloc; try apply H3; []; ii; des.
-                exploit MemProps.malloc_result; try apply H3; []; ii; des.
-                clarify. subst.
-                exploit Pos.lt_irrefl; eauto.
-              }
-            * unfold not in x1.
-              unfold InvState.Unary.sem_diffblock.
-              destruct val'; ss.
-              destruct p; ss.
-              exploit x0; eauto; []; ii; des.
-              subst. ss.
-          }
+          move SRC_MEM at bottom.
+          move SRC_MEM_STEP at bottom.
+          move mb at bottom.
+          clear - SRC_MEM_STEP (* MEM_STEP *) MEM mb H3 WF_LOCAL
+                                              ALLOC_INJECT H3 SRC_MEM.
+          ii.
+          clear ___________x____________ WF_LOCAL.
+          clear ALLOC_INJECT.
+          inv MEM. clear TGT INJECT. rename WF into WF_REL.
+          inv SRC. clear GLOBALS PRIVATE PRIVATE_PARENT DISJOINT MEM_PARENT.
+          eapply wf_mload_malloc_diffblock; eauto.
         +
           (* GLOBALS *)
           move MEM at bottom.
