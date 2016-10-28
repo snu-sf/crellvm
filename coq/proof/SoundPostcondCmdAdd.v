@@ -214,77 +214,80 @@ Proof.
   exploit Pos.lt_irrefl; eauto.
 Qed.
 
+(* We are not using InvState.Rel.sem here, rather separated it into unary,
+in order to get reusability *)
 Lemma locals_malloc_diffblock
-      conf_src conf_tgt st_src st_tgt invst0 invmem0 inv0
+      conf_src st_src invst0 invmem0 inv0
       TD tsz gn align0 SRC_MEM_STEP mb
       reg val
       (MALLOC: malloc TD st_src.(Mem) tsz gn align0 = Some (SRC_MEM_STEP, mb))
       (VAL: lookupAL GenericValue st_src.(EC).(Locals) reg = Some val)
-      (STATE : InvState.Rel.sem conf_src conf_tgt st_src st_tgt invst0 invmem0 inv0)
+      (SRC: InvState.Unary.sem conf_src st_src invst0 invmem0 inv0)
   :
   <<DIFFBLOCK: InvState.Unary.sem_diffblock conf_src (blk2GV TD mb) val>>
 .
 Proof.
-  inv STATE. inv SRC. clear PRIVATE UNIQUE NOALIAS LESSDEF MAYDIFF TGT.
+  inv SRC. clear PRIVATE UNIQUE NOALIAS LESSDEF.
   exploit WF_LOCAL; eauto; []; intro WF; des.
   eapply valid_ptr_malloc_diffblock; eauto.
 Qed.
 
 Lemma globals_malloc_diffblock_aux
-      align0 invmem0 TD gn SRC_MEM SRC_MEM_STEP
+      align0 TD gn SRC_MEM SRC_MEM_STEP
       tsz conf_src mb gid val
-      (WF_GLOBALS: genericvalues_inject.wf_globals (InvMem.Rel.gmax invmem0) (Globals conf_src))
+      gmax
+      (WF_GLOBALS: genericvalues_inject.wf_globals gmax (Globals conf_src))
       (MALLOC: malloc TD SRC_MEM tsz gn align0 = Some (SRC_MEM_STEP, mb))
-      (WF_MEM: MemProps.wf_Mem (InvMem.Rel.gmax invmem0) (CurTargetData conf_src) SRC_MEM)
+      (WF_MEM: MemProps.wf_Mem gmax (CurTargetData conf_src) SRC_MEM)
       (VAL: lookupAL GenericValue (Globals conf_src) gid = Some val)
   :
     <<DIFFBLOCK: InvState.Unary.sem_diffblock conf_src (blk2GV TD mb) val>>
 .
 Proof.
-  destruct val; ss. red. ss.
-  destruct p; ss.
-  destruct v; ss.
-  destruct val; ss.
+  unfold MemProps.wf_Mem in *. des.
   induction (Globals conf_src); ii; ss.
-  rename a into aaaaaaaaaaa.
-  subst.
-  destruct aaaaaaaaaaa; ss. des.
-  exploit IHg; eauto.
-  des_ifs.
-  unfold genericvalues_inject.wf_global in *. des.
-  unfold MemProps.wf_Mem in *.
-  des.
-  exploit MemProps.nextblock_malloc; try apply MALLOC; []; ii; des.
-  exploit MemProps.malloc_result; try apply MALLOC; []; ii; des.
-  subst.
-  clear - WF_MEM0 WF_GLOBALS.
-  exploit Pos.le_lt_trans; eauto; []; ii; des.
-  exploit Pos.lt_irrefl; eauto; []; ii; des.
-  ss.
+  destruct a; ss.
+  destruct (gid == i0); ss; clarify.
+  - (* gid == i0 *)
+    clear IHg.
+    destruct val; ss.
+    destruct p; ss.
+    destruct v; ss.
+    des. red.
+    unfold InvState.Unary.sem_diffblock. ss.
+    destruct val; ss.
+    exploit MemProps.nextblock_malloc; try apply MALLOC; []; ii; des. clarify.
+    exploit MemProps.malloc_result; try apply MALLOC; []; ii; des. clarify.
+    clear - WF_MEM0 WF_GLOBALS.
+    exploit Pos.le_lt_trans; eauto; []; ii; des.
+    exploit Pos.lt_irrefl; eauto.
+  - (* IH case *)
+    des.
+    eapply IHg; eauto.
 Qed.
 
 Lemma globals_malloc_diffblock
-      align0 invmem0 TD gn SRC_MEM SRC_MEM_STEP
-      tsz conf_src mb gid val TGT_MEM conf_tgt
+      align0 TD gn SRC_MEM SRC_MEM_STEP
+      tsz conf_src mb gid val
       (MALLOC: malloc TD SRC_MEM tsz gn align0 = Some (SRC_MEM_STEP, mb))
       (VAL: lookupAL GenericValue (Globals conf_src) gid = Some val)
-      (MEM: InvMem.Rel.sem conf_src conf_tgt SRC_MEM TGT_MEM invmem0)
+      gmax public inv
+      (MEM: InvMem.Unary.sem conf_src gmax public SRC_MEM inv)
   :
     <<DIFFBLOCK: InvState.Unary.sem_diffblock conf_src (blk2GV TD mb) val>>
 .
 Proof.
-  inv MEM. inv SRC.
+  inv MEM.
   eapply globals_malloc_diffblock_aux; eauto.
 Qed.
 
 Lemma mload_malloc_diffblock_aux
-  align0 invmem0 TD gn tsz conf_src TGT_MEM SRC_MEM SRC_MEM_STEP mb
+  align0 TD gn tsz conf_src SRC_MEM SRC_MEM_STEP mb
   (MALLOC: malloc TD SRC_MEM tsz gn align0 = Some (SRC_MEM_STEP, mb))
   mptr0 typ0 align1 val'
   (LOAD: mload (CurTargetData conf_src) SRC_MEM_STEP mptr0 typ0 align1 = Some val')
-  (WF_REL: genericvalues_inject.wf_sb_mi
-              (InvMem.Rel.gmax invmem0) (InvMem.Rel.inject invmem0) SRC_MEM TGT_MEM)
-  (WF: MemProps.wf_Mem (InvMem.Rel.gmax invmem0) (CurTargetData conf_src) SRC_MEM)
+  gmax
+  (WF: MemProps.wf_Mem gmax (CurTargetData conf_src) SRC_MEM)
   :
   <<DIFFBLOCK: InvState.Unary.sem_diffblock conf_src (blk2GV TD mb) val'>>
 .
@@ -317,16 +320,17 @@ Qed.
 (* easier to prove, harder to use in theory *)
 (* However, actually it is more convenient to use, as we do not need to inv MEM *)
 Lemma mload_malloc_diffblock
-  align0 invmem0 TD gn tsz conf_src conf_tgt TGT_MEM SRC_MEM SRC_MEM_STEP mb
+  align0 TD gn tsz conf_src SRC_MEM SRC_MEM_STEP mb
   (MALLOC: malloc TD SRC_MEM tsz gn align0 = Some (SRC_MEM_STEP, mb))
   mptr0 typ0 align1 val'
   (LOAD: mload (CurTargetData conf_src) SRC_MEM_STEP mptr0 typ0 align1 = Some val')
-  (MEM: InvMem.Rel.sem conf_src conf_tgt SRC_MEM TGT_MEM invmem0)
+  gmax public inv
+  (MEM: InvMem.Unary.sem conf_src gmax public SRC_MEM inv)
   :
   <<DIFFBLOCK: InvState.Unary.sem_diffblock conf_src (blk2GV TD mb) val'>>
 .
 Proof.
-  inv MEM. inv SRC.
+  inv MEM.
   eapply mload_malloc_diffblock_aux; eauto.
 Qed.
 
@@ -455,15 +459,16 @@ Proof.
         ii.
         des_lookupAL_updateAddAL. (* TODO don't use clarify inside des_lookupAL!!!!! *)
         clear - STATE H3 VAL'.
+        inv STATE.
         eapply locals_malloc_diffblock; ss; eauto.
         { ss. eauto. } (* TODO WHY IT APPEARS???????? *)
         { ss. eauto. }
       *
         (* MEM *)
-        ii. eapply mload_malloc_diffblock; eauto.
+        ii. inv MEM. eapply mload_malloc_diffblock; eauto.
       *
         (* GLOBALS *)
-        ii. eapply globals_malloc_diffblock; eauto.
+        ii. inv MEM. eapply globals_malloc_diffblock; eauto.
     + clear UNIQUE.
       unfold Invariant.update_private. ss.
       intros ____id____ IN. (* SHOULD NOT USE ii HERE, OR BELOW eauto WILL NOT WORK!! WHY? *)
@@ -567,18 +572,46 @@ also makes proof bigger, making later proofs to take longer *)
           ii.
           des_lookupAL_updateAddAL. (* TODO don't use clarify inside des_lookupAL!!!!! *)
           clear - STATE H3 VAL'.
+          inv STATE.
           eapply locals_malloc_diffblock; ss; eauto.
           { ss. eauto. } (* TODO WHY IT APPEARS???????? *)
           { ss. eauto. }
         +
           (* MEM *)
-          ii. eapply mload_malloc_diffblock; eauto.
+          ii. inv MEM. eapply mload_malloc_diffblock; eauto.
         +
           (* GLOBALS *)
-          ii. eapply globals_malloc_diffblock; eauto.
+          ii. inv MEM. eapply globals_malloc_diffblock; eauto.
       -
         (* TGT *)
-        admit.
+        (* Copied exactly from above *)
+        subst EC_tgt.
+        econs; eauto; [].
+        ss.
+        clear MAYDIFF LESSDEF0 NOALIAS0 PRIVATE0.
+        ii.
+        apply AtomSetFacts.add_iff in H8.
+        des; [clear UNIQUE; subst id0|apply UNIQUE0; auto].
+        econs; eauto; ss.
+        +
+          (* VAL *)
+          des_lookupAL_updateAddAL.
+        +
+          (* LOCALS *)
+          ii.
+          des_lookupAL_updateAddAL. (* TODO don't use clarify inside des_lookupAL!!!!! *)
+          clear - STATE H7 VAL'.
+
+          inv STATE.
+          eapply locals_malloc_diffblock; ss; eauto.
+          { ss. eauto. } (* TODO WHY IT APPEARS???????? *)
+          { ss. eauto. }
+        +
+          (* MEM *)
+          ii. inv MEM. eapply mload_malloc_diffblock; eauto.
+        +
+          (* GLOBALS *)
+          ii. inv MEM. eapply globals_malloc_diffblock; eauto.
       -
         (* MAYDIFF *)
         ii.
