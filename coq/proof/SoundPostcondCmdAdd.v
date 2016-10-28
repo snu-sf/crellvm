@@ -353,6 +353,8 @@ Lemma postcond_cmd_add_inject_sound
       (DEF_TGT: def_tgt = AtomSetImpl_from_list (option_to_list (Cmd.get_def cmd_tgt)))
       (USES_SRC: uses_src = AtomSetImpl_from_list (Cmd.get_ids cmd_src))
       (USES_TGT: uses_tgt = AtomSetImpl_from_list (Cmd.get_ids cmd_tgt))
+      (ALLOC_INJECT: InvMem.Rel.inject invmem1 (st0_src.(Mem).(Memory.Mem.nextblock)) =
+                     Some((st0_tgt.(Mem).(Memory.Mem.nextblock)), 0))
   :
     <<STATE: InvState.Rel.sem
                conf_src conf_tgt st1_src st1_tgt invst1 invmem1
@@ -364,7 +366,6 @@ Lemma postcond_cmd_add_inject_sound
 Proof.
   remember (st0_src.(Mem).(Memory.Mem.nextblock)) as src_nxt.
   remember (st0_tgt.(Mem).(Memory.Mem.nextblock)) as tgt_nxt.
-  assert(ALLOC_INJECT: InvMem.Rel.inject invmem1 src_nxt = Some(tgt_nxt, 0)) by admit.
   destruct (classic (Postcond.postcond_cmd_add_inject cmd_src cmd_tgt inv1 = inv1)).
   { rewrite H in *. esplits; eauto. }
   destruct cmd_src, cmd_tgt; ss.
@@ -1124,7 +1125,10 @@ Theorem postcond_cmd_add_sound
         (DEF_SRC: def_src = AtomSetImpl_from_list (option_to_list (Cmd.get_def cmd_src)))
         (DEF_TGT: def_tgt = AtomSetImpl_from_list (option_to_list (Cmd.get_def cmd_tgt)))
         (USES_SRC: uses_src = AtomSetImpl_from_list (Cmd.get_ids cmd_src))
-        (USES_TGT: uses_tgt = AtomSetImpl_from_list (Cmd.get_ids cmd_tgt)):
+        (USES_TGT: uses_tgt = AtomSetImpl_from_list (Cmd.get_ids cmd_tgt))
+        (ALLOC_INJECT: InvMem.Rel.inject invmem1 (st0_src.(Mem).(Memory.Mem.nextblock)) =
+                       Some((st0_tgt.(Mem).(Memory.Mem.nextblock)), 0))
+  :
   exists invst2 invmem2,
     <<STATE_STEP: InvState.Rel.sem conf_src conf_tgt st1_src st1_tgt invst2 invmem2
                               (Postcond.postcond_cmd_add cmd_src cmd_tgt inv1)>> /\
