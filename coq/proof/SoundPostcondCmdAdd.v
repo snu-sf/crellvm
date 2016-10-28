@@ -27,6 +27,7 @@ Require Import SoundBase.
 Require Import SoundReduceMaydiff.
 Require Import memory_props.
 Require Import TODOProof.
+Require Import SoundForgetMemory.
 
 Set Implicit Arguments.
 
@@ -353,8 +354,10 @@ Lemma postcond_cmd_add_inject_sound
       (DEF_TGT: def_tgt = AtomSetImpl_from_list (option_to_list (Cmd.get_def cmd_tgt)))
       (USES_SRC: uses_src = AtomSetImpl_from_list (Cmd.get_ids cmd_src))
       (USES_TGT: uses_tgt = AtomSetImpl_from_list (Cmd.get_ids cmd_tgt))
-      (ALLOC_INJECT: InvMem.Rel.inject invmem1 (st0_src.(Mem).(Memory.Mem.nextblock)) =
-                     Some((st0_tgt.(Mem).(Memory.Mem.nextblock)), 0))
+      (ALLOC_INJECT: alloc_inject conf_src conf_tgt st0_src st0_tgt
+                                  st1_src st1_tgt cmd_src cmd_tgt invmem1)
+      (* (ALLOC_INJECT: InvMem.Rel.inject invmem1 (st0_src.(Mem).(Memory.Mem.nextblock)) = *)
+      (*                Some((st0_tgt.(Mem).(Memory.Mem.nextblock)), 0)) *)
   :
     <<STATE: InvState.Rel.sem
                conf_src conf_tgt st1_src st1_tgt invst1 invmem1
@@ -605,15 +608,20 @@ also makes proof bigger, making later proofs to take longer *)
         rename mb0 into _____________mb0______________.
         move WF_LOCAL0 at bottom.
         move H7 at bottom.
-        move ALLOC_INJECT at bottom.
 
         (* exploit MemProps.nextblock_malloc; try apply H3; []; ii; des. *)
         (* exploit MemProps.nextblock_malloc; try apply H7; []; ii; des. *)
-        exploit MemProps.malloc_result; try apply H3; []; ii; des.
-        exploit MemProps.malloc_result; try apply H7; []; ii; des.
-        rewrite x0. rewrite x1. (* subst, clarify ruin ordering of premisses *)
-        unfold InvMem.Rel.inject in ALLOC_INJECT.
-        destruct invmem1. ss.
+        exploit MemProps.malloc_result; try apply H3; []; intro MALLOC_RES1; des.
+        exploit MemProps.malloc_result; try apply H7; []; intro MALLOC_RES2; des.
+        rewrite MALLOC_RES1. rewrite MALLOC_RES2. (* subst, clarify ruin ordering of premisses *)
+
+        move ALLOC_INJECT at bottom.
+        unfold alloc_inject in ALLOC_INJECT.
+        exploit ALLOC_INJECT; eauto; []; ii; des; clear ALLOC_INJECT.
+        destruct invmem1; ss.
+        unfold alloc_inject_unary in *. des. ss.
+        des_lookupAL_updateAddAL.
+
         econs; eauto.
     }
 Admitted.
@@ -1126,8 +1134,10 @@ Theorem postcond_cmd_add_sound
         (DEF_TGT: def_tgt = AtomSetImpl_from_list (option_to_list (Cmd.get_def cmd_tgt)))
         (USES_SRC: uses_src = AtomSetImpl_from_list (Cmd.get_ids cmd_src))
         (USES_TGT: uses_tgt = AtomSetImpl_from_list (Cmd.get_ids cmd_tgt))
-        (ALLOC_INJECT: InvMem.Rel.inject invmem1 (st0_src.(Mem).(Memory.Mem.nextblock)) =
-                       Some((st0_tgt.(Mem).(Memory.Mem.nextblock)), 0))
+        (ALLOC_INJECT: alloc_inject conf_src conf_tgt st0_src st0_tgt
+                                    st1_src st1_tgt cmd_src cmd_tgt invmem1)
+        (* (ALLOC_INJECT: InvMem.Rel.inject invmem1 (st0_src.(Mem).(Memory.Mem.nextblock)) = *)
+        (*                Some((st0_tgt.(Mem).(Memory.Mem.nextblock)), 0)) *)
   :
   exists invst2 invmem2,
     <<STATE_STEP: InvState.Rel.sem conf_src conf_tgt st1_src st1_tgt invst2 invmem2

@@ -225,14 +225,15 @@ Definition alloc_inject_unary conf st1 x b :=
   Some (Values.Vptr b (Integers.Int.zero 31)) /\
   Pos.succ b = st1.(Mem).(Memory.Mem.nextblock).
 
-Definition alloc_inject conf_src conf_tgt st1_src st1_tgt cmd_src cmd_tgt invmem1 : Prop :=
+Definition alloc_inject conf_src conf_tgt st0_src st0_tgt
+           st1_src st1_tgt cmd_src cmd_tgt invmem1 : Prop :=
   forall x ty v_src v_tgt a
          (ALLOCA_SRC: cmd_src = insn_alloca x ty v_src a)
          (ALLOCA_TGT: cmd_tgt = insn_alloca x ty v_tgt a),
-    exists b_src b_tgt,
-      alloc_inject_unary conf_src st1_src x b_src /\
-      alloc_inject_unary conf_tgt st1_tgt x b_tgt /\
-      invmem1.(InvMem.Rel.inject) b_src = Some (b_tgt, 0).
+    alloc_inject_unary conf_src st1_src x st0_src.(Mem).(Memory.Mem.nextblock) /\
+    alloc_inject_unary conf_tgt st1_tgt x st0_tgt.(Mem).(Memory.Mem.nextblock) /\
+    invmem1.(InvMem.Rel.inject) st0_src.(Mem).(Memory.Mem.nextblock) =
+    Some (st0_tgt.(Mem).(Memory.Mem.nextblock), 0).
 
 Lemma getOperandValue_wf_lc_valid_ptrs
       TD lc gl
@@ -667,7 +668,8 @@ Lemma inject_invmem
       (STEP_TGT : sInsn conf_tgt st0_tgt st1_tgt evt_tgt)
       (INJECT_EVENT : postcond_cmd_inject_event cmd_src cmd_tgt inv0)
   : exists invmem1,
-    <<ALLOC_INJECT: alloc_inject conf_src conf_tgt st1_src st1_tgt cmd_src cmd_tgt invmem1>> /\
+    <<ALLOC_INJECT: alloc_inject conf_src conf_tgt st0_src st0_tgt
+                                 st1_src st1_tgt cmd_src cmd_tgt invmem1>> /\
     <<MEM: InvMem.Rel.sem conf_src conf_tgt (Mem st1_src) (Mem st1_tgt) invmem1 >> /\
     <<MEMLE: InvMem.Rel.le invmem0 invmem1 >> /\
     <<PRIVATE_UNCHANGED_SRC: invmem0.(InvMem.Rel.src).(InvMem.Unary.private) =
@@ -700,12 +702,15 @@ Proof.
       inv ALLOCA_SRC. inv ALLOCA_TGT.
       esplits.
       * unfold alloc_inject_unary.
-        esplits; try apply lookupAL_updateAddAL_eq; ss.
-        exploit malloc_result; try exact MALLOC_SRC; eauto. i. des. subst. eauto.
+        esplits; try apply lookupAL_updateAddAL_eq; ss;
+          (exploit malloc_result; try exact MALLOC_SRC; eauto; []; ii; des; subst; ss).
       * unfold alloc_inject_unary.
-        esplits; try apply lookupAL_updateAddAL_eq; ss.
-        exploit malloc_result; try exact MALLOC_TGT; eauto. i. des. subst. eauto.
-      * destruct (Values.eq_block mb_src mb_src); ss.
+        esplits; try apply lookupAL_updateAddAL_eq; ss;
+          (exploit malloc_result; try exact MALLOC_TGT; eauto; []; ii; des; subst; ss).
+      *
+        (exploit malloc_result; try exact MALLOC_SRC; eauto; []; ii; des; subst; ss).
+        (exploit malloc_result; try exact MALLOC_TGT; eauto; []; ii; des; subst; ss).
+        destruct (Values.eq_block (Memory.Mem.nextblock mem0_src)(Memory.Mem.nextblock mem0_src)); ss.
     + (* InvMem sem *)
       inv MEM; ss.
       econs; ss; eauto.
@@ -1754,7 +1759,8 @@ Lemma forget_memory_sound
       (INJECT_EVENT: postcond_cmd_inject_event cmd_src cmd_tgt inv0)
       (MEM: InvMem.Rel.sem conf_src conf_tgt st0_src.(Mem) st0_tgt.(Mem) invmem0)
   : exists invmem1,
-      <<ALLOC_INJECT: alloc_inject conf_src conf_tgt st1_src st1_tgt cmd_src cmd_tgt invmem1>> /\
+      <<ALLOC_INJECT: alloc_inject conf_src conf_tgt st0_src st0_tgt
+                                   st1_src st1_tgt cmd_src cmd_tgt invmem1>> /\
       <<STATE: InvState.Rel.sem conf_src conf_tgt
                                 (mkState st0_src.(EC) st0_src.(ECS) st1_src.(Mem))
                                 (mkState st0_tgt.(EC) st0_tgt.(ECS) st1_tgt.(Mem))
