@@ -16,6 +16,7 @@ Import Opsem.
 
 Require Import TODO.
 Require Import Decs.
+Require Import Exprs.
 Require Import Validator.
 Require Import GenericValues.
 Require Import Inject.
@@ -150,6 +151,43 @@ Ltac inject_clarify :=
       apply Hnew; clear Hnew
     end.
 
+Lemma Subset_unary_sem
+      conf st
+      invst invmem inv0 inv1
+      (STATE: InvState.Unary.sem conf st invst invmem inv1)
+      (SUBSET: Hints.Invariant.Subset_unary inv0 inv1)
+  : InvState.Unary.sem conf st invst invmem inv0.
+Proof.
+  inv STATE. inv SUBSET.
+  econs; eauto.
+  - ii. exploit LESSDEF; eauto.
+  - inv NOALIAS. inv SUBSET_NOALIAS.
+    econs.
+    + ii. unfold sflib.is_true in *.
+      exploit DIFFBLOCK; rewrite <- ValueTPairSetFacts.mem_iff in *; eauto.
+    + ii. unfold sflib.is_true in *.
+      exploit NOALIAS0; rewrite <- PtrPairSetFacts.mem_iff in *; eauto.
+  - ii. exploit UNIQUE; eauto.
+  - ii. exploit PRIVATE; eauto.
+Qed.
+
+Lemma Subset_sem
+      conf_src st_src
+      conf_tgt st_tgt
+      invst invmem inv0 inv1
+      (STATE: InvState.Rel.sem conf_src conf_tgt st_src st_tgt invst invmem inv1)
+      (SUBSET: Hints.Invariant.Subset inv0 inv1)
+  : InvState.Rel.sem conf_src conf_tgt st_src st_tgt invst invmem inv0.
+Proof.
+  inv STATE. inv SUBSET.
+  econs; try (eapply Subset_unary_sem; eauto).
+  i. apply MAYDIFF.
+  destruct (IdTSet.mem id0 (Hints.Invariant.maydiff inv1)) eqn:MEM1; ss.
+  rewrite <- IdTSetFacts.not_mem_iff in *.
+  rewrite <- IdTSetFacts.mem_iff in *.
+  exploit SUBSET_MAYDIFF; eauto. i. congruence.
+Qed.
+
 Lemma postcond_cmd_inject_event_Subset cmd_src cmd_tgt inv0 inv1
       (INJECT_EVENT: Postcond.postcond_cmd_inject_event cmd_src cmd_tgt inv0)
       (SUBSET: Hints.Invariant.Subset inv0 inv1)
@@ -276,3 +314,51 @@ Ltac solve_sem_valueT :=
            let xtag := fresh "xtag" in
            destruct x as [xtag x]; destruct xtag; ss
          end.
+
+(* TODO: position *)
+(* spec for AtomSetImpl_from_list *)
+
+Lemma AtomSetImpl_spec_aux x l s
+  : x `in` fold_left (flip add) l s <-> In x l \/ x `in` s.
+Proof.
+  split.
+  - revert x s.
+    induction l; eauto.
+    i. ss.
+    exploit IHl; eauto. i.
+    unfold flip in *.
+    des; eauto.
+    rewrite -> AtomSetFacts.add_iff in *. des; eauto.
+  - revert x s.
+    induction l; i.
+    + ss. des; done.
+    + ss. des; (exploit IHl; [|eauto]); eauto;
+            right; apply AtomSetFacts.add_iff; eauto.
+Qed.
+
+Lemma AtomSetImpl_from_list_spec1 x l
+  : AtomSetImpl.In x (AtomSetImpl_from_list l) <-> In x l.
+Proof.
+  assert (EQUIV: In x l <-> In x l \/ x `in` empty).
+  { split; eauto.
+    i. des; eauto.
+    apply AtomSetFacts.empty_iff in H. done.
+  }
+  rewrite EQUIV.
+  apply AtomSetImpl_spec_aux.
+Qed.
+
+Lemma AtomSetImpl_from_list_spec2 x l
+  : ~ AtomSetImpl.In x (AtomSetImpl_from_list l) <-> ~ In x l.
+Proof.
+  split; ii; apply AtomSetImpl_from_list_spec1 in H0; done.
+Qed.
+
+Lemma AtomSetImpl_singleton_mem_false x y
+  : AtomSetImpl.mem x (AtomSetImpl_from_list [y]) = false -> x <> y.
+Proof.
+  i.
+  apply AtomSetFacts.not_mem_iff in H.
+  apply AtomSetImpl_from_list_spec2 in H.
+  apply elim_not_In_cons in H. eauto.
+Qed.

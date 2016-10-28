@@ -7,6 +7,7 @@ Require Import Coqlib.
 Require Import infrastructure.
 Require Import Metatheory.
 Require Import vellvm.
+Require Import memory_props.
 Import Opsem.
 
 Require Import Exprs.
@@ -268,6 +269,9 @@ Module Unary.
       (MEM: forall mptr typ align val'
               (LOAD: mload conf.(CurTargetData) st.(Mem) mptr typ align = Some val'),
           sem_diffblock conf val val')
+      (GLOBALS: forall gid val'
+                       (VAL': lookupAL _ conf.(Globals) gid = Some val'),
+          sem_diffblock conf val val')
   .
 
   Definition sem_private (conf:Config) (st:State) (invst:t) (private:list mblock) (a:IdT.t): Prop :=
@@ -283,6 +287,7 @@ Module Unary.
       (NOALIAS: sem_alias conf st invst inv.(Invariant.alias))
       (UNIQUE: AtomSetImpl.For_all (sem_unique conf st) inv.(Invariant.unique))
       (PRIVATE: IdTSet.For_all (sem_private conf st invst invmem.(InvMem.Unary.private)) inv.(Invariant.private))
+      (WF_LOCAL: MemProps.wf_lc st.(Mem) st.(EC).(Locals))
   .
 
   Lemma sem_empty
