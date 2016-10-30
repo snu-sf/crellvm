@@ -362,3 +362,82 @@ Proof.
   apply AtomSetImpl_from_list_spec2 in H.
   apply elim_not_In_cons in H. eauto.
 Qed.
+
+
+(* specs for equiv_except *)
+
+Lemma sem_idT_eq_locals
+      st0 st1 invst0 x
+      (LOCALS_EQ : Locals (EC st0) = Locals (EC st1))
+  : InvState.Unary.sem_idT st0 invst0 x = InvState.Unary.sem_idT st1 invst0 x.
+Proof.
+  destruct x as [[] x]; unfold InvState.Unary.sem_idT in *; ss.
+  rewrite LOCALS_EQ; eauto.
+Qed.
+
+Lemma sem_valueT_eq_locals
+      conf st0 st1 invst0 v
+      (LOCALS_EQ: Locals (EC st0) = Locals (EC st1))
+  : InvState.Unary.sem_valueT conf st1 invst0 v = InvState.Unary.sem_valueT conf st0 invst0 v.
+Proof.
+  destruct v; eauto.
+  eapply sem_idT_eq_locals; eauto.
+Qed.
+
+Lemma sem_list_valueT_eq_locals
+      conf st0 st1 invst0 lsv
+      (LOCALS_EQ: Locals (EC st0) = Locals (EC st1))
+  : InvState.Unary.sem_list_valueT conf st1 invst0 lsv = InvState.Unary.sem_list_valueT conf st0 invst0 lsv.
+Proof.
+  induction lsv; ss; i.
+  destruct a as [s v].
+  exploit sem_valueT_eq_locals; eauto. intro EQ_VAL.
+  rewrite EQ_VAL. rewrite IHlsv. eauto.
+Qed.
+
+Lemma sem_expr_eq_locals_mem
+      conf st0 st1 invst0 e
+      (LOCALS_EQ: Locals (EC st0) = Locals (EC st1))
+      (MEM_EQ: Mem st0 = Mem st1)
+  : InvState.Unary.sem_expr conf st1 invst0 e = InvState.Unary.sem_expr conf st0 invst0 e.
+Proof.
+  Ltac sem_value_st :=
+      let H' := fresh in
+      repeat
+        match goal with
+        | [LOCALS_EQ: Locals (EC ?st0) = Locals (EC ?st1) |-
+           context[ InvState.Unary.sem_valueT ?conf ?st1 ?invst0 ?v ] ] =>
+          exploit sem_valueT_eq_locals; try exact LOCALS_EQ; intro H';
+          rewrite H'; clear H'
+        | [LOCALS_EQ: Locals (EC ?st0) = Locals (EC ?st1) |-
+           context[ InvState.Unary.sem_list_valueT ?conf ?st1 ?invst0 ?lsv ] ] =>
+          exploit sem_list_valueT_eq_locals; try exact LOCALS_EQ; intro H';
+          rewrite H'; clear H'
+        end.
+  destruct e; ss; try rewrite <- MEM_EQ; sem_value_st; eauto.
+Qed.
+
+Lemma unary_sem_eq_locals_mem
+      conf st0 st1 invst0 invmem0 inv0
+      (LOCALS_EQ: Locals (EC st0) = Locals (EC st1))
+      (MEM_EQ : Mem st0 = Mem st1)
+      (STATE: InvState.Unary.sem conf st0 invst0 invmem0 inv0)
+  : InvState.Unary.sem conf st1 invst0 invmem0 inv0.
+Proof.
+  inv STATE.
+  econs.
+  - ii.
+    exploit LESSDEF; eauto.
+    { erewrite sem_expr_eq_locals_mem; eauto. }
+    i. des.
+    esplits; eauto.
+    erewrite sem_expr_eq_locals_mem; eauto.
+  - inv NOALIAS.
+    econs; i; [exploit DIFFBLOCK | exploit NOALIAS0]; eauto;
+      erewrite sem_valueT_eq_locals; eauto.
+  - ii. exploit UNIQUE; eauto. intro UNIQ_X. inv UNIQ_X.
+    econs; try rewrite <- LOCALS_EQ; try rewrite <- MEM_EQ; eauto.
+  - ii. exploit PRIVATE; eauto.
+    erewrite sem_idT_eq_locals; eauto.
+  - rewrite <- LOCALS_EQ. rewrite <- MEM_EQ. eauto.
+Qed.

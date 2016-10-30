@@ -185,37 +185,6 @@ Proof.
     econs; ss; try reflexivity; apply forget_memory_unary_Subset.
 Qed.
 
-(* specs for equiv_except *)
-
-Lemma sem_idT_eq_locals
-      st0 st1 invst0 x
-      (LOCALS_EQ : Locals (EC st0) = Locals (EC st1))
-  : InvState.Unary.sem_idT st0 invst0 x = InvState.Unary.sem_idT st1 invst0 x.
-Proof.
-  destruct x as [[] x]; unfold InvState.Unary.sem_idT in *; ss.
-  rewrite LOCALS_EQ; eauto.
-Qed.
-
-Lemma sem_valueT_eq_locals
-      conf st0 st1 invst0 v
-      (LOCALS_EQ: Locals (EC st0) = Locals (EC st1))
-  : InvState.Unary.sem_valueT conf st1 invst0 v = InvState.Unary.sem_valueT conf st0 invst0 v.
-Proof.
-  destruct v; eauto.
-  eapply sem_idT_eq_locals; eauto.
-Qed.
-
-Lemma sem_list_valueT_eq_locals
-      conf st0 st1 invst0 lsv
-      (LOCALS_EQ: Locals (EC st0) = Locals (EC st1))
-  : InvState.Unary.sem_list_valueT conf st1 invst0 lsv = InvState.Unary.sem_list_valueT conf st0 invst0 lsv.
-Proof.
-  induction lsv; ss; i.
-  destruct a as [s v].
-  exploit sem_valueT_eq_locals; eauto. intro EQ_VAL.
-  rewrite EQ_VAL. rewrite IHlsv. eauto.
-Qed.
-
 (* soundness proof *)
 
 Definition alloc_inject_unary conf st1 x b :=
