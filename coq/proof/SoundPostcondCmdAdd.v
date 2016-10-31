@@ -622,6 +622,10 @@ also makes proof bigger, making later proofs to take longer *)
         clear m_tgt cmds_tgt TGT_MEM TGT_MEM_STEP.
         (* clear all tgt, now only src appears. We may split this into lemma *)
         rename SRC0 into SRC_STATE.
+        remember
+          {| CurSystem := S; CurTargetData := TD; CurProducts := Ps; Globals := gl; FunTable := fs |}
+          as conf_src.
+        clear Heqconf_src.
         intros x xIn.
         apply AtomSetFacts.add_iff in xIn.
         des; [clear UNIQUE; subst id0|apply UNIQUE; auto].
