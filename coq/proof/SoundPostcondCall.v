@@ -259,14 +259,8 @@ Proof.
   des_ifs.
   rewrite negb_false_iff in *.
 
-  exploit postcond_cmd_inject_event_Subset; eauto;
-    try (etransitivity; [specialize (forget_stack_call_Subset (ForgetMemoryCall.t inv0)
-                                           (Exprs.AtomSetImpl_from_list (ite noret_src None (Some id_src)))
-                                           (Exprs.AtomSetImpl_from_list (ite noret_tgt None (Some id_tgt)))) |
-                         specialize (forget_memory_call_Subset inv0)];
-         intro SUBSET; inv SUBSET);
-    try (by inv SUBSET_SRC; apply SUBSET_LESSDEF);
-    try (by inv SUBSET_TGT; apply SUBSET_LESSDEF).
+  exploit postcond_cmd_inject_event_Subset; eauto.
+  { etransitivity; [apply forget_stack_call_Subset|apply forget_memory_call_Subset]. }
   i. des.
 
   exploit postcond_cmd_inject_event_call; eauto. i. des. subst.
