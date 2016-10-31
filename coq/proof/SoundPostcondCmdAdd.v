@@ -323,22 +323,6 @@ Goal PQ -> P. ii. auto. eauto. apply H. Qed.
 Goal PQRS -> P. ii. auto. eauto. apply H. Qed.
  *)
 
-(* Will later be substituted by @yoonseung's implementation *)
-Definition alloc_private_unary conf conf' cmd cmd' st b invmem: Prop :=
-  forall x ty v a lc'
-         (ALLOCA: cmd = insn_alloca x ty v a)
-         (NOP: mem_change_of_cmd conf' cmd' lc' = Some mem_change_none),
-  exists gptr,
-    <<PRIVATE: In b invmem.(InvMem.Unary.private)>> /\
-               <<PTR: lookupAL _ st.(EC).(Locals) x = Some gptr>> /\
-                      <<GV2PTR: GV2ptr conf.(CurTargetData) conf.(CurTargetData).(getPointerSize) gptr =
-                                Some (Values.Vptr b (Integers.Int.zero 31))>>.
-
-Definition alloc_private conf_src conf_tgt cmd_src cmd_tgt
-           st0_src st0_tgt st1_src st1_tgt invmem : Prop :=
-  alloc_private_unary conf_src conf_tgt cmd_src cmd_tgt st1_src st0_src.(Mem).(Memory.Mem.nextblock) invmem.(InvMem.Rel.src) /\
-  alloc_private_unary conf_tgt conf_src cmd_tgt cmd_src st1_tgt st0_tgt.(Mem).(Memory.Mem.nextblock) invmem.(InvMem.Rel.tgt).
-
 Lemma add_unique_malloc
   cmds_src
   id0
@@ -1291,6 +1275,8 @@ Theorem postcond_cmd_add_sound
         (USES_TGT: uses_tgt = AtomSetImpl_from_list (Cmd.get_ids cmd_tgt))
         (ALLOC_INJECT: alloc_inject conf_src conf_tgt st0_src st0_tgt
                                     st1_src st1_tgt cmd_src cmd_tgt invmem1)
+        (ALLOC_PRIVATE: alloc_private conf_src conf_tgt cmd_src cmd_tgt st0_src st0_tgt
+                                      st1_src st1_tgt invmem1)
         (* (ALLOC_INJECT: InvMem.Rel.inject invmem1 (st0_src.(Mem).(Memory.Mem.nextblock)) = *)
         (*                Some((st0_tgt.(Mem).(Memory.Mem.nextblock)), 0)) *)
   :
