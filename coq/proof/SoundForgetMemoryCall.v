@@ -32,6 +32,8 @@ Lemma forget_memory_call_Subset inv
 Proof.
 Admitted.
 
+(* Additionally, we should provide that all unique in (ForgetMemoryCall.t inv0) should be private *)
+(* TODO: ForgetMemoryCall should save private only, not unique *)
 Lemma forget_memory_call_sound
       conf_src st0_src id_src fun_src args_src cmds_src
       conf_tgt st0_tgt id_tgt fun_tgt args_tgt cmds_tgt
@@ -67,4 +69,5 @@ Lemma forget_memory_call_sound
       <<MEM: InvMem.Rel.sem conf_src conf_tgt mem1_src mem1_tgt invmem2>> /\
       <<MEM_INJ: invmem2.(InvMem.Rel.inject) = invmem1.(InvMem.Rel.inject)>>.
 Proof.
+  
 Admitted.
