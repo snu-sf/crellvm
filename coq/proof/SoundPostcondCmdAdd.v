@@ -334,6 +334,21 @@ Proof.
   eapply mload_malloc_diffblock_aux; eauto.
 Qed.
 
+Definition alloc_private_unary conf conf' cmd cmd' st b invmem: Prop :=
+  forall x ty v a lc'
+         (ALLOCA: cmd = insn_alloca x ty v a)
+         (NOP: mem_change_of_cmd conf' cmd' lc' = Some mem_change_none),
+  exists gptr,
+    <<PRIVATE: In b invmem.(InvMem.Unary.private)>> /\
+               <<PTR: lookupAL _ st.(EC).(Locals) x = Some gptr>> /\
+                      <<GV2PTR: GV2ptr conf.(CurTargetData) conf.(CurTargetData).(getPointerSize) gptr =
+                                Some (Values.Vptr b (Integers.Int.zero 31))>>.
+
+Definition alloc_private conf_src conf_tgt cmd_src cmd_tgt
+           st0_src st0_tgt st1_src st1_tgt invmem : Prop :=
+  alloc_private_unary conf_src conf_tgt cmd_src cmd_tgt st1_src st0_src.(Mem).(Memory.Mem.nextblock) invmem.(InvMem.Rel.src) /\
+  alloc_private_unary conf_tgt conf_src cmd_tgt cmd_src st1_tgt st0_tgt.(Mem).(Memory.Mem.nextblock) invmem.(InvMem.Rel.tgt).
+
 (* TODO: let's ignore insn_malloc for now.  Revise the validator so that it rejects any occurence of insn_malloc. *)
 Lemma postcond_cmd_add_inject_sound
       m_src conf_src st0_src st1_src cmd_src cmds_src def_src uses_src
@@ -360,6 +375,8 @@ Lemma postcond_cmd_add_inject_sound
       (USES_TGT: uses_tgt = AtomSetImpl_from_list (Cmd.get_ids cmd_tgt))
       (ALLOC_INJECT: alloc_inject conf_src conf_tgt st0_src st0_tgt
                                   st1_src st1_tgt cmd_src cmd_tgt invmem1)
+      (ALLOC_PRIVATE: alloc_private conf_src conf_tgt cmd_src cmd_tgt st0_src st0_tgt
+                                    st1_src st1_tgt invmem1)
       (* (ALLOC_INJECT: InvMem.Rel.inject invmem1 (st0_src.(Mem).(Memory.Mem.nextblock)) = *)
       (*                Some((st0_tgt.(Mem).(Memory.Mem.nextblock)), 0)) *)
   :
@@ -380,6 +397,7 @@ Proof.
     (* roughly, degenerate case for the last one *)
     admit.
   - (* nop, allica *)
+    clear ALLOC_INJECT.
     unfold postcond_cmd_check in *. des_ifs; des_bool; clarify.
     ss. clear_true.
     splits; ss.
@@ -442,6 +460,10 @@ Proof.
 
     econs; eauto.
     clear LESSDEF NOALIAS.
+    clear H H2.
+    clear MEM_STEP.
+    clear CONF.
+    clear WF_LOCAL.
     + clear PRIVATE.
       unfold Invariant.update_src. ss.
       intros ____id____ IN.
@@ -482,7 +504,27 @@ Proof.
 also makes proof bigger, making later proofs to take longer *)
       destruct src; simpl.
       ss.
-      admit.
+      assert(GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG: True)
+        by auto.
+      move mb at bottom.
+      move private at bottom.
+      unfold alloc_private in *.
+      unfold alloc_private_unary in *.
+      des.
+      remember {|
+                 EC := {|
+                       CurFunction := F;
+                       CurBB := B;
+                       CurCmds := cmds_src;
+                       Terminator := tmn;
+                       Locals := updateAddAL GenericValue lc id5 (blk2GV TD mb);
+                       Allocas := mb :: als |};
+                 ECS := ECS0;
+                 Mem := Mem' |} as st_src.
+      ss.
+      exploit ALLOC_PRIVATE; eauto; []; ii; des.
+      exploit MemProps.malloc_result; try apply H3; []; intro MALLOC_RES1; des.
+      subst. ss.
   - (* alloca, alloca *)
     (*
      * invmem1 = invmem0 + (newl_src -> newl_tgt)
@@ -495,6 +537,7 @@ also makes proof bigger, making later proofs to take longer *)
      * invmem.rel.le: possible
      * postcond_cmd_check: monotonicity
      *)
+    clear ALLOC_PRIVATE.
     (* unfold postcond_cmd_check in POSTCOND_CHECK. des_ifs; des_bool; clarify. *)
     unfold postcond_cmd_check in *. des_ifs; des_bool; clarify.
     {
