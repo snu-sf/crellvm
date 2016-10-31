@@ -229,24 +229,6 @@ Proof.
   eapply valid_ptr_malloc_diffblock; eauto.
 Qed.
 
-(* We are not using InvState.Rel.sem here, rather separated it into unary,
-in order to get reusability *)
-(* Lemma locals_malloc_diffblock *)
-(*       conf_src st_src invst0 invmem0 inv0 *)
-(*       TD tsz gn align0 SRC_MEM_STEP mb *)
-(*       reg val *)
-(*       (MALLOC: malloc TD st_src.(Mem) tsz gn align0 = Some (SRC_MEM_STEP, mb)) *)
-(*       (VAL: lookupAL GenericValue st_src.(EC).(Locals) reg = Some val) *)
-(*       (SRC: InvState.Unary.sem conf_src st_src invst0 invmem0 inv0) *)
-(*   : *)
-(*   <<DIFFBLOCK: InvState.Unary.sem_diffblock conf_src (blk2GV TD mb) val>> *)
-(* . *)
-(* Proof. *)
-(*   inv SRC. clear LESSDEF NOALIAS UNIQUE PRIVATE. *)
-(*   exploit WF_LOCAL; eauto; []; intro WF; des. *)
-(*   eapply valid_ptr_malloc_diffblock; eauto. *)
-(* Qed. *)
-
 Lemma globals_malloc_diffblock
       align0 TD gn SRC_MEM SRC_MEM_STEP
       tsz conf_src mb gid val
@@ -280,21 +262,6 @@ Proof.
     des.
     eapply IHg; eauto.
 Qed.
-
-(* Lemma globals_malloc_diffblock *)
-(*       align0 TD gn SRC_MEM SRC_MEM_STEP *)
-(*       tsz conf_src mb gid val *)
-(*       (MALLOC: malloc TD SRC_MEM tsz gn align0 = Some (SRC_MEM_STEP, mb)) *)
-(*       (VAL: lookupAL GenericValue (Globals conf_src) gid = Some val) *)
-(*       gmax public inv *)
-(*       (MEM: InvMem.Unary.sem conf_src gmax public SRC_MEM inv) *)
-(*   : *)
-(*     <<DIFFBLOCK: InvState.Unary.sem_diffblock conf_src (blk2GV TD mb) val>> *)
-(* . *)
-(* Proof. *)
-(*   inv MEM. *)
-(*   eapply globals_malloc_diffblock_aux; eauto. *)
-(* Qed. *)
 
 Lemma mload_malloc_diffblock
   align0 TD gn tsz conf_src SRC_MEM SRC_MEM_STEP mb
@@ -338,7 +305,6 @@ Qed.
 (* Heard weird behavior of "apply" from @jhk, now I will state in fine-grained way.
 Added space in Axio m in order to avoid grep
 
-
 Axio m P: Prop.
 Axio m Q: Prop.
 Axio m R: Prop.
@@ -357,22 +323,6 @@ Goal PQ -> P. ii. auto. eauto. apply H. Qed.
 Goal PQRS -> P. ii. auto. eauto. apply H. Qed.
  *)
 
-(* Lemma mload_malloc_diffblock *)
-(*   align0 TD gn tsz conf_src SRC_MEM SRC_MEM_STEP mb *)
-(*   (MALLOC: malloc TD SRC_MEM tsz gn align0 = Some (SRC_MEM_STEP, mb)) *)
-(*   mptr0 typ0 align1 val' *)
-(*   (LOAD: mload (CurTargetData conf_src) SRC_MEM_STEP mptr0 typ0 align1 = Some val') *)
-(*   gmax public inv *)
-(*   (MEM: InvMem.Unary.sem conf_src gmax public SRC_MEM inv) *)
-(*   : *)
-(*   <<DIFFBLOCK: InvState.Unary.sem_diffblock conf_src (blk2GV TD mb) val'>> *)
-(* . *)
-(* Proof. *)
-(*   inv MEM. *)
-(*   eapply mload_malloc_diffblock_aux; eauto. *)
-(* Qed. *)
-
-
 (* Will later be substituted by @yoonseung's implementation *)
 Definition alloc_private_unary conf conf' cmd cmd' st b invmem: Prop :=
   forall x ty v a lc'
@@ -390,14 +340,10 @@ Definition alloc_private conf_src conf_tgt cmd_src cmd_tgt
   alloc_private_unary conf_tgt conf_src cmd_tgt cmd_src st1_tgt st0_tgt.(Mem).(Memory.Mem.nextblock) invmem.(InvMem.Rel.tgt).
 
 Lemma add_unique_unary
-  (* value5 *)
   cmds_src
   id0
-  (* typ0 *)
   align0
   inv_unary
-  (* invst0 *)
-  (* inv0 *)
   TD
   F
   B
@@ -411,8 +357,7 @@ Lemma add_unique_unary
   tsz
   mb
   conf_src
-  (* public *) gmax (* invmem_unary *) (* invmem_inject *)
-  (* (WF_LOCAL: MemProps.wf_lc SRC_MEM_STEP (updateAddAL GenericValue lc id0 (blk2GV TD mb))) *)
+  gmax
   (MALLOC: malloc TD SRC_MEM tsz gn align0 = Some (SRC_MEM_STEP, mb))
   (UNIQUE: AtomSetImpl.For_all
              (InvState.Unary.sem_unique conf_src
@@ -426,22 +371,8 @@ Lemma add_unique_unary
                       Allocas := mb :: als |};
                 ECS := ECS0;
                 Mem := SRC_MEM_STEP |}) (Invariant.unique inv_unary))
-  (* (SRC : InvMem.Unary.sem conf_src gmax (InvMem.Rel.public_src invmem_inject) *)
-  (*         SRC_MEM public) *)
   (WF : MemProps.wf_Mem gmax (CurTargetData conf_src) SRC_MEM)
   (GLOBALS : genericvalues_inject.wf_globals gmax (Globals conf_src))
-  (* (SRC_STATE : InvState.Unary.sem conf_src *)
-  (*               {| *)
-  (*               EC := {| *)
-  (*                     CurFunction := F; *)
-  (*                     CurBB := B; *)
-  (*                     CurCmds := insn_alloca id0 typ0 value5 align0 :: cmds_src; *)
-  (*                     Terminator := tmn; *)
-  (*                     Locals := lc; *)
-  (*                     Allocas := als |}; *)
-  (*               ECS := ECS0; *)
-  (*               Mem := SRC_MEM |} (InvState.Rel.src invst0) invmem_unary *)
-  (*               (Invariant.src inv0)) *)
   (WF_LOCAL : MemProps.wf_lc SRC_MEM lc)
   :
   <<UNIQUE_ADD: AtomSetImpl.For_all
