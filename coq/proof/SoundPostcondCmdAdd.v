@@ -227,7 +227,7 @@ Lemma locals_malloc_diffblock
   <<DIFFBLOCK: InvState.Unary.sem_diffblock conf_src (blk2GV TD mb) val>>
 .
 Proof.
-  inv SRC. clear PRIVATE UNIQUE NOALIAS LESSDEF.
+  inv SRC. clear LESSDEF NOALIAS UNIQUE PRIVATE.
   exploit WF_LOCAL; eauto; []; intro WF; des.
   eapply valid_ptr_malloc_diffblock; eauto.
 Qed.
@@ -464,7 +464,9 @@ Proof.
     clear MEM_STEP.
     clear CONF.
     clear WF_LOCAL.
-    + clear PRIVATE.
+    +
+      clear ALLOC_PRIVATE.
+      clear PRIVATE.
       unfold Invariant.update_src. ss.
       intros ____id____ IN.
       eapply AtomSetFacts.add_iff in IN.
@@ -557,11 +559,11 @@ also makes proof bigger, making later proofs to take longer *)
     inv STATE_STEP.
 
     ((inv STEP_SRC; ss); []).
-    inv SRC.
+    (* inv SRC. *)
     inv CMDS_SRC.
 
     ((inv STEP_TGT; ss); []).
-    inv TGT.
+    (* inv TGT. *)
     inv CMDS_TGT.
     ss.
 
@@ -599,12 +601,29 @@ also makes proof bigger, making later proofs to take longer *)
       econs; eauto.
       -
         (* SRC *)
+        clear TGT MAYDIFF.
+        clear ALLOC_INJECT.
         subst EC_src.
+        inv SRC.
         econs; eauto; [].
         ss.
-        clear MAYDIFF LESSDEF NOALIAS PRIVATE.
-        ii.
-        apply AtomSetFacts.add_iff in H8.
+        clear LESSDEF NOALIAS PRIVATE.
+        clear Heq6 H Heq5.
+        clear H2 H4.
+        clear H1 H0 H6 H5.
+        clear H7.
+        clear CONF.
+        clear MEM_STEP.
+        (* clear MEM. *)
+        inv MEM. clear TGT INJECT WF.
+        (* clear STATE. *)
+        inv STATE.
+        clear TGT MAYDIFF.
+        clear m_tgt cmds_tgt TGT_MEM TGT_MEM_STEP.
+        (* clear all tgt, now only src appears. We may split this into lemma *)
+        rename SRC0 into SRC_STATE.
+        intros x xIn.
+        apply AtomSetFacts.add_iff in xIn.
         des; [clear UNIQUE; subst id0|apply UNIQUE; auto].
         econs; eauto; ss.
         +
@@ -614,27 +633,28 @@ also makes proof bigger, making later proofs to take longer *)
           (* LOCALS *)
           ii.
           des_lookupAL_updateAddAL. (* TODO don't use clarify inside des_lookupAL!!!!! *)
-          clear - STATE H3 VAL'.
-          inv STATE.
+          clear - SRC_STATE H3 VAL'.
           eapply locals_malloc_diffblock; ss; eauto.
           { ss. eauto. } (* TODO WHY IT APPEARS???????? *)
           { ss. eauto. }
         +
           (* MEM *)
-          ii. inv MEM. eapply mload_malloc_diffblock; eauto.
+          ii. eapply mload_malloc_diffblock; eauto.
         +
           (* GLOBALS *)
-          ii. inv MEM. eapply globals_malloc_diffblock; eauto.
+          ii. eapply globals_malloc_diffblock; eauto.
       -
         (* TGT *)
         (* Copied exactly from above *)
         subst EC_tgt.
+        inv TGT.
         econs; eauto; [].
         ss.
-        clear MAYDIFF LESSDEF0 NOALIAS0 PRIVATE0.
+        clear MAYDIFF LESSDEF NOALIAS PRIVATE.
+        clear ALLOC_INJECT.
         ii.
         apply AtomSetFacts.add_iff in H8.
-        des; [clear UNIQUE; subst id0|apply UNIQUE0; auto].
+        des; [clear UNIQUE; subst id0|apply UNIQUE; auto].
         econs; eauto; ss.
         +
           (* VAL *)
@@ -657,6 +677,7 @@ also makes proof bigger, making later proofs to take longer *)
           ii. inv MEM. eapply globals_malloc_diffblock; eauto.
       -
         (* MAYDIFF *)
+        inv SRC. inv TGT.
         ii.
         simpl in NOTIN.
         rewrite IdTSetFacts.remove_b in NOTIN. repeat (des_bool; des).
