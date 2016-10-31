@@ -185,45 +185,28 @@ Proof.
     econs; ss; try reflexivity; apply forget_memory_unary_Subset.
 Qed.
 
-(* specs for equiv_except *)
-
-Lemma sem_idT_eq_locals
-      st0 st1 invst0 x
-      (LOCALS_EQ : Locals (EC st0) = Locals (EC st1))
-  : InvState.Unary.sem_idT st0 invst0 x = InvState.Unary.sem_idT st1 invst0 x.
-Proof.
-  destruct x as [[] x]; unfold InvState.Unary.sem_idT in *; ss.
-  rewrite LOCALS_EQ; eauto.
-Qed.
-
-Lemma sem_valueT_eq_locals
-      conf st0 st1 invst0 v
-      (LOCALS_EQ: Locals (EC st0) = Locals (EC st1))
-  : InvState.Unary.sem_valueT conf st1 invst0 v = InvState.Unary.sem_valueT conf st0 invst0 v.
-Proof.
-  destruct v; eauto.
-  eapply sem_idT_eq_locals; eauto.
-Qed.
-
-Lemma sem_list_valueT_eq_locals
-      conf st0 st1 invst0 lsv
-      (LOCALS_EQ: Locals (EC st0) = Locals (EC st1))
-  : InvState.Unary.sem_list_valueT conf st1 invst0 lsv = InvState.Unary.sem_list_valueT conf st0 invst0 lsv.
-Proof.
-  induction lsv; ss; i.
-  destruct a as [s v].
-  exploit sem_valueT_eq_locals; eauto. intro EQ_VAL.
-  rewrite EQ_VAL. rewrite IHlsv. eauto.
-Qed.
-
 (* soundness proof *)
+
+Definition alloc_private_unary conf conf' cmd cmd' st b invmem: Prop :=
+  forall x ty v a lc'
+    (ALLOCA: cmd = insn_alloca x ty v a)
+    (NOP: mem_change_of_cmd conf' cmd' lc' = Some mem_change_none),
+  exists gptr,
+    <<PRIVATE: In b invmem.(InvMem.Unary.private)>> /\
+    <<PTR: lookupAL _ st.(EC).(Locals) x = Some gptr>> /\
+    <<GV2PTR: GV2ptr conf.(CurTargetData) conf.(CurTargetData).(getPointerSize) gptr =
+              Some (Values.Vptr b (Integers.Int.zero 31))>>.
+
+Definition alloc_private conf_src conf_tgt cmd_src cmd_tgt
+           st0_src st0_tgt st1_src st1_tgt invmem : Prop :=
+  alloc_private_unary conf_src conf_tgt cmd_src cmd_tgt st1_src st0_src.(Mem).(Memory.Mem.nextblock) invmem.(InvMem.Rel.src) /\
+  alloc_private_unary conf_tgt conf_src cmd_tgt cmd_src st1_tgt st0_tgt.(Mem).(Memory.Mem.nextblock) invmem.(InvMem.Rel.tgt).
 
 Definition alloc_inject_unary conf st1 x b :=
   exists gptr,
   lookupAL _ st1.(EC).(Locals) x = Some gptr /\
   GV2ptr conf.(CurTargetData) conf.(CurTargetData).(getPointerSize) gptr =
-  Some (Values.Vptr b (Integers.Int.zero 31)) /\
-  Pos.succ b = st1.(Mem).(Memory.Mem.nextblock).
+  Some (Values.Vptr b (Integers.Int.zero 31)).
 
 Definition alloc_inject conf_src conf_tgt st0_src st0_tgt
            st1_src st1_tgt cmd_src cmd_tgt invmem1 : Prop :=
@@ -617,22 +600,33 @@ Ltac psimpl :=
 
 (* invmem *)
 
-Lemma invmem_unary_src_alloc_preserved
+Lemma invmem_unary_alloc_private_preserved
       conf invmem0 mem0 mem1
-      public gmax mb
+      gmax public mb
       gsz gn a
-      (SRC : InvMem.Unary.sem conf gmax public mem0 invmem0)
-      (MALLOC : Some (mem1, mb) = malloc (CurTargetData conf) mem0 gsz gn a)
-  : InvMem.Unary.sem conf gmax public mem1 invmem0.
+      (STATE : InvMem.Unary.sem conf gmax public mem0 invmem0)
+      (MALLOC : malloc (CurTargetData conf) mem0 gsz gn a = Some (mem1, mb))
+      (PUBLIC: ~ public mb)
+  : InvMem.Unary.sem conf gmax public mem1 (InvMem.Unary.mk
+                                              (mb::invmem0.(InvMem.Unary.private))
+                                              invmem0.(InvMem.Unary.private_parent)
+                                              invmem0.(InvMem.Unary.mem_parent)).
 Proof.
   exploit malloc_result; eauto. i. des.
-  inv SRC.
+  inv STATE.
   econs; eauto.
   - eapply MemProps.malloc_preserves_wf_Mem; eauto.
-  - i. exploit PRIVATE; eauto. i. des.
-    split; eauto. psimpl.
+  - i. ss. des.
+    + subst. split; eauto. psimpl.
+    + exploit PRIVATE; eauto. i. des.
+      split; eauto. psimpl.
   - i. exploit PRIVATE_PARENT; eauto. i. des.
     split; eauto. psimpl.
+  - ss. ii.
+    inv H.
+    + exploit PRIVATE_PARENT; eauto. i. des.
+      subst. psimpl.
+    + exploit DISJOINT; eauto.
   - i. exploit MEM_PARENT; eauto. intro LOAD_AUX.
     rewrite LOAD_AUX.
     eapply malloc_preserves_mload_aux_other_eq; eauto.
@@ -670,12 +664,13 @@ Lemma inject_invmem
   : exists invmem1,
     <<ALLOC_INJECT: alloc_inject conf_src conf_tgt st0_src st0_tgt
                                  st1_src st1_tgt cmd_src cmd_tgt invmem1>> /\
+    <<ALLOC_PRIVATE: alloc_private conf_src conf_tgt cmd_src cmd_tgt st0_src st0_tgt st1_src st1_tgt invmem1>> /\
     <<MEM: InvMem.Rel.sem conf_src conf_tgt (Mem st1_src) (Mem st1_tgt) invmem1 >> /\
     <<MEMLE: InvMem.Rel.le invmem0 invmem1 >> /\
-    <<PRIVATE_UNCHANGED_SRC: invmem0.(InvMem.Rel.src).(InvMem.Unary.private) =
-                             invmem1.(InvMem.Rel.src).(InvMem.Unary.private)>> /\
-    <<PRIVATE_UNCHANGED_TGT: invmem0.(InvMem.Rel.tgt).(InvMem.Unary.private) =
-                             invmem1.(InvMem.Rel.tgt).(InvMem.Unary.private)>>.
+    <<PRIVATE_PRESERVED_SRC: forall p, In p invmem0.(InvMem.Rel.src).(InvMem.Unary.private) ->
+                                  In p invmem1.(InvMem.Rel.src).(InvMem.Unary.private)>> /\
+    <<PRIVATE_PRESERVED_TGT: forall p, In p invmem0.(InvMem.Rel.tgt).(InvMem.Unary.private) ->
+                                  In p invmem1.(InvMem.Rel.tgt).(InvMem.Unary.private)>>.
 Proof.
   hexploit step_mem_change; try (inv STATE; exact SRC); eauto. intro MCS. destruct MCS as [mc_src [MC_SOME_SRC STATE_EQUIV_SRC]]. des.
   hexploit step_mem_change; try (inv STATE; exact TGT); eauto. intro MCS. destruct MCS as [mc_tgt [MC_SOME_TGT STATE_EQUIV_TGT]]. des.
@@ -711,6 +706,8 @@ Proof.
         (exploit malloc_result; try exact MALLOC_SRC; eauto; []; ii; des; subst; ss).
         (exploit malloc_result; try exact MALLOC_TGT; eauto; []; ii; des; subst; ss).
         destruct (Values.eq_block (Memory.Mem.nextblock mem0_src)(Memory.Mem.nextblock mem0_src)); ss.
+    + (* alloc_private *)
+      econs; ii; ss; des_ifs.
     + (* InvMem sem *)
       inv MEM; ss.
       econs; ss; eauto.
@@ -943,105 +940,170 @@ Proof.
     + eauto.
     + eauto.
   - (* alloc - none *)
-    esplits; eauto; [solve_alloc_inject | | reflexivity].
-    inv MEM.
+    Ltac des_matchH H :=
+      repeat
+        match goal with
+        | [ H' : context[match ?X with _ => _ end] |- _ ] => check_equal H' H; destruct X
+        end.
+
     inv STATE_EQUIV_TGT. rewrite <- MEM_EQ in *.
-    inv STATE_EQUIV_SRC.
-    hexploit malloc_result.
-    { symmetry. eauto. }
-    i. des.
-    econs; eauto.
-    + eapply invmem_unary_src_alloc_preserved; eauto.
-    + inv INJECT.
-      econs.
-      { (* mi-access *)
-        i. exploit mi_access; eauto.
-        assert (DIFFBLOCK_ALLOC: b1 <> Memory.Mem.nextblock (Mem st0_src)).
-        { inv WF.
-          ii. exploit Hmap1.
-          { instantiate (1:= Memory.Mem.nextblock (Mem st0_src)).
-            psimpl. }
-          i. subst. congruence.
-        }
-        exploit valid_access_malloc_inv; eauto.
-        des_ifs.
-      }
-      { (* mi_memval *)
-        i.
-        assert (DIFFBLOCK_ALLOC: b1 <> Memory.Mem.nextblock (Mem st0_src)).
-        { inv WF.
-          ii. exploit Hmap1.
-          { instantiate (1:= Memory.Mem.nextblock (Mem st0_src)).
-            psimpl. }
-          i. subst. congruence.
-        }
-        exploit mi_memval; eauto.
-        { hexploit Memory.Mem.perm_alloc_inv; eauto.
-          { eapply malloc_inv; eauto. }
-          des_ifs. eauto.
-        }
-        i. exploit malloc_contents_other; eauto.
-        intro CONTENTS.
-        rewrite CONTENTS. eauto.
-      }
-    + inv WF.
+
+    inv STEP_SRC; destruct cmd_src; ss; clarify;
+      des_matchH MC_SOME_SRC; clarify; ss.
+    rename Mem0 into mem0_src.
+    rename Mem' into mem1_src.
+    inv STATE_EQUIV_SRC. ss. clarify.
+
+    exists (InvMem.Rel.mk
+         (InvMem.Unary.mk
+            (mb::invmem0.(InvMem.Rel.src).(InvMem.Unary.private))
+            invmem0.(InvMem.Rel.src).(InvMem.Unary.private_parent)
+            invmem0.(InvMem.Rel.src).(InvMem.Unary.mem_parent)
+         )
+         invmem0.(InvMem.Rel.tgt)
+         invmem0.(InvMem.Rel.gmax)
+                   invmem0.(InvMem.Rel.inject)).
+    esplits; ss; eauto.
+    + (* alloc_inject *)
+      solve_alloc_inject.
+    + (* alloc_private *)
+      econs; ii; ss; try by des_ifs.
+      clarify.
+      exploit malloc_result; eauto. i. des.
+      esplits; try apply lookupAL_updateAddAL_eq.
+      * left. eauto.
+      * ss. rewrite ALLOC_BLOCK. eauto.
+    + inv MEM.
+      exploit malloc_result; eauto. i. des.
       econs; eauto.
-      * i. apply Hmap1. psimpl.
-      * i. apply Hmap1.
-        unfold Memory.Mem.valid_block in *. psimpl.
-      * i.
-        assert (ALLOC_PRIVATE: b <> Memory.Mem.nextblock (Mem st0_src)).
-        { ii. subst.
-          exploit Hmap1.
-          { psimpl. }
-          i. congruence. }
-        erewrite Memory.Mem.bounds_alloc_other; try exact ALLOC_PRIVATE; cycle 1.
-        { eapply malloc_inv. exact MALLOC. }
-        eapply mi_bounds; eauto.
+      * ss. eapply invmem_unary_alloc_private_preserved; eauto.
+        ii. unfold InvMem.Rel.public_src in *.
+        apply H.
+        inv WF.
+        apply Hmap1. psimpl.
+      * inv INJECT.
+        econs.
+        { (* mi-access *)
+          i. exploit mi_access; eauto.
+          assert (DIFFBLOCK_ALLOC: b1 <> Memory.Mem.nextblock mem0_src).
+          { inv WF.
+            ii. exploit Hmap1.
+            { instantiate (1:= Memory.Mem.nextblock mem0_src).
+              psimpl. }
+            i. subst. ss. congruence.
+          }
+          exploit valid_access_malloc_inv; eauto.
+          des_ifs.
+        }
+        { (* mi_memval *)
+          i.
+          assert (DIFFBLOCK_ALLOC: b1 <> Memory.Mem.nextblock mem0_src).
+          { inv WF.
+            ii. exploit Hmap1.
+            { instantiate (1:= Memory.Mem.nextblock mem0_src).
+              psimpl. }
+            i. subst. ss. congruence.
+          }
+          exploit mi_memval; eauto.
+          { hexploit Memory.Mem.perm_alloc_inv; eauto.
+            { eapply malloc_inv; eauto. }
+            clear INJECT_EVENT.
+            des_ifs. eauto.
+          }
+          i. exploit malloc_contents_other; eauto.
+          intro CONTENTS.
+          rewrite CONTENTS. eauto.
+        }
+      * inv WF.
+        econs; eauto.
+        ++ i. apply Hmap1. psimpl.
+        ++ i. apply Hmap1.
+           unfold Memory.Mem.valid_block in *. psimpl.
+        ++ i.
+           assert (ALLOC_PRIVATE: b <> Memory.Mem.nextblock mem0_src).
+           { ii. subst.
+             exploit Hmap1.
+             { psimpl. }
+             i. ss. congruence. }
+           erewrite Memory.Mem.bounds_alloc_other; try exact ALLOC_PRIVATE; cycle 1.
+           { eapply malloc_inv. exact MALLOC. }
+           eapply mi_bounds; eauto.
   - (* none - alloc *)
-    esplits; eauto; [solve_alloc_inject| |reflexivity].
-    inv MEM.
-    inv STATE_EQUIV_TGT.
     inv STATE_EQUIV_SRC.
     rewrite <- MEM_EQ in *.
-    hexploit malloc_result; eauto. i. des.
-    econs; eauto.
-    + eapply invmem_unary_src_alloc_preserved; eauto.
-    + inv INJECT.
-      econs.
-      { (* mi-access *)
-        i. exploit mi_access; eauto. i.
-        assert (DIFFBLOCK_ALLOC: b2 <> Memory.Mem.nextblock (Mem st0_tgt)).
-        { inv WF.
-          ii. exploit Hmap2; eauto.
-          i. psimpl. }
-        exploit valid_access_malloc_other; eauto.
-      }
-      { (* mi_memval *)
-        i.
-        assert (DIFFBLOCK_ALLOC: b2 <> Memory.Mem.nextblock (Mem st0_tgt)).
-        { inv WF.
-          ii. exploit Hmap2; eauto.
-          i. psimpl. }
-        exploit mi_memval; eauto.
-        i. exploit malloc_contents_other; eauto.
-        intro CONTENTS.
-        rewrite CONTENTS. eauto.
-      }
-    + inv WF.
+
+    inv STEP_TGT; destruct cmd_tgt; ss; clarify;
+      des_matchH MC_SOME_TGT; clarify; ss.
+    rename Mem0 into mem0_tgt.
+    rename Mem' into mem1_tgt.
+    inv STATE_EQUIV_TGT. ss. clarify.
+
+    exists (InvMem.Rel.mk
+         invmem0.(InvMem.Rel.src)
+         (InvMem.Unary.mk
+            (mb::invmem0.(InvMem.Rel.tgt).(InvMem.Unary.private))
+            invmem0.(InvMem.Rel.tgt).(InvMem.Unary.private_parent)
+            invmem0.(InvMem.Rel.tgt).(InvMem.Unary.mem_parent)
+         )
+         invmem0.(InvMem.Rel.gmax)
+                   invmem0.(InvMem.Rel.inject)).
+    esplits; ss; eauto.
+    + (* alloc_inject *)
+      solve_alloc_inject.
+    + (* alloc_private *)
+      econs; ii; ss; try by des_ifs.
+      clarify.
+      exploit malloc_result; eauto. i. des.
+      esplits; try apply lookupAL_updateAddAL_eq.
+      * left. eauto.
+      * ss. rewrite ALLOC_BLOCK. eauto.
+    + inv MEM.
+      exploit malloc_result; eauto. i. des.
       econs; eauto.
-      * i. exploit Hmap2; eauto. i. psimpl.
-      * i. exploit Hmap2; eauto. i.
-        unfold Memory.Mem.valid_block. psimpl.
-      * i.
-        assert (ALLOC_PRIVATE: b' <> Memory.Mem.nextblock (Mem st0_tgt)).
-        { ii. subst.
-          exploit Hmap2; eauto. i. psimpl. }
-        erewrite Memory.Mem.bounds_alloc_other with (b':=b'); try exact ALLOC_PRIVATE; cycle 1.
-        { eapply malloc_inv. exact MALLOC. }
-        eapply mi_bounds; eauto.
+      * eapply invmem_unary_alloc_private_preserved; eauto.
+        ss. ii. unfold InvMem.Rel.public_tgt in *. des.
+        inv WF.
+        exploit Hmap2; eauto. i.
+        psimpl.
+      * inv INJECT.
+        econs.
+        { (* mi-access *)
+          i. exploit mi_access; eauto. i.
+          assert (DIFFBLOCK_ALLOC: b2 <> Memory.Mem.nextblock mem0_tgt).
+          { inv WF.
+            ii. exploit Hmap2; eauto.
+            i. psimpl. }
+          exploit valid_access_malloc_other; eauto.
+        }
+        { (* mi_memval *)
+          i.
+          assert (DIFFBLOCK_ALLOC: b2 <> Memory.Mem.nextblock mem0_tgt).
+          { inv WF.
+            ii. exploit Hmap2; eauto.
+            i. psimpl. }
+          exploit mi_memval; eauto.
+          i. exploit malloc_contents_other; eauto.
+          intro CONTENTS.
+          rewrite CONTENTS. eauto.
+        }
+      * inv WF.
+        econs; eauto.
+        ++ i. exploit Hmap2; eauto. i. psimpl.
+        ++ i. exploit Hmap2; eauto. i.
+           unfold Memory.Mem.valid_block. psimpl.
+        ++ i.
+           assert (ALLOC_PRIVATE: b' <> Memory.Mem.nextblock mem0_tgt).
+           { ii. subst.
+             exploit Hmap2; eauto. i. psimpl. }
+           erewrite Memory.Mem.bounds_alloc_other with (b':=b'); try exact ALLOC_PRIVATE; cycle 1.
+           { eapply malloc_inv. exact MALLOC. }
+           eapply mi_bounds; eauto.
   - (* store - store *)
-    esplits; eauto; [solve_alloc_inject| |reflexivity].
+    esplits; eauto; try reflexivity; try solve_alloc_inject.
+    { unfold alloc_private, alloc_private_unary. split.
+      - i. subst. ss. des_matchH MC_SOME_SRC; clarify.
+      - i. subst. ss. des_matchH MC_SOME_TGT; clarify.
+    }
     rename ptr0 into ptr_src. rename gv0 into gv_src.
     rename ptr1 into ptr_tgt. rename gv1 into gv_tgt.
     inv MEM.
@@ -1120,7 +1182,11 @@ Proof.
         ii. subst.
         exploit PRIVATE_PARENT; eauto. i. des. eauto.
   - (* store - none *)
-    esplits; eauto; [solve_alloc_inject| |reflexivity].
+    esplits; eauto; try reflexivity; try solve_alloc_inject.
+    { unfold alloc_private, alloc_private_unary. split.
+      - i. subst. ss. des_matchH MC_SOME_SRC; clarify.
+      - i. subst. ss. des_matchH MC_SOME_TGT; clarify.
+    }
     inv MEM.
     inv STATE_EQUIV_TGT. rewrite <- MEM_EQ.
     inv STATE_EQUIV_SRC.
@@ -1178,7 +1244,11 @@ Proof.
         intro BEQ_SRC. rewrite <- BEQ_SRC.
         eauto.
   - (* free - free *)
-    esplits; eauto; [solve_alloc_inject| |reflexivity].
+    esplits; eauto; try reflexivity; try solve_alloc_inject.
+    { unfold alloc_private, alloc_private_unary. split.
+      - i. subst. ss. des_matchH MC_SOME_SRC; clarify.
+      - i. subst. ss. des_matchH MC_SOME_TGT; clarify.
+    }
     rename ptr0 into ptr_src. rename ptr1 into ptr_tgt.
     inv MEM.
     inv STATE_EQUIV_SRC. rename FREE into FREE_SRC.
@@ -1248,7 +1318,10 @@ Proof.
   - (* none - none *)
     inv STATE_EQUIV_SRC. rewrite <- MEM_EQ. clear MEM_EQ.
     inv STATE_EQUIV_TGT. rewrite <- MEM_EQ. clear MEM_EQ.
-    esplits; eauto; [solve_alloc_inject|reflexivity].
+    esplits; eauto; try reflexivity; try solve_alloc_inject.
+    unfold alloc_private, alloc_private_unary. split.
+    + i. subst. ss. des_matchH MC_SOME_SRC; clarify.
+    + i. subst. ss. des_matchH MC_SOME_TGT; clarify.
 Qed.
 
 (* invariant *)
@@ -1715,10 +1788,10 @@ Lemma inv_state_sem_monotone_wrt_invmem
       conf_src st_src
       conf_tgt st_tgt
       (MEM_LE:InvMem.Rel.le invmem0 invmem1)
-      (PRIVATE_UNCHANGED_SRC: invmem0.(InvMem.Rel.src).(InvMem.Unary.private) =
-                              invmem1.(InvMem.Rel.src).(InvMem.Unary.private))
-      (PRIVATE_UNCHANGED_TGT: invmem0.(InvMem.Rel.tgt).(InvMem.Unary.private) =
-                              invmem1.(InvMem.Rel.tgt).(InvMem.Unary.private))
+      (PRIVATE_PRESERVED_SRC: forall p, In p invmem0.(InvMem.Rel.src).(InvMem.Unary.private) ->
+                                   In p invmem1.(InvMem.Rel.src).(InvMem.Unary.private))
+      (PRIVATE_PRESERVED_TGT: forall p, In p invmem0.(InvMem.Rel.tgt).(InvMem.Unary.private) ->
+                                   In p invmem1.(InvMem.Rel.tgt).(InvMem.Unary.private))
       (STATE:InvState.Rel.sem conf_src conf_tgt st_src st_tgt invst0 invmem0 inv1)
   : InvState.Rel.sem conf_src conf_tgt st_src st_tgt invst0 invmem1 inv1.
 Proof.
@@ -1730,13 +1803,13 @@ Proof.
     econs; eauto.
     ii. exploit PRIVATE; eauto. i.
     des_ifs.
-    rewrite <- PRIVATE_UNCHANGED_SRC. eauto.
+    apply PRIVATE_PRESERVED_SRC. eauto.
   - inv TGT.
     inv STATE_TGT.
     econs; eauto.
     ii. exploit PRIVATE; eauto. i.
     des_ifs.
-    rewrite <- PRIVATE_UNCHANGED_TGT. eauto.
+    apply PRIVATE_PRESERVED_TGT. eauto.
   - i. hexploit STATE_MAYDIFF; eauto.
     intros SEM_INJECT.
     ii. exploit SEM_INJECT; eauto. i. des.
@@ -1761,6 +1834,7 @@ Lemma forget_memory_sound
   : exists invmem1,
       <<ALLOC_INJECT: alloc_inject conf_src conf_tgt st0_src st0_tgt
                                    st1_src st1_tgt cmd_src cmd_tgt invmem1>> /\
+      <<ALLOC_PRIVATE: alloc_private conf_src conf_tgt cmd_src cmd_tgt st0_src st0_tgt st1_src st1_tgt invmem1>> /\
       <<STATE: InvState.Rel.sem conf_src conf_tgt
                                 (mkState st0_src.(EC) st0_src.(ECS) st1_src.(Mem))
                                 (mkState st0_tgt.(EC) st0_tgt.(ECS) st1_tgt.(Mem))
@@ -1827,51 +1901,3 @@ Qed.
 (*   - destruct cmd; ss; des_ifs. *)
 (*   - inv STATE_MC. destruct st0. ss. *)
 (* Admitted. *)
-
-(* Lemma unary_sem_eq_locals_mem *)
-(*       conf st0 st1 invst0 invmem0 inv0 *)
-(*       (LOCALS_EQ: Locals (EC st0) = Locals (EC st1)) *)
-(*       (MEM_EQ : Mem st0 = Mem st1) *)
-(*       (STATE: InvState.Unary.sem conf st0 invst0 invmem0 inv0) *)
-(*   : InvState.Unary.sem conf st1 invst0 invmem0 inv0. *)
-(* Proof. *)
-(*   inv STATE. *)
-(*   econs. *)
-(*   - ii. *)
-(*     exploit LESSDEF; eauto. *)
-(*     { erewrite sem_expr_eq_locals_mem; eauto. } *)
-(*     i. des. *)
-(*     esplits; eauto. *)
-(*     erewrite sem_expr_eq_locals_mem; eauto. *)
-(*   - inv NOALIAS. *)
-(*     econs; i; [exploit DIFFBLOCK | exploit NOALIAS0]; eauto; *)
-(*       erewrite sem_valueT_eq_locals; eauto. *)
-(*   - ii. exploit UNIQUE; eauto. intro UNIQ_X. inv UNIQ_X. *)
-(*     econs; try rewrite <- LOCALS_EQ; try rewrite <- MEM_EQ; eauto. *)
-(*   - ii. exploit PRIVATE; eauto. *)
-(*     erewrite sem_idT_eq_locals; eauto. *)
-(*   - rewrite <- LOCALS_EQ. rewrite <- MEM_EQ. eauto. *)
-(* Qed. *)
-
-(* for same locals and memories *)
-(* Lemma sem_expr_eq_locals_mem *)
-(*       conf st0 st1 invst0 e *)
-(*       (LOCALS_EQ: Locals (EC st0) = Locals (EC st1)) *)
-(*       (MEM_EQ: Mem st0 = Mem st1) *)
-(*   : InvState.Unary.sem_expr conf st1 invst0 e = InvState.Unary.sem_expr conf st0 invst0 e. *)
-(* Proof. *)
-(*   Ltac sem_value_st := *)
-(*       let H' := fresh in *)
-(*       repeat *)
-(*         match goal with *)
-(*         | [LOCALS_EQ: Locals (EC ?st0) = Locals (EC ?st1) |- *)
-(*            context[ InvState.Unary.sem_valueT ?conf ?st1 ?invst0 ?v ] ] => *)
-(*           exploit sem_valueT_eq_locals; try exact LOCALS_EQ; intro H'; *)
-(*           rewrite H'; clear H' *)
-(*         | [LOCALS_EQ: Locals (EC ?st0) = Locals (EC ?st1) |- *)
-(*            context[ InvState.Unary.sem_list_valueT ?conf ?st1 ?invst0 ?lsv ] ] => *)
-(*           exploit sem_list_valueT_eq_locals; try exact LOCALS_EQ; intro H'; *)
-(*           rewrite H'; clear H' *)
-(*         end. *)
-(*   destruct e; ss; try rewrite <- MEM_EQ; sem_value_st; eauto. *)
-(* Qed. *)
