@@ -324,24 +324,7 @@ Goal PQRS -> P. ii. auto. eauto. apply H. Qed.
  *)
 
 Lemma add_unique_malloc
-  cmds_src
-  id0
-  align0
-  inv_unary
-  TD
-  F
-  B
-  lc
-  gn
-  ECS0
-  tmn
-  SRC_MEM
-  als
-  SRC_MEM_STEP
-  tsz
-  mb
-  conf_src
-  gmax
+  cmds_src id0 align0 inv_unary TD F B lc gn ECS0 tmn SRC_MEM als SRC_MEM_STEP tsz mb conf_src gmax
   (MALLOC: malloc TD SRC_MEM tsz gn align0 = Some (SRC_MEM_STEP, mb))
   (UNIQUE: AtomSetImpl.For_all
              (InvState.Unary.sem_unique conf_src
@@ -393,30 +376,9 @@ Proof.
     ii. eapply globals_malloc_diffblock; eauto.
 Qed.
 
-Lemma add_private
-  id5
-  typ5
-  value5
-  align5
-  cmds_src
-  invst_unary
-  invmem_unary
-  inv_unary
-  S
-  TD
-  Ps
-  F
-  B
-  lc
-  gl fs
-  gn
-  ECS0
-  tmn
-  Mem0
-  als
-  Mem'
-  tsz
-  mb
+Lemma add_private_alloca
+  id5 typ5 value5 align5 cmds_src invst_unary invmem_unary inv_unary S TD Ps
+  F B lc gl fs gn ECS0 tmn Mem0 als Mem' tsz mb
   (MALLOC : malloc TD Mem0 tsz gn align5 = Some (Mem', mb))
   (H1 : getOperandValue TD value5 lc gl = Some gn)
   (H0 : getTypeAllocSize TD typ5 = Some tsz)
@@ -429,6 +391,7 @@ Lemma add_private
                     lookupAL GenericValue (updateAddAL GenericValue lc id5 (blk2GV TD mb)) x = Some gptr /\
                     GV2ptr TD (getPointerSize TD) gptr =
                     Some (Values.Vptr (Memory.Mem.nextblock Mem0) (Integers.Int.zero 31)))
+  (* revise above invariant *)
   (PRIVATE : IdTSet.For_all
               (InvState.Unary.sem_private
                  {| CurSystem := S; CurTargetData := TD; CurProducts := Ps; Globals := gl; FunTable := fs |}
@@ -460,32 +423,13 @@ Lemma add_private
     (IdTSet.add (IdT.lift Tag.physical id5) (Invariant.private inv_unary))>>
 .
 Proof.
-  intros ____id____ IN. (* SHOULD NOT USE ii HERE, OR BELOW eauto WILL NOT WORK!! WHY? *)
+  intros id IN. (* SHOULD NOT USE ii HERE, OR BELOW eauto WILL NOT WORK!! WHY? *)
   eapply IdTSetFacts.add_iff in IN.
   des; [|eauto]; [].
   subst.
   ii. ss.
   u. ss. des_lookupAL_updateAddAL. clear_true.
-  ss.
   destruct invmem_unary; simpl.
-  ss.
-  assert(GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG: True)
-    by auto.
-  move mb at bottom.
-  move private at bottom.
-  unfold alloc_private in *.
-  unfold alloc_private_unary in *.
-  des.
-  remember {|
-      EC := {|
-             CurFunction := F;
-             CurBB := B;
-             CurCmds := cmds_src;
-             Terminator := tmn;
-             Locals := updateAddAL GenericValue lc id5 (blk2GV TD mb);
-             Allocas := mb :: als |};
-      ECS := ECS0;
-      Mem := Mem' |} as st_src.
   ss.
   exploit ALLOC_PRIVATE; eauto; []; ii; des.
   exploit MemProps.malloc_result; try apply MALLOC; []; intro MALLOC_RES1; des.
@@ -520,8 +464,6 @@ Lemma postcond_cmd_add_inject_sound
                                   st1_src st1_tgt cmd_src cmd_tgt invmem1)
       (ALLOC_PRIVATE: alloc_private conf_src conf_tgt cmd_src cmd_tgt st0_src st0_tgt
                                     st1_src st1_tgt invmem1)
-      (* (ALLOC_INJECT: InvMem.Rel.inject invmem1 (st0_src.(Mem).(Memory.Mem.nextblock)) = *)
-      (*                Some((st0_tgt.(Mem).(Memory.Mem.nextblock)), 0)) *)
   :
     <<STATE: InvState.Rel.sem
                conf_src conf_tgt st1_src st1_tgt invst1 invmem1
@@ -574,12 +516,11 @@ Proof.
       eapply AtomSetFacts.add_iff in IN.
       des; [|eauto]; [].
       subst.
-      (* TODO BELOW IS EXACTLY COPIED FROM ALLOCA/ALLOCA CASE *)
       eapply add_unique_malloc; eauto; try apply MEM; try apply STATE.
     + clear UNIQUE.
       clear MEM SRC STATE.
       unfold Invariant.update_private. ss.
-      eapply add_private; eauto.
+      eapply add_private_alloca; eauto.
   - (* nop, allica *)
     clear ALLOC_INJECT.
     unfold postcond_cmd_check in *. des_ifs; des_bool; clarify.
@@ -618,12 +559,11 @@ Proof.
       eapply AtomSetFacts.add_iff in IN.
       des; [|eauto]; [].
       subst.
-      (* TODO BELOW IS EXACTLY COPIED FROM ALLOCA/ALLOCA CASE *)
       eapply add_unique_malloc; eauto; try apply MEM; try apply STATE.
     + clear UNIQUE.
       clear MEM TGT STATE.
       unfold Invariant.update_private. ss.
-      eapply add_private; eauto.
+      eapply add_private_alloca; eauto.
   - (* alloca, alloca *)
     (*
      * invmem1 = invmem0 + (newl_src -> newl_tgt)
@@ -696,29 +636,15 @@ Proof.
 
     {
       econs; eauto.
-      -
-        (* SRC *)
-        clear TGT MAYDIFF.
-        clear ALLOC_INJECT.
-        clear Heq6 H Heq5.
-        clear H2 H4.
-        clear H1 H0 H6 H5.
-        clear H7.
-        clear CONF.
-        clear MEM_STEP.
-        subst EC_src.
-        inv SRC.
-        econs; eauto; [].
-        clear LESSDEF NOALIAS PRIVATE.
-        ss.
-        inv MEM. clear TGT INJECT WF.
-        inv STATE. clear TGT MAYDIFF.
+      - (* SRC *)
+        inv SRC. inv MEM. inv STATE.
+        econs; eauto; []. ss.
         eapply add_unique_malloc; eauto; try apply SRC; try apply SRC0.
-      - inv TGT. inv MEM. inv STATE.
+      - (* TGT *)
+        inv TGT. inv MEM. inv STATE.
         econs; eauto; []. ss.
         eapply add_unique_malloc; eauto; try apply TGT; try apply TGT0.
-      -
-        (* MAYDIFF *)
+      - (* MAYDIFF *)
         inv SRC. inv TGT.
         ii.
         simpl in NOTIN.
@@ -787,8 +713,6 @@ Lemma sem_list_valueT_physical
       __INSN_ID__ mp'
   (STATE: Locals (EC state) = updateAddAL GenericValue lc __INSN_ID__ mp')
   (CONFIG: (Globals conf) = gl)
-  (* (POSTCOND_CHECK: Forall (fun y => __INSN_ID__ <> y) *)
-  (*                         (filter_map (Value.get_ids <*> snd) sz_values1)) *)
   (POSTCOND_CHECK: Forall (fun y => __INSN_ID__ <> y)
                           (filter_map Value.get_ids (List.map snd sz_values1)))
   :
