@@ -214,25 +214,22 @@ Proof.
   exploit Pos.lt_irrefl; eauto.
 Qed.
 
-(* We are not using InvState.Rel.sem here, rather separated it into unary,
-in order to get reusability *)
 Lemma locals_malloc_diffblock
-      conf_src st_src invst0 invmem0 inv0
+      conf_src mem locals
       TD tsz gn align0 SRC_MEM_STEP mb
       reg val
-      (MALLOC: malloc TD st_src.(Mem) tsz gn align0 = Some (SRC_MEM_STEP, mb))
-      (VAL: lookupAL GenericValue st_src.(EC).(Locals) reg = Some val)
-      (SRC: InvState.Unary.sem conf_src st_src invst0 invmem0 inv0)
+      (MALLOC: malloc TD mem tsz gn align0 = Some (SRC_MEM_STEP, mb))
+      (VAL: lookupAL GenericValue locals reg = Some val)
+      (WF_LOCAL: MemProps.wf_lc mem locals)
   :
   <<DIFFBLOCK: InvState.Unary.sem_diffblock conf_src (blk2GV TD mb) val>>
 .
 Proof.
-  inv SRC. clear PRIVATE UNIQUE NOALIAS LESSDEF.
   exploit WF_LOCAL; eauto; []; intro WF; des.
   eapply valid_ptr_malloc_diffblock; eauto.
 Qed.
 
-Lemma globals_malloc_diffblock_aux
+Lemma globals_malloc_diffblock
       align0 TD gn SRC_MEM SRC_MEM_STEP
       tsz conf_src mb gid val
       gmax
@@ -266,22 +263,7 @@ Proof.
     eapply IHg; eauto.
 Qed.
 
-Lemma globals_malloc_diffblock
-      align0 TD gn SRC_MEM SRC_MEM_STEP
-      tsz conf_src mb gid val
-      (MALLOC: malloc TD SRC_MEM tsz gn align0 = Some (SRC_MEM_STEP, mb))
-      (VAL: lookupAL GenericValue (Globals conf_src) gid = Some val)
-      gmax public inv
-      (MEM: InvMem.Unary.sem conf_src gmax public SRC_MEM inv)
-  :
-    <<DIFFBLOCK: InvState.Unary.sem_diffblock conf_src (blk2GV TD mb) val>>
-.
-Proof.
-  inv MEM.
-  eapply globals_malloc_diffblock_aux; eauto.
-Qed.
-
-Lemma mload_malloc_diffblock_aux
+Lemma mload_malloc_diffblock
   align0 TD gn tsz conf_src SRC_MEM SRC_MEM_STEP mb
   (MALLOC: malloc TD SRC_MEM tsz gn align0 = Some (SRC_MEM_STEP, mb))
   mptr0 typ0 align1 val'
@@ -315,26 +297,119 @@ Unshelve.
 eauto.
 Qed.
 
-(* CALL FOR DISCUSSION *)
-(* Stronger premise, *)
-(* easier to prove, harder to use in theory *)
-(* However, actually it is more convenient to use, as we do not need to inv MEM *)
-Lemma mload_malloc_diffblock
-  align0 TD gn tsz conf_src SRC_MEM SRC_MEM_STEP mb
+Lemma add_unique_malloc
+  cmds_src id0 align0 inv_unary TD F B lc gn ECS0 tmn SRC_MEM als SRC_MEM_STEP tsz mb conf_src gmax
   (MALLOC: malloc TD SRC_MEM tsz gn align0 = Some (SRC_MEM_STEP, mb))
-  mptr0 typ0 align1 val'
-  (LOAD: mload (CurTargetData conf_src) SRC_MEM_STEP mptr0 typ0 align1 = Some val')
-  gmax public inv
-  (MEM: InvMem.Unary.sem conf_src gmax public SRC_MEM inv)
+  (UNIQUE: AtomSetImpl.For_all
+             (InvState.Unary.sem_unique conf_src
+                {|
+                EC := {|
+                      CurFunction := F;
+                      CurBB := B;
+                      CurCmds := cmds_src;
+                      Terminator := tmn;
+                      Locals := updateAddAL GenericValue lc id0 (blk2GV TD mb);
+                      Allocas := mb :: als |};
+                ECS := ECS0;
+                Mem := SRC_MEM_STEP |}) (Invariant.unique inv_unary))
+  (WF : MemProps.wf_Mem gmax (CurTargetData conf_src) SRC_MEM)
+  (GLOBALS : genericvalues_inject.wf_globals gmax (Globals conf_src))
+  (WF_LOCAL : MemProps.wf_lc SRC_MEM lc)
   :
-  <<DIFFBLOCK: InvState.Unary.sem_diffblock conf_src (blk2GV TD mb) val'>>
+  <<UNIQUE_ADD: AtomSetImpl.For_all
+    (InvState.Unary.sem_unique conf_src
+       {|
+       EC := {|
+             CurFunction := F;
+             CurBB := B;
+             CurCmds := cmds_src;
+             Terminator := tmn;
+             Locals := updateAddAL GenericValue lc id0 (blk2GV TD mb);
+             Allocas := mb :: als |};
+       ECS := ECS0;
+       Mem := SRC_MEM_STEP |}) (add id0 (Invariant.unique inv_unary))>>
 .
 Proof.
-  inv MEM.
-  eapply mload_malloc_diffblock_aux; eauto.
+  intros x xIn.
+  apply AtomSetFacts.add_iff in xIn.
+  des; [clear UNIQUE; subst id0|apply UNIQUE; auto].
+  econs; eauto; ss.
+  +
+    (* VAL *)
+    des_lookupAL_updateAddAL.
+  +
+    (* LOCALS *)
+    ii.
+    des_lookupAL_updateAddAL.
+    eapply locals_malloc_diffblock; ss; eauto.
+  +
+    (* MEM *)
+    ii. eapply mload_malloc_diffblock; eauto.
+  +
+    (* GLOBALS *)
+    ii. eapply globals_malloc_diffblock; eauto.
 Qed.
 
-(* TODO: let's ignore insn_malloc for now.  Revise the validator so that it rejects any occurence of insn_malloc. *)
+Lemma add_private_alloca
+  id5 typ5 value5 align5 cmds_src invst_unary invmem_unary inv_unary S TD Ps
+  F B lc gl fs gn ECS0 tmn Mem0 als Mem' tsz mb
+  (MALLOC : malloc TD Mem0 tsz gn align5 = Some (Mem', mb))
+  (H1 : getOperandValue TD value5 lc gl = Some gn)
+  (H0 : getTypeAllocSize TD typ5 = Some tsz)
+  (ALLOC_PRIVATE : forall (x : id) (ty : typ) (v : value) (a : align),
+                  GVsMap ->
+                  insn_alloca id5 typ5 value5 align5 = insn_alloca x ty v a ->
+                  Some mem_change_none = Some mem_change_none ->
+                  exists gptr : GenericValue,
+                    In (Memory.Mem.nextblock Mem0) (InvMem.Unary.private invmem_unary) /\
+                    lookupAL GenericValue (updateAddAL GenericValue lc id5 (blk2GV TD mb)) x = Some gptr /\
+                    GV2ptr TD (getPointerSize TD) gptr =
+                    Some (Values.Vptr (Memory.Mem.nextblock Mem0) (Integers.Int.zero 31)))
+  (* revise above invariant *)
+  (PRIVATE : IdTSet.For_all
+              (InvState.Unary.sem_private
+                 {| CurSystem := S; CurTargetData := TD; CurProducts := Ps; Globals := gl; FunTable := fs |}
+                 {|
+                 EC := {|
+                       CurFunction := F;
+                       CurBB := B;
+                       CurCmds := cmds_src;
+                       Terminator := tmn;
+                       Locals := updateAddAL GenericValue lc id5 (blk2GV TD mb);
+                       Allocas := mb :: als |};
+                 ECS := ECS0;
+                 Mem := Mem' |} invst_unary (InvMem.Unary.private invmem_unary))
+              (Invariant.private inv_unary))
+  :
+  <<PRIVATE_ADD: IdTSet.For_all
+    (InvState.Unary.sem_private
+       {| CurSystem := S; CurTargetData := TD; CurProducts := Ps; Globals := gl; FunTable := fs |}
+       {|
+       EC := {|
+             CurFunction := F;
+             CurBB := B;
+             CurCmds := cmds_src;
+             Terminator := tmn;
+             Locals := updateAddAL GenericValue lc id5 (blk2GV TD mb);
+             Allocas := mb :: als |};
+       ECS := ECS0;
+       Mem := Mem' |} invst_unary (InvMem.Unary.private invmem_unary))
+    (IdTSet.add (IdT.lift Tag.physical id5) (Invariant.private inv_unary))>>
+.
+Proof.
+  intros id IN. (* SHOULD NOT USE ii HERE, OR BELOW eauto WILL NOT WORK!! WHY? *)
+  eapply IdTSetFacts.add_iff in IN.
+  des; [|eauto]; [].
+  subst.
+  ii. ss.
+  u. ss. des_lookupAL_updateAddAL. clear_true.
+  destruct invmem_unary; simpl.
+  ss.
+  exploit ALLOC_PRIVATE; eauto; []; ii; des.
+  exploit MemProps.malloc_result; try apply MALLOC; []; intro MALLOC_RES1; des.
+  subst. ss.
+Qed.
+
 Lemma postcond_cmd_add_inject_sound
       m_src conf_src st0_src st1_src cmd_src cmds_src def_src uses_src
       m_tgt conf_tgt st0_tgt st1_tgt cmd_tgt cmds_tgt def_tgt uses_tgt
@@ -360,8 +435,8 @@ Lemma postcond_cmd_add_inject_sound
       (USES_TGT: uses_tgt = AtomSetImpl_from_list (Cmd.get_ids cmd_tgt))
       (ALLOC_INJECT: alloc_inject conf_src conf_tgt st0_src st0_tgt
                                   st1_src st1_tgt cmd_src cmd_tgt invmem1)
-      (* (ALLOC_INJECT: InvMem.Rel.inject invmem1 (st0_src.(Mem).(Memory.Mem.nextblock)) = *)
-      (*                Some((st0_tgt.(Mem).(Memory.Mem.nextblock)), 0)) *)
+      (ALLOC_PRIVATE: alloc_private conf_src conf_tgt cmd_src cmd_tgt st0_src st0_tgt
+                                    st1_src st1_tgt invmem1)
   :
     <<STATE: InvState.Rel.sem
                conf_src conf_tgt st1_src st1_tgt invst1 invmem1
@@ -377,112 +452,91 @@ Proof.
   { rewrite H in *. esplits; eauto. }
   destruct cmd_src, cmd_tgt; ss.
   - (* alloca, nop *)
-    (* roughly, degenerate case for the last one *)
-    admit.
-  - (* nop, allica *)
+    clear ALLOC_INJECT.
     unfold postcond_cmd_check in *. des_ifs; des_bool; clarify.
     ss. clear_true.
     splits; ss.
     apply_all_once AtomSetImpl_from_list_inter_is_empty.
     simpl_list.
-    (* inv STATE_STEP. *)
-
-    (* ((inv STEP_SRC; ss); []). *)
-    (* inv SRC. *)
-    (* inv CMDS_SRC. *)
-
-    (* ((inv STEP_TGT; ss); []). *)
-    (* inv TGT. *)
-    (* inv CMDS_TGT. *)
-    (* ss. *)
-
-    (* rename Mem0 into SRC_MEM. *)
-    (* rename Mem' into SRC_MEM_STEP. *)
-    (* rename Mem1 into TGT_MEM. *)
-    (* rename Mem'0 into TGT_MEM_STEP. *)
-
-    (* remember {| CurSystem := S; CurTargetData := TD; *)
-    (*             CurProducts := Ps; Globals := gl; FunTable := fs |} as conf_src. *)
-    (* remember {| CurSystem := S0; CurTargetData := TD0; *)
-    (*             CurProducts := Ps0; Globals := gl0; FunTable := fs0 |} as conf_tgt. *)
-    (* remember {| *)
-    (*     EC := {| *)
-    (*            CurFunction := F; *)
-    (*            CurBB := B; *)
-    (*            CurCmds := cmds_src; *)
-    (*            Terminator := tmn; *)
-    (*            Locals := updateAddAL GenericValue lc id0 (blk2GV TD mb); *)
-    (*            Allocas := mb :: als |}; *)
-    (*     ECS := ECS0; *)
-    (*     Mem := SRC_MEM_STEP |} as EC_src. *)
-    (* remember {| *)
-    (*     EC := {| *)
-    (*            CurFunction := F0; *)
-    (*            CurBB := B0; *)
-    (*            CurCmds := cmds_tgt; *)
-    (*            Terminator := tmn0; *)
-    (*            Locals := updateAddAL GenericValue lc0 id0 (blk2GV TD0 mb0); *)
-    (*            Allocas := mb0 :: als0 |}; *)
-    (*     ECS := ECS1; *)
-    (*     Mem := TGT_MEM_STEP |} as EC_tgt. *)
 
     inv STATE_STEP.
 
     ((inv STEP_SRC; ss); []).
-    inv SRC.
+    (* inv SRC. *)
     inv CMDS_SRC.
 
     econs; eauto; [].
 
     ((inv STEP_TGT; ss); []).
-    inv TGT.
+    (* inv TGT. *)
     inv CMDS_TGT.
     ss.
-    clear LESSDEF0 NOALIAS0 UNIQUE0 PRIVATE0 WF_LOCAL0 MAYDIFF.
+    clear MAYDIFF.
 
-    econs; eauto.
-    clear LESSDEF NOALIAS.
-    + clear PRIVATE.
+    inv TGT.
+    clear H H2.
+    clear MEM_STEP.
+    clear CONF.
+    (* inv TGT. clear LESSDEF0 NOALIAS0 UNIQUE0 PRIVATE0 WF_LOCAL0. *)
+    unfold alloc_private, alloc_private_unary in *. ss.
+    destruct ALLOC_PRIVATE as [_ ALLOC_PRIVATE].
+    econs; eauto; [|]; clear LESSDEF NOALIAS WF_LOCAL.
+    +
+      clear ALLOC_PRIVATE.
+      clear PRIVATE.
       unfold Invariant.update_src. ss.
       intros ____id____ IN.
       eapply AtomSetFacts.add_iff in IN.
       des; [|eauto]; [].
       subst.
-      (* TODO BELOW IS EXACTLY COPIED FROM ALLOCA/ALLOCA CASE *)
-      (* PULL OF LEMMA? *)
-      econs; eauto; ss.
-      *
-        (* VAL *)
-        des_lookupAL_updateAddAL.
-      *
-        (* LOCALS *)
-        ii.
-        des_lookupAL_updateAddAL. (* TODO don't use clarify inside des_lookupAL!!!!! *)
-        clear - STATE H3 VAL'.
-        inv STATE.
-        eapply locals_malloc_diffblock; ss; eauto.
-        { ss. eauto. } (* TODO WHY IT APPEARS???????? *)
-        { ss. eauto. }
-      *
-        (* MEM *)
-        ii. inv MEM. eapply mload_malloc_diffblock; eauto.
-      *
-        (* GLOBALS *)
-        ii. inv MEM. eapply globals_malloc_diffblock; eauto.
+      eapply add_unique_malloc; eauto; try apply MEM; try apply STATE.
     + clear UNIQUE.
+      clear MEM SRC STATE.
       unfold Invariant.update_private. ss.
-      intros ____id____ IN. (* SHOULD NOT USE ii HERE, OR BELOW eauto WILL NOT WORK!! WHY? *)
-      eapply IdTSetFacts.add_iff in IN.
+      eapply add_private_alloca; eauto.
+  - (* nop, allica *)
+    clear ALLOC_INJECT.
+    unfold postcond_cmd_check in *. des_ifs; des_bool; clarify.
+    ss. clear_true.
+    splits; ss.
+    apply_all_once AtomSetImpl_from_list_inter_is_empty.
+    simpl_list.
+
+    inv STATE_STEP.
+
+    ((inv STEP_SRC; ss); []).
+    (* inv SRC. *)
+    inv CMDS_SRC.
+
+    econs; eauto; [].
+
+    ((inv STEP_TGT; ss); []).
+    (* inv TGT. *)
+    inv CMDS_TGT.
+    ss.
+    clear MAYDIFF.
+
+    inv SRC.
+    clear H H2.
+    clear MEM_STEP.
+    clear CONF.
+    (* inv TGT. clear LESSDEF0 NOALIAS0 UNIQUE0 PRIVATE0 WF_LOCAL0. *)
+    unfold alloc_private, alloc_private_unary in *. ss.
+    destruct ALLOC_PRIVATE as [ALLOC_PRIVATE _].
+    econs; eauto; [|]; clear LESSDEF NOALIAS WF_LOCAL.
+    +
+      clear ALLOC_PRIVATE.
+      clear PRIVATE.
+      unfold Invariant.update_src. ss.
+      intros ____id____ IN.
+      eapply AtomSetFacts.add_iff in IN.
       des; [|eauto]; [].
       subst.
-      ii. ss.
-      u. ss. des_lookupAL_updateAddAL. clear_true.
-      ss.
-      destruct invmem1; simpl. (* ss. itself may take long,
-also makes proof bigger, making later proofs to take longer *)
-      destruct src; simpl.
-      ss.
-      admit.
+      eapply add_unique_malloc; eauto; try apply MEM; try apply STATE.
+    + clear UNIQUE.
+      clear MEM TGT STATE.
+      unfold Invariant.update_private. ss.
+      eapply add_private_alloca; eauto.
   - (* alloca, alloca *)
     (*
      * invmem1 = invmem0 + (newl_src -> newl_tgt)
@@ -495,6 +549,7 @@ also makes proof bigger, making later proofs to take longer *)
      * invmem.rel.le: possible
      * postcond_cmd_check: monotonicity
      *)
+    clear ALLOC_PRIVATE.
     (* unfold postcond_cmd_check in POSTCOND_CHECK. des_ifs; des_bool; clarify. *)
     unfold postcond_cmd_check in *. des_ifs; des_bool; clarify.
     {
@@ -514,11 +569,11 @@ also makes proof bigger, making later proofs to take longer *)
     inv STATE_STEP.
 
     ((inv STEP_SRC; ss); []).
-    inv SRC.
+    (* inv SRC. *)
     inv CMDS_SRC.
 
     ((inv STEP_TGT; ss); []).
-    inv TGT.
+    (* inv TGT. *)
     inv CMDS_TGT.
     ss.
 
@@ -554,66 +609,16 @@ also makes proof bigger, making later proofs to take longer *)
 
     {
       econs; eauto.
-      -
-        (* SRC *)
-        subst EC_src.
-        econs; eauto; [].
-        ss.
-        clear MAYDIFF LESSDEF NOALIAS PRIVATE.
-        ii.
-        apply AtomSetFacts.add_iff in H8.
-        des; [clear UNIQUE; subst id0|apply UNIQUE; auto].
-        econs; eauto; ss.
-        +
-          (* VAL *)
-          des_lookupAL_updateAddAL.
-        +
-          (* LOCALS *)
-          ii.
-          des_lookupAL_updateAddAL. (* TODO don't use clarify inside des_lookupAL!!!!! *)
-          clear - STATE H3 VAL'.
-          inv STATE.
-          eapply locals_malloc_diffblock; ss; eauto.
-          { ss. eauto. } (* TODO WHY IT APPEARS???????? *)
-          { ss. eauto. }
-        +
-          (* MEM *)
-          ii. inv MEM. eapply mload_malloc_diffblock; eauto.
-        +
-          (* GLOBALS *)
-          ii. inv MEM. eapply globals_malloc_diffblock; eauto.
-      -
-        (* TGT *)
-        (* Copied exactly from above *)
-        subst EC_tgt.
-        econs; eauto; [].
-        ss.
-        clear MAYDIFF LESSDEF0 NOALIAS0 PRIVATE0.
-        ii.
-        apply AtomSetFacts.add_iff in H8.
-        des; [clear UNIQUE; subst id0|apply UNIQUE0; auto].
-        econs; eauto; ss.
-        +
-          (* VAL *)
-          des_lookupAL_updateAddAL.
-        +
-          (* LOCALS *)
-          ii.
-          des_lookupAL_updateAddAL. (* TODO don't use clarify inside des_lookupAL!!!!! *)
-          clear - STATE H7 VAL'.
-
-          inv STATE.
-          eapply locals_malloc_diffblock; ss; eauto.
-          { ss. eauto. } (* TODO WHY IT APPEARS???????? *)
-          { ss. eauto. }
-        +
-          (* MEM *)
-          ii. inv MEM. eapply mload_malloc_diffblock; eauto.
-        +
-          (* GLOBALS *)
-          ii. inv MEM. eapply globals_malloc_diffblock; eauto.
-      -
-        (* MAYDIFF *)
+      - (* SRC *)
+        inv SRC. inv MEM. inv STATE.
+        econs; eauto; []. ss.
+        eapply add_unique_malloc; eauto; try apply SRC; try apply SRC0.
+      - (* TGT *)
+        inv TGT. inv MEM. inv STATE.
+        econs; eauto; []. ss.
+        eapply add_unique_malloc; eauto; try apply TGT; try apply TGT0.
+      - (* MAYDIFF *)
+        inv SRC. inv TGT.
         ii.
         simpl in NOTIN.
         rewrite IdTSetFacts.remove_b in NOTIN. repeat (des_bool; des).
@@ -657,7 +662,7 @@ also makes proof bigger, making later proofs to take longer *)
 
         econs; eauto.
     }
-Admitted.
+Qed.
 
 Lemma lessdef_add
       conf st invst lessdef lhs rhs
@@ -681,8 +686,6 @@ Lemma sem_list_valueT_physical
       __INSN_ID__ mp'
   (STATE: Locals (EC state) = updateAddAL GenericValue lc __INSN_ID__ mp')
   (CONFIG: (Globals conf) = gl)
-  (* (POSTCOND_CHECK: Forall (fun y => __INSN_ID__ <> y) *)
-  (*                         (filter_map (Value.get_ids <*> snd) sz_values1)) *)
   (POSTCOND_CHECK: Forall (fun y => __INSN_ID__ <> y)
                           (filter_map Value.get_ids (List.map snd sz_values1)))
   :
@@ -1119,31 +1122,6 @@ Proof.
       splits; ss.
 Qed.
 
-(* Lemma postcond_cmd_add_remove_def_from_maydiff_sound *)
-(*       conf_src st0_src st1_src cmd_src cmds_src def_src uses_src *)
-(*       conf_tgt st0_tgt st1_tgt cmd_tgt cmds_tgt def_tgt uses_tgt *)
-(*       invst0 invmem0 inv0 *)
-(*       evt *)
-(*       (POSTCOND: Postcond.postcond_cmd_check cmd_src cmd_tgt def_src def_tgt uses_src uses_tgt inv0) *)
-(*       (STATE: InvState.Rel.sem conf_src conf_tgt st1_src st1_tgt invst0 invmem0 inv0) *)
-(*       (MEM: InvMem.Rel.sem conf_src conf_tgt st1_src.(Mem) st1_tgt.(Mem) invmem0) *)
-(*       (STEP_SRC: sInsn conf_src st0_src st1_src evt) *)
-(*       (STEP_TGT: sInsn conf_tgt st0_tgt st1_tgt evt) *)
-(*       (CMDS_SRC: st0_src.(EC).(CurCmds) = cmd_src :: cmds_src) *)
-(*       (CMDS_TGT: st0_tgt.(EC).(CurCmds) = cmd_tgt :: cmds_tgt) *)
-(*       (NONCALL_SRC: Instruction.isCallInst cmd_src = false) *)
-(*       (NONCALL_TGT: Instruction.isCallInst cmd_tgt = false) *)
-(*       (DEF_SRC: def_src = AtomSetImpl_from_list (option_to_list (Cmd.get_def cmd_src))) *)
-(*       (DEF_TGT: def_tgt = AtomSetImpl_from_list (option_to_list (Cmd.get_def cmd_tgt))) *)
-(*       (USES_SRC: uses_src = AtomSetImpl_from_list (Cmd.get_ids cmd_src)) *)
-(*       (USES_TGT: uses_tgt = AtomSetImpl_from_list (Cmd.get_ids cmd_tgt)): *)
-(*     <<STATE: InvState.Rel.sem *)
-(*                conf_src conf_tgt st1_src st1_tgt invst0 invmem0 *)
-(*                (remove_def_from_maydiff cmd_src cmd_tgt inv0)>> *)
-(* . *)
-(* Proof. *)
-(* Admitted. *)
-
 Theorem postcond_cmd_add_sound
         m_src conf_src st0_src st1_src cmd_src cmds_src def_src uses_src
         m_tgt conf_tgt st0_tgt st1_tgt cmd_tgt cmds_tgt def_tgt uses_tgt
@@ -1169,8 +1147,8 @@ Theorem postcond_cmd_add_sound
         (USES_TGT: uses_tgt = AtomSetImpl_from_list (Cmd.get_ids cmd_tgt))
         (ALLOC_INJECT: alloc_inject conf_src conf_tgt st0_src st0_tgt
                                     st1_src st1_tgt cmd_src cmd_tgt invmem1)
-        (* (ALLOC_INJECT: InvMem.Rel.inject invmem1 (st0_src.(Mem).(Memory.Mem.nextblock)) = *)
-        (*                Some((st0_tgt.(Mem).(Memory.Mem.nextblock)), 0)) *)
+        (ALLOC_PRIVATE: alloc_private conf_src conf_tgt cmd_src cmd_tgt st0_src st0_tgt
+                                      st1_src st1_tgt invmem1)
   :
   exists invst2 invmem2,
     <<STATE_STEP: InvState.Rel.sem conf_src conf_tgt st1_src st1_tgt invst2 invmem2
