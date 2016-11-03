@@ -233,8 +233,8 @@ Proof.
       eapply _sim_local_step.
       { admit. (* tgt not stuck *) }
       i. inv STEP. unfold valid_phinodes in *. simtac.
-      rewrite add_terminator_cond_switch in *.
-      rewrite lookupBlockViaLabelFromFdef_spec in *.
+      (* rewrite add_terminator_cond_switch in *. *)
+      (* rewrite lookupBlockViaLabelFromFdef_spec in *. *)
       admit.
     + (* unreachable *)
       exploit nerror_nfinal_nstuck; eauto. i. des. inv x0.
@@ -243,8 +243,8 @@ Proof.
     + (* call *)
       exploit postcond_cmd_is_call; eauto. i.
       destruct c; ss. destruct c0; ss.
-      exploit postcond_call_sound;
-        (try instantiate (1 := (mkState (mkEC _ _ _ _ _ _) _ _))); ss; eauto; ss.
+      exploit postcond_call_sound; try exact COND; eauto;
+        (try instantiate (2 := (mkState (mkEC _ _ _ _ _ _) _ _))); ss; eauto; ss.
       i. des. subst. do 24 simtac0.
       eapply _sim_local_call; ss; eauto; ss.
       i. exploit RETURN; eauto. i. des.
