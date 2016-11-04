@@ -18,9 +18,6 @@ let print_time msg =
                    (string_of_float (cur_time -. !prev_time))
                    (string_of_float cur_time)
                    msg;
-
-             (*       ("MEASURE_TIME\t"^(string_of_float (cur_time - !prev_time))^ *)
-             (* "\t"^(string_of_float cur_time)^"\t"^msg); *)
     prev_time := cur_time
   else ()
 
