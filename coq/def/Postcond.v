@@ -414,26 +414,26 @@ Module ForgetStack.
 End ForgetStack.
 
 Module ForgetMemoryCall.
-  Definition is_private_or_unique_Expr (inv:Invariant.unary) (e:Expr.t): bool :=
+  Definition is_private_Expr (inv:Invariant.unary) (e:Expr.t): bool :=
     match e with
     | Expr.load v ty al =>
       match v with
-      | ValueT.id (t, x) =>
-        IdTSet.mem (t, x) inv.(Invariant.private) ||
-        match t with
-        | Tag.physical => AtomSetImpl.mem x inv.(Invariant.unique)
-        | _ => false
-        end
+      | ValueT.id idt =>
+        IdTSet.mem idt inv.(Invariant.private)
       | _ => false
       end
     | _ => true
     end.
 
-  Definition is_private_or_unique_ExprPair (inv:Invariant.unary) (ep:ExprPair.t): bool :=
-    is_private_or_unique_Expr inv ep.(fst) && is_private_or_unique_Expr inv ep.(snd).
+  Definition is_private_ExprPair (inv:Invariant.unary) (ep:ExprPair.t): bool :=
+    is_private_Expr inv ep.(fst) && is_private_Expr inv ep.(snd).
 
   Definition unary (inv0:Invariant.unary): Invariant.unary :=
-    Invariant.update_lessdef (ExprPairSet.filter (is_private_or_unique_ExprPair inv0)) inv0.
+    let inv1 := Invariant.update_lessdef
+                  (ExprPairSet.filter (is_private_ExprPair inv0)) inv0 in
+    let inv2 := Invariant.update_unique
+                  (AtomSetImpl.filter (fun x => IdTSet.mem (Tag.physical, x) inv1.(Invariant.private))) inv1 in
+    inv2.
 
   Definition t (inv0:Invariant.t): Invariant.t :=
     let inv1 := Invariant.update_src unary inv0 in
