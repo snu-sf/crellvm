@@ -293,12 +293,6 @@ Definition valid_products (hint:ValidationHint.products) (m_src m_tgt:module) (s
 Definition valid_module (hint:ValidationHint.module) (src tgt:module): bool :=
   let '(module_intro layouts_src namedts_src products_src) := src in
   let '(module_intro layouts_tgt namedts_tgt products_tgt) := tgt in
-  if negb (layouts_dec layouts_src layouts_tgt)
-  then failwith_false "valid_module: layouts not matched" nil
-  else
-  if negb (namedts_dec namedts_src namedts_tgt)
-  then failwith_false "valid_module: named types not matched" nil
-  else
   if negb (valid_products hint src tgt products_src products_tgt)
   then failwith_false "valid_module: valid_products failed" nil
   else true.
