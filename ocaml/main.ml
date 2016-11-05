@@ -5,6 +5,22 @@ open Syntax.LLVMsyntax
 open Printer
 open CoreHint_j
 
+let measure_time = ref false
+
+let prev_time = ref 0.0
+
+let print_time msg =
+  if !measure_time
+  then
+    let cur_time = Sys.time() in
+    Printf.fprintf stderr
+                   "MEASURE_TIME\t%s\t%s\t%s\n"
+                   (string_of_float (cur_time -. !prev_time))
+                   (string_of_float cur_time)
+                   msg;
+    prev_time := cur_time
+  else ()
+
 let read_im filename =
   let _ = debug_print "read_im.." in
 
@@ -50,9 +66,12 @@ let read_hint filename =
   hint
 
 let main filename_src filename_tgt filename_hint =
+  let _ = print_time "start" in
   let coq_im_src = read_im filename_src in
   let coq_im_tgt = read_im filename_tgt in
   let hint = read_hint filename_hint in
+
+  let _ = print_time "read-done" in
 
   let _ = debug_print "description for this VU.." in
   let _ = debug_print hint.CoreHint_t.description in
@@ -71,11 +90,16 @@ let main filename_src filename_tgt filename_hint =
        let coq_im_tgt = ConvertHint.insert_nop hint.function_id
                                                coq_im_tgt tgt_nop_positions in
 
+       let _ = print_time "insert-nop-done" in
+
        let coq_hint = ConvertHint.convert coq_im_src coq_im_tgt hint in
+
+       let _ = print_time "convert-hint-done" in
 
        let _ = debug_print "validation.." in
        let validation_result =
          Validator.valid_module coq_hint coq_im_src coq_im_tgt in
+       let _ = print_time "validation-done" in
        if validation_result
        then print_endline "Validation succeeded."
        else (print_endline "Validation failed."; exit 1)
@@ -86,6 +110,7 @@ let main filename_src filename_tgt filename_hint =
 let argspec = [
   ("-d", Set Globalstates.debug, "debug");
   ("-o", String (fun s -> out_channel := open_out s), "output file");
+  ("-t", Set measure_time, "time");
 ]
 
 let args = ref []
