@@ -349,7 +349,7 @@ Qed.
 
 (* TODO: extract lemma for module initialization *)
 Lemma valid_sim_module m_hint:
-  (valid_module m_hint) <2= sim_module.
+  (fun p q => valid_module m_hint p q = Some true) <2= sim_module.
 Proof.
   s. intros module_src module_tgt MODULE.
   unfold valid_module in MODULE. simtac.
