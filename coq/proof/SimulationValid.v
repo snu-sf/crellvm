@@ -241,19 +241,20 @@ Proof.
   - (* cmd *)
     destruct (Instruction.isCallInst c) eqn:CALL.
     + (* call *)
-      exploit postcond_cmd_is_call; eauto. i.
-      destruct c; ss. destruct c0; ss.
-      exploit postcond_call_sound; try exact COND; eauto;
-        (try instantiate (2 := (mkState (mkEC _ _ _ _ _ _) _ _))); ss; eauto; ss.
-      i. des. subst. do 24 simtac0.
-      eapply _sim_local_call; ss; eauto; ss.
-      i. exploit RETURN; eauto. i. des.
-      exploit apply_infrules_sound; eauto; ss. i. des.
-      exploit reduce_maydiff_sound; eauto; ss. i. des.
-      exploit implies_sound; eauto; ss. i. des.
-      exists locals2_tgt, 0%nat, invmem1. splits; ss.
-      * etransitivity; eauto.
-      * right. apply CIH. econs; eauto.
+      admit.
+      (* exploit postcond_cmd_is_call; eauto. i. *)
+      (* destruct c; ss. destruct c0; ss. *)
+      (* hexploit postcond_call_sound; try exact COND; eauto; *)
+      (*   (try instantiate (2 := (mkState (mkEC _ _ _ _ _ _) _ _))); ss; eauto; ss. *)
+      (* i. des. subst. do 24 simtac0. des. *)
+      (* eapply _sim_local_call; ss; eauto; ss. *)
+      (* i. exploit RETURN; eauto. *)
+      (* exploit apply_infrules_sound; eauto; ss. i. des. *)
+      (* exploit reduce_maydiff_sound; eauto; ss. i. des. *)
+      (* exploit implies_sound; eauto; ss. i. des. *)
+      (* exists locals2_tgt, 0%nat, invmem1. splits; ss. *)
+      (* * etransitivity; eauto. *)
+      (* * right. apply CIH. econs; eauto. *)
     + (* non-call *)
       eapply _sim_local_step.
       { admit. (* tgt not stuck *) }

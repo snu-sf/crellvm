@@ -93,8 +93,16 @@ Section SimLocal.
            <<INJECT: list_forall2 (genericvalues_inject.gv_inject inv1.(InvMem.Rel.inject)) args2_src args1_tgt>>)
       (MEM: InvMem.Rel.sem conf_src conf_tgt st2_src.(Mem) st1_tgt.(Mem) inv1)
       (RETURN:
-         forall inv3 mem3_src mem3_tgt retval3_src retval3_tgt locals4_src
-           (INCR: InvMem.Rel.le (InvMem.Rel.lift st2_src.(Mem) st1_tgt.(Mem) inv1) inv3)
+         forall inv3 mem3_src mem3_tgt retval3_src retval3_tgt locals4_src uniqs_src uniqs_tgt
+           (UNIQS_SRC: forall mptr typ align val b o
+                         (LOAD: mload conf_src.(CurTargetData) st2_src.(Mem) mptr typ align = Some val)
+                         (GV2PTR: GV2ptr conf_src.(CurTargetData) (getPointerSize conf_src.(CurTargetData)) val = Some (Vptr b o)),
+               ~ In b uniqs_src)
+           (UNIQS_TGT: forall mptr typ align val b o
+                         (LOAD: mload conf_tgt.(CurTargetData) st1_tgt.(Mem) mptr typ align = Some val)
+                         (GV2PTR: GV2ptr conf_tgt.(CurTargetData) (getPointerSize conf_tgt.(CurTargetData)) val = Some (Vptr b o)),
+               ~ In b uniqs_tgt)
+           (INCR: InvMem.Rel.le (InvMem.Rel.lift st2_src.(Mem) st1_tgt.(Mem) uniqs_src uniqs_tgt inv1) inv3)
            (MEM: InvMem.Rel.sem conf_src conf_tgt mem3_src mem3_tgt inv3)
            (RETVAL: TODO.lift2_option (genericvalues_inject.gv_inject inv3.(InvMem.Rel.inject)) retval3_src retval3_tgt)
            (RETURN_SRC: return_locals

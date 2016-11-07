@@ -610,7 +610,8 @@ Lemma invmem_unary_alloc_private_preserved
   : InvMem.Unary.sem conf gmax public mem1 (InvMem.Unary.mk
                                               (mb::invmem0.(InvMem.Unary.private))
                                               invmem0.(InvMem.Unary.private_parent)
-                                              invmem0.(InvMem.Unary.mem_parent)).
+                                              invmem0.(InvMem.Unary.mem_parent)
+                                              invmem0.(InvMem.Unary.unique_parent)).
 Proof.
   exploit malloc_result; eauto. i. des.
   inv STATE.
@@ -626,12 +627,20 @@ Proof.
     inv H.
     + exploit PRIVATE_PARENT; eauto. i. des.
       subst. psimpl.
-    + exploit DISJOINT; eauto.
+    + exploit PRIVATE_DISJOINT; eauto.
   - i. exploit MEM_PARENT; eauto. intro LOAD_AUX.
     rewrite LOAD_AUX.
     eapply malloc_preserves_mload_aux_other_eq; eauto.
     ii. exploit PRIVATE_PARENT; eauto. i. des. psimpl.
-Qed.
+  - i. (* hexploit UNIQUE_PARENT; eauto. *)
+    (* unfold mload in LOAD. des_ifs. *)
+    (* eapply malloc_preserves_mload_aux_other_eq; eauto. *)
+    (* malloc *)
+    (* rewrite <- MEM_PARENT in LOAD. *)
+    (* unfold mload in *. *)
+    (* rewrite MEM_PARENT. *)
+    admit. (* not difficult *)
+Admitted.
 
 Ltac solve_alloc_inject :=
   by ii;
@@ -746,6 +755,8 @@ Proof.
           eapply malloc_preserves_mload_aux_other_eq; eauto.
           ii. psimpl.
         }
+        { admit. (* unique-parent *)
+        }
       }
       { (* TGT *)
         inv TGT.
@@ -791,6 +802,7 @@ Proof.
           eapply malloc_preserves_mload_aux_other_eq; eauto.
           ii. psimpl.
         }
+        { admit. (* unique-parent *) }
       }
       { (* inject *)
         inv INJECT.
@@ -959,6 +971,7 @@ Proof.
             (mb::invmem0.(InvMem.Rel.src).(InvMem.Unary.private))
             invmem0.(InvMem.Rel.src).(InvMem.Unary.private_parent)
             invmem0.(InvMem.Rel.src).(InvMem.Unary.mem_parent)
+            invmem0.(InvMem.Rel.src).(InvMem.Unary.unique_parent)
          )
          invmem0.(InvMem.Rel.tgt)
          invmem0.(InvMem.Rel.gmax)
@@ -1044,6 +1057,7 @@ Proof.
             (mb::invmem0.(InvMem.Rel.tgt).(InvMem.Unary.private))
             invmem0.(InvMem.Rel.tgt).(InvMem.Unary.private_parent)
             invmem0.(InvMem.Rel.tgt).(InvMem.Unary.mem_parent)
+            invmem0.(InvMem.Rel.tgt).(InvMem.Unary.unique_parent)
          )
          invmem0.(InvMem.Rel.gmax)
                    invmem0.(InvMem.Rel.inject)).
@@ -1165,6 +1179,7 @@ Proof.
         eapply mstore_aux_preserves_mload_aux_eq; eauto.
         ii. subst.
         exploit PRIVATE_PARENT; eauto. i. des. eauto.
+      * admit. (* unique-parent *)
     + inv TGT.
       econs; eauto.
       * eapply mstore_aux_valid_ptrs_preserves_wf_Mem; eauto.
@@ -1181,6 +1196,7 @@ Proof.
         eapply mstore_aux_preserves_mload_aux_eq; eauto.
         ii. subst.
         exploit PRIVATE_PARENT; eauto. i. des. eauto.
+      * admit. (* unique-parent *)
   - (* store - none *)
     esplits; eauto; try reflexivity; try solve_alloc_inject.
     { unfold alloc_private, alloc_private_unary. split.
@@ -1207,9 +1223,10 @@ Proof.
         split; eauto.
         erewrite <- MemProps.nextblock_mstore_aux; eauto.
       * i. unfold list_disjoint in *.
-        hexploit DISJOINT; eauto. i.
+        hexploit PRIVATE_DISJOINT; eauto. i.
         exploit MEM_PARENT; eauto. intro MLOAD_EQ. rewrite MLOAD_EQ.
         eapply mstore_aux_preserves_mload_aux_eq; eauto.
+      * admit. (* unique-parent *)
     + (* inject *)
       inv INJECT.
       econs.
@@ -1300,6 +1317,7 @@ Proof.
         exploit free_preserves_mload_aux_eq; try exact FREE_SRC; eauto.
         exploit PRIVATE_PARENT; eauto. i. des.
         ii. subst. eauto.
+      * admit. (* unique-parent *)
     + inv TGT.
       econs; eauto.
       * (* PRIVATE *)
@@ -1315,6 +1333,7 @@ Proof.
         exploit free_preserves_mload_aux_eq; try exact FREE_TGT; eauto.
         exploit PRIVATE_PARENT; eauto. i. des.
         ii. subst. eauto.
+      * admit. (* unique-parent *)
   - (* none - none *)
     inv STATE_EQUIV_SRC. rewrite <- MEM_EQ. clear MEM_EQ.
     inv STATE_EQUIV_TGT. rewrite <- MEM_EQ. clear MEM_EQ.
@@ -1322,7 +1341,7 @@ Proof.
     unfold alloc_private, alloc_private_unary. split.
     + i. subst. ss. des_matchH MC_SOME_SRC; clarify.
     + i. subst. ss. des_matchH MC_SOME_TGT; clarify.
-Qed.
+Admitted.
 
 (* invariant *)
 

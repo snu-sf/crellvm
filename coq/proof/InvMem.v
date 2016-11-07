@@ -24,6 +24,8 @@ Module Unary.
     private: list mblock;
     private_parent: list mblock;
     mem_parent: mem;
+
+    unique_parent: list mblock;
   }.
 
   (* TODO: not sure if MEM_PARENT is correct *)
@@ -33,17 +35,33 @@ Module Unary.
       (WF: MemProps.wf_Mem gmax conf.(CurTargetData) m)
       (PRIVATE: forall b (IN: In b inv.(private)), ~ public b /\ (b < m.(Mem.nextblock))%positive)
       (PRIVATE_PARENT: forall b (IN: In b inv.(private_parent)), ~ public b /\ (b < m.(Mem.nextblock))%positive)
-      (DISJOINT: list_disjoint inv.(private) inv.(private_parent))
+      (PRIVATE_DISJOINT: list_disjoint inv.(private) inv.(private_parent))
       (MEM_PARENT:
          forall b (IN: In b inv.(private_parent))
            mc o,
            mload_aux inv.(mem_parent) mc b o =
            mload_aux m mc b o)
+
+      (UNIQUE_PARENT:
+         forall b b' o'
+           mptr typ align val'
+           (IN: In b inv.(unique_parent))
+           (LOAD: mload conf.(CurTargetData) m mptr typ align = Some val')
+           (GV2PTR: GV2ptr conf.(CurTargetData) (getPointerSize conf.(CurTargetData)) val' = Some (Vptr b' o')),
+           b <> b')
+      (UNIQUE_PARENT_GLOBALS: forall gid b val' b' o'
+                  (IN: In b inv.(unique_parent))
+                  (VAL': lookupAL _ conf.(Globals) gid = Some val')
+                  (GV2PTR: GV2ptr conf.(CurTargetData) (getPointerSize conf.(CurTargetData)) val' = Some (Vptr b' o')),
+          b <> b')
+      (* TODO: sublist might be to strong. if this is the case, use other predicate *)
+      (UNIQUE_PRIVATE_PARENT: sublist inv.(unique_parent) inv.(private_parent))
   .
 
   Inductive le (lhs rhs:t): Prop :=
   | le_intro
       (PRIVATE_PARENT: lhs.(private_parent) = rhs.(private_parent))
+      (UNIQUE_PARENT: lhs.(unique_parent) = rhs.(unique_parent))
       (MEM_PARENT:
          forall b (IN: In b lhs.(private_parent))
            mc o,
@@ -56,13 +74,15 @@ Module Unary.
   Next Obligation.
     ii. inv H. inv H0. econs.
     - etransitivity; eauto.
+    - etransitivity; eauto.
     - i. etransitivity.
       + eapply MEM_PARENT. eauto.
       + eapply MEM_PARENT0. rewrite <- PRIVATE_PARENT. ss.
   Qed.
 
-  Definition lift (m:mem) (inv:t): t :=
-    mk nil (inv.(private) ++ inv.(private_parent)) m.
+  Definition lift (m:mem) (ul:list mblock) (inv:t): t :=
+    mk nil (inv.(private) ++ inv.(private_parent)) m
+       (filter (fun x => existsb (Values.eq_block x) ul) inv.(private) ++ inv.(unique_parent)).
 End Unary.
 
 Module Rel.
@@ -108,9 +128,9 @@ Module Rel.
     - eapply inject_incr_trans; eauto.
   Qed.
 
-  Definition lift (m_src m_tgt:mem) (inv:t): t :=
-    mk (Unary.lift m_src inv.(src))
-       (Unary.lift m_tgt inv.(tgt))
+  Definition lift (m_src m_tgt:mem) (uniqs_src uniqs_tgt:list mblock) (inv:t): t :=
+    mk (Unary.lift m_src uniqs_src inv.(src))
+       (Unary.lift m_tgt uniqs_tgt inv.(tgt))
        inv.(gmax)
        inv.(inject).
 

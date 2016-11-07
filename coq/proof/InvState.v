@@ -266,16 +266,18 @@ Module Unary.
                  (REG: a <> reg)
                  (VAL': lookupAL _ st.(EC).(Locals) reg = Some val'),
           sem_diffblock conf val val')
-      (MEM: forall mptr typ align val'
-              (LOAD: mload conf.(CurTargetData) st.(Mem) mptr typ align = Some val'),
-          sem_diffblock conf val val')
+      (MEM:
+         forall mptr typ align val'
+           (LOAD: mload conf.(CurTargetData) st.(Mem) mptr typ align = Some val'),
+           sem_diffblock conf val val')
       (GLOBALS: forall gid val'
-                       (VAL': lookupAL _ conf.(Globals) gid = Some val'),
+                  (VAL': lookupAL _ conf.(Globals) gid = Some val'),
           sem_diffblock conf val val')
   .
 
   Definition sem_private (conf:Config) (st:State) (invst:t) (private:list mblock) (a:IdT.t): Prop :=
     forall val (VAL: sem_idT st invst a = Some val),
+      (* NOTE: (PTR: GV2ptr conf.(CurTargetData) (getPointerSize conf.(CurTargetData)) val = ret Vptr b o) *)
       match GV2ptr conf.(CurTargetData) (getPointerSize conf.(CurTargetData)) val with
       | ret Vptr b _ => In b private
       | _ => False
@@ -288,6 +290,11 @@ Module Unary.
       (UNIQUE: AtomSetImpl.For_all (sem_unique conf st) inv.(Invariant.unique))
       (PRIVATE: IdTSet.For_all (sem_private conf st invst invmem.(InvMem.Unary.private)) inv.(Invariant.private))
       (WF_LOCAL: MemProps.wf_lc st.(Mem) st.(EC).(Locals))
+      (UNIQUE_PARENT_LOCAL:
+         forall x ptr b ofs
+           (PTR:lookupAL _ st.(EC).(Locals) x = Some ptr)
+           (GV2PTR:GV2ptr conf.(CurTargetData) (getPointerSize conf.(CurTargetData)) ptr = Some (Values.Vptr b ofs)),
+           ~ In b invmem.(InvMem.Unary.unique_parent))
   .
 
   Lemma sem_empty
