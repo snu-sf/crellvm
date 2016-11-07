@@ -100,9 +100,10 @@ let main filename_src filename_tgt filename_hint =
        let validation_result =
          Validator.valid_module coq_hint coq_im_src coq_im_tgt in
        let _ = print_time "validation-done" in
-       if validation_result
-       then print_endline "Validation succeeded."
-       else (print_endline "Validation failed."; exit 1)
+       match validation_result with
+       | Some true -> print_endline "Validation succeeded."
+       | Some false -> print_endline "Set to admitted."
+       | None -> (print_endline "Validation failed."; exit 1)
   in
 
   ()

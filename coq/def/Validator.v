@@ -290,9 +290,15 @@ Definition valid_product (hint:ValidationHint.products) (m_src m_tgt:module) (sr
 Definition valid_products (hint:ValidationHint.products) (m_src m_tgt:module) (src tgt:products): bool :=
   list_forallb2 (valid_product hint m_src m_tgt) src tgt.
 
-Definition valid_module (hint:ValidationHint.module) (src tgt:module): bool :=
+Definition valid_module (hint:ValidationHint.module) (src tgt:module): option bool :=
   let '(module_intro layouts_src namedts_src products_src) := src in
   let '(module_intro layouts_tgt namedts_tgt products_tgt) := tgt in
+  if negb (layouts_dec layouts_src layouts_tgt)
+  then Some false
+  else
+  if negb (namedts_dec namedts_src namedts_tgt)
+  then Some false
+  else
   if negb (valid_products hint src tgt products_src products_tgt)
-  then failwith_false "valid_module: valid_products failed" nil
-  else true.
+  then failwith_None "valid_module: valid_products failed" nil
+  else Some true.
