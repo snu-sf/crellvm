@@ -56,6 +56,56 @@ Proof.
     i. erewrite sem_idT_eq_locals; eauto.
 Qed.
 
+Lemma genericvalues_inject_simulation__GV2ptr_tgt:
+  forall (mi : Values.meminj) (TD : TargetData) (gv1 gv1' : GenericValue) (v' : Values.val),
+    genericvalues_inject.gv_inject mi gv1 gv1' ->
+    GV2ptr TD (getPointerSize TD) gv1' = Some v' ->
+    exists v : Values.val, GV2ptr TD (getPointerSize TD) gv1 = Some v /\ memory_sim.MoreMem.val_inject mi v v'.
+Proof.
+  i. exploit external_intrinsics.GV2ptr_inv; eauto. i. des.
+  subst. inv H. inv H4. ss.
+  inv H6. esplits; eauto.
+Qed.
+
+Lemma genericvalues_inject_wf_valid_ptrs_src
+      invmem
+      mem_src gv_src
+      mem_tgt gv_tgt
+      (INJ_FIT : genericvalues_inject.gv_inject invmem.(InvMem.Rel.inject) gv_src gv_tgt)
+      (WF : genericvalues_inject.wf_sb_mi invmem.(InvMem.Rel.gmax) invmem.(InvMem.Rel.inject) mem_src mem_tgt)
+  : memory_props.MemProps.valid_ptrs (Memory.Mem.nextblock mem_src) gv_src.
+Proof.
+  generalize dependent gv_tgt.
+  inv WF.
+  induction gv_src; i; ss.
+  des_ifs; inv INJ_FIT;
+    try by eapply IHgv_src; eauto.
+  inv H3.
+  split; eauto.
+  destruct (dom_libs.PositiveSet.MSet.Raw.MX.lt_dec b (Memory.Mem.nextblock mem_src)); ss.
+  rewrite <- Pos.le_nlt in n.
+  exploit Hmap1.
+  { apply Pos.le_ge. eauto. }
+  i. congruence.
+Qed.
+
+Lemma genericvalues_inject_wf_valid_ptrs_tgt
+      invmem
+      mem_src gv_src
+      mem_tgt gv_tgt
+      (INJ_FIT : genericvalues_inject.gv_inject invmem.(InvMem.Rel.inject) gv_src gv_tgt)
+      (WF : genericvalues_inject.wf_sb_mi invmem.(InvMem.Rel.gmax) invmem.(InvMem.Rel.inject) mem_src mem_tgt)
+  : memory_props.MemProps.valid_ptrs (Memory.Mem.nextblock mem_tgt) gv_tgt.
+Proof.
+  generalize dependent gv_src.
+  inv WF.
+  induction gv_tgt; i; ss.
+  des_ifs; inv INJ_FIT;
+    try by eapply IHgv_tgt; eauto.
+  inv H2.
+  split; eauto.
+Qed.
+
 (* TODO: position *)
 Lemma gv_inject_no_private
       conf_src st_src gv_src
@@ -75,7 +125,42 @@ Lemma gv_inject_no_private
       (P_TGT_SEM: InvState.Unary.sem_idT st_tgt invst.(InvState.Rel.tgt) p_tgt = Some gv_p_tgt),
       InvState.Unary.sem_diffblock conf_tgt gv_p_tgt gv_tgt>>.
 Proof.
-Admitted.
+  inv STATE. rename SRC into STATE_SRC. rename TGT into STATE_TGT.
+  inv MEM. rename SRC into MEM_SRC. rename TGT into MEM_TGT.
+  inv WF.
+  split; ii.
+  - inv STATE_SRC.
+    exploit PRIVATE.
+    { apply Exprs.IdTSetFacts.mem_iff. eauto. }
+    { eauto. }
+    intro PRIV_IN_MEM. des_ifs.
+
+    inv MEM_SRC.
+    exploit PRIVATE0; eauto. intro PRIV_RESULT. destruct PRIV_RESULT as [NO_PUBLIC VALID_BLOCK].
+    unfold InvState.Unary.sem_diffblock. des_ifs. ii. subst.
+    exploit genericvalues_inject.simulation__GV2ptr; eauto. i. des.
+    match goal with
+    | [H: memory_sim.MoreMem.val_inject _ (Values.Vptr _ _) _ |- _] =>
+      inv H
+    end.
+    apply NO_PUBLIC. ii. congruence.
+  - inv STATE_TGT.
+    exploit PRIVATE.
+    { apply Exprs.IdTSetFacts.mem_iff. eauto. }
+    { eauto. }
+    intro PRIV_IN_MEM. des_ifs.
+
+    inv MEM_TGT.
+    exploit PRIVATE0; eauto. intro PRIV_RESULT. destruct PRIV_RESULT as [NO_PUBLIC VALID_BLOCK].
+    unfold InvState.Unary.sem_diffblock. des_ifs. ii. subst.
+    exploit genericvalues_inject_simulation__GV2ptr_tgt; eauto. i. des.
+    match goal with
+    | [H: memory_sim.MoreMem.val_inject _ _ (Values.Vptr _ _) |- _] =>
+      inv H
+    end.
+    apply NO_PUBLIC. unfold InvMem.Rel.public_tgt.
+    esplits; eauto.
+Qed.
 
 (* we need additional condition: all unique in inv1 is private, so not in inject: not in return value *)
 Lemma forget_stack_call_sound
@@ -159,6 +244,7 @@ Proof.
         apply AtomSetImpl_singleton_mem_false in NOT_MEM.
         erewrite <- lookupAL_updateAddAL_neq; eauto.
       }
+
       { inv STATE. inv SRC.
         inv MEM. inv SRC.
         econs; eauto; ss.
@@ -187,15 +273,49 @@ Proof.
             apply NOT_PUBLIC. inv VAL_INJ. congruence.
           }
           { erewrite <- lookupAL_updateAddAL_neq in PTR; eauto.
-            admit. (* b is in unique_parent of invmem2 src.? *)
+            exploit UNIQUE_PARENT_LOCAL; eauto. }
+      }
+      { inv STATE. inv TGT.
+        inv MEM. inv TGT.
+              
+        econs; eauto; ss.
+        - i.
+          rewrite AtomSetProperties.empty_union_2 in *; ss.
+          apply AtomSetImpl_singleton_mem_false in NO_LEAK.
+          exploit UNIQUE.
+          { apply AtomSetFacts.mem_iff; eauto. }
+          intro UNIQUE_PREV. inv UNIQUE_PREV.
+          econs; eauto; ss.
+          + rewrite <- lookupAL_updateAddAL_neq; eauto.
+          + i.
+            destruct (id_dec reg id_tgt); cycle 1.
+            * rewrite <- lookupAL_updateAddAL_neq in VAL'; eauto.
+            * subst.
+              rewrite lookupAL_updateAddAL_eq in VAL'. clarify.
+              eapply DIFF_FROM_PRIVATE_TGT; eauto.
+        - ii.
+          destruct (id_dec id_tgt x).
+          { subst.
+            rewrite lookupAL_updateAddAL_eq in PTR. clarify.
+            eapply sublist_In in UNIQUE_PRIVATE_PARENT; eauto.
+            exploit PRIVATE_PARENT; eauto. intros [NOT_PUBLIC _].
+            exploit genericvalues_inject_simulation__GV2ptr_tgt; eauto.
+            intro VAL_INJ. destruct VAL_INJ as [v' [_ VAL_INJ]].
+            apply NOT_PUBLIC. inv VAL_INJ. unfold InvMem.Rel.public_tgt. eauto.
           }
+          { erewrite <- lookupAL_updateAddAL_neq in PTR; eauto.
+            exploit UNIQUE_PARENT_LOCAL; eauto. }
       }
-      { admit. (* unique_preserved_except id *) }
       { ss. inv STATE. inv SRC. ss.
+        apply memory_props.MemProps.updateAddAL__wf_lc; eauto.
         inv MEM.
-        admit. (* g2 is in inject and wf_sb_mi should guarantee g2 is validptr *)
+        exploit genericvalues_inject_wf_valid_ptrs_src; eauto.
       }
-      { admit. (* ditto *) }
+      { ss. inv STATE. inv TGT. ss.
+        apply memory_props.MemProps.updateAddAL__wf_lc; eauto.
+        inv MEM.
+        exploit genericvalues_inject_wf_valid_ptrs_tgt; eauto.
+      }
     - hexploit genericvalues_inject.simulation__fit_gv; eauto.
       { inv MEM. eauto. }
       i. des.
@@ -209,4 +329,63 @@ Proof.
     { unfold ForgetStackCall.t.
       apply forget_stack_Subset. }
     eapply invst_sem_eq_locals_mem; try exact STATE; eauto.
-Admitted.
+  }
+Qed.
+
+
+
+        (* Lemma unique_preserved_stack_call *)
+        (*       conf invst invmem inv *)
+        (*       st0 st1 *)
+        (*       gmax public x *)
+        (*       rgv_fit *)
+        (*       (STATE: InvState.Unary.sem conf st0 invst invmem inv) *)
+        (*       (MEM: InvMem.Unary.sem conf gmax public st0.(Mem) invmem) *)
+
+        (*                                  (* {| EC := EC st0_src; ECS := ECS st0_src; Mem := mem1_src |} (InvState.Rel.src invst2) *) *)
+        (*                                  (* (InvMem.Rel.src invmem2) (Invariant.src inv1)) *) *)
+        (*       (* (MEM: InvMem.Unary.sem conf_src (InvMem.Rel.gmax invmem2) (InvMem.Rel.public_src (InvMem.Rel.inject invmem2)) mem1_src *) *)
+        (*       (* (InvMem.Rel.src invmem2)) *) *)
+        (*       (UNIQUE_PRIVATE : unique_is_private_unary inv) *)
+        (*       (DIFF_FROM_PRIVATE: forall (p : Exprs.Tag.t * id) (gv_p : GenericValue), *)
+        (*                   Exprs.IdTSet.mem p inv.(Invariant.private) = true -> *)
+        (*                   InvState.Unary.sem_idT st0 invst p = Some gv_p -> *)
+        (*                   InvState.Unary.sem_diffblock conf gv_p rgv_fit) *)
+        (*       (ST1_LOCAL: st1.(EC).(Locals) = updateAddAL GenericValue st0.(EC).(Locals) x rgv_fit) *)
+        (*       (ST1_MEM: st1.(Mem) = st0.(Mem)) *)
+        (*   : unique_preserved_except conf inv invmem.(InvMem.Unary.unique_parent) *)
+        (*                                               st1 (union (Exprs.AtomSetImpl_from_list [x]) empty). *)
+        (* Proof. *)
+        (*   inv STATE. inv MEM. *)
+        (*   econs; eauto; ss. *)
+        (*   - i. rewrite AtomSetProperties.empty_union_2 in *; ss. *)
+        (*     apply AtomSetImpl_singleton_mem_false in NO_LEAK. *)
+        (*     exploit UNIQUE. *)
+        (*     { apply AtomSetFacts.mem_iff; eauto. } *)
+        (*     intro UNIQUE_PREV. inv UNIQUE_PREV. *)
+        (*     econs; eauto; ss. *)
+        (*     + rewrite ST1_LOCAL. *)
+        (*       rewrite <- lookupAL_updateAddAL_neq; eauto. *)
+        (*     + i. rewrite ST1_LOCAL in VAL'. *)
+        (*       destruct (id_dec reg x); cycle 1. *)
+        (*       * rewrite <- lookupAL_updateAddAL_neq in VAL'; eauto. *)
+        (*       * subst. *)
+        (*         rewrite lookupAL_updateAddAL_eq in VAL'. clarify. *)
+        (*         eapply DIFF_FROM_PRIVATE; eauto. *)
+        (*     + rewrite ST1_MEM. eauto. *)
+        (*   - ii. *)
+        (*     destruct (id_dec x0 x). *)
+        (*     { subst. rewrite ST1_LOCAL in *. *)
+        (*       rewrite lookupAL_updateAddAL_eq in PTR. clarify. *)
+        (*       eapply sublist_In in UNIQUE_PRIVATE_PARENT; eauto. *)
+        (*       exploit PRIVATE_PARENT; eauto. intros [NOT_PUBLIC _]. *)
+
+        (*       exploit genericvalues_inject.simulation__GV2ptr; eauto. *)
+        (*       intro VAL_INJ. destruct VAL_INJ as [v' [_ VAL_INJ]]. *)
+        (*       apply NOT_PUBLIC. inv VAL_INJ. congruence. *)
+        (*     } *)
+        (*     { erewrite <- lookupAL_updateAddAL_neq in PTR; eauto. *)
+        (*       exploit UNIQUE_PARENT_LOCAL; eauto. } *)
+
+          
+        (* Admitted. *)

@@ -118,6 +118,22 @@ Proof.
     i. des_ifs.
 Qed.
 
+(* TODO: position *)
+Lemma filter_map_spec
+      X Y
+      a b (f:X -> option Y) l
+      (IN: In a l)
+      (APP: f a = Some b)
+  : In b (filter_map f l).
+Proof.
+  induction l; ss.
+  des.
+  - subst. rewrite APP.
+    econs. eauto.
+  - des_ifs; eauto.
+    constructor 2. eauto.
+Qed.
+
 Lemma forget_memory_call_unary_sound
       conf st0 mem1
       gmax public0 public1
@@ -164,7 +180,40 @@ Proof.
           ss.
         }
         ss.
-    - ss. admit. (* call preserves private-unique? *)
+    - ss.
+      intros x IN_X.
+      apply AtomSetFacts.filter_iff in IN_X; try by solve_compat_bool.
+      destruct IN_X as [IN_X MEM_PRIVATE].
+
+      exploit UNIQUE; eauto. intro UNIQUE_BEFORE.
+      inv UNIQUE_BEFORE.
+      econs; eauto.
+      ss.
+      inv MEM_AFTER_CALL. i.
+      hexploit UNIQUE_PARENT_MEM; eauto. intro GV_DIFFBLOCK.
+
+      unfold InvState.Unary.sem_diffblock. des_ifs. ii. subst.
+      unfold InvMem.gv_diffblock_with_blocks in *.
+      exploit GV_DIFFBLOCK; eauto.
+
+      exploit PRIVATE.
+      { apply IdTSetFacts.mem_iff; eauto. }
+      { eauto. }
+      i. des_ifs.
+      inv MEM_LE.
+      rewrite <- UNIQUE_PARENT_EQ. ss.
+      apply in_app. left.
+      rewrite filter_In.
+      split; eauto.
+      apply existsb_exists.
+      exists b0. split.
+      + unfold memory_blocks_of.
+        eapply filter_map_spec.
+        * apply InA_iff_In.
+          apply AtomSetFacts.elements_iff.
+          eauto.
+        * des_ifs.
+      + destruct (Values.eq_block b0 b0); eauto.
     - ss.
     - ss.
       inv MEM_LE.
@@ -187,12 +236,16 @@ Proof.
     - admit. (* nextblock - easy *)
     - admit. (* nextblock - easy *)
     - i. rewrite MEM_PARENT_B; eauto.
-      admit. (* let InvMem.Unary.le guarantee eq of mem_parent: easy *)
-      (* rewrite <- MEM_PARENT. *)
-      (* { assert (HH: st0.(Mem) = invmem1.(InvMem.Unary.mem_parent)). *)
-      (*   { inv MEM_LE. *)
-      (* { inv MEM_LE. ss. *)
-    - admit. (* unique_parent *)
+      rewrite <- MEM_PARENT.
+      + inv MEM_LE. ss.
+        rewrite <- MEM_PARENT_EQ. eauto.
+      + inv MEM_LE. ss.
+        rewrite <- PRIVATE_PARENT_EQ.
+        apply in_app. right. eauto.
+    - ii. exploit UNIQUE_PARENT_MEM; eauto.
+      inv MEM_LE. ss.
+      rewrite <- UNIQUE_PARENT_EQ.
+      apply in_app. right. eauto.
   }
 Admitted.
 
