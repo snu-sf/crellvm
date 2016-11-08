@@ -51,11 +51,10 @@ Proof.
   econs; ss; apply forget_memory_call_unary_Subset.
 Qed.
 
-Lemma forget_memory_call_unique_implies_private inv x
-      (UNIQUE: AtomSetImpl.mem x (ForgetMemoryCall.unary inv).(Invariant.unique) = true)
-  : IdTSet.mem (Tag.physical, x) (ForgetMemoryCall.unary inv).(Invariant.private) = true.
+Lemma forget_memory_call_unique_implies_private inv:
+  unique_is_private_unary (ForgetMemoryCall.unary inv).
 Proof.
-  unfold ForgetMemoryCall.unary in *. ss.
+  unfold unique_is_private_unary, ForgetMemoryCall.unary in *. ss. i.
   rewrite AtomSetFacts.filter_b in UNIQUE; try by solve_compat_bool.
   des_bool. des. eauto.
 Qed.
@@ -71,7 +70,7 @@ Proof.
   ii. inv INCR. ss.
   inv MEM.
   rewrite <- MEM_PARENT0; cycle 1.
-  { rewrite <- PRIVATE_PARENT.
+  { rewrite <- PRIVATE_PARENT_EQ.
     apply in_app. eauto. }
   apply MEM_PARENT. apply in_app. eauto.
 Qed.
@@ -180,7 +179,7 @@ Proof.
     rename PRIVATE_PARENT into PRIVATE_PARENT_B.
     rename PRIVATE_DISJOINT into PRIVATE_DISJOINT_B.
     rename MEM_PARENT into MEM_PARENT_B.
-    rename UNIQUE_PARENT into UNIQUE_PARENT_B.
+    rename UNIQUE_PARENT_MEM into UNIQUE_PARENT_MEM_B.
     rename UNIQUE_PARENT_GLOBALS into UNIQUE_PARENT_GLOBALS_B.
     rename UNIQUE_PRIVATE_PARENT into UNIQUE_PRIVATE_PARENT_B.
     inv MEM_AFTER_CALL.

@@ -275,6 +275,8 @@ Proof.
 
   exploit forget_stack_call_sound; eauto.
   { inv CONF. eauto. }
+  { apply forget_memory_call_unique_implies_private. }
+  { apply forget_memory_call_unique_implies_private. }
   { rewrite MEM_INJ. eauto. }
   i. des.
 

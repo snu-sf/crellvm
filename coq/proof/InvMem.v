@@ -18,6 +18,10 @@ Require Import GenericValues.
 
 Set Implicit Arguments.
 
+Definition gv_diffblock_with_blocks conf gv blocks : Prop :=
+  forall b o
+    (GV2PTR: GV2ptr conf.(CurTargetData) (getPointerSize conf.(CurTargetData)) gv = Some (Vptr b o)),
+    ~ In b blocks.
 
 Module Unary.
   Structure t := mk {
@@ -42,26 +46,23 @@ Module Unary.
            mload_aux inv.(mem_parent) mc b o =
            mload_aux m mc b o)
 
-      (UNIQUE_PARENT:
-         forall b b' o'
-           mptr typ align val'
-           (IN: In b inv.(unique_parent))
-           (LOAD: mload conf.(CurTargetData) m mptr typ align = Some val')
-           (GV2PTR: GV2ptr conf.(CurTargetData) (getPointerSize conf.(CurTargetData)) val' = Some (Vptr b' o')),
-           b <> b')
-      (UNIQUE_PARENT_GLOBALS: forall gid b val' b' o'
-                  (IN: In b inv.(unique_parent))
-                  (VAL': lookupAL _ conf.(Globals) gid = Some val')
-                  (GV2PTR: GV2ptr conf.(CurTargetData) (getPointerSize conf.(CurTargetData)) val' = Some (Vptr b' o')),
-          b <> b')
+      (UNIQUE_PARENT_MEM:
+         forall mptr typ align val'
+           (LOAD: mload conf.(CurTargetData) m mptr typ align = Some val'),
+           gv_diffblock_with_blocks conf val' inv.(unique_parent))
+      (UNIQUE_PARENT_GLOBALS:
+         forall gid val'
+           (VAL': lookupAL _ conf.(Globals) gid = Some val'),
+           gv_diffblock_with_blocks conf val' inv.(unique_parent))
       (* TODO: sublist might be to strong. if this is the case, use other predicate *)
       (UNIQUE_PRIVATE_PARENT: sublist inv.(unique_parent) inv.(private_parent))
   .
 
   Inductive le (lhs rhs:t): Prop :=
   | le_intro
-      (PRIVATE_PARENT: lhs.(private_parent) = rhs.(private_parent))
-      (UNIQUE_PARENT: lhs.(unique_parent) = rhs.(unique_parent))
+      (MEM_PARENT_EQ: lhs.(mem_parent) = rhs.(mem_parent))
+      (PRIVATE_PARENT_EQ: lhs.(private_parent) = rhs.(private_parent))
+      (UNIQUE_PARENT_EQ: lhs.(unique_parent) = rhs.(unique_parent))
       (MEM_PARENT:
          forall b (IN: In b lhs.(private_parent))
            mc o,
@@ -75,9 +76,10 @@ Module Unary.
     ii. inv H. inv H0. econs.
     - etransitivity; eauto.
     - etransitivity; eauto.
+    - etransitivity; eauto.
     - i. etransitivity.
       + eapply MEM_PARENT. eauto.
-      + eapply MEM_PARENT0. rewrite <- PRIVATE_PARENT. ss.
+      + eapply MEM_PARENT0. rewrite <- PRIVATE_PARENT_EQ. ss.
   Qed.
 
   Definition lift (m:mem) (ul:list mblock) (inv:t): t :=

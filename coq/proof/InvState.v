@@ -291,10 +291,9 @@ Module Unary.
       (PRIVATE: IdTSet.For_all (sem_private conf st invst invmem.(InvMem.Unary.private)) inv.(Invariant.private))
       (WF_LOCAL: MemProps.wf_lc st.(Mem) st.(EC).(Locals))
       (UNIQUE_PARENT_LOCAL:
-         forall x ptr b ofs
-           (PTR:lookupAL _ st.(EC).(Locals) x = Some ptr)
-           (GV2PTR:GV2ptr conf.(CurTargetData) (getPointerSize conf.(CurTargetData)) ptr = Some (Values.Vptr b ofs)),
-           ~ In b invmem.(InvMem.Unary.unique_parent))
+         forall x ptr
+           (PTR:lookupAL _ st.(EC).(Locals) x = Some ptr),
+           InvMem.gv_diffblock_with_blocks conf ptr invmem.(InvMem.Unary.unique_parent))
   .
 
   Lemma sem_empty

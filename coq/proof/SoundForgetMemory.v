@@ -238,20 +238,24 @@ Lemma step_mem_change
       (STEP: sInsn conf st0 st1 evt)
   : exists mc,
     <<MC_SOME: mem_change_of_cmd conf cmd st0.(EC).(Locals) = Some mc>> /\
-    <<STATE_EQUIV: states_mem_change conf st0.(Mem) st1.(Mem) mc>>.
+    <<STATE_EQUIV: states_mem_change conf st0.(Mem) st1.(Mem) mc>> /\
+    <<UNIQUE_PARENT_MEM:
+      forall mptr typ align val'
+        (LOAD: mload conf.(CurTargetData) st1.(Mem) mptr typ align = Some val'),
+        InvMem.gv_diffblock_with_blocks conf val' invmem0.(InvMem.Unary.unique_parent)>>.
 Proof.
-  inv STEP; ss;
-    try (by inv CMD;
-         esplits; ss; econs; eauto);
-    try (by inv CMD;
-         esplits; ss; [des_ifs | econs]; eauto).
-  - admit. (* not malloc, easy *)
-  - inv CMD.
-    esplits; ss.
-    + des_ifs.
-    + econs; eauto.
-      inv STATE. ss.
-      eapply getOperandValue_wf_lc_valid_ptrs; eauto.
+  (* inv STEP; ss; *)
+  (*   try (by inv CMD; *)
+  (*        esplits; ss; econs; eauto); *)
+  (*   try (by inv CMD; *)
+  (*        esplits; ss; [des_ifs | econs]; eauto). *)
+  (* - admit. (* not malloc, easy *) *)
+  (* - inv CMD. *)
+  (*   esplits; ss. *)
+  (*   + des_ifs. *)
+  (*   + econs; eauto. *)
+  (*     inv STATE. ss. *)
+  (*     eapply getOperandValue_wf_lc_valid_ptrs; eauto. *)
 Admitted.
 
 Ltac exploit_inject_value :=
@@ -681,8 +685,10 @@ Lemma inject_invmem
     <<PRIVATE_PRESERVED_TGT: forall p, In p invmem0.(InvMem.Rel.tgt).(InvMem.Unary.private) ->
                                   In p invmem1.(InvMem.Rel.tgt).(InvMem.Unary.private)>>.
 Proof.
-  hexploit step_mem_change; try (inv STATE; exact SRC); eauto. intro MCS. destruct MCS as [mc_src [MC_SOME_SRC STATE_EQUIV_SRC]]. des.
-  hexploit step_mem_change; try (inv STATE; exact TGT); eauto. intro MCS. destruct MCS as [mc_tgt [MC_SOME_TGT STATE_EQUIV_TGT]]. des.
+  hexploit step_mem_change; try (inv STATE; exact SRC); eauto. intro MCS.
+  destruct MCS as [mc_src [MC_SOME_SRC [STATE_EQUIV_SRC UNIQUE_PRIVATE_SRC]]]. des.
+  hexploit step_mem_change; try (inv STATE; exact TGT); eauto. intro MCS.
+  destruct MCS as [mc_tgt [MC_SOME_TGT [STATE_EQUIV_TGT UNIQUE_PRIVATE_TGT]]]. des.
 
   exploit inject_mem_change; eauto. intro MC_INJECT.
 
@@ -755,8 +761,6 @@ Proof.
           eapply malloc_preserves_mload_aux_other_eq; eauto.
           ii. psimpl.
         }
-        { admit. (* unique-parent *)
-        }
       }
       { (* TGT *)
         inv TGT.
@@ -802,7 +806,6 @@ Proof.
           eapply malloc_preserves_mload_aux_other_eq; eauto.
           ii. psimpl.
         }
-        { admit. (* unique-parent *) }
       }
       { (* inject *)
         inv INJECT.
@@ -1179,7 +1182,6 @@ Proof.
         eapply mstore_aux_preserves_mload_aux_eq; eauto.
         ii. subst.
         exploit PRIVATE_PARENT; eauto. i. des. eauto.
-      * admit. (* unique-parent *)
     + inv TGT.
       econs; eauto.
       * eapply mstore_aux_valid_ptrs_preserves_wf_Mem; eauto.
@@ -1196,7 +1198,6 @@ Proof.
         eapply mstore_aux_preserves_mload_aux_eq; eauto.
         ii. subst.
         exploit PRIVATE_PARENT; eauto. i. des. eauto.
-      * admit. (* unique-parent *)
   - (* store - none *)
     esplits; eauto; try reflexivity; try solve_alloc_inject.
     { unfold alloc_private, alloc_private_unary. split.
@@ -1226,7 +1227,6 @@ Proof.
         hexploit PRIVATE_DISJOINT; eauto. i.
         exploit MEM_PARENT; eauto. intro MLOAD_EQ. rewrite MLOAD_EQ.
         eapply mstore_aux_preserves_mload_aux_eq; eauto.
-      * admit. (* unique-parent *)
     + (* inject *)
       inv INJECT.
       econs.
@@ -1317,7 +1317,6 @@ Proof.
         exploit free_preserves_mload_aux_eq; try exact FREE_SRC; eauto.
         exploit PRIVATE_PARENT; eauto. i. des.
         ii. subst. eauto.
-      * admit. (* unique-parent *)
     + inv TGT.
       econs; eauto.
       * (* PRIVATE *)
@@ -1333,7 +1332,6 @@ Proof.
         exploit free_preserves_mload_aux_eq; try exact FREE_TGT; eauto.
         exploit PRIVATE_PARENT; eauto. i. des.
         ii. subst. eauto.
-      * admit. (* unique-parent *)
   - (* none - none *)
     inv STATE_EQUIV_SRC. rewrite <- MEM_EQ. clear MEM_EQ.
     inv STATE_EQUIV_TGT. rewrite <- MEM_EQ. clear MEM_EQ.
@@ -1341,7 +1339,7 @@ Proof.
     unfold alloc_private, alloc_private_unary. split.
     + i. subst. ss. des_matchH MC_SOME_SRC; clarify.
     + i. subst. ss. des_matchH MC_SOME_TGT; clarify.
-Admitted.
+Qed.
 
 (* invariant *)
 
@@ -1727,6 +1725,7 @@ Proof.
         eapply mstore_register_leak_no_unique; eauto.
       + ss.
       + ss. eapply MemProps.mstore_preserves_wf_lc; eauto.
+      + eauto.
     }
     { destruct value1; ss.
       rename value2 into v_sptr.
@@ -1750,6 +1749,7 @@ Proof.
         eapply mstore_const_leak_no_unique; eauto.
       + ss.
       + ss. eapply MemProps.mstore_preserves_wf_lc; eauto.
+      + eauto.
     }
   - destruct cmd; ss; des_ifs.
     inv STATE_MC.
@@ -1820,15 +1820,17 @@ Proof.
   - inv SRC.
     inv STATE_SRC.
     econs; eauto.
-    ii. exploit PRIVATE; eauto. i.
-    des_ifs.
-    apply PRIVATE_PRESERVED_SRC. eauto.
+    + ii. exploit PRIVATE; eauto. i.
+      des_ifs.
+      apply PRIVATE_PRESERVED_SRC. eauto.
+    + rewrite <- UNIQUE_PARENT_EQ. eauto.
   - inv TGT.
     inv STATE_TGT.
     econs; eauto.
-    ii. exploit PRIVATE; eauto. i.
-    des_ifs.
-    apply PRIVATE_PRESERVED_TGT. eauto.
+    + ii. exploit PRIVATE; eauto. i.
+      des_ifs.
+      apply PRIVATE_PRESERVED_TGT. eauto.
+    + rewrite <- UNIQUE_PARENT_EQ. eauto.
   - i. hexploit STATE_MAYDIFF; eauto.
     intros SEM_INJECT.
     ii. exploit SEM_INJECT; eauto. i. des.

@@ -455,3 +455,7 @@ Definition memory_blocks_of conf lc ids : list mblock :=
                 end
              )
              (AtomSetImpl.elements ids).
+
+Definition unique_is_private_unary inv : Prop :=
+  forall x (UNIQUE: AtomSetImpl.mem x inv.(Hints.Invariant.unique) = true),
+    IdTSet.mem (Tag.physical, x) inv.(Hints.Invariant.private) = true.
