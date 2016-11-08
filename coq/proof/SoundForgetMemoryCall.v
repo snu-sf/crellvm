@@ -134,6 +134,20 @@ Proof.
     constructor 2. eauto.
 Qed.
 
+Lemma mem_lift_le_nextblock
+      conf ublks
+      gmax0 public0 mem0 invmem0
+      gmax1 public1 mem1 invmem1
+      (MEM_BEFORE_CALL : InvMem.Unary.sem conf gmax0 public0 mem0 invmem0)
+      (MEM_AFTER_CALL : InvMem.Unary.sem conf gmax1 public1 mem1 invmem1)
+      (MEM_LIFT_LE : InvMem.Unary.le (InvMem.Unary.lift mem0 ublks invmem0) invmem1)
+  : (mem0.(Memory.Mem.nextblock) <= mem1.(Memory.Mem.nextblock))%positive.
+Proof.
+  inv MEM_LIFT_LE.
+  inv MEM_BEFORE_CALL. inv MEM_AFTER_CALL.
+  rewrite NEXTBLOCK. rewrite NEXTBLOCK0. eauto.
+Qed.
+
 Lemma forget_memory_call_unary_sound
       conf st0 mem1
       gmax public0 public1
@@ -144,9 +158,21 @@ Lemma forget_memory_call_unary_sound
                                                    invmem0) invmem1)
       (MEM_BEFORE_CALL: InvMem.Unary.sem conf gmax public0 st0.(Mem) invmem0)
       (MEM_AFTER_CALL: InvMem.Unary.sem conf gmax public1 mem1 invmem1)
+      (INCR: forall b, public0 b -> public1 b)
       (STATE : InvState.Unary.sem conf st0 invst0 invmem0 inv0)
-  : <<STATE_UNARY: InvState.Unary.sem conf (mkState st0.(EC) st0.(ECS) mem1) invst0 invmem0 (ForgetMemoryCall.unary inv0)>> /\
-    <<MEM_UNARY: InvMem.Unary.sem conf gmax public1 mem1 invmem0>>.
+  : <<STATE_UNARY: InvState.Unary.sem conf (mkState st0.(EC) st0.(ECS) mem1) invst0
+                                      (InvMem.Unary.mk invmem0.(InvMem.Unary.private)
+                                                   invmem0.(InvMem.Unary.private_parent)
+                                                   invmem0.(InvMem.Unary.mem_parent)
+                                                   invmem0.(InvMem.Unary.unique_parent)
+                                                   invmem1.(InvMem.Unary.nextblock))
+                                      (ForgetMemoryCall.unary inv0)>> /\
+    <<MEM_UNARY: InvMem.Unary.sem conf gmax public1 mem1
+                                  (InvMem.Unary.mk invmem0.(InvMem.Unary.private)
+                                                   invmem0.(InvMem.Unary.private_parent)
+                                                   invmem0.(InvMem.Unary.mem_parent)
+                                                   invmem0.(InvMem.Unary.unique_parent)
+                                                   invmem1.(InvMem.Unary.nextblock))>>.
 Proof.
   hexploit private_preserved_after_call; eauto. intro PRIVATE_PRESERVED. des.
   split.
@@ -216,11 +242,14 @@ Proof.
       + destruct (Values.eq_block b0 b0); eauto.
     - ss.
     - ss.
-      inv MEM_LE.
-      admit. (* TODO: let invmem stores nextblock *)
+      ii. exploit WF_LOCAL; eauto. i.
+      eapply memory_props.MemProps.valid_ptrs__trans; eauto.
+      eapply mem_lift_le_nextblock; eauto.
     - ss.
   }
   { (* MEM *)
+    hexploit mem_lift_le_nextblock; try exact MEM_LE; eauto. intro NEXT_BLOCK.
+
     inv MEM_BEFORE_CALL.
     rename GLOBALS into GLOBALS_B.
     rename WF into WF_B.
@@ -233,8 +262,16 @@ Proof.
     rename UNIQUE_PRIVATE_PARENT into UNIQUE_PRIVATE_PARENT_B.
     inv MEM_AFTER_CALL.
     econs; eauto.
-    - admit. (* nextblock - easy *)
-    - admit. (* nextblock - easy *)
+    - ss.
+      admit.
+      (* b is private in invmem0 then it is private_parent for callee *)
+      (* then it's not in public1. *)
+      (* so we can prove *)
+    - ss.
+      admit.
+      (* b is private_parent in invmem0 then it is also private_parent for callee *)
+      (* then it's not in public1. *)
+      (* so we can prove *)
     - i. rewrite MEM_PARENT_B; eauto.
       rewrite <- MEM_PARENT.
       + inv MEM_LE. ss.
@@ -248,6 +285,28 @@ Proof.
       apply in_app. right. eauto.
   }
 Admitted.
+
+Lemma incr_public_src
+      invmem0 invmem1 b
+      (INJECT : Values.inject_incr (InvMem.Rel.inject invmem0) (InvMem.Rel.inject invmem1))
+      (PUBLIC : InvMem.Rel.public_src (InvMem.Rel.inject invmem0) b)
+  : InvMem.Rel.public_src (InvMem.Rel.inject invmem1) b.
+Proof.
+  unfold InvMem.Rel.public_src in *.
+  destruct (InvMem.Rel.inject invmem0 b) eqn:INJ_B; ss.
+  destruct p.
+  exploit INJECT; eauto. ii. congruence.
+Qed.
+
+Lemma incr_public_tgt
+      invmem0 invmem1 b
+      (INJECT : Values.inject_incr (InvMem.Rel.inject invmem0) (InvMem.Rel.inject invmem1))
+      (PUBLIC : InvMem.Rel.public_tgt (InvMem.Rel.inject invmem0) b)
+  : InvMem.Rel.public_tgt (InvMem.Rel.inject invmem1) b.
+Proof.
+  unfold InvMem.Rel.public_tgt in *. des.
+  exploit INJECT; eauto.
+Qed.
 
 Lemma forget_memory_call_sound
       conf_src st0_src id_src fun_src args_src cmds_src
@@ -288,18 +347,38 @@ Lemma forget_memory_call_sound
       <<MEM_INJ: invmem2.(InvMem.Rel.inject) = invmem1.(InvMem.Rel.inject)>>.
 Proof.
   exists (InvMem.Rel.mk
-       invmem0.(InvMem.Rel.src) invmem0.(InvMem.Rel.tgt) invmem0.(InvMem.Rel.gmax) invmem1.(InvMem.Rel.inject)).
-
+       (InvMem.Unary.mk
+          (InvMem.Unary.private invmem0.(InvMem.Rel.src))
+          (InvMem.Unary.private_parent invmem0.(InvMem.Rel.src))
+          (InvMem.Unary.mem_parent invmem0.(InvMem.Rel.src))
+          (InvMem.Unary.unique_parent invmem0.(InvMem.Rel.src))
+          (InvMem.Unary.nextblock invmem1.(InvMem.Rel.src)))
+       (InvMem.Unary.mk
+          (InvMem.Unary.private invmem0.(InvMem.Rel.tgt))
+          (InvMem.Unary.private_parent invmem0.(InvMem.Rel.tgt))
+          (InvMem.Unary.mem_parent invmem0.(InvMem.Rel.tgt))
+          (InvMem.Unary.unique_parent invmem0.(InvMem.Rel.tgt))
+          (InvMem.Unary.nextblock invmem1.(InvMem.Rel.tgt)))
+       invmem0.(InvMem.Rel.gmax) invmem1.(InvMem.Rel.inject)).
+  assert (INCR_CPY:=INCR).
   inv INCR. ss.
   rename SRC into LE_SRC. rename TGT into LE_TGT.
   inv STATE. inv MEM_BEFORE_CALL. inv MEM_AFTER_CALL.
   rewrite GMAX in *.
 
-  exploit forget_memory_call_unary_sound; try exact LE_SRC; eauto. i. des.
-  exploit forget_memory_call_unary_sound; try exact LE_TGT; eauto. i. des.
+  exploit forget_memory_call_unary_sound; try exact LE_SRC; eauto.
+  { i. eapply incr_public_src; eauto. }
+  i. des.
+  exploit forget_memory_call_unary_sound; try exact LE_TGT; eauto.
+  { i. eapply incr_public_tgt; eauto. }
+  i. des.
 
   esplits; eauto.
   - econs; ss.
+    + econs; eauto.
+      inv LE_SRC. ss.
+    + econs; eauto.
+      inv LE_TGT. ss.
   - econs; ss.
     ii. exploit MAYDIFF; eauto. i.
     erewrite sem_idT_eq_locals.

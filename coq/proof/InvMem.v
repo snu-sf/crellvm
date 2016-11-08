@@ -30,6 +30,8 @@ Module Unary.
     mem_parent: mem;
 
     unique_parent: list mblock;
+
+    nextblock: Values.block
   }.
 
   (* TODO: not sure if MEM_PARENT is correct *)
@@ -56,6 +58,7 @@ Module Unary.
            gv_diffblock_with_blocks conf val' inv.(unique_parent))
       (* TODO: sublist might be to strong. if this is the case, use other predicate *)
       (UNIQUE_PRIVATE_PARENT: sublist inv.(unique_parent) inv.(private_parent))
+      (NEXTBLOCK: m.(Mem.nextblock) = inv.(nextblock))
   .
 
   Inductive le (lhs rhs:t): Prop :=
@@ -68,10 +71,11 @@ Module Unary.
            mc o,
            mload_aux lhs.(mem_parent) mc b o =
            mload_aux rhs.(mem_parent) mc b o)
+      (NEXTBLOCK_LE: (lhs.(nextblock) <= rhs.(nextblock))%positive)
   .
 
   Global Program Instance PreOrder_le: PreOrder le.
-  Next Obligation. econs; ss. Qed.
+  Next Obligation. econs; ss. reflexivity. Qed.
   Next Obligation.
     ii. inv H. inv H0. econs.
     - etransitivity; eauto.
@@ -80,11 +84,12 @@ Module Unary.
     - i. etransitivity.
       + eapply MEM_PARENT. eauto.
       + eapply MEM_PARENT0. rewrite <- PRIVATE_PARENT_EQ. ss.
+    - etransitivity; eauto.
   Qed.
 
   Definition lift (m:mem) (ul:list mblock) (inv:t): t :=
     mk nil (inv.(private) ++ inv.(private_parent)) m
-       (filter (fun x => existsb (Values.eq_block x) ul) inv.(private) ++ inv.(unique_parent)).
+       (filter (fun x => existsb (Values.eq_block x) ul) inv.(private) ++ inv.(unique_parent)) inv.(nextblock).
 End Unary.
 
 Module Rel.
@@ -121,7 +126,7 @@ Module Rel.
   .
 
   Global Program Instance PreOrder_le: PreOrder le.
-  Next Obligation. econs; ss. Qed.
+  Next Obligation. econs; ss; reflexivity. Qed.
   Next Obligation.
     ii. inv H. inv H0. econs.
     - etransitivity; eauto.
