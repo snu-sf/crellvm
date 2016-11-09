@@ -193,10 +193,16 @@ Proof.
   exploit forget_stack_sound; eauto.
   { hexploit step_state_equiv_except; try exact CMDS_SRC; eauto. }
   { hexploit step_state_equiv_except; try exact CMDS_TGT; eauto. }
-  { eapply step_unique_preserved_except; try exact CMDS_SRC; eauto.
-    inv STATE_FORGET_MEMORY. inv SRC. eauto. }
+  { ss. eapply step_unique_preserved_except; try exact CMDS_SRC; eauto.
+    - inv STATE_FORGET_MEMORY. ss. inv SRC. ss.
+    - inv STATE. inv SRC.
+      i. hexploit UNIQUE_PARENT_LOCAL; eauto. i.
+      inv MEMLE. inv SRC. rewrite <- UNIQUE_PARENT_EQ. eauto. }
   { eapply step_unique_preserved_except; try exact CMDS_TGT; eauto.
-    inv STATE_FORGET_MEMORY. inv TGT. eauto. }
+    - inv STATE_FORGET_MEMORY. inv TGT. eauto.
+    - inv STATE. inv TGT.
+      i. hexploit UNIQUE_PARENT_LOCAL; eauto. i.
+      inv MEMLE. inv TGT. rewrite <- UNIQUE_PARENT_EQ. eauto. }
   { eapply step_wf_lc; try exact STEP_SRC; eauto.
     - inv MEM. inv SRC. eauto.
     - inv STATE. inv SRC. eauto. }

@@ -18,12 +18,20 @@ Require Import GenericValues.
 
 Set Implicit Arguments.
 
+Definition gv_diffblock_with_blocks conf gv blocks : Prop :=
+  forall b o
+    (GV2PTR: GV2ptr conf.(CurTargetData) (getPointerSize conf.(CurTargetData)) gv = Some (Vptr b o)),
+    ~ In b blocks.
 
 Module Unary.
   Structure t := mk {
     private: list mblock;
     private_parent: list mblock;
     mem_parent: mem;
+
+    unique_parent: list mblock;
+
+    nextblock: Values.block
   }.
 
   (* TODO: not sure if MEM_PARENT is correct *)
@@ -33,36 +41,55 @@ Module Unary.
       (WF: MemProps.wf_Mem gmax conf.(CurTargetData) m)
       (PRIVATE: forall b (IN: In b inv.(private)), ~ public b /\ (b < m.(Mem.nextblock))%positive)
       (PRIVATE_PARENT: forall b (IN: In b inv.(private_parent)), ~ public b /\ (b < m.(Mem.nextblock))%positive)
-      (DISJOINT: list_disjoint inv.(private) inv.(private_parent))
+      (PRIVATE_DISJOINT: list_disjoint inv.(private) inv.(private_parent))
       (MEM_PARENT:
          forall b (IN: In b inv.(private_parent))
            mc o,
            mload_aux inv.(mem_parent) mc b o =
            mload_aux m mc b o)
+
+      (UNIQUE_PARENT_MEM:
+         forall mptr typ align val'
+           (LOAD: mload conf.(CurTargetData) m mptr typ align = Some val'),
+           gv_diffblock_with_blocks conf val' inv.(unique_parent))
+      (UNIQUE_PARENT_GLOBALS:
+         forall gid val'
+           (VAL': lookupAL _ conf.(Globals) gid = Some val'),
+           gv_diffblock_with_blocks conf val' inv.(unique_parent))
+
+      (UNIQUE_PRIVATE_PARENT: sublist inv.(unique_parent) inv.(private_parent))
+      (NEXTBLOCK: m.(Mem.nextblock) = inv.(nextblock))
   .
 
   Inductive le (lhs rhs:t): Prop :=
   | le_intro
-      (PRIVATE_PARENT: lhs.(private_parent) = rhs.(private_parent))
+      (MEM_PARENT_EQ: lhs.(mem_parent) = rhs.(mem_parent))
+      (PRIVATE_PARENT_EQ: lhs.(private_parent) = rhs.(private_parent))
+      (UNIQUE_PARENT_EQ: lhs.(unique_parent) = rhs.(unique_parent))
       (MEM_PARENT:
          forall b (IN: In b lhs.(private_parent))
            mc o,
            mload_aux lhs.(mem_parent) mc b o =
            mload_aux rhs.(mem_parent) mc b o)
+      (NEXTBLOCK_LE: (lhs.(nextblock) <= rhs.(nextblock))%positive)
   .
 
   Global Program Instance PreOrder_le: PreOrder le.
-  Next Obligation. econs; ss. Qed.
+  Next Obligation. econs; ss. reflexivity. Qed.
   Next Obligation.
     ii. inv H. inv H0. econs.
     - etransitivity; eauto.
+    - etransitivity; eauto.
+    - etransitivity; eauto.
     - i. etransitivity.
       + eapply MEM_PARENT. eauto.
-      + eapply MEM_PARENT0. rewrite <- PRIVATE_PARENT. ss.
+      + eapply MEM_PARENT0. rewrite <- PRIVATE_PARENT_EQ. ss.
+    - etransitivity; eauto.
   Qed.
 
-  Definition lift (m:mem) (inv:t): t :=
-    mk nil (inv.(private) ++ inv.(private_parent)) m.
+  Definition lift (m:mem) (ul:list mblock) (inv:t): t :=
+    mk nil (inv.(private) ++ inv.(private_parent)) m
+       (filter (fun x => existsb (Values.eq_block x) ul) inv.(private) ++ inv.(unique_parent)) inv.(nextblock).
 End Unary.
 
 Module Rel.
@@ -99,7 +126,7 @@ Module Rel.
   .
 
   Global Program Instance PreOrder_le: PreOrder le.
-  Next Obligation. econs; ss. Qed.
+  Next Obligation. econs; ss; reflexivity. Qed.
   Next Obligation.
     ii. inv H. inv H0. econs.
     - etransitivity; eauto.
@@ -108,9 +135,9 @@ Module Rel.
     - eapply inject_incr_trans; eauto.
   Qed.
 
-  Definition lift (m_src m_tgt:mem) (inv:t): t :=
-    mk (Unary.lift m_src inv.(src))
-       (Unary.lift m_tgt inv.(tgt))
+  Definition lift (m_src m_tgt:mem) (uniqs_src uniqs_tgt:list mblock) (inv:t): t :=
+    mk (Unary.lift m_src uniqs_src inv.(src))
+       (Unary.lift m_tgt uniqs_tgt inv.(tgt))
        inv.(gmax)
        inv.(inject).
 

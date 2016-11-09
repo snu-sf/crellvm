@@ -440,4 +440,24 @@ Proof.
   - ii. exploit PRIVATE; eauto.
     erewrite sem_idT_eq_locals; eauto.
   - rewrite <- LOCALS_EQ. rewrite <- MEM_EQ. eauto.
+  - rewrite <- MEM_EQ. eauto.
+  - rewrite <- MEM_EQ. eauto.
+  - rewrite <- LOCALS_EQ. eauto.
 Qed.
+
+Definition memory_blocks_of conf lc ids : list mblock :=
+  filter_map (fun x =>
+                match lookupAL _ lc x with
+                | Some ptr =>
+                  match GV2ptr conf.(CurTargetData) (getPointerSize conf.(CurTargetData)) ptr with
+                  | Some (Values.Vptr b ofs) => Some b
+                  | _ => None
+                  end
+                | _ => None
+                end
+             )
+             (AtomSetImpl.elements ids).
+
+Definition unique_is_private_unary inv : Prop :=
+  forall x (UNIQUE: AtomSetImpl.mem x inv.(Hints.Invariant.unique) = true),
+    IdTSet.mem (Tag.physical, x) inv.(Hints.Invariant.private) = true.
