@@ -290,6 +290,8 @@ Module Unary.
       (UNIQUE: AtomSetImpl.For_all (sem_unique conf st) inv.(Invariant.unique))
       (PRIVATE: IdTSet.For_all (sem_private conf st invst invmem.(InvMem.Unary.private)) inv.(Invariant.private))
       (WF_LOCAL: MemProps.wf_lc st.(Mem) st.(EC).(Locals))
+      (WF_PREVIOUS: MemProps.wf_lc st.(Mem) invst.(previous))
+      (WF_GHOST: MemProps.wf_lc st.(Mem) invst.(ghost))
       (UNIQUE_PARENT_LOCAL:
          forall x ptr
            (PTR:lookupAL _ st.(EC).(Locals) x = Some ptr),

@@ -148,6 +148,24 @@ Proof.
   rewrite NEXTBLOCK. rewrite NEXTBLOCK0. eauto.
 Qed.
 
+Lemma mem_le_wf_lc
+      conf st gmax uniqs
+      public0 mem0 invmem0
+      public1 mem1 invmem1
+      (MEM_LE : InvMem.Unary.le (InvMem.Unary.lift mem0 uniqs invmem0) invmem1)
+      (WF_LOCAL : memory_props.MemProps.wf_lc mem0 st)
+      (MEM_BEFORE_CALL : InvMem.Unary.sem conf gmax public0 mem0 invmem0)
+      (MEM_AFTER_CALL : InvMem.Unary.sem conf gmax public1 mem1 invmem1)
+  : memory_props.MemProps.wf_lc mem1 st.
+Proof.
+  unfold memory_props.MemProps.wf_lc in *. i.
+  exploit WF_LOCAL; eauto. i.
+  eapply memory_props.MemProps.valid_ptrs__trans; eauto.
+  inv MEM_LE. ss.
+  inv MEM_BEFORE_CALL. inv MEM_AFTER_CALL.
+  congruence.
+Qed.
+
 Lemma forget_memory_call_unary_sound
       conf st0 mem1
       gmax public0 public1
@@ -245,6 +263,8 @@ Proof.
       ii. exploit WF_LOCAL; eauto. i.
       eapply memory_props.MemProps.valid_ptrs__trans; eauto.
       eapply mem_lift_le_nextblock; eauto.
+    - ss. eapply mem_le_wf_lc; eauto.
+    - ss. eapply mem_le_wf_lc; eauto.
     - ss.
   }
   { (* MEM *)

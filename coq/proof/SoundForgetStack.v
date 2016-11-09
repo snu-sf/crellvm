@@ -338,6 +338,8 @@ Proof.
     { rewrite <- lift_physical_atoms_idtset_spec1. eauto. }
     i. des.
     exploit PRIVATE; eauto.
+  - inv EQUIV. rewrite <- MEM. eauto.
+  - inv EQUIV. rewrite <- MEM. eauto.
   - inv UNIQUE_PRESERVED. eauto.
 Qed.
 

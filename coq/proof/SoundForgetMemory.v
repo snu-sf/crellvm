@@ -218,15 +218,16 @@ Definition alloc_inject conf_src conf_tgt st0_src st0_tgt
     invmem1.(InvMem.Rel.inject) st0_src.(Mem).(Memory.Mem.nextblock) =
     Some (st0_tgt.(Mem).(Memory.Mem.nextblock), 0).
 
-Lemma getOperandValue_wf_lc_valid_ptrs
-      TD lc gl
-      mem v gv
-      (VAL : getOperandValue TD v lc gl = Some gv)
-      (WF_LOCAL : MemProps.wf_lc mem lc)
-  : MemProps.valid_ptrs mem.(Memory.Mem.nextblock) gv.
-Proof.
-(* hope MemProps.operand__lt_nextblock helps *)
-Admitted.
+(* Lemma getOperandValue_wf_lc_valid_ptrs *)
+(*       TD lc gl *)
+(*       mem v gv *)
+(*       (VAL : getOperandValue TD v lc gl = Some gv) *)
+(*       (WF_LOCAL : MemProps.wf_lc mem lc) *)
+(*   : MemProps.valid_ptrs mem.(Memory.Mem.nextblock) gv. *)
+(* Proof. *)
+(*   apply WF_LOCAL in VAL. *)
+(* (* hope MemProps.operand__lt_nextblock helps *) *)
+(* Admitted. *)
 
 Lemma step_mem_change
       st0 st1 invst0 invmem0 inv0
@@ -1642,16 +1643,30 @@ Proof.
       eapply malloc_preserves_mload_other_eq; eauto.
       ii. subst.
       inv STATE.
-
-      
-      
-      (* destruct v. *)
-      (* * ss. *)
-      (*   inv STATE. *)
-
-      (* exploit  *)
-      
-      admit. (* should know that (sem_valueT v) returns valid_ptr from wf conditions *)
+      clear PAIR.
+      exploit malloc_result; eauto. i. des. subst.
+      destruct v.
+      { (* id case *)
+        destruct x as [[] x].
+        - (* physical *)
+          ss. unfold InvState.Unary.sem_idT in *. ss.
+          exploit WF_LOCAL; eauto. i.
+          exploit MemProps.GV2ptr_preserves_valid_ptrs; eauto. i.
+          ss. des. psimpl.
+        - (* previous *)
+          ss. unfold InvState.Unary.sem_idT in *. ss.
+          exploit WF_PREVIOUS; eauto. i.
+          exploit MemProps.GV2ptr_preserves_valid_ptrs; eauto. i.
+          ss. des. psimpl.
+        - (* ghost *)
+          ss. unfold InvState.Unary.sem_idT in *. ss.
+          exploit WF_GHOST; eauto. i.
+          exploit MemProps.GV2ptr_preserves_valid_ptrs; eauto. i.
+          ss. des. psimpl.
+      }
+      { (* const case : need wf_const *)
+        admit. (* c is evaluated into a global pointer, and GV2ptr cannot be mb *)
+      }
   - (* store *)
     destruct cmd; ss; des_ifs.
     inv STATE_EQUIV.
@@ -1765,6 +1780,8 @@ Proof.
           - left. reflexivity.
           - inversion 1. }
     + ss. eapply MemProps.malloc_preserves_wf_lc_in_tail; eauto.
+    + ss. eapply MemProps.malloc_preserves_wf_lc_in_tail; eauto.
+    + ss. eapply MemProps.malloc_preserves_wf_lc_in_tail; eauto.
   - (* store *)
     destruct cmd; ss; des_ifs.
     { (* id *)
@@ -1791,6 +1808,8 @@ Proof.
         eapply mstore_register_leak_no_unique; eauto.
       + ss.
       + ss. eapply MemProps.mstore_preserves_wf_lc; eauto.
+      + ss. eapply MemProps.mstore_preserves_wf_lc; eauto.
+      + ss. eapply MemProps.mstore_preserves_wf_lc; eauto.
       + eauto.
     }
     { destruct value1; ss.
@@ -1815,6 +1834,8 @@ Proof.
         eapply mstore_const_leak_no_unique; eauto.
       + ss.
       + ss. eapply MemProps.mstore_preserves_wf_lc; eauto.
+      + ss. eapply MemProps.mstore_preserves_wf_lc; eauto.
+      + ss. eapply MemProps.mstore_preserves_wf_lc; eauto.
       + eauto.
     }
   - destruct cmd; ss; des_ifs.
@@ -1838,6 +1859,8 @@ Proof.
       i. exploit MEM; eauto.
       ss.
       eapply MemProps.free_preserves_mload_inv; eauto.
+    + ss. eapply MemProps.free_preserves_wf_lc; eauto.
+    + ss. eapply MemProps.free_preserves_wf_lc; eauto.
     + ss. eapply MemProps.free_preserves_wf_lc; eauto.
 Qed.
 

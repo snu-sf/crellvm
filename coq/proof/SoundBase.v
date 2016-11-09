@@ -440,6 +440,8 @@ Proof.
   - ii. exploit PRIVATE; eauto.
     erewrite sem_idT_eq_locals; eauto.
   - rewrite <- LOCALS_EQ. rewrite <- MEM_EQ. eauto.
+  - rewrite <- MEM_EQ. eauto.
+  - rewrite <- MEM_EQ. eauto.
   - rewrite <- LOCALS_EQ. eauto.
 Qed.
 
