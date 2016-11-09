@@ -16,6 +16,7 @@ Import Opsem.
 
 Require Import TODO.
 Require Import Exprs.
+Require Import Postcond.
 Require Import Hints.
 Require Import Validator.
 Require Import GenericValues.
@@ -253,11 +254,10 @@ Proof.
   destruct (in_dec id_dec id0 (List.map getPhiNodeID phinodes)).
   - exploit phinodes_progress_getPhiNodeID_safe; eauto. i. des.
     contradict NOT_MEM. unfold not.
-    admit.
-    (* apply eq_true_false_abs, AtomSetImpl_from_list_spec, In_map. eauto. *)
+    apply eq_true_false_abs, AtomSetImpl_from_list_spec. eauto.
   - hexploit opsem_props.OpsemProps.getIncomingValuesForBlockFromPHINodes_spec8; eauto. i.
     exploit notin_lookupAL_None; eauto.
-Admitted.
+Qed.
 
 Lemma IdTSet_from_list_spec':
   forall ids id0, IdTSet.mem id0 (IdTSet_from_list ids) = false <-> ~ In id0 ids.
@@ -267,6 +267,74 @@ Proof.
   - apply not_true_iff_false. ii.
     apply IdTSet_from_list_spec in H0. eauto.
 Qed.
+
+Lemma phinodes_unique_preserved_except
+      conf st0 inv0 invmem invst
+      l_to phinodes cmds terminator locals l0
+      gmax public
+      (STATE : InvState.Unary.sem conf st0 invst invmem inv0)
+      (MEM : InvMem.Unary.sem conf gmax public st0.(Mem) invmem)
+      (RESOLVE : forallb_map (Phinode.resolve (fst (CurBB (EC st0)))) phinodes = Some l0)
+      (UNIQUE_ID : unique id_dec (List.map Phinode.get_def l0) = true)
+      (STEP : switchToNewBasicBlock (CurTargetData conf) (l_to, stmts_intro phinodes cmds terminator)
+                                    (CurBB (EC st0)) (Globals conf) (Locals (EC st0)) = Some locals)
+
+  : unique_preserved_except conf inv0 invmem.(InvMem.Unary.unique_parent)
+                                               (mkState (mkEC
+                                                           st0.(EC).(CurFunction)
+                                                                      (l_to, stmts_intro phinodes cmds terminator)
+                                                                      cmds
+                                                                      terminator
+                                                                      locals
+                                                                      st0.(EC).(Allocas))
+                                                        st0.(ECS) st0.(Mem))
+                                               (AtomSetImpl.union (AtomSetImpl_from_list (List.map Phinode.get_def l0))
+                                                                  (AtomSetImpl_from_list (filter_map Phinode.get_use l0))).
+Proof.
+  econs; ss.
+  - i.
+    rewrite <- AtomSetFacts.not_mem_iff in *.
+    hexploit notin_union_1; eauto. intro NOT_IN_DEF.
+    hexploit notin_union_2; eauto. intro NOT_IN_USE.
+    rewrite AtomSetImpl_from_list_spec2 in *.
+
+    inv STATE.
+    rewrite <- AtomSetFacts.mem_iff in *.
+    exploit UNIQUE; eauto. intro UNIQUE_U.
+
+    unfold switchToNewBasicBlock in STEP. des_ifs.
+    inv UNIQUE_U.
+    econs; eauto; ss.
+    + rewrite opsem_props.OpsemProps.updateValuesForNewBlock_spec7'; eauto.
+      eapply opsem_props.OpsemProps.getIncomingValuesForBlockFromPHINodes_spec8; eauto.
+      ss. ii.
+      exploit phinodes_progress_getPhiNodeID_safe; eauto.
+    + i.
+      destruct (AtomSetImpl.mem reg (dom l1)) eqn:REG_MEM.
+      { rewrite <- AtomSetFacts.mem_iff in REG_MEM.
+        hexploit indom_lookupAL_Some; eauto. i. des.
+        exploit opsem_props.OpsemProps.getIncomingValuesForBlockFromPHINodes_spec9'; eauto.
+        i. des.
+        rewrite opsem_props.OpsemProps.updateValuesForNewBlock_spec6' in *; eauto. clarify.
+        destruct v as [y|].
+        - ss. eapply LOCALS; [| eauto].
+          ii. subst.
+          apply NOT_IN_USE.
+          admit. (* RESEOLVE should prove this *)
+        - admit. (* const to wf_const *)
+          (* memory_props.MemProps.const2GV_valid_ptrs says that valid_ptrs maxb +1 *)
+          (* For this lemma we need wf_globals *)
+          (* TODO: how can we derive (ptr < maxb + 1) is diffblock with unique?  *)
+          (* global values are diffblock with unique, but not sure if this helps. *)
+      }
+      { rewrite <- AtomSetFacts.not_mem_iff in REG_MEM.
+        rewrite opsem_props.OpsemProps.updateValuesForNewBlock_spec7' in VAL'; eauto.
+      }
+  - inv STATE.
+    admit. (* if x is unchanged, simpl. if x is changed, original values was also in st0. *)
+  - inv MEM. eauto.
+  - inv MEM. eauto.
+Admitted.
 
 Lemma postcond_phinodes_sound
       m_src conf_src st0_src phinodes_src cmds_src terminator_src locals_src
@@ -336,8 +404,13 @@ Proof.
     eapply locals_equiv_after_phinode; eauto.
     rewrite L_TGT. eauto.
   }
-  { admit. (* unique_preserved *)}
-  { admit. (* unique_preserved *)}
+  { inv STATE_SNAPSHOT. inv MEM.
+    eapply phinodes_unique_preserved_except; eauto.
+  }
+  { inv STATE_SNAPSHOT. inv MEM.
+    eapply phinodes_unique_preserved_except; eauto.
+    rewrite L_TGT. eauto.
+  }
   { inv STATE. inv SRC. ss. admit. (* wf_lc *) }
   { inv STATE. inv TGT. ss. admit. (* wf_lc *) }
   intros STATE_FORGET. des.

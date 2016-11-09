@@ -78,9 +78,7 @@ Qed.
 Lemma sem_expr_private_preserved
       conf st0 invst0 invmem0 inv0 invmem1 mem1 uniqs
       e e1 e2
-      (* gmax public *)
       (STATE : InvState.Unary.sem conf st0 invst0 invmem0 inv0)
-      (* (MEM : InvMem.Unary.sem conf gmax public mem1 invmem1) *)
       (IN_PRIVATE: ExprPairSet.In (e1, e2)
                                   (ExprPairSet.filter
                                      (ForgetMemoryCall.is_private_ExprPair inv0)

@@ -56,7 +56,7 @@ Module Unary.
          forall gid val'
            (VAL': lookupAL _ conf.(Globals) gid = Some val'),
            gv_diffblock_with_blocks conf val' inv.(unique_parent))
-      (* TODO: sublist might be to strong. if this is the case, use other predicate *)
+
       (UNIQUE_PRIVATE_PARENT: sublist inv.(unique_parent) inv.(private_parent))
       (NEXTBLOCK: m.(Mem.nextblock) = inv.(nextblock))
   .

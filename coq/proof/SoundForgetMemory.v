@@ -1597,7 +1597,6 @@ Lemma forget_memory_is_noalias_exprpair
       v_forget ty_forget gv_forget
       (STATE : InvState.Unary.sem conf (mkState st1.(EC) st1.(ECS) mem0) invst0 invmem0 inv1)
       (PAIR : p = (Expr.load vt_inv ty_inv a, e2) \/ p = (e2, Expr.load vt_inv ty_inv a))
-      (* (FORGET_MEMORY_IN : ExprPairSet.In p (Invariant.lessdef inv1)) *)
       (FORGET_MEMORY_NOALIAS : ForgetMemory.is_noalias_ExprPair inv1 (ValueT.lift Tag.physical v_forget, ty_forget) p = true)
       (FORGET_PTR: getOperandValue (CurTargetData conf) v_forget (Locals (EC st1)) (Globals conf) = Some gv_forget)
       (INV_PTR: InvState.Unary.sem_valueT conf st1 invst0 vt_inv = Some gv_inv)
@@ -1609,11 +1608,8 @@ Proof.
 Qed.
 
 Lemma exprpair_forget_memory_disjoint
-      conf st0 mem1 invst0 invmem0 inv1
-      (* gmax public *)
-      cmd mc
+      conf st0 mem1 invst0 invmem0 inv1 cmd mc
       (STATE: InvState.Unary.sem conf st0 invst0 invmem0 inv1)
-      (* (MEM: InvMem.Unary.sem conf gmax public st0.(Mem) invmem0) *)
       (MC_SOME : mem_change_of_cmd conf cmd st0.(EC).(Locals) = Some mc)
       (STATE_EQUIV : states_mem_change conf st0.(Mem) mem1 mc)
   : <<SEM_EXPR_EQ: forall p e1 e2
@@ -1734,9 +1730,7 @@ Qed.
 Lemma forget_memory_sem_unary
       conf st0 mem1 mc cmd
       inv1 invst0 invmem0
-      (* gmax public *)
       (STATE: InvState.Unary.sem conf st0 invst0 invmem0 inv1)
-      (* (MEM_UNARY: InvMem.Unary.sem conf gmax public st0.(Mem) invmem0) *)
       (MC_SOME : mem_change_of_cmd conf cmd st0.(EC).(Locals) = Some mc)
       (STATE_MC : states_mem_change conf st0.(Mem) mem1 mc)
   : InvState.Unary.sem conf (mkState st0.(EC) st0.(ECS) mem1) invst0 invmem0
@@ -1869,7 +1863,6 @@ Lemma forget_memory_sem
       conf_tgt st0_tgt mem1_tgt mc_tgt cmd_tgt
       inv0 invst0 invmem0
       (STATE : InvState.Rel.sem conf_src conf_tgt st0_src st0_tgt invst0 invmem0 inv0)
-      (* (MEM: InvMem.Rel.sem conf_src conf_tgt st0_src.(Mem) st0_tgt.(Mem) invmem0) *)
       (MC_SOME_SRC : mem_change_of_cmd conf_src cmd_src st0_src.(EC).(Locals) = Some mc_src)
       (MC_SOME_TGT : mem_change_of_cmd conf_tgt cmd_tgt st0_tgt.(EC).(Locals) = Some mc_tgt)
       (STATE_MC_SRC : states_mem_change conf_src st0_src.(Mem) mem1_src mc_src)
@@ -1927,29 +1920,6 @@ Proof.
     esplits; eauto.
     eapply genericvalues_inject.gv_inject_incr; eauto.
 Qed.
-
-(* Lemma inv_mem_sem_monotone_wrt_invmem *)
-(*       invmem0 invmem1 *)
-(*       conf_src mem_src *)
-(*       conf_tgt mem_tgt *)
-(*       (MEM_LE:InvMem.Rel.le invmem0 invmem1) *)
-(*       (PRIVATE_PRESERVED_SRC: forall p, In p invmem0.(InvMem.Rel.src).(InvMem.Unary.private) -> *)
-(*                                    In p invmem1.(InvMem.Rel.src).(InvMem.Unary.private)) *)
-(*       (PRIVATE_PRESERVED_TGT: forall p, In p invmem0.(InvMem.Rel.tgt).(InvMem.Unary.private) -> *)
-(*                                    In p invmem1.(InvMem.Rel.tgt).(InvMem.Unary.private)) *)
-(*       (MEM:InvMem.Rel.sem conf_src conf_tgt mem_src mem_tgt invmem0) *)
-(*   : InvMem.Rel.sem conf_src conf_tgt mem_src mem_tgt invmem1. *)
-(* Proof. *)
-(*   inv MEM. *)
-(*   inv MEM_LE. *)
-(*   rename SRC0 into LE_SRC. rename TGT0 into LE_TGT. rename INJECT0 into LE_INJECT. *)
-(*   econs. *)
-(*   - inv SRC. *)
-(*     inv LE_SRC. *)
-(*     econs. *)
-
-  
-(* Admitted. *)
 
 Lemma forget_memory_sound
       m_src conf_src st0_src st1_src cmd_src cmds_src evt_src
