@@ -262,16 +262,22 @@ Proof.
     rename UNIQUE_PRIVATE_PARENT into UNIQUE_PRIVATE_PARENT_B.
     inv MEM_AFTER_CALL.
     econs; eauto.
-    - ss.
-      admit.
-      (* b is private in invmem0 then it is private_parent for callee *)
-      (* then it's not in public1. *)
-      (* so we can prove *)
-    - ss.
-      admit.
-      (* b is private_parent in invmem0 then it is also private_parent for callee *)
-      (* then it's not in public1. *)
-      (* so we can prove *)
+    - ss. i. split.
+      + exploit PRIVATE_PARENT; eauto; cycle 1.
+        { i.  des. eauto. }
+        inv MEM_LE. ss.
+        rewrite <- PRIVATE_PARENT_EQ.
+        apply in_app. left. eauto.
+      + exploit PRIVATE_B; eauto. i. des.
+        eapply Pos.lt_le_trans; eauto.
+    - ss. i. split.
+      + exploit PRIVATE_PARENT; eauto; cycle 1.
+        { i.  des. eauto. }
+        inv MEM_LE. ss.
+        rewrite <- PRIVATE_PARENT_EQ.
+        apply in_app. right. eauto.
+      + exploit PRIVATE_PARENT_B; eauto. i. des.
+        eapply Pos.lt_le_trans; eauto.
     - i. rewrite MEM_PARENT_B; eauto.
       rewrite <- MEM_PARENT.
       + inv MEM_LE. ss.
@@ -284,7 +290,7 @@ Proof.
       rewrite <- UNIQUE_PARENT_EQ.
       apply in_app. right. eauto.
   }
-Admitted.
+Qed.
 
 Lemma incr_public_src
       invmem0 invmem1 b
