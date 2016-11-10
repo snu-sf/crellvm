@@ -22,6 +22,7 @@ Require Import Validator.
 Require Import GenericValues.
 Require InvMem.
 Require InvState.
+Require Import TODOProof.
 Require Import Inject.
 Require Import SoundBase.
 
@@ -114,22 +115,6 @@ Proof.
     exploit PRIVATE; eauto.
     { apply IdTSetFacts.mem_iff. eauto. }
     i. des_ifs.
-Qed.
-
-(* TODO: position *)
-Lemma filter_map_spec
-      X Y
-      a b (f:X -> option Y) l
-      (IN: In a l)
-      (APP: f a = Some b)
-  : In b (filter_map f l).
-Proof.
-  induction l; ss.
-  des.
-  - subst. rewrite APP.
-    econs. eauto.
-  - des_ifs; eauto.
-    constructor 2. eauto.
 Qed.
 
 Lemma mem_lift_le_nextblock

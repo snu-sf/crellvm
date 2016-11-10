@@ -28,6 +28,7 @@ Require Import SoundSnapshot.
 Require Import SoundForgetStack.
 Require Import SoundReduceMaydiff.
 Require Import SoundImplies.
+Require Import TODOProof.
 
 Set Implicit Arguments.
 
@@ -268,6 +269,67 @@ Proof.
     apply IdTSet_from_list_spec in H0. eauto.
 Qed.
 
+Lemma lookupAL_reverse_aux
+      X lbl l v
+      (IN_REV: lookupAL X (List.map (fun x => (snd x, fst x)) l) lbl = Some v)
+  : In (v, lbl) l.
+Proof.
+  revert IN_REV.
+  induction l; ss.
+  des_ifs.
+  - i. clarify. left. destruct a; eauto.
+  - i. right. eauto.
+Qed.
+
+Lemma resolve_eq_getValueViaLabelFromValuels
+      l_from phinodes passigns
+      p ty vls v
+      (RESOLVE : forallb_map (Phinode.resolve l_from) phinodes = Some passigns)
+      (UNIQUE_ID : unique id_dec (List.map Phinode.get_def passigns) = true)
+      (IN_PHIS: In (insn_phi p ty vls) phinodes)
+      (GET_VALUE: getValueViaLabelFromValuels vls l_from = Some v)
+  : In (Phinode.assign_intro p ty v) passigns.
+Proof.
+  revert dependent passigns.
+  revert IN_PHIS.
+  induction phinodes; ss; i.
+  des_ifs. des.
+  - subst. ss. des_ifs.
+    assert (XX: v = v0).
+    { clear -GET_VALUE Heq1.
+      induction vls; ss.
+      des_ifs. exploit IHvls; eauto.
+    }
+    subst. eauto.
+  - exploit IHphinodes; eauto.
+    + ss. des_bool. des. eauto.
+    + i. ss. right. eauto.
+Qed.
+
+(* Lemma Phinode_get_use_spec *)
+(*       l_from phinodes passign passigns x *)
+(*       (RESOLVE : forallb_map (Phinode.resolve l_from) phinodes = Some passigns) *)
+(*       (IN: In passign passigns) *)
+(*       (GET_USE: Phinode.get_use passign = Some x) *)
+(*   : exists p ty vls, *)
+(*     <<IN_PHI: In (insn_phi p ty vls) phinodes>> /\ *)
+(*               <<IN_PHI_USE: In (value_id x, l_from) vls>>. *)
+(* Proof. *)
+(*   revert dependent passigns. *)
+(*   induction phinodes. *)
+(*   - ss. i. inv RESOLVE. inv IN. *)
+(*   - i. ss. des_ifs. *)
+(*     inv IN. *)
+(*     + destruct a. *)
+(*       ss. des_ifs. *)
+(*       esplits; eauto. *)
+(*       unfold Phinode.get_use in *. des_ifs. *)
+(*       unfold Phinode.get_rhs in *. subst.       *)
+(*       apply lookupAL_reverse_aux. eauto. *)
+(*     + exploit IHphinodes; eauto. i. des. *)
+(*       esplits; eauto. *)
+(* Qed. *)
+
 Lemma phinodes_unique_preserved_except
       conf st0 inv0 invmem invst
       l_to phinodes cmds terminator locals l0
@@ -278,7 +340,6 @@ Lemma phinodes_unique_preserved_except
       (UNIQUE_ID : unique id_dec (List.map Phinode.get_def l0) = true)
       (STEP : switchToNewBasicBlock (CurTargetData conf) (l_to, stmts_intro phinodes cmds terminator)
                                     (CurBB (EC st0)) (Globals conf) (Locals (EC st0)) = Some locals)
-
   : unique_preserved_except conf inv0 invmem.(InvMem.Unary.unique_parent)
                                                (mkState (mkEC
                                                            st0.(EC).(CurFunction)
@@ -315,12 +376,14 @@ Proof.
         hexploit indom_lookupAL_Some; eauto. i. des.
         exploit opsem_props.OpsemProps.getIncomingValuesForBlockFromPHINodes_spec9'; eauto.
         i. des.
+
+        exploit resolve_eq_getValueViaLabelFromValuels; eauto. intro IN_PASSIGNS.
         rewrite opsem_props.OpsemProps.updateValuesForNewBlock_spec6' in *; eauto. clarify.
         destruct v as [y|].
         - ss. eapply LOCALS; [| eauto].
           ii. subst.
-          apply NOT_IN_USE.
-          admit. (* RESEOLVE should prove this *)
+          apply NOT_IN_USE. clarify.
+          eapply filter_map_spec; eauto.
         - admit. (* const to wf_const *)
           (* memory_props.MemProps.const2GV_valid_ptrs says that valid_ptrs maxb +1 *)
           (* For this lemma we need wf_globals *)
@@ -331,9 +394,52 @@ Proof.
         rewrite opsem_props.OpsemProps.updateValuesForNewBlock_spec7' in VAL'; eauto.
       }
   - inv STATE.
-    admit. (* if x is unchanged, simpl. if x is changed, original values was also in st0. *)
+    i. unfold switchToNewBasicBlock in *.
+    des_ifs.
+    destruct (AtomSetImpl.mem x (dom l1)) eqn:REG_MEM.
+    { rewrite <- AtomSetFacts.mem_iff in REG_MEM.
+      hexploit indom_lookupAL_Some; eauto. i. des.
+      exploit opsem_props.OpsemProps.getIncomingValuesForBlockFromPHINodes_spec9'; eauto. i. des.
+      ss.
+
+      
+      exploit phinode_assign_sound; eauto.
+      { eapply resolve_eq_getValueViaLabelFromValuels; eauto. }
+      i. des.
+      apply opsem_props.OpsemProps.updateValuesForNewBlock_spec4 with (lc:=st0.(EC).(Locals)) in VAL_X.
+      clarify.
+      destruct v as [y|]; ss.
+      - eapply UNIQUE_PARENT_LOCAL; eauto.
+      - inv MEM.
+        admit. (* unique < gmax *)
+    }
+    { rewrite <- AtomSetFacts.not_mem_iff in REG_MEM.
+      rewrite opsem_props.OpsemProps.updateValuesForNewBlock_spec7' in PTR; eauto.
+    }
   - inv MEM. eauto.
   - inv MEM. eauto.
+Admitted.
+
+Lemma switchToNewBasicBlock_wf
+      conf mem locals locals'
+      l_from l_to stmts
+      (WF_LOCAL : memory_props.MemProps.wf_lc mem locals)
+      (STEP: switchToNewBasicBlock (CurTargetData conf) (l_to, stmts)
+                                   l_from (Globals conf) locals = Some locals')
+  : memory_props.MemProps.wf_lc mem locals'.
+Proof.
+  unfold switchToNewBasicBlock in *. des_ifs.
+  intros x gvx Hx.
+  destruct (AtomSetImpl.mem x (dom l0)) eqn:REG_MEM.
+  { rewrite <- AtomSetFacts.mem_iff in REG_MEM.
+    hexploit indom_lookupAL_Some; eauto. i. des.
+    exploit opsem_props.OpsemProps.getIncomingValuesForBlockFromPHINodes_spec9'; eauto. i. des.
+    apply opsem_props.OpsemProps.updateValuesForNewBlock_spec4 with (lc:=locals) in H. clarify.
+    admit. (* getoperandvalue implies valid_ptrs *)
+  }
+  { rewrite <- AtomSetFacts.not_mem_iff in REG_MEM.
+    rewrite opsem_props.OpsemProps.updateValuesForNewBlock_spec7' in Hx; eauto.
+  }
 Admitted.
 
 Lemma postcond_phinodes_sound
@@ -411,8 +517,10 @@ Proof.
     eapply phinodes_unique_preserved_except; eauto.
     rewrite L_TGT. eauto.
   }
-  { inv STATE. inv SRC. ss. admit. (* wf_lc *) }
-  { inv STATE. inv TGT. ss. admit. (* wf_lc *) }
+  { inv STATE. inv SRC. ss.
+    eapply switchToNewBasicBlock_wf; try exact STEP_SRC; eauto. }
+  { inv STATE. inv TGT. ss.
+    eapply switchToNewBasicBlock_wf; try exact STEP_TGT; eauto. }
   intros STATE_FORGET. des.
   inv STATE_FORGET.
   exploit phinodes_add_lessdef_sound; try exact SRC; eauto; i.
@@ -423,4 +531,4 @@ Proof.
   { eauto. }
   { eauto. }
   intro STATE_MAYDIFF. exact STATE_MAYDIFF.
-Admitted.
+Qed.
