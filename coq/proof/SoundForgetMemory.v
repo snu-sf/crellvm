@@ -232,19 +232,48 @@ Definition alloc_inject conf_src conf_tgt st0_src st0_tgt
 Lemma step_mem_change
       st0 st1 invst0 invmem0 inv0
       cmd cmds
-      conf evt
+      conf evt gmax public
       (STATE: InvState.Unary.sem conf st0 invst0 invmem0 inv0)
+      (MEM: InvMem.Unary.sem conf gmax public st0.(Mem) invmem0)
       (CMD: st0.(EC).(CurCmds) = cmd::cmds)
       (NONCALL: Instruction.isCallInst cmd = false)
       (STEP: sInsn conf st0 st1 evt)
-  : exists mc,
-    <<MC_SOME: mem_change_of_cmd conf cmd st0.(EC).(Locals) = Some mc>> /\
-    <<STATE_EQUIV: states_mem_change conf st0.(Mem) st1.(Mem) mc>> /\
-    <<UNIQUE_PARENT_MEM:
+  : <<UNIQUE_PARENT_MEM:
       forall mptr typ align val'
         (LOAD: mload conf.(CurTargetData) st1.(Mem) mptr typ align = Some val'),
-        InvMem.gv_diffblock_with_blocks conf val' invmem0.(InvMem.Unary.unique_parent)>>.
+        InvMem.gv_diffblock_with_blocks conf val' invmem0.(InvMem.Unary.unique_parent)>> /\
+        exists mc,
+          <<MC_SOME: mem_change_of_cmd conf cmd st0.(EC).(Locals) = Some mc>> /\
+          <<STATE_EQUIV: states_mem_change conf st0.(Mem) st1.(Mem) mc>>.
 Proof.
+  inv MEM.
+  inv STEP; destruct cmd; ss; clarify;
+    try by esplits; ss; econs; eauto.
+  - admit. (* malloc - easy *)
+  - split.
+    + ii. eapply UNIQUE_PARENT_MEM; eauto.
+      eapply MemProps.free_preserves_mload_inv; eauto.
+    + esplits; ss.
+      * des_ifs.
+      * econs; eauto.
+  - split.
+    + ii.
+      exploit MemProps.malloc_preserves_mload_inv; eauto. i. des.
+      { eapply UNIQUE_PARENT_MEM; eauto. }
+      { ss.
+        destruct val'; ss.
+        des_ifs.
+        exploit x0; eauto. i. congruence.
+      }
+    + esplits; ss.
+      * des_ifs.
+      * econs; eauto.
+  - split.
+    + admit.
+      (* exploit MemProps.mstore_preserves_mload_inv; eauto. i. des. *)
+      (* mstore *)
+    + admit.
+Admitted.
   (* inv STEP; ss; *)
   (*   try (by inv CMD; *)
   (*        esplits; ss; econs; eauto); *)
@@ -257,7 +286,6 @@ Proof.
   (*   + econs; eauto. *)
   (*     inv STATE. ss. *)
   (*     eapply getOperandValue_wf_lc_valid_ptrs; eauto. *)
-Admitted.
 
 Ltac exploit_inject_value :=
   repeat (match goal with
@@ -697,10 +725,14 @@ Lemma inject_invmem
     <<PRIVATE_PRESERVED_TGT: forall p, In p invmem0.(InvMem.Rel.tgt).(InvMem.Unary.private) ->
                                   In p invmem1.(InvMem.Rel.tgt).(InvMem.Unary.private)>>.
 Proof.
-  hexploit step_mem_change; try (inv STATE; exact SRC); eauto. intro MCS.
-  destruct MCS as [mc_src [MC_SOME_SRC [STATE_EQUIV_SRC UNIQUE_PRIVATE_SRC]]]. des.
-  hexploit step_mem_change; try (inv STATE; exact TGT); eauto. intro MCS.
-  destruct MCS as [mc_tgt [MC_SOME_TGT [STATE_EQUIV_TGT UNIQUE_PRIVATE_TGT]]]. des.
+  hexploit step_mem_change; try (inv STATE; exact SRC); eauto.
+  { inv MEM. exact SRC. }
+  intro MCS.
+  destruct MCS as [UNIQUE_PRIVATE_SRC [mc_src [MC_SOME_SRC STATE_EQUIV_SRC]]]. des.
+  hexploit step_mem_change; try (inv STATE; exact TGT); eauto.
+  { inv MEM. exact TGT. }
+  intro MCS.
+  destruct MCS as [UNIQUE_PRIVATE_TGT [mc_tgt [MC_SOME_TGT STATE_EQUIV_TGT]]]. des.
 
   exploit inject_mem_change; eauto. intro MC_INJECT.
 
@@ -1954,55 +1986,17 @@ Lemma forget_memory_sound
 Proof.
   assert (STATE2:= STATE).
   inv STATE2.
-  exploit step_mem_change; try exact SRC; eauto. i. des.
-  exploit step_mem_change; try exact TGT; eauto. i. des.
+  exploit step_mem_change; try exact SRC; eauto.
+  { inv MEM. exact SRC0. }
+  i. des.
+  exploit step_mem_change; try exact TGT; eauto.
+  { inv MEM. exact TGT0. }
+  i. des.
   exploit inject_invmem; try exact INJECT_EVENT; eauto. i. des.
   esplits; eauto.
 
   eapply forget_memory_sem; eauto.
 
-  - eapply inv_state_sem_monotone_wrt_invmem; eauto.
+  eapply inv_state_sem_monotone_wrt_invmem; eauto.
   (* - eapply inv_mem_sem_monotone_wrt_invmem; eauto. *)
 Qed.
-
-(* not used *)
-
-(* Lemma forget_memory_sem_unary_without_defmem *)
-(*       conf mem1 st0 mc cmd *)
-(*       inv1 invst0 invmem0 *)
-(*       (STATE: InvState.Unary.sem conf st0 invst0 invmem0 inv1) *)
-(*       (MC_SOME : mem_change_of_cmd conf cmd st0.(EC).(Locals) = Some mc) *)
-(*       (STATE_MC : states_mem_change conf st0.(Mem) mem1 mc) *)
-(*       (DEF_MEM: Cmd.get_def_memory cmd = None) *)
-(*   : InvState.Unary.sem conf (mkState st0.(EC) st0.(ECS) mem1) invst0 invmem0 inv1. *)
-(* Proof. *)
-(*   destruct mc. *)
-(*   - destruct cmd; ss; des_ifs. *)
-(*     inv STATE_MC. *)
-(*     inv STATE. *)
-(*     econs. *)
-(*     + (* ii. exploit LESSDEF; eauto. *) *)
-(*       (* lessdef *) *)
-(*       admit. (* need new alloc -> unique *) *)
-(*     + destruct NOALIAS. econs; eauto. *)
-(*     + ii. *)
-(*       exploit UNIQUE; eauto. intro UNIQUE_FORGET. *)
-(*       inv UNIQUE_FORGET. *)
-(*       econs; eauto. *)
-(*       intros mptr_l typ_l align_l val_l LOAD. *)
-(*       destruct (GV2ptr conf.(CurTargetData) conf.(CurTargetData).(getPointerSize) mptr_l) eqn:GV2PTR; *)
-(*         cycle 1. *)
-(*       { unfold mload in LOAD. rewrite GV2PTR in *. congruence. } *)
-(*       apply external_intrinsics.GV2ptr_inv in GV2PTR. *)
-(*       destruct GV2PTR as [b_l [ofs_l [ch_l]]]. des. subst. *)
-(*       destruct (Values.eq_block b_l mb). *)
-(*       { admit. (* need new alloc -> unique *) } *)
-(*       { eapply MEM; eauto. ss. *)
-(*         rewrite <- LOAD. *)
-(*         eapply malloc_preserves_mload_other_eq; ss; eauto. } *)
-(*     + ss. *)
-(*     + ss. eapply MemProps.malloc_preserves_wf_lc_in_tail; eauto. *)
-(*   - destruct cmd; ss; des_ifs. *)
-(*   - destruct cmd; ss; des_ifs. *)
-(*   - inv STATE_MC. destruct st0. ss. *)
-(* Admitted. *)

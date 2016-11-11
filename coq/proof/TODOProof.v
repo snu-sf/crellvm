@@ -53,3 +53,19 @@ Proof.
   (* eapply MemProps.mstore_mload_same; eauto. *) (* From Vellvm, should uncomment *)
   (* eapply mstore_implies_gv_chunks_match; eauto. *)
 Admitted.
+
+(* TODO: position *)
+Lemma filter_map_spec
+      X Y
+      a b (f:X -> option Y) l
+      (IN: In a l)
+      (APP: f a = Some b)
+  : In b (filter_map f l).
+Proof.
+  induction l; ss.
+  des.
+  - subst. rewrite APP.
+    econs. eauto.
+  - des_ifs; eauto.
+    constructor 2. eauto.
+Qed.

@@ -558,12 +558,15 @@ Definition add_terminator_cond_lessdef
     else
     match filter (fun cl => (l_dec l_to (snd cl))) cl_l with
     | cl::nil =>
-      let expr1 := Expr.value (ValueT.lift Tag.physical v) in
-      let expr2 := Expr.value
-                     (ValueT.const (fst cl)) in
-      ExprPairSet.add
-        (expr1, expr2)
-        (ExprPairSet.add (expr2, expr1) inv0)
+      match (fst cl), ty with
+      | const_int _ i, typ_int sz =>
+        let expr1 := Expr.value (ValueT.lift Tag.physical v) in
+        let expr2 := Expr.value (ValueT.const (const_int sz i)) in
+        ExprPairSet.add
+          (expr1, expr2)
+          (ExprPairSet.add (expr2, expr1) inv0)
+      | _, _ => inv0
+      end
     | _ => inv0
     end
   | _ => inv0
