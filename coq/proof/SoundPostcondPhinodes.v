@@ -43,6 +43,91 @@ Lemma add_terminator_cond_br_uncond
   inv.
 Proof. destruct inv, src, tgt. ss. Qed.
 
+Lemma add_terminator_cond_switch_unary
+      conf val st
+      ty gval cases l_dflt l_dest id
+      invst invmem inv
+      (VAL : getOperandValue (CurTargetData conf) val
+                             (Locals (EC st)) (Globals conf) = Some gval)
+      (DECIDE : get_switch_branch (CurTargetData conf)
+                                  ty gval cases l_dflt = Some l_dest)
+      (STATE : InvState.Unary.sem conf st invst invmem inv)
+  : InvState.Unary.sem conf st invst invmem
+                       (Invariant.update_lessdef
+                          (add_terminator_cond_lessdef
+                             (insn_switch id ty val l_dflt cases) l_dest) inv).
+Proof.
+  inv STATE.
+  econs; eauto. ss. ii.
+  des_ifs; try by eapply LESSDEF; eauto.
+  destruct p as [const_case l_case]. ss.
+  rename Heq into FILTER_CASES.
+
+  assert (CASE_AUX: In (const_case, l_case)
+                       (List.filter (fun cl : const * l => l_dec l_dest (snd cl)) cases)).
+  { rewrite FILTER_CASES. unfold In. eauto. }
+
+  assert (CASE_IN: In (const_case, l_case) cases).
+  { apply filter_In in CASE_AUX. des. eauto. }
+
+  assert (CASE_UNIQUE: forall cl, In cl cases -> l_dec l_dest (snd cl) ->
+                             cl = (const_case, l_case)).
+  { i.
+    cut (In cl [(const_case, l_case)]).
+    { intro IN. inv IN; eauto. contradiction. }
+    rewrite <- FILTER_CASES.
+    apply filter_In. split; eauto.
+  }
+  (* gv_chunks_match_typ *)
+
+  unfold get_switch_branch in DECIDE. des_ifs.
+  unfold get_switch_branch_aux in *. des_ifs.
+  exploit find_some; eauto. i. des. des_ifs. ss.
+  exploit CASE_UNIQUE; eauto.
+  { ss. destruct (l_dec l0 l0); ss. }
+  i. clarify.
+  specialize (Fcore_Zaux.Zeq_bool_spec z0 z).
+  intro ZEQ. inv ZEQ; try congruence.
+  destruct x as [e1 e2].
+
+  do 2 rewrite ExprPairSetFacts.add_iff in *. des.
+  - ss. clarify. ss.
+    rewrite InvState.Unary.sem_valueT_physical in VAL1. clarify.
+
+    unfold intConst2Z in *. des_ifs.
+
+    esplits; eauto.
+    + unfold const2GV. ss.
+    + ss.
+      unfold GV2int in *. des_ifs.
+      unfold val2GV.
+      econs; try by apply list_forall2_nil.
+      split; ss.
+      { rewrite <- H1.
+        rewrite <- e.
+        replace (wz+1-1)%nat with wz; try omega.
+        rewrite Integers.Int.repr_signed. eauto.
+      }
+      { admit. (* chunk *) }
+  - ss. clarify. ss.
+    rewrite InvState.Unary.sem_valueT_physical. clarify.
+
+    unfold intConst2Z in *. des_ifs.
+
+    esplits; eauto.
+    unfold const2GV in *. ss. clarify.
+    unfold GV2int in *. des_ifs.
+    econs; try by apply list_forall2_nil.
+    ss. split.
+    { rewrite <- H1.
+      rewrite <- e.
+      replace (wz+1-1)%nat with wz; try omega.
+      rewrite Integers.Int.repr_signed. eauto.
+    }
+    { admit. (* chunk *) }
+  - apply LESSDEF; eauto.
+Admitted.
+
 Lemma add_terminator_cond_switch
       conf_src conf_tgt
       st_src st_tgt
@@ -74,6 +159,125 @@ Lemma add_terminator_cond_switch
          (insn_switch id_src ty val_src l_dflt cases)
          (insn_switch id_tgt ty val_tgt l_dflt cases) l_dest).
 Proof.
+  inv STATE.
+  econs; eauto; ss.
+  - eapply add_terminator_cond_switch_unary; eauto.
+  - eapply add_terminator_cond_switch_unary; eauto.
+Qed.
+
+Lemma int_sizezero_cases_aux
+      (i : Integers.Int.int 0)
+  : (Integers.Int.eq 0 i (Integers.Int.zero 0) = true) \/
+    (Integers.Int.eq 0 i (Integers.Int.one 0) = true).
+Proof.
+  destruct i. destruct intval.
+  - left. ss.
+  - unfold Integers.Int.modulus, two_power_nat in intrange. ss.
+    destruct p.
+    + specialize (Pos2Z.inj_xI p). i.
+      specialize (Zgt_pos_0 p). i. omega.
+    + specialize (Pos2Z.inj_xO p). i.
+      specialize (Zgt_pos_0 p). i. omega.
+    + right. ss.
+  - specialize (Zlt_neg_0 p). i. omega.
+Qed.
+
+Lemma int_sizezero_cases
+      (i : Integers.Int.int 0)
+  : (i = (Integers.Int.zero 0)) \/
+    (i = (Integers.Int.one 0)).
+Proof.
+  specialize (int_sizezero_cases_aux i). i. des.
+  - left.
+    exploit Integers.Int.eq_spec. i.
+    rewrite H in *. eauto.
+  - right.
+    exploit Integers.Int.eq_spec. i.
+    rewrite H in *. eauto.
+Qed.
+
+Lemma add_terminator_cond_br_unary
+      conf val st gval decision
+      invst invmem inv
+      id l1 l2
+      (VAL : getOperandValue (CurTargetData conf) val 
+                             (Locals (EC st)) (Globals conf) = Some gval)
+      (DECIDE : decide_nonzero (CurTargetData conf) gval decision)
+      (STATE : InvState.Unary.sem conf st invst invmem inv)
+  : InvState.Unary.sem conf st invst invmem
+                       (Invariant.update_lessdef
+                          (add_terminator_cond_lessdef (insn_br id val l1 l2)
+                                                       (ite decision l1 l2))
+                          inv).
+Proof.
+  inv STATE.
+  econs; eauto.
+  ii. unfold add_terminator_cond_lessdef in *. ss.
+  destruct (l_dec l1 l2).
+  { eapply LESSDEF; eauto. }
+  inv DECIDE.
+
+  destruct x as [e1 e2]. ss.
+
+  do 2 rewrite ExprPairSetFacts.add_iff in *.
+  des.
+  - clarify. ss.
+    rewrite InvState.Unary.sem_valueT_physical in VAL1.
+    unfold ite in *.
+    unfold GV2int in INT.
+    unfold Size.to_nat, Size.One in *.
+    des_ifs; ss.
+    + esplits; ss. ss.
+      destruct wz; try omega.
+      specialize (int_sizezero_cases i0). i.
+      unfold val2GV. ss. econs; ss; cycle 1.
+      { apply list_forall2_nil. }
+      econs; eauto.
+      { (* value *)
+        des; subst; unfold Integers.Int.repr; ss. }
+      { admit. (* chunk *) }
+    +  esplits; ss. ss.
+       destruct wz; try omega.
+       specialize (int_sizezero_cases i0). i.
+       unfold val2GV. ss. econs; ss; cycle 1.
+       { apply list_forall2_nil. }
+       econs; eauto.
+       { (* value *)
+         des; subst; unfold Integers.Int.repr; ss. }
+       { admit. (* chunk *) }
+  - clarify. ss.
+    rewrite InvState.Unary.sem_valueT_physical.
+    unfold ite in *.
+    unfold GV2int in INT.
+    unfold Size.to_nat, Size.One in *.
+    des_ifs; ss.
+    + esplits; ss; eauto.
+      destruct wz; try omega.
+      specialize (int_sizezero_cases i0). i.
+      unfold const2GV in *. des_ifs. ss. clarify. ss.
+      
+      unfold val2GV.
+      
+      econs; ss; cycle 1.
+      { apply list_forall2_nil. }
+      econs; eauto.
+      { (* value *)
+        des; subst; unfold Integers.Int.repr; ss. }
+      { admit. (* chunk *) }
+    + esplits; ss; eauto.
+      destruct wz; try omega.
+      specialize (int_sizezero_cases i0). i.
+      unfold const2GV in *. des_ifs. ss. clarify. ss.
+      
+      unfold val2GV.
+      
+      econs; ss; cycle 1.
+      { apply list_forall2_nil. }
+      econs; eauto.
+      { (* value *)
+        des; subst; unfold Integers.Int.repr; ss. }
+      { admit. (* chunk *) }
+  - exploit LESSDEF; eauto.
 Admitted.
 
 Lemma add_terminator_cond_br
@@ -107,7 +311,11 @@ Lemma add_terminator_cond_br
        (insn_br id_src val_src l1 l2)
        (insn_br id_tgt val_tgt l1 l2) (ite decision l1 l2)).
 Proof.
-Admitted.
+  inv STATE.
+  econs; eauto; ss.
+  - eapply add_terminator_cond_br_unary; eauto.
+  - eapply add_terminator_cond_br_unary; eauto.
+Qed.
 
 Lemma get_lessdef_spec
       ep assigns
