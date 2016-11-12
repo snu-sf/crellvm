@@ -1254,6 +1254,13 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
      let y = Convert.value args.y in
      let z = Convert.value args.z in
      Infrule.Coq_icmp_swap_operands (c, ty, x, y, z)
+  | CoreHint_t.FcmpSwapOperands (args:CoreHint_t.fcmp_swap_operands) ->
+     let c = Convert.fcond args.predicate in
+     let fty = Convert.float_type args.fty in
+     let x = Convert.value args.x in
+     let y = Convert.value args.y in
+     let z = Convert.value args.z in
+     Infrule.Coq_fcmp_swap_operands (c, fty, x, y, z)
   | CoreHint_t.ImpliesFalse (args:CoreHint_t.implies_false) ->
      let c1 = Convert.constant args.c1 in
      let c2 = Convert.constant args.c2 in
