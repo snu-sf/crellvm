@@ -373,6 +373,12 @@ Definition is_commutative_bop (opcode:bop) :=
   | _ => false
   end.
 
+Definition is_commutative_fbop (opcode:fbop) :=
+  match opcode with
+  | fbop_fadd | fbop_fmul => true
+  | _ => false
+  end.
+
 Notation "$$ inv |-src y >= rhs $$" := (Invariant.lessdef_expr (y, rhs) inv.(Invariant.src).(Invariant.lessdef)) (at level 41, inv, y, rhs at level 41).
 Notation "$$ inv |-tgt y >= rhs $$" := (Invariant.lessdef_expr (y, rhs) inv.(Invariant.tgt).(Invariant.lessdef)) (at level 41, inv, y, rhs at level 41).
 Notation "$$ inv |-src y 'unique' $$" :=
@@ -673,6 +679,11 @@ Definition apply_infrule
     if $$ inv0 |-src e >= (Expr.bop opcode s x y) $$ &&
       (is_commutative_bop opcode)
     then {{ inv0 +++src e >= (Expr.bop opcode s y x) }}
+    else apply_fail tt
+  | Infrule.fbop_commutative e opcode x y fty =>
+    if $$ inv0 |-src e >= (Expr.fbop opcode fty x y) $$ &&
+      (is_commutative_fbop opcode)
+    then {{ inv0 +++src e >= (Expr.fbop opcode fty y x) }}
     else apply_fail tt
   | Infrule.fadd_commutative_tgt z x y fty =>
     if $$ inv0 |-tgt (Expr.fbop fbop_fadd fty x y) >= (Expr.value (ValueT.id z)) $$

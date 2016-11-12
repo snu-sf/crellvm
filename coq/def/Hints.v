@@ -350,6 +350,7 @@ Module Infrule.
   | and_or_not1 (z:IdT.t) (x:IdT.t) (y:IdT.t) (a:ValueT.t) (b:ValueT.t) (s:sz)
   | bop_associative (x:IdT.t) (y:IdT.t) (z:IdT.t) (opcode:bop) (c1:INTEGER.t) (c2:INTEGER.t) (c3:INTEGER.t) (s:sz)
   | bop_commutative (e:Expr.t) (opcode:bop) (x:ValueT.t) (y:ValueT.t) (s:sz)
+  | fbop_commutative (e:Expr.t) (opcode:fbop) (x:ValueT.t) (y:ValueT.t) (fty:floating_point)
   | bop_distributive_over_selectinst (opcode:bop) (r:IdT.t) (s:IdT.t) (t':IdT.t) (t0:IdT.t) (x:ValueT.t) (y:ValueT.t) (z:ValueT.t) (c:ValueT.t) (bopsz:sz) (selty:typ)
   | bop_distributive_over_selectinst2 (opcode:bop) (r:IdT.t) (s:IdT.t) (t':IdT.t) (t0:IdT.t) (x:ValueT.t) (y:ValueT.t) (z:ValueT.t) (c:ValueT.t) (bopsz:sz) (selty:typ)
   | bitcastptr (v':ValueT.t) (bitcastinst:Expr.t)

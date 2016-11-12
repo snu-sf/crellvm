@@ -644,6 +644,14 @@ type bop_commutative = {
   sz : size;
 }
 
+type fbop_commutative = {
+  e : expr;
+  fbop : fbop;
+  x : value;
+  y : value;
+  fty : float_type;
+}
+
 type bop_distributive_over_selectinst = {
   opcode : bop;
   r : register;
@@ -786,7 +794,7 @@ type fadd_commutative_tgt = {
   z : register;
   x : value;
   y : value;
-  fty : float_type;
+  fty : float_type
 }
 
 type fbop_distributive_over_selectinst = {
@@ -2006,6 +2014,7 @@ type infrule = [
   | Bitcastptr of bitcastptr
   | BopAssociative of bop_associative
   | BopCommutative of bop_commutative
+  | FbopCommutative of fbop_commutative
   | BopDistributiveOverSelectinst of bop_distributive_over_selectinst
   | BopDistributiveOverSelectinst2 of bop_distributive_over_selectinst2
   | DiffblockUnique of diffblock_unique
