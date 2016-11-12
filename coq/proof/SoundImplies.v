@@ -24,8 +24,9 @@ Require InvMem.
 Require InvState.
 Require Import SoundBase.
 
-
 Set Implicit Arguments.
+
+
 (* TODO: move to somewhere *)
 Ltac solve_bool_true :=
   repeat

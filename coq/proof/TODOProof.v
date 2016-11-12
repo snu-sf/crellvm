@@ -54,7 +54,6 @@ Proof.
   (* eapply mstore_implies_gv_chunks_match; eauto. *)
 Admitted.
 
-(* TODO: position *)
 Lemma filter_map_spec
       X Y
       a b (f:X -> option Y) l

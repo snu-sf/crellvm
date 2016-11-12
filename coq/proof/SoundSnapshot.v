@@ -137,87 +137,85 @@ Proof.
     repeat (des_bool; des); ss; solve_liftpred_nopred; eauto.
 Qed.
 
-Lemma existsb_rev A pred (l:list A):
-  existsb pred l = existsb pred (rev l).
-Proof.
-Admitted.
-
 Lemma IdTSet_map_spec
       f s ty
-  : IdTSet.mem ty (IdTSet_map f s) =
+  : IdTSet.mem ty (IdTSetFacts.map f s) =
     IdTSet.exists_ (IdTSetFacts.eqb ty <*> f) s.
 Proof.
-  unfold IdTSet_map. rewrite IdTSet.fold_1, <- fold_left_rev_right.
-  rewrite IdTSetFacts.exists_b; [|solve_compat_bool].
-  rewrite existsb_rev.
-  unfold IdTSet.elt. induction (rev (IdTSet.elements s)); ss.
-  - admit.
-  - unfold compose in *. rewrite IdTSetFacts.add_b. rewrite IHl0.
-    admit.
-Admitted.
+  apply IdTSetFacts.map_spec. ii. subst. ss.
+Qed.
 
 Lemma PtrSet_map_spec
       map ps p
-  : PtrSet.mem p (PtrSet_map map ps) =
+  : PtrSet.mem p (PtrSetFacts.map map ps) =
     PtrSet.exists_ (compose (PtrSetFacts.eqb p) map) ps.
 Proof.
-Admitted.
+  apply PtrSetFacts.map_spec. ii. subst. ss.
+Qed.
 
 Lemma PtrPairSet_map_spec
       map pps pp
-  : PtrPairSet.mem pp (PtrPairSet_map map pps) =
+  : PtrPairSet.mem pp (PtrPairSetFacts.map map pps) =
     PtrPairSet.exists_ (compose (PtrPairSetFacts.eqb pp) map) pps.
 Proof.
-Admitted.
+  apply PtrPairSetFacts.map_spec. ii. subst. ss.
+Qed.
 
 Lemma ValueTPairSet_map_spec
       map vps vp
-  : ValueTPairSet.mem vp (ValueTPairSet_map map vps) =
+  : ValueTPairSet.mem vp (ValueTPairSetFacts.map map vps) =
     ValueTPairSet.exists_ (compose (ValueTPairSetFacts.eqb vp) map) vps.
 Proof.
-Admitted.
+  apply ValueTPairSetFacts.map_spec. ii. subst. ss.
+Qed.
 
 Lemma ExprPairSet_map_spec
       map eps ep
-  : ExprPairSet.mem ep (ExprPairSet_map map eps) =
+  : ExprPairSet.mem ep (ExprPairSetFacts.map map eps) =
     ExprPairSet.exists_ (compose (ExprPairSetFacts.eqb ep) map) eps.
 Proof.
-Admitted.
+  apply ExprPairSetFacts.map_spec. ii. subst. ss.
+Qed.
 
 Lemma IdTSet_exists_filter
       pred1 pred2 ids
   : IdTSet.exists_ pred1 (IdTSet.filter pred2 ids) =
     IdTSet.exists_ (fun x => andb (pred1 x) (pred2 x)) ids.
 Proof.
-Admitted.
+  apply IdTSetFacts.exists_filter; solve_compat_bool.
+Qed.
 
 Lemma PtrSet_exists_filter
       pred1 pred2 ps
   : PtrSet.exists_ pred1 (PtrSet.filter pred2 ps) =
     PtrSet.exists_ (fun x => andb (pred1 x) (pred2 x)) ps.
 Proof.
-Admitted.
+  apply PtrSetFacts.exists_filter; solve_compat_bool.
+Qed.
 
 Lemma PtrPairSet_exists_filter
       pred1 pred2 pps
   : PtrPairSet.exists_ pred1 (PtrPairSet.filter pred2 pps) =
     PtrPairSet.exists_ (fun x => andb (pred1 x) (pred2 x)) pps.
 Proof.
-Admitted.
+  apply PtrPairSetFacts.exists_filter; solve_compat_bool.
+Qed.
 
 Lemma ValueTPairSet_exists_filter
       pred1 pred2 vps
   : ValueTPairSet.exists_ pred1 (ValueTPairSet.filter pred2 vps) =
     ValueTPairSet.exists_ (fun x => andb (pred1 x) (pred2 x)) vps.
 Proof.
-Admitted.
+  apply ValueTPairSetFacts.exists_filter; solve_compat_bool.
+Qed.
 
 Lemma ExprPairSet_exists_filter
       pred1 pred2 eps
   : ExprPairSet.exists_ pred1 (ExprPairSet.filter pred2 eps) =
     ExprPairSet.exists_ (fun x => andb (pred1 x) (pred2 x)) eps.
 Proof.
-Admitted.
+  apply ExprPairSetFacts.exists_filter; solve_compat_bool.
+Qed.
 
 Lemma previousified_sem_valueT_in_new_invst
       conf st invst0 v
@@ -314,7 +312,7 @@ Proof.
       }
       { 
         match goal with
-        | [H: ExprPairSet.In _ (ExprPairSet_map _ (ExprPairSet.filter _ _)) |- _] =>
+        | [H: ExprPairSet.In _ (ExprPairSetFacts.map _ (ExprPairSet.filter _ _)) |- _] =>
           apply ExprPairSetFacts.mem_iff in H; rewrite ExprPairSet_map_spec in H;
             rewrite ExprPairSet_exists_filter in H; apply ExprPairSetFacts.exists_iff in H; solve_compat_bool;
               destruct H as [[e01 e02]]; des
@@ -340,7 +338,7 @@ Proof.
         - erewrite valueT_no_prev_sem_preserved in *; eauto.
       }
       { match goal with
-        | [H: ValueTPairSet.mem _ (ValueTPairSet_map _ (ValueTPairSet.filter _ _)) = _ |- _] =>
+        | [H: ValueTPairSet.mem _ (ValueTPairSetFacts.map _ (ValueTPairSet.filter _ _)) = _ |- _] =>
           rewrite ValueTPairSet_map_spec in H;
             rewrite ValueTPairSet_exists_filter in H; apply ValueTPairSetFacts.exists_iff in H; [| solve_compat_bool];
               destruct H as [[val01 val02]]; des
@@ -363,7 +361,7 @@ Proof.
         - erewrite valueT_no_prev_sem_preserved in *; eauto.
       }
       { match goal with
-        | [H: PtrPairSet.mem _ (PtrPairSet_map _ (PtrPairSet.filter _ _)) = _ |- _] =>
+        | [H: PtrPairSet.mem _ (PtrPairSetFacts.map _ (PtrPairSet.filter _ _)) = _ |- _] =>
           rewrite PtrPairSet_map_spec in H;
             rewrite PtrPairSet_exists_filter in H; apply PtrPairSetFacts.exists_iff in H; [| solve_compat_bool];
               destruct H as [[ptr01 ptr02]]; des
@@ -400,7 +398,7 @@ Proof.
       - exploit PRIVATE; eauto.
     }
     { match goal with
-      | [H: IdTSet.In _ (IdTSet_map _ (IdTSet.filter _ _)) |- _] =>
+      | [H: IdTSet.In _ (IdTSetFacts.map _ (IdTSet.filter _ _)) |- _] =>
         apply IdTSetFacts.mem_iff in H; rewrite IdTSet_map_spec in H;
           rewrite IdTSet_exists_filter in H; apply IdTSetFacts.exists_iff in H; [| solve_compat_bool];
             destruct H as [[xtag xid]]; des

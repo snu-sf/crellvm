@@ -207,8 +207,8 @@ Lemma forget_stack_call_sound
                            st0_tgt.(EC).(Allocas))
                      st0_tgt.(ECS) mem1_tgt)
             invst2 invmem2 (ForgetStackCall.t
-                              (Exprs.AtomSetImpl_from_list (ite noret None (Some id_src)))
-                              (Exprs.AtomSetImpl_from_list (ite noret None (Some id_tgt)))
+                              (AtomSetImpl_from_list (ite noret None (Some id_src)))
+                              (AtomSetImpl_from_list (ite noret None (Some id_tgt)))
                               inv1)>>.
 Proof.
   unfold return_locals in *.
@@ -324,7 +324,7 @@ Proof.
   }
   { (* none - none *)
     esplits; des_ifs; ss.
-    unfold Exprs.AtomSetImpl_from_list. ss.
+    unfold AtomSetImpl_from_list. ss.
     eapply Subset_sem; cycle 1.
     { unfold ForgetStackCall.t.
       apply forget_stack_Subset. }

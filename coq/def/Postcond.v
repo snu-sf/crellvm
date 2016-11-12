@@ -220,41 +220,6 @@ Module Previousify.
   Definition PtrPair (pp:PtrPair.t): PtrPair.t := (Ptr (fst pp), Ptr (snd pp)).
 End Previousify.
 
-(* TODO: move *)
-Definition ValueTPairSet_map f s :=
-  ValueTPairSet.fold
-    (compose ValueTPairSet.add f)
-    s
-    ValueTPairSet.empty.
-
-(* TODO: move *)
-Definition ExprPairSet_map f s :=
-  ExprPairSet.fold
-    (compose ExprPairSet.add f)
-    s
-    ExprPairSet.empty.
-
-(* TODO: move *)
-Definition IdTSet_map f s :=
-  IdTSet.fold
-    (compose IdTSet.add f)
-    s
-    IdTSet.empty.
-
-(* TODO: move *)
-Definition PtrPairSet_map f s :=
-  PtrPairSet.fold
-    (compose PtrPairSet.add f)
-    s
-    PtrPairSet.empty.
-
-(* TODO: move *)
-Definition PtrSet_map f s :=
-  PtrSet.fold
-    (compose PtrSet.add f)
-    s
-    PtrSet.empty.
-
 Module Snapshot.
   Definition IdT (i:IdT.t): bool :=
     if Tag.eq_dec (fst i) Tag.previous
@@ -270,33 +235,33 @@ Module Snapshot.
   Definition ValueTPairSet (inv0:ValueTPairSet.t): ValueTPairSet.t :=
     let inv1 := ValueTPairSet.filter (compose negb (LiftPred.ValueTPair IdT)) inv0 in
     let inv2 :=
-        ValueTPairSet.union inv1 (ValueTPairSet_map Previousify.ValueTPair inv1) in
+        ValueTPairSet.union inv1 (ValueTPairSetFacts.map Previousify.ValueTPair inv1) in
     inv2.
 
   Definition ExprPairSet (inv0:ExprPairSet.t): ExprPairSet.t :=
     let inv1 := ExprPairSet.filter (compose negb (LiftPred.ExprPair IdT)) inv0 in
-    let inv2 := ExprPairSet.union inv1 (ExprPairSet_map Previousify.ExprPair inv1) in
+    let inv2 := ExprPairSet.union inv1 (ExprPairSetFacts.map Previousify.ExprPair inv1) in
     inv2.
 
   Definition IdTSet (inv0:IdTSet.t): IdTSet.t :=
     let inv1 := IdTSet.filter (compose negb IdT) inv0 in
-    let inv2 := IdTSet.union inv1 (IdTSet_map Previousify.IdT inv1) in
+    let inv2 := IdTSet.union inv1 (IdTSetFacts.map Previousify.IdT inv1) in
     inv2.
 
   Definition PtrSet (inv0:PtrSet.t): PtrSet.t :=
     let inv1 := PtrSet.filter (compose negb Ptr) inv0 in
-    let inv2 := PtrSet.union inv0 (PtrSet_map Previousify.Ptr inv1) in
+    let inv2 := PtrSet.union inv0 (PtrSetFacts.map Previousify.Ptr inv1) in
     inv2.
 
   Definition noalias (inv0:PtrPairSet.t): PtrPairSet.t :=
     let inv1 := PtrPairSet.filter (compose negb (LiftPred.PtrPair IdT)) inv0 in
-    let inv2 := PtrPairSet.union inv1 (PtrPairSet_map Previousify.PtrPair inv1) in
+    let inv2 := PtrPairSet.union inv1 (PtrPairSetFacts.map Previousify.PtrPair inv1) in
     inv2.
 
   Definition diffblock (inv0:ValueTPairSet.t): ValueTPairSet.t :=
     let inv1 := ValueTPairSet.filter (compose negb (LiftPred.ValueTPair IdT)) inv0 in
     let inv2 :=
-        ValueTPairSet.union inv1 (ValueTPairSet_map Previousify.ValueTPair inv1) in
+        ValueTPairSet.union inv1 (ValueTPairSetFacts.map Previousify.ValueTPair inv1) in
     inv2.
 
   Definition alias (inv0: Invariant.aliasrel): Invariant.aliasrel :=
@@ -305,7 +270,7 @@ Module Snapshot.
     inv2.
 
   Definition physical_previous_lessdef (inv:Invariant.unary): ExprPairSet.t :=
-    let idt_set := IdTSet_from_list (Invariant.get_idTs_unary inv) in
+    let idt_set := IdTSetFacts.from_list (Invariant.get_idTs_unary inv) in
     let prev_idt_set := IdTSet.filter IdT idt_set in
     IdTSet.fold
       (fun idt eps =>

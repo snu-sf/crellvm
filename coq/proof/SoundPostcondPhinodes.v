@@ -469,7 +469,7 @@ Proof.
 Qed.
 
 Lemma IdTSet_from_list_spec':
-  forall ids id0, IdTSet.mem id0 (IdTSet_from_list ids) = false <-> ~ In id0 ids.
+  forall ids id0, IdTSet.mem id0 (IdTSetFacts.from_list ids) = false <-> ~ In id0 ids.
 Proof.
   split; i.
   - ii. apply IdTSet_from_list_spec in H0. congruence.
