@@ -193,7 +193,8 @@ Lemma BOP_diffblock
       (H : BOP TD lc gl bop sz v1 v2 = Some val)
   : InvState.Unary.sem_diffblock (mkCfg S TD Ps gl fs) ptr val.
 Proof.
-Admitted. (* no_embedded_ptr or no_alias? *)
+Admitted. (* memory_props.MemProps.mbop_preserves_no_embedded_ptrs or *)
+(* memory_props.MemProps.mbop_preserves_no_alias? *)
 
 Lemma FBOP_diffblock
       S TD Ps gl fs

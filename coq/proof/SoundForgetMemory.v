@@ -272,7 +272,11 @@ Proof.
     + admit.
       (* exploit MemProps.mstore_preserves_mload_inv; eauto. i. des. *)
       (* mstore *)
-    + admit.
+    + esplits; ss.
+      * des_ifs.
+      * econs; eauto.
+        inv STATE. ss.
+        admit. (* getOperandValue value1 wf_value *)
 Admitted.
   (* inv STEP; ss; *)
   (*   try (by inv CMD; *)
