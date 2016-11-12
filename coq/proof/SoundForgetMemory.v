@@ -233,7 +233,7 @@ Lemma step_mem_change
       st0 st1 invst0 invmem0 inv0
       cmd cmds
       conf evt gmax public
-      (STATE: InvState.Unary.sem conf st0 invst0 invmem0 inv0)
+      (STATE: InvState.Unary.sem conf st0 invst0 invmem0 gmax inv0)
       (MEM: InvMem.Unary.sem conf gmax public st0.(Mem) invmem0)
       (CMD: st0.(EC).(CurCmds) = cmd::cmds)
       (NONCALL: Instruction.isCallInst cmd = false)
@@ -272,7 +272,11 @@ Proof.
     + admit.
       (* exploit MemProps.mstore_preserves_mload_inv; eauto. i. des. *)
       (* mstore *)
-    + admit.
+    + esplits; ss.
+      * des_ifs.
+      * econs; eauto.
+        inv STATE. ss.
+        admit. (* getOperandValue value1 wf_value *)
 Admitted.
   (* inv STEP; ss; *)
   (*   try (by inv CMD; *)
@@ -569,25 +573,25 @@ Proof.
 Admitted.
 
 Lemma mstore_const_leak_no_unique
-      conf st0 u gv c
+      conf st0 gmax u
+      c gv
       ptr ty a mem1
-      (UNIQUE_U : InvState.Unary.sem_unique conf st0 u)
-      (* (DIFF_ID: x <> u) *)
-      (* (PTR: lookupAL GenericValue st0.(EC).(Locals) x = Some gv) *)
+      (UNIQUE_U : InvState.Unary.sem_unique conf st0 gmax u)
       (PTR: const2GV conf.(CurTargetData) conf.(Globals) c = Some gv)
       (STORE : mstore conf.(CurTargetData) st0.(Mem) ptr ty gv a = Some mem1)
-  : InvState.Unary.sem_unique conf (mkState st0.(EC) st0.(ECS) mem1) u.
+  : InvState.Unary.sem_unique conf (mkState st0.(EC) st0.(ECS) mem1) gmax u.
 Proof.
 Admitted.
 
 Lemma mstore_register_leak_no_unique
-      conf st0 x u gv
+      conf st0 gmax u
+      x gv
       ptr ty a mem1
-      (UNIQUE_U : InvState.Unary.sem_unique conf st0 u)
+      (UNIQUE_U : InvState.Unary.sem_unique conf st0 gmax u)
       (DIFF_ID: x <> u)
       (PTR: lookupAL GenericValue st0.(EC).(Locals) x = Some gv)
       (STORE : mstore conf.(CurTargetData) st0.(Mem) ptr ty gv a = Some mem1)
-  : InvState.Unary.sem_unique conf (mkState st0.(EC) st0.(ECS) mem1) u.
+  : InvState.Unary.sem_unique conf (mkState st0.(EC) st0.(ECS) mem1) gmax u.
 Proof.
 Admitted.
 
@@ -1453,9 +1457,9 @@ Proof.
 Qed.
 
 Lemma is_diffblock_sem
-      conf st invst invmem inv
+      conf st invst invmem inv gmax
       v1 ty1 v2 ty2 gv1 gv2
-      (STATE : InvState.Unary.sem conf st invst invmem inv)
+      (STATE : InvState.Unary.sem conf st invst invmem gmax inv)
       (IS_DIFFBLOCK : Invariant.is_diffblock inv (v1, ty1) (v2, ty2) = true)
       (VAL1 : InvState.Unary.sem_valueT conf st invst v1 = Some gv1)
       (VAL2 : InvState.Unary.sem_valueT conf st invst v2 = Some gv2)
@@ -1481,9 +1485,9 @@ Proof.
 Qed.
 
 Lemma is_noalias_sem
-      conf st invst invmem inv
+      conf st invst invmem inv gmax
       v1 ty1 v2 ty2 gv1 gv2
-      (STATE : InvState.Unary.sem conf st invst invmem inv)
+      (STATE : InvState.Unary.sem conf st invst invmem gmax inv)
       (IS_NOALIAS : Invariant.is_noalias inv (v1, ty1) (v2, ty2) = true)
       (VAL1 : InvState.Unary.sem_valueT conf st invst v1 = Some gv1)
       (VAL2 : InvState.Unary.sem_valueT conf st invst v2 = Some gv2)
@@ -1510,8 +1514,8 @@ Qed.
 
 (* TODO: jeehoon.kang *)
 Lemma unique_const_diffblock
-      conf st x gv_x c gv_c (* S ty *)
-      (UNIQUE_X : InvState.Unary.sem_unique conf st x)
+      conf st x gv_x c gv_c gmax (* S ty *)
+      (UNIQUE_X : InvState.Unary.sem_unique conf st gmax x)
       (INV_PTR : lookupAL GenericValue (Locals (EC st)) x = Some gv_x)
       (* (WF_CONST: wf_const S conf.(CurTargetData) c ty) *)
       (FORGET_PTR : const2GV (CurTargetData conf) (Globals conf) c = Some gv_c)
@@ -1529,10 +1533,10 @@ Admitted.
 
 (* TODO: simplify proof script *)
 Lemma forget_memory_is_noalias_expr
-      conf st1 invst0 invmem0 inv1 mem0
+      conf st1 invst0 invmem0 inv1 mem0 gmax
       vt_inv ty_inv gv_inv
       v_forget ty_forget gv_forget
-      (STATE : InvState.Unary.sem conf (mkState st1.(EC) st1.(ECS) mem0) invst0 invmem0 inv1)
+      (STATE : InvState.Unary.sem conf (mkState st1.(EC) st1.(ECS) mem0) invst0 invmem0 gmax inv1)
       (NOALIAS_PTR: ForgetMemory.is_noalias_Ptr inv1 (ValueT.lift Tag.physical v_forget, ty_forget) (vt_inv, ty_inv) = true)
       (FORGET_PTR: getOperandValue (CurTargetData conf) v_forget (Locals (EC st1)) (Globals conf) = Some gv_forget)
       (INV_PTR: InvState.Unary.sem_valueT conf st1 invst0 vt_inv = Some gv_inv)
@@ -1623,11 +1627,11 @@ Proof.
 Qed.
 
 Lemma forget_memory_is_noalias_exprpair
-      conf st1 invst0 invmem0 inv1 mem0
+      conf st1 invst0 invmem0 inv1 mem0 gmax
       p a e2
       vt_inv ty_inv gv_inv
       v_forget ty_forget gv_forget
-      (STATE : InvState.Unary.sem conf (mkState st1.(EC) st1.(ECS) mem0) invst0 invmem0 inv1)
+      (STATE : InvState.Unary.sem conf (mkState st1.(EC) st1.(ECS) mem0) invst0 invmem0 gmax inv1)
       (PAIR : p = (Expr.load vt_inv ty_inv a, e2) \/ p = (e2, Expr.load vt_inv ty_inv a))
       (FORGET_MEMORY_NOALIAS : ForgetMemory.is_noalias_ExprPair inv1 (ValueT.lift Tag.physical v_forget, ty_forget) p = true)
       (FORGET_PTR: getOperandValue (CurTargetData conf) v_forget (Locals (EC st1)) (Globals conf) = Some gv_forget)
@@ -1640,8 +1644,8 @@ Proof.
 Qed.
 
 Lemma exprpair_forget_memory_disjoint
-      conf st0 mem1 invst0 invmem0 inv1 cmd mc
-      (STATE: InvState.Unary.sem conf st0 invst0 invmem0 inv1)
+      conf st0 mem1 invst0 invmem0 inv1 cmd mc gmax
+      (STATE: InvState.Unary.sem conf st0 invst0 invmem0 gmax inv1)
       (MC_SOME : mem_change_of_cmd conf cmd st0.(EC).(Locals) = Some mc)
       (STATE_EQUIV : states_mem_change conf st0.(Mem) mem1 mc)
   : <<SEM_EXPR_EQ: forall p e1 e2
@@ -1709,13 +1713,13 @@ Proof.
         destruct FORGET_MEMORY as [FORGET_MEMORY_IN FORGET_MEMORY_NOALIAS].
         symmetry. eapply mstore_noalias_mload; eauto.
         eapply forget_memory_is_noalias_exprpair; eauto.
-        instantiate (2:= st0.(Mem)).
+        instantiate (3:= st0.(Mem)).
         destruct st0. ss. exact STATE.
       * apply ExprPairSetFacts.filter_iff in FORGET_MEMORY; try by solve_compat_bool.
         destruct FORGET_MEMORY as [FORGET_MEMORY_IN FORGET_MEMORY_NOALIAS].
         symmetry. eapply mstore_noalias_mload; eauto.
         eapply forget_memory_is_noalias_exprpair; eauto.
-        instantiate (2:= st0.(Mem)).
+        instantiate (3:= st0.(Mem)).
         destruct st0. ss. exact STATE.
   - (* free *)
     destruct cmd; ss; des_ifs.
@@ -1730,7 +1734,7 @@ Proof.
 
       symmetry. eapply mfree_noalias_mload; eauto.
       eapply forget_memory_is_noalias_exprpair; eauto.
-      instantiate (2:= st0.(Mem)).
+      instantiate (3:= st0.(Mem)).
       destruct st0. exact STATE.
   - (* none *)
     inv STATE_EQUIV. destruct st0; eauto.
@@ -1760,12 +1764,12 @@ Proof.
 Qed.
 
 Lemma forget_memory_sem_unary
-      conf st0 mem1 mc cmd
+      conf st0 mem1 mc cmd gmax
       inv1 invst0 invmem0
-      (STATE: InvState.Unary.sem conf st0 invst0 invmem0 inv1)
+      (STATE: InvState.Unary.sem conf st0 invst0 invmem0 gmax inv1)
       (MC_SOME : mem_change_of_cmd conf cmd st0.(EC).(Locals) = Some mc)
       (STATE_MC : states_mem_change conf st0.(Mem) mem1 mc)
-  : InvState.Unary.sem conf (mkState st0.(EC) st0.(ECS) mem1) invst0 invmem0
+  : InvState.Unary.sem conf (mkState st0.(EC) st0.(ECS) mem1) invst0 invmem0 gmax
                        (ForgetMemory.unary
                           (Cmd.get_def_memory cmd)
                           (Cmd.get_leaked_ids_to_memory cmd)
@@ -1935,6 +1939,7 @@ Proof.
   - inv SRC.
     inv STATE_SRC.
     econs; eauto.
+    + rewrite <- GMAX. eauto.
     + ii. exploit PRIVATE; eauto. i.
       des_ifs.
       apply PRIVATE_PRESERVED_SRC. eauto.
@@ -1942,6 +1947,7 @@ Proof.
   - inv TGT.
     inv STATE_TGT.
     econs; eauto.
+    + rewrite <- GMAX. eauto.
     + ii. exploit PRIVATE; eauto. i.
       des_ifs.
       apply PRIVATE_PRESERVED_TGT. eauto.
@@ -1998,5 +2004,4 @@ Proof.
   eapply forget_memory_sem; eauto.
 
   eapply inv_state_sem_monotone_wrt_invmem; eauto.
-  (* - eapply inv_mem_sem_monotone_wrt_invmem; eauto. *)
 Qed.

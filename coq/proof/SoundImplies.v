@@ -118,8 +118,8 @@ Qed.
 
 (* TODO: premise for unique *)
 Lemma implies_alias_sound
-      inv0 inv1 conf st invst
-      (UNIQUE: AtomSetImpl.For_all (InvState.Unary.sem_unique conf st) (Invariant.unique inv0))
+      inv0 inv1 conf st invst gmax
+      (UNIQUE: AtomSetImpl.For_all (InvState.Unary.sem_unique conf st gmax) (Invariant.unique inv0))
       (IMPLIES_ALIAS: Invariant.implies_alias inv0 inv0.(Invariant.alias) inv1.(Invariant.alias) = true)
       (ALIAS: InvState.Unary.sem_alias conf st invst (Invariant.alias inv0)):
   <<ALIAS: InvState.Unary.sem_alias conf st invst (Invariant.alias inv1)>>.
@@ -166,13 +166,13 @@ Proof.
 Admitted.
 
 Lemma implies_unique_sound
-      inv0 inv1 conf st
+      inv0 inv1 conf st gmax
       (IMPLIES_UNIQUE:AtomSetImpl.subset (Invariant.unique inv1) (Invariant.unique inv0) = true)
-      (UNIQUE : AtomSetImpl.For_all (InvState.Unary.sem_unique conf st)
+      (UNIQUE : AtomSetImpl.For_all (InvState.Unary.sem_unique conf st gmax)
                                     (Invariant.unique inv0)):
   <<UNIQUE:
     AtomSetImpl.For_all
-      (InvState.Unary.sem_unique conf st)
+      (InvState.Unary.sem_unique conf st gmax)
       (Invariant.unique inv1)>>.
 Proof.
   ii. apply AtomSetImpl.subset_2 in IMPLIES_UNIQUE; eauto.
@@ -193,10 +193,10 @@ Proof.
 Qed.
 
 Lemma implies_unary_sound
-    inv0 inv1 invmem invst conf st
+    inv0 inv1 invmem invst conf st gmax
     (IMPLIES_UNARY: Invariant.implies_unary inv0 inv1 = true)
-    (UNARY: InvState.Unary.sem conf st invst invmem inv0):
-      <<UNARY: InvState.Unary.sem conf st invst invmem inv1>>.
+    (UNARY: InvState.Unary.sem conf st invst invmem gmax inv0):
+      <<UNARY: InvState.Unary.sem conf st invst invmem gmax inv1>>.
 Proof.
   i. inv UNARY.
   unfold Invariant.implies_unary in IMPLIES_UNARY.

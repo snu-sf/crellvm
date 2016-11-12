@@ -44,15 +44,15 @@ Lemma add_terminator_cond_br_uncond
 Proof. destruct inv, src, tgt. ss. Qed.
 
 Lemma add_terminator_cond_switch_unary
-      conf val st
+      conf val st gmax
       ty gval cases l_dflt l_dest id
       invst invmem inv
       (VAL : getOperandValue (CurTargetData conf) val
                              (Locals (EC st)) (Globals conf) = Some gval)
       (DECIDE : get_switch_branch (CurTargetData conf)
                                   ty gval cases l_dflt = Some l_dest)
-      (STATE : InvState.Unary.sem conf st invst invmem inv)
-  : InvState.Unary.sem conf st invst invmem
+      (STATE : InvState.Unary.sem conf st invst invmem gmax inv)
+  : InvState.Unary.sem conf st invst invmem gmax
                        (Invariant.update_lessdef
                           (add_terminator_cond_lessdef
                              (insn_switch id ty val l_dflt cases) l_dest) inv).
@@ -198,13 +198,13 @@ Qed.
 
 Lemma add_terminator_cond_br_unary
       conf val st gval decision
-      invst invmem inv
+      invst invmem inv gmax
       id l1 l2
       (VAL : getOperandValue (CurTargetData conf) val 
                              (Locals (EC st)) (Globals conf) = Some gval)
       (DECIDE : decide_nonzero (CurTargetData conf) gval decision)
-      (STATE : InvState.Unary.sem conf st invst invmem inv)
-  : InvState.Unary.sem conf st invst invmem
+      (STATE : InvState.Unary.sem conf st invst invmem gmax inv)
+  : InvState.Unary.sem conf st invst invmem gmax
                        (Invariant.update_lessdef
                           (add_terminator_cond_lessdef (insn_br id val l1 l2)
                                                        (ite decision l1 l2))
@@ -387,7 +387,7 @@ Proof.
 Qed.
 
 Lemma phinodes_add_lessdef_sound
-      conf st0 st1
+      conf st0 st1 gmax
       l_to phinodes cmds terminator
       invst invmem inv0
       assigns
@@ -398,11 +398,11 @@ Lemma phinodes_add_lessdef_sound
                                    st0.(EC).(Locals) = Some st1.(EC).(Locals))
       (ASSIGNS: forallb_map (Postcond.Phinode.resolve st0.(EC).(CurBB).(fst)) phinodes = Some assigns)
       (UNIQUE_PHI: unique id_dec (List.map Postcond.Phinode.get_def assigns) = true)
-      (STATE: InvState.Unary.sem conf st1 invst invmem inv0)
+      (STATE: InvState.Unary.sem conf st1 invst invmem gmax inv0)
       (PREV: forall x, InvState.Unary.sem_idT st0 invst (Tag.previous, x) =
                           lookupAL _ st0.(EC).(Locals) x)
   : InvState.Unary.sem
-      conf st1 invst invmem
+      conf st1 invst invmem gmax
       (Hints.Invariant.update_lessdef (Postcond.postcond_phinodes_add_lessdef assigns) inv0).
 Proof.
   econs; try by inv STATE.
@@ -542,7 +542,7 @@ Lemma phinodes_unique_preserved_except
       conf st0 inv0 invmem invst
       l_to phinodes cmds terminator locals l0
       gmax public
-      (STATE : InvState.Unary.sem conf st0 invst invmem inv0)
+      (STATE : InvState.Unary.sem conf st0 invst invmem gmax inv0)
       (MEM : InvMem.Unary.sem conf gmax public st0.(Mem) invmem)
       (RESOLVE : forallb_map (Phinode.resolve (fst (CurBB (EC st0)))) phinodes = Some l0)
       (UNIQUE_ID : unique id_dec (List.map Phinode.get_def l0) = true)
@@ -557,6 +557,7 @@ Lemma phinodes_unique_preserved_except
                                                                       locals
                                                                       st0.(EC).(Allocas))
                                                         st0.(ECS) st0.(Mem))
+                                               gmax
                                                (AtomSetImpl.union (AtomSetImpl_from_list (List.map Phinode.get_def l0))
                                                                   (AtomSetImpl_from_list (filter_map Phinode.get_use l0))).
 Proof.
@@ -595,8 +596,6 @@ Proof.
         - admit. (* const to wf_const *)
           (* memory_props.MemProps.const2GV_valid_ptrs says that valid_ptrs maxb +1 *)
           (* For this lemma we need wf_globals *)
-          (* TODO: how can we derive (ptr < maxb + 1) is diffblock with unique?  *)
-          (* global values are diffblock with unique, but not sure if this helps. *)
       }
       { rewrite <- AtomSetFacts.not_mem_iff in REG_MEM.
         rewrite opsem_props.OpsemProps.updateValuesForNewBlock_spec7' in VAL'; eauto.
@@ -619,7 +618,7 @@ Proof.
       destruct v as [y|]; ss.
       - eapply UNIQUE_PARENT_LOCAL; eauto.
       - inv MEM.
-        admit. (* unique < gmax *)
+        admit. (* wf_const, wf_globals memory_props.MemProps.const2GV_valid_ptrs *)
     }
     { rewrite <- AtomSetFacts.not_mem_iff in REG_MEM.
       rewrite opsem_props.OpsemProps.updateValuesForNewBlock_spec7' in PTR; eauto.

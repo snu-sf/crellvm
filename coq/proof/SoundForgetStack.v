@@ -169,12 +169,12 @@ Qed.
 
 (* soundness *)
 
-Inductive unique_preserved_except conf inv unique_parent st except_for : Prop :=
+Inductive unique_preserved_except conf inv unique_parent st gmax except_for : Prop :=
 | unique_preserved_except_intro
     (UNIQUE_PRESERVED_INV:
        forall u (MEM: AtomSetImpl.mem u inv.(Invariant.unique) = true)
          (NO_LEAK: AtomSetImpl.mem u except_for = false),
-         InvState.Unary.sem_unique conf st u)
+         InvState.Unary.sem_unique conf st gmax u)
     (UNIQUE_PRESERVED_PARENT_LOCAL:
        forall x ptr
          (PTR:lookupAL _ st.(EC).(Locals) x = Some ptr),
@@ -184,9 +184,7 @@ Inductive unique_preserved_except conf inv unique_parent st except_for : Prop :=
          (LOAD: mload conf.(CurTargetData) st.(Mem) mptr typ align = Some val'),
          InvMem.gv_diffblock_with_blocks conf val' unique_parent)
     (UNIQUE_PRESERVED_PARENT_GLOBALS:
-       forall gid val'
-         (VAL': lookupAL _ conf.(Globals) gid = Some val'),
-         InvMem.gv_diffblock_with_blocks conf val' unique_parent)
+       forall b (IN: In b unique_parent), (gmax < b)%positive)
 .
 
 Lemma BOP_diffblock
@@ -195,7 +193,8 @@ Lemma BOP_diffblock
       (H : BOP TD lc gl bop sz v1 v2 = Some val)
   : InvState.Unary.sem_diffblock (mkCfg S TD Ps gl fs) ptr val.
 Proof.
-Admitted. (* no_embedded_ptr or no_alias? *)
+Admitted. (* memory_props.MemProps.mbop_preserves_no_embedded_ptrs or *)
+(* memory_props.MemProps.mbop_preserves_no_alias? *)
 
 Lemma FBOP_diffblock
       S TD Ps gl fs
@@ -205,12 +204,41 @@ Lemma FBOP_diffblock
 Proof.
 Admitted.
 
+Definition leaks_diffblock_with conf st cmd ptr: Prop :=
+  forall v gv
+    (IN_LEAK: In v (Cmd.get_leaked_values cmd))
+    (VAL: getOperandValue conf.(CurTargetData) v st.(EC).(Locals) conf.(Globals) = Some gv),
+    InvState.Unary.sem_diffblock conf ptr gv.
+
+Lemma operands_diffblock
+      conf st gmax cmd
+      u uptr
+      (UNIQUE_U: InvState.Unary.sem_unique conf st gmax u)
+      (NOT_LEAKED: AtomSetImpl.mem u (AtomSetImpl_from_list
+                                        (Cmd.get_leaked_ids cmd)) = false)
+      (U_VALUE : lookupAL GenericValue st.(EC).(Locals) u = Some uptr)
+  : leaks_diffblock_with conf st cmd uptr.
+Proof.
+Admitted.
+
+Lemma extractGenericValue_diffblock
+      conf st cmd
+      x ty1 v lc ty2
+      ptr gv l0 val
+      (CMD: cmd = insn_extractvalue x ty1 v lc ty2)
+      (VAL : getOperandValue conf.(CurTargetData) v st.(EC).(Locals) conf.(Globals) = Some gv)
+      (OPERANDS_DIFFBLOCK: leaks_diffblock_with conf st cmd ptr)
+      (RES: extractGenericValue conf.(CurTargetData) ty1 gv l0 = Some val)
+  : InvState.Unary.sem_diffblock conf ptr val.
+Proof.
+Admitted.
+
 Lemma step_unique_preserved_except_current
       conf st0 st1 evt
       invst invmem inv0
       cmd cmds
       gmax public
-      (STATE: InvState.Unary.sem conf (mkState st0.(EC) st0.(ECS) st1.(Mem)) invst invmem inv0)
+      (STATE: InvState.Unary.sem conf (mkState st0.(EC) st0.(ECS) st1.(Mem)) invst invmem gmax inv0)
       (MEM: InvMem.Unary.sem conf gmax public st1.(Mem) invmem)
       (NONCALL: Instruction.isCallInst cmd = false)
       (CMDS : CurCmds st0.(EC) = cmd :: cmds)
@@ -221,7 +249,7 @@ Lemma step_unique_preserved_except_current
       AtomSetImpl.mem u
                       (union (AtomSetImpl_from_list (Cmd.get_def cmd))
                              (AtomSetImpl_from_list (Cmd.get_leaked_ids cmd))) = false ->
-      InvState.Unary.sem_unique conf st1 u>>.
+      InvState.Unary.sem_unique conf st1 gmax u>>.
 Proof.
   intros u MEM_U NOT_LEAKED_U0.
   apply AtomSetFacts.not_mem_iff in NOT_LEAKED_U0.
@@ -265,12 +293,10 @@ Proof.
   - inv UNIQUE_BEF; narrow_down_unique.
     eapply FBOP_diffblock; eauto.
   - inv UNIQUE_BEF; narrow_down_unique.
-    (* Lemma extractGenericValue_diffblock *)
-    (*       S TD Ps gl fs *)
-    (*       lc bop sz v1 v2 val ptr *)
-    (*       (H : getOperandValue TD value5 lc gl = Some gvs) *)
-    (*       (H : extractGenericValue TD typ5 gvs l0 = Some val) *)
-    (*   : InvState.Unary.sem_diffblock (mkCfg S TD Ps gl fs) ptr val. *)
+
+    
+
+      
     admit.
   - inv UNIQUE_BEF; narrow_down_unique.
     admit. (* insertvalue *)
@@ -301,7 +327,7 @@ Lemma step_unique_preserved_except_parent
       invst invmem inv0
       cmd cmds
       gmax public
-      (STATE: InvState.Unary.sem conf (mkState st0.(EC) st0.(ECS) st1.(Mem)) invst invmem inv0)
+      (STATE: InvState.Unary.sem conf (mkState st0.(EC) st0.(ECS) st1.(Mem)) invst invmem gmax inv0)
       (MEM: InvMem.Unary.sem conf gmax public st1.(Mem) invmem)
       (NONCALL: Instruction.isCallInst cmd = false)
       (CMDS : CurCmds st0.(EC) = cmd :: cmds)
@@ -318,14 +344,14 @@ Lemma step_unique_preserved_except
       invst invmem inv0
       cmd cmds
       gmax public
-      (STATE: InvState.Unary.sem conf (mkState st0.(EC) st0.(ECS) st1.(Mem)) invst invmem inv0)
+      (STATE: InvState.Unary.sem conf (mkState st0.(EC) st0.(ECS) st1.(Mem)) invst invmem gmax inv0)
       (MEM: InvMem.Unary.sem conf gmax public st1.(Mem) invmem)
       (NONCALL: Instruction.isCallInst cmd = false)
       (CMDS : CurCmds st0.(EC) = cmd :: cmds)
       (STEP : sInsn conf st0 st1 evt)
-  : unique_preserved_except conf inv0 invmem.(InvMem.Unary.unique_parent) st1
-                                                                          (AtomSetImpl.union (AtomSetImpl_from_list (Cmd.get_def cmd))
-                                                                                             (AtomSetImpl_from_list (Cmd.get_leaked_ids cmd))).
+  : unique_preserved_except conf inv0 invmem.(InvMem.Unary.unique_parent) st1 gmax
+                            (AtomSetImpl.union (AtomSetImpl_from_list (Cmd.get_def cmd))
+                                               (AtomSetImpl_from_list (Cmd.get_leaked_ids cmd))).
 Proof.
   hexploit step_unique_preserved_except_current; eauto. i.
   hexploit step_unique_preserved_except_parent; eauto. i.
@@ -416,13 +442,13 @@ Proof.
 Qed.
 
 Lemma forget_stack_unary_sound
-      conf defs leaks st0 st1
+      conf defs leaks st0 st1 gmax
       inv invst invmem
       (EQUIV : state_equiv_except defs st0 st1)
-      (UNIQUE_PRESERVED : unique_preserved_except conf inv invmem.(InvMem.Unary.unique_parent) st1 (AtomSetImpl.union defs leaks))
-      (STATE : InvState.Unary.sem conf st0 invst invmem inv)
+      (UNIQUE_PRESERVED : unique_preserved_except conf inv invmem.(InvMem.Unary.unique_parent) st1 gmax (AtomSetImpl.union defs leaks))
+      (STATE : InvState.Unary.sem conf st0 invst invmem gmax inv)
       (WF_LC: memory_props.MemProps.wf_lc st1.(Mem) st1.(EC).(Locals))
-  : InvState.Unary.sem conf st1 invst invmem (ForgetStack.unary defs leaks inv).
+  : InvState.Unary.sem conf st1 invst invmem gmax (ForgetStack.unary defs leaks inv).
 Proof.
   inv STATE.
   assert (EQUIV_REV: state_equiv_except defs st1 st0).
@@ -483,12 +509,14 @@ Lemma forget_stack_sound
       (EQUIV_TGT: state_equiv_except defs_tgt st0_tgt st1_tgt)
       (UNIQUE_SRC: unique_preserved_except
                      conf_src inv0.(Invariant.src)
-                                     invmem.(InvMem.Rel.src).(InvMem.Unary.unique_parent)
-                                                               st1_src (AtomSetImpl.union defs_src leaks_src))
+                     invmem.(InvMem.Rel.src).(InvMem.Unary.unique_parent)
+                     st1_src invmem.(InvMem.Rel.gmax)
+                     (AtomSetImpl.union defs_src leaks_src))
       (UNIQUE_TGT: unique_preserved_except
                      conf_tgt inv0.(Invariant.tgt)
-                                     invmem.(InvMem.Rel.tgt).(InvMem.Unary.unique_parent)
-                                                               st1_tgt (AtomSetImpl.union defs_tgt leaks_tgt))
+                     invmem.(InvMem.Rel.tgt).(InvMem.Unary.unique_parent)
+                     st1_tgt invmem.(InvMem.Rel.gmax)
+                     (AtomSetImpl.union defs_tgt leaks_tgt))
       (WF_LC_SRC: memory_props.MemProps.wf_lc st1_src.(Mem) st1_src.(EC).(Locals))
       (WF_LC_TGT: memory_props.MemProps.wf_lc st1_tgt.(Mem) st1_tgt.(EC).(Locals))
   : <<STATE_FORGET: InvState.Rel.sem conf_src conf_tgt st1_src st1_tgt

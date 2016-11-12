@@ -206,7 +206,7 @@ Proof.
     - inv STATE. inv TGT. eauto. }
   i. des.
 
-  hexploit postcond_cmd_add_sound; try apply CONF; try eapply STEP_SRC;
+  hexploit postcond_cmd_add_sound; try apply CONF; try eapply STEP_SRC; try eapply MEMLE;
     try eapply STEP_TGT; try apply x1; (* needed to prohibit applying STATE *) eauto; []; ii; des.
   esplits; eauto.
   etransitivity; eauto.

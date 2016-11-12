@@ -272,11 +272,11 @@ Proof.
 Qed.
 
 Lemma snapshot_unary_sound
-      conf st invst0 invmem inv0
-      (STATE: InvState.Unary.sem conf st invst0 invmem inv0)
+      conf st invst0 invmem inv0 gmax
+      (STATE: InvState.Unary.sem conf st invst0 invmem gmax inv0)
   :
     exists invst1,
-      <<STATE_UNARY: InvState.Unary.sem conf st invst1 invmem (Snapshot.unary inv0)>> /\
+      <<STATE_UNARY: InvState.Unary.sem conf st invst1 invmem gmax (Snapshot.unary inv0)>> /\
       <<PREV: forall x, InvState.Unary.sem_idT st invst1 (Tag.previous, x) =
                                 lookupAL _ st.(EC).(Locals) x>> /\
       <<GHOST: invst0.(InvState.Unary.ghost) = invst1.(InvState.Unary.ghost)>>.

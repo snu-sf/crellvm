@@ -77,9 +77,10 @@ Proof.
 Qed.
 
 Lemma sem_expr_private_preserved
-      conf st0 invst0 invmem0 inv0 invmem1 mem1 uniqs
+      conf st0 invst0 invmem0 inv0 invmem1 mem1
+      uniqs gmax
       e e1 e2
-      (STATE : InvState.Unary.sem conf st0 invst0 invmem0 inv0)
+      (STATE : InvState.Unary.sem conf st0 invst0 invmem0 gmax inv0)
       (IN_PRIVATE: ExprPairSet.In (e1, e2)
                                   (ExprPairSet.filter
                                      (ForgetMemoryCall.is_private_ExprPair inv0)
@@ -160,13 +161,14 @@ Lemma forget_memory_call_unary_sound
       (MEM_BEFORE_CALL: InvMem.Unary.sem conf gmax public0 st0.(Mem) invmem0)
       (MEM_AFTER_CALL: InvMem.Unary.sem conf gmax public1 mem1 invmem1)
       (INCR: forall b, public0 b -> public1 b)
-      (STATE : InvState.Unary.sem conf st0 invst0 invmem0 inv0)
+      (STATE : InvState.Unary.sem conf st0 invst0 invmem0 gmax inv0)
   : <<STATE_UNARY: InvState.Unary.sem conf (mkState st0.(EC) st0.(ECS) mem1) invst0
                                       (InvMem.Unary.mk invmem0.(InvMem.Unary.private)
                                                    invmem0.(InvMem.Unary.private_parent)
                                                    invmem0.(InvMem.Unary.mem_parent)
                                                    invmem0.(InvMem.Unary.unique_parent)
                                                    invmem1.(InvMem.Unary.nextblock))
+                                      gmax
                                       (ForgetMemoryCall.unary inv0)>> /\
     <<MEM_UNARY: InvMem.Unary.sem conf gmax public1 mem1
                                   (InvMem.Unary.mk invmem0.(InvMem.Unary.private)
