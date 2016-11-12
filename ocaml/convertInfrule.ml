@@ -321,6 +321,13 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
      let y = Convert.value args.y in
      let sz = Convert.size args.sz in
      Infrule.Coq_bop_commutative (e, bop, x, y, sz)
+  | CoreHint_t.FbopCommutative (args:CoreHint_t.fbop_commutative) ->
+     let e = Convert.expr args.e src_fdef tgt_fdef in
+     let fbop = Convert.fbop args.fbop in
+     let x = Convert.value args.x in
+     let y = Convert.value args.y in
+     let fty = Convert.float_type args.fty in
+     Infrule.Coq_fbop_commutative (e, fbop, x, y, fty)
   | CoreHint_t.BopDistributiveOverSelectinst (args:CoreHint_t.bop_distributive_over_selectinst) ->
      let opcode = Convert.bop args.opcode in
      let r = Convert.register args.r in
@@ -1247,6 +1254,13 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
      let y = Convert.value args.y in
      let z = Convert.value args.z in
      Infrule.Coq_icmp_swap_operands (c, ty, x, y, z)
+  | CoreHint_t.FcmpSwapOperands (args:CoreHint_t.fcmp_swap_operands) ->
+     let c = Convert.fcond args.predicate in
+     let fty = Convert.float_type args.fty in
+     let x = Convert.value args.x in
+     let y = Convert.value args.y in
+     let z = Convert.value args.z in
+     Infrule.Coq_fcmp_swap_operands (c, fty, x, y, z)
   | CoreHint_t.ImpliesFalse (args:CoreHint_t.implies_false) ->
      let c1 = Convert.constant args.c1 in
      let c2 = Convert.constant args.c2 in
