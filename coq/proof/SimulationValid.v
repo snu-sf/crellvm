@@ -247,9 +247,14 @@ Proof.
         (try instantiate (2 := (mkState (mkEC _ _ _ _ _ _) _ _))); ss; eauto; ss.
       i. des. subst. do 24 simtac0. des.
       eapply _sim_local_call; ss; eauto; ss.
-      i. exploit RETURN; eauto.
-      { admit. (* connect memory_blocks_of and uniqs *) }
-      i. des.
+      exists (memory_blocks_of conf_src Locals0
+                          (Invariant.unique (Invariant.src inv))),
+        (memory_blocks_of conf_tgt Locals1
+                          (Invariant.unique (Invariant.tgt inv))).
+      esplits.
+      { admit. (* uniqs_src *) }
+      { admit. (* uniqs_tgt *) }
+      i. exploit RETURN; eauto. i. des.
       exploit apply_infrules_sound; eauto; ss. i. des.
       exploit reduce_maydiff_sound; eauto; ss. i. des.
       exploit implies_sound; eauto; ss. i. des.
