@@ -41,6 +41,14 @@ Inductive sim_local_stack
     (CLATTRS: clattrs_src = clattrs_tgt)
     (TYP: typ_src = typ_tgt)
     (VARG: varg_src = varg_tgt)
+    (UNIQS_SRC: forall mptr typ align val b o
+                  (LOAD: mload conf_src.(CurTargetData) mem_src mptr typ align = Some val)
+                  (GV2PTR: GV2ptr conf_src.(CurTargetData) (getPointerSize conf_src.(CurTargetData)) val = Some (Vptr b o)),
+        ~ In b uniqs_src)
+    (UNIQS_TGT: forall mptr typ align val b o
+                  (LOAD: mload conf_tgt.(CurTargetData) mem_tgt mptr typ align = Some val)
+                  (GV2PTR: GV2ptr conf_tgt.(CurTargetData) (getPointerSize conf_tgt.(CurTargetData)) val = Some (Vptr b o)),
+        ~ In b uniqs_tgt)
     (LOCAL:
        forall inv' mem'_src mem'_tgt retval'_src retval'_tgt locals'_src
          (INCR: InvMem.Rel.le (InvMem.Rel.lift mem_src mem_tgt uniqs_src uniqs_tgt inv) inv')
@@ -197,44 +205,42 @@ Proof.
     exploit nerror_nfinal_nstuck; eauto. i. des.
     inv x0; ss.
     + (* call *)
-      admit.
-      (* exploit FUN; eauto. i. des. *)
-      (* exploit ARGS; eauto. i. des. *)
-      (* apply _sim_step; ss. *)
-      (* { admit. (* tgt not stuck *) } *)
-      (* i. inv STEP0; ss; cycle 1. *)
-      (* { admit. (* call & excall mismatch *) } *)
-      (* rewrite FUN_TGT in H22. inv H22. *)
-      (* rewrite ARGS_TGT in H25. inv H25. *)
-      (* esplits; eauto. *)
-      (* * econs 1. econs; eauto. *)
-      (* * right. apply CIH. econs. *)
-      (*   { ss. } *)
-      (*   { econs 2; eauto. s. i. *)
-      (*     hexploit RETURN; eauto. i. des. inv SIM; ss. *)
-      (*     esplits; eauto. *)
-      (*   } *)
-      (*   { admit. (* sim_local init *) } *)
-      (*   { reflexivity. } *)
+      exploit FUN; eauto. i. des.
+      exploit ARGS; eauto. i. des.
+      apply _sim_step; ss.
+      { admit. (* tgt not stuck *) }
+      i. inv STEP0; ss; cycle 1.
+      { admit. (* call & excall mismatch *) }
+      rewrite FUN_TGT in H22. inv H22.
+      rewrite ARGS_TGT in H25. inv H25.
+      esplits; eauto.
+      * econs 1. econs; eauto.
+      * right. apply CIH. econs.
+        { ss. }
+        { econs 2; eauto. s. i.
+          hexploit RETURN; eauto. i. des. inv SIM; ss.
+          esplits; eauto.
+        }
+        { admit. (* sim_local init *) }
+        { reflexivity. }
     + (* excall *)
-      admit.
-      (* exploit FUN; eauto. i. des. *)
-      (* exploit ARGS; eauto. i. des. *)
-      (* apply _sim_step; ss. *)
-      (* { admit. (* tgt not stuck *) } *)
-      (* i. inv STEP0; ss. *)
-      (* { admit. (* call & excall mismatch *) } *)
-      (* rewrite FUN_TGT in H22. inv H22. *)
-      (* rewrite ARGS_TGT in H24. inv H24. *)
-      (* hexploit RETURN; try reflexivity; eauto. *)
-      (* { admit. (* InvMem.Rel.sem *) } *)
-      (* { s. admit. (* retvals are related *) } *)
-      (* { rewrite exCallUpdateLocals_spec in *. eauto. } *)
-      (* i. des. inv SIM; ss. *)
-      (* esplits; eauto. *)
-      (* * econs 1. econs; eauto. *)
-      (*   admit. (* callExternalOrIntrinsics *) *)
-      (* * admit. (* sim *) *)
+      exploit FUN; eauto. i. des.
+      exploit ARGS; eauto. i. des.
+      apply _sim_step; ss.
+      { admit. (* tgt not stuck *) }
+      i. inv STEP0; ss.
+      { admit. (* call & excall mismatch *) }
+      rewrite FUN_TGT in H22. inv H22.
+      rewrite ARGS_TGT in H24. inv H24.
+      hexploit RETURN; try reflexivity; eauto.
+      { admit. (* InvMem.Rel.sem *) }
+      { s. admit. (* retvals are related *) }
+      { rewrite exCallUpdateLocals_spec in *. eauto. }
+      i. des. inv SIM; ss.
+      esplits; eauto.
+      * econs 1. econs; eauto.
+        admit. (* callExternalOrIntrinsics *)
+      * admit. (* sim *)
   - (* step *)
     econs 3; ss. i. exploit STEP; eauto. i. des.
     inv SIM; [|done].
