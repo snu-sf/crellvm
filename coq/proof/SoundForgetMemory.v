@@ -218,41 +218,78 @@ Definition alloc_inject conf_src conf_tgt st0_src st0_tgt
     invmem1.(InvMem.Rel.inject) st0_src.(Mem).(Memory.Mem.nextblock) =
     Some (st0_tgt.(Mem).(Memory.Mem.nextblock), 0).
 
-Lemma getOperandValue_wf_lc_valid_ptrs
-      TD lc gl
-      mem v gv
-      (VAL : getOperandValue TD v lc gl = Some gv)
-      (WF_LOCAL : MemProps.wf_lc mem lc)
-  : MemProps.valid_ptrs mem.(Memory.Mem.nextblock) gv.
-Proof.
-(* hope MemProps.operand__lt_nextblock helps *)
-Admitted.
+(* Lemma getOperandValue_wf_lc_valid_ptrs *)
+(*       TD lc gl *)
+(*       mem v gv *)
+(*       (VAL : getOperandValue TD v lc gl = Some gv) *)
+(*       (WF_LOCAL : MemProps.wf_lc mem lc) *)
+(*   : MemProps.valid_ptrs mem.(Memory.Mem.nextblock) gv. *)
+(* Proof. *)
+(*   apply WF_LOCAL in VAL. *)
+(* (* hope MemProps.operand__lt_nextblock helps *) *)
+(* Admitted. *)
 
 Lemma step_mem_change
       st0 st1 invst0 invmem0 inv0
       cmd cmds
-      conf evt
-      (STATE: InvState.Unary.sem conf st0 invst0 invmem0 inv0)
+      conf evt gmax public
+      (STATE: InvState.Unary.sem conf st0 invst0 invmem0 gmax inv0)
+      (MEM: InvMem.Unary.sem conf gmax public st0.(Mem) invmem0)
       (CMD: st0.(EC).(CurCmds) = cmd::cmds)
       (NONCALL: Instruction.isCallInst cmd = false)
       (STEP: sInsn conf st0 st1 evt)
-  : exists mc,
-    <<MC_SOME: mem_change_of_cmd conf cmd st0.(EC).(Locals) = Some mc>> /\
-    <<STATE_EQUIV: states_mem_change conf st0.(Mem) st1.(Mem) mc>>.
+  : <<UNIQUE_PARENT_MEM:
+      forall mptr typ align val'
+        (LOAD: mload conf.(CurTargetData) st1.(Mem) mptr typ align = Some val'),
+        InvMem.gv_diffblock_with_blocks conf val' invmem0.(InvMem.Unary.unique_parent)>> /\
+        exists mc,
+          <<MC_SOME: mem_change_of_cmd conf cmd st0.(EC).(Locals) = Some mc>> /\
+          <<STATE_EQUIV: states_mem_change conf st0.(Mem) st1.(Mem) mc>>.
 Proof.
-  inv STEP; ss;
-    try (by inv CMD;
-         esplits; ss; econs; eauto);
-    try (by inv CMD;
-         esplits; ss; [des_ifs | econs]; eauto).
-  - admit. (* not malloc, easy *)
-  - inv CMD.
-    esplits; ss.
-    + des_ifs.
-    + econs; eauto.
-      inv STATE. ss.
-      eapply getOperandValue_wf_lc_valid_ptrs; eauto.
+  inv MEM.
+  inv STEP; destruct cmd; ss; clarify;
+    try by esplits; ss; econs; eauto.
+  - admit. (* malloc - easy *)
+  - split.
+    + ii. eapply UNIQUE_PARENT_MEM; eauto.
+      eapply MemProps.free_preserves_mload_inv; eauto.
+    + esplits; ss.
+      * des_ifs.
+      * econs; eauto.
+  - split.
+    + ii.
+      exploit MemProps.malloc_preserves_mload_inv; eauto. i. des.
+      { eapply UNIQUE_PARENT_MEM; eauto. }
+      { ss.
+        destruct val'; ss.
+        des_ifs.
+        exploit x0; eauto. i. congruence.
+      }
+    + esplits; ss.
+      * des_ifs.
+      * econs; eauto.
+  - split.
+    + admit.
+      (* exploit MemProps.mstore_preserves_mload_inv; eauto. i. des. *)
+      (* mstore *)
+    + esplits; ss.
+      * des_ifs.
+      * econs; eauto.
+        inv STATE. ss.
+        admit. (* getOperandValue value1 wf_value *)
 Admitted.
+  (* inv STEP; ss; *)
+  (*   try (by inv CMD; *)
+  (*        esplits; ss; econs; eauto); *)
+  (*   try (by inv CMD; *)
+  (*        esplits; ss; [des_ifs | econs]; eauto). *)
+  (* - admit. (* not malloc, easy *) *)
+  (* - inv CMD. *)
+  (*   esplits; ss. *)
+  (*   + des_ifs. *)
+  (*   + econs; eauto. *)
+  (*     inv STATE. ss. *)
+  (*     eapply getOperandValue_wf_lc_valid_ptrs; eauto. *)
 
 Ltac exploit_inject_value :=
   repeat (match goal with
@@ -536,25 +573,25 @@ Proof.
 Admitted.
 
 Lemma mstore_const_leak_no_unique
-      conf st0 u gv c
+      conf st0 gmax u
+      c gv
       ptr ty a mem1
-      (UNIQUE_U : InvState.Unary.sem_unique conf st0 u)
-      (* (DIFF_ID: x <> u) *)
-      (* (PTR: lookupAL GenericValue st0.(EC).(Locals) x = Some gv) *)
+      (UNIQUE_U : InvState.Unary.sem_unique conf st0 gmax u)
       (PTR: const2GV conf.(CurTargetData) conf.(Globals) c = Some gv)
       (STORE : mstore conf.(CurTargetData) st0.(Mem) ptr ty gv a = Some mem1)
-  : InvState.Unary.sem_unique conf (mkState st0.(EC) st0.(ECS) mem1) u.
+  : InvState.Unary.sem_unique conf (mkState st0.(EC) st0.(ECS) mem1) gmax u.
 Proof.
 Admitted.
 
 Lemma mstore_register_leak_no_unique
-      conf st0 x u gv
+      conf st0 gmax u
+      x gv
       ptr ty a mem1
-      (UNIQUE_U : InvState.Unary.sem_unique conf st0 u)
+      (UNIQUE_U : InvState.Unary.sem_unique conf st0 gmax u)
       (DIFF_ID: x <> u)
       (PTR: lookupAL GenericValue st0.(EC).(Locals) x = Some gv)
       (STORE : mstore conf.(CurTargetData) st0.(Mem) ptr ty gv a = Some mem1)
-  : InvState.Unary.sem_unique conf (mkState st0.(EC) st0.(ECS) mem1) u.
+  : InvState.Unary.sem_unique conf (mkState st0.(EC) st0.(ECS) mem1) gmax u.
 Proof.
 Admitted.
 
@@ -610,7 +647,9 @@ Lemma invmem_unary_alloc_private_preserved
   : InvMem.Unary.sem conf gmax public mem1 (InvMem.Unary.mk
                                               (mb::invmem0.(InvMem.Unary.private))
                                               invmem0.(InvMem.Unary.private_parent)
-                                              invmem0.(InvMem.Unary.mem_parent)).
+                                              invmem0.(InvMem.Unary.mem_parent)
+                                              invmem0.(InvMem.Unary.unique_parent)
+                                              mem1.(Memory.Mem.nextblock)).
 Proof.
   exploit malloc_result; eauto. i. des.
   inv STATE.
@@ -626,11 +665,29 @@ Proof.
     inv H.
     + exploit PRIVATE_PARENT; eauto. i. des.
       subst. psimpl.
-    + exploit DISJOINT; eauto.
+    + exploit PRIVATE_DISJOINT; eauto.
   - i. exploit MEM_PARENT; eauto. intro LOAD_AUX.
     rewrite LOAD_AUX.
     eapply malloc_preserves_mload_aux_other_eq; eauto.
     ii. exploit PRIVATE_PARENT; eauto. i. des. psimpl.
+  - ss. i.
+    unfold mload in LOAD. des_ifs.
+    destruct (Values.eq_block b (Memory.Mem.nextblock mem0)); cycle 1.
+    + eapply UNIQUE_PARENT_MEM; eauto.
+      erewrite malloc_preserves_mload_other_eq; eauto.
+      instantiate (1:= align0).
+      unfold mload.
+      instantiate (1:= typ0).
+      des_ifs.
+    + subst.
+      exploit MemProps.alloc_preserves_mload_aux_inv; eauto.
+      { unfold malloc in *. apply some_injective in MALLOC. eauto. }
+      intro LOAD_UNDEF. des.
+      { congruence. }
+      ii. exploit external_intrinsics.GV2ptr_inv; eauto. i. des.
+      subst. ss. clarify.
+      exploit LOAD_UNDEF; eauto.
+      i. congruence.
 Qed.
 
 Ltac solve_alloc_inject :=
@@ -672,8 +729,14 @@ Lemma inject_invmem
     <<PRIVATE_PRESERVED_TGT: forall p, In p invmem0.(InvMem.Rel.tgt).(InvMem.Unary.private) ->
                                   In p invmem1.(InvMem.Rel.tgt).(InvMem.Unary.private)>>.
 Proof.
-  hexploit step_mem_change; try (inv STATE; exact SRC); eauto. intro MCS. destruct MCS as [mc_src [MC_SOME_SRC STATE_EQUIV_SRC]]. des.
-  hexploit step_mem_change; try (inv STATE; exact TGT); eauto. intro MCS. destruct MCS as [mc_tgt [MC_SOME_TGT STATE_EQUIV_TGT]]. des.
+  hexploit step_mem_change; try (inv STATE; exact SRC); eauto.
+  { inv MEM. exact SRC. }
+  intro MCS.
+  destruct MCS as [UNIQUE_PRIVATE_SRC [mc_src [MC_SOME_SRC STATE_EQUIV_SRC]]]. des.
+  hexploit step_mem_change; try (inv STATE; exact TGT); eauto.
+  { inv MEM. exact TGT. }
+  intro MCS.
+  destruct MCS as [UNIQUE_PRIVATE_TGT [mc_tgt [MC_SOME_TGT STATE_EQUIV_TGT]]]. des.
 
   exploit inject_mem_change; eauto. intro MC_INJECT.
 
@@ -714,6 +777,11 @@ Proof.
       { (* SRC *)
         inv SRC.
         hexploit (@malloc_result TD mem0_src); eauto. i. des.
+        instantiate (1:= InvMem.Unary.mk _
+                                         invmem0.(InvMem.Rel.src).(InvMem.Unary.private_parent)
+                                         invmem0.(InvMem.Rel.src).(InvMem.Unary.mem_parent)
+                                         invmem0.(InvMem.Rel.src).(InvMem.Unary.unique_parent)
+                                         mem1_src.(Memory.Mem.nextblock)).
         econs; eauto.
         { eapply MemProps.malloc_preserves_wf_Mem; eauto. }
         { i. exploit PRIVATE; eauto. i.
@@ -737,7 +805,7 @@ Proof.
               unfold InvMem.Rel.public_src in *. rewrite EQ_MB in *. eauto.
             + psimpl.
         }
-        { i. exploit MEM_PARENT; eauto. i.
+        { i. exploit MEM_PARENT; eauto. i. ss.
           match goal with
           | [H: mload_aux (InvMem.Unary.mem_parent _) _ b _ = _ |- _] =>
             rewrite H
@@ -750,6 +818,11 @@ Proof.
       { (* TGT *)
         inv TGT.
         hexploit (@malloc_result TD0 mem0_tgt); eauto. i. des.
+        instantiate (1:= InvMem.Unary.mk _
+                                         invmem0.(InvMem.Rel.tgt).(InvMem.Unary.private_parent)
+                                         invmem0.(InvMem.Rel.tgt).(InvMem.Unary.mem_parent)
+                                         invmem0.(InvMem.Rel.tgt).(InvMem.Unary.unique_parent)
+                                         mem1_tgt.(Memory.Mem.nextblock)).
         econs; eauto.
         { eapply MemProps.malloc_preserves_wf_Mem; eauto. }
         {
@@ -927,6 +1000,12 @@ Proof.
       }
     + (* le *)
       econs; try (econs; ss).
+      { inv MEM. inv SRC. rewrite <- NEXTBLOCK.
+        exploit malloc_result; try exact MALLOC_SRC; eauto. i. des.
+        psimpl. }
+      { inv MEM. inv TGT. rewrite <- NEXTBLOCK.
+        exploit malloc_result; try exact MALLOC_TGT; eauto. i. des.
+        psimpl. }
       (* incr *)
       ii. ss.
       exploit malloc_result; try exact MALLOC_SRC. intros [ALLOC_BLOCK_SRC NEXT_BLOCK_SRC]. des.
@@ -959,7 +1038,8 @@ Proof.
             (mb::invmem0.(InvMem.Rel.src).(InvMem.Unary.private))
             invmem0.(InvMem.Rel.src).(InvMem.Unary.private_parent)
             invmem0.(InvMem.Rel.src).(InvMem.Unary.mem_parent)
-         )
+            invmem0.(InvMem.Rel.src).(InvMem.Unary.unique_parent)
+            mem1_src.(Memory.Mem.nextblock))
          invmem0.(InvMem.Rel.tgt)
          invmem0.(InvMem.Rel.gmax)
                    invmem0.(InvMem.Rel.inject)).
@@ -1028,6 +1108,17 @@ Proof.
            erewrite Memory.Mem.bounds_alloc_other; try exact ALLOC_PRIVATE; cycle 1.
            { eapply malloc_inv. exact MALLOC. }
            eapply mi_bounds; eauto.
+    + econs; eauto.
+      * econs; eauto. ss.
+        inv MEM. inv SRC.
+        rewrite <- NEXTBLOCK.
+        exploit malloc_result; eauto. i. des.
+        psimpl.
+      * econs; eauto. ss.
+        inv MEM. inv TGT.
+        rewrite <- NEXTBLOCK.
+        exploit malloc_result; eauto. i. des.
+        psimpl.
   - (* none - alloc *)
     inv STATE_EQUIV_SRC.
     rewrite <- MEM_EQ in *.
@@ -1044,7 +1135,8 @@ Proof.
             (mb::invmem0.(InvMem.Rel.tgt).(InvMem.Unary.private))
             invmem0.(InvMem.Rel.tgt).(InvMem.Unary.private_parent)
             invmem0.(InvMem.Rel.tgt).(InvMem.Unary.mem_parent)
-         )
+            invmem0.(InvMem.Rel.tgt).(InvMem.Unary.unique_parent)
+            mem1_tgt.(Memory.Mem.nextblock))
          invmem0.(InvMem.Rel.gmax)
                    invmem0.(InvMem.Rel.inject)).
     esplits; ss; eauto.
@@ -1098,6 +1190,13 @@ Proof.
            erewrite Memory.Mem.bounds_alloc_other with (b':=b'); try exact ALLOC_PRIVATE; cycle 1.
            { eapply malloc_inv. exact MALLOC. }
            eapply mi_bounds; eauto.
+    + econs; eauto.
+      * econs; eauto. ss.
+        inv MEM. inv SRC. rewrite <- NEXTBLOCK.
+        exploit malloc_result; eauto. i. des. psimpl.
+      * econs; eauto. ss.
+        inv MEM. inv TGT. rewrite <- NEXTBLOCK.
+        exploit malloc_result; eauto. i. des. psimpl.
   - (* store - store *)
     esplits; eauto; try reflexivity; try solve_alloc_inject.
     { unfold alloc_private, alloc_private_unary. split.
@@ -1165,6 +1264,8 @@ Proof.
         eapply mstore_aux_preserves_mload_aux_eq; eauto.
         ii. subst.
         exploit PRIVATE_PARENT; eauto. i. des. eauto.
+      * rewrite <- NEXTBLOCK. symmetry.
+        eapply MemProps.nextblock_mstore_aux; eauto.
     + inv TGT.
       econs; eauto.
       * eapply mstore_aux_valid_ptrs_preserves_wf_Mem; eauto.
@@ -1181,6 +1282,8 @@ Proof.
         eapply mstore_aux_preserves_mload_aux_eq; eauto.
         ii. subst.
         exploit PRIVATE_PARENT; eauto. i. des. eauto.
+      * rewrite <- NEXTBLOCK. symmetry.
+        eapply MemProps.nextblock_mstore_aux; eauto.
   - (* store - none *)
     esplits; eauto; try reflexivity; try solve_alloc_inject.
     { unfold alloc_private, alloc_private_unary. split.
@@ -1207,9 +1310,10 @@ Proof.
         split; eauto.
         erewrite <- MemProps.nextblock_mstore_aux; eauto.
       * i. unfold list_disjoint in *.
-        hexploit DISJOINT; eauto. i.
+        hexploit PRIVATE_DISJOINT; eauto. i.
         exploit MEM_PARENT; eauto. intro MLOAD_EQ. rewrite MLOAD_EQ.
         eapply mstore_aux_preserves_mload_aux_eq; eauto.
+      * erewrite <- MemProps.nextblock_mstore_aux; eauto.
     + (* inject *)
       inv INJECT.
       econs.
@@ -1300,6 +1404,7 @@ Proof.
         exploit free_preserves_mload_aux_eq; try exact FREE_SRC; eauto.
         exploit PRIVATE_PARENT; eauto. i. des.
         ii. subst. eauto.
+      * erewrite Memory.Mem.nextblock_free; eauto.
     + inv TGT.
       econs; eauto.
       * (* PRIVATE *)
@@ -1315,6 +1420,7 @@ Proof.
         exploit free_preserves_mload_aux_eq; try exact FREE_TGT; eauto.
         exploit PRIVATE_PARENT; eauto. i. des.
         ii. subst. eauto.
+      * erewrite Memory.Mem.nextblock_free; eauto.
   - (* none - none *)
     inv STATE_EQUIV_SRC. rewrite <- MEM_EQ. clear MEM_EQ.
     inv STATE_EQUIV_TGT. rewrite <- MEM_EQ. clear MEM_EQ.
@@ -1351,9 +1457,9 @@ Proof.
 Qed.
 
 Lemma is_diffblock_sem
-      conf st invst invmem inv
+      conf st invst invmem inv gmax
       v1 ty1 v2 ty2 gv1 gv2
-      (STATE : InvState.Unary.sem conf st invst invmem inv)
+      (STATE : InvState.Unary.sem conf st invst invmem gmax inv)
       (IS_DIFFBLOCK : Invariant.is_diffblock inv (v1, ty1) (v2, ty2) = true)
       (VAL1 : InvState.Unary.sem_valueT conf st invst v1 = Some gv1)
       (VAL2 : InvState.Unary.sem_valueT conf st invst v2 = Some gv2)
@@ -1379,9 +1485,9 @@ Proof.
 Qed.
 
 Lemma is_noalias_sem
-      conf st invst invmem inv
+      conf st invst invmem inv gmax
       v1 ty1 v2 ty2 gv1 gv2
-      (STATE : InvState.Unary.sem conf st invst invmem inv)
+      (STATE : InvState.Unary.sem conf st invst invmem gmax inv)
       (IS_NOALIAS : Invariant.is_noalias inv (v1, ty1) (v2, ty2) = true)
       (VAL1 : InvState.Unary.sem_valueT conf st invst v1 = Some gv1)
       (VAL2 : InvState.Unary.sem_valueT conf st invst v2 = Some gv2)
@@ -1408,8 +1514,8 @@ Qed.
 
 (* TODO: jeehoon.kang *)
 Lemma unique_const_diffblock
-      conf st x gv_x c gv_c (* S ty *)
-      (UNIQUE_X : InvState.Unary.sem_unique conf st x)
+      conf st x gv_x c gv_c gmax (* S ty *)
+      (UNIQUE_X : InvState.Unary.sem_unique conf st gmax x)
       (INV_PTR : lookupAL GenericValue (Locals (EC st)) x = Some gv_x)
       (* (WF_CONST: wf_const S conf.(CurTargetData) c ty) *)
       (FORGET_PTR : const2GV (CurTargetData conf) (Globals conf) c = Some gv_c)
@@ -1427,10 +1533,10 @@ Admitted.
 
 (* TODO: simplify proof script *)
 Lemma forget_memory_is_noalias_expr
-      conf st1 invst0 invmem0 inv1 mem0
+      conf st1 invst0 invmem0 inv1 mem0 gmax
       vt_inv ty_inv gv_inv
       v_forget ty_forget gv_forget
-      (STATE : InvState.Unary.sem conf (mkState st1.(EC) st1.(ECS) mem0) invst0 invmem0 inv1)
+      (STATE : InvState.Unary.sem conf (mkState st1.(EC) st1.(ECS) mem0) invst0 invmem0 gmax inv1)
       (NOALIAS_PTR: ForgetMemory.is_noalias_Ptr inv1 (ValueT.lift Tag.physical v_forget, ty_forget) (vt_inv, ty_inv) = true)
       (FORGET_PTR: getOperandValue (CurTargetData conf) v_forget (Locals (EC st1)) (Globals conf) = Some gv_forget)
       (INV_PTR: InvState.Unary.sem_valueT conf st1 invst0 vt_inv = Some gv_inv)
@@ -1521,13 +1627,12 @@ Proof.
 Qed.
 
 Lemma forget_memory_is_noalias_exprpair
-      conf st1 invst0 invmem0 inv1 mem0
+      conf st1 invst0 invmem0 inv1 mem0 gmax
       p a e2
       vt_inv ty_inv gv_inv
       v_forget ty_forget gv_forget
-      (STATE : InvState.Unary.sem conf (mkState st1.(EC) st1.(ECS) mem0) invst0 invmem0 inv1)
+      (STATE : InvState.Unary.sem conf (mkState st1.(EC) st1.(ECS) mem0) invst0 invmem0 gmax inv1)
       (PAIR : p = (Expr.load vt_inv ty_inv a, e2) \/ p = (e2, Expr.load vt_inv ty_inv a))
-      (FORGET_MEMORY_IN : ExprPairSet.In p (Invariant.lessdef inv1))
       (FORGET_MEMORY_NOALIAS : ForgetMemory.is_noalias_ExprPair inv1 (ValueT.lift Tag.physical v_forget, ty_forget) p = true)
       (FORGET_PTR: getOperandValue (CurTargetData conf) v_forget (Locals (EC st1)) (Globals conf) = Some gv_forget)
       (INV_PTR: InvState.Unary.sem_valueT conf st1 invst0 vt_inv = Some gv_inv)
@@ -1539,9 +1644,8 @@ Proof.
 Qed.
 
 Lemma exprpair_forget_memory_disjoint
-      conf st0 mem1 invst0 invmem0 inv1
-      cmd mc
-      (STATE: InvState.Unary.sem conf st0 invst0 invmem0 inv1)
+      conf st0 mem1 invst0 invmem0 inv1 cmd mc gmax
+      (STATE: InvState.Unary.sem conf st0 invst0 invmem0 gmax inv1)
       (MC_SOME : mem_change_of_cmd conf cmd st0.(EC).(Locals) = Some mc)
       (STATE_EQUIV : states_mem_change conf st0.(Mem) mem1 mc)
   : <<SEM_EXPR_EQ: forall p e1 e2
@@ -1569,8 +1673,32 @@ Proof.
       destruct v0;
         try by unfold mload; rewrite GV2PTR; eauto.
       eapply malloc_preserves_mload_other_eq; eauto.
-      
-      admit. (* should know that (sem_valueT v) returns valid_ptr from wf conditions *)
+      ii. subst.
+      inv STATE.
+      clear PAIR.
+      exploit malloc_result; eauto. i. des. subst.
+      destruct v.
+      { (* id case *)
+        destruct x as [[] x].
+        - (* physical *)
+          ss. unfold InvState.Unary.sem_idT in *. ss.
+          exploit WF_LOCAL; eauto. i.
+          exploit MemProps.GV2ptr_preserves_valid_ptrs; eauto. i.
+          ss. des. psimpl.
+        - (* previous *)
+          ss. unfold InvState.Unary.sem_idT in *. ss.
+          exploit WF_PREVIOUS; eauto. i.
+          exploit MemProps.GV2ptr_preserves_valid_ptrs; eauto. i.
+          ss. des. psimpl.
+        - (* ghost *)
+          ss. unfold InvState.Unary.sem_idT in *. ss.
+          exploit WF_GHOST; eauto. i.
+          exploit MemProps.GV2ptr_preserves_valid_ptrs; eauto. i.
+          ss. des. psimpl.
+      }
+      { (* const case : need wf_const *)
+        admit. (* c is evaluated into a global pointer, and GV2ptr cannot be mb *)
+      }
   - (* store *)
     destruct cmd; ss; des_ifs.
     inv STATE_EQUIV.
@@ -1585,13 +1713,13 @@ Proof.
         destruct FORGET_MEMORY as [FORGET_MEMORY_IN FORGET_MEMORY_NOALIAS].
         symmetry. eapply mstore_noalias_mload; eauto.
         eapply forget_memory_is_noalias_exprpair; eauto.
-        instantiate (2:= st0.(Mem)).
+        instantiate (3:= st0.(Mem)).
         destruct st0. ss. exact STATE.
       * apply ExprPairSetFacts.filter_iff in FORGET_MEMORY; try by solve_compat_bool.
         destruct FORGET_MEMORY as [FORGET_MEMORY_IN FORGET_MEMORY_NOALIAS].
         symmetry. eapply mstore_noalias_mload; eauto.
         eapply forget_memory_is_noalias_exprpair; eauto.
-        instantiate (2:= st0.(Mem)).
+        instantiate (3:= st0.(Mem)).
         destruct st0. ss. exact STATE.
   - (* free *)
     destruct cmd; ss; des_ifs.
@@ -1606,7 +1734,7 @@ Proof.
 
       symmetry. eapply mfree_noalias_mload; eauto.
       eapply forget_memory_is_noalias_exprpair; eauto.
-      instantiate (2:= st0.(Mem)).
+      instantiate (3:= st0.(Mem)).
       destruct st0. exact STATE.
   - (* none *)
     inv STATE_EQUIV. destruct st0; eauto.
@@ -1636,12 +1764,12 @@ Proof.
 Qed.
 
 Lemma forget_memory_sem_unary
-      conf st0 mem1 mc cmd
+      conf st0 mem1 mc cmd gmax
       inv1 invst0 invmem0
-      (STATE: InvState.Unary.sem conf st0 invst0 invmem0 inv1)
+      (STATE: InvState.Unary.sem conf st0 invst0 invmem0 gmax inv1)
       (MC_SOME : mem_change_of_cmd conf cmd st0.(EC).(Locals) = Some mc)
       (STATE_MC : states_mem_change conf st0.(Mem) mem1 mc)
-  : InvState.Unary.sem conf (mkState st0.(EC) st0.(ECS) mem1) invst0 invmem0
+  : InvState.Unary.sem conf (mkState st0.(EC) st0.(ECS) mem1) invst0 invmem0 gmax
                        (ForgetMemory.unary
                           (Cmd.get_def_memory cmd)
                           (Cmd.get_leaked_ids_to_memory cmd)
@@ -1682,6 +1810,8 @@ Proof.
           - left. reflexivity.
           - inversion 1. }
     + ss. eapply MemProps.malloc_preserves_wf_lc_in_tail; eauto.
+    + ss. eapply MemProps.malloc_preserves_wf_lc_in_tail; eauto.
+    + ss. eapply MemProps.malloc_preserves_wf_lc_in_tail; eauto.
   - (* store *)
     destruct cmd; ss; des_ifs.
     { (* id *)
@@ -1708,6 +1838,9 @@ Proof.
         eapply mstore_register_leak_no_unique; eauto.
       + ss.
       + ss. eapply MemProps.mstore_preserves_wf_lc; eauto.
+      + ss. eapply MemProps.mstore_preserves_wf_lc; eauto.
+      + ss. eapply MemProps.mstore_preserves_wf_lc; eauto.
+      + eauto.
     }
     { destruct value1; ss.
       rename value2 into v_sptr.
@@ -1731,6 +1864,9 @@ Proof.
         eapply mstore_const_leak_no_unique; eauto.
       + ss.
       + ss. eapply MemProps.mstore_preserves_wf_lc; eauto.
+      + ss. eapply MemProps.mstore_preserves_wf_lc; eauto.
+      + ss. eapply MemProps.mstore_preserves_wf_lc; eauto.
+      + eauto.
     }
   - destruct cmd; ss; des_ifs.
     inv STATE_MC.
@@ -1753,6 +1889,8 @@ Proof.
       i. exploit MEM; eauto.
       ss.
       eapply MemProps.free_preserves_mload_inv; eauto.
+    + ss. eapply MemProps.free_preserves_wf_lc; eauto.
+    + ss. eapply MemProps.free_preserves_wf_lc; eauto.
     + ss. eapply MemProps.free_preserves_wf_lc; eauto.
 Qed.
 
@@ -1778,8 +1916,8 @@ Proof.
   inv STATE.
   unfold ForgetMemory.t.
   econs.
-  - eapply forget_memory_sem_unary; eauto.
-  - eapply forget_memory_sem_unary; eauto.
+  - eapply forget_memory_sem_unary; try exact SRC; eauto.
+  - eapply forget_memory_sem_unary; try exact TGT; eauto.
   - eapply forget_memory_maydiff_preserved; eauto.
 Qed.
 
@@ -1801,15 +1939,19 @@ Proof.
   - inv SRC.
     inv STATE_SRC.
     econs; eauto.
-    ii. exploit PRIVATE; eauto. i.
-    des_ifs.
-    apply PRIVATE_PRESERVED_SRC. eauto.
+    + rewrite <- GMAX. eauto.
+    + ii. exploit PRIVATE; eauto. i.
+      des_ifs.
+      apply PRIVATE_PRESERVED_SRC. eauto.
+    + rewrite <- UNIQUE_PARENT_EQ. eauto.
   - inv TGT.
     inv STATE_TGT.
     econs; eauto.
-    ii. exploit PRIVATE; eauto. i.
-    des_ifs.
-    apply PRIVATE_PRESERVED_TGT. eauto.
+    + rewrite <- GMAX. eauto.
+    + ii. exploit PRIVATE; eauto. i.
+      des_ifs.
+      apply PRIVATE_PRESERVED_TGT. eauto.
+    + rewrite <- UNIQUE_PARENT_EQ. eauto.
   - i. hexploit STATE_MAYDIFF; eauto.
     intros SEM_INJECT.
     ii. exploit SEM_INJECT; eauto. i. des.
@@ -1850,8 +1992,12 @@ Lemma forget_memory_sound
 Proof.
   assert (STATE2:= STATE).
   inv STATE2.
-  exploit step_mem_change; try exact SRC; eauto. i. des.
-  exploit step_mem_change; try exact TGT; eauto. i. des.
+  exploit step_mem_change; try exact SRC; eauto.
+  { inv MEM. exact SRC0. }
+  i. des.
+  exploit step_mem_change; try exact TGT; eauto.
+  { inv MEM. exact TGT0. }
+  i. des.
   exploit inject_invmem; try exact INJECT_EVENT; eauto. i. des.
   esplits; eauto.
 
@@ -1859,45 +2005,3 @@ Proof.
 
   eapply inv_state_sem_monotone_wrt_invmem; eauto.
 Qed.
-
-(* not used *)
-
-(* Lemma forget_memory_sem_unary_without_defmem *)
-(*       conf mem1 st0 mc cmd *)
-(*       inv1 invst0 invmem0 *)
-(*       (STATE: InvState.Unary.sem conf st0 invst0 invmem0 inv1) *)
-(*       (MC_SOME : mem_change_of_cmd conf cmd st0.(EC).(Locals) = Some mc) *)
-(*       (STATE_MC : states_mem_change conf st0.(Mem) mem1 mc) *)
-(*       (DEF_MEM: Cmd.get_def_memory cmd = None) *)
-(*   : InvState.Unary.sem conf (mkState st0.(EC) st0.(ECS) mem1) invst0 invmem0 inv1. *)
-(* Proof. *)
-(*   destruct mc. *)
-(*   - destruct cmd; ss; des_ifs. *)
-(*     inv STATE_MC. *)
-(*     inv STATE. *)
-(*     econs. *)
-(*     + (* ii. exploit LESSDEF; eauto. *) *)
-(*       (* lessdef *) *)
-(*       admit. (* need new alloc -> unique *) *)
-(*     + destruct NOALIAS. econs; eauto. *)
-(*     + ii. *)
-(*       exploit UNIQUE; eauto. intro UNIQUE_FORGET. *)
-(*       inv UNIQUE_FORGET. *)
-(*       econs; eauto. *)
-(*       intros mptr_l typ_l align_l val_l LOAD. *)
-(*       destruct (GV2ptr conf.(CurTargetData) conf.(CurTargetData).(getPointerSize) mptr_l) eqn:GV2PTR; *)
-(*         cycle 1. *)
-(*       { unfold mload in LOAD. rewrite GV2PTR in *. congruence. } *)
-(*       apply external_intrinsics.GV2ptr_inv in GV2PTR. *)
-(*       destruct GV2PTR as [b_l [ofs_l [ch_l]]]. des. subst. *)
-(*       destruct (Values.eq_block b_l mb). *)
-(*       { admit. (* need new alloc -> unique *) } *)
-(*       { eapply MEM; eauto. ss. *)
-(*         rewrite <- LOAD. *)
-(*         eapply malloc_preserves_mload_other_eq; ss; eauto. } *)
-(*     + ss. *)
-(*     + ss. eapply MemProps.malloc_preserves_wf_lc_in_tail; eauto. *)
-(*   - destruct cmd; ss; des_ifs. *)
-(*   - destruct cmd; ss; des_ifs. *)
-(*   - inv STATE_MC. destruct st0. ss. *)
-(* Admitted. *)

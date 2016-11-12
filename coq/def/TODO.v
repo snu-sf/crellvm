@@ -424,3 +424,117 @@ Proof.
   split; auto.
   apply INC; auto.
 Qed.
+
+Definition AtomSetImpl_from_list
+           (ids:list id): AtomSetImpl.t :=
+  fold_left (flip AtomSetImpl.add) ids AtomSetImpl.empty.
+
+Lemma AtomSetImpl_from_list_spec ids:
+  forall id, AtomSetImpl.mem id (AtomSetImpl_from_list ids) <-> In id ids.
+Proof.
+  unfold AtomSetImpl_from_list. rewrite <- fold_left_rev_right.
+  intros. rewrite in_rev.
+  match goal with
+  | [|- context[@rev ?T ?ids]] => induction (@rev T ids)
+  end; simpl.
+  - rewrite AtomSetFacts.empty_b. intuition.
+  - unfold flip in *. rewrite AtomSetFacts.add_b.
+    unfold AtomSetFacts.eqb. constructor; intros.
+    + apply orb_true_iff in H. destruct H.
+      * left. destruct (AtomDT.eq_dec a id0); intuition.
+      * right. apply IHl0. auto.
+    + apply orb_true_intro. destruct H.
+      * subst. destruct (AtomDT.eq_dec id0 id0); auto.
+      * right. apply IHl0. auto.
+Qed.
+
+Lemma existsb_rev A pred (l:list A):
+  existsb pred l = existsb pred (rev l).
+Proof.
+  induction l; ss. rewrite IHl, existsb_app.
+  destruct (existsb pred (rev l0)); ss. apply orb_true_r.
+Qed.
+
+Module WFacts_fun2 (E:DecidableType) (M:(WSfun E)).
+  Include (WFacts_fun E M).
+
+  Definition map f s := M.fold (compose M.add f) s M.empty.
+
+  Lemma exists_false_iff
+        s f
+        (COMPAT: compat_bool E.eq f):
+    ~ M.Exists (fun x : M.elt => f x = true) s <->
+    M.exists_ f s = false.
+  Proof.
+    econs; ii.
+    - destruct (M.exists_ f s) eqn:X; ss.
+      contradict H. apply exists_iff; ss.
+    - apply exists_iff in H0; ss. clarify.
+  Qed.
+
+  Lemma exists_filter
+        pred1 pred2 ids
+        (PRED1: compat_bool E.eq pred1)
+        (PRED2: compat_bool E.eq pred2)
+    : M.exists_ pred1 (M.filter pred2 ids) =
+      M.exists_ (fun x => andb (pred1 x) (pred2 x)) ids.
+  Proof.
+    destruct (M.exists_ pred1 (M.filter pred2 ids)) eqn:X1.
+    - apply exists_iff in X1; [|solve_compat_bool].
+      inv X1. des. apply filter_iff in H; [|solve_compat_bool]. des.
+      symmetry. apply exists_iff; ss.
+      { ii. f_equal; eauto. }
+      econs. esplits; eauto. apply andb_true_iff. ss.
+    - symmetry. apply exists_false_iff.
+      { ii. f_equal; eauto. }
+      apply exists_false_iff in X1; ss. contradict X1.
+      inv X1. des. apply andb_true_iff in H0. des.
+      econs. splits; eauto. apply filter_iff; ss.
+  Qed.
+
+  Lemma map_spec f s ty
+        (F: Proper (E.eq ==> E.eq) f):
+    M.mem ty (map f s) =
+    M.exists_ (eqb ty <*> f) s.
+  Proof.
+    unfold map. rewrite M.fold_1, <- fold_left_rev_right.
+    rewrite exists_b; cycle 1.
+    { ii. unfold eqb, compose.
+      destruct (eq_dec ty (f x)), (eq_dec ty (f y)); ss.
+      - contradict n. eauto.
+      - contradict n. eauto.
+    }
+    rewrite existsb_rev.
+    induction (rev (M.elements s)); ss.
+    - destruct (M.mem ty M.empty) eqn:X; ss.
+      apply M.mem_2 in X. exfalso. eapply M.empty_1. eauto.
+    - unfold compose in *. rewrite add_b, IHl0.
+      f_equal. unfold eqb. destruct (eq_dec (f a) ty), (eq_dec ty (f a)); ss.
+      + contradict n. symmetry. ss.
+      + contradict n. symmetry. ss.
+  Qed.
+
+  Definition from_list
+             (ids:list E.t): M.t :=
+    fold_left (flip M.add) ids M.empty.
+
+  Lemma from_list_spec ids:
+    forall id, M.mem id (from_list ids) <-> InA E.eq id ids.
+  Proof.
+    unfold from_list. rewrite <- fold_left_rev_right.
+    intros. rewrite <- InA_rev.
+    unfold M.elt.
+    match goal with
+    | [|- context[@rev ?T ?ids]] => induction (@rev T ids)
+    end; simpl.
+    - rewrite empty_b. intuition. inv H.
+    - unfold flip in *. rewrite add_b.
+      unfold eqb. constructor; intros.
+      + apply orb_true_iff in H. destruct H.
+        * left. destruct (eq_dec a id0); intuition.
+        * right. apply IHl0. auto.
+      + apply orb_true_intro. inv H.
+        * destruct (eq_dec a id0); auto.
+        * right. apply IHl0. auto.
+  Qed.
+End WFacts_fun2.

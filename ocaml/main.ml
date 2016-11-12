@@ -65,6 +65,12 @@ let read_hint filename =
   in
   hint
 
+let get_last_sentence s =
+  if String.contains s '\n' then
+    let i = String.rindex s '\n' in
+    String.sub s (i+1) (String.length s - i - 1)
+  else s
+
 let main filename_src filename_tgt filename_hint =
   let _ = print_time "start" in
   let coq_im_src = read_im filename_src in
@@ -77,7 +83,7 @@ let main filename_src filename_tgt filename_hint =
   let _ = debug_print hint.CoreHint_t.description in
   let _ =
     match hint.CoreHint_t.return_code with
-    | ADMITTED -> print_endline "Set to admitted."
+    | ADMITTED -> print_endline "Set to admitted."; print_endline (get_last_sentence hint.CoreHint_t.description)
     | FAIL -> print_endline "Set to fail."
     | ACTUAL ->
        let (src_nop_positions, tgt_nop_positions) =
@@ -100,9 +106,10 @@ let main filename_src filename_tgt filename_hint =
        let validation_result =
          Validator.valid_module coq_hint coq_im_src coq_im_tgt in
        let _ = print_time "validation-done" in
-       if validation_result
-       then print_endline "Validation succeeded."
-       else (print_endline "Validation failed."; exit 1)
+       match validation_result with
+       | Some true -> print_endline "Validation succeeded."
+       | Some false -> print_endline "Set to admitted."; print_endline "Named-types differ."
+       | None -> (print_endline "Validation failed."; exit 1)
   in
 
   ()

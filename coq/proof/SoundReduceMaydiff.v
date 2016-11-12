@@ -172,12 +172,22 @@ Section Filter.
     - apply incl_appr. ss.
   Qed.
 
+  Lemma filter_AL_atom_preserves_wf_lc
+        f mem lc
+        (WF_LOCAL : memory_props.MemProps.wf_lc mem lc)
+    : memory_props.MemProps.wf_lc mem (filter_AL_atom f lc).
+  Proof.
+    unfold memory_props.MemProps.wf_lc in *.
+    i. exploit WF_LOCAL; eauto.
+    eapply lookup_AL_filter_some; eauto.
+  Qed.
+
   Lemma filter_spec
-        conf st invst invmem inv
+        conf st invst invmem inv gmax
         (preserved: _ -> bool)
         (PRESERVED: forall id (ID: In id (Invariant.get_idTs_unary inv)), preserved id)
-        (STATE: InvState.Unary.sem conf st invst invmem inv):
-    InvState.Unary.sem conf st (filter preserved invst) invmem inv.
+        (STATE: InvState.Unary.sem conf st invst invmem gmax inv):
+    InvState.Unary.sem conf st (filter preserved invst) invmem gmax inv.
   Proof.
     inv STATE. econs; eauto.
     - ii.
@@ -198,6 +208,8 @@ Section Filter.
         * eapply filter_subset_valueT; eauto.
     - ii. exploit PRIVATE; eauto.
       eapply filter_subset_idT; eauto.
+    - apply filter_AL_atom_preserves_wf_lc. eauto.
+    - apply filter_AL_atom_preserves_wf_lc. eauto.
   Qed.
 End Filter.
 
@@ -241,11 +253,6 @@ Proof.
   exploit GVs.inject_lessdef_compose; eauto; []; ii; des.
   exploit GVs.lessdef_inject_compose; try exact x0; eauto.
 Qed.
-
-(* TODO
- * preserved: same
- * otherwise: none
- *)
 
 Lemma reduce_maydiff_preserved_sem_idT st_src st_tgt
       invst inv id val_src val_tgt

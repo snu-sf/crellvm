@@ -41,14 +41,14 @@ Definition is_ghost (g:IdT.t) :=
 Definition get_bitsize (ty:typ) (m:module) : option sz :=
   match ty with
   | typ_int sz1 => Some sz1
-  | typ_pointer _ => Some
+  | typ_pointer _ =>
     (match m with
      | module_intro ls _ _ =>
        match (List.find 
           (fun h => match h with| layout_ptr _ _ _ => true | _ => false end) ls) with
-       | None => Size.from_Z 0%Z
-       | Some (layout_ptr sz _ _) => sz
-       | Some _ => Size.from_Z 0%Z
+       | None => None
+       | Some (layout_ptr sz _ _) => Some sz
+       | Some _ => None
        end
      end)
   | _ => None 
@@ -937,25 +937,18 @@ Definition apply_infrule
     let srcty_sz_opt := get_bitsize srcty m_src in
     let midty_sz_opt := get_bitsize midty m_src in
     let dstty_sz_opt := get_bitsize dstty m_src in
-    match srcty_sz_opt with
-    | Some srcty_sz =>
-      match midty_sz_opt with
-      | Some midty_sz => 
-        match dstty_sz_opt with
-        | Some dstty_sz =>
-          if $$ inv0 |-src (Expr.value mid) >= (Expr.cast castop_inttoptr srcty src midty) $$ &&
-             $$ inv0 |-src (Expr.value dst) >= (Expr.cast castop_ptrtoint midty mid dstty) $$ &&
-             cond_le (Size.ThirtyTwo)
-                     (INTEGER.of_Z (Size.to_Z Size.ThirtyTwo) (Size.to_Z srcty_sz) true) 
-                     (INTEGER.of_Z (Size.to_Z Size.ThirtyTwo) (Size.to_Z midty_sz) true) &&
-             sz_dec srcty_sz dstty_sz
-          then {{ inv0 +++src (Expr.value dst) >= (Expr.cast castop_bitcast srcty src dstty) }}
-          else apply_fail tt
-        | None => apply_fail tt
-        end
-      | None => apply_fail tt
-      end
-    | None => apply_fail tt
+    match (get_bitsize srcty m_src), (get_bitsize midty m_src), 
+        (get_bitsize dstty m_src) with
+    | (Some srcty_sz), (Some midty_sz), (Some dstty_sz) =>
+      if $$ inv0 |-src (Expr.value mid) >= (Expr.cast castop_inttoptr srcty src midty) $$ &&
+         $$ inv0 |-src (Expr.value dst) >= (Expr.cast castop_ptrtoint midty mid dstty) $$ &&
+         cond_le (Size.ThirtyTwo)
+                 (INTEGER.of_Z (Size.to_Z Size.ThirtyTwo) (Size.to_Z srcty_sz) true) 
+                 (INTEGER.of_Z (Size.to_Z Size.ThirtyTwo) (Size.to_Z midty_sz) true) &&
+         sz_dec srcty_sz dstty_sz
+      then {{ inv0 +++src (Expr.value dst) >= (Expr.cast castop_bitcast srcty src dstty) }}
+      else apply_fail tt
+    | _, _, _ => apply_fail tt
     end
   | Infrule.ptrtoint_load ptr ptrty v1 intty v2 a =>
     if $$ inv0 |-src (Expr.load ptr ptrty a) >= (Expr.value v1) $$ &&

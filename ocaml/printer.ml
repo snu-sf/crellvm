@@ -276,6 +276,14 @@ module PrintHints = struct
                                                 ExprsToString.of_expr(Expr.Coq_value q) ^ " && " ^
                                                 ExprsToString.of_expr(Expr.Coq_value v) ^ " ≥ " ^
                                                 ExprsToString.of_expr(Expr.Coq_load (p, ty, a) )
+      | Infrule.Coq_icmp_eq_same (ty, v1, v2) ->
+         "icmp_eq_same: " ^
+           "true >= icmp eq [" ^ ExprsToString.of_expr(Expr.Coq_value v1) ^ "] [" ^
+           ExprsToString.of_expr(Expr.Coq_value v2) ^ "] implies both are same"
+      | Infrule.Coq_and_true_bool (v1, v2) ->
+         "and_true_bool: " ^
+           "true >= and 1 [" ^ ExprsToString.of_expr(Expr.Coq_value v1) ^ "] [" ^
+           ExprsToString.of_expr(Expr.Coq_value v2) ^ "] implies both are true"
       | _ -> "infrule(TODO)"
 
     let infrules (infs:Infrule.t list): unit =

@@ -27,6 +27,39 @@ Require Import Inject. (* for simtac *)
 
 Set Implicit Arguments.
 
+Lemma physical_previous_lessdef_spec_aux
+      (e1 e2:Expr.t) l inits
+      (IN: ExprPairSet.In (e1, e2)
+                          (fold_left (fun (a : ExprPairSet.t) (e : IdT.t) =>
+                                        ExprPairSet.add
+                                          (Expr.value (ValueT.id (IdT.lift Tag.physical (snd e))),
+                                           Expr.value (ValueT.id e))
+                                          (ExprPairSet.add
+                                             (Expr.value (ValueT.id e),
+                                              Expr.value (ValueT.id (IdT.lift Tag.physical (snd e))))
+                                             a))
+                                     l inits))
+  : ExprPairSet.In (e1, e2) inits \/
+    (exists x, <<IN_X: In x l>> /\
+                  <<EXPRS: (e1 = Expr.value (ValueT.id (IdT.lift Tag.physical (snd x))) /\
+                            e2 = Expr.value (ValueT.id x)) \/
+                           (e1 = Expr.value (ValueT.id x) /\
+                            e2 = Expr.value (ValueT.id (IdT.lift Tag.physical (snd x))))>>).
+Proof.
+  revert inits IN.
+  induction l; eauto; ss; i.
+  exploit IHl; eauto. i.
+  destruct x as [IN1 | IN2].
+  - apply ExprPairSetFacts.add_iff in IN1. des.
+    { destruct a. ss. inv IN1.
+      right. esplits; eauto. }
+    apply ExprPairSetFacts.add_iff in IN1. des.
+    { destruct a. ss. inv IN1.
+      right. esplits; eauto. }
+    eauto.
+  - right. des; esplits; eauto.
+Qed.
+
 Lemma physical_previous_lessdef_spec
       e1 e2 inv
       (IN: ExprPairSet.In (e1, e2) (Snapshot.physical_previous_lessdef inv))
@@ -41,8 +74,20 @@ Lemma physical_previous_lessdef_spec
 Proof.
   unfold Snapshot.physical_previous_lessdef in IN.
   rewrite IdTSet.fold_1 in IN.
-  rewrite <- fold_left_rev_right in IN.
-Admitted.
+  apply physical_previous_lessdef_spec_aux in IN.
+  destruct IN as [IN | IN].
+  { apply ExprPairSetFacts.empty_iff in IN. contradiction. }
+  destruct IN as [x [IN_X EXPRS]]. red in IN_X.
+  apply InA_iff_In in IN_X.
+  apply IdTSet.elements_2 in IN_X.
+  apply IdTSetFacts.filter_iff in IN_X; try by solve_compat_bool.
+  desH IN_X.
+  destruct x as [[] x]; ss.
+  esplits.
+  - apply IdTSet_from_list_spec.
+    apply IdTSetFacts.mem_iff. eauto.
+  - des; eauto.
+Qed.
 
 Lemma valueT_no_prev_sem_preserved
       conf st invst0 invst1 v
@@ -56,10 +101,30 @@ Proof.
   red. solve_sem_idT. congruence.
 Qed.
 
+Lemma list_valueT_no_prev_sem_preserved
+      conf st invst0 invst1 lsv
+      (NOPREV: existsb (LiftPred.ValueT Snapshot.IdT <*> snd) lsv = false)
+      (GHOST: invst0.(InvState.Unary.ghost) = invst1.(InvState.Unary.ghost))
+  : <<SEM: InvState.Unary.sem_list_valueT conf st invst0 lsv = InvState.Unary.sem_list_valueT conf st invst1 lsv>>.
+Proof.
+  revert NOPREV.
+  induction lsv; ss; i.
+  des_bool. des.
+  destruct a.
+
+  exploit IHlsv; eauto. intro RW_LIST_VALUE.
+  exploit valueT_no_prev_sem_preserved; eauto. intro RW_VALUE.
+  rewrite RW_VALUE. rewrite RW_LIST_VALUE. eauto.
+Qed.
+
 Ltac solve_liftpred_nopred :=
   repeat match goal with
          | [H: Postcond.LiftPred.ValueT Postcond.Snapshot.IdT _ = false |- _ ] =>
-           eapply valueT_no_prev_sem_preserved in H; des; eauto
+           let RW:= fresh in
+           exploit valueT_no_prev_sem_preserved; try exact H; eauto; intro RW; rewrite RW; clear RW; clear H
+         | [H: existsb (LiftPred.ValueT Snapshot.IdT <*> snd) _ = false |- _ ] =>
+           let RW:= fresh in
+           exploit list_valueT_no_prev_sem_preserved; try exact H; eauto; intro RW; rewrite RW; clear RW; clear H
          end.
 
 Lemma expr_no_prev_sem_preserved
@@ -68,124 +133,97 @@ Lemma expr_no_prev_sem_preserved
       (GHOST: invst0.(InvState.Unary.ghost) = invst1.(InvState.Unary.ghost))
   : <<SEM: InvState.Unary.sem_expr conf st invst0 e = InvState.Unary.sem_expr conf st invst1 e>>.
 Proof.
-  Time destruct e; unfold LiftPred.Expr in *; try solve_des_bool;
-    try (solve_liftpred_nopred;
-         solve_sem_valueT; solve_sem_idT; des_ifs; fail).
-  (* Finished transaction in 17.507 secs (17.477u,0.042s) (successful) *)
-  - solve_liftpred_nopred.
-    solve_sem_valueT.
-    + solve_sem_idT. des_ifs.
-      * admit. (* gep: sem_list_valueT *)
-      * admit.
-      * admit.
-    + solve_sem_idT. des_ifs.
-      * admit.
-      * admit.
-      * admit.
-    + solve_sem_idT. des_ifs.
-      * admit.
-      * admit.
-      * admit.
-    + solve_sem_idT. des_ifs.
-      * admit.
-      * admit.
-      * admit.
-  - (* select *)
-    solve_des_bool.
-    solve_liftpred_nopred.
-    admit.
-Admitted.
-
-Lemma existsb_rev A pred (l:list A):
-  existsb pred l = existsb pred (rev l).
-Proof.
-Admitted.
+  destruct e; unfold LiftPred.Expr in *;
+    repeat (des_bool; des); ss; solve_liftpred_nopred; eauto.
+Qed.
 
 Lemma IdTSet_map_spec
       f s ty
-  : IdTSet.mem ty (IdTSet_map f s) =
+  : IdTSet.mem ty (IdTSetFacts.map f s) =
     IdTSet.exists_ (IdTSetFacts.eqb ty <*> f) s.
 Proof.
-  unfold IdTSet_map. rewrite IdTSet.fold_1, <- fold_left_rev_right.
-  rewrite IdTSetFacts.exists_b; [|solve_compat_bool].
-  rewrite existsb_rev.
-  unfold IdTSet.elt. induction (rev (IdTSet.elements s)); ss.
-  - admit.
-  - unfold compose in *. rewrite IdTSetFacts.add_b. rewrite IHl0.
-    admit.
-Admitted.
+  apply IdTSetFacts.map_spec. ii. subst. ss.
+Qed.
 
 Lemma PtrSet_map_spec
       map ps p
-  : PtrSet.mem p (PtrSet_map map ps) =
+  : PtrSet.mem p (PtrSetFacts.map map ps) =
     PtrSet.exists_ (compose (PtrSetFacts.eqb p) map) ps.
 Proof.
-Admitted.
+  apply PtrSetFacts.map_spec. ii. subst. ss.
+Qed.
 
 Lemma PtrPairSet_map_spec
       map pps pp
-  : PtrPairSet.mem pp (PtrPairSet_map map pps) =
+  : PtrPairSet.mem pp (PtrPairSetFacts.map map pps) =
     PtrPairSet.exists_ (compose (PtrPairSetFacts.eqb pp) map) pps.
 Proof.
-Admitted.
+  apply PtrPairSetFacts.map_spec. ii. subst. ss.
+Qed.
 
 Lemma ValueTPairSet_map_spec
       map vps vp
-  : ValueTPairSet.mem vp (ValueTPairSet_map map vps) =
+  : ValueTPairSet.mem vp (ValueTPairSetFacts.map map vps) =
     ValueTPairSet.exists_ (compose (ValueTPairSetFacts.eqb vp) map) vps.
 Proof.
-Admitted.
+  apply ValueTPairSetFacts.map_spec. ii. subst. ss.
+Qed.
 
 Lemma ExprPairSet_map_spec
       map eps ep
-  : ExprPairSet.mem ep (ExprPairSet_map map eps) =
+  : ExprPairSet.mem ep (ExprPairSetFacts.map map eps) =
     ExprPairSet.exists_ (compose (ExprPairSetFacts.eqb ep) map) eps.
 Proof.
-Admitted.
+  apply ExprPairSetFacts.map_spec. ii. subst. ss.
+Qed.
 
 Lemma IdTSet_exists_filter
       pred1 pred2 ids
   : IdTSet.exists_ pred1 (IdTSet.filter pred2 ids) =
     IdTSet.exists_ (fun x => andb (pred1 x) (pred2 x)) ids.
 Proof.
-Admitted.
+  apply IdTSetFacts.exists_filter; solve_compat_bool.
+Qed.
 
 Lemma PtrSet_exists_filter
       pred1 pred2 ps
   : PtrSet.exists_ pred1 (PtrSet.filter pred2 ps) =
     PtrSet.exists_ (fun x => andb (pred1 x) (pred2 x)) ps.
 Proof.
-Admitted.
+  apply PtrSetFacts.exists_filter; solve_compat_bool.
+Qed.
 
 Lemma PtrPairSet_exists_filter
       pred1 pred2 pps
   : PtrPairSet.exists_ pred1 (PtrPairSet.filter pred2 pps) =
     PtrPairSet.exists_ (fun x => andb (pred1 x) (pred2 x)) pps.
 Proof.
-Admitted.
+  apply PtrPairSetFacts.exists_filter; solve_compat_bool.
+Qed.
 
 Lemma ValueTPairSet_exists_filter
       pred1 pred2 vps
   : ValueTPairSet.exists_ pred1 (ValueTPairSet.filter pred2 vps) =
     ValueTPairSet.exists_ (fun x => andb (pred1 x) (pred2 x)) vps.
 Proof.
-Admitted.
+  apply ValueTPairSetFacts.exists_filter; solve_compat_bool.
+Qed.
 
 Lemma ExprPairSet_exists_filter
       pred1 pred2 eps
   : ExprPairSet.exists_ pred1 (ExprPairSet.filter pred2 eps) =
     ExprPairSet.exists_ (fun x => andb (pred1 x) (pred2 x)) eps.
 Proof.
-Admitted.
+  apply ExprPairSetFacts.exists_filter; solve_compat_bool.
+Qed.
 
 Lemma previousified_sem_valueT_in_new_invst
       conf st invst0 v
       (NOPREV : LiftPred.ValueT Snapshot.IdT v = false)
-  : <<X: InvState.Unary.sem_valueT conf st invst0 v =
-         InvState.Unary.sem_valueT conf st
-                                   {| InvState.Unary.previous := Locals (EC st);
-                                      InvState.Unary.ghost := InvState.Unary.ghost invst0 |}
-                                   (Previousify.ValueT v)>>.
+  : InvState.Unary.sem_valueT conf st invst0 v =
+    InvState.Unary.sem_valueT conf st
+                              (InvState.Unary.mk st.(EC).(Locals) invst0.(InvState.Unary.ghost))
+                              (Previousify.ValueT v).
 Proof.
   destruct v; ss.
   destruct x as [xtag x]. ss.
@@ -193,51 +231,52 @@ Proof.
   destruct xtag; ss.
 Qed.
 
+Lemma previousified_sem_list_valueT_in_new_invst
+      conf st invst0 lsv
+      (NOPREV: existsb (LiftPred.ValueT Snapshot.IdT <*> snd) lsv = false)
+  : InvState.Unary.sem_list_valueT conf st invst0 lsv =
+    InvState.Unary.sem_list_valueT conf st
+                                   (InvState.Unary.mk st.(EC).(Locals) invst0.(InvState.Unary.ghost))
+                                   (List.map (fun elt : sz * ValueT.t => (fst elt, Previousify.ValueT (snd elt))) lsv).
+Proof.
+  revert NOPREV.
+  induction lsv; ss.
+  i. des_bool. des.
+  exploit IHlsv; eauto. i.
+
+  des_ifs; ss;
+    exploit previousified_sem_valueT_in_new_invst; eauto;
+      intros RW; rewrite RW in *; ss; clarify.
+Qed.
+
+Ltac solve_liftpred_noprev2 :=
+  repeat match goal with
+         | [H: Postcond.LiftPred.ValueT Postcond.Snapshot.IdT _ = false |- _ ] =>
+           let RW:= fresh in
+           exploit previousified_sem_valueT_in_new_invst; try exact H; eauto; intro RW; rewrite RW; clear RW; clear H
+         | [H: existsb (LiftPred.ValueT Snapshot.IdT <*> snd) _ = false |- _ ] =>
+           let RW:= fresh in
+           exploit previousified_sem_list_valueT_in_new_invst; try exact H; eauto; intro RW; rewrite RW; clear RW; clear H
+         end.
+
 Lemma previousified_sem_expr_in_new_invst
       conf st invst0 e
       (NOPREV : LiftPred.Expr Snapshot.IdT e = false)
   : <<X: InvState.Unary.sem_expr conf st invst0 e =
          InvState.Unary.sem_expr conf st
-                                 {| InvState.Unary.previous := Locals (EC st);
-                                    InvState.Unary.ghost := InvState.Unary.ghost invst0 |}
+                                 (InvState.Unary.mk st.(EC).(Locals) invst0.(InvState.Unary.ghost))
                                  (Previousify.Expr e)>>.
 Proof.
-  (* TODO: use all_once *)
-  Ltac solve_double :=
-    match goal with
-    | [v: ValueT.t, w:ValueT.t |- _] =>
-      match goal with
-      | [Hv: LiftPred.ValueT Snapshot.IdT v = false,
-             Hw: LiftPred.ValueT Snapshot.IdT w = false |- _] =>
-        let EQv := fresh "EQv" in
-        let EQw := fresh "EQw" in
-        exploit previousified_sem_valueT_in_new_invst; try exact Hv; intro EQv; des; rewrite EQv;
-        exploit previousified_sem_valueT_in_new_invst; try exact Hw; intro EQw; des; rewrite EQw
-      end
-    end.
-  Ltac solve_single :=
-    match goal with
-    | [v: ValueT.t |- _] =>
-      match goal with
-      | [Hv: LiftPred.ValueT Snapshot.IdT v = false |- _] =>
-        let EQv := fresh "EQv" in
-        exploit previousified_sem_valueT_in_new_invst; try exact Hv; intro EQv; des; rewrite EQv
-      end
-    end.
-
-  destruct e; unfold LiftPred.Expr in *; try solve_des_bool; ss;
-    try (solve_double; congruence; fail);
-    try (solve_single;congruence; fail).
-  - admit. (* gep *)
-  - admit. (* select *)
-Admitted.
+  destruct e; ss; repeat (des_bool; des);
+    solve_liftpred_noprev2; eauto.
+Qed.
 
 Lemma snapshot_unary_sound
-      conf st invst0 invmem inv0
-      (STATE: InvState.Unary.sem conf st invst0 invmem inv0)
+      conf st invst0 invmem inv0 gmax
+      (STATE: InvState.Unary.sem conf st invst0 invmem gmax inv0)
   :
     exists invst1,
-      <<STATE_UNARY: InvState.Unary.sem conf st invst1 invmem (Snapshot.unary inv0)>> /\
+      <<STATE_UNARY: InvState.Unary.sem conf st invst1 invmem gmax (Snapshot.unary inv0)>> /\
       <<PREV: forall x, InvState.Unary.sem_idT st invst1 (Tag.previous, x) =
                                 lookupAL _ st.(EC).(Locals) x>> /\
       <<GHOST: invst0.(InvState.Unary.ghost) = invst1.(InvState.Unary.ghost)>>.
@@ -273,7 +312,7 @@ Proof.
       }
       { 
         match goal with
-        | [H: ExprPairSet.In _ (ExprPairSet_map _ (ExprPairSet.filter _ _)) |- _] =>
+        | [H: ExprPairSet.In _ (ExprPairSetFacts.map _ (ExprPairSet.filter _ _)) |- _] =>
           apply ExprPairSetFacts.mem_iff in H; rewrite ExprPairSet_map_spec in H;
             rewrite ExprPairSet_exists_filter in H; apply ExprPairSetFacts.exists_iff in H; solve_compat_bool;
               destruct H as [[e01 e02]]; des
@@ -299,7 +338,7 @@ Proof.
         - erewrite valueT_no_prev_sem_preserved in *; eauto.
       }
       { match goal with
-        | [H: ValueTPairSet.mem _ (ValueTPairSet_map _ (ValueTPairSet.filter _ _)) = _ |- _] =>
+        | [H: ValueTPairSet.mem _ (ValueTPairSetFacts.map _ (ValueTPairSet.filter _ _)) = _ |- _] =>
           rewrite ValueTPairSet_map_spec in H;
             rewrite ValueTPairSet_exists_filter in H; apply ValueTPairSetFacts.exists_iff in H; [| solve_compat_bool];
               destruct H as [[val01 val02]]; des
@@ -322,7 +361,7 @@ Proof.
         - erewrite valueT_no_prev_sem_preserved in *; eauto.
       }
       { match goal with
-        | [H: PtrPairSet.mem _ (PtrPairSet_map _ (PtrPairSet.filter _ _)) = _ |- _] =>
+        | [H: PtrPairSet.mem _ (PtrPairSetFacts.map _ (PtrPairSet.filter _ _)) = _ |- _] =>
           rewrite PtrPairSet_map_spec in H;
             rewrite PtrPairSet_exists_filter in H; apply PtrPairSetFacts.exists_iff in H; [| solve_compat_bool];
               destruct H as [[ptr01 ptr02]]; des
@@ -359,7 +398,7 @@ Proof.
       - exploit PRIVATE; eauto.
     }
     { match goal with
-      | [H: IdTSet.In _ (IdTSet_map _ (IdTSet.filter _ _)) |- _] =>
+      | [H: IdTSet.In _ (IdTSetFacts.map _ (IdTSet.filter _ _)) |- _] =>
         apply IdTSetFacts.mem_iff in H; rewrite IdTSet_map_spec in H;
           rewrite IdTSet_exists_filter in H; apply IdTSetFacts.exists_iff in H; [| solve_compat_bool];
             destruct H as [[xtag xid]]; des

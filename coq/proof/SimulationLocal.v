@@ -93,33 +93,43 @@ Section SimLocal.
            <<INJECT: list_forall2 (genericvalues_inject.gv_inject inv1.(InvMem.Rel.inject)) args2_src args1_tgt>>)
       (MEM: InvMem.Rel.sem conf_src conf_tgt st2_src.(Mem) st1_tgt.(Mem) inv1)
       (RETURN:
-         forall inv3 mem3_src mem3_tgt retval3_src retval3_tgt locals4_src
-           (INCR: InvMem.Rel.le (InvMem.Rel.lift st2_src.(Mem) st1_tgt.(Mem) inv1) inv3)
-           (MEM: InvMem.Rel.sem conf_src conf_tgt mem3_src mem3_tgt inv3)
-           (RETVAL: TODO.lift2_option (genericvalues_inject.gv_inject inv3.(InvMem.Rel.inject)) retval3_src retval3_tgt)
-           (RETURN_SRC: return_locals
-                          conf_src.(CurTargetData)
-                          retval3_src id2_src noret2_src typ2_src
-                          st2_src.(EC).(Locals)
-                        = Some locals4_src),
-         exists locals4_tgt idx4 inv4,
-           <<RETURN_TGT: return_locals
-                           conf_tgt.(CurTargetData)
-                           retval3_tgt id1_tgt noret1_tgt typ1_tgt
-                           st1_tgt.(EC).(Locals)
-                         = Some locals4_tgt>> /\
-           <<MEMLE: InvMem.Rel.le inv1 inv4>> /\
-           <<SIM:
-             sim_local
-               stack0_src stack0_tgt inv4 idx4
-               (mkState
-                  (mkEC st2_src.(EC).(CurFunction) st2_src.(EC).(CurBB) cmds2_src st2_src.(EC).(Terminator) locals4_src st2_src.(EC).(Allocas))
-                  st2_src.(ECS)
-                  mem3_src)
-               (mkState
-                  (mkEC st1_tgt.(EC).(CurFunction) st1_tgt.(EC).(CurBB) cmds1_tgt st1_tgt.(EC).(Terminator) locals4_tgt st1_tgt.(EC).(Allocas))
-                  st1_tgt.(ECS)
-                  mem3_tgt)>>)
+         exists uniqs_src uniqs_tgt,
+           <<UNIQS_SRC: forall mptr typ align val b o
+                          (LOAD: mload conf_src.(CurTargetData) st2_src.(Mem) mptr typ align = Some val)
+                          (GV2PTR: GV2ptr conf_src.(CurTargetData) (getPointerSize conf_src.(CurTargetData)) val = Some (Vptr b o)),
+             ~ In b uniqs_src>> /\
+           <<UNIQS_TGT: forall mptr typ align val b o
+                          (LOAD: mload conf_tgt.(CurTargetData) st1_tgt.(Mem) mptr typ align = Some val)
+                          (GV2PTR: GV2ptr conf_tgt.(CurTargetData) (getPointerSize conf_tgt.(CurTargetData)) val = Some (Vptr b o)),
+             ~ In b uniqs_tgt>> /\
+           <<RETURN:
+               forall inv3 mem3_src mem3_tgt retval3_src retval3_tgt locals4_src
+                 (INCR: InvMem.Rel.le (InvMem.Rel.lift st2_src.(Mem) st1_tgt.(Mem) uniqs_src uniqs_tgt inv1) inv3)
+                 (MEM: InvMem.Rel.sem conf_src conf_tgt mem3_src mem3_tgt inv3)
+                 (RETVAL: TODO.lift2_option (genericvalues_inject.gv_inject inv3.(InvMem.Rel.inject)) retval3_src retval3_tgt)
+                 (RETURN_SRC: return_locals
+                                conf_src.(CurTargetData)
+                                retval3_src id2_src noret2_src typ2_src
+                                st2_src.(EC).(Locals)
+                              = Some locals4_src),
+               exists locals4_tgt idx4 inv4,
+                 <<RETURN_TGT: return_locals
+                                 conf_tgt.(CurTargetData)
+                                 retval3_tgt id1_tgt noret1_tgt typ1_tgt
+                                 st1_tgt.(EC).(Locals)
+                               = Some locals4_tgt>> /\
+                 <<MEMLE: InvMem.Rel.le inv1 inv4>> /\
+                 <<SIM:
+                   sim_local
+                     stack0_src stack0_tgt inv4 idx4
+                     (mkState
+                        (mkEC st2_src.(EC).(CurFunction) st2_src.(EC).(CurBB) cmds2_src st2_src.(EC).(Terminator) locals4_src st2_src.(EC).(Allocas))
+                        st2_src.(ECS)
+                        mem3_src)
+                     (mkState
+                        (mkEC st1_tgt.(EC).(CurFunction) st1_tgt.(EC).(CurBB) cmds1_tgt st1_tgt.(EC).(Terminator) locals4_tgt st1_tgt.(EC).(Allocas))
+                        st1_tgt.(ECS)
+                        mem3_tgt)>> >>)
 
   | _sim_local_step
       (PROGRESS: ~ stuck_state conf_tgt st1_tgt)
@@ -140,7 +150,9 @@ Section SimLocal.
     - econs 1; eauto.
     - econs 2; eauto.
     - econs 3; eauto.
-    - econs 4; eauto.
+    - des.
+      econs 4; eauto.
+      esplits; eauto.
       i. exploit RETURN; eauto. i. des.
       esplits; eauto.
     - econs 5; eauto.

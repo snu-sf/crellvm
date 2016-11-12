@@ -48,55 +48,12 @@ End IdT.
 Hint Resolve IdT.eq_dec: EqDecDb.
 
 Module IdTSet : FSetExtra.WSfun IdT := FSetExtra.Make IdT.
-Module IdTSetFacts := WFacts_fun IdT IdTSet.
-
-(* TODO: move *)
-Definition AtomSetImpl_from_list
-           (ids:list id): AtomSetImpl.t :=
-  fold_left (flip AtomSetImpl.add) ids AtomSetImpl.empty.
-
-(* AtomSetImpl, AtomSetFacts // IdTSet, IdTSetFacts *)
-Lemma AtomSetImpl_from_list_spec ids:
-  forall id, AtomSetImpl.mem id (AtomSetImpl_from_list ids) <-> In id ids.
-Proof.
-  unfold AtomSetImpl_from_list. rewrite <- fold_left_rev_right.
-  intros. rewrite in_rev.
-  match goal with
-  | [|- context[@rev ?T ?ids]] => induction (@rev T ids)
-  end; simpl.
-  - rewrite AtomSetFacts.empty_b. intuition.
-  - unfold flip in *. rewrite AtomSetFacts.add_b.
-    unfold AtomSetFacts.eqb. constructor; intros.
-    + apply orb_true_iff in H. destruct H.
-      * left. destruct (AtomDT.eq_dec a id0); intuition.
-      * right. apply IHl0. auto.
-    + apply orb_true_intro. destruct H.
-      * subst. destruct (AtomDT.eq_dec id0 id0); auto.
-      * right. apply IHl0. auto.
-Qed.
-
-(* TODO: move *)
-Definition IdTSet_from_list
-           (ids:list IdT.t): IdTSet.t :=
-  fold_left (flip IdTSet.add) ids IdTSet.empty.
+Module IdTSetFacts := WFacts_fun2 IdT IdTSet.
 
 Lemma IdTSet_from_list_spec ids:
-  forall id, IdTSet.mem id (IdTSet_from_list ids) <-> In id ids.
+  forall id, IdTSet.mem id (IdTSetFacts.from_list ids) <-> In id ids.
 Proof.
-  unfold IdTSet_from_list. rewrite <- fold_left_rev_right.
-  intros. rewrite in_rev.
-  match goal with
-  | [|- context[@rev ?T ?ids]] => induction (@rev T ids)
-  end; simpl.
-  - rewrite IdTSetFacts.empty_b. intuition.
-  - unfold flip in *. rewrite IdTSetFacts.add_b.
-    unfold IdTSetFacts.eqb. constructor; intros.
-    + apply orb_true_iff in H. destruct H.
-      * left. destruct (IdT.eq_dec a id0); intuition.
-      * right. apply IHl0. auto.
-    + apply orb_true_intro. destruct H.
-      * subst. destruct (IdT.eq_dec id0 id0); auto.
-      * right. apply IHl0. auto.
+  i. rewrite IdTSetFacts.from_list_spec. apply InA_iff_In.
 Qed.
 
 Module Value.
@@ -143,7 +100,7 @@ Coercion ValueT.id: IdT.t >-> ValueT.t_.
 Coercion ValueT.const: const >-> ValueT.t_.
 
 Module ValueTSet : FSetExtra.WSfun ValueT := FSetExtra.Make ValueT.
-Module ValueTSetFacts := WFacts_fun ValueT ValueTSet.
+Module ValueTSetFacts := WFacts_fun2 ValueT ValueTSet.
 
 (* TODO: universal construction? *)
 Module ValueTPair <: UsualDecidableType.
@@ -165,7 +122,7 @@ End ValueTPair.
 Hint Resolve ValueTPair.eq_dec: EqDecDb.
 
 Module ValueTPairSet : FSetExtra.WSfun ValueTPair := FSetExtra.Make ValueTPair.
-Module ValueTPairSetFacts := WFacts_fun ValueTPair ValueTPairSet.
+Module ValueTPairSetFacts := WFacts_fun2 ValueTPair ValueTPairSet.
 
 Module Expr <: UsualDecidableType.
   Inductive t_: Set :=
@@ -337,7 +294,7 @@ End ExprPair.
 Hint Resolve ExprPair.eq_dec: EqDecDb.
 
 Module ExprPairSet : FSetExtra.WSfun ExprPair := FSetExtra.Make ExprPair.
-Module ExprPairSetFacts := WFacts_fun ExprPair ExprPairSet.
+Module ExprPairSetFacts := WFacts_fun2 ExprPair ExprPairSet.
 
 (* Ptr: alias related values *)
 Module Ptr <: UsualDecidableType.
@@ -362,31 +319,13 @@ Module Ptr <: UsualDecidableType.
     end.
 End Ptr.
 
-Module PtrSet: FSetExtra.WSfun Ptr := FSetExtra.Make Ptr.
-Module PtrSetFacts := WFacts_fun Ptr PtrSet.
-
-(* TODO: move *)
-Definition PtrSet_from_list
-           (ps:list Ptr.t): PtrSet.t :=
-  fold_left (flip PtrSet.add) ps PtrSet.empty.
+Module PtrSet : FSetExtra.WSfun Ptr := FSetExtra.Make Ptr.
+Module PtrSetFacts := WFacts_fun2 Ptr PtrSet.
 
 Lemma PtrSet_from_list_spec ps:
-  forall p, PtrSet.mem p (PtrSet_from_list ps) <-> In p ps.
+  forall p, PtrSet.mem p (PtrSetFacts.from_list ps) <-> In p ps.
 Proof.
-  unfold PtrSet_from_list. rewrite <- fold_left_rev_right.
-  intros. rewrite in_rev.
-  match goal with
-  | [|- context[@rev ?T ?ps]] => induction (@rev T ps)
-  end; simpl.
-  - rewrite PtrSetFacts.empty_b. intuition.
-  - unfold flip in *. rewrite PtrSetFacts.add_b.
-    unfold PtrSetFacts.eqb. constructor; intros.
-    + apply orb_true_iff in H. destruct H.
-      * left. destruct (Ptr.eq_dec a p); intuition.
-      * right. apply IHl0. auto.
-    + apply orb_true_intro. destruct H.
-      * subst. destruct (Ptr.eq_dec p p); auto.
-      * right. apply IHl0. auto.
+  i. rewrite PtrSetFacts.from_list_spec. apply InA_iff_In.
 Qed.
 
 Module PtrPair <: UsualDecidableType.
@@ -406,5 +345,5 @@ Module PtrPair <: UsualDecidableType.
 End PtrPair.
 Hint Resolve PtrPair.eq_dec: EqDecDb.
 
-Module PtrPairSet: FSetExtra.WSfun PtrPair := FSetExtra.Make PtrPair.
-Module PtrPairSetFacts := WFacts_fun PtrPair PtrPairSet.
+Module PtrPairSet : FSetExtra.WSfun PtrPair := FSetExtra.Make PtrPair.
+Module PtrPairSetFacts := WFacts_fun2 PtrPair PtrPairSet.
