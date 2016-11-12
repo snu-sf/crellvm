@@ -183,11 +183,11 @@ Section Filter.
   Qed.
 
   Lemma filter_spec
-        conf st invst invmem inv
+        conf st invst invmem inv gmax
         (preserved: _ -> bool)
         (PRESERVED: forall id (ID: In id (Invariant.get_idTs_unary inv)), preserved id)
-        (STATE: InvState.Unary.sem conf st invst invmem inv):
-    InvState.Unary.sem conf st (filter preserved invst) invmem inv.
+        (STATE: InvState.Unary.sem conf st invst invmem gmax inv):
+    InvState.Unary.sem conf st (filter preserved invst) invmem gmax inv.
   Proof.
     inv STATE. econs; eauto.
     - ii.
@@ -253,11 +253,6 @@ Proof.
   exploit GVs.inject_lessdef_compose; eauto; []; ii; des.
   exploit GVs.lessdef_inject_compose; try exact x0; eauto.
 Qed.
-
-(* TODO
- * preserved: same
- * otherwise: none
- *)
 
 Lemma reduce_maydiff_preserved_sem_idT st_src st_tgt
       invst inv id val_src val_tgt

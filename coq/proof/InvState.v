@@ -221,25 +221,22 @@ Module Unary.
     | _, _ => True
     end.
 
-  Definition NOALIAS_TODO: Prop. Admitted.
-
   Definition sem_noalias (conf:Config) (val1 val2:GenericValue) (ty1 ty2:typ): Prop :=
     match GV2ptr conf.(CurTargetData) (getPointerSize conf.(CurTargetData)) val1,
           GV2ptr conf.(CurTargetData) (getPointerSize conf.(CurTargetData)) val2 with
-    | Some (Vptr b1 ofs1), Some (Vptr b2 ofs2) =>
-      forall
-        size1 size2
-        (BLOCK: b1 = b2)
-        (* TODO: getTypeSizeInBits, storesize, or allocsize for size? *)
-        (SIZE1: getTypeSizeInBits conf.(CurTargetData) ty1 = Some size1)
-        (SIZE2: getTypeSizeInBits conf.(CurTargetData) ty2 = Some size2),
-        NOALIAS_TODO
-        (* [Int.signed (31%nat) ofs1, Int.signed (31%nat) ofs1 + size1) disjoint *)
-        (* [Int.signed (31%nat) ofs2, Int.signed (31%nat) ofs2 + size2) *)
+    | Some (Vptr b1 ofs1), Some (Vptr b2 ofs2) => b1 <> b2
+      (* forall *)
+      (*   size1 size2 *)
+      (*   (BLOCK: b1 = b2) *)
+      (*   (* TODO: getTypeSizeInBits, storesize, or allocsize for size? *) *)
+      (*   (SIZE1: getTypeSizeInBits conf.(CurTargetData) ty1 = Some size1) *)
+      (*   (SIZE2: getTypeSizeInBits conf.(CurTargetData) ty2 = Some size2), *)
+      (*   .. *)
+      (*   (* [Int.signed (31%nat) ofs1, Int.signed (31%nat) ofs1 + size1) disjoint *) *)
+      (*   (* [Int.signed (31%nat) ofs2, Int.signed (31%nat) ofs2 + size2) *) *)
     | _, _ => True
     end.
 
-  (* TODO (NOALIAS): (gptr1, ptr1.(snd)) is not aliased with (gptr2, ptr2.(snd)). *)
   Inductive sem_alias (conf:Config) (st:State) (invst:t) (arel:Invariant.aliasrel): Prop :=
   | sem_alias_intro
       (DIFFBLOCK:
@@ -258,7 +255,7 @@ Module Unary.
            sem_noalias conf gptr1 gptr2 ptr1.(snd) ptr2.(snd))
   .
 
-  Inductive sem_unique (conf:Config) (st:State) (a:atom): Prop :=
+  Inductive sem_unique (conf:Config) (st:State) (gmax:positive) (a:atom) : Prop :=
   | sem_unique_intro
       val
       (VAL: lookupAL _ st.(EC).(Locals) a = Some val)
@@ -270,9 +267,10 @@ Module Unary.
          forall mptr typ align val'
            (LOAD: mload conf.(CurTargetData) st.(Mem) mptr typ align = Some val'),
            sem_diffblock conf val val')
-      (GLOBALS: forall gid val'
-                  (VAL': lookupAL _ conf.(Globals) gid = Some val'),
-          sem_diffblock conf val val')
+      (GLOBALS:
+         forall b ofs
+           (GV2PTR: GV2ptr conf.(CurTargetData) (getPointerSize conf.(CurTargetData)) val = Some (Vptr b ofs)),
+           (gmax < b)%positive)
   .
 
   Definition sem_private (conf:Config) (st:State) (invst:t) (private:list mblock) (a:IdT.t): Prop :=
@@ -283,11 +281,11 @@ Module Unary.
       | _ => False
       end.
 
-  Inductive sem (conf:Config) (st:State) (invst:t) (invmem:InvMem.Unary.t) (inv:Invariant.unary): Prop :=
+  Inductive sem (conf:Config) (st:State) (invst:t) (invmem:InvMem.Unary.t) (gmax:positive) (inv:Invariant.unary): Prop :=
   | sem_intro
       (LESSDEF: ExprPairSet.For_all (sem_lessdef conf st invst) inv.(Invariant.lessdef))
       (NOALIAS: sem_alias conf st invst inv.(Invariant.alias))
-      (UNIQUE: AtomSetImpl.For_all (sem_unique conf st) inv.(Invariant.unique))
+      (UNIQUE: AtomSetImpl.For_all (sem_unique conf st gmax) inv.(Invariant.unique))
       (PRIVATE: IdTSet.For_all (sem_private conf st invst invmem.(InvMem.Unary.private)) inv.(Invariant.private))
       (WF_LOCAL: MemProps.wf_lc st.(Mem) st.(EC).(Locals))
       (WF_PREVIOUS: MemProps.wf_lc st.(Mem) invst.(previous))
@@ -299,20 +297,26 @@ Module Unary.
   .
 
   Lemma sem_empty
-        conf st invst invmem inv
+        conf st invst invmem gmax inv
         (EMPTY: Invariant.is_empty_unary inv):
-    sem conf st invst invmem inv.
+    sem conf st invst invmem gmax inv.
   Proof.
     unfold Invariant.is_empty_unary in EMPTY.
     solve_bool_true.
     econs.
     - ii. apply ExprPairSet.is_empty_2 in EMPTY.
       exfalso. eapply EMPTY; eauto.
-    - admit. (* TODO: sem_alias *)
+    - unfold Invariant.is_empty_alias in EMPTY2. des_bool. des.
+      econs.
+      + ii. apply ValueTPairSet.is_empty_2 in EMPTY3.
+        exfalso. eapply EMPTY3. apply ValueTPairSetFacts.mem_iff. eauto.
+      + ii. apply PtrPairSet.is_empty_2 in EMPTY2.
+        exfalso. eapply EMPTY2. apply PtrPairSetFacts.mem_iff. eauto.
     - ii. apply AtomSetImpl.is_empty_2 in EMPTY1.
       exfalso. eapply EMPTY1; eauto.
     - ii. apply IdTSet.is_empty_2 in EMPTY0.
       exfalso. eapply EMPTY0; eauto.
+      (* TODO: This lemma is currently wrong: need wf condition to st, invst, invmem *)
   Admitted.
 
   Lemma sem_valueT_physical
@@ -352,8 +356,8 @@ Module Rel.
 
   Inductive sem (conf_src conf_tgt:Config) (st_src st_tgt:State) (invst:t) (invmem:InvMem.Rel.t) (inv:Invariant.t): Prop :=
   | sem_intro
-      (SRC: Unary.sem conf_src st_src invst.(src) invmem.(InvMem.Rel.src) inv.(Invariant.src))
-      (TGT: Unary.sem conf_tgt st_tgt invst.(tgt) invmem.(InvMem.Rel.tgt) inv.(Invariant.tgt))
+      (SRC: Unary.sem conf_src st_src invst.(src) invmem.(InvMem.Rel.src) invmem.(InvMem.Rel.gmax) inv.(Invariant.src))
+      (TGT: Unary.sem conf_tgt st_tgt invst.(tgt) invmem.(InvMem.Rel.tgt) invmem.(InvMem.Rel.gmax) inv.(Invariant.tgt))
       (MAYDIFF:
          forall id (NOTIN: (IdTSet.mem id inv.(Invariant.maydiff)) = false),
            sem_inject st_src st_tgt invst invmem.(InvMem.Rel.inject) id)
@@ -505,9 +509,9 @@ Module Rel.
 
   Lemma lessdef_expr_spec
         invst invmem inv
-        conf st
+        conf st gmax
         e1 e2 gv1
-        (SEM: Unary.sem conf st invst invmem inv)
+        (SEM: Unary.sem conf st invst invmem gmax inv)
         (E: ExprPairSet.mem (e1, e2) inv.(Invariant.lessdef))
         (E1: Unary.sem_expr conf st invst e1 = ret gv1):
     exists gv2,

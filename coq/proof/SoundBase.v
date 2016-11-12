@@ -153,10 +153,10 @@ Ltac inject_clarify :=
 
 Lemma Subset_unary_sem
       conf st
-      invst invmem inv0 inv1
-      (STATE: InvState.Unary.sem conf st invst invmem inv1)
+      invst invmem gmax inv0 inv1
+      (STATE: InvState.Unary.sem conf st invst invmem gmax inv1)
       (SUBSET: Hints.Invariant.Subset_unary inv0 inv1)
-  : InvState.Unary.sem conf st invst invmem inv0.
+  : InvState.Unary.sem conf st invst invmem gmax inv0.
 Proof.
   inv STATE. inv SUBSET.
   econs; eauto.
@@ -418,11 +418,11 @@ Proof.
 Qed.
 
 Lemma unary_sem_eq_locals_mem
-      conf st0 st1 invst0 invmem0 inv0
+      conf st0 st1 invst0 invmem0 inv0 gmax
       (LOCALS_EQ: Locals (EC st0) = Locals (EC st1))
       (MEM_EQ : Mem st0 = Mem st1)
-      (STATE: InvState.Unary.sem conf st0 invst0 invmem0 inv0)
-  : InvState.Unary.sem conf st1 invst0 invmem0 inv0.
+      (STATE: InvState.Unary.sem conf st0 invst0 invmem0 gmax inv0)
+  : InvState.Unary.sem conf st1 invst0 invmem0 gmax inv0.
 Proof.
   inv STATE.
   econs.

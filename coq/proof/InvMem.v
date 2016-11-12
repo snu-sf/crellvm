@@ -53,9 +53,9 @@ Module Unary.
            (LOAD: mload conf.(CurTargetData) m mptr typ align = Some val'),
            gv_diffblock_with_blocks conf val' inv.(unique_parent))
       (UNIQUE_PARENT_GLOBALS:
-         forall gid val'
-           (VAL': lookupAL _ conf.(Globals) gid = Some val'),
-           gv_diffblock_with_blocks conf val' inv.(unique_parent))
+         forall b
+           (IN_UNIQUE_PARENT: In b inv.(unique_parent)),
+           (gmax < b)%positive)
 
       (UNIQUE_PRIVATE_PARENT: sublist inv.(unique_parent) inv.(private_parent))
       (NEXTBLOCK: m.(Mem.nextblock) = inv.(nextblock))
