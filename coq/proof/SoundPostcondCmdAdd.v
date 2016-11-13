@@ -231,36 +231,16 @@ Qed.
 
 Lemma globals_malloc_diffblock
       align0 TD gn SRC_MEM SRC_MEM_STEP
-      tsz conf_src mb gid val
+      tsz conf_src mb
       gmax
       (WF_GLOBALS: genericvalues_inject.wf_globals gmax (Globals conf_src))
       (MALLOC: malloc TD SRC_MEM tsz gn align0 = Some (SRC_MEM_STEP, mb))
       (WF_MEM: MemProps.wf_Mem gmax (CurTargetData conf_src) SRC_MEM)
-      (VAL: lookupAL GenericValue (Globals conf_src) gid = Some val)
-  :
-    <<DIFFBLOCK: InvState.Unary.sem_diffblock conf_src (blk2GV TD mb) val>>
-.
+  : (gmax < mb)%positive.
 Proof.
   unfold MemProps.wf_Mem in *. des.
-  induction (Globals conf_src); ii; ss.
-  destruct a; ss.
-  destruct (gid == i0); ss; clarify.
-  - (* gid == i0 *)
-    clear IHg.
-    destruct val; ss.
-    destruct p; ss.
-    destruct v; ss.
-    des. red.
-    unfold InvState.Unary.sem_diffblock. ss.
-    destruct val; ss.
-    exploit MemProps.nextblock_malloc; try apply MALLOC; []; ii; des. clarify.
-    exploit MemProps.malloc_result; try apply MALLOC; []; ii; des. clarify.
-    clear - WF_MEM0 WF_GLOBALS.
-    exploit Pos.le_lt_trans; eauto; []; ii; des.
-    exploit Pos.lt_irrefl; eauto.
-  - (* IH case *)
-    des.
-    eapply IHg; eauto.
+  exploit MemProps.nextblock_malloc; try apply MALLOC; []; ii; des.
+  exploit MemProps.malloc_result; try apply MALLOC; []; ii; des. clarify.
 Qed.
 
 Lemma mload_malloc_diffblock
@@ -311,7 +291,7 @@ Lemma add_unique_malloc
                       Locals := updateAddAL GenericValue lc id0 (blk2GV TD mb);
                       Allocas := mb :: als |};
                 ECS := ECS0;
-                Mem := SRC_MEM_STEP |}) (Invariant.unique inv_unary))
+                Mem := SRC_MEM_STEP |} gmax) (Invariant.unique inv_unary))
   (WF : MemProps.wf_Mem gmax (CurTargetData conf_src) SRC_MEM)
   (GLOBALS : genericvalues_inject.wf_globals gmax (Globals conf_src))
   (WF_LOCAL : MemProps.wf_lc SRC_MEM lc)
@@ -327,7 +307,7 @@ Lemma add_unique_malloc
              Locals := updateAddAL GenericValue lc id0 (blk2GV TD mb);
              Allocas := mb :: als |};
        ECS := ECS0;
-       Mem := SRC_MEM_STEP |}) (add id0 (Invariant.unique inv_unary))>>
+       Mem := SRC_MEM_STEP |} gmax) (add id0 (Invariant.unique inv_unary))>>
 .
 Proof.
   intros x xIn.
@@ -345,9 +325,9 @@ Proof.
   +
     (* MEM *)
     ii. eapply mload_malloc_diffblock; eauto.
-  +
-    (* GLOBALS *)
-    ii. eapply globals_malloc_diffblock; eauto.
+  + (* GLOBALS *)
+    ii. ss. clarify.
+    eapply globals_malloc_diffblock; eauto.
 Qed.
 
 Lemma add_private_alloca
@@ -423,6 +403,7 @@ Lemma postcond_cmd_add_inject_sound
       (STATE_STEP: InvState.Rel.sem conf_src conf_tgt st1_src st1_tgt invst1 invmem1 inv1)
       (MEM: InvMem.Rel.sem conf_src conf_tgt st0_src.(Mem) st0_tgt.(Mem) invmem0)
       (MEM_STEP: InvMem.Rel.sem conf_src conf_tgt st1_src.(Mem) st1_tgt.(Mem) invmem1)
+      (MEM_GMAX: invmem0.(InvMem.Rel.gmax) = invmem1.(InvMem.Rel.gmax))
       (STEP_SRC: sInsn conf_src st0_src st1_src evt)
       (STEP_TGT: sInsn conf_tgt st0_tgt st1_tgt evt)
       (CMDS_SRC: st0_src.(EC).(CurCmds) = cmd_src :: cmds_src)
@@ -481,15 +462,15 @@ Proof.
     unfold alloc_private, alloc_private_unary in *. ss.
     destruct ALLOC_PRIVATE as [_ ALLOC_PRIVATE].
     econs; eauto; [|]; clear LESSDEF NOALIAS WF_LOCAL.
-    +
-      clear ALLOC_PRIVATE.
+    + clear ALLOC_PRIVATE.
       clear PRIVATE.
       unfold Invariant.update_src. ss.
       intros ____id____ IN.
       eapply AtomSetFacts.add_iff in IN.
       des; [|eauto]; [].
       subst.
-      eapply add_unique_malloc; eauto; try apply MEM; try apply STATE.
+      eapply add_unique_malloc; eauto; try apply MEM; try apply STATE;
+        rewrite <- MEM_GMAX; try apply MEM; try apply STATE.
     + clear UNIQUE.
       clear MEM SRC STATE.
       unfold Invariant.update_private. ss.
@@ -524,15 +505,15 @@ Proof.
     unfold alloc_private, alloc_private_unary in *. ss.
     destruct ALLOC_PRIVATE as [ALLOC_PRIVATE _].
     econs; eauto; [|]; clear LESSDEF NOALIAS WF_LOCAL.
-    +
-      clear ALLOC_PRIVATE.
+    + clear ALLOC_PRIVATE.
       clear PRIVATE.
       unfold Invariant.update_src. ss.
       intros ____id____ IN.
       eapply AtomSetFacts.add_iff in IN.
       des; [|eauto]; [].
       subst.
-      eapply add_unique_malloc; eauto; try apply MEM; try apply STATE.
+      eapply add_unique_malloc; eauto; try apply MEM; try apply STATE;
+        rewrite <- MEM_GMAX; try apply MEM; try apply STATE.
     + clear UNIQUE.
       clear MEM TGT STATE.
       unfold Invariant.update_private. ss.
@@ -612,11 +593,13 @@ Proof.
       - (* SRC *)
         inv SRC. inv MEM. inv STATE.
         econs; eauto; []. ss.
-        eapply add_unique_malloc; eauto; try apply SRC; try apply SRC0.
+        eapply add_unique_malloc; eauto; try apply SRC; try apply SRC0;
+          rewrite <- MEM_GMAX; try apply SRC; try apply SRC0.
       - (* TGT *)
         inv TGT. inv MEM. inv STATE.
         econs; eauto; []. ss.
-        eapply add_unique_malloc; eauto; try apply TGT; try apply TGT0.
+        eapply add_unique_malloc; eauto; try apply TGT; try apply TGT0;
+          rewrite <- MEM_GMAX; try apply TGT; try apply TGT0.
       - (* MAYDIFF *)
         inv SRC. inv TGT.
         ii.
@@ -722,7 +705,7 @@ Lemma postcond_cmd_add_lessdef_unary_sound_alloca
       invst0 invmem0 inv0 gmax public
       evt
       (POSTCOND_CHECK: AtomSetImpl.is_empty (AtomSetImpl.inter def uses))
-      (STATE: InvState.Unary.sem conf st1 invst0 invmem0 inv0)
+      (STATE: InvState.Unary.sem conf st1 invst0 invmem0 gmax inv0)
       (MEM: InvMem.Unary.sem conf gmax public st1.(Mem) invmem0)
       (STEP: sInsn conf st0 st1 evt)
       (CMDS: st0.(EC).(CurCmds) = cmd :: cmds)
@@ -733,7 +716,7 @@ Lemma postcond_cmd_add_lessdef_unary_sound_alloca
       (GEP: cmd = insn_alloca id1 typ1 value1 align1)
   :
     <<STATE: InvState.Unary.sem
-               conf st1 invst0 invmem0
+               conf st1 invst0 invmem0 gmax
                (Invariant.update_lessdef (postcond_cmd_add_lessdef cmd) inv0)>>
 .
 Proof.
@@ -829,7 +812,7 @@ Lemma postcond_cmd_add_lessdef_unary_sound_gep
       invst0 invmem0 inv0 gmax public
       evt
       (POSTCOND_CHECK: AtomSetImpl.is_empty (AtomSetImpl.inter def uses))
-      (STATE: InvState.Unary.sem conf st1 invst0 invmem0 inv0)
+      (STATE: InvState.Unary.sem conf st1 invst0 invmem0 gmax inv0)
       (MEM: InvMem.Unary.sem conf gmax public st1.(Mem) invmem0)
       (STEP: sInsn conf st0 st1 evt)
       (CMDS: st0.(EC).(CurCmds) = cmd :: cmds)
@@ -840,7 +823,7 @@ Lemma postcond_cmd_add_lessdef_unary_sound_gep
       (GEP: cmd = insn_gep id1 inbounds1 typ1 value1 sz_values1 typ2)
   :
     <<STATE: InvState.Unary.sem
-               conf st1 invst0 invmem0
+               conf st1 invst0 invmem0 gmax
                (Invariant.update_lessdef (postcond_cmd_add_lessdef cmd) inv0)>>
 .
 Proof.
@@ -899,7 +882,7 @@ Lemma postcond_cmd_add_lessdef_unary_sound_select
       invst0 invmem0 inv0 gmax public
       evt
       (POSTCOND_CHECK: AtomSetImpl.is_empty (AtomSetImpl.inter def uses))
-      (STATE: InvState.Unary.sem conf st1 invst0 invmem0 inv0)
+      (STATE: InvState.Unary.sem conf st1 invst0 invmem0 gmax inv0)
       (MEM: InvMem.Unary.sem conf gmax public st1.(Mem) invmem0)
       (STEP: sInsn conf st0 st1 evt)
       (CMDS: st0.(EC).(CurCmds) = cmd :: cmds)
@@ -910,7 +893,7 @@ Lemma postcond_cmd_add_lessdef_unary_sound_select
       (GEP: cmd = insn_select id1 value_cond typ1 value1 value2)
   :
     <<STATE: InvState.Unary.sem
-               conf st1 invst0 invmem0
+               conf st1 invst0 invmem0 gmax
                (Invariant.update_lessdef (postcond_cmd_add_lessdef cmd) inv0)>>
 .
 Proof.
@@ -961,7 +944,7 @@ Lemma postcond_cmd_add_lessdef_unary_sound
       invst0 invmem0 inv0 gmax public
       evt
       (POSTCOND_CHECK: AtomSetImpl.is_empty (AtomSetImpl.inter def uses))
-      (STATE: InvState.Unary.sem conf st1 invst0 invmem0 inv0)
+      (STATE: InvState.Unary.sem conf st1 invst0 invmem0 gmax inv0)
       (MEM: InvMem.Unary.sem conf gmax public st1.(Mem) invmem0)
       (STEP: sInsn conf st0 st1 evt)
       (CMDS: st0.(EC).(CurCmds) = cmd :: cmds)
@@ -970,7 +953,7 @@ Lemma postcond_cmd_add_lessdef_unary_sound
       (USES: uses = AtomSetImpl_from_list (Cmd.get_ids cmd))
   :
     <<STATE: InvState.Unary.sem
-               conf st1 invst0 invmem0
+               conf st1 invst0 invmem0 gmax
                (Invariant.update_lessdef (postcond_cmd_add_lessdef cmd) inv0)>>
 .
 Proof.
@@ -1135,6 +1118,7 @@ Theorem postcond_cmd_add_sound
         (STATE_STEP: InvState.Rel.sem conf_src conf_tgt st1_src st1_tgt invst1 invmem1 inv1)
         (MEM: InvMem.Rel.sem conf_src conf_tgt st0_src.(Mem) st0_tgt.(Mem) invmem0)
         (MEM_STEP: InvMem.Rel.sem conf_src conf_tgt st1_src.(Mem) st1_tgt.(Mem) invmem1)
+        (MEM_GMAX: invmem0.(InvMem.Rel.gmax) = invmem1.(InvMem.Rel.gmax))
         (STEP_SRC: sInsn conf_src st0_src st1_src evt)
         (STEP_TGT: sInsn conf_tgt st0_tgt st1_tgt evt)
         (CMDS_SRC: st0_src.(EC).(CurCmds) = cmd_src :: cmds_src)

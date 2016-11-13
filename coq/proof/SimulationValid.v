@@ -224,7 +224,7 @@ Proof.
       * econs 1. econs; eauto. rewrite lookupBlockViaLabelFromFdef_spec. ss.
       * right. apply CIH. econs; ss; eauto; ss; eauto.
     + (* switch *)
-      destruct (list_const_l_dec l0 l1); ss. subst. (* TODO *)
+      destruct (list_const_l_dec l0 l1); ss. subst.
       exploit nerror_nfinal_nstuck; eauto. i. des. inv x0.
       exploit InvState.Rel.inject_value_spec; eauto.
       { rewrite InvState.Unary.sem_valueT_physical. eauto. }
@@ -233,9 +233,9 @@ Proof.
       eapply _sim_local_step.
       { admit. (* tgt not stuck *) }
       i. inv STEP. unfold valid_phinodes in *. simtac.
-      (* rewrite add_terminator_cond_switch in *. *)
-      (* rewrite lookupBlockViaLabelFromFdef_spec in *. *)
-      admit.
+      exploit add_terminator_cond_switch; eauto. i. des.
+      rewrite lookupBlockViaLabelFromFdef_spec in *.
+      admit. (* similar to conditional branch *)
     + (* unreachable *)
       exploit nerror_nfinal_nstuck; eauto. i. des. inv x0.
   - (* cmd *)
@@ -243,10 +243,17 @@ Proof.
     + (* call *)
       exploit postcond_cmd_is_call; eauto. i.
       destruct c; ss. destruct c0; ss.
-      exploit postcond_call_sound; try exact COND; eauto;
+      hexploit postcond_call_sound; try exact COND; eauto;
         (try instantiate (2 := (mkState (mkEC _ _ _ _ _ _) _ _))); ss; eauto; ss.
-      i. des. subst. do 24 simtac0.
+      i. des. subst. do 24 simtac0. des.
       eapply _sim_local_call; ss; eauto; ss.
+      exists (memory_blocks_of conf_src Locals0
+                          (Invariant.unique (Invariant.src inv))),
+        (memory_blocks_of conf_tgt Locals1
+                          (Invariant.unique (Invariant.tgt inv))).
+      esplits.
+      { admit. (* uniqs_src *) }
+      { admit. (* uniqs_tgt *) }
       i. exploit RETURN; eauto. i. des.
       exploit apply_infrules_sound; eauto; ss. i. des.
       exploit reduce_maydiff_sound; eauto; ss. i. des.
@@ -347,9 +354,8 @@ Proof.
     destruct (initFunTable mem0 id0); eauto.
 Qed.
 
-(* TODO: extract lemma for module initialization *)
 Lemma valid_sim_module m_hint:
-  (valid_module m_hint) <2= sim_module.
+  (fun p q => valid_module m_hint p q = Some true) <2= sim_module.
 Proof.
   s. intros module_src module_tgt MODULE.
   unfold valid_module in MODULE. simtac.

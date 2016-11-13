@@ -367,9 +367,35 @@ Definition get_swapped_icmp_cond (c:cond) : cond :=
     | cond_sle => cond_sge
   end.
 
+Definition get_swapped_fcmp_cond (c:fcond) : fcond :=
+  match c with
+  | fcond_false => fcond_false
+  | fcond_oeq => fcond_oeq
+  | fcond_ogt => fcond_olt
+  | fcond_oge => fcond_ole
+  | fcond_olt => fcond_ogt
+  | fcond_ole => fcond_oge
+  | fcond_one => fcond_one
+  | fcond_ord => fcond_ord
+  | fcond_ueq => fcond_ueq
+  | fcond_ugt => fcond_ult
+  | fcond_uge => fcond_ule
+  | fcond_ult => fcond_ugt
+  | fcond_ule => fcond_uge
+  | fcond_une => fcond_une
+  | fcond_uno => fcond_uno
+  | fcond_true => fcond_true
+  end.
+
 Definition is_commutative_bop (opcode:bop) :=
   match opcode with
   | bop_add | bop_mul | bop_and | bop_or | bop_xor => true
+  | _ => false
+  end.
+
+Definition is_commutative_fbop (opcode:fbop) :=
+  match opcode with
+  | fbop_fadd | fbop_fmul => true
   | _ => false
   end.
 
@@ -673,6 +699,11 @@ Definition apply_infrule
     if $$ inv0 |-src e >= (Expr.bop opcode s x y) $$ &&
       (is_commutative_bop opcode)
     then {{ inv0 +++src e >= (Expr.bop opcode s y x) }}
+    else apply_fail tt
+  | Infrule.fbop_commutative e opcode x y fty =>
+    if $$ inv0 |-src e >= (Expr.fbop opcode fty x y) $$ &&
+      (is_commutative_fbop opcode)
+    then {{ inv0 +++src e >= (Expr.fbop opcode fty y x) }}
     else apply_fail tt
   | Infrule.fadd_commutative_tgt z x y fty =>
     if $$ inv0 |-tgt (Expr.fbop fbop_fadd fty x y) >= (Expr.value (ValueT.id z)) $$
@@ -1655,6 +1686,12 @@ Definition apply_infrule
     then
       let c' := get_swapped_icmp_cond c in
       {{inv0 +++src (Expr.value z) >= (Expr.icmp c' ty y x) }}
+    else apply_fail tt
+  | Infrule.fcmp_swap_operands c fty x y z =>
+    if $$ inv0 |-src (Expr.value z) >= (Expr.fcmp c fty x y) $$
+    then
+      let c' := get_swapped_fcmp_cond c in
+      {{inv0 +++src (Expr.value z) >= (Expr.fcmp c' fty y x) }}
     else apply_fail tt
   | Infrule.implies_false c1 c2 =>
     if $$ inv0 |-src (Expr.value c1) >= (Expr.value c2) $$

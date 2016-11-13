@@ -198,7 +198,8 @@ Lemma postcond_call_sound
            (insn_call id_tgt noret_tgt clattrs_tgt typ_tgt varg_tgt fun_tgt args_tgt)
            inv0 = Some inv1)
       (STATE: InvState.Rel.sem conf_src conf_tgt st0_src st0_tgt invst0 invmem0 inv0)
-      (MEM: InvMem.Rel.sem conf_src conf_tgt st0_src.(Mem) st0_tgt.(Mem) invmem0):
+      (MEM: InvMem.Rel.sem conf_src conf_tgt st0_src.(Mem) st0_tgt.(Mem) invmem0)
+  :
   <<NORET: noret_src = noret_tgt>> /\
   <<CLATTRS: clattrs_src = clattrs_tgt>> /\
   <<TYP: typ_src = typ_tgt>> /\
@@ -217,7 +218,10 @@ Lemma postcond_call_sound
       <<INJECT: list_forall2 (genericvalues_inject.gv_inject invmem0.(InvMem.Rel.inject)) args2_src args1_tgt>>>> /\
   <<RETURN:
     forall invmem1 mem1_src mem1_tgt retval1_src retval1_tgt locals1_src
-      (INCR: InvMem.Rel.le (InvMem.Rel.lift st0_src.(Mem) st0_tgt.(Mem) invmem0) invmem1)
+      (INCR: InvMem.Rel.le (InvMem.Rel.lift st0_src.(Mem) st0_tgt.(Mem)
+                                            (memory_blocks_of conf_src st0_src.(EC).(Locals) inv0.(Invariant.src).(Invariant.unique))
+                                            (memory_blocks_of conf_tgt st0_tgt.(EC).(Locals) inv0.(Invariant.tgt).(Invariant.unique))
+                                            invmem0) invmem1)
       (MEM: InvMem.Rel.sem conf_src conf_tgt mem1_src mem1_tgt invmem1)
       (RETVAL: TODO.lift2_option (genericvalues_inject.gv_inject invmem1.(InvMem.Rel.inject)) retval1_src retval1_tgt)
       (RETURN_SRC: return_locals
@@ -271,6 +275,8 @@ Proof.
 
   exploit forget_stack_call_sound; eauto.
   { inv CONF. eauto. }
+  { apply forget_memory_call_unique_implies_private. }
+  { apply forget_memory_call_unique_implies_private. }
   { rewrite MEM_INJ. eauto. }
   i. des.
 
