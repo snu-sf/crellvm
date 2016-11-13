@@ -163,19 +163,10 @@ Lemma forget_memory_call_unary_sound
       (INCR: forall b, public0 b -> public1 b)
       (STATE : InvState.Unary.sem conf st0 invst0 invmem0 gmax inv0)
   : <<STATE_UNARY: InvState.Unary.sem conf (mkState st0.(EC) st0.(ECS) mem1) invst0
-                                      (InvMem.Unary.mk invmem0.(InvMem.Unary.private)
-                                                   invmem0.(InvMem.Unary.private_parent)
-                                                   invmem0.(InvMem.Unary.mem_parent)
-                                                   invmem0.(InvMem.Unary.unique_parent)
-                                                   invmem1.(InvMem.Unary.nextblock))
+                                      (InvMem.Unary.unlift invmem0 invmem1)
                                       gmax
                                       (ForgetMemoryCall.unary inv0)>> /\
-    <<MEM_UNARY: InvMem.Unary.sem conf gmax public1 mem1
-                                  (InvMem.Unary.mk invmem0.(InvMem.Unary.private)
-                                                   invmem0.(InvMem.Unary.private_parent)
-                                                   invmem0.(InvMem.Unary.mem_parent)
-                                                   invmem0.(InvMem.Unary.unique_parent)
-                                                   invmem1.(InvMem.Unary.nextblock))>>.
+    <<MEM_UNARY: InvMem.Unary.sem conf gmax public1 mem1 (InvMem.Unary.unlift invmem0 invmem1)>>.
 Proof.
   hexploit private_preserved_after_call; eauto. intro PRIVATE_PRESERVED. des.
   split.
@@ -357,20 +348,8 @@ Lemma forget_memory_call_sound
       <<MEM: InvMem.Rel.sem conf_src conf_tgt mem1_src mem1_tgt invmem2>> /\
       <<MEM_INJ: invmem2.(InvMem.Rel.inject) = invmem1.(InvMem.Rel.inject)>>.
 Proof.
-  exists (InvMem.Rel.mk
-       (InvMem.Unary.mk
-          (InvMem.Unary.private invmem0.(InvMem.Rel.src))
-          (InvMem.Unary.private_parent invmem0.(InvMem.Rel.src))
-          (InvMem.Unary.mem_parent invmem0.(InvMem.Rel.src))
-          (InvMem.Unary.unique_parent invmem0.(InvMem.Rel.src))
-          (InvMem.Unary.nextblock invmem1.(InvMem.Rel.src)))
-       (InvMem.Unary.mk
-          (InvMem.Unary.private invmem0.(InvMem.Rel.tgt))
-          (InvMem.Unary.private_parent invmem0.(InvMem.Rel.tgt))
-          (InvMem.Unary.mem_parent invmem0.(InvMem.Rel.tgt))
-          (InvMem.Unary.unique_parent invmem0.(InvMem.Rel.tgt))
-          (InvMem.Unary.nextblock invmem1.(InvMem.Rel.tgt)))
-       invmem0.(InvMem.Rel.gmax) invmem1.(InvMem.Rel.inject)).
+  exists (InvMem.Rel.unlift invmem0 invmem1).
+  unfold InvMem.Rel.unlift in *.
   assert (INCR_CPY:=INCR).
   inv INCR. ss.
   rename SRC into LE_SRC. rename TGT into LE_TGT.

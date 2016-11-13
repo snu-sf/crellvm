@@ -272,18 +272,22 @@ Proof.
     eapply _sim_local_call; try apply STEPS; try eexact x0; ss; try reflexivity; eauto.
     { s. i. eapply inject_locals_getOperandValue; eauto. }
     { s. i. eapply inject_locals_params2GVs; eauto. }
+    exists nil, nil. esplits; eauto.
     s. i.
     exploit return_locals_inject_locals; eauto.
-    { eapply inject_locals_inj_incr; eauto. etransitivity; eauto.
-      admit. (* invmem le lift *)
+    { assert (INJECT_LOCALS_LIFT: inject_locals (InvMem.Rel.lift mem_src mem_tgt [] [] inv0) locals_src locals_tgt).
+      { eapply meminj_eq_inject_locals; eauto. }
+      eapply inject_locals_inj_incr; eauto.
     }
     i. des.
     esplits; eauto.
     + inv CONF. rewrite <- TARGETDATA. eauto.
-    + admit. (* InvMem.Rel.le *)
-    + right. eapply CIH. econs; ss; eauto.
-      eapply inject_allocas_inj_incr; eauto. etransitivity; eauto.
-      admit. (* invmem le lift *)
+    + eapply lift_unlift_le. eauto.
+    + right. eapply CIH.
+      econs; ss; eauto.
+      { eapply inject_incr_inject_allocas; eauto.
+        ss. inv INCR. ss. }
+      { eapply invmem_unlift; eauto. }
   - (* return *)
     exploit get_status_return_inv; eauto. i. des.
     inv SIM. ss. subst.
