@@ -235,6 +235,12 @@ module PrintHints = struct
       | Infrule.Coq_diffblock_unique _ -> "diffblock_unique"
       | Infrule.Coq_diffblock_global_unique _ -> "diffblock_global_unique"
       | Infrule.Coq_diffblock_global_global _ -> "diffblock_global_global"
+      | Infrule.Coq_fmul_commutative_tgt (z, x, y, fty) -> "fmul_commutative_tgt " ^
+                                    "fmul " ^ 
+                                    (string_of_typ (LLVMsyntax.Coq_typ_floatpoint fty)) ^ 
+                                    " " ^ (ExprsToString.of_ValueT x) ^
+                                    " " ^ (ExprsToString.of_ValueT y) ^
+                                    " >= " ^ (ExprsToString.of_IdT z)
       | Infrule.Coq_gep_inbounds_add _ ->
          "gep inbounds add"
       | Infrule.Coq_gep_inbounds_remove (gepinst) ->
