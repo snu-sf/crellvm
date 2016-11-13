@@ -19,6 +19,7 @@ Require Import Decs.
 Require Import Hints.
 Require Import Validator.
 Require Import GenericValues.
+Require Import TODOProof.
 Require Import PropOpsem.
 Require Import SimulationLocal.
 Require Import Simulation.
@@ -252,8 +253,26 @@ Proof.
         (memory_blocks_of conf_tgt Locals1
                           (Invariant.unique (Invariant.tgt inv))).
       esplits.
-      { admit. (* uniqs_src *) }
-      { admit. (* uniqs_tgt *) }
+      { inv STATE. inv SRC.
+        unfold memory_blocks_of. ii.
+        exploit filter_map_inv; eauto. i. des.
+        des_ifs.
+        exploit UNIQUE.
+        { apply AtomSetFacts.elements_iff, InA_iff_In. eauto. }
+        intro UNIQUE_A. inv UNIQUE_A. ss. clarify.
+        exploit MEM0; eauto.
+        unfold InvState.Unary.sem_diffblock. des_ifs.
+      }
+      { inv STATE. inv TGT.
+        unfold memory_blocks_of. ii.
+        exploit filter_map_inv; eauto. i. des.
+        des_ifs.
+        exploit UNIQUE.
+        { apply AtomSetFacts.elements_iff, InA_iff_In. eauto. }
+        intro UNIQUE_A. inv UNIQUE_A. ss. clarify.
+        exploit MEM0; eauto.
+        unfold InvState.Unary.sem_diffblock. des_ifs.
+      }
       i. exploit RETURN; eauto. i. des.
       exploit apply_infrules_sound; eauto; ss. i. des.
       exploit reduce_maydiff_sound; eauto; ss. i. des.

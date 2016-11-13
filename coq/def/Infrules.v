@@ -723,6 +723,10 @@ Definition apply_infrule
        $$ inv0 |-tgt (Expr.fbop fbopcode fbopty t' x) >= (Expr.value (ValueT.id t)) $$
      then {{ inv0 +++tgt (Expr.select c (typ_floatpoint fbopty) (ValueT.id r) (ValueT.id s)) >= (Expr.value (ValueT.id t)) }}
     else apply_fail tt
+  | Infrule.fmul_commutative_tgt z x y fty =>
+    if $$ inv0 |-tgt (Expr.fbop fbop_fmul fty x y) >= (Expr.value (ValueT.id z)) $$
+    then {{ inv0 +++tgt (Expr.fbop fbop_fmul fty y x) >= (Expr.value (ValueT.id z)) }}
+    else apply_fail tt
   | Infrule.fpext_bitcast src mid dst srcty midty dstty =>
     if $$ inv0 |-src (Expr.value mid) >= (Expr.cast castop_bitcast srcty src midty) $$ &&
        $$ inv0 |-src (Expr.value dst) >= (Expr.ext extop_fp midty mid dstty) $$ &&

@@ -68,3 +68,20 @@ Proof.
   - des_ifs; eauto.
     constructor 2. eauto.
 Qed.
+
+Lemma filter_map_inv
+      X Y
+      b (f:X -> option Y) l
+      (IN: In b (filter_map f l))
+  : exists a, In a l /\ f a = Some b.
+Proof.
+  revert IN.
+  induction l; ss.
+  des_ifs; i.
+  - ss. des.
+    + subst. esplits; eauto.
+    + apply IHl in IN. des.
+      esplits; eauto.
+  - apply IHl in IN. des.
+    esplits; eauto.
+Qed.

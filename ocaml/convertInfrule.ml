@@ -386,6 +386,12 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
      let fbopty = Convert.float_type args.fbopty in
      let selty = Convert.value_type args.selty in
      Infrule.Coq_fbop_distributive_over_selectinst2 (fopcode, r, s, t', t0, x, y, z, c, fbopty, selty)
+  | CoreHint_t.FmulCommutativeTgt (args:CoreHint_t.fmul_commutative_tgt) ->
+     let z = Convert.register args.z in
+     let x = Convert.value args.x in
+     let y = Convert.value args.y in
+     let fty = Convert.float_type args.fty in
+     Infrule.Coq_fmul_commutative_tgt (z, x, y, fty)
   | CoreHint_t.FpextBitcast (args:CoreHint_t.fpext_bitcast) -> 
      let src = Convert.value args.src in
      let mid = Convert.value args.mid in

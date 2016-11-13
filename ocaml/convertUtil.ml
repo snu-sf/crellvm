@@ -197,6 +197,8 @@ module Convert = struct
         | _ -> failwith "Vellvm does not support pointer address with address space larger than 0")
     | CoreHint_t.ConstDataVector (elemty, elements) ->
        failwith "Vellvm does not support vector type"
+    | CoreHint_t.ConstZeroInitializer valty ->
+       LLVMsyntax.Coq_const_zeroinitializer (value_type valty)
     | CoreHint_t.ConstExpr ce ->
        constant_expr ce
   
@@ -389,6 +391,9 @@ module Convert = struct
                 value arg.v, value_type arg.toty)
        | CoreHint_t.TruncInst arg ->
          Expr.Coq_trunc (LLVMsyntax.Coq_truncop_int, value_type arg.fromty,
+                value arg.v, value_type arg.toty)
+       | CoreHint_t.FptosiInst arg ->
+         Expr.Coq_cast (LLVMsyntax.Coq_castop_fptosi, value_type arg.fromty,
                 value arg.v, value_type arg.toty)
        | CoreHint_t.SitofpInst arg ->
          Expr.Coq_cast (LLVMsyntax.Coq_castop_sitofp, value_type arg.fromty,

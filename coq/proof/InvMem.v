@@ -90,6 +90,13 @@ Module Unary.
   Definition lift (m:mem) (ul:list mblock) (inv:t): t :=
     mk nil (inv.(private) ++ inv.(private_parent)) m
        (filter (fun x => existsb (Values.eq_block x) ul) inv.(private) ++ inv.(unique_parent)) inv.(nextblock).
+
+  Definition unlift (inv0 inv1:t): t :=
+    mk inv0.(private)
+       inv0.(private_parent)
+       inv0.(mem_parent)
+       inv0.(unique_parent)
+       inv1.(nextblock).
 End Unary.
 
 Module Rel.
@@ -142,4 +149,9 @@ Module Rel.
        inv.(inject).
 
   (* TODO: le_public? *)
+    Definition unlift (inv0 inv1:t): t :=
+      mk
+        (Unary.unlift inv0.(src) inv1.(src))
+        (Unary.unlift inv0.(tgt) inv1.(tgt))
+        inv0.(gmax) inv1.(inject).
 End Rel.
