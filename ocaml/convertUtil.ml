@@ -197,6 +197,8 @@ module Convert = struct
         | _ -> failwith "Vellvm does not support pointer address with address space larger than 0")
     | CoreHint_t.ConstDataVector (elemty, elements) ->
        failwith "Vellvm does not support vector type"
+    | CoreHint_t.ConstZeroInitializer valty ->
+       LLVMsyntax.Coq_const_zeroinitializer (value_type valty)
     | CoreHint_t.ConstExpr ce ->
        constant_expr ce
   
