@@ -93,6 +93,17 @@ Proof.
   apply updateAddAL_inject_locals; ss.
 Admitted.
 
+Lemma meminj_eq_inject_locals
+      inv0 inv1 locals_src locals_tgt
+      (LOCALS: inject_locals inv0 locals_src locals_tgt)
+      (MEMINJ: inv0.(InvMem.Rel.inject) = inv1.(InvMem.Rel.inject))
+  : inject_locals inv1 locals_src locals_tgt.
+Proof.
+  unfold inject_locals in *.
+  rewrite <- MEMINJ.
+  eauto.
+Qed.
+
 Lemma returnUpdateLocals_spec
       TD id noret clattrs ty va f args Result lc lc' gl:
   returnUpdateLocals TD (insn_call id noret clattrs ty va f args) Result lc lc' gl =
@@ -126,6 +137,17 @@ Proof.
   unfold InvState.Unary.sem_lessdef in *. ss.
   admit.
 Admitted.
+
+Lemma inject_incr_inject_allocas
+      (inv0 inv1 : InvMem.Rel.t)
+      (allocas_src allocas_tgt : list mblock)
+      (ALLOCAS: inject_allocas inv0 allocas_src allocas_tgt)
+      (MEMINJ: memory_sim.MoreMem.inject_incr inv0.(InvMem.Rel.inject) inv1.(InvMem.Rel.inject))
+  : inject_allocas inv1 allocas_src allocas_tgt.
+Proof.
+  unfold inject_allocas in *.
+  eapply list_forall2_imply; eauto.
+Qed.
 
 (* inject_event_subset *)
 
@@ -461,3 +483,91 @@ Definition memory_blocks_of conf lc ids : list mblock :=
 Definition unique_is_private_unary inv : Prop :=
   forall x (UNIQUE: AtomSetImpl.mem x inv.(Hints.Invariant.unique) = true),
     IdTSet.mem (Tag.physical, x) inv.(Hints.Invariant.private) = true.
+
+Lemma lift_unlift_le
+      inv0 inv1
+      mem_src uniqs_src
+      mem_tgt uniqs_tgt
+      (LE : InvMem.Rel.le (InvMem.Rel.lift mem_src mem_tgt uniqs_src uniqs_tgt inv0) inv1)
+  : InvMem.Rel.le inv0 (InvMem.Rel.unlift inv0 inv1).
+Proof.
+  inv LE. ss.
+  econs; eauto.
+  - inv SRC. econs; eauto.
+  - inv TGT. econs; eauto.
+Qed.
+
+Ltac des_matchH H :=
+  repeat
+    match goal with
+    | [ H' : context[match ?X with _ => _ end] |- _ ] => check_equal H' H; destruct X
+    end.
+
+Lemma invmem_unlift
+      conf_src mem_src uniqs_src mem1_src
+      conf_tgt mem_tgt uniqs_tgt mem1_tgt
+      inv0 inv1
+      (MEM_CALLER : InvMem.Rel.sem conf_src conf_tgt mem_src mem_tgt inv0)
+      (LIFT : InvMem.Rel.le (InvMem.Rel.lift mem_src mem_tgt uniqs_src uniqs_tgt inv0) inv1)
+      (MEM_CALLEE : InvMem.Rel.sem conf_src conf_tgt mem1_src mem1_tgt inv1)
+  : InvMem.Rel.sem conf_src conf_tgt mem1_src mem1_tgt (InvMem.Rel.unlift inv0 inv1).
+Proof.
+  inv MEM_CALLEE.
+  rename SRC into CALLEE_SRC. rename TGT into CALLEE_TGT.
+  rename INJECT into CALLEE_INJECT. rename WF into CALLEE_WF.
+  inv MEM_CALLER.
+  rename SRC into CALLER_SRC. rename TGT into CALLER_TGT.
+  rename INJECT into CALLER_INJECT. rename WF into CALLER_WF.
+  inv LIFT.
+  rename SRC into LE_SRC. rename TGT into LE_TGT.
+
+  econs; eauto; ss.
+  - (* src *)
+    inv CALLEE_SRC. inv CALLER_SRC.
+    econs; eauto; ss.
+    + rewrite GMAX. eauto.
+    + i. apply PRIVATE_PARENT.
+      inv LE_SRC.
+      rewrite <- PRIVATE_PARENT_EQ. ss.
+      apply in_app. left. eauto.
+    + i. apply PRIVATE_PARENT.
+      inv LE_SRC.
+      rewrite <- PRIVATE_PARENT_EQ. ss.
+      apply in_app. right. eauto.
+    + i. exploit MEM_PARENT0; eauto.
+      intro MLOAD_EQ. rewrite MLOAD_EQ.
+      inv LE_SRC. ss. subst.
+      apply MEM_PARENT.
+      rewrite <- PRIVATE_PARENT_EQ.
+      apply in_app. right. eauto.
+    + ii. exploit UNIQUE_PARENT_MEM; eauto.
+      inv LE_SRC. ss.
+      rewrite <- UNIQUE_PARENT_EQ.
+      apply in_app. right. eauto.
+  - (* tgt *)
+    inv CALLEE_TGT. inv CALLER_TGT.
+    econs; eauto; ss.
+    + rewrite GMAX. eauto.
+    + i. apply PRIVATE_PARENT.
+      inv LE_TGT.
+      rewrite <- PRIVATE_PARENT_EQ. ss.
+      apply in_app. left. eauto.
+    + i. apply PRIVATE_PARENT.
+      inv LE_TGT.
+      rewrite <- PRIVATE_PARENT_EQ. ss.
+      apply in_app. right. eauto.
+    + i. exploit MEM_PARENT0; eauto.
+      intro MLOAD_EQ. rewrite MLOAD_EQ.
+      inv LE_TGT. ss. subst.
+      apply MEM_PARENT.
+      rewrite <- PRIVATE_PARENT_EQ.
+      apply in_app. right. eauto.
+    + ii. exploit UNIQUE_PARENT_MEM; eauto.
+      inv LE_TGT. ss.
+      rewrite <- UNIQUE_PARENT_EQ.
+      apply in_app. right. eauto.
+  - inv CALLEE_WF.
+    econs; eauto.
+    rewrite GMAX.
+    eauto.
+Qed.

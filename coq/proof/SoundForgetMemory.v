@@ -1019,12 +1019,6 @@ Proof.
     + eauto.
     + eauto.
   - (* alloc - none *)
-    Ltac des_matchH H :=
-      repeat
-        match goal with
-        | [ H' : context[match ?X with _ => _ end] |- _ ] => check_equal H' H; destruct X
-        end.
-
     inv STATE_EQUIV_TGT. rewrite <- MEM_EQ in *.
 
     inv STEP_SRC; destruct cmd_src; ss; clarify;
