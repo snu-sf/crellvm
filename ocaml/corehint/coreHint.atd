@@ -826,6 +826,13 @@ type fbop_distributive_over_selectinst2 = {
   selty : value_type;
 }
 
+type fmul_commutative_tgt = {
+  z : register;
+  x : value;
+  y : value;
+  fty : float_type;
+}
+
 type fpext_fpext = {
     src : value;
     mid : value;
@@ -2034,6 +2041,7 @@ type infrule = [
   | FaddCommutativeTgt of fadd_commutative_tgt
   | FbopDistributiveOverSelectinst of fbop_distributive_over_selectinst
   | FbopDistributiveOverSelectinst2 of fbop_distributive_over_selectinst2
+  | FmulCommutativeTgt of fmul_commutative_tgt
   | FpextBitcast of fpext_bitcast
   | FpextFpext of fpext_fpext
   | FptosiBitcast of fptosi_bitcast
