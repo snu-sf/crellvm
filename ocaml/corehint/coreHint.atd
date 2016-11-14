@@ -237,6 +237,12 @@ type trunc_inst = {
   toty : value_type;
 }
 
+type fptosi_inst = {
+  fromty : value_type;
+  v : value;
+  toty : value_type;
+}
+
 type sitofp_inst = {
   fromty : value_type;
   v : value;
@@ -287,6 +293,7 @@ type instruction = [
   | ZextInst of zext_inst
   | SextInst of sext_inst
   | TruncInst of trunc_inst
+  | FptosiInst of fptosi_inst
   | SitofpInst of sitofp_inst
   | UitofpInst of uitofp_inst
   | InsertValueInst of insert_value_inst

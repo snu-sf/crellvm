@@ -394,6 +394,9 @@ module Convert = struct
        | CoreHint_t.TruncInst arg ->
          Expr.Coq_trunc (LLVMsyntax.Coq_truncop_int, value_type arg.fromty,
                 value arg.v, value_type arg.toty)
+       | CoreHint_t.FptosiInst arg ->
+         Expr.Coq_cast (LLVMsyntax.Coq_castop_fptosi, value_type arg.fromty,
+                value arg.v, value_type arg.toty)
        | CoreHint_t.SitofpInst arg ->
          Expr.Coq_cast (LLVMsyntax.Coq_castop_sitofp, value_type arg.fromty,
                 value arg.v, value_type arg.toty)
