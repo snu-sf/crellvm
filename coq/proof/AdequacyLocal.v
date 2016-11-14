@@ -96,10 +96,22 @@ Inductive sim_local_lift
     (LE0: InvMem.Rel.le inv0 inv)
 .
 
-Lemma sim_local_lift_sim:
-  sim_local_lift <5= sim.
+Inductive sim_conf (conf_src conf_tgt:Config): Prop :=
+| sim_conf_intro
+.
+
+Lemma sim_local_lift_sim conf_src conf_tgt
+      (SIM_CONF: sim_conf conf_src conf_tgt):
+  (sim_local_lift conf_src conf_tgt) <3= (sim conf_src conf_tgt).
+
+(*
+TODO
+sim_product
+sim_conf
+*)
+
 Proof.
-  s. intros conf_src conf_tgt. pcofix CIH.
+  s. pcofix CIH.
   intros idx st_src st_tgt SIM. inv SIM.
   pfold. punfold LOCAL. inv LOCAL.
   - (* error *)
@@ -189,7 +201,7 @@ Proof.
       }
       i. inv STEP0. ss.
       exploit LOCAL; [M|..]; Mskip eauto.
-      { admit. }
+      { ss. }
       { instantiate (1 := None). instantiate (1 := None). ss. }
       { destruct noret_tgt; ss. }
       i. des.
@@ -213,6 +225,7 @@ Proof.
       { admit. (* call & excall mismatch *) }
       rewrite FUN_TGT in H22. inv H22.
       rewrite ARGS_TGT in H25. inv H25.
+      (* TODO: exploit SIM_CONF here *)
       esplits; eauto.
       * econs 1. econs; eauto.
       * right. apply CIH. econs.
