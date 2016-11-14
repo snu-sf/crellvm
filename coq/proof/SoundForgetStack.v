@@ -187,13 +187,70 @@ Inductive unique_preserved_except conf inv unique_parent st gmax except_for : Pr
        forall b (IN: In b unique_parent), (gmax < b)%positive)
 .
 
+Require Import memory_props.
+Import MemProps.
+
+Lemma mbop_multiple_result_inv
+      TD bop sz gvs1 gvs2 val1 val2 vals
+      (MBOP: mbop TD bop sz gvs1 gvs2 = Some (val1 :: val2 :: vals))
+  :
+    gundef TD (typ_int sz) = Some (val1 :: val2 :: vals)
+.
+Proof.
+  unfold mbop in *.
+  des_ifs.
+Qed.
+
+Lemma mbop_no_result_inv
+      TD bop sz gvs1 gvs2
+      (MBOP: mbop TD bop sz gvs1 gvs2 = Some (nil))
+  :
+    gundef TD (typ_int sz) = Some (nil)
+.
+Proof.
+  unfold mbop in *.
+  des_ifs.
+Qed.
+
 Lemma BOP_diffblock
       S TD Ps gl fs
       lc bop sz v1 v2 val ptr
       (H : BOP TD lc gl bop sz v1 v2 = Some val)
   : InvState.Unary.sem_diffblock (mkCfg S TD Ps gl fs) ptr val.
 Proof.
-Admitted. (* memory_props.MemProps.mbop_preserves_no_embedded_ptrs or *)
+  apply opsem_props.OpsemProps.BOP_inversion in H. des.
+  (* exploit mbop_preserves_no_alias; eauto; []; ii; des. *)
+  exploit mbop_preserves_no_embedded_ptrs; eauto; []; ii; des.
+  {
+    clear H H0.
+    generalize dependent gvs1.
+    generalize dependent gvs2.
+    induction val; ii; ss.
+    -
+      (* can mbop = Some [] happen? *)
+      unfold InvState.Unary.sem_diffblock.
+      ss.
+      destruct (GV2ptr TD (getPointerSize TD) ptr); ss.
+      destruct v; ss.
+    -
+      destruct val; ss.
+      {
+        (* can mbop = Some [] happen? *)
+        unfold InvState.Unary.sem_diffblock.
+        ss.
+        destruct (GV2ptr TD (getPointerSize TD) ptr); ss.
+        destruct v; ss.
+        destruct a; ss.
+        destruct v; ss.
+      }
+      {
+        destruct p; ss.
+        destruct a; ss.
+        unfold InvState.Unary.sem_diffblock. ss.
+        destruct v0; ss; destruct v; ss; des_ifs.
+      }
+  }
+Qed. (* memory_props.MemProps.mbop_preserves_no_embedded_ptrs or *)
 (* memory_props.MemProps.mbop_preserves_no_alias? *)
 
 Lemma FBOP_diffblock
@@ -232,6 +289,8 @@ Lemma extractGenericValue_diffblock
   : InvState.Unary.sem_diffblock conf ptr val.
 Proof.
 Admitted.
+
+Require Import SoundPostcondCmdAdd.
 
 Lemma step_unique_preserved_except_current
       conf st0 st1 evt
