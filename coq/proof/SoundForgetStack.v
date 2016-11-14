@@ -221,35 +221,9 @@ Proof.
   apply opsem_props.OpsemProps.BOP_inversion in H. des.
   (* exploit mbop_preserves_no_alias; eauto; []; ii; des. *)
   exploit mbop_preserves_no_embedded_ptrs; eauto; []; ii; des.
-  {
-    clear H H0.
-    generalize dependent gvs1.
-    generalize dependent gvs2.
-    induction val; ii; ss.
-    -
-      (* can mbop = Some [] happen? *)
-      unfold InvState.Unary.sem_diffblock.
-      ss.
-      destruct (GV2ptr TD (getPointerSize TD) ptr); ss.
-      destruct v; ss.
-    -
-      destruct val; ss.
-      {
-        (* can mbop = Some [] happen? *)
-        unfold InvState.Unary.sem_diffblock.
-        ss.
-        destruct (GV2ptr TD (getPointerSize TD) ptr); ss.
-        destruct v; ss.
-        destruct a; ss.
-        destruct v; ss.
-      }
-      {
-        destruct p; ss.
-        destruct a; ss.
-        unfold InvState.Unary.sem_diffblock. ss.
-        destruct v0; ss; destruct v; ss; des_ifs.
-      }
-  }
+  clear H H0.
+  unfold InvState.Unary.sem_diffblock.
+  destruct val; ss; des_ifs.
 Qed. (* memory_props.MemProps.mbop_preserves_no_embedded_ptrs or *)
 (* memory_props.MemProps.mbop_preserves_no_alias? *)
 
@@ -259,7 +233,13 @@ Lemma FBOP_diffblock
       (H : FBOP TD lc gl bop sz v1 v2 = Some val)
   : InvState.Unary.sem_diffblock (mkCfg S TD Ps gl fs) ptr val.
 Proof.
-Admitted.
+  apply opsem_props.OpsemProps.FBOP_inversion in H. des.
+  (* exploit mfbop_preserves_no_alias; eauto; []; ii; des. *)
+  exploit mfbop_preserves_no_embedded_ptrs; eauto; []; ii; des.
+  clear H H0.
+  unfold InvState.Unary.sem_diffblock.
+  destruct val; ss; des_ifs.
+Qed.
 
 Definition leaks_diffblock_with conf st cmd ptr: Prop :=
   forall v gv
