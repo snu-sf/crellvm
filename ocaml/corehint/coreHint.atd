@@ -29,6 +29,18 @@ type register = {
   tag : tag;     (* indicates whether this register is physical or previous or ghost *)
 }
 
+type bop = [ | BopAdd | BopSub | BopMul | BopUdiv 
+             | BopSdiv | BopUrem | BopSrem | BopShl 
+             | BopLshr | BopAshr | BopAnd | BopOr 
+             | BopXor ] <ocaml repr="classic">
+
+type fbop = [ BopFadd | BopFsub | BopFmul | BopFdiv | BopFrem ] <ocaml repr="classic">
+
+type icmp_pred = [ | CondEq | CondNe | CondUgt | CondUge | CondUlt 
+              | CondUle | CondSgt | CondSge | CondSlt | CondSle ] <ocaml repr="classic">
+
+type fcmp_pred = [ CondFfalse | CondFoeq | CondFogt | CondFoge | CondFolt | CondFole | CondFone | CondFord | CondFuno | CondFueq | CondFugt | CondFuge | CondFult | CondFule | CondFune | CondFtrue ] <ocaml repr="classic">
+
 (* integer type of bitsize *)
 type int_type = [ IntType of int ] <ocaml repr="classic">
 
@@ -100,11 +112,18 @@ type const_expr_ptrtoint = {
   dstty : value_type;
 }
 
+type const_expr_binaryop = {
+  opcode : bop;
+  v1 : constant;
+  v2 : constant;
+}
+
 type constant_expr = [
   | ConstExprGetElementPtr of const_expr_get_element_ptr
   | ConstExprBitcast of const_expr_bitcast 
   | ConstExprInttoptr of const_expr_inttoptr
   | ConstExprPtrtoint of const_expr_ptrtoint
+  | ConstExprBinaryOp of const_expr_binaryop
   ] <ocaml repr="classic">
 
 type constant = [
@@ -126,18 +145,6 @@ type pointer = {
   v : value;
   ty : value_type;
 }
-
-type bop = [ | BopAdd | BopSub | BopMul | BopUdiv 
-             | BopSdiv | BopUrem | BopSrem | BopShl 
-             | BopLshr | BopAshr | BopAnd | BopOr 
-             | BopXor ] <ocaml repr="classic">
-
-type fbop = [ BopFadd | BopFsub | BopFmul | BopFdiv | BopFrem ] <ocaml repr="classic">
-
-type icmp_pred = [ | CondEq | CondNe | CondUgt | CondUge | CondUlt 
-              | CondUle | CondSgt | CondSge | CondSlt | CondSle ] <ocaml repr="classic">
-
-type fcmp_pred = [ CondFfalse | CondFoeq | CondFogt | CondFoge | CondFolt | CondFole | CondFone | CondFord | CondFuno | CondFueq | CondFugt | CondFuge | CondFult | CondFule | CondFune | CondFtrue ] <ocaml repr="classic">
 
 type binary_operator = {
   opcode : bop;
