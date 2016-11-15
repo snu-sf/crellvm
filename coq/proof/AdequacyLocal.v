@@ -45,10 +45,12 @@ Inductive sim_local_stack
                   (LOAD: mload conf_src.(CurTargetData) mem_src mptr typ align = Some val)
                   (GV2PTR: GV2ptr conf_src.(CurTargetData) (getPointerSize conf_src.(CurTargetData)) val = Some (Vptr b o)),
         ~ In b uniqs_src)
+    (UNIQS_GLOBALS_SRC: forall b, In b uniqs_src -> (inv.(InvMem.Rel.gmax) < b)%positive)
     (UNIQS_TGT: forall mptr typ align val b o
                   (LOAD: mload conf_tgt.(CurTargetData) mem_tgt mptr typ align = Some val)
                   (GV2PTR: GV2ptr conf_tgt.(CurTargetData) (getPointerSize conf_tgt.(CurTargetData)) val = Some (Vptr b o)),
         ~ In b uniqs_tgt)
+    (UNIQS_GLOBALS_TGT: forall b, In b uniqs_tgt -> (inv.(InvMem.Rel.gmax) < b)%positive)
     (LOCAL:
        forall inv' mem'_src mem'_tgt retval'_src retval'_tgt locals'_src
          (INCR: InvMem.Rel.le (InvMem.Rel.lift mem_src mem_tgt uniqs_src uniqs_tgt inv) inv')
@@ -96,10 +98,24 @@ Inductive sim_local_lift
     (LE0: InvMem.Rel.le inv0 inv)
 .
 
-Lemma sim_local_lift_sim:
-  sim_local_lift <5= sim.
+Definition sim_products
+          (conf_src conf_tgt:Config)
+          (prod_src prod_tgt:products): Prop :=
+  forall fid fdef_src fdef_tgt
+    (FDEF_SRC: lookupFdefViaIDFromProducts prod_src fid = Some fdef_src)
+    (FDEF_TGT: lookupFdefViaIDFromProducts prod_tgt fid = Some fdef_tgt),
+    sim_fdef conf_src conf_tgt fdef_src fdef_tgt.
+
+Inductive sim_conf (conf_src conf_tgt:Config): Prop :=
+| sim_conf_intro
+    (SIM_PRODUCTS: sim_products conf_src conf_tgt conf_src.(CurProducts) conf_tgt.(CurProducts))
+.
+
+Lemma sim_local_lift_sim conf_src conf_tgt
+      (SIM_CONF: sim_conf conf_src conf_tgt):
+  (sim_local_lift conf_src conf_tgt) <3= (sim conf_src conf_tgt).
 Proof.
-  s. intros conf_src conf_tgt. pcofix CIH.
+  s. pcofix CIH.
   intros idx st_src st_tgt SIM. inv SIM.
   pfold. punfold LOCAL. inv LOCAL.
   - (* error *)
@@ -189,7 +205,7 @@ Proof.
       }
       i. inv STEP0. ss.
       exploit LOCAL; [M|..]; Mskip eauto.
-      { admit. }
+      { ss. }
       { instantiate (1 := None). instantiate (1 := None). ss. }
       { destruct noret_tgt; ss. }
       i. des.
@@ -213,16 +229,35 @@ Proof.
       { admit. (* call & excall mismatch *) }
       rewrite FUN_TGT in H22. inv H22.
       rewrite ARGS_TGT in H25. inv H25.
+
+      (* assert (SIM_FDEF: sim_fdef conf_src conf_tgt  *)
+      assert (FID_SAME: fid0 = fid).
+      { admit. (* fid same *) }
+      subst.
+      exploit lookupFdefViaPtr_inversion; try exact H18. i. des.
+      exploit lookupFdefViaIDFromProducts_ideq; try exact x1. i. subst.
+      exploit lookupFdefViaPtr_inversion; try exact H23. i. des.
+      exploit lookupFdefViaIDFromProducts_ideq; try exact x3. i. subst.
+
+      inv SIM_CONF.
+      exploit SIM_PRODUCTS; try eapply invmem_lift; eauto.
+      { econs; eauto. }
+      i. des.
+
       esplits; eauto.
       * econs 1. econs; eauto.
-      * right. apply CIH. econs.
+      * right. apply CIH. econs; try reflexivity.
         { ss. }
         { econs 2; eauto. s. i.
           hexploit RETURN; eauto. i. des. inv SIM; ss.
           esplits; eauto.
         }
-        { admit. (* sim_local init *) }
-        { reflexivity. }
+        { inv x.
+          unfold getEntryBlock in *.
+          des_ifs.
+          ss. clarify.
+          exact x4.
+        }
     + (* excall *)
       exploit FUN; eauto. i. des.
       exploit ARGS; eauto. i. des.

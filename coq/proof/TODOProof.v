@@ -85,3 +85,15 @@ Proof.
   - apply IHl in IN. des.
     esplits; eauto.
 Qed.
+
+Lemma list_prj2_inv
+      X Y (l:list (X * Y)) y
+      (IN: In y (list_prj2 X Y l))
+  : exists x, In (x, y) l.
+Proof.
+  induction l; ss; i.
+  destruct a. ss. des.
+  - subst. esplits; eauto.
+  - apply IHl in IN. des.
+    esplits; eauto.
+Qed.
