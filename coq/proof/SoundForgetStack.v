@@ -283,6 +283,20 @@ Proof.
   destruct valx, valy; try by des_ifs.
 Qed.
 
+Lemma undef_implies_diffblock
+      TD ty1 valx conf valy
+      (UNDEF: gundef TD ty1 = Some valx)
+  :
+    InvState.Unary.sem_diffblock conf valx valy
+.
+Proof.
+  unfold gundef in *.
+  des_ifs.
+  unfold InvState.Unary.sem_diffblock in *.
+  des_ifs.
+  destruct l0; ss.
+Qed.
+
 Lemma ICMP_diffblock
       S TD Ps gl fs lc val ptr
       cond1 typ1 value1 value2
@@ -541,12 +555,8 @@ lookup value_5, GEP mp has same basic block!!
     unfold CAST in *. des_ifs. apply mcast_inv in H.
     des; cycle 1.
     +
-      unfold gundef in *.
-      des_ifs.
-      unfold InvState.Unary.sem_diffblock. ss.
-      des_ifs.
-      unfold mc2undefs in Heq2.
-      destruct l0; ss.
+      apply SoundForgetMemory.diffblock_comm.
+      eapply undef_implies_diffblock; eauto.
     +
       subst.
       unfold getOperandValue in *.
