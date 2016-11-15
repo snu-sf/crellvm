@@ -310,6 +310,15 @@ Proof.
         exploit MEM0; eauto.
         unfold InvState.Unary.sem_diffblock. des_ifs.
       }
+      { inv STATE. inv SRC.
+        unfold memory_blocks_of. ii.
+        exploit filter_map_inv; eauto. i. des.
+        des_ifs.
+        exploit UNIQUE.
+        { apply AtomSetFacts.elements_iff, InA_iff_In. eauto. }
+        intro UNIQUE_A. inv UNIQUE_A. ss. clarify.
+        exploit GLOBALS; eauto.
+      }
       { inv STATE. inv TGT.
         unfold memory_blocks_of. ii.
         exploit filter_map_inv; eauto. i. des.
@@ -319,6 +328,15 @@ Proof.
         intro UNIQUE_A. inv UNIQUE_A. ss. clarify.
         exploit MEM0; eauto.
         unfold InvState.Unary.sem_diffblock. des_ifs.
+      }
+      { inv STATE. inv TGT.
+        unfold memory_blocks_of. ii.
+        exploit filter_map_inv; eauto. i. des.
+        des_ifs.
+        exploit UNIQUE.
+        { apply AtomSetFacts.elements_iff, InA_iff_In. eauto. }
+        intro UNIQUE_A. inv UNIQUE_A. ss. clarify.
+        exploit GLOBALS; eauto.
       }
       i. exploit RETURN; eauto. i. des.
       exploit apply_infrules_sound; eauto; ss. i. des.
@@ -438,7 +456,9 @@ Proof.
     unfold initTargetData in *.
     erewrite <- valid_products_genGlobalAndInitMem; eauto. rewrite COND2.
     rewrite COND3. eauto.
-  - apply sim_local_lift_sim. econs; ss.
+  - apply sim_local_lift_sim.
+    { admit. (* sim_conf *) }
+    econs; ss.
     + econs.
     + generalize H0. i.
       unfold forallb2AL in H1. ss. apply andb_true_iff in H1. des. simtac.
@@ -473,4 +493,5 @@ Proof.
         }
         rewrite COND5, COND6, COND7, COND8, COND9. ss.
       * ss. admit. (* InvMem.Rel.sem init_mem *)
+    + reflexivity.
 Admitted.
