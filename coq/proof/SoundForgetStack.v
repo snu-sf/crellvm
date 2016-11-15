@@ -268,21 +268,6 @@ Proof.
   destruct val; ss; des_ifs.
 Qed.
 
-Lemma CAST_diffblock
-      S TD Ps gl fs lc val ptr
-      castop1 typ1 value1 typ2
-      (H: CAST TD lc gl castop1 typ1 value1 typ2 = Some val)
-  : InvState.Unary.sem_diffblock (mkCfg S TD Ps gl fs) ptr val.
-Proof.
-  apply opsem_props.OpsemProps.CAST_inversion in H. des.
-  apply mcast_inv in H0.
-  des; subst.
-  - admit. (* need locals *)
-  - unfold InvState.Unary.sem_diffblock. ss.
-    unfold gundef in *. unfold mc2undefs in *. des_ifs.
-    destruct l0; ss.
-Admitted.
-
 Lemma noalias_implies_diffblock
       conf valx valy
       (NOALIAS: no_alias valx valy)
@@ -552,7 +537,27 @@ lookup value_5, GEP mp has same basic block!!
   - inv UNIQUE_BEF; narrow_down_unique.
     eapply EXT_diffblock; eauto.
   - inv UNIQUE_BEF; narrow_down_unique.
-    eapply CAST_diffblock; eauto.
+    (* specialize (LOCALS reg val' REG). *)
+    unfold CAST in *. des_ifs. apply mcast_inv in H.
+    des; cycle 1.
+    +
+      unfold gundef in *.
+      des_ifs.
+      unfold InvState.Unary.sem_diffblock. ss.
+      des_ifs.
+      unfold mc2undefs in Heq2.
+      destruct l0; ss.
+    +
+      subst.
+      unfold getOperandValue in *.
+      des_ifs; cycle 1.
+      * admit. (* const case *)
+      * eapply LOCALS; try apply Heq; eauto.
+        apply AtomSetFacts.not_mem_iff in NOT_LEAKED_U.
+        apply AtomSetImpl_from_list_spec2 in NOT_LEAKED_U.
+        ss.
+        ii. subst. apply not_or_and in NOT_LEAKED_U.
+        des. apply NOT_LEAKED_U. ss.
   - inv UNIQUE_BEF; narrow_down_unique.
     eapply ICMP_diffblock; eauto.
   - inv UNIQUE_BEF; narrow_down_unique.
