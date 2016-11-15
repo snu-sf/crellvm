@@ -256,6 +256,27 @@ Lemma operands_diffblock
       (U_VALUE : lookupAL GenericValue st.(EC).(Locals) u = Some uptr)
   : leaks_diffblock_with conf st cmd uptr.
 Proof.
+  unfold leaks_diffblock_with.
+  ii.
+  unfold Cmd.get_leaked_values in *.
+  unfold Cmd.get_leaked_ids in *.
+  inv UNIQUE_U.
+  remember cmd as CCC.
+  rewrite HeqCCC in IN_LEAK.
+  destruct cmd; ss; des. (* ; subst *)
+  - subst.
+    rename v into vvvv.
+    rename vvvv into v.
+    destruct v; ss.
+    +
+      clarify. rename u into uuu.
+      eapply LOCALS; eauto.
+      apply_all_once AtomSetFacts.not_mem_iff.
+      apply_all_once AtomSetImpl_from_list_spec2.
+      ii. subst. apply NOT_LEAKED. econs. ss.
+    + admit.
+      (* may need some wf coditions *)
+      (* const2GV_disjoint_with_runtime_alloca *)
 Admitted.
 
 Lemma extractGenericValue_diffblock
@@ -268,6 +289,13 @@ Lemma extractGenericValue_diffblock
       (RES: extractGenericValue conf.(CurTargetData) ty1 gv l0 = Some val)
   : InvState.Unary.sem_diffblock conf ptr val.
 Proof.
+  subst.
+  unfold leaks_diffblock_with in *.
+  unfold Cmd.get_leaked_values in *.
+  eapply OPERANDS_DIFFBLOCK; try econs; eauto. clear OPERANDS_DIFFBLOCK.
+  rewrite VAL. clear VAL.
+  unfold extractGenericValue in *.
+  des_ifs.
 Admitted.
 
 Require Import SoundPostcondCmdAdd.
@@ -296,10 +324,12 @@ Proof.
   hexploit notin_union_2; eauto. intros NOT_LEAKED_U. clear NOT_LEAKED_U0.
   apply AtomSetFacts.not_mem_iff in NOT_DEF_U.
   apply AtomSetFacts.not_mem_iff in NOT_LEAKED_U.
+
   inv STATE. inv MEM.
   exploit UNIQUE; eauto.
   { apply AtomSetFacts.mem_iff. eauto. }
   intros UNIQUE_BEF.
+  clear UNIQUE MEM_U.
 
   (* Ltac solve_unique_not_def := *)
   (*   try by match goal with *)
@@ -325,40 +355,191 @@ Proof.
           destruct (id_dec x reg); [|by rewrite <- lookupAL_updateAddAL_neq in *; eauto]
         end; subst;
         rewrite lookupAL_updateAddAL_eq in *; clarify]).
-  inv STEP; destruct cmd; ss; clarify;
-    try by inv UNIQUE_BEF; econs; eauto.
-  - inv UNIQUE_BEF; narrow_down_unique.
-    eapply BOP_diffblock; eauto.
-  - inv UNIQUE_BEF; narrow_down_unique.
-    eapply FBOP_diffblock; eauto.
-  - inv UNIQUE_BEF; narrow_down_unique.
-
-    
-
-      
+  clear LESSDEF NOALIAS PRIVATE.
+  inv STEP. (* conf: Config is substed *)
+  - admit.
+  - admit.
+  - admit.
+  - admit.
+  - admit.
+  - admit.
+  - admit.
+  - admit.
+  (* - destruct cmd; ss; clarify; try by inv UNIQUE_BEF; econs; eauto. *)
+  (* - destruct cmd; ss; clarify; try by inv UNIQUE_BEF; econs; eauto. *)
+  (* - destruct cmd; ss; clarify; try by inv UNIQUE_BEF; econs; eauto. *)
+  (* - destruct cmd; ss; clarify; try by inv UNIQUE_BEF; econs; eauto. *)
+  (* - destruct cmd; ss; clarify; try by inv UNIQUE_BEF; econs; eauto. *)
+  (* - destruct cmd; ss; clarify; try by inv UNIQUE_BEF; econs; eauto. *)
+  (* - destruct cmd; ss; clarify; try by inv UNIQUE_BEF; econs; eauto. *)
+  (*   inv UNIQUE_BEF; narrow_down_unique. *)
+  (*   eapply BOP_diffblock; eauto. *)
+  (* - destruct cmd; ss; clarify; try by inv UNIQUE_BEF; econs; eauto. *)
+  (*   inv UNIQUE_BEF; narrow_down_unique. *)
+  (*   eapply FBOP_diffblock; eauto. *)
+  - destruct cmd; ss; clarify; try by inv UNIQUE_BEF; econs; eauto.
+    inversion UNIQUE_BEF; subst; narrow_down_unique.
+    move val at bottom.
+    move val' at bottom.
+    exploit extractGenericValue_diffblock; try apply H; eauto; ss.
+    instantiate (2:=
+                   {|
+                     EC := {|
+                            CurFunction := F;
+                            CurBB := B;
+                            CurCmds := insn_extractvalue reg typ5 value5 l0 typ' :: cmds;
+                            Terminator := tmn;
+                            Locals := lc;
+                            Allocas := als |};
+                     ECS := ECS0;
+                     Mem := Mem0 |}
+                ). ss.
+    apply H.
+    unfold leaks_diffblock_with. ss. ii.
+    des; ss. subst.
+    eapply operands_diffblock; eauto; ss.
+    left. ss.
+    ss. apply H0.
+    }
+  -
+    destruct cmd; ss; clarify; try by inv UNIQUE_BEF; econs; eauto.
+    inv UNIQUE_BEF.
+    move NOT_DEF_U at bottom.
+    apply_all_once AtomSetFacts.not_mem_iff.
+    apply_all_once AtomSetImpl_from_list_spec2.
+    unfold not in NOT_DEF_U.
+    destruct (eq_atom_dec u id5); [clarify; exfalso; apply NOT_DEF_U; econs; ss|].
+    econs; eauto; ss.
+    + des_lookupAL_updateAddAL.
+    + ii.
+      des_lookupAL_updateAddAL.
+      *
+        admit.
+      * eapply LOCALS; eauto.
+  -
+    destruct cmd; ss; clarify; try by inv UNIQUE_BEF; econs; eauto.
+    inv UNIQUE_BEF; narrow_down_unique.
+    exploit locals_malloc_diffblock; eauto.
     admit.
-  - inv UNIQUE_BEF; narrow_down_unique.
-    admit. (* insertvalue *)
-  - inv UNIQUE_BEF; narrow_down_unique.
-    admit. (* malloc *)
-  - inv UNIQUE_BEF; narrow_down_unique.
-    admit. (* alloca *)
-  - inv UNIQUE_BEF; narrow_down_unique.
-    admit. (* load *)
-  - inv UNIQUE_BEF; narrow_down_unique.
+    ii; des.
+    apply SoundForgetMemory.diffblock_comm. ss.
+  - destruct cmd; ss; clarify; try by inv UNIQUE_BEF; econs; eauto.
+  - destruct cmd; ss; clarify; try by inv UNIQUE_BEF; econs; eauto.
+    inv UNIQUE_BEF; narrow_down_unique.
+    exploit locals_malloc_diffblock; eauto.
+    admit.
+    ii; des.
+    apply SoundForgetMemory.diffblock_comm. ss.
+  - destruct cmd; ss; clarify; try by inv UNIQUE_BEF; econs; eauto.
+    inv UNIQUE_BEF; narrow_down_unique.
+    move val' at bottom.
+    move val at bottom.
+    eapply MEM; eauto.
+  - destruct cmd; ss; clarify; try by inv UNIQUE_BEF; econs; eauto.
+  - {
+      destruct cmd; ss; clarify; try by inv UNIQUE_BEF; econs; eauto.
+      inv UNIQUE_BEF; narrow_down_unique.
+      (*
+val <-> val' = GEP mp ~~ = value_5
+value_5 <> u (NOT_LEAKED_U)
+=> val <-> lookup value_5
+lookup value_5, GEP mp has same basic block!!
+       *)
+      ii.
+      unfold InvState.Unary.sem_diffblock. ss.
+      unfold GEP in *. unfold gep in *. unfold genericvalues.LLVMgv.GEP in *.
+      move VAL at bottom.
+      destruct val; ss. destruct p; ss. destruct v; ss. destruct val; ss. (* at once? *)
+      destruct (GV2ptr TD (getPointerSize TD) mp) eqn:T1.
+      destruct (GVs2Nats TD vidxs) eqn:T2.
+      destruct (mgep TD typ5 v l1) eqn:T3.
+      clarify. ss. destruct v0; ss.
+      apply AtomSetFacts.not_mem_iff in NOT_LEAKED_U.
+      apply AtomSetImpl_from_list_spec2 in NOT_LEAKED_U.
+      unfold Cmd.get_leaked_ids in *.
+      ss.
+      {
+        destruct value_5; ss.
+        apply not_or_and in NOT_LEAKED_U.
+        des.
+        exploit LOCALS; try apply H; eauto; []; ii; des.
+        clarify.
+        ss.
+        rename v into ____v____.
+        (* b0 <-> b0 *)
+        admit.
+        admit. (* const *)
+      }
+      {
+        unfold gundef in *. destruct (flatten_typ TD (typ_pointer typ')) eqn:T; try by clarify.
+        inv H1.
+        destruct l2; ss.
+      }
+      {
+        unfold gundef in *. destruct (flatten_typ TD (typ_pointer typ')) eqn:T; try by clarify.
+        inv H1.
+        destruct l1; ss.
+      }
+      {
+        unfold gundef in *. destruct (flatten_typ TD (typ_pointer typ')) eqn:T; try by clarify.
+        inv H1.
+        destruct l1; ss.
+      }
+    }
+(* GEP *)
+(*   gep *)
+(*   genericvalues.LLVMgv.GEP *)
+
+(* GEP_preserves_no_alias: *)
+(*   forall (TD : TargetData) (t : typ) (mp : GenericValue) (vidxs : list GenericValue)  *)
+(*     (inbounds0 : bool) (mp' gvsa : GenericValue) (t' : typ), *)
+(*   GEP TD t mp vidxs inbounds0 t' = Some mp' -> no_alias mp gvsa -> no_alias mp' gvsa *)
+  - destruct cmd; ss; clarify; try by inv UNIQUE_BEF; econs; eauto.
+    inv UNIQUE_BEF; narrow_down_unique.
+    admit.
+  - destruct cmd; ss; clarify; try by inv UNIQUE_BEF; econs; eauto.
+    inv UNIQUE_BEF; narrow_down_unique.
+    admit.
+  - destruct cmd; ss; clarify; try by inv UNIQUE_BEF; econs; eauto.
+    inv UNIQUE_BEF; narrow_down_unique.
+    admit.
+  - destruct cmd; ss; clarify; try by inv UNIQUE_BEF; econs; eauto.
+    inv UNIQUE_BEF; narrow_down_unique.
     admit. (* gep *)
-  - inv UNIQUE_BEF; narrow_down_unique.
+  - destruct cmd; ss; clarify; try by inv UNIQUE_BEF; econs; eauto.
+    inv UNIQUE_BEF; narrow_down_unique.
     admit. (* trunc *)
-  - inv UNIQUE_BEF; narrow_down_unique.
-    admit. (* extop *)
-  - inv UNIQUE_BEF; narrow_down_unique.
-    admit. (* cast *)
-  - inv UNIQUE_BEF; narrow_down_unique.
-    admit. (* icmp *)
-  - inv UNIQUE_BEF; narrow_down_unique.
-    admit. (* fcmp *)
-  - inv UNIQUE_BEF; narrow_down_unique.
-    admit. (* select *)
+  - destruct cmd; ss; clarify; try by inv UNIQUE_BEF; econs; eauto.
+    inv UNIQUE_BEF; narrow_down_unique.
+    (* select *)
+    rename val into ___val___.
+    move gvs1 at bottom.
+    move gvs2 at bottom.
+    unfold getOperandValue in *.
+    destruct value1, value2; ss.
+    {
+      apply_all_once AtomSetFacts.not_mem_iff.
+      apply_all_once AtomSetImpl_from_list_spec2.
+      unfold Cmd.get_leaked_ids in *. ss.
+      destruct decision; eapply LOCALS; try apply H0; try apply H1; eauto.
+      {
+        ii. apply NOT_LEAKED_U. subst.
+        destruct value0; ss.
+        - right. left. ss.
+        - left. ss.
+      }
+      {
+        ii. apply NOT_LEAKED_U. subst.
+        destruct value0; ss.
+        - right. right. left. ss.
+        - right. left. ss.
+      }
+    }
+    { (* const case *) admit. }
+    { (* const case *) admit. }
+    { (* const case *) admit. }
+  - destruct cmd; ss; clarify; try by inv UNIQUE_BEF; econs; eauto.
+  - destruct cmd; ss; clarify; try by inv UNIQUE_BEF; econs; eauto.
 Admitted.
 
 Lemma step_unique_preserved_except_parent
