@@ -571,3 +571,71 @@ Proof.
     rewrite GMAX.
     eauto.
 Qed.
+
+Lemma invmem_lift
+      conf_src mem_src uniqs_src
+      conf_tgt mem_tgt uniqs_tgt
+      inv
+      (MEM: InvMem.Rel.sem conf_src conf_tgt mem_src mem_tgt inv)
+      (UNIQS_SRC : forall (mptr : mptr) (typ : typ) (align : align)
+                     (val : GenericValue) (b : Values.block) (o : Integers.Int.int 31),
+          mload conf_src.(CurTargetData) mem_src mptr typ align = Some val ->
+          GV2ptr conf_src.(CurTargetData) (getPointerSize conf_src.(CurTargetData)) val = Some (Values.Vptr b o) -> ~ In b uniqs_src)
+      (UNIQS_GLOBALS_SRC: forall b, In b uniqs_src -> (inv.(InvMem.Rel.gmax) < b)%positive)
+      (UNIQS_TGT : forall (mptr : mptr) (typ : typ) (align : align)
+                     (val : GenericValue) (b : Values.block) (o : Integers.Int.int 31),
+          mload conf_tgt.(CurTargetData) mem_tgt mptr typ align = Some val ->
+          GV2ptr conf_tgt.(CurTargetData) (getPointerSize conf_tgt.(CurTargetData)) val = Some (Values.Vptr b o) -> ~ In b uniqs_tgt)
+      (UNIQS_GLOBALS_TGT: forall b, In b uniqs_tgt -> (inv.(InvMem.Rel.gmax) < b)%positive)
+  : InvMem.Rel.sem conf_src conf_tgt mem_src mem_tgt
+                   (InvMem.Rel.lift mem_src mem_tgt uniqs_src uniqs_tgt inv).
+Proof.
+  inv MEM.
+  econs; eauto.
+  - inv SRC.
+    econs; eauto; ss.
+    +  i. apply in_app in IN. des.
+       * exploit PRIVATE; eauto.
+       * exploit PRIVATE_PARENT; eauto.
+    + ii. apply in_app in H. des.
+      * apply filter_In in H. des.
+        exploit PRIVATE; eauto. i. des.
+        exploit UNIQS_SRC; eauto.
+        rewrite existsb_exists in *. des.
+        destruct (Values.eq_block b x1); ss.
+        subst. eauto.
+      * exploit UNIQUE_PARENT_MEM; eauto.
+    + inv WF0.
+      i. apply in_app in IN_UNIQUE_PARENT. des.
+      * apply filter_In in IN_UNIQUE_PARENT. des.
+        apply UNIQS_GLOBALS_SRC.
+        rewrite existsb_exists in *. des.
+        destruct (Values.eq_block b x); ss.
+        subst. eauto.
+      * exploit UNIQUE_PARENT_GLOBALS; eauto.
+    + apply sublist_app; eauto.
+      apply filter_sublist.
+  - inv TGT.
+    econs; eauto; ss.
+    +  i. apply in_app in IN. des.
+       * exploit PRIVATE; eauto.
+       * exploit PRIVATE_PARENT; eauto.
+    + ii. apply in_app in H. des.
+      * apply filter_In in H. des.
+        exploit PRIVATE; eauto. i. des.
+        exploit UNIQS_TGT; eauto.
+        rewrite existsb_exists in *. des.
+        destruct (Values.eq_block b x1); ss.
+        subst. eauto.
+      * exploit UNIQUE_PARENT_MEM; eauto.
+    + inv WF0.
+      i. apply in_app in IN_UNIQUE_PARENT. des.
+      * apply filter_In in IN_UNIQUE_PARENT. des.
+        apply UNIQS_GLOBALS_TGT.
+        rewrite existsb_exists in *. des.
+        destruct (Values.eq_block b x); ss.
+        subst. eauto.
+      * exploit UNIQUE_PARENT_GLOBALS; eauto.
+    + apply sublist_app; eauto.
+      apply filter_sublist.
+Qed.

@@ -272,7 +272,7 @@ Proof.
     eapply _sim_local_call; try apply STEPS; try eexact x0; ss; try reflexivity; eauto.
     { s. i. eapply inject_locals_getOperandValue; eauto. }
     { s. i. eapply inject_locals_params2GVs; eauto. }
-    exists nil, nil. esplits; eauto.
+    exists nil, nil. esplits; eauto; try contradiction.
     s. i.
     exploit return_locals_inject_locals; eauto.
     { assert (INJECT_LOCALS_LIFT: inject_locals (InvMem.Rel.lift mem_src mem_tgt [] [] inv0) locals_src locals_tgt).

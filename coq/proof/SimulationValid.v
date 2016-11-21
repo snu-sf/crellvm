@@ -233,10 +233,57 @@ Proof.
       exploit get_switch_branch_inject; eauto. i.
       eapply _sim_local_step.
       { admit. (* tgt not stuck *) }
-      i. inv STEP. unfold valid_phinodes in *. simtac.
+      i. inv STEP.
+      assert (CONF_EQ: TD0 = TD /\ gl0 = gl).
+      { inv CONF.
+        match goal with
+        | [INJ: inject_conf _ _ |- _] => inv INJ
+        end. ss. }
+      des. subst. ss. clarify.
+      unfold valid_phinodes in *. simtac.
       exploit add_terminator_cond_switch; eauto. i. des.
       rewrite lookupBlockViaLabelFromFdef_spec in *.
-      admit. (* similar to conditional branch *)
+
+      rewrite forallb_forall in COND2.
+      exploit get_switch_branch_in_successors; eauto.
+      i. unfold successors_terminator in *.
+      apply nodup_In in x2. ss. des.
+      { (* default *)
+        subst.
+        rewrite COND4 in H15. inv H15.
+        rewrite COND5 in H19. inv H19.
+        exploit postcond_phinodes_sound; try exact x1; eauto.
+        { rewrite <- LABEL. eauto. }
+        i. des.
+        exploit apply_infrules_sound; eauto; ss. i. des.
+        exploit reduce_maydiff_sound; eauto; ss. i. des.
+        exploit implies_sound; eauto; ss. i. des.
+        exploit implies_sound; eauto; ss. i. des.
+        exploit valid_fdef_valid_stmts; eauto. i. des.
+        esplits; eauto.
+        * econs 1. econs; eauto. rewrite lookupBlockViaLabelFromFdef_spec. ss.
+        * right. apply CIH. econs; ss; eauto; ss; eauto.
+      }
+      { (* case *)
+        apply list_prj2_inv in x2. des.
+        exploit COND2; eauto. i.
+        des_ifs. simtac. clear COND2.
+        rewrite <- H15 in Heq1. inv Heq1.
+        rewrite <- H19 in Heq2. inv Heq2.
+        clear dependent phinodes5.
+        clear dependent phinodes0.
+        exploit postcond_phinodes_sound; try exact x1; eauto.
+        { rewrite <- LABEL. eauto. }
+        i. des.
+        exploit apply_infrules_sound; eauto; ss. i. des.
+        exploit reduce_maydiff_sound; eauto; ss. i. des.
+        exploit implies_sound; eauto; ss. i. des.
+        exploit implies_sound; eauto; ss. i. des.
+        exploit valid_fdef_valid_stmts; eauto. i. des.
+        esplits; eauto.
+        * econs 1. econs; eauto. rewrite lookupBlockViaLabelFromFdef_spec. ss.
+        * right. apply CIH. econs; ss; eauto; ss; eauto.
+      }
     + (* unreachable *)
       exploit nerror_nfinal_nstuck; eauto. i. des. inv x0.
   - (* cmd *)
@@ -263,6 +310,15 @@ Proof.
         exploit MEM0; eauto.
         unfold InvState.Unary.sem_diffblock. des_ifs.
       }
+      { inv STATE. inv SRC.
+        unfold memory_blocks_of. ii.
+        exploit filter_map_inv; eauto. i. des.
+        des_ifs.
+        exploit UNIQUE.
+        { apply AtomSetFacts.elements_iff, InA_iff_In. eauto. }
+        intro UNIQUE_A. inv UNIQUE_A. ss. clarify.
+        exploit GLOBALS; eauto.
+      }
       { inv STATE. inv TGT.
         unfold memory_blocks_of. ii.
         exploit filter_map_inv; eauto. i. des.
@@ -272,6 +328,15 @@ Proof.
         intro UNIQUE_A. inv UNIQUE_A. ss. clarify.
         exploit MEM0; eauto.
         unfold InvState.Unary.sem_diffblock. des_ifs.
+      }
+      { inv STATE. inv TGT.
+        unfold memory_blocks_of. ii.
+        exploit filter_map_inv; eauto. i. des.
+        des_ifs.
+        exploit UNIQUE.
+        { apply AtomSetFacts.elements_iff, InA_iff_In. eauto. }
+        intro UNIQUE_A. inv UNIQUE_A. ss. clarify.
+        exploit GLOBALS; eauto.
       }
       i. exploit RETURN; eauto. i. des.
       exploit apply_infrules_sound; eauto; ss. i. des.
@@ -387,11 +452,13 @@ Proof.
     match goal with
     | [|- context [productInModuleB_dec ?a ?b]] => destruct (productInModuleB_dec a b)
     end; simtac; cycle 1.
-    { admit. (* lookupFdefViaIDFromProducts -> InProductsB *) }
+    { apply infrastructure_props.lookupFdefViaIDFromProducts_inv in TGT. congruence. }
     unfold initTargetData in *.
     erewrite <- valid_products_genGlobalAndInitMem; eauto. rewrite COND2.
     rewrite COND3. eauto.
-  - apply sim_local_lift_sim. econs; ss.
+  - apply sim_local_lift_sim.
+    { admit. (* sim_conf *) }
+    econs; ss.
     + econs.
     + generalize H0. i.
       unfold forallb2AL in H1. ss. apply andb_true_iff in H1. des. simtac.
@@ -399,7 +466,7 @@ Proof.
       { admit. (* init_locals inject_locals *) }
       i. des.
       apply valid_sim. econs; eauto.
-      * admit. (* valid_conf *)
+      * ss.
       * (* TODO: reorganize tactics *)
         repeat
           (try match goal with
@@ -426,4 +493,5 @@ Proof.
         }
         rewrite COND5, COND6, COND7, COND8, COND9. ss.
       * ss. admit. (* InvMem.Rel.sem init_mem *)
+    + reflexivity.
 Admitted.

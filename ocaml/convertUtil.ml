@@ -118,7 +118,30 @@ module Convert = struct
     | CoreHint_t.PPC_FP128Type -> LLVMsyntax.Coq_fp_ppc_fp128
     | CoreHint_t.X86_FP80Type -> LLVMsyntax.Coq_fp_x86_fp80
 
-  let rec value_type (vt:CoreHint_t.value_type): LLVMsyntax.typ = 
+  let fbop (b:CoreHint_t.fbop) : LLVMsyntax.fbop = 
+    match b with
+    | CoreHint_t.BopFadd -> LLVMsyntax.Coq_fbop_fadd
+    | CoreHint_t.BopFsub -> LLVMsyntax.Coq_fbop_fsub
+    | CoreHint_t.BopFmul -> LLVMsyntax.Coq_fbop_fmul
+    | CoreHint_t.BopFdiv -> LLVMsyntax.Coq_fbop_fdiv
+    | CoreHint_t.BopFrem -> LLVMsyntax.Coq_fbop_frem
+
+  let bop (b:CoreHint_t.bop) : LLVMsyntax.bop = 
+    match b with
+    | CoreHint_t.BopAdd -> LLVMsyntax.Coq_bop_add
+    | CoreHint_t.BopSub -> LLVMsyntax.Coq_bop_sub
+    | CoreHint_t.BopMul -> LLVMsyntax.Coq_bop_mul
+    | CoreHint_t.BopUdiv -> LLVMsyntax.Coq_bop_udiv
+    | CoreHint_t.BopSdiv -> LLVMsyntax.Coq_bop_sdiv
+    | CoreHint_t.BopUrem -> LLVMsyntax.Coq_bop_urem
+    | CoreHint_t.BopSrem -> LLVMsyntax.Coq_bop_srem
+    | CoreHint_t.BopShl -> LLVMsyntax.Coq_bop_shl
+    | CoreHint_t.BopLshr -> LLVMsyntax.Coq_bop_lshr
+    | CoreHint_t.BopAshr -> LLVMsyntax.Coq_bop_ashr
+    | CoreHint_t.BopAnd -> LLVMsyntax.Coq_bop_and
+    | CoreHint_t.BopOr -> LLVMsyntax.Coq_bop_or
+    | CoreHint_t.BopXor -> LLVMsyntax.Coq_bop_xor
+   let rec value_type (vt:CoreHint_t.value_type): LLVMsyntax.typ = 
     match vt with
     | CoreHint_t.VoidType -> LLVMsyntax.Coq_typ_void
     | CoreHint_t.IntValueType ciarg -> 
@@ -214,6 +237,8 @@ module Convert = struct
        LLVMsyntax.Coq_const_castop (LLVMsyntax.Coq_castop_inttoptr, (constant cei.v), (value_type cei.dstty))
     | CoreHint_t.ConstExprPtrtoint cep ->
        LLVMsyntax.Coq_const_castop (LLVMsyntax.Coq_castop_ptrtoint, (constant cep.v), (value_type cep.dstty))
+    | CoreHint_t.ConstExprBinaryOp cebo ->
+       LLVMsyntax.Coq_const_bop ((bop cebo.opcode), (constant cebo.v1), (constant cebo.v2))
 
   let value (value:CoreHint_t.value): ValueT.t = 
     match value with
@@ -256,30 +281,7 @@ module Convert = struct
           | _ -> failwith ("convertUtil: rhs_of no matching cmd: " ^ (Coq_pretty_printer.string_of_cmd c)))
       | _ -> failwith "convertUtil: rhs_of find no insn"
 
-  let fbop (b:CoreHint_t.fbop) : LLVMsyntax.fbop = 
-    match b with
-    | CoreHint_t.BopFadd -> LLVMsyntax.Coq_fbop_fadd
-    | CoreHint_t.BopFsub -> LLVMsyntax.Coq_fbop_fsub
-    | CoreHint_t.BopFmul -> LLVMsyntax.Coq_fbop_fmul
-    | CoreHint_t.BopFdiv -> LLVMsyntax.Coq_fbop_fdiv
-    | CoreHint_t.BopFrem -> LLVMsyntax.Coq_fbop_frem
 
-  let bop (b:CoreHint_t.bop) : LLVMsyntax.bop = 
-    match b with
-    | CoreHint_t.BopAdd -> LLVMsyntax.Coq_bop_add
-    | CoreHint_t.BopSub -> LLVMsyntax.Coq_bop_sub
-    | CoreHint_t.BopMul -> LLVMsyntax.Coq_bop_mul
-    | CoreHint_t.BopUdiv -> LLVMsyntax.Coq_bop_udiv
-    | CoreHint_t.BopSdiv -> LLVMsyntax.Coq_bop_sdiv
-    | CoreHint_t.BopUrem -> LLVMsyntax.Coq_bop_urem
-    | CoreHint_t.BopSrem -> LLVMsyntax.Coq_bop_srem
-    | CoreHint_t.BopShl -> LLVMsyntax.Coq_bop_shl
-    | CoreHint_t.BopLshr -> LLVMsyntax.Coq_bop_lshr
-    | CoreHint_t.BopAshr -> LLVMsyntax.Coq_bop_ashr
-    | CoreHint_t.BopAnd -> LLVMsyntax.Coq_bop_and
-    | CoreHint_t.BopOr -> LLVMsyntax.Coq_bop_or
-    | CoreHint_t.BopXor -> LLVMsyntax.Coq_bop_xor
- 
  let fcond (c:CoreHint_t.fcmp_pred) : LLVMsyntax.fcond = 
     match c with
     | CoreHint_t.CondFfalse -> LLVMsyntax.Coq_fcond_false

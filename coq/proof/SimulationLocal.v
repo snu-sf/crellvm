@@ -98,10 +98,12 @@ Section SimLocal.
                           (LOAD: mload conf_src.(CurTargetData) st2_src.(Mem) mptr typ align = Some val)
                           (GV2PTR: GV2ptr conf_src.(CurTargetData) (getPointerSize conf_src.(CurTargetData)) val = Some (Vptr b o)),
              ~ In b uniqs_src>> /\
+           <<UNIQS_GLOBALS_SRC: forall b, In b uniqs_src -> (inv1.(InvMem.Rel.gmax) < b)%positive>> /\
            <<UNIQS_TGT: forall mptr typ align val b o
                           (LOAD: mload conf_tgt.(CurTargetData) st1_tgt.(Mem) mptr typ align = Some val)
                           (GV2PTR: GV2ptr conf_tgt.(CurTargetData) (getPointerSize conf_tgt.(CurTargetData)) val = Some (Vptr b o)),
-             ~ In b uniqs_tgt>> /\
+                 ~ In b uniqs_tgt>> /\
+           <<UNIQS_GLOBALS_TGT: forall b, In b uniqs_tgt -> (inv1.(InvMem.Rel.gmax) < b)%positive>> /\
            <<RETURN:
                forall inv3 mem3_src mem3_tgt retval3_src retval3_tgt locals4_src
                  (INCR: InvMem.Rel.le (InvMem.Rel.lift st2_src.(Mem) st1_tgt.(Mem) uniqs_src uniqs_tgt inv1) inv3)
