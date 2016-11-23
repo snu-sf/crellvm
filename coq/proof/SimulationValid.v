@@ -237,7 +237,84 @@ Proof.
     { rewrite InvState.Unary.sem_valueT_physical. eauto. }
     rewrite InvState.Unary.sem_valueT_physical. s. i. des.
     eapply _sim_local_step.
-    { admit. (* tgt not stuck *) }
+    {
+      (* tgt not stuck *)
+      unfold not. ii. unfold stuck_state in H. apply H. clear H.
+      destruct conf_tgt.
+      repeat eexists.
+      move decision at bottom.
+      econs; eauto.
+      -
+        instantiate (1:= decision).
+        move CONF at bottom.
+        inv CONF.
+        inv INJECT0.
+        inv TARGETDATA. ss. clarify.
+        move decision at bottom.
+        move gval_tgt at bottom.
+        move conds at bottom.
+        Lemma decide_nonzero_inject
+              TD conds_src conds_tgt decision meminj
+              (NONZERO: decide_nonzero TD conds_src decision)
+              (INJECT: genericvalues_inject.gv_inject meminj conds_src conds_tgt)
+          :
+            <<NONZERO: decide_nonzero TD conds_tgt decision>>
+        .
+        Proof.
+          inv NONZERO.
+          red. econs; eauto. rewrite <- INT.
+          symmetry.
+          eapply genericvalues_inject.simulation__eq__GV2int; eauto.
+        Qed.
+        idtac.
+        eapply decide_nonzero_inject; eauto.
+      - rewrite <- ite_spec in *.
+        move FDEF at bottom.
+        Lemma valid_entry_spec
+              s_src s_tgt s
+              (VALID: valid_entry_stmts s_src s_tgt s = true)
+          :
+            <<SAME: s_src = s_tgt>>
+        .
+        Proof.
+          red. unfold valid_entry_stmts in *.
+          des_ifs.
+          des_bool.
+          unfold is_empty in *. des_ifs.
+        Abort.
+
+        Lemma valid_fdef_same_block
+              m_src m_tgt f_src f_tgt fdef_hint y
+              (* x *)
+              (VALID_FDEF: valid_fdef m_src m_tgt f_src f_tgt fdef_hint)
+          :
+            <<LOOKUP: lookupBlockViaLabelFromFdef f_src y = lookupBlockViaLabelFromFdef f_tgt y>>
+        (*     (LOOKUP: Some x = lookupBlockViaLabelFromFdef f_src y) *)
+        (* : *)
+        (*     <<LOOKUP: Some x = lookupBlockViaLabelFromFdef f_tgt y>> *)
+        .
+        Proof.
+          red. (* rewrite LOOKUP. clear LOOKUP. *)
+          unfold valid_fdef in *.
+          des_ifs. repeat (des_bool; des).
+          (* TODO add in des_bool *)
+          rewrite andb_true_l in VALID_FDEF.
+          (* unfold forallb2AL in *. *)
+          (* unfold list_forallb2 in *. *)
+          (* clear VALID_FDEF. *)
+          des_sumbool.
+          clarify.
+          (* unfold lookupBlockViaLabelFromFdef. *)
+          repeat rewrite lookupBlockViaLabelFromFdef_spec.
+          ss.
+          des_ifs.
+          admit.
+        Abort.
+        idtac.
+        admit.
+      -
+        admit.
+    }
     i. inv STEP. unfold valid_phinodes in *.
     do 12 simtac0. rewrite <- (ite_spec decision0 l0 l3) in *. simtac.
     rewrite VAL_TGT in H16. inv H16.
@@ -263,6 +340,8 @@ Proof.
       exploit implies_sound; try exact COND2; eauto; ss. i. des.
       exploit valid_fdef_valid_stmts; eauto. i. des.
       esplits; eauto.
+
+
       { econs 1. econs; eauto. rewrite lookupBlockViaLabelFromFdef_spec. ss. }
       { right. apply CIH. econs; ss; eauto; ss; eauto. }
     * exploit postcond_phinodes_sound;
