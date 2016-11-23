@@ -416,7 +416,13 @@ Proof.
   unfold initLocals in *.
   revert gvs_src LOCALS_SRC. induction ARGS; ss.
   - i. destruct la; cycle 1.
-    { admit. (* TODO: what? *) }
+    { inv CONF.
+      destruct p. destruct p.
+      exists gvs_src.
+      splits; eauto.
+      - rewrite <- TARGETDATA. ss.
+      - admit. (* refl *)
+    }
     ss. inv LOCALS_SRC. esplits; eauto. ss.
   - admit. (* TODO: what? *)
 Admitted.
