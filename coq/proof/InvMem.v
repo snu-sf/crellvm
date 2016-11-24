@@ -23,9 +23,11 @@ Definition gv_diffblock_with_blocks conf gv blocks : Prop :=
     (GV2PTR: GV2ptr conf.(CurTargetData) (getPointerSize conf.(CurTargetData)) gv = Some (Vptr b o)),
     ~ In b blocks.
 
+Definition private_block m public b : Prop :=
+  ~ public b /\ (b < m.(Mem.nextblock))%positive.
+
 Module Unary.
   Structure t := mk {
-    private: list mblock;
     private_parent: list mblock;
     mem_parent: mem;
 
@@ -39,9 +41,9 @@ Module Unary.
   | sem_intro
       (GLOBALS: wf_globals gmax conf.(Globals))
       (WF: MemProps.wf_Mem gmax conf.(CurTargetData) m)
-      (PRIVATE: forall b (IN: In b inv.(private)), ~ public b /\ (b < m.(Mem.nextblock))%positive)
-      (PRIVATE_PARENT: forall b (IN: In b inv.(private_parent)), ~ public b /\ (b < m.(Mem.nextblock))%positive)
-      (PRIVATE_DISJOINT: list_disjoint inv.(private) inv.(private_parent))
+      (PRIVATE_PARENT:
+         forall b (IN: In b inv.(private_parent)),
+           private_block m public b)
       (MEM_PARENT:
          forall b (IN: In b inv.(private_parent))
            mc o,
@@ -87,13 +89,12 @@ Module Unary.
     - etransitivity; eauto.
   Qed.
 
-  Definition lift (m:mem) (ul:list mblock) (inv:t): t :=
-    mk nil (inv.(private) ++ inv.(private_parent)) m
-       (filter (fun x => existsb (Values.eq_block x) ul) inv.(private) ++ inv.(unique_parent)) inv.(nextblock).
+  Definition lift (m:mem) (uniqs:list mblock) (privs:list mblock) (inv:t): t :=
+    mk (privs ++ inv.(private_parent)) m
+       (filter (fun x => existsb (Values.eq_block x) uniqs) privs ++ inv.(unique_parent)) inv.(nextblock).
 
   Definition unlift (inv0 inv1:t): t :=
-    mk inv0.(private)
-       inv0.(private_parent)
+    mk inv0.(private_parent)
        inv0.(mem_parent)
        inv0.(unique_parent)
        inv1.(nextblock).
@@ -142,9 +143,13 @@ Module Rel.
     - eapply inject_incr_trans; eauto.
   Qed.
 
-  Definition lift (m_src m_tgt:mem) (uniqs_src uniqs_tgt:list mblock) (inv:t): t :=
-    mk (Unary.lift m_src uniqs_src inv.(src))
-       (Unary.lift m_tgt uniqs_tgt inv.(tgt))
+  Definition lift
+             (m_src m_tgt:mem)
+             (uniqs_src uniqs_tgt:list mblock)
+             (privs_src privs_tgt:list mblock)
+             (inv:t): t :=
+    mk (Unary.lift m_src uniqs_src privs_src inv.(src))
+       (Unary.lift m_tgt uniqs_tgt privs_tgt inv.(tgt))
        inv.(gmax)
        inv.(inject).
 

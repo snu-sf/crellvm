@@ -33,27 +33,27 @@ Inductive sim_local_stack
 | sim_local_stack_cons
     ecs0_src ecs0_tgt inv0
     inv
-    func_src b_src id_src noret_src clattrs_src typ_src varg_src fun_src params_src cmds_src term_src locals_src allocas_src ecs_src mem_src uniqs_src
-    func_tgt b_tgt id_tgt noret_tgt clattrs_tgt typ_tgt varg_tgt fun_tgt params_tgt cmds_tgt term_tgt locals_tgt allocas_tgt ecs_tgt mem_tgt uniqs_tgt
+    func_src b_src id_src noret_src clattrs_src typ_src varg_src fun_src params_src cmds_src term_src locals_src allocas_src ecs_src mem_src uniqs_src privs_src
+    func_tgt b_tgt id_tgt noret_tgt clattrs_tgt typ_tgt varg_tgt fun_tgt params_tgt cmds_tgt term_tgt locals_tgt allocas_tgt ecs_tgt mem_tgt uniqs_tgt privs_tgt
     (STACK: sim_local_stack conf_src conf_tgt ecs0_src ecs0_tgt inv0)
     (LE0: InvMem.Rel.le inv0 inv)
     (NORET: noret_src = noret_tgt)
     (CLATTRS: clattrs_src = clattrs_tgt)
     (TYP: typ_src = typ_tgt)
     (VARG: varg_src = varg_tgt)
-    (UNIQS_SRC: forall mptr typ align val b o
-                  (LOAD: mload conf_src.(CurTargetData) mem_src mptr typ align = Some val)
-                  (GV2PTR: GV2ptr conf_src.(CurTargetData) (getPointerSize conf_src.(CurTargetData)) val = Some (Vptr b o)),
-        ~ In b uniqs_src)
+    (UNIQS_SRC: forall mptr typ align val
+                  (LOAD: mload conf_src.(CurTargetData) mem_src mptr typ align = Some val),
+        InvMem.gv_diffblock_with_blocks conf_src val uniqs_src)
     (UNIQS_GLOBALS_SRC: forall b, In b uniqs_src -> (inv.(InvMem.Rel.gmax) < b)%positive)
-    (UNIQS_TGT: forall mptr typ align val b o
-                  (LOAD: mload conf_tgt.(CurTargetData) mem_tgt mptr typ align = Some val)
-                  (GV2PTR: GV2ptr conf_tgt.(CurTargetData) (getPointerSize conf_tgt.(CurTargetData)) val = Some (Vptr b o)),
-        ~ In b uniqs_tgt)
+    (UNIQS_TGT: forall mptr typ align val
+                  (LOAD: mload conf_tgt.(CurTargetData) mem_tgt mptr typ align = Some val),
+        InvMem.gv_diffblock_with_blocks conf_tgt val uniqs_tgt)
     (UNIQS_GLOBALS_TGT: forall b, In b uniqs_tgt -> (inv.(InvMem.Rel.gmax) < b)%positive)
+    (PRIVS_SRC: forall b, In b privs_src -> InvMem.private_block mem_src (InvMem.Rel.public_src inv.(InvMem.Rel.inject)) b)
+    (PRIVS_TGT: forall b, In b privs_tgt -> InvMem.private_block mem_tgt (InvMem.Rel.public_tgt inv.(InvMem.Rel.inject)) b)
     (LOCAL:
        forall inv' mem'_src mem'_tgt retval'_src retval'_tgt locals'_src
-         (INCR: InvMem.Rel.le (InvMem.Rel.lift mem_src mem_tgt uniqs_src uniqs_tgt inv) inv')
+         (INCR: InvMem.Rel.le (InvMem.Rel.lift mem_src mem_tgt uniqs_src uniqs_tgt privs_src privs_tgt inv) inv')
          (MEM: InvMem.Rel.sem conf_src conf_tgt mem'_src mem'_tgt inv')
          (RETVAL: TODO.lift2_option (genericvalues_inject.gv_inject inv'.(InvMem.Rel.inject)) retval'_src retval'_tgt)
          (RETURN_SRC: return_locals
@@ -82,7 +82,7 @@ Inductive sim_local_stack
       conf_src conf_tgt
       ((mkEC func_src b_src ((insn_call id_src noret_src clattrs_src typ_src varg_src fun_src params_src)::cmds_src) term_src locals_src allocas_src) :: ecs_src)
       ((mkEC func_tgt b_tgt ((insn_call id_tgt noret_tgt clattrs_tgt typ_tgt varg_tgt fun_tgt params_tgt)::cmds_tgt) term_tgt locals_tgt allocas_tgt) :: ecs_tgt)
-      (InvMem.Rel.lift mem_src mem_tgt uniqs_src uniqs_tgt inv)
+      (InvMem.Rel.lift mem_src mem_tgt uniqs_src uniqs_tgt privs_src privs_tgt inv)
 .
 
 Inductive sim_local_lift
@@ -248,7 +248,8 @@ Proof.
       * econs 1. econs; eauto.
       * right. apply CIH. econs; try reflexivity.
         { ss. }
-        { econs 2; eauto. s. i.
+        { econs 2; eauto.
+          s. i.
           hexploit RETURN; eauto. i. des. inv SIM; ss.
           esplits; eauto.
         }
