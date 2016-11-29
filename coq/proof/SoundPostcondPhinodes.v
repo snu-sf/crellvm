@@ -44,15 +44,15 @@ Lemma add_terminator_cond_br_uncond
 Proof. destruct inv, src, tgt. ss. Qed.
 
 Lemma add_terminator_cond_switch_unary
-      conf val st gmax
+      conf val st gmax public
       ty gval cases l_dflt l_dest id
       invst invmem inv
       (VAL : getOperandValue (CurTargetData conf) val
                              (Locals (EC st)) (Globals conf) = Some gval)
       (DECIDE : get_switch_branch (CurTargetData conf)
                                   ty gval cases l_dflt = Some l_dest)
-      (STATE : InvState.Unary.sem conf st invst invmem gmax inv)
-  : InvState.Unary.sem conf st invst invmem gmax
+      (STATE : InvState.Unary.sem conf st invst invmem gmax public inv)
+  : InvState.Unary.sem conf st invst invmem gmax public
                        (Invariant.update_lessdef
                           (add_terminator_cond_lessdef
                              (insn_switch id ty val l_dflt cases) l_dest) inv).
@@ -198,13 +198,13 @@ Qed.
 
 Lemma add_terminator_cond_br_unary
       conf val st gval decision
-      invst invmem inv gmax
+      invst invmem inv gmax public
       id l1 l2
       (VAL : getOperandValue (CurTargetData conf) val 
                              (Locals (EC st)) (Globals conf) = Some gval)
       (DECIDE : decide_nonzero (CurTargetData conf) gval decision)
-      (STATE : InvState.Unary.sem conf st invst invmem gmax inv)
-  : InvState.Unary.sem conf st invst invmem gmax
+      (STATE : InvState.Unary.sem conf st invst invmem gmax public inv)
+  : InvState.Unary.sem conf st invst invmem gmax public
                        (Invariant.update_lessdef
                           (add_terminator_cond_lessdef (insn_br id val l1 l2)
                                                        (ite decision l1 l2))
@@ -387,7 +387,7 @@ Proof.
 Qed.
 
 Lemma phinodes_add_lessdef_sound
-      conf st0 st1 gmax
+      conf st0 st1 gmax public
       l_to phinodes cmds terminator
       invst invmem inv0
       assigns
@@ -398,11 +398,11 @@ Lemma phinodes_add_lessdef_sound
                                    st0.(EC).(Locals) = Some st1.(EC).(Locals))
       (ASSIGNS: forallb_map (Postcond.Phinode.resolve st0.(EC).(CurBB).(fst)) phinodes = Some assigns)
       (UNIQUE_PHI: unique id_dec (List.map Postcond.Phinode.get_def assigns) = true)
-      (STATE: InvState.Unary.sem conf st1 invst invmem gmax inv0)
+      (STATE: InvState.Unary.sem conf st1 invst invmem gmax public inv0)
       (PREV: forall x, InvState.Unary.sem_idT st0 invst (Tag.previous, x) =
                           lookupAL _ st0.(EC).(Locals) x)
   : InvState.Unary.sem
-      conf st1 invst invmem gmax
+      conf st1 invst invmem gmax public
       (Hints.Invariant.update_lessdef (Postcond.postcond_phinodes_add_lessdef assigns) inv0).
 Proof.
   econs; try by inv STATE.
@@ -542,7 +542,7 @@ Lemma phinodes_unique_preserved_except
       conf st0 inv0 invmem invst
       l_to phinodes cmds terminator locals l0
       gmax public
-      (STATE : InvState.Unary.sem conf st0 invst invmem gmax inv0)
+      (STATE : InvState.Unary.sem conf st0 invst invmem gmax public inv0)
       (MEM : InvMem.Unary.sem conf gmax public st0.(Mem) invmem)
       (RESOLVE : forallb_map (Phinode.resolve (fst (CurBB (EC st0)))) phinodes = Some l0)
       (UNIQUE_ID : unique id_dec (List.map Phinode.get_def l0) = true)

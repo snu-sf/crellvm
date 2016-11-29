@@ -274,11 +274,12 @@ Module Unary.
   .
 
   Definition sem_private (conf:Config) (st:State) (invst:t) (private_parent:list mblock) (public:mblock -> Prop) (a:IdT.t): Prop :=
-    forall val b o
-      (VAL: sem_idT st invst a = Some val)
-      (PTR: GV2ptr conf.(CurTargetData) (getPointerSize conf.(CurTargetData)) val = ret Vptr b o),
-      <<PRIVATE_BLOCK: InvMem.private_block st.(Mem) public b>> /\
-      <<PARENT_DISJOINT: ~ In b private_parent>>.
+    forall val
+      (VAL: sem_idT st invst a = Some val),
+      exists b o,
+        <<VALUE_PTR: GV2ptr conf.(CurTargetData) (getPointerSize conf.(CurTargetData)) val = ret Vptr b o>> /\
+        <<PRIVATE_BLOCK: InvMem.private_block st.(Mem) public b>> /\
+        <<PARENT_DISJOINT: ~ In b private_parent>>.
       (* In b private. *)
       (* match GV2ptr conf.(CurTargetData) (getPointerSize conf.(CurTargetData)) val with *)
       (* | ret Vptr b _ => In b private *)

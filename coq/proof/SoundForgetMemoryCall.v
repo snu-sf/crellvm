@@ -60,27 +60,6 @@ Proof.
   des_bool. des. eauto.
 Qed.
 
-(* Lemma private_preserved_after_call *)
-(*       mem0 mem1 invmem0 invmem1 *)
-(*       conf gmax public uniqs privs *)
-(*       (INCR : InvMem.Unary.le (InvMem.Unary.lift mem0 uniqs privs invmem0) invmem1) *)
-(*       (MEM : InvMem.Unary.sem conf gmax public mem1 invmem1) *)
-(*       (PRIVATE: ) *)
-(*   : <<PRIVATE_PRESERVED: forall mc b o, *)
-(*       InvMem.private_block mem0 public b -> *)
-
-(*       InvState.Unary.sem_private *)
-(*       In b invmem0.(InvMem.Unary.private) -> *)
-(*                                    mload_aux mem0 mc b o = mload_aux mem1 mc b o>>. *)
-(* Proof. *)
-(*   ii. inv INCR. ss. *)
-(*   inv MEM. *)
-(*   rewrite <- MEM_PARENT0; cycle 1. *)
-(*   { rewrite <- PRIVATE_PARENT_EQ. *)
-(*     apply in_app. eauto. } *)
-(*   apply MEM_PARENT. apply in_app. eauto. *)
-(* Qed. *)
-
 Lemma private_preserved_after_call
         conf st0 invst0 invmem0 gmax public0 inv0
         mem0 uniqs
@@ -144,48 +123,6 @@ Proof.
     + des_ifs.
 Qed.
 
-(* Lemma sem_expr_private_preserved *)
-(*       conf st0 invst0 invmem0 inv0 invmem1 mem1 *)
-(*       uniqs gmax *)
-(*       e e1 e2 *)
-(*       (STATE : InvState.Unary.sem conf st0 invst0 invmem0 gmax inv0) *)
-(*       (IN_PRIVATE: ExprPairSet.In (e1, e2) *)
-(*                                   (ExprPairSet.filter *)
-(*                                      (ForgetMemoryCall.is_private_ExprPair inv0) *)
-(*                                      (Invariant.lessdef inv0))) *)
-(*       (PRIVATE_PRESERVED: forall (mc : list AST.memory_chunk) (b : mblock) (o : Z), *)
-(*           In b (InvMem.Unary.private invmem0) -> mload_aux (Mem st0) mc b o = mload_aux mem1 mc b o) *)
-(*       (EXP_EQ: e=e1 \/ e=e2) *)
-(*       (MEM_LE: InvMem.Unary.le (InvMem.Unary.lift st0.(Mem) uniqs invmem0) invmem1) *)
-(*   : InvState.Unary.sem_expr conf st0 invst0 e = *)
-(*     InvState.Unary.sem_expr conf (mkState st0.(EC) st0.(ECS) mem1) invst0 e. *)
-(* Proof. *)
-(*   destruct e; ss. *)
-(*   { (* gep *) *)
-(*     erewrite <- sem_list_valueT_eq_locals with (st0 := mkState st0.(EC) st0.(ECS) mem1); ss. *)
-(*   } *)
-(*   erewrite <- sem_valueT_eq_locals with (st0 := mkState st0.(EC) st0.(ECS) mem1); ss. *)
-(*   des_ifs. *)
-(*   unfold mload. des_ifs. *)
-(*   apply PRIVATE_PRESERVED. *)
-(*   apply ExprPairSetFacts.filter_iff in IN_PRIVATE; try by solve_compat_bool. desH IN_PRIVATE. *)
-(*   unfold ForgetMemoryCall.is_private_ExprPair in *. *)
-(*   des_bool. ss. unfold ForgetMemoryCall.is_private_Expr in *. *)
-(*   des. *)
-(*   - subst. destruct v; ss. *)
-(*     unfold ForgetMemoryCall.is_private_Expr. *)
-(*     inv STATE. *)
-(*     exploit PRIVATE; eauto. *)
-(*     { apply IdTSetFacts.mem_iff. eauto. } *)
-(*     i. des_ifs. *)
-(*   - subst. destruct v; ss. *)
-(*     unfold ForgetMemoryCall.is_private_Expr. *)
-(*     inv STATE. *)
-(*     exploit PRIVATE; eauto. *)
-(*     { apply IdTSetFacts.mem_iff. eauto. } *)
-(*     i. des_ifs. *)
-(* Qed. *)
-
 Lemma mem_lift_le_nextblock
       conf uniqs privs
       gmax0 public0 mem0 invmem0
@@ -238,12 +175,6 @@ Lemma forget_memory_call_unary_sound
                                       (ForgetMemoryCall.unary inv0)>> /\
     <<MEM_UNARY: InvMem.Unary.sem conf gmax public1 mem1 (InvMem.Unary.unlift invmem0 invmem1)>>.
 Proof.
-
-  
-
-
-
-  
   hexploit private_preserved_after_call; eauto. intro PRIVATE_PRESERVED. des.
   split.
   { (* STATE *)
@@ -292,11 +223,6 @@ Proof.
       unfold InvMem.gv_diffblock_with_blocks in *.
       exploit GV_DIFFBLOCK; eauto.
 
-      exploit PRIVATE.
-      { apply IdTSetFacts.mem_iff; eauto. }
-      { eauto. }
-      { eauto. }
-      i. des_ifs.
       inv MEM_LE.
       rewrite <- UNIQUE_PARENT_EQ. ss.
       apply in_app. left.
@@ -322,7 +248,7 @@ Proof.
       + destruct (Values.eq_block b0 b0); eauto.
     - ss.
       ii. exploit PRIVATE; eauto. i. des.
-      split; eauto.
+      esplits; eauto.
       ss.
       assert (B_IN: In b (memory_blocks_of_t conf st0 invst0 (Invariant.private inv0))).
       { unfold memory_blocks_of_t.
@@ -359,22 +285,6 @@ Proof.
     rename UNIQUE_PRIVATE_PARENT into UNIQUE_PRIVATE_PARENT_B.
     inv MEM_AFTER_CALL.
     econs; eauto.
-    (* - ss. i. split. *)
-    (*   + exploit PRIVATE_PARENT; eauto; cycle 1. *)
-    (*     { i.  des. eauto. } *)
-    (*     inv MEM_LE. ss. *)
-    (*     rewrite <- PRIVATE_PARENT_EQ. *)
-    (*     apply in_app. left. eauto. *)
-    (*   + exploit PRIVATE_B; eauto. i. des. *)
-    (*     eapply Pos.lt_le_trans; eauto. *)
-    (* - ss. i. split. *)
-    (*   + exploit PRIVATE_PARENT; eauto; cycle 1. *)
-    (*     { i.  des. eauto. } *)
-    (*     inv MEM_LE. ss. *)
-    (*     rewrite <- PRIVATE_PARENT_EQ. *)
-    (*     apply in_app. right. eauto. *)
-    (*   + exploit PRIVATE_PARENT_B; eauto. i. des. *)
-    (*     eapply Pos.lt_le_trans; eauto. *)
     - ss. i.
       apply PRIVATE_PARENT.
       inv MEM_LE.

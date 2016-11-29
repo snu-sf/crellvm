@@ -135,30 +135,28 @@ Proof.
     { eauto. }
     intro PRIV_IN_MEM. des_ifs.
 
-    inv MEM_SRC.
-    exploit PRIVATE0; eauto. intro PRIV_RESULT. destruct PRIV_RESULT as [NO_PUBLIC VALID_BLOCK].
+    inv MEM_SRC. des.
     unfold InvState.Unary.sem_diffblock. des_ifs. ii. subst.
     exploit genericvalues_inject.simulation__GV2ptr; eauto. i. des.
     match goal with
     | [H: memory_sim.MoreMem.val_inject _ (Values.Vptr _ _) _ |- _] =>
       inv H
     end.
-    apply NO_PUBLIC. ii. congruence.
+    apply PRIVATE_BLOCK. ii. congruence.
   - inv STATE_TGT.
     exploit PRIVATE.
     { apply Exprs.IdTSetFacts.mem_iff. eauto. }
     { eauto. }
     intro PRIV_IN_MEM. des_ifs.
 
-    inv MEM_TGT.
-    exploit PRIVATE0; eauto. intro PRIV_RESULT. destruct PRIV_RESULT as [NO_PUBLIC VALID_BLOCK].
+    inv MEM_TGT. des.
     unfold InvState.Unary.sem_diffblock. des_ifs. ii. subst.
     exploit genericvalues_inject_simulation__GV2ptr_tgt; eauto. i. des.
     match goal with
     | [H: memory_sim.MoreMem.val_inject _ _ (Values.Vptr _ _) |- _] =>
       inv H
     end.
-    apply NO_PUBLIC. unfold InvMem.Rel.public_tgt.
+    apply PRIVATE_BLOCK. unfold InvMem.Rel.public_tgt.
     esplits; eauto.
 Qed.
 

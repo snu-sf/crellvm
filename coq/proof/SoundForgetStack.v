@@ -383,7 +383,7 @@ Lemma step_unique_preserved_except_current
       invst invmem inv0
       cmd cmds
       gmax public
-      (STATE: InvState.Unary.sem conf (mkState st0.(EC) st0.(ECS) st1.(Mem)) invst invmem gmax inv0)
+      (STATE: InvState.Unary.sem conf (mkState st0.(EC) st0.(ECS) st1.(Mem)) invst invmem gmax public inv0)
       (MEM: InvMem.Unary.sem conf gmax public st1.(Mem) invmem)
       (NONCALL: Instruction.isCallInst cmd = false)
       (CMDS : CurCmds st0.(EC) = cmd :: cmds)
@@ -607,7 +607,7 @@ Lemma step_unique_preserved_except_parent
       invst invmem inv0
       cmd cmds
       gmax public
-      (STATE: InvState.Unary.sem conf (mkState st0.(EC) st0.(ECS) st1.(Mem)) invst invmem gmax inv0)
+      (STATE: InvState.Unary.sem conf (mkState st0.(EC) st0.(ECS) st1.(Mem)) invst invmem gmax public inv0)
       (MEM: InvMem.Unary.sem conf gmax public st1.(Mem) invmem)
       (NONCALL: Instruction.isCallInst cmd = false)
       (CMDS : CurCmds st0.(EC) = cmd :: cmds)
@@ -624,7 +624,7 @@ Lemma step_unique_preserved_except
       invst invmem inv0
       cmd cmds
       gmax public
-      (STATE: InvState.Unary.sem conf (mkState st0.(EC) st0.(ECS) st1.(Mem)) invst invmem gmax inv0)
+      (STATE: InvState.Unary.sem conf (mkState st0.(EC) st0.(ECS) st1.(Mem)) invst invmem gmax public inv0)
       (MEM: InvMem.Unary.sem conf gmax public st1.(Mem) invmem)
       (NONCALL: Instruction.isCallInst cmd = false)
       (CMDS : CurCmds st0.(EC) = cmd :: cmds)
@@ -722,13 +722,13 @@ Proof.
 Qed.
 
 Lemma forget_stack_unary_sound
-      conf defs leaks st0 st1 gmax
+      conf defs leaks st0 st1 gmax public
       inv invst invmem
       (EQUIV : state_equiv_except defs st0 st1)
       (UNIQUE_PRESERVED : unique_preserved_except conf inv invmem.(InvMem.Unary.unique_parent) st1 gmax (AtomSetImpl.union defs leaks))
-      (STATE : InvState.Unary.sem conf st0 invst invmem gmax inv)
+      (STATE : InvState.Unary.sem conf st0 invst invmem gmax public inv)
       (WF_LC: memory_props.MemProps.wf_lc st1.(Mem) st1.(EC).(Locals))
-  : InvState.Unary.sem conf st1 invst invmem gmax (ForgetStack.unary defs leaks inv).
+  : InvState.Unary.sem conf st1 invst invmem gmax public (ForgetStack.unary defs leaks inv).
 Proof.
   inv STATE.
   assert (EQUIV_REV: state_equiv_except defs st1 st0).
@@ -767,6 +767,8 @@ Proof.
     unfold flip, compose in *.
     apply negb_true_iff in H0.
     destruct x as [t x].
+
+    inv EQUIV. rewrite <- MEM.
     destruct t; try (exploit PRIVATE; eauto; fail).
     exploit sem_idT_equiv_except; eauto.
     { rewrite <- lift_physical_atoms_idtset_spec1. eauto. }
