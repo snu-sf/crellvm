@@ -221,6 +221,8 @@ Lemma postcond_call_sound
       (INCR: InvMem.Rel.le (InvMem.Rel.lift st0_src.(Mem) st0_tgt.(Mem)
                                             (memory_blocks_of conf_src st0_src.(EC).(Locals) inv0.(Invariant.src).(Invariant.unique))
                                             (memory_blocks_of conf_tgt st0_tgt.(EC).(Locals) inv0.(Invariant.tgt).(Invariant.unique))
+                                            (memory_blocks_of_t conf_src st0_src invst0.(InvState.Rel.src) inv0.(Invariant.src).(Invariant.private))
+                                            (memory_blocks_of_t conf_tgt st0_tgt invst0.(InvState.Rel.tgt) inv0.(Invariant.tgt).(Invariant.private))
                                             invmem0) invmem1)
       (MEM: InvMem.Rel.sem conf_src conf_tgt mem1_src mem1_tgt invmem1)
       (RETVAL: TODO.lift2_option (genericvalues_inject.gv_inject invmem1.(InvMem.Rel.inject)) retval1_src retval1_tgt)

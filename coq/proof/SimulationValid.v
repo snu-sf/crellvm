@@ -295,10 +295,15 @@ Proof.
         (try instantiate (2 := (mkState (mkEC _ _ _ _ _ _) _ _))); ss; eauto; ss.
       i. des. subst. do 24 simtac0. des.
       eapply _sim_local_call; ss; eauto; ss.
-      exists (memory_blocks_of conf_src Locals0
+      eexists (memory_blocks_of conf_src Locals0
                           (Invariant.unique (Invariant.src inv))),
         (memory_blocks_of conf_tgt Locals1
-                          (Invariant.unique (Invariant.tgt inv))).
+                          (Invariant.unique (Invariant.tgt inv))),
+        (memory_blocks_of_t conf_src _ _
+                          (Invariant.private (Invariant.src inv))),
+        (memory_blocks_of_t conf_tgt _ _
+                          (Invariant.private (Invariant.tgt inv)))
+      .
       esplits.
       { inv STATE. inv SRC.
         unfold memory_blocks_of. ii.
@@ -337,6 +342,24 @@ Proof.
         { apply AtomSetFacts.elements_iff, InA_iff_In. eauto. }
         intro UNIQUE_A. inv UNIQUE_A. ss. clarify.
         exploit GLOBALS; eauto.
+      }
+      { inv STATE. inv SRC. ss.
+        i. unfold memory_blocks_of_t in IN.
+        apply filter_map_inv in IN. des.
+        des_ifs.
+        exploit PRIVATE; eauto.
+        { apply Exprs.IdTSetFacts.elements_iff.
+          apply In_InA; eauto. }
+        ss. i. des. clarify.
+      }
+      { inv STATE. inv TGT. ss.
+        i. unfold memory_blocks_of_t in IN.
+        apply filter_map_inv in IN. des.
+        des_ifs.
+        exploit PRIVATE; eauto.
+        { apply Exprs.IdTSetFacts.elements_iff.
+          apply In_InA; eauto. }
+        ss. i. des. clarify.
       }
       i. exploit RETURN; eauto. i. des.
       exploit apply_infrules_sound; eauto; ss. i. des.

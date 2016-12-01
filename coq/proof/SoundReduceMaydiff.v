@@ -183,11 +183,11 @@ Section Filter.
   Qed.
 
   Lemma filter_spec
-        conf st invst invmem inv gmax
+        conf st invst invmem inv gmax public
         (preserved: _ -> bool)
         (PRESERVED: forall id (ID: In id (Invariant.get_idTs_unary inv)), preserved id)
-        (STATE: InvState.Unary.sem conf st invst invmem gmax inv):
-    InvState.Unary.sem conf st (filter preserved invst) invmem gmax inv.
+        (STATE: InvState.Unary.sem conf st invst invmem gmax public inv):
+    InvState.Unary.sem conf st (filter preserved invst) invmem gmax public inv.
   Proof.
     inv STATE. econs; eauto.
     - ii.

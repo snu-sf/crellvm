@@ -273,20 +273,25 @@ Module Unary.
            (gmax < b)%positive)
   .
 
-  Definition sem_private (conf:Config) (st:State) (invst:t) (private:list mblock) (a:IdT.t): Prop :=
-    forall val (VAL: sem_idT st invst a = Some val),
-      (* NOTE: (PTR: GV2ptr conf.(CurTargetData) (getPointerSize conf.(CurTargetData)) val = ret Vptr b o) *)
-      match GV2ptr conf.(CurTargetData) (getPointerSize conf.(CurTargetData)) val with
-      | ret Vptr b _ => In b private
-      | _ => False
-      end.
+  Definition sem_private (conf:Config) (st:State) (invst:t) (private_parent:list mblock) (public:mblock -> Prop) (a:IdT.t): Prop :=
+    forall val
+      (VAL: sem_idT st invst a = Some val),
+      exists b o,
+        <<VALUE_PTR: GV2ptr conf.(CurTargetData) (getPointerSize conf.(CurTargetData)) val = ret Vptr b o>> /\
+        <<PRIVATE_BLOCK: InvMem.private_block st.(Mem) public b>> /\
+        <<PARENT_DISJOINT: ~ In b private_parent>>.
+      (* In b private. *)
+      (* match GV2ptr conf.(CurTargetData) (getPointerSize conf.(CurTargetData)) val with *)
+      (* | ret Vptr b _ => In b private *)
+      (* | _ => False *)
+      (* end. *)
 
-  Inductive sem (conf:Config) (st:State) (invst:t) (invmem:InvMem.Unary.t) (gmax:positive) (inv:Invariant.unary): Prop :=
+  Inductive sem (conf:Config) (st:State) (invst:t) (invmem:InvMem.Unary.t) (gmax:positive) (public:mblock -> Prop) (inv:Invariant.unary): Prop :=
   | sem_intro
       (LESSDEF: ExprPairSet.For_all (sem_lessdef conf st invst) inv.(Invariant.lessdef))
       (NOALIAS: sem_alias conf st invst inv.(Invariant.alias))
       (UNIQUE: AtomSetImpl.For_all (sem_unique conf st gmax) inv.(Invariant.unique))
-      (PRIVATE: IdTSet.For_all (sem_private conf st invst invmem.(InvMem.Unary.private)) inv.(Invariant.private))
+      (PRIVATE: IdTSet.For_all (sem_private conf st invst invmem.(InvMem.Unary.private_parent) public) inv.(Invariant.private))
       (WF_LOCAL: MemProps.wf_lc st.(Mem) st.(EC).(Locals))
       (WF_PREVIOUS: MemProps.wf_lc st.(Mem) invst.(previous))
       (WF_GHOST: MemProps.wf_lc st.(Mem) invst.(ghost))
@@ -297,9 +302,9 @@ Module Unary.
   .
 
   Lemma sem_empty
-        conf st invst invmem gmax inv
+        conf st invst invmem gmax public inv
         (EMPTY: Invariant.is_empty_unary inv):
-    sem conf st invst invmem gmax inv.
+    sem conf st invst invmem gmax public inv.
   Proof.
     unfold Invariant.is_empty_unary in EMPTY.
     solve_bool_true.
@@ -316,6 +321,10 @@ Module Unary.
       exfalso. eapply EMPTY1; eauto.
     - ii. apply IdTSet.is_empty_2 in EMPTY0.
       exfalso. eapply EMPTY0; eauto.
+    - admit. (* wf_lc locals *)
+    - admit. (* wf_lc prev *)
+    - admit. (* wf_lc ghost *)
+    - admit. (* unique_parent *)
       (* TODO: This lemma is currently wrong: need wf condition to st, invst, invmem *)
   Admitted.
 
@@ -356,8 +365,8 @@ Module Rel.
 
   Inductive sem (conf_src conf_tgt:Config) (st_src st_tgt:State) (invst:t) (invmem:InvMem.Rel.t) (inv:Invariant.t): Prop :=
   | sem_intro
-      (SRC: Unary.sem conf_src st_src invst.(src) invmem.(InvMem.Rel.src) invmem.(InvMem.Rel.gmax) inv.(Invariant.src))
-      (TGT: Unary.sem conf_tgt st_tgt invst.(tgt) invmem.(InvMem.Rel.tgt) invmem.(InvMem.Rel.gmax) inv.(Invariant.tgt))
+      (SRC: Unary.sem conf_src st_src invst.(src) invmem.(InvMem.Rel.src) invmem.(InvMem.Rel.gmax) (InvMem.Rel.public_src invmem.(InvMem.Rel.inject)) inv.(Invariant.src))
+      (TGT: Unary.sem conf_tgt st_tgt invst.(tgt) invmem.(InvMem.Rel.tgt) invmem.(InvMem.Rel.gmax) (InvMem.Rel.public_tgt invmem.(InvMem.Rel.inject)) inv.(Invariant.tgt))
       (MAYDIFF:
          forall id (NOTIN: (IdTSet.mem id inv.(Invariant.maydiff)) = false),
            sem_inject st_src st_tgt invst invmem.(InvMem.Rel.inject) id)
@@ -509,9 +518,9 @@ Module Rel.
 
   Lemma lessdef_expr_spec
         invst invmem inv
-        conf st gmax
+        conf st gmax public
         e1 e2 gv1
-        (SEM: Unary.sem conf st invst invmem gmax inv)
+        (SEM: Unary.sem conf st invst invmem gmax public inv)
         (E: ExprPairSet.mem (e1, e2) inv.(Invariant.lessdef))
         (E1: Unary.sem_expr conf st invst e1 = ret gv1):
     exists gv2,

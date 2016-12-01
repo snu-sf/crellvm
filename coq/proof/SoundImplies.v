@@ -179,24 +179,25 @@ Proof.
 Qed.
 
 Lemma implies_private_sound
-      inv0 inv1 conf st invst invmem
+      inv0 inv1 conf st invst
+      private_parent public
       (IMPLIES_PRIVATE : IdTSet.subset (Invariant.private inv1)
                                        (Invariant.private inv0) = true)
       (PRIVATE : IdTSet.For_all
-                   (InvState.Unary.sem_private conf st invst (InvMem.Unary.private invmem))
+                   (InvState.Unary.sem_private conf st invst private_parent public)
                    (Invariant.private inv0)):
   <<PRIVATE: IdTSet.For_all
-               (InvState.Unary.sem_private conf st invst (InvMem.Unary.private invmem))
+               (InvState.Unary.sem_private conf st invst private_parent public)
                (Invariant.private inv1)>>.
 Proof.
   intros id. apply IdTSet.subset_2 in IMPLIES_PRIVATE; eauto.
 Qed.
 
 Lemma implies_unary_sound
-    inv0 inv1 invmem invst conf st gmax
+    inv0 inv1 invmem invst conf st gmax public
     (IMPLIES_UNARY: Invariant.implies_unary inv0 inv1 = true)
-    (UNARY: InvState.Unary.sem conf st invst invmem gmax inv0):
-      <<UNARY: InvState.Unary.sem conf st invst invmem gmax inv1>>.
+    (UNARY: InvState.Unary.sem conf st invst invmem gmax public inv0):
+      <<UNARY: InvState.Unary.sem conf st invst invmem gmax public inv1>>.
 Proof.
   i. inv UNARY.
   unfold Invariant.implies_unary in IMPLIES_UNARY.
