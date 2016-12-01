@@ -135,8 +135,15 @@ Proof.
   specialize (LESSDEF _ HAS_FALSE).
   clear -LESSDEF.
   unfold InvState.Unary.sem_lessdef in *. ss.
-  admit.
-Admitted.
+  compute in LESSDEF.
+  exploit LESSDEF; eauto; []; ii; des.
+  inv x.
+  inv x0.
+  inv H4.
+  inv H2.
+  inv H0.
+  inv H.
+Qed.
 
 Lemma inject_incr_inject_allocas
       (inv0 inv1 : InvMem.Rel.t)
