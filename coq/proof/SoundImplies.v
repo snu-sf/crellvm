@@ -94,7 +94,28 @@ Proof.
   unfold Invariant.syntactic_lessdef in *. solve_bool_true; ss.
   - subst. ii. esplits; eauto. reflexivity.
   - solve_match_bool. subst.
-    admit. (* const2GV *)
+    red.
+    unfold InvState.Unary.sem_lessdef.
+    ss.
+    ii.
+    ss.
+    destruct v0; ss.
+    +
+      unfold InvState.Unary.sem_idT.
+      destruct x. ss.
+      destruct t; ss.
+      * esplits; eauto.
+        ss.
+        admit.
+        admit.
+      * esplits; eauto.
+        admit.
+        admit.
+      * admit.
+    +
+      esplits; eauto.
+      admit.
+      admit.
 Admitted.
 
 Lemma implies_lessdef_sound

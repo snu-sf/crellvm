@@ -304,6 +304,7 @@ Lemma lift_physical_atoms_idtset_spec1
   IdTSet.mem (Tag.physical, id) (lift_physical_atoms_idtset l) =
   AtomSetImpl.mem id l.
 Proof.
+  (* jeehoonkang will do this *)
 Admitted.
 
 Module ForgetMemory.
