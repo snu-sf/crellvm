@@ -244,6 +244,7 @@ Lemma step_mem_change
       (MEM: InvMem.Unary.sem conf gmax public st0.(Mem) invmem0)
       (CMD: st0.(EC).(CurCmds) = cmd::cmds)
       (NONCALL: Instruction.isCallInst cmd = false)
+      (NONMALLOC: isMallocInst cmd = false)
       (STEP: sInsn conf st0 st1 evt)
   : <<UNIQUE_PARENT_MEM:
       forall mptr typ align val'
@@ -256,7 +257,54 @@ Proof.
   inv MEM.
   inv STEP; destruct cmd; ss; clarify;
     try by esplits; ss; econs; eauto.
-  - admit. (* malloc - easy *)
+(*     assert(TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT : True) by ss. *)
+(*     move H1 at bottom. *)
+(*     rename H1 into MALLOC. *)
+(*     splits; cycle 1. *)
+(*     { *)
+(*       esplits; eauto. *)
+(*       econs; eauto. *)
+(*     } *)
+(*     + *)
+(*       (* *)
+(* if mptr0 points newly allocated -> blah *)
+(* else -> we can use UNIQUE_PARENT_MEM *)
+(*        *) *)
+(*       ii. *)
+(*       ss. *)
+(*       exploit UNIQUE_PARENT_GLOBALS; try eapply H1; []; ii. *)
+
+(*       unfold GV2ptr in GV2PTR. *)
+(*       des_ifs. *)
+
+(*       move WF at bottom. *)
+(*       eapply MemProps.malloc_preserves_wf_Mem in WF; eauto. *)
+(*       unfold MemProps.wf_Mem in WF. *)
+(*       des. *)
+(*       exploit WF; eauto. *)
+(*       ii. *)
+(*       ss. des. clear x1. *)
+
+
+
+(*       (* assert(MEM_MAX: ((Memory.Mem.nextblock Mem') <= gmax)%positive); cycle 1. *) *)
+(*       (* { *) *)
+(*       (*   exploit Pos.le_lt_trans; eauto; []; ii. *) *)
+(*       (*   exploit Pos.lt_irrefl; eauto. *) *)
+(*       (* } *) *)
+
+
+(*       (* gmax < b *) *)
+(*       (* val' = b, below let's use only logical blocks, not value *) *)
+(*       (* LOAD: = b < Mem' *) *)
+
+
+(*       (* WF : MemProps.wf_Mem gmax TD Mem0 ==> Mem0 < gmax *) *)
+(*       (* gmax < Mem' *) *)
+(*       (* Mem' = Mem0 + 1 *) *)
+
+
+(*       admi-t. (* malloc - easy *) *)
   - split.
     + ii. eapply UNIQUE_PARENT_MEM; eauto.
       eapply MemProps.free_preserves_mload_inv; eauto.
@@ -746,6 +794,7 @@ Lemma inject_invmem
                                   (InvMem.Rel.public_tgt (InvMem.Rel.inject invmem1)))
                                (Invariant.private (Invariant.tgt inv0))>>.
 Proof.
+  exploit postcond_cmd_inject_event_non_malloc; eauto; []; ii; des.
   hexploit step_mem_change; try (inv STATE; exact SRC); eauto.
   { inv MEM. exact SRC. }
   intro MCS.
@@ -1995,6 +2044,7 @@ Lemma forget_memory_sound
 Proof.
   assert (STATE2:= STATE).
   inv STATE2.
+  exploit postcond_cmd_inject_event_non_malloc; eauto; []; ii; des.
   exploit step_mem_change; try exact SRC; eauto.
   { inv MEM. exact SRC0. }
   i. des.

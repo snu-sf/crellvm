@@ -677,6 +677,15 @@ Definition postcond_cmd_inject_event
   | _, _ => true
   end.
 
+Lemma postcond_cmd_inject_event_non_malloc
+      src tgt inv
+      (INJECT: postcond_cmd_inject_event src tgt inv)
+  :
+    (<<NONMALLOC_SRC: (isMallocInst src = false)>>)
+    /\ (<<NONMALLOC_TGT: (isMallocInst tgt = false)>>).
+Proof.
+  destruct src, tgt; ss.
+Qed.
 
 (* TODO: we will not consider insn_malloc more. *)
 
