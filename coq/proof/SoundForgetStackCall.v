@@ -106,6 +106,84 @@ Proof.
   split; eauto.
 Qed.
 
+(* Lemma simulation__GV2blocks *)
+(*       mi TD gv1 gv2 v bs1 *)
+(*       (INjECT: genericvalues_inject.gv_inject mi gv1 gv2) *)
+(*       (BLOCKS: GV2blocks gv1 = [bs1]) *)
+(*   : *)
+(*     <<INJECT: exists bs2, GV2blocks gv2 = [bs2] /\ *)
+(*                           memory_sim.MoreMem.val_inject mi bs1 bs2>> *)
+(* . *)
+(* Proof. *)
+(* Qed. *)
+
+Lemma GV2blocks_In_cons
+      b v1 m gv1
+      (IN: In b (GV2blocks ((v1, m) :: gv1)))
+  :
+    <<IN: In b (GV2blocks [(v1, m)]) \/ In b (GV2blocks gv1)>>
+.
+Proof.
+  (* TODO: prove with induction ?? *)
+  unfold GV2blocks in *.
+  unfold compose in *.
+  ss.
+  destruct (val2block v1) eqn:T.
+  - inv IN.
+    + left. ss. left. ss.
+    + right. ss.
+  - right. ss.
+  (* remember ((v1, m) :: gv1) as l. *)
+  (* generalize dependent gv1. *)
+  (* generalize dependent v1. *)
+  (* generalize dependent m. *)
+  (* generalize dependent b. *)
+  (* induction l; ii; ss; des; ss. *)
+  (* - clarify. *)
+  (*   destruct gv1; ss. *)
+  (*   + left; ss. *)
+  (*   + exploit IHl; eauto. *)
+  (* induction gv1; ii; ss; des; ss. *)
+  (* - left. ss. *)
+  (* - exploit IHgv1; eauto. *)
+Qed.
+
+Lemma gv_inject_public_src
+      gv_src gv_tgt meminj b
+          (INJECT: genericvalues_inject.gv_inject meminj gv_src gv_tgt)
+          (IN: In b (GV2blocks gv_src))
+      :
+        <<PUBLIC: InvMem.Rel.public_src meminj b>>
+.
+Proof.
+  induction INJECT; ii; ss; des; ss.
+  - eapply GV2blocks_In_cons in IN.
+    des.
+    + destruct v1; ss. des; ss. subst.
+      inv H.
+      clarify.
+    + exploit IHINJECT; eauto.
+Qed.
+
+Lemma gv_inject_public_tgt
+      gv_src gv_tgt meminj b
+          (INJECT: genericvalues_inject.gv_inject meminj gv_src gv_tgt)
+          (IN: In b (GV2blocks gv_tgt))
+      :
+        <<PUBLIC: InvMem.Rel.public_tgt meminj b>>
+.
+Proof.
+  induction INJECT; ii; ss; des; ss.
+  - eapply GV2blocks_In_cons in IN.
+    des.
+    + destruct v2; ss. des; ss. subst.
+      inv H.
+      unfold InvMem.Rel.public_tgt.
+      esplits; eauto.
+    + exploit IHINJECT; eauto.
+Qed.
+
+
 (* TODO: position *)
 Lemma gv_inject_no_private
       conf_src st_src gv_src
@@ -125,39 +203,50 @@ Lemma gv_inject_no_private
       (P_TGT_SEM: InvState.Unary.sem_idT st_tgt invst.(InvState.Rel.tgt) p_tgt = Some gv_p_tgt),
       InvState.Unary.sem_diffblock conf_tgt gv_p_tgt gv_tgt>>.
 Proof.
-  inv STATE. rename SRC into STATE_SRC. rename TGT into STATE_TGT.
-  inv MEM. rename SRC into MEM_SRC. rename TGT into MEM_TGT.
-  inv WF.
+  inv STATE. rename SRC into STATE_SRC. rename TGT into STATE_TGT. clear MAYDIFF.
+  clear MEM.
+  (* inv MEM. rename SRC into MEM_SRC. rename TGT into MEM_TGT. clear WF INJECT0. *)
   split; ii.
-  - inv STATE_SRC.
+  - clear STATE_TGT.
+    inv STATE_SRC.
+    clear LESSDEF NOALIAS UNIQUE
+          WF_LOCAL WF_PREVIOUS WF_GHOST UNIQUE_PARENT_LOCAL.
+
     exploit PRIVATE.
     { apply Exprs.IdTSetFacts.mem_iff. eauto. }
     { eauto. }
-    intro PRIV_IN_MEM. des_ifs.
+    intro PRIV_IN_MEM. des. clear PARENT_DISJOINT.
+    {
+      destruct gv_p_src; ss. des_ifs.
+      compute in H.
+      des; ss. subst.
+      move gv_src at bottom.
+      unfold InvMem.private_block in PRIVATE_BLOCK.
+      des.
+      apply PRIVATE_BLOCK.
+      (* exploit SoundForgetMemory.gv_inject_ptr_public_src; eauto. *)
+      eapply gv_inject_public_src; eauto.
+    }
+  - clear STATE_SRC.
+    inv STATE_TGT.
+    clear LESSDEF NOALIAS UNIQUE
+          WF_LOCAL WF_PREVIOUS WF_GHOST UNIQUE_PARENT_LOCAL.
 
-    inv MEM_SRC. des.
-    unfold InvState.Unary.sem_diffblock. des_ifs. ii. subst.
-    exploit genericvalues_inject.simulation__GV2ptr; eauto. i. des.
-    match goal with
-    | [H: memory_sim.MoreMem.val_inject _ (Values.Vptr _ _) _ |- _] =>
-      inv H
-    end.
-    apply PRIVATE_BLOCK. ii. congruence.
-  - inv STATE_TGT.
     exploit PRIVATE.
     { apply Exprs.IdTSetFacts.mem_iff. eauto. }
     { eauto. }
-    intro PRIV_IN_MEM. des_ifs.
-
-    inv MEM_TGT. des.
-    unfold InvState.Unary.sem_diffblock. des_ifs. ii. subst.
-    exploit genericvalues_inject_simulation__GV2ptr_tgt; eauto. i. des.
-    match goal with
-    | [H: memory_sim.MoreMem.val_inject _ _ (Values.Vptr _ _) |- _] =>
-      inv H
-    end.
-    apply PRIVATE_BLOCK. unfold InvMem.Rel.public_tgt.
-    esplits; eauto.
+    intro PRIV_IN_MEM. des. clear PARENT_DISJOINT.
+    {
+      destruct gv_p_tgt; ss. des_ifs.
+      compute in H.
+      des; ss. subst.
+      move gv_src at bottom.
+      unfold InvMem.private_block in PRIVATE_BLOCK.
+      des.
+      apply PRIVATE_BLOCK.
+      (* exploit SoundForgetMemory.gv_inject_ptr_public_src; eauto. *)
+      eapply gv_inject_public_tgt; eauto.
+    }
 Qed.
 
 (* we need additional condition: all unique in inv1 is private, so not in inject: not in return value *)
@@ -264,11 +353,11 @@ Proof.
           destruct (id_dec id_src x).
           { subst.
             rewrite lookupAL_updateAddAL_eq in PTR. clarify.
+            des.
             eapply sublist_In in UNIQUE_PRIVATE_PARENT; eauto.
             exploit PRIVATE_PARENT; eauto. intros [NOT_PUBLIC _].
-            exploit genericvalues_inject.simulation__GV2ptr; eauto.
-            intro VAL_INJ. destruct VAL_INJ as [v' [_ VAL_INJ]].
-            apply NOT_PUBLIC. inv VAL_INJ. congruence.
+            apply NOT_PUBLIC.
+            eapply gv_inject_public_src; eauto.
           }
           { erewrite <- lookupAL_updateAddAL_neq in PTR; eauto.
             exploit UNIQUE_PARENT_LOCAL; eauto. }
@@ -295,11 +384,11 @@ Proof.
           destruct (id_dec id_tgt x).
           { subst.
             rewrite lookupAL_updateAddAL_eq in PTR. clarify.
+            des.
             eapply sublist_In in UNIQUE_PRIVATE_PARENT; eauto.
             exploit PRIVATE_PARENT; eauto. intros [NOT_PUBLIC _].
-            exploit genericvalues_inject_simulation__GV2ptr_tgt; eauto.
-            intro VAL_INJ. destruct VAL_INJ as [v' [_ VAL_INJ]].
-            apply NOT_PUBLIC. inv VAL_INJ. unfold InvMem.Rel.public_tgt. eauto.
+            apply NOT_PUBLIC.
+            eapply gv_inject_public_tgt; eauto.
           }
           { erewrite <- lookupAL_updateAddAL_neq in PTR; eauto.
             exploit UNIQUE_PARENT_LOCAL; eauto. }

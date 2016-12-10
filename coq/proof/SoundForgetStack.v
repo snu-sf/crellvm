@@ -398,6 +398,101 @@ Proof.
   }
 Qed.
 
+Lemma GEP_diffblock
+  (invmem : InvMem.Unary.t)
+  (inbounds5 : inbounds)
+  (typ5 : typ)
+  (value_5 : value)
+  (l0 : list (sz * value))
+  (typ' : typ)
+  (gmax : positive)
+  (u : atom)
+  (S : system)
+  (TD : TargetData)
+  (Ps : list product)
+  (F : fdef)
+  (B : block)
+  (lc : GVsMap)
+  (gl fs : GVMap)
+  (vidxs : list GenericValue)
+  (mp : GenericValue)
+  (tmn : terminator)
+  (Mem0 : mem)
+  (als : list mblock)
+  (NEXTBLOCK : Memory.Mem.nextblock Mem0 = InvMem.Unary.nextblock invmem)
+  (GLOBALS : genericvalues_inject.wf_globals gmax gl)
+  (WF : wf_Mem gmax TD Mem0)
+  (H : getOperandValue TD value_5 lc gl = Some mp)
+  (val : GenericValue)
+  (VAL : lookupAL GenericValue lc u = Some val)
+  (LOCALS : forall (reg : atom) (val' : GenericValue),
+           u <> reg ->
+           lookupAL GenericValue lc reg = Some val' ->
+           InvState.Unary.sem_diffblock
+             {|
+             CurSystem := S;
+             CurTargetData := TD;
+             CurProducts := Ps;
+             Globals := gl;
+             FunTable := fs |} val val')
+  (reg : atom)
+  (val' : GenericValue)
+  (REG : u <> reg)
+  (NOT_LEAKED_U : AtomSetImpl.mem u
+                   (AtomSetImpl_from_list
+                      (Cmd.get_leaked_ids (insn_gep reg inbounds5 typ5 value_5 l0 typ'))) =
+                 false)
+  (H1 : GEP TD typ5 mp vidxs inbounds5 typ' = Some val')
+  :
+  <<DIFFBLOCK: InvState.Unary.sem_diffblock
+    {| CurSystem := S; CurTargetData := TD; CurProducts := Ps; Globals := gl; FunTable := fs |}
+    val val'>>
+.
+Proof.
+  (* i; des. *)
+  unfold GEP in *. unfold gep in *. unfold genericvalues.LLVMgv.GEP in *.
+  assert(TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT: True) by ss.
+  move val at bottom.
+  eapply InvState.Unary.diffblock_comm.
+  destruct (GV2ptr TD (getPointerSize TD) mp) eqn:T1; cycle 1.
+  { eapply undef_implies_diffblock; eauto. }
+  destruct (GVs2Nats TD vidxs) eqn:T2; cycle 1.
+  { eapply undef_implies_diffblock; eauto. }
+  destruct (mgep TD typ5 v l1) eqn:T3; cycle 1.
+  { eapply undef_implies_diffblock; eauto. }
+  clarify. ss.
+  {
+    ii.
+    destruct v0; ss; des; ss.
+    clarify.
+    apply AtomSetFacts.not_mem_iff in NOT_LEAKED_U.
+    apply AtomSetImpl_from_list_spec2 in NOT_LEAKED_U.
+    unfold Cmd.get_leaked_ids in *.
+    ss.
+    {
+      destruct value_5; ss.
+      -
+        apply not_or_and in NOT_LEAKED_U.
+        des.
+        hexploit LOCALS; try apply H; eauto; []; ii; des.
+        clarify.
+        ss.
+        rename v into ____v____.
+        (* b0 <-> b0 *)
+        destruct mp; ss. destruct p, v; ss.
+        destruct mp; ss. clarify.
+        symmetry in T3.
+        apply mgep_inv in T3.
+        des. clarify.
+        unfold InvState.Unary.sem_diffblock in *.
+        ss.
+        apply H0. esplits; eauto.
+      -
+        admit. (* const *)
+    }
+Admitted.
+
+
 (* Definition leaks_diffblock_with conf st cmd ptr: Prop := *)
 (*   forall v gv *)
 (*     (IN_LEAK: In v (Cmd.get_leaked_values cmd)) *)
@@ -570,62 +665,7 @@ but hexploit respects definition *)
     eapply MEM; eauto.
   - (* GEP *)
     inv UNIQUE_BEF; narrow_down_unique.
-    {
-      (*
-val <-> val' = GEP mp ~~ = value_5
-value_5 <> u (NOT_LEAKED_U)
-=> val <-> lookup value_5
-lookup value_5, GEP mp has same basic block!!
-       *)
-      ii.
-      unfold InvState.Unary.sem_diffblock. ss.
-      unfold GEP in *. unfold gep in *. unfold genericvalues.LLVMgv.GEP in *.
-      move VAL at bottom.
-      destruct val; ss. destruct p; ss. destruct v; ss. destruct val; ss. (* at once? *)
-      destruct (GV2ptr TD (getPointerSize TD) mp) eqn:T1.
-      destruct (GVs2Nats TD vidxs) eqn:T2.
-      destruct (mgep TD typ5 v l1) eqn:T3.
-      clarify. ss. destruct v0; ss.
-      apply AtomSetFacts.not_mem_iff in NOT_LEAKED_U.
-      apply AtomSetImpl_from_list_spec2 in NOT_LEAKED_U.
-      unfold Cmd.get_leaked_ids in *.
-      ss.
-      {
-        destruct value_5; ss.
-        -
-          apply not_or_and in NOT_LEAKED_U.
-          des.
-          exploit LOCALS; try apply H; eauto; []; ii; des.
-          clarify.
-          ss.
-          rename v into ____v____.
-          (* b0 <-> b0 *)
-          destruct mp; ss. destruct p, v; ss.
-          destruct mp; ss. clarify.
-          symmetry in T3.
-          apply mgep_inv in T3.
-          des. clarify.
-          unfold InvState.Unary.sem_diffblock in *.
-          ss.
-        -
-          admit. (* const *)
-      }
-      {
-        unfold gundef in *. destruct (flatten_typ TD (typ_pointer typ')) eqn:T; try by clarify.
-        inv H1.
-        destruct l2; ss.
-      }
-      {
-        unfold gundef in *. destruct (flatten_typ TD (typ_pointer typ')) eqn:T; try by clarify.
-        inv H1.
-        destruct l1; ss.
-      }
-      {
-        unfold gundef in *. destruct (flatten_typ TD (typ_pointer typ')) eqn:T; try by clarify.
-        inv H1.
-        destruct l1; ss.
-      }
-    }
+    eapply GEP_diffblock; eauto.
   - inv UNIQUE_BEF; narrow_down_unique.
     eapply TRUNC_diffblock; eauto.
   - inv UNIQUE_BEF; narrow_down_unique.
