@@ -7,6 +7,7 @@ Require Import Coqlib.
 Require Import infrastructure.
 Require Import Metatheory.
 Require Import vellvm.
+Require Import TODO.
 
 Import Opsem.
 Require Import sflib.
@@ -85,3 +86,23 @@ Proof.
   - contradict NERROR. econs; ss.
   - apply NNPP in H. ss.
 Qed.
+
+(* TODO Position? *)
+(* Fixpoint GV2ptrs conf sz val := *)
+(*   match val with *)
+(*   | h :: t => (GV2ptr conf sz h) :: (GV2ptrs conf sz t) *)
+(*   | _ => [] *)
+(*   end. *)
+
+(* GV2ptr =  *)
+(* fun (_ : TargetData) (_ : sz) (gv : GenericValue) => *)
+(* put TargetData/sz ? *)
+Definition val2block val :=
+  match val with
+  | Vptr blck _ => Some blck
+  | _ => None
+  end.
+
+(* Defining definition with fixpoint makes proof a lot hard *)
+(* inductive def ? *)
+Definition GV2blocks (gval: GenericValue) := filter_map (val2block <*> fst) gval.

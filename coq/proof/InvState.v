@@ -215,27 +215,65 @@ Module Unary.
       <<VAL: GVs.lessdef val1 val2>>.
 
   Definition sem_diffblock (conf:Config) (val1 val2:GenericValue): Prop :=
-    match GV2ptr conf.(CurTargetData) (getPointerSize conf.(CurTargetData)) val1,
-          GV2ptr conf.(CurTargetData) (getPointerSize conf.(CurTargetData)) val2 with
-    | Some (Vptr b1 _), Some (Vptr b2 _) => b1 <> b2
-    | _, _ => True
-    end.
+    ~exists b, In b (GV2blocks val1) /\ In b (GV2blocks val2).
 
   Definition sem_noalias (conf:Config) (val1 val2:GenericValue) (ty1 ty2:typ): Prop :=
-    match GV2ptr conf.(CurTargetData) (getPointerSize conf.(CurTargetData)) val1,
-          GV2ptr conf.(CurTargetData) (getPointerSize conf.(CurTargetData)) val2 with
-    | Some (Vptr b1 ofs1), Some (Vptr b2 ofs2) => b1 <> b2
-      (* forall *)
-      (*   size1 size2 *)
-      (*   (BLOCK: b1 = b2) *)
-      (*   (* TODO: getTypeSizeInBits, storesize, or allocsize for size? *) *)
-      (*   (SIZE1: getTypeSizeInBits conf.(CurTargetData) ty1 = Some size1) *)
-      (*   (SIZE2: getTypeSizeInBits conf.(CurTargetData) ty2 = Some size2), *)
-      (*   .. *)
-      (*   (* [Int.signed (31%nat) ofs1, Int.signed (31%nat) ofs1 + size1) disjoint *) *)
-      (*   (* [Int.signed (31%nat) ofs2, Int.signed (31%nat) ofs2 + size2) *) *)
-    | _, _ => True
-    end.
+    ~exists b, In b (GV2blocks val1) /\ In b (GV2blocks val2).
+    (* match GV2ptr conf.(CurTargetData) (getPointerSize conf.(CurTargetData)) val1, *)
+    (*       GV2ptr conf.(CurTargetData) (getPointerSize conf.(CurTargetData)) val2 with *)
+    (* | Some (Vptr b1 ofs1), Some (Vptr b2 ofs2) => b1 <> b2 *)
+    (*   (* forall *) *)
+    (*   (*   size1 size2 *) *)
+    (*   (*   (BLOCK: b1 = b2) *) *)
+    (*   (*   (* TODO: getTypeSizeInBits, storesize, or allocsize for size? *) *) *)
+    (*   (*   (SIZE1: getTypeSizeInBits conf.(CurTargetData) ty1 = Some size1) *) *)
+    (*   (*   (SIZE2: getTypeSizeInBits conf.(CurTargetData) ty2 = Some size2), *) *)
+    (*   (*   .. *) *)
+    (*   (*   (* [Int.signed (31%nat) ofs1, Int.signed (31%nat) ofs1 + size1) disjoint *) *) *)
+    (*   (*   (* [Int.signed (31%nat) ofs2, Int.signed (31%nat) ofs2 + size2) *) *) *)
+    (* | _, _ => True *)
+    (* end. *)
+
+  Lemma diffblock_comm
+        conf gv1 gv2
+        (DIFFBLOCK: sem_diffblock conf gv1 gv2)
+    : sem_diffblock conf gv2 gv1.
+  Proof.
+    unfold sem_diffblock in *. unfold not.
+    generalize dependent gv2.
+    induction gv1; ii; ss; des; ss.
+    eapply DIFFBLOCK; eauto.
+  Qed.
+
+  Lemma undef_diffblock
+        conf (gv1: GenericValue) gv2
+        (UNDEF: forall v mc, In (v, mc) gv1 -> v = Vundef)
+    :
+      <<DIFFBLOCK: sem_diffblock conf gv1 gv2>>.
+  Proof.
+    induction gv2; ii; des; ss.
+    assert(GV2blocks gv1 = []).
+    {
+      clear - UNDEF.
+      induction gv1; ii; ss.
+      exploit IHgv1; eauto; []; i; des.
+      unfold compose; ss.
+      destruct a; ss.
+      exploit UNDEF; eauto; i; des. clarify.
+    }
+    rewrite H1 in H. inv H.
+  Qed.
+
+  Lemma noalias_comm
+        conf gv1 gv2 ty1 ty2
+        (NOALIAS: sem_noalias conf gv1 gv2 ty1 ty2)
+    : sem_noalias conf gv2 gv1 ty2 ty1.
+  Proof.
+    unfold sem_noalias in *. unfold not.
+    generalize dependent gv2.
+    induction gv1; ii; ss; des; ss.
+    eapply NOALIAS; eauto.
+  Qed.
 
   Inductive sem_alias (conf:Config) (st:State) (invst:t) (arel:Invariant.aliasrel): Prop :=
   | sem_alias_intro

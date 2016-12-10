@@ -204,14 +204,13 @@ Proof.
   exploit MemProps.malloc_result; try apply MALLOC; []; ii; des.
   subst.
 
-  unfold InvState.Unary.sem_diffblock.
-  destruct val'; ss.
-  destruct p; ss.
-  destruct v; ss.
-  des.
-  destruct val'; ss.
-  unfold not; ii; subst.
-  exploit Pos.lt_irrefl; eauto.
+  induction val'; ss.
+  destruct a; ss.
+  des; ss.
+  destruct v; ss; try (eapply IHval'; eauto; fail).
+  des; clarify.
+  - ss. exploit Pos.lt_irrefl; eauto.
+  - eapply IHval'; ss.
 Qed.
 
 Lemma locals_malloc_diffblock
@@ -262,18 +261,14 @@ val': read from SRC_MEM_STEP.
 if read from SRC_MEM -> use WF.
 if read from SRC_MEM_STEP - SRC_MEM -> undef
    *)
-  exploit MemProps.malloc_preserves_mload_inv; try apply LOAD; eauto; []; ii.
+  exploit MemProps.malloc_preserves_mload_inv; try apply LOAD; eauto; []; i.
   des.
   - exploit WF_A; try apply LOAD; eauto; []; clear WF_A; intros WF_A; des.
-    clear - MALLOC WF_A.
     eapply valid_ptr_malloc_diffblock; eauto.
-  - unfold not in x1.
-    unfold InvState.Unary.sem_diffblock.
-    destruct val'; ss.
-    destruct p; ss.
-    exploit x0; eauto; []; ii; des.
-    subst. ss.
+  - eapply InvState.Unary.diffblock_comm.
+    eapply InvState.Unary.undef_diffblock; eauto.
 Unshelve.
+eauto.
 eauto.
 Qed.
 

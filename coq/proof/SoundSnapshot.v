@@ -333,7 +333,7 @@ Proof.
       { rewrite ValueTPairSetFacts.filter_b in MEM; [|solve_compat_bool].
         simtac.
         solve_negb_liftpred.
-        exploit DIFFBLOCK; eauto.
+        eapply DIFFBLOCK; eauto.
         - erewrite valueT_no_prev_sem_preserved in *; eauto.
         - erewrite valueT_no_prev_sem_preserved in *; eauto.
       }
@@ -356,7 +356,7 @@ Proof.
       { rewrite PtrPairSetFacts.filter_b in MEM; [|solve_compat_bool].
         simtac.
         solve_negb_liftpred.
-        exploit NOALIAS0; eauto.
+        eapply NOALIAS0; eauto.
         - erewrite valueT_no_prev_sem_preserved in *; eauto.
         - erewrite valueT_no_prev_sem_preserved in *; eauto.
       }

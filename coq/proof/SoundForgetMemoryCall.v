@@ -83,6 +83,19 @@ Proof.
     apply in_app. left. eauto.
 Qed.
 
+(* TODO move to GenericValues *)
+Lemma GV2ptr_In_GV2blocks
+      td sz gv b i
+        (GV2PTR: GV2ptr td sz gv = Some (Values.Vptr b i))
+  :
+    <<GV2BLOCKS: In b (GV2blocks gv)>>
+.
+Proof.
+  induction gv; ii; des; ss.
+  destruct a; ss. des_ifs. ss.
+  left. ss.
+Qed.
+
 Lemma sem_expr_private_preserved
       conf st0 invst0 inv0 mem1
       e1 e2 e
@@ -109,18 +122,24 @@ Proof.
   des.
   - subst. destruct v; ss.
     unfold memory_blocks_of_t.
-    eapply filter_map_spec.
+    eapply in_flat_map.
+    esplits; eauto; cycle 1.
+    + rewrite Heq.
+      eapply GV2ptr_In_GV2blocks; eauto.
     + apply InA_In.
       apply IdTSetFacts.elements_iff.
-      apply IdTSetFacts.mem_iff. eauto.
-    + des_ifs.
+      eapply IdTSetFacts.mem_iff.
+      eauto.
   - subst. destruct v; ss.
     unfold memory_blocks_of_t.
-    eapply filter_map_spec.
+    eapply in_flat_map.
+    esplits; eauto; cycle 1.
+    + rewrite Heq.
+      eapply GV2ptr_In_GV2blocks; eauto.
     + apply InA_In.
       apply IdTSetFacts.elements_iff.
-      apply IdTSetFacts.mem_iff. eauto.
-    + des_ifs.
+      eapply IdTSetFacts.mem_iff.
+      eauto.
 Qed.
 
 Lemma mem_lift_le_nextblock
@@ -195,7 +214,7 @@ Proof.
         i.
         erewrite sem_valueT_eq_locals in VAL1.
         { erewrite sem_valueT_eq_locals in VAL2.
-          { ss. exploit DIFFBLOCK; eauto. }
+          { ss. eapply DIFFBLOCK; eauto. }
           ss.
         }
         ss.
@@ -203,7 +222,7 @@ Proof.
         i.
         erewrite sem_valueT_eq_locals in VAL1.
         { erewrite sem_valueT_eq_locals in VAL2.
-          { ss. exploit NOALIAS; eauto. }
+          { ss. eapply NOALIAS; eauto. }
           ss.
         }
         ss.
@@ -219,45 +238,62 @@ Proof.
       inv MEM_AFTER_CALL. i.
       hexploit UNIQUE_PARENT_MEM; eauto. intro GV_DIFFBLOCK.
 
-      unfold InvState.Unary.sem_diffblock. des_ifs. ii. subst.
-      unfold InvMem.gv_diffblock_with_blocks in *.
-      exploit GV_DIFFBLOCK; eauto.
-
+      clear LOCALS MEM GLOBALS GLOBALS0 PRIVATE_PARENT MEM_PARENT UNIQUE_PARENT_MEM.
+      clear WF_LOCAL WF_PREVIOUS WF_GHOST UNIQUE_PARENT_LOCAL.
+      clear LESSDEF NOALIAS UNIQUE PRIVATE.
+      clear PRIVATE_PRESERVED MEM_BEFORE_CALL.
+      (* MEM_PRIVATE  *)
+      clear UNIQUE_PARENT_GLOBALS UNIQUE_PRIVATE_PARENT.
+      clear NEXTBLOCK STATE_CPY INCR LOAD.
       inv MEM_LE.
-      rewrite <- UNIQUE_PARENT_EQ. ss.
-      apply in_app. left.
-      rewrite filter_In.
-      split; eauto.
-      { des. unfold memory_blocks_of_t.
-        eapply filter_map_spec.
-        - apply InA_In.
-          apply IdTSetFacts.elements_iff.
-          apply IdTSetFacts.mem_iff. eauto.
-        - unfold InvState.Unary.sem_idT. ss.
-          rewrite VAL.
-          des_ifs.
+      clear MEM_PARENT_EQ PRIVATE_PARENT_EQ MEM_PARENT NEXTBLOCK_LE.
+      clear WF.
+      (* clear VAL. *)
+
+      {
+        unfold InvState.Unary.sem_diffblock. ii. des.
+        unfold InvMem.gv_diffblock_with_blocks in *.
+        apply GV_DIFFBLOCK. clear GV_DIFFBLOCK.
+        esplits; eauto.
+        rewrite <- UNIQUE_PARENT_EQ.
+        ss.
+        apply in_app. left.
+        apply filter_In.
+        splits.
+        - unfold memory_blocks_of_t.
+          apply in_flat_map.
+          esplits; eauto.
+          + eapply IdTSetFacts.mem_iff in MEM_PRIVATE.
+            eapply InA_In.
+            eapply IdTSetFacts.elements_iff; eauto.
+          + unfold InvState.Unary.sem_idT. ss.
+            rewrite VAL. ss.
+        - unfold memory_blocks_of.
+          eapply existsb_exists.
+          exists b; splits; cycle 1.
+          { compute. des_ifs. }
+          apply in_flat_map.
+          esplits; eauto.
+          + apply InA_In.
+            apply AtomSetFacts.elements_iff. apply IN_X.
+          + des_ifs.
       }
-      apply existsb_exists.
-      exists b0. split.
-      + unfold memory_blocks_of.
-        eapply filter_map_spec.
-        * apply InA_iff_In.
-          apply AtomSetFacts.elements_iff.
-          eauto.
-        * des_ifs.
-      + destruct (Values.eq_block b0 b0); eauto.
     - ss.
       ii. exploit PRIVATE; eauto. i. des.
       esplits; eauto.
       ss.
       assert (B_IN: In b (memory_blocks_of_t conf st0 invst0 (Invariant.private inv0))).
       { unfold memory_blocks_of_t.
-        eapply filter_map_spec.
-        - apply InA_In.
-          apply IdTSetFacts.elements_iff. eauto.
-        - erewrite sem_idT_eq_locals.
-          * rewrite VAL. des_ifs.
-          * eauto.
+        eapply in_flat_map.
+        esplits; eauto.
+        -
+          apply InA_In.
+          apply IdTSetFacts.elements_iff.
+          apply H.
+        - rename x into __x__. move __x__ at bottom.
+          erewrite sem_idT_eq_locals. rewrite VAL.
+          eapply GV2ptr_In_GV2blocks; eauto.
+          ss.
       }
       inv MEM_AFTER_CALL.
       apply PRIVATE_PARENT.
@@ -300,7 +336,11 @@ Proof.
     - ii. exploit UNIQUE_PARENT_MEM; eauto.
       inv MEM_LE. ss.
       rewrite <- UNIQUE_PARENT_EQ.
-      apply in_app. right. eauto.
+      {
+        des.
+        esplits; eauto.
+        apply in_app. right. ss.
+      }
   }
 Qed.
 
