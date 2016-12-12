@@ -306,8 +306,8 @@ Module Unary.
            (LOAD: mload conf.(CurTargetData) st.(Mem) mptr typ align = Some val'),
            sem_diffblock conf val val')
       (GLOBALS:
-         forall b ofs
-           (GV2PTR: GV2ptr conf.(CurTargetData) (getPointerSize conf.(CurTargetData)) val = Some (Vptr b ofs)),
+         forall b
+           (GV2BLOCKS: In b (GV2blocks val)),
            (gmax < b)%positive)
   .
 

@@ -319,6 +319,7 @@ Proof.
     ii. eapply mload_malloc_diffblock; eauto.
   + (* GLOBALS *)
     ii. ss. clarify.
+    des; ss. clarify.
     eapply globals_malloc_diffblock; eauto.
 Qed.
 

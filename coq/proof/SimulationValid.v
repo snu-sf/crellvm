@@ -449,7 +449,18 @@ Proof.
         (* NEED TO STRENGTHEN GLOBALS *)
       }
 
-      { inv STATE. inv SRC.
+      { inv STATE. inv TGT.
+        unfold memory_blocks_of. ii.
+        des.
+        match goal with [ H: In _ (flat_map _ _) |- _ ] => eapply in_flat_map in H; eauto end.
+        des.
+        des_ifs.
+        exploit UNIQUE.
+        { apply AtomSetFacts.elements_iff, InA_iff_In. eauto. }
+        intro UNIQUE_A. inv UNIQUE_A. ss. clarify.
+        exploit MEM0; eauto.
+      }
+      { inv STATE. inv TGT.
         unfold memory_blocks_of. ii.
         des.
         match goal with [ H: In _ (flat_map _ _) |- _ ] => eapply in_flat_map in H; eauto end.
@@ -459,6 +470,31 @@ Proof.
         { apply AtomSetFacts.elements_iff, InA_iff_In. eauto. }
         intro UNIQUE_A. inv UNIQUE_A. ss. clarify.
         exploit GLOBALS; eauto.
+      }
+      { inv STATE. inv SRC. ss.
+        i. unfold memory_blocks_of_t in IN.
+        des.
+        match goal with [ H: In _ (flat_map _ _) |- _ ] => eapply in_flat_map in H; eauto end.
+        des.
+        des_ifs.
+        exploit PRIVATE; eauto.
+        { apply Exprs.IdTSetFacts.elements_iff.
+          apply In_InA; eauto. }
+        ss. i. des. clarify.
+        exploit SoundForgetMemoryCall.GV2ptr_In_GV2blocks; eauto; []; ii; des.
+        rename b0 into ___b0___.
+        rename b into ___b___.
+      }
+      { inv STATE. inv TGT. ss.
+        i. unfold memory_blocks_of_t in IN.
+        des.
+        match goal with [ H: In _ (flat_map _ _) |- _ ] => eapply in_flat_map in H; eauto end.
+        des.
+        des_ifs.
+        exploit PRIVATE; eauto.
+        { apply Exprs.IdTSetFacts.elements_iff.
+          apply In_InA; eauto. }
+        ss. i. des. clarify.
       }
 
       { inv STATE. inv SRC.
