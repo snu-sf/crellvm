@@ -481,7 +481,7 @@ Proof.
         { apply Exprs.IdTSetFacts.elements_iff.
           apply In_InA; eauto. }
         ss. i. des. clarify.
-        exploit SoundForgetMemoryCall.GV2ptr_In_GV2blocks; eauto; []; ii; des.
+        exploit GV2ptr_In_GV2blocks; eauto; []; ii; des.
         rename b0 into ___b0___.
         rename b into ___b___.
       }

@@ -83,19 +83,6 @@ Proof.
     apply in_app. left. eauto.
 Qed.
 
-(* TODO move to GenericValues *)
-Lemma GV2ptr_In_GV2blocks
-      td sz gv b i
-        (GV2PTR: GV2ptr td sz gv = Some (Values.Vptr b i))
-  :
-    <<GV2BLOCKS: In b (GV2blocks gv)>>
-.
-Proof.
-  induction gv; ii; des; ss.
-  destruct a; ss. des_ifs. ss.
-  left. ss.
-Qed.
-
 Lemma sem_expr_private_preserved
       conf st0 invst0 inv0 mem1
       e1 e2 e

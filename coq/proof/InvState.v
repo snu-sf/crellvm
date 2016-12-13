@@ -214,6 +214,7 @@ Module Unary.
       <<VAL2: sem_expr conf st invst es.(snd) = Some val2>> /\
       <<VAL: GVs.lessdef val1 val2>>.
 
+  (* TODO define disjointness in highlevel and give spec *)
   Definition sem_diffblock (conf:Config) (val1 val2:GenericValue): Prop :=
     ~exists b, In b (GV2blocks val1) /\ In b (GV2blocks val2).
 
@@ -252,6 +253,8 @@ Module Unary.
       <<DIFFBLOCK: sem_diffblock conf gv1 gv2>>.
   Proof.
     induction gv2; ii; des; ss.
+    (* TODO cut or assert cycle *)
+    (* shorter proofs first *)
     assert(GV2blocks gv1 = []).
     {
       clear - UNDEF.

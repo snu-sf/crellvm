@@ -117,37 +117,6 @@ Qed.
 (* Proof. *)
 (* Qed. *)
 
-Lemma GV2blocks_In_cons
-      b v1 m gv1
-      (IN: In b (GV2blocks ((v1, m) :: gv1)))
-  :
-    <<IN: In b (GV2blocks [(v1, m)]) \/ In b (GV2blocks gv1)>>
-.
-Proof.
-  (* TODO: prove with induction ?? *)
-  unfold GV2blocks in *.
-  unfold compose in *.
-  ss.
-  destruct (val2block v1) eqn:T.
-  - inv IN.
-    + left. ss. left. ss.
-    + right. ss.
-  - right. ss.
-  (* remember ((v1, m) :: gv1) as l. *)
-  (* generalize dependent gv1. *)
-  (* generalize dependent v1. *)
-  (* generalize dependent m. *)
-  (* generalize dependent b. *)
-  (* induction l; ii; ss; des; ss. *)
-  (* - clarify. *)
-  (*   destruct gv1; ss. *)
-  (*   + left; ss. *)
-  (*   + exploit IHl; eauto. *)
-  (* induction gv1; ii; ss; des; ss. *)
-  (* - left. ss. *)
-  (* - exploit IHgv1; eauto. *)
-Qed.
-
 Lemma gv_inject_public_src
       gv_src gv_tgt meminj b
           (INJECT: genericvalues_inject.gv_inject meminj gv_src gv_tgt)
