@@ -612,49 +612,159 @@ Proof.
     eapply BOP_diffblock; eauto.
   - inv UNIQUE_BEF; narrow_down_unique.
     eapply FBOP_diffblock; eauto.
-  - admit. (* extract value *)
-  (* we may need to strengthen sem_unique,
-such that all values that computed gv carries should also diffblock with given u *)
-  - admit. (* insertvalue *)
-    (* ditto *)
+  - inv UNIQUE_BEF; narrow_down_unique.
+    ii.
+    rename val into __val__.
+    move value5 at bottom.
+    destruct value5; ss.
+    assert(u <> id5).
+    { admit. (* NOT_LEAKED_U *) }
+    { eapply LOCALS; try apply id5; eauto.
+      (* z is in val', and val' should be subset of gvs *)
+      admit.
+    }
+  -
+    inversion UNIQUE_BEF; subst.
+    econs; ss; eauto. admit.
+
+    rename u into __u__.
+    ii.
+    (* i. (* not ii, to use unique_const_diffblock later *) *)
+    move NOT_DEF_U at bottom.
+    apply AtomSetFacts.not_mem_iff in NOT_DEF_U.
+    unfold not in NOT_DEF_U.
+    destruct (__u__ == id5) eqn:T.
+    { ii. apply NOT_DEF_U. eapply AtomSetImpl_from_list_spec1; eauto. econs; eauto. }
+    clear T NOT_DEF_U.
+    (* cut(id5 <> reg). *)
+    destruct(id5 == reg); cycle 1.
+    {
+      ii; exploit LOCALS; try apply id5; eauto. admit.
+    }
+    {
+      (* using cut above will make goal "False" here *)
+      (* ah now rolled back to ii, ok *)
+      subst.
+      rewrite lookupAL_updateAddAL_eq in VAL'. clarify.
+      (* z is in val', val' is not superset of gvs and not superset of gvs', but
+       val' is subset of gvs && gvs', so
+       z is either in gvs or gvs', attack it. *)
+      destruct value5; ss.
+      { hexploit LOCALS; try eapply H; eauto. admit.
+        ii. unfold InvState.Unary.sem_diffblock, list_disjoint in H2.
+        exploit H2; eauto.
+        (* gvs is subset of val' *)
+        admit.
+      }
+      { hexploit SoundForgetMemory.unique_const_diffblock; eauto.
+        ii.
+        admit.
+      }
+
+
+      (* ii. *)
+      (* assert(TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT: True) by reflexivity. *)
+      (* move id5 at bottom. *)
+      (* move reg at bottom. *)
+      (* subst. rewrite lookupAL_updateAddAL_eq in VAL'. *)
+      (* assert(TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT: True) by reflexivity. *)
+      (* move val' at bottom. *)
+      (* move gvs'' at bottom. *)
+      (* clarify. *)
+      (* move value5 at bottom. *)
+      (* move value' at bottom. *)
+      (* (* In z (GV2blocks val') is strong condition *) *)
+      (* (* val' CONTAINS (PART OF) gvs and gvs' *) *)
+      (* (* *) *)
+      (* destruct value5; ss. *)
+      (* { exploit LOCALS; try eapply H; eauto. admit. admit. } *)
+      (* { exploit SoundForgetMemory.unique_const_diffblock; eauto. } *)
+
+
+      (* clarify. *)
+      (* des_lookupAL_updateAddAL. *)
+      (* ss. *)
+      (* exploit LOCALS; try apply id5; eauto. *)
+    }
+
+(*     exploit LOCALS; try apply id5; eauto. *)
+(*     assert(TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT: True) by reflexivity. *)
+(*     move id5 at bottom. *)
+(*     move reg at bottom. *)
+(*     (* id5 <- from insn_insertValue *) *)
+(*     (* reg <- from sem_unique *)
+(* (forall (reg : atom) (val' : GenericValue), *)
+(*                         a <> reg -> *)
+(*                         lookupAL GenericValue (Locals (EC st)) reg = Some val' -> *)
+(*                         InvState.Unary.sem_diffblock conf val val') *)
+
+(*       a is u here *)
+(*       what if reg == id5, *)
+
+(*      *) *)
+(*     (* u <- from statement *) *)
+(*     des_lookupAL_updateAddAL. *)
+
+
+(*     inv UNIQUE_BEF; narrow_down_unique. *)
+(*     assert(TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT: True) by reflexivity. *)
+(*     move val at bottom. *)
+(*     move val' at bottom. *)
+(*     rename val into __val__. *)
+(*     ii. *)
+(*     (* unfold Cmd.get_leaked_ids in NOT_LEAKED_U. ss. des_ifs. *) *)
+
+(* (* mset =  *) *)
+(* (* fun (TD : TargetData) (gv : GenericValue) (o : Z) (t0 : typ) (gv0 : GenericValue) => *) *)
+(* (* let n := nat_of_Z o in *) *)
+(* (* monad.mbind nat (list (Values.val * AST.memory_chunk)) *) *)
+(* (*   (fun s : nat => *) *)
+(* (*    if s =n= length gv0 *) *)
+(* (*    then *) *)
+(* (*     match splitGenericValue gv o with *) *)
+(* (*     | Some (gvl, gvr) => *) *)
+(* (*         match splitGenericValue gvr (Z.of_nat s) with *) *)
+(* (*         | Some (gvrl, gvrr) => if gv_chunks_match_typb TD gvrl t0 then Some (gvl ++ gv0 ++ gvrr) else None *) *)
+(* (*         | None => None *) *)
+(* (*         end *) *)
+(* (*     | None => None *) *)
+(* (*     end *) *)
+(* (*    else None) (getTypeStoreSize TD t0) *) *)
+(* (*      : TargetData -> GenericValue -> Z -> typ -> GenericValue -> option GenericValue *) *)
+
+(*     unfold insertGenericValue in H1. des_ifs. *)
+
+
+
+(*     eapply LOCALS; eauto. *)
+
+(*   apply opsem_props.OpsemProps.ICMP_inversion in H. des. *)
+(*   { *)
+(*     exploit micmp_preserves_no_alias; eauto; []; ii; des. *)
+(*     instantiate (1:= ptr) in x0. *)
+(*     eapply no_alias_diffblock; eauto. *)
+(*     apply {| CurSystem := S; *)
+(*              CurTargetData := TD; *)
+(*              CurProducts := Ps; *)
+(*              Globals := gl; *)
+(*              FunTable := fs |}. *)
+(*   } *)
+
+
   - (* malloc *)
     inv UNIQUE_BEF; narrow_down_unique.
+    assert(TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT: True) by reflexivity.
+    move val at bottom.
+    move mb at bottom.
     hexploit locals_malloc_diffblock; eauto.
-    (* exploit locals_malloc_diffblock; eauto. *) (*
-exploit sucks here, crushing definition (sem_diffblock) and squeeze until the last (false),
-but hexploit respects definition *)
-    admit.
-    i; des.
-    apply InvState.Unary.diffblock_comm. ss.
-    (* below is proof without using admit, but it may basically same *)
-
-  (*   inv UNIQUE_BEF. *)
-  (*   move NOT_DEF_U at bottom. *)
-  (*   apply_all_once AtomSetFacts.not_mem_iff. *)
-  (*   apply_all_once AtomSetImpl_from_list_spec2. *)
-  (*   unfold not in NOT_DEF_U. *)
-  (*   destruct (eq_atom_dec u id5); [clarify; exfalso; apply NOT_DEF_U; econs; ss|]. *)
-  (*   econs; eauto; ss. *)
-  (*   + des_lookupAL_updateAddAL. *)
-  (*   + ii. *)
-  (*     des_lookupAL_updateAddAL. *)
-  (*     * rename val into ___val___. *)
-  (*       exploit WF_LOCAL; eauto; []; ii; des. *)
-  (*       (* exploit SoundForgetMemory.malloc_result; eauto; []; ii; des. *) *)
-  (*       exploit nextblock_malloc; eauto; []; ii; des. *)
-  (*       exploit valid_ptr_malloc_diffblock; try apply H1; eauto. *)
-  (*       { *)
-  (*         instantiate (1:= ___val___). *)
-  (*         admit. *)
-  (* (* x : valid_ptrs (Memory.Mem.nextblock Mem') ___val___ *) *)
-  (* (* x1 : (Memory.Mem.nextblock Mem0 + 1)%positive = Memory.Mem.nextblock Mem' *) *)
-  (* (* ============================ *) *)
-  (* (* valid_ptrs (Memory.Mem.nextblock Mem0) ___val___ *) *)
-  (*       } *)
-  (*       ii; des. *)
-  (*       apply SoundForgetMemory.diffblock_comm. *)
-  (*       ss. *)
-  (*     * eapply LOCALS; eauto. *)
+    { admit. (* wf_lc before *) }
+    ii; des.
+    ss. des; ss.
+    subst.
+    unfold InvState.Unary.sem_diffblock in H2.
+    unfold list_disjoint in H2.
+    eapply H2; eauto.
+    econs; ss.
   - (* alloca *)
     inv UNIQUE_BEF; narrow_down_unique.
     hexploit locals_malloc_diffblock; eauto.
