@@ -412,7 +412,10 @@ Proof.
       { (* x is alloca *)
         destruct x as [[] x]; ss.
         unfold IdT.lift, InvState.Unary.sem_idT in *. ss. clarify.
+        exploit GV2ptr_In_GV2blocks; eauto; []; ii; des.
         esplits; eauto.
+        - eapply PRIVATE_BLOCK.
+
       }
       { exploit PRIVATE; eauto. }
   - (* allica, nop *)

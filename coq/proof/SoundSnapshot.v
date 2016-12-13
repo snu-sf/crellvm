@@ -389,10 +389,11 @@ Proof.
       let IN := fresh "IN" in
       apply IdTSet.union_1 in H; destruct H as [IN|IN]
     end. (*    solve_set_union *)
-    { apply IdTSetFacts.filter_iff in IN; [|solve_compat_bool]. des.
+    {
+      apply IdTSetFacts.filter_iff in IN0; [|solve_compat_bool]. des.
       unfold compose, Snapshot.IdT in *.
-      simtac.
-      destruct x as [xtag x]. ss. clear COND.
+      des_ifs.
+      destruct x as [xtag x]; ss.
       destruct xtag; ss.
       - exploit PRIVATE; eauto.
       - exploit PRIVATE; eauto.

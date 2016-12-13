@@ -190,25 +190,24 @@ Qed.
 
 (* soundness proof *)
 
-Definition alloc_private_unary conf conf' cmd cmd' st b public private_parent: Prop :=
+Definition alloc_private_unary (conf: Config) conf' cmd cmd' st public private_parent: Prop :=
   forall x ty v a lc'
     (ALLOCA: cmd = insn_alloca x ty v a)
     (NOP: mem_change_of_cmd conf' cmd' lc' = Some mem_change_none),
   exists gptr,
     <<PTR: lookupAL _ st.(EC).(Locals) x = Some gptr>> /\
-    <<GV2PTR: GV2ptr (CurTargetData conf) (getPointerSize (CurTargetData conf)) gptr =
-              Some (Values.Vptr b (Integers.Int.zero 31)) >> /\
-    <<PRIVATE_BLOCK: InvMem.private_block (Mem st) public b >> /\
-    <<PARENT_DISJOINT: ~ In b private_parent >>.
+    (forall b (IN: In b (GV2blocks gptr)),
+        <<PRIVATE_BLOCK: InvMem.private_block (Mem st) public b >> /\
+        <<PARENT_DISJOINT: ~ In b private_parent >>).
 
 Definition alloc_private conf_src conf_tgt cmd_src cmd_tgt
-           st0_src st0_tgt st1_src st1_tgt invmem : Prop :=
+           (st0_src st0_tgt: State) st1_src st1_tgt invmem : Prop :=
   alloc_private_unary
-    conf_src conf_tgt cmd_src cmd_tgt st1_src st0_src.(Mem).(Memory.Mem.nextblock)
+    conf_src conf_tgt cmd_src cmd_tgt st1_src (* st0_src.(Mem).(Memory.Mem.nextblock) *)
     (InvMem.Rel.public_src invmem.(InvMem.Rel.inject))
     invmem.(InvMem.Rel.src).(InvMem.Unary.private_parent) /\
   alloc_private_unary
-    conf_tgt conf_src cmd_tgt cmd_src st1_tgt st0_tgt.(Mem).(Memory.Mem.nextblock)
+    conf_tgt conf_src cmd_tgt cmd_src st1_tgt (* st0_tgt.(Mem).(Memory.Mem.nextblock) *)
     (InvMem.Rel.public_tgt invmem.(InvMem.Rel.inject))
     invmem.(InvMem.Rel.tgt).(InvMem.Unary.private_parent).
 
@@ -1028,16 +1027,25 @@ Proof.
       inv MEM. inv SRC. ss.
       esplits.
       * apply lookupAL_updateAddAL_eq.
-      * eauto.
-      * split.
-        { intros NEXTBLOCK_PUBLIC.
-          apply NEXTBLOCK_PUBLIC.
+      * ii. ss. des; ss.
+        move b at bottom.
+        rename b into __b__.
+        clarify.
+        unfold InvMem.private_block in *.
+        splits; ss.
+        {
+          ii.
+          unfold InvMem.Rel.public_src in H.
+          apply H.
+          (* destruct invmem0. ss. *)
           inv WF.
           apply Hmap1. psimpl.
         }
         { psimpl. }
-      * ii. exploit PRIVATE_PARENT; eauto. i.
-        unfold InvMem.private_block in *. des. psimpl.
+        { ii.
+          exploit PRIVATE_PARENT; eauto; []; ii; des.
+          psimpl.
+        }
     + inv MEM.
       econs; eauto.
       * ss. eapply invmem_unary_alloc_sem; eauto.
@@ -1131,15 +1139,27 @@ Proof.
       clarify.
       inv MEM. inv TGT. ss.
       esplits; try apply lookupAL_updateAddAL_eq.
-      * eauto.
-      * split.
-        { ii. unfold InvMem.Rel.public_tgt in *. des.
-          inv WF. ss.
-          exploit Hmap2; eauto. i. psimpl.
+      * ii. ss.
+        des; ss.
+        unfold InvMem.private_block.
+        splits.
+        {
+          ii.
+          subst.
+          unfold InvMem.Rel.public_tgt in H.
+          des.
+          inv WF.
+          exploit Hmap2; eauto; []; ii; des.
+          psimpl.
         }
         { psimpl. }
-      * ii. exploit PRIVATE_PARENT; eauto. i.
-        unfold InvMem.private_block in *. des. psimpl.
+        { ii.
+          subst.
+          exploit PRIVATE_PARENT; eauto; []; ii; des.
+          unfold InvMem.private_block in *.
+          des.
+          psimpl.
+        }
     + inv MEM.
       econs; eauto.
       * eapply invmem_unary_alloc_sem; eauto.

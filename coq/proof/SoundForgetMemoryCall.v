@@ -257,7 +257,7 @@ Proof.
             rewrite VAL. ss.
         - unfold memory_blocks_of.
           eapply existsb_exists.
-          exists b; splits; cycle 1.
+          exists z; splits; cycle 1.
           { compute. des_ifs. }
           apply in_flat_map.
           esplits; eauto.
@@ -277,10 +277,8 @@ Proof.
           apply InA_In.
           apply IdTSetFacts.elements_iff.
           apply H.
-        - rename x into __x__. move __x__ at bottom.
-          erewrite sem_idT_eq_locals. rewrite VAL.
-          eapply GV2ptr_In_GV2blocks; eauto.
-          ss.
+        - erewrite sem_idT_eq_locals. rewrite VAL.
+          ss. ss.
       }
       inv MEM_AFTER_CALL.
       apply PRIVATE_PARENT.
