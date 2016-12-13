@@ -455,6 +455,9 @@ Proof.
   destruct (existsb pred (rev l0)); ss. apply orb_true_r.
 Qed.
 
+Definition list_disjoint A (xs: list A) ys :=
+  forall z (INL: In z xs) (INR: In z ys), False.
+
 Module WFacts_fun2 (E:DecidableType) (M:(WSfun E)).
   Include (WFacts_fun E M).
 

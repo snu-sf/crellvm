@@ -63,10 +63,12 @@ Inductive mem_change_inject (conf conf_tgt:Config) invmem: mem_change -> mem_cha
     (VAL_INJECT: genericvalues_inject.gv_inject invmem.(InvMem.Rel.inject) gv0 gv1)
   : mem_change_inject conf conf_tgt invmem (mem_change_store ptr0 ty gv0 a) (mem_change_store ptr1 ty gv1 a)
 | mem_change_inject_store_nop
-    ptr gv ty a b ofs
-    (GV2PTR: GV2ptr conf.(CurTargetData) (getPointerSize conf.(CurTargetData)) ptr = Some (Values.Vptr b ofs))
-    (NOT_PUBLIC: ~ InvMem.Rel.public_src invmem.(InvMem.Rel.inject) b)
-    (PARENT_DISJOINT: ~ In b invmem.(InvMem.Rel.src).(InvMem.Unary.private_parent))
+    (* ptr gv ty a b *)
+    (* (GV2PTR: GV2ptr conf.(CurTargetData) (getPointerSize conf.(CurTargetData)) ptr = Some (Values.Vptr b ofs)) *)
+    ptr gv ty a
+    (DISJOINT: forall b (GV2BLOCKS: In b (GV2blocks ptr)),
+        <<NOT_PUBLIC: ~ InvMem.Rel.public_src invmem.(InvMem.Rel.inject) b>> /\
+        <<PARENT_DISJOINT: ~ In b invmem.(InvMem.Rel.src).(InvMem.Unary.private_parent)>>)
   : mem_change_inject conf conf_tgt invmem (mem_change_store ptr ty gv a) mem_change_none
 | mem_change_inject_free
     ptr0 ptr1
@@ -350,12 +352,14 @@ Proof.
   inv STATE. inv SRC.
   unfold is_true in *.
   (* rewrite <- IdTSetFacts.mem_iff in *. *)
-  exploit PRIVATE.
-  { apply IdTSet.mem_2; eauto. }
-  { eauto. }
-  i. des.
-  econs; eauto.
-  inv PRIVATE_BLOCK. eauto.
+
+  econs. ii.
+  exploit PRIVATE; eauto.
+  { eapply IdTSet.mem_2; eauto. }
+  { ss. }
+  ii; des.
+  inv PRIVATE_BLOCK.
+  splits; ss.
 Qed.
 
 (* lemmas for malloc *)
@@ -758,6 +762,7 @@ Proof.
 
   inv MC_INJECT.
   - (* alloc - alloc *)
+    admit.
     inv STEP_SRC; inv CMD_SRC; ss; des_ifs.
     rename Mem0 into mem0_src. rename Mem' into mem1_src. rename mb into mb_src.
     match goal with
