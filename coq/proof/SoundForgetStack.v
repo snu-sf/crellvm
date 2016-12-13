@@ -486,7 +486,8 @@ Proof.
         des. clarify.
         unfold InvState.Unary.sem_diffblock in *.
         ss.
-        apply H0. esplits; eauto.
+        unfold list_disjoint in *.
+        eapply H0; eauto. ss. left; ss.
       -
         admit. (* const *)
     }

@@ -181,40 +181,30 @@ Proof.
     clear LESSDEF NOALIAS UNIQUE
           WF_LOCAL WF_PREVIOUS WF_GHOST UNIQUE_PARENT_LOCAL.
 
-    exploit PRIVATE.
+    exploit PRIVATE; eauto.
     { apply Exprs.IdTSetFacts.mem_iff. eauto. }
-    { eauto. }
-    intro PRIV_IN_MEM. des. clear PARENT_DISJOINT.
+    intro PRIV_IN_MEM. des. (* clear PARENT_DISJOINT. *)
     {
-      destruct gv_p_src; ss. des_ifs.
-      compute in H.
-      des; ss. subst.
-      move gv_src at bottom.
-      unfold InvMem.private_block in PRIVATE_BLOCK.
-      des.
-      apply PRIVATE_BLOCK.
-      (* exploit SoundForgetMemory.gv_inject_ptr_public_src; eauto. *)
-      eapply gv_inject_public_src; eauto.
+      eapply PRIVATE; eauto.
+      eapply Exprs.IdTSetFacts.mem_iff; eauto.
+      unfold InvMem.private_block in *. des.
+      hexploit gv_inject_public_src; eauto; []; ii; des.
+      clear - H PRIVATE_BLOCK. ss.
     }
   - clear STATE_SRC.
     inv STATE_TGT.
     clear LESSDEF NOALIAS UNIQUE
           WF_LOCAL WF_PREVIOUS WF_GHOST UNIQUE_PARENT_LOCAL.
 
-    exploit PRIVATE.
+    exploit PRIVATE; eauto.
     { apply Exprs.IdTSetFacts.mem_iff. eauto. }
-    { eauto. }
     intro PRIV_IN_MEM. des. clear PARENT_DISJOINT.
     {
-      destruct gv_p_tgt; ss. des_ifs.
-      compute in H.
-      des; ss. subst.
-      move gv_src at bottom.
-      unfold InvMem.private_block in PRIVATE_BLOCK.
-      des.
-      apply PRIVATE_BLOCK.
-      (* exploit SoundForgetMemory.gv_inject_ptr_public_src; eauto. *)
-      eapply gv_inject_public_tgt; eauto.
+      eapply PRIVATE; eauto.
+      eapply Exprs.IdTSetFacts.mem_iff; eauto.
+      unfold InvMem.private_block in *. des.
+      hexploit gv_inject_public_tgt; eauto; []; ii; des.
+      clear - H PRIVATE_BLOCK. ss.
     }
 Qed.
 

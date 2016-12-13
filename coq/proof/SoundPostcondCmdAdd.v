@@ -412,10 +412,7 @@ Proof.
       { (* x is alloca *)
         destruct x as [[] x]; ss.
         unfold IdT.lift, InvState.Unary.sem_idT in *. ss. clarify.
-        exploit GV2ptr_In_GV2blocks; eauto; []; ii; des.
-        esplits; eauto.
-        - eapply PRIVATE_BLOCK.
-
+        exploit ALLOC_PRIVATE0; eauto.
       }
       { exploit PRIVATE; eauto. }
   - (* allica, nop *)
@@ -465,7 +462,7 @@ Proof.
       { (* x is alloca *)
         destruct x as [[] x]; ss.
         unfold IdT.lift, InvState.Unary.sem_idT in *. ss. clarify.
-        esplits; eauto. }
+        exploit ALLOC_PRIVATE0; eauto. }
       { exploit PRIVATE; eauto. }
   - (* alloca, alloca *)
     (*    
