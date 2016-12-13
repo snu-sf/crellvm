@@ -762,7 +762,6 @@ Proof.
 
   inv MC_INJECT.
   - (* alloc - alloc *)
-    admit.
     inv STEP_SRC; inv CMD_SRC; ss; des_ifs.
     rename Mem0 into mem0_src. rename Mem' into mem1_src. rename mb into mb_src.
     match goal with
@@ -816,7 +815,7 @@ Proof.
           eapply malloc_preserves_mload_aux_other_eq; eauto.
       }
       { (* TGT *)
-        inv TGT. 
+        inv TGT.
         instantiate (1:= InvMem.Unary.mk _
                                          invmem0.(InvMem.Rel.tgt).(InvMem.Unary.mem_parent)
                                          invmem0.(InvMem.Rel.tgt).(InvMem.Unary.unique_parent)
@@ -1292,7 +1291,11 @@ Proof.
       * i. exploit MEM_PARENT; eauto. intro MLOAD_EQ. rewrite MLOAD_EQ.
         eapply mstore_aux_preserves_mload_aux_eq; eauto.
         ii. subst.
-        apply PARENT_DISJOINT. eauto.
+        move DISJOINT at bottom.
+        exploit DISJOINT; eauto.
+        { eapply GV2ptr_In_GV2blocks; eauto. }
+        ii; des.
+        eauto.
       * erewrite <- MemProps.nextblock_mstore_aux; eauto.
     + (* inject *)
       inv INJECT.
@@ -1305,9 +1308,14 @@ Proof.
         { eapply mstore_aux_preserves_perm; eauto. }
         i.
         assert(STORE_DIFFBLOCK: b1 <> b).
-        { ii. subst. apply NOT_PUBLIC. ii. congruence. }
-        assert (GET_ONE: Memory.Mem.getN 1 ofs0 (Maps.PMap.get b1 (Memory.Mem.mem_contents (Mem st0_src))) =
-                Memory.Mem.getN 1 ofs0 (Maps.PMap.get b1 (Memory.Mem.mem_contents (Mem st1_src)))).
+        { ii. subst.
+          move DISJOINT at bottom.
+          exploit DISJOINT; eauto.
+          { eapply GV2ptr_In_GV2blocks; eauto. }
+          ii; des.
+          apply NOT_PUBLIC. ii. clarify. }
+        assert (GET_ONE: Memory.Mem.getN 1 ofs (Maps.PMap.get b1 (Memory.Mem.mem_contents (Mem st0_src))) =
+                Memory.Mem.getN 1 ofs (Maps.PMap.get b1 (Memory.Mem.mem_contents (Mem st1_src)))).
         { eapply mstore_aux_getN_out; eauto. }
         ss. inv GET_ONE.
         eauto.
