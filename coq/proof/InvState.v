@@ -244,8 +244,8 @@ Module Unary.
 
   Lemma undef_diffblock
         conf (gv1: GenericValue) gv2
-        (UNDEF: List.Forall (fun x => x.(fst) = Vundef) gv1)
-        (* (UNDEF: forall v mc, In (v, mc) gv1 -> v = Vundef) *)
+        (* (UNDEF: List.Forall (fun x => x.(fst) = Vundef) gv1) *)
+        (UNDEF: forall v mc, In (v, mc) gv1 -> v = Vundef)
     :
       <<DIFFBLOCK: sem_diffblock conf gv1 gv2>>.
   Proof.
@@ -256,10 +256,10 @@ Module Unary.
     { ii. rewrite H in INL. inv INL. }
     clear - UNDEF.
     induction gv1; ii; ss.
-    inv UNDEF.
-    exploit IHgv1; eauto; []; i; des.
     destruct a; ss.
-    subst. ss.
+    exploit UNDEF; eauto; []; ii; des.
+    subst.
+    exploit IHgv1; eauto.
   Qed.
 
   Lemma noalias_comm
