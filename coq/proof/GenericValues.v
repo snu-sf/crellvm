@@ -133,3 +133,119 @@ Proof.
   apply in_app in IN.
   ss.
 Qed.
+
+Lemma GV2blocks_in_inv
+      a gvs
+      (IN: In a (GV2blocks gvs))
+  :
+    <<INV: exists ofs mc, In ((Values.Vptr a ofs), mc) gvs>>
+.
+Proof.
+  induction gvs; ii; ss; des; ss.
+  destruct a0; ss.
+  eapply GV2blocks_In_cons in IN.
+  des.
+  - destruct v; ss. des; ss.
+    clarify.
+    esplits; eauto.
+  - exploit IHgvs; eauto; []; ii; des.
+    esplits; eauto.
+Qed.
+
+Lemma GV2blocks_incl
+      gvs1 gvs2
+      (INCL: incl gvs1 gvs2)
+  :
+        <<INCL: incl (GV2blocks gvs1) (GV2blocks gvs2)>>
+.
+Proof.
+  ii.
+  apply GV2blocks_in_inv in H.
+  des.
+  eapply TODOProof.filter_map_spec; eauto.
+  (* ii. *)
+  (* generalize dependent gvs2. *)
+  (* induction gvs1; ii; ss; des; ss; eauto. *)
+  (* destruct a0; ss. *)
+  (* eapply GV2blocks_In_cons in H. *)
+  (* des; ss. *)
+  (* - destruct v; ss. des; ss. *)
+  (*   clarify. *)
+  (*   unfold incl in INCL. *)
+  (*   exploit INCL. *)
+  (*   { instantiate (1:= (Values.Vptr a i0, m)). ss. left; ss. } *)
+  (*   ii; des. *)
+  (*   unfold GV2blocks. *)
+  (*   eapply TODOProof.filter_map_spec; eauto. *)
+Qed.
+
+(* Lemma incl_app_inv {A} (xs: list A) ys zs *)
+(*       (INCL: incl xs (ys ++ zs)) *)
+(*   : *)
+(*     <<INCL: incl xs ys \/ incl xs zs>> *)
+(* . *)
+(* Proof. *)
+(*   generalize dependent ys. *)
+(*   generalize dependent zs. *)
+(*   induction xs; ii; ss; des; ss. *)
+(*   { left; ss. } *)
+(*   apply elim_incl_cons in INCL. des. *)
+(*   exploit IHxs; eauto; []; ii; des. *)
+(* Qed. *)
+
+Lemma GV2blocks_lift
+      z ofs mc gvs'
+      (IN : In (Values.Vptr z ofs, mc) gvs')
+  :
+    <<IN: In z (GV2blocks gvs')>>
+.
+Proof.
+  induction gvs'; ii; ss; des; ss; clarify.
+  - cbn. left; ss.
+  - exploit IHgvs'; eauto; []; ii; des.
+    cbn.
+    unfold compose in *.
+    des_ifs.
+    cbn.
+    right; ss.
+Qed.
+
+Lemma GV2blocks_app_inv z xs ys
+      (IN: In z (GV2blocks (xs ++ ys)))
+  :
+    <<IN: In z (GV2blocks xs) \/ In z (GV2blocks ys)>>
+.
+Proof.
+  generalize dependent ys.
+  induction xs; ii; ss; des; ss.
+  { right; ss. }
+  cbn in IN.
+  unfold compose in *; ss.
+  destruct a; ss.
+  (* destruct v; ss. *)
+  des_ifs; ss; cbn.
+  - unfold compose; ss.
+    des; ss; subst.
+    + left. des_ifs.
+      ss. left; ss.
+    + des_ifs.
+      eapply TODOProof.filter_map_inv in IN.
+      des.
+      eapply in_app in IN.
+      des.
+      * left.
+        ss. right; ss.
+        eapply TODOProof.filter_map_spec; eauto.
+      * right.
+        eapply TODOProof.filter_map_spec; eauto.
+  -
+    unfold compose; ss.
+    eapply TODOProof.filter_map_inv in IN.
+    des.
+    eapply in_app in IN.
+    des.
+    + left. des_ifs.
+      eapply TODOProof.filter_map_spec; eauto.
+    + right.
+      eapply TODOProof.filter_map_spec; eauto.
+Qed.
