@@ -604,8 +604,8 @@ Proof.
     +  i. apply in_app in IN. des.
        * apply PRIVS_SRC; eauto.
        * exploit PRIVATE_PARENT; eauto.
-    + ii. destruct H as [b [H0 H]]. apply in_app in H. des.
-      * apply filter_In in H. des.
+    + ii. apply in_app in INB. des.
+      * apply filter_In in INB. des.
         exploit PRIVS_SRC; eauto. i. des.
         exploit UNIQS_SRC; eauto.
         rewrite existsb_exists in *. des.
@@ -627,8 +627,8 @@ Proof.
     +  i. apply in_app in IN. des.
        * apply PRIVS_TGT; eauto.
        * exploit PRIVATE_PARENT; eauto.
-    + ii. destruct H as [b [H0 H]]. apply in_app in H. des.
-      * apply filter_In in H. des.
+    + ii. apply in_app in INB. des.
+      * apply filter_In in INB. des.
         exploit PRIVS_TGT; eauto. i. des.
         exploit UNIQS_TGT; eauto.
         rewrite existsb_exists in *. des.

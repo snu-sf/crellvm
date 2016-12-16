@@ -19,7 +19,11 @@ Require Import GenericValues.
 Set Implicit Arguments.
 
 Definition gv_diffblock_with_blocks (conf: Config) gv blocks : Prop :=
-  ~exists b, In b (GV2blocks gv) /\ In b blocks.
+  forall b
+         (ING: In b (GV2blocks gv))
+         (INB: In b blocks),
+    False.
+  (* ~exists b, In b (GV2blocks gv) /\ In b blocks. *)
 
 Definition private_block m public b : Prop :=
   ~ public b /\ (b < m.(Mem.nextblock))%positive.

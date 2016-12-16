@@ -238,12 +238,10 @@ Proof.
       (* clear VAL. *)
 
       {
-        unfold InvState.Unary.sem_diffblock. ii. des.
+        unfold InvState.Unary.sem_diffblock. ii.
         unfold InvMem.gv_diffblock_with_blocks in *.
-        apply GV_DIFFBLOCK. clear GV_DIFFBLOCK.
-        esplits; eauto.
-        rewrite <- UNIQUE_PARENT_EQ.
-        ss.
+        eapply GV_DIFFBLOCK; eauto. clear GV_DIFFBLOCK.
+        rewrite <- UNIQUE_PARENT_EQ. ss.
         apply in_app. left.
         apply filter_In.
         splits.
