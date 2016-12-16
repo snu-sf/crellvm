@@ -371,27 +371,6 @@ apply O.
 apply O.
 Admitted.
 
-(* TODO MOVE THIS TO DEFINITION POINT *)
-(* SoundForgetMemoryCall.GV2ptr_In_GV2blocks: *)
-(* Lemma In_GV2blocks_GV2ptr TD sz gv b *)
-(*       (IN: In b (GV2blocks gv)) *)
-(*   : *)
-(*     <<PTR: exists i, GV2ptr TD sz gv = Some (Values.Vptr b i)>> *)
-(* . *)
-(* Proof. *)
-(*   red. *)
-(*   generalize dependent b. *)
-(*   induction gv; ii; ss; des. *)
-(*   eapply SoundForgetStackCall.GV2blocks_In_cons in IN; eauto. *)
-(*   des. *)
-(*   - destruct a, v; ss. *)
-(*     des; ss. *)
-(*     clarify. *)
-(*     esplits; eauto. *)
-(*     des_ifs; eauto; ss. *)
-(*     des_ifs. *)
-(* Qed. *)
-
 Lemma valid_sim
       conf_src conf_tgt:
   (valid_state_sim conf_src conf_tgt) <6= (sim_local conf_src conf_tgt).
