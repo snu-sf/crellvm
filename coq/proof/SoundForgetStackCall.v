@@ -163,7 +163,6 @@ Lemma gv_inject_no_private
 Proof.
   inv STATE. rename SRC into STATE_SRC. rename TGT into STATE_TGT. clear MAYDIFF.
   clear MEM.
-  (* inv MEM. rename SRC into MEM_SRC. rename TGT into MEM_TGT. clear WF INJECT0. *)
   split; ii.
   - clear STATE_TGT.
     inv STATE_SRC.

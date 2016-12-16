@@ -219,6 +219,7 @@ Module Unary.
 
   Definition sem_noalias (conf:Config) (val1 val2:GenericValue) (ty1 ty2:typ): Prop :=
     list_disjoint (GV2blocks val1) (GV2blocks val2).
+    (* TODO *)
     (* match GV2ptr conf.(CurTargetData) (getPointerSize conf.(CurTargetData)) val1, *)
     (*       GV2ptr conf.(CurTargetData) (getPointerSize conf.(CurTargetData)) val2 with *)
     (* | Some (Vptr b1 ofs1), Some (Vptr b2 ofs2) => b1 <> b2 *)
@@ -250,8 +251,6 @@ Module Unary.
       <<DIFFBLOCK: sem_diffblock conf gv1 gv2>>.
   Proof.
     induction gv2; ii; des; ss.
-    (* TODO cut or assert cycle *)
-    (* shorter proofs first *)
     cut(GV2blocks gv1 = []).
     { ii. rewrite H in INL. inv INL. }
     clear - UNDEF.
