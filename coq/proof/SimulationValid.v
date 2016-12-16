@@ -130,6 +130,20 @@ Proof.
     rewrite COND0, COND1, COND2, COND3, COND4. ss.
 Qed.
 
+Lemma decide_nonzero_inject
+      TD conds_src conds_tgt decision meminj
+      (NONZERO: decide_nonzero TD conds_src decision)
+      (INJECT: genericvalues_inject.gv_inject meminj conds_src conds_tgt)
+  :
+    <<NONZERO: decide_nonzero TD conds_tgt decision>>
+.
+Proof.
+  inv NONZERO.
+  red. econs; eauto. rewrite <- INT.
+  symmetry.
+  eapply genericvalues_inject.simulation__eq__GV2int; eauto.
+Qed.
+
 Lemma valid_sim_term
       (conf_src conf_tgt : Config)
       (r : ECStack -> ECStack -> InvMem.Rel.t -> nat -> State -> State -> Prop)
@@ -237,8 +251,7 @@ Proof.
     { rewrite InvState.Unary.sem_valueT_physical. eauto. }
     rewrite InvState.Unary.sem_valueT_physical. s. i. des.
     eapply _sim_local_step.
-    {
-      (* tgt not stuck *)
+    { (* tgt not stuck *)
       unfold not. ii. unfold stuck_state in H. apply H. clear H.
       destruct conf_tgt.
       repeat eexists.
@@ -253,19 +266,6 @@ Proof.
         move decision at bottom.
         move gval_tgt at bottom.
         move conds at bottom.
-        Lemma decide_nonzero_inject
-              TD conds_src conds_tgt decision meminj
-              (NONZERO: decide_nonzero TD conds_src decision)
-              (INJECT: genericvalues_inject.gv_inject meminj conds_src conds_tgt)
-          :
-            <<NONZERO: decide_nonzero TD conds_tgt decision>>
-        .
-        Proof.
-          inv NONZERO.
-          red. econs; eauto. rewrite <- INT.
-          symmetry.
-          eapply genericvalues_inject.simulation__eq__GV2int; eauto.
-        Qed.
         idtac.
         eapply decide_nonzero_inject; eauto.
       - rewrite <- ite_spec in *.
@@ -441,6 +441,10 @@ Proof.
   + (* unreachable *)
     exploit nerror_nfinal_nstuck; eauto. i. des. inv x0.
 Unshelve.
+apply nil.
+apply (insn_unreachable id0).
+apply nil.
+apply nil.
 apply O.
 apply O.
 apply O.

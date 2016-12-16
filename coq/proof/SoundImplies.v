@@ -94,11 +94,8 @@ Proof.
   unfold Invariant.syntactic_lessdef in *. solve_bool_true; ss.
   - subst. ii. esplits; eauto. reflexivity.
   - solve_match_bool. subst.
-    red.
-    unfold InvState.Unary.sem_lessdef.
-    ss.
-    ii.
-    ss.
+    red. unfold InvState.Unary.sem_lessdef. ss.
+    ii. ss.
     destruct v0; ss.
     +
       unfold InvState.Unary.sem_idT.
@@ -106,14 +103,15 @@ Proof.
       destruct t; ss.
       * esplits; eauto.
         ss.
+        (* not provable, allow None? *)
         admit.
+        (* undef should lessdef with all *)
         admit.
-      * esplits; eauto.
-        admit.
-        admit.
-      * admit.
+      * (* ditto *) admit.
+      * (* ditto *) admit.
     +
       esplits; eauto.
+      (* ditto *)
       admit.
       admit.
 Admitted.
@@ -188,7 +186,6 @@ Proof.
     { eapply DIFFBLOCK; eauto. }
     unfold Invariant.diffblock_by_unique in *.
     move IMPLIES_ALIAS0 at bottom.
-    (* des_bool. des. des_bool. *)
     repeat (des_bool; des).
     +
       unfold Invariant.is_unique_value in *.
@@ -205,8 +202,10 @@ Proof.
         inv HUniq. clear MEM0 GLOBALS.
 
         unfold InvState.Unary.sem_idT in *. ss.
+        clarify.
 
-        exploit LOCALS; try apply VAL2; eauto.
+        exploit UNIQUE; eauto; []; ii; des.
+        eapply LOCALS with (reg := i2); eauto.
         {
           des_sumbool.
           ii.
@@ -215,11 +214,6 @@ Proof.
           subst.
           ss.
         }
-        ii; des.
-        rename val into ttttttttt.
-
-        unfold InvState.Unary.sem_diffblock in *.
-        des_ifs.
       * (* const *)
 
         destruct x; destruct t; ss.
