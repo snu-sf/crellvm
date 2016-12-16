@@ -456,8 +456,8 @@ Proof.
     esplits; eauto.
     erewrite sem_expr_eq_locals_mem; eauto.
   - inv NOALIAS.
-    econs; i; [exploit DIFFBLOCK | exploit NOALIAS0]; eauto;
-      erewrite sem_valueT_eq_locals; eauto.
+    econs; i; [eapply DIFFBLOCK | eapply NOALIAS0];
+      try erewrite sem_valueT_eq_locals; eauto.
   - ii. exploit UNIQUE; eauto. intro UNIQ_X. inv UNIQ_X.
     econs; try rewrite <- LOCALS_EQ; try rewrite <- MEM_EQ; eauto.
   - ii. exploit PRIVATE; eauto.
@@ -469,31 +469,21 @@ Proof.
   - rewrite <- LOCALS_EQ. eauto.
 Qed.
 
-Definition memory_blocks_of conf lc ids : list mblock :=
-  filter_map (fun x =>
-                match lookupAL _ lc x with
-                | Some ptr =>
-                  match GV2ptr conf.(CurTargetData) (getPointerSize conf.(CurTargetData)) ptr with
-                  | Some (Values.Vptr b ofs) => Some b
-                  | _ => None
-                  end
-                | _ => None
-                end
-             )
-             (AtomSetImpl.elements ids).
+Definition memory_blocks_of (conf: Config) lc ids : list mblock :=
+  List.flat_map (fun x =>
+                   match lookupAL _ lc x with
+                   | Some gv => GV2blocks gv
+                   | _ => []
+                   end)
+                (AtomSetImpl.elements ids).
 
-Definition memory_blocks_of_t conf st invst idts : list mblock :=
-  filter_map (fun x =>
-                match InvState.Unary.sem_idT st invst x with
-                | Some ptr =>
-                  match GV2ptr conf.(CurTargetData) (getPointerSize conf.(CurTargetData)) ptr with
-                  | Some (Values.Vptr b ofs) => Some b
-                  | _ => None
-                  end
-                | _ => None
-                end
-             )
-             (IdTSet.elements idts).
+Definition memory_blocks_of_t (conf: Config) st invst idts : list mblock :=
+  (List.flat_map (fun x =>
+                    match InvState.Unary.sem_idT st invst x with
+                    | Some gv => GV2blocks gv
+                    | _ => []
+                    end)
+                 (IdTSet.elements idts)).
 
 Definition unique_is_private_unary inv : Prop :=
   forall x (UNIQUE: AtomSetImpl.mem x inv.(Hints.Invariant.unique) = true),
@@ -556,7 +546,8 @@ Proof.
       rewrite <- PRIVATE_PARENT_EQ.
       apply in_app. right. eauto.
     + ii. exploit UNIQUE_PARENT_MEM; eauto.
-      inv LE_SRC. ss.
+      des. esplits; eauto.
+      inv LE_SRC; ss.
       rewrite <- UNIQUE_PARENT_EQ.
       apply in_app. right. eauto.
   - (* tgt *)
@@ -578,7 +569,8 @@ Proof.
       rewrite <- PRIVATE_PARENT_EQ.
       apply in_app. right. eauto.
     + ii. exploit UNIQUE_PARENT_MEM; eauto.
-      inv LE_TGT. ss.
+      des. esplits; eauto.
+      inv LE_TGT; ss.
       rewrite <- UNIQUE_PARENT_EQ.
       apply in_app. right. eauto.
   - inv CALLEE_WF.
@@ -612,8 +604,8 @@ Proof.
     +  i. apply in_app in IN. des.
        * apply PRIVS_SRC; eauto.
        * exploit PRIVATE_PARENT; eauto.
-    + ii. apply in_app in H. des.
-      * apply filter_In in H. des.
+    + ii. apply in_app in INB. des.
+      * apply filter_In in INB. des.
         exploit PRIVS_SRC; eauto. i. des.
         exploit UNIQS_SRC; eauto.
         rewrite existsb_exists in *. des.
@@ -635,8 +627,8 @@ Proof.
     +  i. apply in_app in IN. des.
        * apply PRIVS_TGT; eauto.
        * exploit PRIVATE_PARENT; eauto.
-    + ii. apply in_app in H. des.
-      * apply filter_In in H. des.
+    + ii. apply in_app in INB. des.
+      * apply filter_In in INB. des.
         exploit PRIVS_TGT; eauto. i. des.
         exploit UNIQS_TGT; eauto.
         rewrite existsb_exists in *. des.

@@ -18,10 +18,12 @@ Require Import GenericValues.
 
 Set Implicit Arguments.
 
-Definition gv_diffblock_with_blocks conf gv blocks : Prop :=
-  forall b o
-    (GV2PTR: GV2ptr conf.(CurTargetData) (getPointerSize conf.(CurTargetData)) gv = Some (Vptr b o)),
-    ~ In b blocks.
+Definition gv_diffblock_with_blocks (conf: Config) gv blocks : Prop :=
+  forall b
+         (ING: In b (GV2blocks gv))
+         (INB: In b blocks),
+    False.
+  (* ~exists b, In b (GV2blocks gv) /\ In b blocks. *)
 
 Definition private_block m public b : Prop :=
   ~ public b /\ (b < m.(Mem.nextblock))%positive.

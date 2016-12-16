@@ -455,6 +455,25 @@ Proof.
   destruct (existsb pred (rev l0)); ss. apply orb_true_r.
 Qed.
 
+Definition list_disjoint A (xs ys: list A) :=
+  forall z (INL: In z xs) (INR: In z ys), False.
+
+Lemma list_disjoint_comm A (xs ys: list A)
+  (DISJOINT: list_disjoint xs ys)
+  :
+    <<DISJOINT: list_disjoint ys xs>>
+.
+Proof.
+  generalize dependent ys.
+  induction xs; ii; ss.
+  des; ss.
+  - clarify. unfold list_disjoint in DISJOINT.
+    eapply DISJOINT; eauto.
+    left; ss.
+  - exploit DISJOINT; eauto.
+    right; ss.
+Qed.
+
 Module WFacts_fun2 (E:DecidableType) (M:(WSfun E)).
   Include (WFacts_fun E M).
 
