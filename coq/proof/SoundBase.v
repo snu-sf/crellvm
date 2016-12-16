@@ -472,11 +472,9 @@ Qed.
 Definition memory_blocks_of (conf: Config) lc ids : list mblock :=
   List.flat_map (fun x =>
                    match lookupAL _ lc x with
-                   | Some gv =>
-                     GV2blocks gv
+                   | Some gv => GV2blocks gv
                    | _ => []
-                   end
-                )
+                   end)
                 (AtomSetImpl.elements ids).
 
 Definition memory_blocks_of_t (conf: Config) st invst idts : list mblock :=

@@ -214,7 +214,6 @@ Module Unary.
       <<VAL2: sem_expr conf st invst es.(snd) = Some val2>> /\
       <<VAL: GVs.lessdef val1 val2>>.
 
-  (* TODO define disjointness in highlevel and give spec *)
   Definition sem_diffblock (conf:Config) (val1 val2:GenericValue): Prop :=
     list_disjoint (GV2blocks val1) (GV2blocks val2).
 
@@ -240,15 +239,13 @@ Module Unary.
         (DIFFBLOCK: sem_diffblock conf gv1 gv2)
     : sem_diffblock conf gv2 gv1.
   Proof.
-    unfold sem_diffblock in *. unfold not.
-    generalize dependent gv2.
-    induction gv1; ii; ss; des; ss.
-    eapply DIFFBLOCK; eauto.
+    eapply list_disjoint_comm; eauto.
   Qed.
 
   Lemma undef_diffblock
         conf (gv1: GenericValue) gv2
-        (UNDEF: forall v mc, In (v, mc) gv1 -> v = Vundef)
+        (UNDEF: List.Forall (fun x => x.(fst) = Vundef) gv1)
+        (* (UNDEF: forall v mc, In (v, mc) gv1 -> v = Vundef) *)
     :
       <<DIFFBLOCK: sem_diffblock conf gv1 gv2>>.
   Proof.
@@ -259,10 +256,10 @@ Module Unary.
     { ii. rewrite H in INL. inv INL. }
     clear - UNDEF.
     induction gv1; ii; ss.
+    inv UNDEF.
     exploit IHgv1; eauto; []; i; des.
-    unfold compose; ss.
     destruct a; ss.
-    exploit UNDEF; eauto; i; des. clarify.
+    subst. ss.
   Qed.
 
   Lemma noalias_comm
@@ -270,10 +267,7 @@ Module Unary.
         (NOALIAS: sem_noalias conf gv1 gv2 ty1 ty2)
     : sem_noalias conf gv2 gv1 ty2 ty1.
   Proof.
-    unfold sem_noalias in *. unfold not.
-    generalize dependent gv2.
-    induction gv1; ii; ss; des; ss.
-    eapply NOALIAS; eauto.
+    eapply list_disjoint_comm; eauto.
   Qed.
 
   Inductive sem_alias (conf:Config) (st:State) (invst:t) (arel:Invariant.aliasrel): Prop :=
@@ -314,10 +308,11 @@ Module Unary.
 
   Definition sem_private (conf:Config) (st:State) (invst:t)
              (private_parent:list mblock) (public:mblock -> Prop) (a:IdT.t): Prop :=
-    forall val (VAL: sem_idT st invst a = Some val),
-      (forall b (IN: In b (GV2blocks val)),
-          <<PRIVATE_BLOCK: InvMem.private_block st.(Mem) public b>> /\
-                           <<PARENT_DISJOINT: ~ In b private_parent>>).
+    forall b val
+           (VAL: sem_idT st invst a = Some val)
+           (IN: In b (GV2blocks val)),
+      <<PRIVATE_BLOCK: InvMem.private_block st.(Mem) public b>> /\
+                       <<PARENT_DISJOINT: ~ In b private_parent>>.
       (* In b private. *)
       (* match GV2ptr conf.(CurTargetData) (getPointerSize conf.(CurTargetData)) val with *)
       (* | ret Vptr b _ => In b private *)

@@ -203,11 +203,11 @@ Definition alloc_private_unary (conf: Config) conf' cmd cmd' st public private_p
 Definition alloc_private conf_src conf_tgt cmd_src cmd_tgt
            (st0_src st0_tgt: State) st1_src st1_tgt invmem : Prop :=
   alloc_private_unary
-    conf_src conf_tgt cmd_src cmd_tgt st1_src (* st0_src.(Mem).(Memory.Mem.nextblock) *)
+    conf_src conf_tgt cmd_src cmd_tgt st1_src
     (InvMem.Rel.public_src invmem.(InvMem.Rel.inject))
     invmem.(InvMem.Rel.src).(InvMem.Unary.private_parent) /\
   alloc_private_unary
-    conf_tgt conf_src cmd_tgt cmd_src st1_tgt (* st0_tgt.(Mem).(Memory.Mem.nextblock) *)
+    conf_tgt conf_src cmd_tgt cmd_src st1_tgt
     (InvMem.Rel.public_tgt invmem.(InvMem.Rel.inject))
     invmem.(InvMem.Rel.tgt).(InvMem.Unary.private_parent).
 

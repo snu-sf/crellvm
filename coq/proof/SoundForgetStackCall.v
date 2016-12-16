@@ -106,17 +106,6 @@ Proof.
   split; eauto.
 Qed.
 
-(* Lemma simulation__GV2blocks *)
-(*       mi TD gv1 gv2 v bs1 *)
-(*       (INjECT: genericvalues_inject.gv_inject mi gv1 gv2) *)
-(*       (BLOCKS: GV2blocks gv1 = [bs1]) *)
-(*   : *)
-(*     <<INJECT: exists bs2, GV2blocks gv2 = [bs2] /\ *)
-(*                           memory_sim.MoreMem.val_inject mi bs1 bs2>> *)
-(* . *)
-(* Proof. *)
-(* Qed. *)
-
 Lemma gv_inject_public_src
       gv_src gv_tgt meminj b
           (INJECT: genericvalues_inject.gv_inject meminj gv_src gv_tgt)

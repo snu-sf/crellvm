@@ -87,16 +87,6 @@ Proof.
   - apply NNPP in H. ss.
 Qed.
 
-(* TODO Position? *)
-(* Fixpoint GV2ptrs conf sz val := *)
-(*   match val with *)
-(*   | h :: t => (GV2ptr conf sz h) :: (GV2ptrs conf sz t) *)
-(*   | _ => [] *)
-(*   end. *)
-
-(* GV2ptr =  *)
-(* fun (_ : TargetData) (_ : sz) (gv : GenericValue) => *)
-(* put TargetData/sz ? *)
 Definition val2block val :=
   match val with
   | Vptr blck _ => Some blck
@@ -119,6 +109,19 @@ Proof.
   left. ss.
 Qed.
 
+Lemma GV2blocks_cons
+      v m gv
+  :
+      <<CONS_INV: GV2blocks ((v, m) :: gv) = GV2blocks [(v, m)] ++ GV2blocks gv>>
+.
+Proof.
+  red.
+  unfold GV2blocks in *.
+  unfold compose in *.
+  ss.
+  des_ifs.
+Qed.
+
 Lemma GV2blocks_In_cons
       b v1 m gv1
       (IN: In b (GV2blocks ((v1, m) :: gv1)))
@@ -126,26 +129,7 @@ Lemma GV2blocks_In_cons
     <<IN: In b (GV2blocks [(v1, m)]) \/ In b (GV2blocks gv1)>>
 .
 Proof.
-  (* TODO: prove with induction ?? *)
-  unfold GV2blocks in *.
-  unfold compose in *.
+  erewrite GV2blocks_cons in IN.
+  apply in_app in IN.
   ss.
-  destruct (val2block v1) eqn:T.
-  - inv IN.
-    + left. ss. left. ss.
-    + right. ss.
-  - right. ss.
-  (* remember ((v1, m) :: gv1) as l. *)
-  (* generalize dependent gv1. *)
-  (* generalize dependent v1. *)
-  (* generalize dependent m. *)
-  (* generalize dependent b. *)
-  (* induction l; ii; ss; des; ss. *)
-  (* - clarify. *)
-  (*   destruct gv1; ss. *)
-  (*   + left; ss. *)
-  (*   + exploit IHl; eauto. *)
-  (* induction gv1; ii; ss; des; ss. *)
-  (* - left. ss. *)
-  (* - exploit IHgv1; eauto. *)
 Qed.
