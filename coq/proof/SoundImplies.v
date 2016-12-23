@@ -184,16 +184,15 @@ Proof.
     { eapply DIFFBLOCK; eauto. }
     unfold Invariant.diffblock_by_unique in *.
     move IMPLIES_ALIAS0 at bottom.
-    repeat (des_bool; des).
+    repeat (des_bool; des);
+      unfold Invariant.is_unique_value in *; des_ifs;
+        unfold Invariant.values_diffblock_from_unique in *; repeat (des_bool; des);
+          destruct x; destruct t; ss.
     +
-      unfold Invariant.is_unique_value in *.
+      clear IMPLIES_ALIAS1.
       des_ifs.
-      unfold Invariant.values_diffblock_from_unique in *.
-      des_ifs; repeat (des_bool; des).
       * (* tag is physical *)
-        destruct x; destruct t; ss.
-        clear IMPLIES_ALIAS1 IMPLIES_ALIAS2.
-        rename i0 into i2.
+        clear IMPLIES_ALIAS2.
 
         apply AtomSetFacts.mem_iff in IMPLIES_ALIAS3.
         exploit UNIQUE; try eapply IMPLIES_ALIAS3; []; intros HUniq; des.
@@ -203,7 +202,7 @@ Proof.
         clarify.
 
         exploit UNIQUE; eauto; []; ii; des.
-        eapply LOCALS with (reg := i2); eauto.
+        eapply LOCALS with (reg := i1); eauto.
         {
           des_sumbool.
           ii.
@@ -213,70 +212,93 @@ Proof.
           ss.
         }
       * (* const *)
+        clear IMPLIES_ALIAS2.
+        cbn in *.
+        admit. (* wf_const case *)
 
-        destruct x; destruct t; ss.
-        clear IMPLIES_ALIAS0 IMPLIES_ALIAS1 IMPLIES_ALIAS2.
-        rename i0 into i1.
-        rename c into ___cnst___.
+(*         (* should be able to build gval1 <> cnst, where cnst is diffblock with gval1 IN INV1. *) *)
+(*         (* If it was in INV0? trivial *) *)
+(*         assert(MEM0: ValueTPairSet.In *)
+(*                        (ValueT.id (Tag.physical, i1), ValueT.const ___cnst___) *)
+(*                        (Invariant.diffblock (Invariant.alias inv0))); cycle 1. *)
+(*         { *)
+(*           apply ValueTPairSetFacts.mem_iff in MEM0. *)
+(*           eapply DIFFBLOCK; try apply MEM0; eauto. *)
+(*         } *)
 
-        (* should be able to build gval1 <> cnst, where cnst is diffblock with gval1 IN INV1. *)
-        (* If it was in INV0? trivial *)
-        assert(MEM0: ValueTPairSet.In
-                       (ValueT.id (Tag.physical, i1), ValueT.const ___cnst___)
-                       (Invariant.diffblock (Invariant.alias inv0))); cycle 1.
-        {
-          apply ValueTPairSetFacts.mem_iff in MEM0.
-          eapply DIFFBLOCK; try apply MEM0; eauto.
-        }
+(*         (* sem_unique *) *)
+(*         (* (forall (b : Values.block) (ofs : Integers.Int.int 31), *) *)
+(*         (*     GV2ptr (CurTargetData conf) (getPointerSize (CurTargetData conf)) val = *) *)
+(*         (*     Some (Values.Vptr b ofs) -> (gmax < b)%positive) *) *)
 
-        (* sem_unique *)
-        (* (forall (b : Values.block) (ofs : Integers.Int.int 31), *)
-        (*     GV2ptr (CurTargetData conf) (getPointerSize (CurTargetData conf)) val = *)
-        (*     Some (Values.Vptr b ofs) -> (gmax < b)%positive) *)
+(*         (* memory_props.MemProps.const2GV_valid_ptrs: *) *)
+(*         (*   forall (c0 : const) (maxb : positive) (gl : GVMap) (g : GenericValue) (S : system) (td : targetdata) (t : typ), *) *)
+(*         (*     memory_props.MemProps.wf_globals maxb gl -> *) *)
+(*         (*     wf_const S td c0 t -> Some g = const2GV td gl c0 -> memory_props.MemProps.valid_ptrs (maxb + 1)%positive g *) *)
 
-        (* memory_props.MemProps.const2GV_valid_ptrs: *)
-        (*   forall (c0 : const) (maxb : positive) (gl : GVMap) (g : GenericValue) (S : system) (td : targetdata) (t : typ), *)
-        (*     memory_props.MemProps.wf_globals maxb gl -> *)
-        (*     wf_const S td c0 t -> Some g = const2GV td gl c0 -> memory_props.MemProps.valid_ptrs (maxb + 1)%positive g *)
+(*         (* asked @yoonseung, answer was above lemma. *)
+(* with wf condition, gval2 should be < maxb + 1, which means it is global. *)
+(* (first maxb block = global, later = locals) *)
+(* I think, then using global part of sem_unique may produce similar result with above. *)
+(*          *) *)
 
-        (* asked @yoonseung, answer was above lemma.
-with wf condition, gval2 should be < maxb + 1, which means it is global.
-(first maxb block = global, later = locals)
-I think, then using global part of sem_unique may produce similar result with above.
-         *)
+(*         apply AtomSetFacts.mem_iff in IMPLIES_ALIAS3. *)
+(*         exploit UNIQUE; try eapply IMPLIES_ALIAS3; []; intros HUniq; des. *)
+(*         inv HUniq. clear LOCALS MEM0. *)
+
+(*         unfold InvState.Unary.sem_idT in *. ss. *)
+
+(*         (* (* exploit LOCALS; try apply VAL2; eauto. *) *) *)
+(*         (* (* { *) *) *)
+(*         (* (*   des_sumbool. *) *) *)
+(*         (* (*   ii. *) *) *)
+(*         (* (*   unfold not in IMPLIES_ALIAS0. *) *) *)
+(*         (* (*   apply IMPLIES_ALIAS0. *) *) *)
+(*         (* (*   subst. *) *) *)
+(*         (* (*   ss. *) *) *)
+(*         (* (* } *) *) *)
+(*         (* (* ii; des. *) *) *)
+(*         (* (* rename val into ttttttttt. *) *) *)
+
+(*         (* unfold InvState.Unary.sem_diffblock. *) *)
+(*         (* des_ifs. *) *)
+(*         (* unfold GV2ptr in *. *) *)
+(*         (* des_ifs. *) *)
+
+(*         (* { *) *)
+(*         (*   unfold InvState.Unary.sem_diffblock. *) *)
+(*         (*   des_ifs. *) *)
+(*         (* } *) *)
+(*         admit. *)
 
 
-
+    + (* exactly copied from above *)
+      clear IMPLIES_ALIAS1.
+      des_ifs.
+      * (* tag is physical *)
+        clear IMPLIES_ALIAS2.
 
         apply AtomSetFacts.mem_iff in IMPLIES_ALIAS3.
         exploit UNIQUE; try eapply IMPLIES_ALIAS3; []; intros HUniq; des.
-        inv HUniq. clear LOCALS MEM0.
+        inv HUniq. clear MEM0 GLOBALS.
 
         unfold InvState.Unary.sem_idT in *. ss.
+        clarify.
 
-        (* (* exploit LOCALS; try apply VAL2; eauto. *) *)
-        (* (* { *) *)
-        (* (*   des_sumbool. *) *)
-        (* (*   ii. *) *)
-        (* (*   unfold not in IMPLIES_ALIAS0. *) *)
-        (* (*   apply IMPLIES_ALIAS0. *) *)
-        (* (*   subst. *) *)
-        (* (*   ss. *) *)
-        (* (* } *) *)
-        (* (* ii; des. *) *)
-        (* (* rename val into ttttttttt. *) *)
-
-        (* unfold InvState.Unary.sem_diffblock. *)
-        (* des_ifs. *)
-        (* unfold GV2ptr in *. *)
-        (* des_ifs. *)
-
-        (* { *)
-        (*   unfold InvState.Unary.sem_diffblock. *)
-        (*   des_ifs. *)
-        (* } *)
-        admit.
-    + admit.
+        exploit UNIQUE; eauto; []; ii; des.
+        eapply LOCALS with (reg := i1); eauto.
+        {
+          des_sumbool.
+          ii.
+          unfold not in IMPLIES_ALIAS0.
+          apply IMPLIES_ALIAS0.
+          subst.
+          ss.
+        }
+      * (* const *)
+        clear IMPLIES_ALIAS2.
+        cbn in *.
+        admit. (* wf_const case *)
   - (* noalias *)
     (* should be same with diffblock *)
 Admitted.
