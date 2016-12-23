@@ -257,54 +257,6 @@ Proof.
   inv MEM.
   inv STEP; destruct cmd; ss; clarify;
     try by esplits; ss; econs; eauto.
-(*     assert(TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT : True) by ss. *)
-(*     move H1 at bottom. *)
-(*     rename H1 into MALLOC. *)
-(*     splits; cycle 1. *)
-(*     { *)
-(*       esplits; eauto. *)
-(*       econs; eauto. *)
-(*     } *)
-(*     + *)
-(*       (* *)
-(* if mptr0 points newly allocated -> blah *)
-(* else -> we can use UNIQUE_PARENT_MEM *)
-(*        *) *)
-(*       ii. *)
-(*       ss. *)
-(*       exploit UNIQUE_PARENT_GLOBALS; try eapply H1; []; ii. *)
-
-(*       unfold GV2ptr in GV2PTR. *)
-(*       des_ifs. *)
-
-(*       move WF at bottom. *)
-(*       eapply MemProps.malloc_preserves_wf_Mem in WF; eauto. *)
-(*       unfold MemProps.wf_Mem in WF. *)
-(*       des. *)
-(*       exploit WF; eauto. *)
-(*       ii. *)
-(*       ss. des. clear x1. *)
-
-
-
-(*       (* assert(MEM_MAX: ((Memory.Mem.nextblock Mem') <= gmax)%positive); cycle 1. *) *)
-(*       (* { *) *)
-(*       (*   exploit Pos.le_lt_trans; eauto; []; ii. *) *)
-(*       (*   exploit Pos.lt_irrefl; eauto. *) *)
-(*       (* } *) *)
-
-
-(*       (* gmax < b *) *)
-(*       (* val' = b, below let's use only logical blocks, not value *) *)
-(*       (* LOAD: = b < Mem' *) *)
-
-
-(*       (* WF : MemProps.wf_Mem gmax TD Mem0 ==> Mem0 < gmax *) *)
-(*       (* gmax < Mem' *) *)
-(*       (* Mem' = Mem0 + 1 *) *)
-
-
-(*       admi-t. (* malloc - easy *) *)
   - split.
     + ii. eapply UNIQUE_PARENT_MEM; eauto.
       eapply MemProps.free_preserves_mload_inv; eauto.
