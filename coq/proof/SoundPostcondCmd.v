@@ -92,9 +92,7 @@ Qed.
 
 Lemma get_operand_valid_ptr
       Mem0 lc TD value gl gvs
-      (* gmax *)
       (WF_LC: MemProps.wf_lc Mem0 lc)
-      (* (WF_MEM: MemProps.wf_Mem gmax TD Mem0) *)
       (WF_CONST: True)
       (GET_OPERAND: getOperandValue TD value lc gl = Some gvs)
   :
