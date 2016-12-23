@@ -252,68 +252,110 @@ Proof.
     rewrite InvState.Unary.sem_valueT_physical. s. i. des.
     eapply _sim_local_step.
     { (* tgt not stuck *)
-      unfold not. ii. unfold stuck_state in H. apply H. clear H.
-      destruct conf_tgt.
-      repeat eexists.
-      move decision at bottom.
-      econs; eauto.
-      -
-        instantiate (1:= decision).
-        move CONF at bottom.
-        inv CONF.
-        inv INJECT0.
-        inv TARGETDATA. ss. clarify.
-        move decision at bottom.
-        move gval_tgt at bottom.
-        move conds at bottom.
-        idtac.
-        eapply decide_nonzero_inject; eauto.
-      - rewrite <- ite_spec in *.
-        move FDEF at bottom.
-        Lemma valid_entry_spec
-              s_src s_tgt s
-              (VALID: valid_entry_stmts s_src s_tgt s = true)
-          :
-            <<SAME: s_src = s_tgt>>
-        .
-        Proof.
-          red. unfold valid_entry_stmts in *.
-          des_ifs.
-          des_bool.
-          unfold is_empty in *. des_ifs.
-        Abort.
+      admit.
+      (* clear STATE MEM CIH. *)
 
-        Lemma valid_fdef_same_block
-              m_src m_tgt f_src f_tgt fdef_hint y
-              (* x *)
-              (VALID_FDEF: valid_fdef m_src m_tgt f_src f_tgt fdef_hint)
-          :
-            <<LOOKUP: lookupBlockViaLabelFromFdef f_src y = lookupBlockViaLabelFromFdef f_tgt y>>
-        (*     (LOOKUP: Some x = lookupBlockViaLabelFromFdef f_src y) *)
-        (* : *)
-        (*     <<LOOKUP: Some x = lookupBlockViaLabelFromFdef f_tgt y>> *)
-        .
-        Proof.
-          red. (* rewrite LOOKUP. clear LOOKUP. *)
-          unfold valid_fdef in *.
-          des_ifs. repeat (des_bool; des).
-          (* TODO add in des_bool *)
-          rewrite andb_true_l in VALID_FDEF.
-          (* unfold forallb2AL in *. *)
-          (* unfold list_forallb2 in *. *)
-          (* clear VALID_FDEF. *)
-          des_sumbool.
-          clarify.
-          (* unfold lookupBlockViaLabelFromFdef. *)
-          repeat rewrite lookupBlockViaLabelFromFdef_spec.
-          ss.
-          des_ifs.
-          admit.
-        Abort.
-        idtac.
-        admit.
-      -
-        admit.
+      (* unfold not. ii. unfold stuck_state in H. apply H. clear H. *)
+      (* destruct conf_tgt. *)
+      (* move decision at bottom. *)
+      (* inv H13. *)
+      (* unfold switchToNewBasicBlock in H15. *)
+      (* des_ifs. *)
+      (* unfold getPHINodesFromBlock in *. *)
+      (* inv CONF. *)
+      (* inv INJECT0. ss. clarify. *)
+      (* destruct CurBB0 as [label_src [phi_src cmds_src term_src]]. *)
+      (* destruct CurBB1 as [label_tgt [phi_tgt cmds_tgt term_tgt]]. *)
+      (* ss. clarify. *)
+      (* destruct CurFunction0 as [fheader_src blocks_src]; ss. *)
+      (* destruct CurFunction1 as [fheader_tgt blocks_tgt]; ss. *)
+      (* destruct blocks_src as [|[label_src2 stmts_src2] blocks_src]; *)
+      (*   destruct blocks_tgt as [|[label_tgt2 stmts_tgt2] blocks_tgt]; ss. *)
+      (* { des_ifs. } *)
+      (* destruct stmts_src2, stmts_tgt2; ss. *)
+
+
+
+      (* repeat eexists. *)
+      (* econs; eauto; cycle 2. *)
+      (* - *)
+      (*   unfold switchToNewBasicBlock in *. *)
+      (*   (* instantiate (5:= (negb (zeq z 0))). *) *)
+      (*   unfold getPHINodesFromBlock in *. *)
+      (*   instantiate (2:= phinodes0). *)
+      (*   exploit opsem_props.OpsemProps.getIncomingValuesForBlockFromPHINodes_eq; eauto; []; *)
+      (*     intros INCOMING_EQ; des. *)
+      (*   (* evar bindings look dirty, but hoisting it above the econs *) *)
+      (*   (* will make below proofs to include "clear INCOMING_EQ", which is also dirty *) *)
+      (*   rewrite INCOMING_EQ. *)
+      (*   move Locals0 at bottom. *)
+      (*   move Locals1 at bottom. *)
+      (*   clear INCOMING_EQ. *)
+      (*   cbn in *. *)
+      (*   admit. *)
+      (* - *)
+      (*   instantiate (1:= (negb (zeq z 0))). *)
+      (*   econs; eauto. *)
+      (*   move INT at bottom. *)
+      (*   move INJECT at bottom. *)
+      (*   move conds at bottom. *)
+      (*   erewrite genericvalues_inject.simulation__eq__GV2int in INT; eauto. *)
+      (* - *)
+      (*   unfold valid_fdef in FDEF. *)
+      (*   move FDEF at bottom. *)
+      (*   move H14 at bottom. *)
+      (*   replace (if negb (zeq z 0) then l0 else l3) with (ite (negb (zeq z 0)) l0 l3) by ss. *)
+      (*   ss. *)
+      (*   (* rewrite H14. clear H14. *) *)
+      (*   (* des_if already exists *) *)
+      (*   Ltac des_if_ H := *)
+      (*     clarify; *)
+      (*     repeat *)
+      (*       match goal with *)
+      (*       | H': context [match ?x with | _ => _ end] |- _ => *)
+      (*         check_equal H' H; *)
+      (*         match type of x with *)
+      (*         | {_} + {_} => destruct x; clarify *)
+      (*         | _ => let Heq := fresh "Heq" in *)
+      (*                destruct x as () eqn:Heq; clarify *)
+      (*         end *)
+      (*       end *)
+      (*   . *)
+      (*   des_if_ FDEF. *)
+      (*   apply andb_true_iff in FDEF. des. *)
+      (*   des_bool. *)
+      (*   des_sumbool; clarify. *)
+      (*   move H14 at bottom. *)
+      (*   unfold valid_phinodes in *. *)
+      (*   des_if_ COND1. *)
+      (*   des_if_ COND2. *)
+      (*   des_bool; des_sumbool; clarify. *)
+      (*   Ltac clear_true := *)
+      (*     repeat match goal with *)
+      (*            | [ H: is_true true |- _ ] => clear H *)
+      (*            | [ H: True |- _ ] => clear H *)
+      (*            | [ H: ?x = ?x |- _ ] => clear H *)
+      (*            end. *)
+      (*   clear_true. *)
+      (*   unfold Debug.debug_print in *. *)
+
+      (*   cbn in FDEF0. *)
+      (*   des_if_ FDEF0; repeat (des_bool; des); des_sumbool; clarify; ss. *)
+      (*   clear_true. *)
+
+      (*   destruct (negb (zeq z 0)) eqn:T; ss. *)
+      (*   { *)
+      (*     destruct (@eq_dec atom (EqDec_eq_of_EqDec atom EqDec_atom) l0 label_tgt2) eqn:T2; *)
+      (*     (* destruct (l0 == label_tgt2) eqn:T2. <-- This does NOT work !! *) *)
+      (*     clarify; des_sumbool; ss. *)
+      (*     rewrite Heq4. *)
+      (*     admit. *)
+      (*   } *)
+      (*   { *)
+      (*     destruct (@eq_dec atom (EqDec_eq_of_EqDec atom EqDec_atom) l3 label_tgt2) eqn:T3; *)
+      (*     clarify; des_sumbool; ss. *)
+      (*     admit. *)
+      (*   } *)
     }
     i. inv STEP. unfold valid_phinodes in *.
     do 12 simtac0. rewrite <- (ite_spec decision0 l0 l3) in *. simtac.
