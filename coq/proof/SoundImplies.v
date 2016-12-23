@@ -103,10 +103,8 @@ Proof.
       destruct t; ss.
       * esplits; eauto.
         ss.
-        (* not provable, allow None? *)
-        admit.
-        (* undef should lessdef with all *)
-        admit.
+        -- admit. (* not provable, allow None? *)
+        -- admit. (* undef should lessdef with all *)
       * (* ditto *) admit.
       * (* ditto *) admit.
     +
