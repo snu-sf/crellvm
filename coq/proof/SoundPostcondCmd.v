@@ -90,6 +90,22 @@ Proof.
     (etransitivity; [apply forget_stack_Subset | apply forget_memory_Subset]).
 Qed.
 
+Lemma get_operand_valid_ptr
+      Mem0 lc TD value gl gvs
+      (* gmax *)
+      (WF_LC: MemProps.wf_lc Mem0 lc)
+      (* (WF_MEM: MemProps.wf_Mem gmax TD Mem0) *)
+      (WF_CONST: True)
+      (GET_OPERAND: getOperandValue TD value lc gl = Some gvs)
+  :
+    <<VALID_PTR: MemProps.valid_ptrs (Memory.Mem.nextblock Mem0) gvs>>
+.
+Proof.
+  destruct value.
+  - eapply WF_LC; eauto.
+  - (* wf_const *) admit.
+Admitted.
+
 Lemma step_wf_lc
       gmax conf st0 st1 evt
       cmd cmds
@@ -102,18 +118,39 @@ Lemma step_wf_lc
     <<WF_MEM: MemProps.wf_Mem gmax conf.(CurTargetData) st1.(Mem)>>.
 Proof.
   inv STEP; destruct cmd; ss;
-    try (split; [apply MemProps.updateAddAL__wf_lc; eauto; [] | by auto]).
-  - admit. (* bop *)
-  - admit. (* fbop *)
-  - admit. (* extractvalue *)
-  - admit. (* insertvalue *)
-  - admit. (* malloc *)
+    try (split; [apply MemProps.updateAddAL__wf_lc; eauto; [] | by auto]); clarify.
+  -
+    eapply opsem_props.OpsemProps.BOP_inversion in H.
+    des.
+    eapply MemProps.mbop_preserves_valid_ptrs; eauto.
+  -
+    eapply opsem_props.OpsemProps.FBOP_inversion in H.
+    des.
+    eapply MemProps.mfbop_preserves_valid_ptrs; eauto.
+  -
+    eapply MemProps.extractGenericValue_preserves_valid_ptrs; eauto.
+    eapply get_operand_valid_ptr; eauto.
+  -
+    eapply MemProps.insertGenericValue_preserves_valid_ptrs; eauto.
+    + eapply get_operand_valid_ptr; eauto.
+    + eapply get_operand_valid_ptr; eauto.
+  -
+    split. (* malloc, same with alloca. *)
+    + exploit malloc_result; eauto. i. des.
+      ii. destruct (id_dec id0 id5).
+      * subst.
+        rewrite lookupAL_updateAddAL_eq in *. clarify. ss.
+        split; auto.
+        rewrite NEXT_BLOCK. apply Plt_succ.
+      * rewrite <- lookupAL_updateAddAL_neq in *; eauto.
+        eapply MemProps.malloc_preserves_wf_lc_in_tail; eauto.
+    + eapply MemProps.malloc_preserves_wf_Mem; eauto.
   - split. (* free *)
     + eapply MemProps.free_preserves_wf_lc; eauto.
     + eapply MemProps.free_preserves_wf_Mem; eauto.
   - split. (* alloca *)
     + exploit malloc_result; eauto. i. des.
-      ii. destruct (id_dec id0 id1).
+      ii. destruct (id_dec id0 id5).
       * subst.
         rewrite lookupAL_updateAddAL_eq in *. clarify. ss.
         split; auto.
@@ -124,23 +161,67 @@ Proof.
   - unfold MemProps.wf_Mem in *. des.
     eapply WF_MEM; eauto.
   - (* store *)
-    split.
-    + eapply MemProps.mstore_preserves_wf_lc; eauto.
-    + admit. (* store preserves wf_Mem when stored value is from lc and wf_lc holds *)
-  - admit. (* gep *)
-  - admit. (* trunc *)
-  - admit. (* extop *)
-  - admit. (* cast *)
-  - admit. (* icmp: always bool *)
-  - admit. (* fcmp *)
+    assert(WF_LC2: MemProps.wf_lc Mem' lc).
+    { eapply MemProps.mstore_preserves_wf_lc; eauto. }
+    splits; eauto.
+    red.
+    (* exploit mstore_aux_valid_ptrs_preserves_wf_Mem; eauto. *)
+    unfold MemProps.wf_Mem in *.
+    des.
+    eapply mstore_inversion in H1. des. clarify.
+    exploit MemProps.nextblock_mstore_aux; eauto; []; intros NEXTBLOCK_SAME; des.
+    splits; cycle 1.
+    *
+      rewrite <- NEXTBLOCK_SAME.
+      ss.
+    *
+      ii.
+      apply mload_inv in H1. des. clarify.
+      (* destruct (Pos.eqb b0 b) eqn:T. *)
+      (* { apply Peqb_true_eq in T. subst. *)
+      (*   des_sumbool. } *)
+      exploit MemProps.mstore_aux_preserves_mload_aux_inv; eauto; []; ii; des.
+      eapply MemProps.valid_ptrs_overlap; eauto.
+      { eapply get_operand_valid_ptr; eauto. }
+      {
+        rewrite <- NEXTBLOCK_SAME.
+        eapply WF_MEM; eauto.
+        Check ([(Values.Vptr b0 ofs0, cm)]): mptr.
+        instantiate (3:= ([(Values.Vptr b0 ofs0, cm)])).
+        cbn.
+        erewrite H4. ss. }
+  -
+    eapply dopsem.GEP_inv in H1. des.
+    + eapply MemProps.undef_valid_ptrs; eauto.
+    + clarify.
+      exploit get_operand_valid_ptr; eauto.
+  -
+    eapply opsem_props.OpsemProps.TRUNC_inversion in H.
+    des.
+    eapply MemProps.mtrunc_preserves_valid_ptrs; eauto.
+  -
+    eapply opsem_props.OpsemProps.EXT_inversion in H.
+    des.
+    eapply MemProps.mext_preserves_valid_ptrs; eauto.
+  -
+    eapply opsem_props.OpsemProps.CAST_inversion in H.
+    des.
+    eapply MemProps.mcast_preserves_valid_ptrs; eauto.
+    eapply get_operand_valid_ptr; eauto.
+  -
+    eapply opsem_props.OpsemProps.ICMP_inversion in H.
+    des.
+    eapply MemProps.micmp_preserves_valid_ptrs; eauto.
+  -
+    eapply opsem_props.OpsemProps.FCMP_inversion in H.
+    des.
+    eapply MemProps.mfcmp_preserves_valid_ptrs; eauto.
   - destruct decision.
-    + destruct v1.
-      * eapply WF_LC; eauto.
-      * admit. (* wf_const *)
-    + destruct v2.
-      * eapply WF_LC; eauto.
-      * admit. (* wf_const *)
-Admitted.
+    + eapply get_operand_valid_ptr; eauto.
+    + eapply get_operand_valid_ptr; eauto.
+Unshelve.
+ss.
+Qed.
 
 Lemma postcond_cmd_sound
       m_src conf_src st0_src cmd_src cmds_src
