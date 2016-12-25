@@ -480,6 +480,20 @@ Module Rel.
       rewrite H0, H3. esplits; eauto. econs; eauto.
   Qed.
 
+  Lemma int_add_0
+          (ofs : int32)
+    :
+  <<INT_ARITH: Int.signed 31 ofs =
+               Int.signed 31 (Int.add 31 ofs (Int.repr 31 0))>>
+  .
+  Proof.
+    unfold Int.add. ss.
+    replace (Int.repr 31 (Int.unsigned 31 ofs + 0)) with ofs; ss.
+    destruct ofs. unfold Int.repr. ss.
+    rewrite Z.add_comm. ss.
+    admit. (* Int.signed arithmetic *)
+  Admitted.
+
   (* company-coq extracted *)
   (* C-c C-a C-x *)
   Lemma not_in_maydiff_load:
@@ -532,12 +546,69 @@ Module Rel.
             with (Int.signed 31 ofs + 0); ss.
     clear - ofs.
     rewrite Z.add_comm. ss.
-    unfold Int.add. ss.
-    replace (Int.repr 31 (Int.unsigned 31 ofs + 0)) with ofs; ss.
-    destruct ofs. unfold Int.repr. ss.
+    apply int_add_0.
+  Qed.
+
+  Lemma inject_expr_load
+        (m_src : module)
+        (conf_src : Config)
+        (st_src : State)
+        (v : ValueT.t)
+        (m_tgt : module)
+        (conf_tgt : Config)
+        (st_tgt : State)
+        (v0 : ValueT.t)
+        (t1 : typ)
+        (a0 : align)
+        (invst : t)
+        (invmem : InvMem.Rel.t)
+        (inv : Invariant.t)
+        (gval_src : GenericValue)
+        (STATE : sem conf_src conf_tgt st_src st_tgt invst invmem inv)
+        (MEM : InvMem.Rel.sem conf_src conf_tgt (Mem st_src) (Mem st_tgt) invmem)
+        (INJECT0 : Invariant.inject_value inv v v0 = true)
+        (g0 : GenericValue)
+        (Heq0 : Unary.sem_valueT conf_src st_src (src invst) v = ret g0)
+        (CONF_DUP : valid_conf m_src m_tgt conf_src conf_tgt)
+        (TARGETDATA : CurTargetData conf_src = CurTargetData conf_tgt)
+        (GLOBALS : Globals conf_src = Globals conf_tgt)
+        (EQB_SPEC : forall c1 c2 : const, Decs.const_eqb c1 c2 -> c1 = c2)
+        (g : GenericValue)
+        (VAL_SRC : mload (CurTargetData conf_src) (Mem st_src) g0 t1 a0 = ret gval_src)
+        (VAL_TGT : Unary.sem_valueT conf_tgt st_tgt (tgt invst) v0 = ret g)
+        (INJECT : genericvalues_inject.gv_inject (InvMem.Rel.inject invmem) g0 g)
+    :
+      exists gval_tgt : GenericValue,
+        <<VAL_TGT: mload (CurTargetData conf_src) (Mem st_tgt) g t1 a0
+                   = ret gval_tgt >> /\
+                   <<INJECT: genericvalues_inject.gv_inject
+                               (InvMem.Rel.inject invmem) gval_src gval_tgt >>
+  .
+  Proof.
+    eapply mload_inv in VAL_SRC; eauto; []; ii; des.
+    clarify.
+    inv MEM. clear SRC TGT.
+    rename b into __b__.
+    inv INJECT. inv H4.
+    destruct invmem. cbn in *.
+    inv H3. cbn in *.
+    exploit genericvalues_inject.simulation_mload_aux;
+      try apply VAL_SRC; eauto; []; ii; des; eauto.
+    esplits; eauto.
+    des_ifs. rewrite <- H.
+    (* not to spill inv contents outside of assertion proof *)
+    assert(delta = 0).
+    {
+      (* really weird *)
+      inv WF.
+      eapply mi_range_block; eauto.
+    } subst.
+    replace (Int.signed 31 (Int.add 31 ofs (Int.repr 31 0)))
+    with (Int.signed 31 ofs + 0); ss.
+    clear - ofs.
     rewrite Z.add_comm. ss.
-    admit. (* Int.signed arithmetic *)
-  Admitted.
+    apply int_add_0.
+  Qed.
 
   (* TODO move lemma position to definition point *)
   Lemma forall_gv_inject_gvs_inject
@@ -793,70 +864,6 @@ Module Rel.
     - esplits; eauto.
     - exploit inject_value_spec; eauto.
     -
-Lemma inject_expr_load
-  (m_src : module)
-  (conf_src : Config)
-  (st_src : State)
-  (v : ValueT.t)
-  (m_tgt : module)
-  (conf_tgt : Config)
-  (st_tgt : State)
-  (v0 : ValueT.t)
-  (t1 : typ)
-  (a0 : align)
-  (invst : t)
-  (invmem : InvMem.Rel.t)
-  (inv : Invariant.t)
-  (gval_src : GenericValue)
-  (STATE : sem conf_src conf_tgt st_src st_tgt invst invmem inv)
-  (MEM : InvMem.Rel.sem conf_src conf_tgt (Mem st_src) (Mem st_tgt) invmem)
-  (INJECT0 : Invariant.inject_value inv v v0 = true)
-  (g0 : GenericValue)
-  (Heq0 : Unary.sem_valueT conf_src st_src (src invst) v = ret g0)
-  (CONF_DUP : valid_conf m_src m_tgt conf_src conf_tgt)
-  (TARGETDATA : CurTargetData conf_src = CurTargetData conf_tgt)
-  (GLOBALS : Globals conf_src = Globals conf_tgt)
-  (EQB_SPEC : forall c1 c2 : const, Decs.const_eqb c1 c2 -> c1 = c2)
-  (g : GenericValue)
-  (VAL_SRC : mload (CurTargetData conf_src) (Mem st_src) g0 t1 a0 = ret gval_src)
-  (VAL_TGT : Unary.sem_valueT conf_tgt st_tgt (tgt invst) v0 = ret g)
-  (INJECT : genericvalues_inject.gv_inject (InvMem.Rel.inject invmem) g0 g)
-:
-  exists gval_tgt : GenericValue,
-    <<VAL_TGT: mload (CurTargetData conf_src) (Mem st_tgt) g t1 a0
-               = ret gval_tgt >> /\
-    <<INJECT: genericvalues_inject.gv_inject
-                (InvMem.Rel.inject invmem) gval_src gval_tgt >>
-.
-Proof.
-  eapply mload_inv in VAL_SRC; eauto; []; ii; des.
-  clarify.
-  inv MEM. clear SRC TGT.
-  rename b into __b__.
-  inv INJECT. inv H4.
-  destruct invmem. cbn in *.
-  inv H3. cbn in *.
-  exploit genericvalues_inject.simulation_mload_aux;
-    try apply VAL_SRC; eauto; []; ii; des; eauto.
-  esplits; eauto.
-  des_ifs. rewrite <- H.
-  (* not to spill inv contents outside of assertion proof *)
-  assert(delta = 0).
-  {
-    (* really weird *)
-    inv WF.
-    eapply mi_range_block; eauto.
-  } subst.
-  replace (Int.signed 31 (Int.add 31 ofs (Int.repr 31 0)))
-  with (Int.signed 31 ofs + 0); ss.
-  clear - ofs.
-  rewrite Z.add_comm. ss.
-  unfold Int.add. ss.
-  replace (Int.repr 31 (Int.unsigned 31 ofs + 0)) with ofs; ss.
-  destruct ofs. unfold Int.repr. ss.
-  rewrite Z.add_comm. ss.
-  admit.
-Admitted.
       eapply inject_expr_load; eauto.
   Qed.
   (* TODO move inject_expr_load out of here, + refactor with maydiff_load *)
