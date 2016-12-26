@@ -17,6 +17,7 @@ Require Import Inject.
 Require InvMem.
 Require Import TODO.
 Require Import paco.
+Require Import TODOProof.
 
 Set Implicit Arguments.
 
@@ -479,20 +480,6 @@ Module Rel.
       exploit IHvals; eauto. i. des.
       rewrite H0, H3. esplits; eauto. econs; eauto.
   Qed.
-
-  Lemma int_add_0
-          (ofs : int32)
-    :
-  <<INT_ARITH: Int.signed 31 ofs =
-               Int.signed 31 (Int.add 31 ofs (Int.repr 31 0))>>
-  .
-  Proof.
-    unfold Int.add. ss.
-    replace (Int.repr 31 (Int.unsigned 31 ofs + 0)) with ofs; ss.
-    destruct ofs. unfold Int.repr. ss.
-    rewrite Z.add_comm. ss.
-    admit. (* Int.signed arithmetic *)
-  Admitted.
 
   (* company-coq extracted *)
   (* C-c C-a C-x *)
