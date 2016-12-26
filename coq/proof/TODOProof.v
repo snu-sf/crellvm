@@ -98,7 +98,7 @@ Proof.
     esplits; eauto.
 Qed.
 
-Lemma int_add_0 (* TODO *)
+Lemma int_add_0
       (ofs : int32)
   :
     <<INT_ARITH: Int.signed 31 ofs =
