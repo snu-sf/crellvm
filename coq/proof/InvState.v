@@ -523,12 +523,12 @@ Module Rel.
     esplits; eauto.
     des_ifs. rewrite <- H0.
     (* not to spill inv contents outside of assertion proof *)
-    assert(delta = 0).
+    replace delta with 0 in *; cycle 1.
     {
       (* really weird *)
       inv WF.
-      eapply mi_range_block; eauto.
-    } subst.
+      exploit mi_range_block; eauto.
+    }
     replace (Int.signed 31 (Int.add 31 ofs (Int.repr 31 0)))
             with (Int.signed 31 ofs + 0); ss.
     clear - ofs.
@@ -584,12 +584,12 @@ Module Rel.
     esplits; eauto.
     des_ifs. rewrite <- H.
     (* not to spill inv contents outside of assertion proof *)
-    assert(delta = 0).
+    replace delta with 0 in *; cycle 1.
     {
       (* really weird *)
       inv WF.
-      eapply mi_range_block; eauto.
-    } subst.
+      exploit mi_range_block; eauto.
+    }
     replace (Int.signed 31 (Int.add 31 ofs (Int.repr 31 0)))
     with (Int.signed 31 ofs + 0); ss.
     clear - ofs.
