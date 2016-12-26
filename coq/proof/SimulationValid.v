@@ -482,17 +482,6 @@ Proof.
   + (* unreachable *)
     exploit nerror_nfinal_nstuck; eauto. i. des. inv x0.
 Unshelve.
-apply nil.
-apply (insn_unreachable id0).
-apply nil.
-apply nil.
-apply O.
-apply O.
-apply O.
-ss.
-ss.
-apply O.
-apply O.
 Admitted.
 
 Lemma valid_sim
