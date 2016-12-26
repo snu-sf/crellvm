@@ -274,9 +274,10 @@ Proof.
   { hexploit step_state_equiv_except; try exact CMDS_TGT; eauto. }
   { inv STATE_FORGET_MEMORY. inv MEM_FORGET_MEMORY.
     eapply step_unique_preserved_except; try exact CMDS_SRC; eauto.
-  }
+    apply STATE. }
   { inv STATE_FORGET_MEMORY. inv MEM_FORGET_MEMORY.
-    eapply step_unique_preserved_except; try exact CMDS_TGT; eauto. }
+    eapply step_unique_preserved_except; try exact CMDS_TGT; eauto.
+    apply STATE. }
   { eapply step_wf_lc; try exact STEP_SRC; eauto.
     - inv MEM. inv SRC. eauto.
     - inv STATE. inv SRC. eauto. }

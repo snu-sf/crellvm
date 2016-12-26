@@ -244,6 +244,7 @@ Lemma step_mem_change
       (MEM: InvMem.Unary.sem conf gmax public st0.(Mem) invmem0)
       (CMD: st0.(EC).(CurCmds) = cmd::cmds)
       (NONCALL: Instruction.isCallInst cmd = false)
+      (NONMALLOC: isMallocInst cmd = false)
       (STEP: sInsn conf st0 st1 evt)
   : <<UNIQUE_PARENT_MEM:
       forall mptr typ align val'
@@ -256,7 +257,6 @@ Proof.
   inv MEM.
   inv STEP; destruct cmd; ss; clarify;
     try by esplits; ss; econs; eauto.
-  - admit. (* malloc - easy *)
   - split.
     + ii. eapply UNIQUE_PARENT_MEM; eauto.
       eapply MemProps.free_preserves_mload_inv; eauto.
@@ -746,6 +746,7 @@ Lemma inject_invmem
                                   (InvMem.Rel.public_tgt (InvMem.Rel.inject invmem1)))
                                (Invariant.private (Invariant.tgt inv0))>>.
 Proof.
+  exploit postcond_cmd_inject_event_non_malloc; eauto; []; ii; des.
   hexploit step_mem_change; try (inv STATE; exact SRC); eauto.
   { inv MEM. exact SRC. }
   intro MCS.
@@ -1995,6 +1996,7 @@ Lemma forget_memory_sound
 Proof.
   assert (STATE2:= STATE).
   inv STATE2.
+  exploit postcond_cmd_inject_event_non_malloc; eauto; []; ii; des.
   exploit step_mem_change; try exact SRC; eauto.
   { inv MEM. exact SRC0. }
   i. des.

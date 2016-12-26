@@ -610,6 +610,7 @@ Lemma step_unique_preserved_except_current
       cmd cmds
       gmax public
       (STATE: InvState.Unary.sem conf (mkState st0.(EC) st0.(ECS) st1.(Mem)) invst invmem gmax public inv0)
+      (WF_LC_BEFORE: wf_lc st0.(Mem) st0.(EC).(Locals))
       (MEM: InvMem.Unary.sem conf gmax public st1.(Mem) invmem)
       (NONCALL: Instruction.isCallInst cmd = false)
       (CMDS : CurCmds st0.(EC) = cmd :: cmds)
@@ -765,21 +766,20 @@ Proof.
     assert(TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT: True) by reflexivity.
     move val at bottom.
     move mb at bottom.
-    hexploit locals_malloc_diffblock; eauto.
-    { admit. (* wf_lc before *) }
-    ii; des.
-    ss. des; ss.
-    subst.
+    hexploit locals_malloc_diffblock; eauto; []; ii; des.
     unfold InvState.Unary.sem_diffblock in H2.
     unfold list_disjoint in H2.
     eapply H2; eauto.
-    econs; ss.
   - (* alloca *)
     inv UNIQUE_BEF; narrow_down_unique.
-    hexploit locals_malloc_diffblock; eauto.
-    admit.
-    i; des.
-    apply InvState.Unary.diffblock_comm. ss.
+    ii.
+    exploit locals_malloc_diffblock; eauto.
+    apply {|
+        CurSystem := S;
+        CurTargetData := TD;
+        CurProducts := Ps;
+        Globals := gl;
+        FunTable := fs |}.
   - (* load *)
     inv UNIQUE_BEF; narrow_down_unique.
     eapply MEM; eauto.
@@ -865,6 +865,7 @@ Lemma step_unique_preserved_except
       cmd cmds
       gmax public
       (STATE: InvState.Unary.sem conf (mkState st0.(EC) st0.(ECS) st1.(Mem)) invst invmem gmax public inv0)
+      (WF_LC_BEFORE: wf_lc st0.(Mem) st0.(EC).(Locals))
       (MEM: InvMem.Unary.sem conf gmax public st1.(Mem) invmem)
       (NONCALL: Instruction.isCallInst cmd = false)
       (CMDS : CurCmds st0.(EC) = cmd :: cmds)
