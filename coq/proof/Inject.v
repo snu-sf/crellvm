@@ -458,18 +458,16 @@ Proof.
   induction INJECT; ii; ss; des.
   - rewrite FRAMES.
     Print _initializeFrameValues.
-    {
-      esplits; eauto.
-      generalize dependent g.
-      induction la; ii; ss; des; clarify; ss.
-      des_ifs.
-      exploit IHla; eauto; []; ii; des.
-      inv x.
-      econs; eauto. ii.
-      des_lookupAL_updateAddAL.
-      + esplits; eauto. eapply gv_inject_gundef; eauto.
-      + exploit INJECT; eauto.
-    }
+    esplits; eauto.
+    generalize dependent g.
+    induction la; ii; ss; des; clarify; ss.
+    des_ifs.
+    exploit IHla; eauto; []; ii; des.
+    inv x.
+    econs; eauto. ii.
+    des_lookupAL_updateAddAL.
+    + esplits; eauto. eapply gv_inject_gundef; eauto.
+    + exploit INJECT; eauto.
   -
     destruct la.
     { ss. clarify. esplits; eauto. econs; eauto. ii; des. inv LOOKUP. }
