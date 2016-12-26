@@ -251,8 +251,7 @@ Proof.
     { rewrite InvState.Unary.sem_valueT_physical. eauto. }
     rewrite InvState.Unary.sem_valueT_physical. s. i. des.
     eapply _sim_local_step.
-    { (* tgt not stuck *)
-      admit.
+    { admit. (* tgt not stuck *)
       (* clear STATE MEM CIH. *)
 
       (* unfold not. ii. unfold stuck_state in H. apply H. clear H. *)
@@ -292,7 +291,7 @@ Proof.
       (*   move Locals1 at bottom. *)
       (*   clear INCOMING_EQ. *)
       (*   cbn in *. *)
-      (*   admit. *)
+      (*   ad-mit. *)
       (* - *)
       (*   instantiate (1:= (negb (zeq z 0))). *)
       (*   econs; eauto. *)
@@ -349,12 +348,12 @@ Proof.
       (*     (* destruct (l0 == label_tgt2) eqn:T2. <-- This does NOT work !! *) *)
       (*     clarify; des_sumbool; ss. *)
       (*     rewrite Heq4. *)
-      (*     admit. *)
+      (*     ad-mit. *)
       (*   } *)
       (*   { *)
       (*     destruct (@eq_dec atom (EqDec_eq_of_EqDec atom EqDec_atom) l3 label_tgt2) eqn:T3; *)
       (*     clarify; des_sumbool; ss. *)
-      (*     admit. *)
+      (*     ad-mit. *)
       (*   } *)
     }
     i. inv STEP. unfold valid_phinodes in *.
