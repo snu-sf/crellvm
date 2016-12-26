@@ -475,7 +475,8 @@ Proof.
     exploit IHINJECT; eauto; []; ii; des.
     cbn.
     exploit simulation__fit_gv; eauto.
-    { admit. (* wf_sb_mi *) } ii; des.
+    { admit. (* wf_sb_mi *) }
+    ii; des.
     des_ifs.
     esplits; eauto.
     econs; eauto.
