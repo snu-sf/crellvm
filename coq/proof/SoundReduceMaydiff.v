@@ -210,6 +210,8 @@ Section Filter.
       eapply filter_subset_idT; eauto.
     - apply filter_AL_atom_preserves_wf_lc. eauto.
     - apply filter_AL_atom_preserves_wf_lc. eauto.
+    - ii. hexploit WF_VALUE; eauto.
+      eapply filter_subset_valueT; eauto.
   Qed.
 End Filter.
 
