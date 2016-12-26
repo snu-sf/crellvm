@@ -402,17 +402,32 @@ Proof.
     rewrite TGT, PARAM_TGT. esplits; eauto. econs; eauto.
 Qed.
 
+(* define with "Definition"? How is it good/bad compared with Inductive? *)
+(* ex: Definition -> sem_lessdef *)
+(* ex: Inductive -> sem_unique *)
+(* @jeehoonkang noted that # of premises can matter, it may be concatenated with "/\" when using "Definition" *)
+(* Also he mentioned econs/exploit's behavior may differ *)
 Inductive GVsMap_inject meminj gvs0 gvs1: Prop :=
 | GVsMap_inject_intro
     (INJECT:
        forall id gv0
        (LOOKUP: lookupAL GenericValue gvs0 id = ret gv0),
          exists gv1, lookupAL GenericValue gvs1 id = ret gv1 /\ gv_inject meminj gv0 gv1)
-    (* (INJECT id gv *)
-    (*    (LOOKUP: lookupAL GenericValue gvs0 id = ret gv) *)
-    (*    : *)
-    (* <<LOOKUP: lookupAL GenericValue gvs1 id = ret gv>>) *)
 .
+
+(* Definition GVsMap_inject *)
+(*            meminj gvs0 gvs1 *)
+(*   := *)
+(*     forall id gv0 (LOOKUP: lookupAL GenericValue gvs0 id = ret gv0), *)
+(*     <<LOOKUP: exists gv1, lookupAL GenericValue gvs1 id = ret gv1 /\ gv_inject meminj gv0 gv1>> *)
+(* . *)
+
+(* Definition GVsMap_inject *)
+(*            meminj gvs0 gvs1 id gv0 *)
+(*            (LOOKUP: lookupAL GenericValue gvs0 id = ret gv0) *)
+(*   := *)
+(*     <<LOOKUP: exists gv1, lookupAL GenericValue gvs1 id = ret gv1 /\ gv_inject meminj gv0 gv1>> *)
+(* . *)
 
 Ltac des_lookupAL_updateAddAL :=
   repeat match goal with
