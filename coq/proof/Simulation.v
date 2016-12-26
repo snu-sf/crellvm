@@ -17,34 +17,6 @@ Require Import GenericValues.
 Set Implicit Arguments.
 
 
-(* TODO: position *)
-Inductive error_state conf st: Prop :=
-| error_state_intro
-    (STUCK: stuck_state conf st)
-    (NFINAL: s_isFinialState conf st = None)
-.
-
-Lemma nerror_stuck_final
-      conf st
-      (NERROR: ~ error_state conf st)
-      (STUCK: stuck_state conf st):
-  exists retval, s_isFinialState conf st = Some retval.
-Proof.
-  destruct (s_isFinialState conf st) eqn:X; eauto.
-  exfalso. apply NERROR. econs; ss.
-Qed.
-
-Lemma nerror_nfinal_nstuck
-      conf st1
-      (NERROR: ~ error_state conf st1)
-      (NFINAL: s_isFinialState conf st1 = None):
-  exists st2 e, sInsn conf st1 st2 e.
-Proof.
-  destruct (classic (stuck_state conf st1)).
-  - contradict NERROR. econs; ss.
-  - apply NNPP in H. ss.
-Qed.
-
 Inductive sInsn_indexed (conf:Config):
   forall (st1 st2:State) (idx1 idx2:nat) (event:trace), Prop :=
 | sInsn_step
@@ -81,7 +53,7 @@ Section Sim.
       (STEP:
          forall st3_tgt event
            (STEP: sInsn conf_tgt st1_tgt st3_tgt event),
-         exists st2_src st3_src st3_tgt idx3,
+         exists st2_src st3_src idx3,
            sop_star conf_src st1_src st2_src E0 /\
            sInsn_indexed conf_src st2_src st3_src idx1 idx3 event /\
            sim idx3 st3_src st3_tgt)

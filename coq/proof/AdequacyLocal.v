@@ -33,32 +33,43 @@ Inductive sim_local_stack
 | sim_local_stack_cons
     ecs0_src ecs0_tgt inv0
     inv
-    func_src b_src id_src noret_src clattrs_src typ_src varg_src fun_src params_src cmds_src term_src locals_src allocas_src ecs_src
-    func_tgt b_tgt id_tgt noret_tgt clattrs_tgt typ_tgt varg_tgt fun_tgt params_tgt cmds_tgt term_tgt locals_tgt allocas_tgt ecs_tgt
+    func_src b_src id_src noret_src clattrs_src typ_src varg_src fun_src params_src cmds_src term_src locals_src allocas_src ecs_src mem_src uniqs_src privs_src
+    func_tgt b_tgt id_tgt noret_tgt clattrs_tgt typ_tgt varg_tgt fun_tgt params_tgt cmds_tgt term_tgt locals_tgt allocas_tgt ecs_tgt mem_tgt uniqs_tgt privs_tgt
     (STACK: sim_local_stack conf_src conf_tgt ecs0_src ecs0_tgt inv0)
     (LE0: InvMem.Rel.le inv0 inv)
     (NORET: noret_src = noret_tgt)
     (CLATTRS: clattrs_src = clattrs_tgt)
     (TYP: typ_src = typ_tgt)
     (VARG: varg_src = varg_tgt)
+    (UNIQS_SRC: forall mptr typ align val
+                  (LOAD: mload conf_src.(CurTargetData) mem_src mptr typ align = Some val),
+        InvMem.gv_diffblock_with_blocks conf_src val uniqs_src)
+    (UNIQS_GLOBALS_SRC: forall b, In b uniqs_src -> (inv.(InvMem.Rel.gmax) < b)%positive)
+    (UNIQS_TGT: forall mptr typ align val
+                  (LOAD: mload conf_tgt.(CurTargetData) mem_tgt mptr typ align = Some val),
+        InvMem.gv_diffblock_with_blocks conf_tgt val uniqs_tgt)
+    (UNIQS_GLOBALS_TGT: forall b, In b uniqs_tgt -> (inv.(InvMem.Rel.gmax) < b)%positive)
+    (PRIVS_SRC: forall b, In b privs_src -> InvMem.private_block mem_src (InvMem.Rel.public_src inv.(InvMem.Rel.inject)) b)
+    (PRIVS_TGT: forall b, In b privs_tgt -> InvMem.private_block mem_tgt (InvMem.Rel.public_tgt inv.(InvMem.Rel.inject)) b)
     (LOCAL:
        forall inv' mem'_src mem'_tgt retval'_src retval'_tgt locals'_src
-         (LE: InvMem.Rel.le inv inv')
+         (INCR: InvMem.Rel.le (InvMem.Rel.lift mem_src mem_tgt uniqs_src uniqs_tgt privs_src privs_tgt inv) inv')
          (MEM: InvMem.Rel.sem conf_src conf_tgt mem'_src mem'_tgt inv')
          (RETVAL: TODO.lift2_option (genericvalues_inject.gv_inject inv'.(InvMem.Rel.inject)) retval'_src retval'_tgt)
          (RETURN_SRC: return_locals
                         conf_src.(CurTargetData)
                         retval'_src id_src noret_src typ_src
                         locals_src = Some locals'_src),
-       exists idx' locals'_tgt,
+       exists inv'' idx' locals'_tgt,
          <<RETURN_TGT: return_locals
                          conf_tgt.(CurTargetData)
                          retval'_tgt id_tgt noret_tgt typ_tgt
                          locals_tgt = Some locals'_tgt>> /\
+         <<MEMLE: InvMem.Rel.le inv inv''>> /\
          <<SIM:
            sim_local
              conf_src conf_tgt ecs0_src ecs0_tgt
-             inv' idx'
+             inv'' idx'
              (mkState
                 (mkEC func_src b_src cmds_src term_src locals'_src allocas_src)
                 ecs_src
@@ -71,7 +82,7 @@ Inductive sim_local_stack
       conf_src conf_tgt
       ((mkEC func_src b_src ((insn_call id_src noret_src clattrs_src typ_src varg_src fun_src params_src)::cmds_src) term_src locals_src allocas_src) :: ecs_src)
       ((mkEC func_tgt b_tgt ((insn_call id_tgt noret_tgt clattrs_tgt typ_tgt varg_tgt fun_tgt params_tgt)::cmds_tgt) term_tgt locals_tgt allocas_tgt) :: ecs_tgt)
-      inv
+      (InvMem.Rel.lift mem_src mem_tgt uniqs_src uniqs_tgt privs_src privs_tgt inv)
 .
 
 Inductive sim_local_lift
@@ -87,10 +98,24 @@ Inductive sim_local_lift
     (LE0: InvMem.Rel.le inv0 inv)
 .
 
-Lemma sim_local_lift_sim:
-  sim_local_lift <5= sim.
+Definition sim_products
+          (conf_src conf_tgt:Config)
+          (prod_src prod_tgt:products): Prop :=
+  forall fid fdef_src fdef_tgt
+    (FDEF_SRC: lookupFdefViaIDFromProducts prod_src fid = Some fdef_src)
+    (FDEF_TGT: lookupFdefViaIDFromProducts prod_tgt fid = Some fdef_tgt),
+    sim_fdef conf_src conf_tgt fdef_src fdef_tgt.
+
+Inductive sim_conf (conf_src conf_tgt:Config): Prop :=
+| sim_conf_intro
+    (SIM_PRODUCTS: sim_products conf_src conf_tgt conf_src.(CurProducts) conf_tgt.(CurProducts))
+.
+
+Lemma sim_local_lift_sim conf_src conf_tgt
+      (SIM_CONF: sim_conf conf_src conf_tgt):
+  (sim_local_lift conf_src conf_tgt) <3= (sim conf_src conf_tgt).
 Proof.
-  s. intros conf_src conf_tgt. pcofix CIH.
+  s. pcofix CIH.
   intros idx st_src st_tgt SIM. inv SIM.
   pfold. punfold LOCAL. inv LOCAL.
   - (* error *)
@@ -132,13 +157,15 @@ Proof.
           instantiate (1 := Some _).
           eauto.
         }
+        { ss. }
         i. des. simtac.
         esplits; eauto.
-        { econs 1. econs ;eauto.
+        { econs 1. econs; eauto.
           rewrite returnUpdateLocals_spec, COND. ss.
         }
-        { right. apply CIH. econs; eauto.
-          admit. (* free_allocas *)
+        { right. apply CIH. econs; [..|M]; Mskip eauto.
+          - admit. (* free_allocas *)
+          - etransitivity; eauto.
         }
       * exploit LOCAL; eauto.
         { instantiate (2 := Some _).
@@ -152,8 +179,9 @@ Proof.
           rewrite returnUpdateLocals_spec, COND. s.
           rewrite COND2. ss.
         }
-        { right. apply CIH. econs; eauto.
-          admit. (* free_allocas *)
+        { right. apply CIH. econs; [..|M]; Mskip eauto.
+          - admit. (* free_allocas *)
+          - etransitivity; eauto.
         }
   - (* return_void *)
     eapply sop_star_sim; eauto.
@@ -176,7 +204,8 @@ Proof.
         - destruct noret_tgt; ss.
       }
       i. inv STEP0. ss.
-      exploit LOCAL; eauto.
+      exploit LOCAL; [M|..]; Mskip eauto.
+      { ss. }
       { instantiate (1 := None). instantiate (1 := None). ss. }
       { destruct noret_tgt; ss. }
       i. des.
@@ -192,13 +221,65 @@ Proof.
     exploit nerror_nfinal_nstuck; eauto. i. des.
     inv x0; ss.
     + (* call *)
-      admit.
+      exploit FUN; eauto. i. des.
+      exploit ARGS; eauto. i. des.
+      apply _sim_step; ss.
+      { admit. (* tgt not stuck *) }
+      i. inv STEP0; ss; cycle 1.
+      { admit. (* call & excall mismatch *) }
+      rewrite FUN_TGT in H22. inv H22.
+      rewrite ARGS_TGT in H25. inv H25.
+
+      (* assert (SIM_FDEF: sim_fdef conf_src conf_tgt  *)
+      assert (FID_SAME: fid0 = fid).
+      { admit. (* fid same *) }
+      subst.
+      exploit lookupFdefViaPtr_inversion; try exact H18. i. des.
+      exploit lookupFdefViaIDFromProducts_ideq; try exact x1. i. subst.
+      exploit lookupFdefViaPtr_inversion; try exact H23. i. des.
+      exploit lookupFdefViaIDFromProducts_ideq; try exact x3. i. subst.
+
+      inv SIM_CONF.
+      exploit SIM_PRODUCTS; try eapply invmem_lift; eauto.
+      { econs; eauto. }
+      i. des.
+
+      esplits; eauto.
+      * econs 1. econs; eauto.
+      * right. apply CIH. econs; try reflexivity.
+        { ss. }
+        { econs 2; eauto.
+          s. i.
+          hexploit RETURN; eauto. i. des. inv SIM; ss.
+          esplits; eauto.
+        }
+        { inv x.
+          unfold getEntryBlock in *.
+          des_ifs.
+          ss. clarify.
+          exact x4.
+        }
     + (* excall *)
-      admit.
+      exploit FUN; eauto. i. des.
+      exploit ARGS; eauto. i. des.
+      apply _sim_step; ss.
+      { admit. (* tgt not stuck *) }
+      i. inv STEP0; ss.
+      { admit. (* call & excall mismatch *) }
+      rewrite FUN_TGT in H22. inv H22.
+      rewrite ARGS_TGT in H24. inv H24.
+      hexploit RETURN; try reflexivity; eauto.
+      { admit. (* InvMem.Rel.sem *) }
+      { s. admit. (* retvals are related *) }
+      { rewrite exCallUpdateLocals_spec in *. eauto. }
+      i. des. inv SIM; ss.
+      esplits; eauto.
+      * econs 1. econs; eauto.
+        admit. (* callExternalOrIntrinsics *)
+      * admit. (* sim *)
   - (* step *)
     econs 3; ss. i. exploit STEP; eauto. i. des.
     inv SIM; [|done].
     esplits; eauto. right.
-    apply CIH. econs; eauto.
-    etransitivity; eauto.
+    apply CIH. econs; eauto. etransitivity; eauto.
 Admitted.

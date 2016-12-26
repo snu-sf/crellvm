@@ -202,6 +202,8 @@ module PrintHints = struct
       | Infrule.Coq_add_sub _ -> "add_sub"
       | Infrule.Coq_bop_associative (x, y, z, bop, c1, c2, c3, sz) ->
          "bop_assoc " ^ (string_of_bop bop)
+      | Infrule.Coq_bop_distributive_over_selectinst(pcode, r, s, t', t, x, y, z, c, bopsz, selty) -> 
+                                                "BopDistributiveOverSelectInst"
       | Infrule.Coq_bop_commutative (e, bop, x, y, s) -> "bop_commutative : " ^ 
                                                 ExprsToString.of_expr(e) ^ " ≥ " ^
                                                 ExprsToString.of_expr(Expr.Coq_value x) ^ (string_of_bop bop) ^
@@ -223,15 +225,41 @@ module PrintHints = struct
       | Infrule.Coq_add_shift _ -> "add_shift"
       | Infrule.Coq_add_signbit _ -> "add_signbit"
       | Infrule.Coq_add_zext_bool _ -> "add_zext_bool"
+      | Infrule.Coq_bitcastptr _ -> "bitcastptr"
+      | Infrule.Coq_diffblock_lessthan (x,y,x2,y2) -> "diffblock_lessthan " ^
+                                    (ExprsToString.of_ValueT x) ^ "_||_" ^
+                                    (ExprsToString.of_ValueT y) ^ " >= " ^
+                                    (ExprsToString.of_ValueT x2) ^ "_||_" ^
+                                    (ExprsToString.of_ValueT y2)
+      | Infrule.Coq_diffblock_noalias _ -> "diffblock_noalias"
+      | Infrule.Coq_diffblock_unique _ -> "diffblock_unique"
+      | Infrule.Coq_diffblock_global_unique _ -> "diffblock_global_unique"
       | Infrule.Coq_diffblock_global_global _ -> "diffblock_global_global"
-      | Infrule.Coq_diffblock_global_alloca _ -> "diffblock_global_alloca"
-      | Infrule.Coq_intro_eq v -> "intro_eq : " ^ ExprsToString.of_expr(Expr.Coq_value v)
+      | Infrule.Coq_fmul_commutative_tgt (z, x, y, fty) -> "fmul_commutative_tgt " ^
+                                    "fmul " ^ 
+                                    (string_of_typ (LLVMsyntax.Coq_typ_floatpoint fty)) ^ 
+                                    " " ^ (ExprsToString.of_ValueT x) ^
+                                    " " ^ (ExprsToString.of_ValueT y) ^
+                                    " >= " ^ (ExprsToString.of_IdT z)
+      | Infrule.Coq_gep_inbounds_add _ ->
+         "gep inbounds add"
+      | Infrule.Coq_gep_inbounds_remove (gepinst) ->
+         "gep inbounds remove: " ^ (ExprsToString.of_expr gepinst)
+      | Infrule.Coq_gepzero _ -> "gepzero"
+      | Infrule.Coq_intro_eq v -> "intro_eq : " ^ ExprsToString.of_expr(v)
+      | Infrule.Coq_intro_ghost _ -> "intro_ghost"
       | Infrule.Coq_or_xor3 (z, y, a, b, s) -> "or_xor3 : " ^ 
                                                 ExprsToString.of_expr(Expr.Coq_value y) ^ " ≥ "
                                                         ^ ExprsToString.of_expr(Expr.Coq_value a) ^ " ^ "
                                                         ^ ExprsToString.of_expr(Expr.Coq_value b) ^ " -> " ^
                                                 ExprsToString.of_expr(Expr.Coq_value z)
+      | Infrule.Coq_ptrtoint_load _ -> "ptrtoint_load"
+      | Infrule.Coq_ptrtoint_zero _ -> "ptrtoint_zero"
       | Infrule.Coq_transitivity (a, b, c) -> "transitivity : " ^
+                                                ExprsToString.of_expr a ^ " ≥ " ^
+                                                  ExprsToString.of_expr b ^ " ≥ " ^
+                                                    ExprsToString.of_expr c
+      | Infrule.Coq_transitivity_tgt (a, b, c) -> "transitivity_tgt : " ^
                                                 ExprsToString.of_expr a ^ " ≥ " ^
                                                   ExprsToString.of_expr b ^ " ≥ " ^
                                                     ExprsToString.of_expr c
@@ -256,8 +284,14 @@ module PrintHints = struct
                                                 ExprsToString.of_expr(Expr.Coq_value q) ^ " && " ^
                                                 ExprsToString.of_expr(Expr.Coq_value v) ^ " ≥ " ^
                                                 ExprsToString.of_expr(Expr.Coq_load (p, ty, a) )
-      | Infrule.Coq_gep_inbounds_remove (gepinst) ->
-         "gep inbounds remove: " ^ (ExprsToString.of_expr gepinst)
+      | Infrule.Coq_icmp_eq_same (ty, v1, v2) ->
+         "icmp_eq_same: " ^
+           "true >= icmp eq [" ^ ExprsToString.of_expr(Expr.Coq_value v1) ^ "] [" ^
+           ExprsToString.of_expr(Expr.Coq_value v2) ^ "] implies both are same"
+      | Infrule.Coq_and_true_bool (v1, v2) ->
+         "and_true_bool: " ^
+           "true >= and 1 [" ^ ExprsToString.of_expr(Expr.Coq_value v1) ^ "] [" ^
+           ExprsToString.of_expr(Expr.Coq_value v2) ^ "] implies both are true"
       | _ -> "infrule(TODO)"
 
     let infrules (infs:Infrule.t list): unit =

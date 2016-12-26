@@ -29,6 +29,18 @@ type register = {
   tag : tag;     (* indicates whether this register is physical or previous or ghost *)
 }
 
+type bop = [ | BopAdd | BopSub | BopMul | BopUdiv 
+             | BopSdiv | BopUrem | BopSrem | BopShl 
+             | BopLshr | BopAshr | BopAnd | BopOr 
+             | BopXor ] <ocaml repr="classic">
+
+type fbop = [ BopFadd | BopFsub | BopFmul | BopFdiv | BopFrem ] <ocaml repr="classic">
+
+type icmp_pred = [ | CondEq | CondNe | CondUgt | CondUge | CondUlt 
+              | CondUle | CondSgt | CondSge | CondSlt | CondSle ] <ocaml repr="classic">
+
+type fcmp_pred = [ CondFfalse | CondFoeq | CondFogt | CondFoge | CondFolt | CondFole | CondFone | CondFord | CondFuno | CondFueq | CondFugt | CondFuge | CondFult | CondFule | CondFune | CondFtrue ] <ocaml repr="classic">
+
 (* integer type of bitsize *)
 type int_type = [ IntType of int ] <ocaml repr="classic">
 
@@ -55,7 +67,7 @@ type value_type = [
     | IntValueType of int_type
     | FloatValueType of float_type
     | NamedType of string
-    | PtrType of (int * value_type)
+    | PtrType of (int * value_type) (* (addr space, type) *)
     | ArrayType of (int * value_type)
     | FunctionType of (value_type * (value_type list) * bool * int) (* (return-type, argument-type, is-var-arg, arg-size) *)
     | VectorType of (int * value_type)
@@ -68,7 +80,7 @@ type const_int = {
 }
 
 type const_float = {
-  float_value : float;
+  float_value : string;
   float_type : float_type;
 }
 
@@ -100,20 +112,28 @@ type const_expr_ptrtoint = {
   dstty : value_type;
 }
 
+type const_expr_binaryop = {
+  opcode : bop;
+  v1 : constant;
+  v2 : constant;
+}
+
 type constant_expr = [
   | ConstExprGetElementPtr of const_expr_get_element_ptr
   | ConstExprBitcast of const_expr_bitcast 
   | ConstExprInttoptr of const_expr_inttoptr
   | ConstExprPtrtoint of const_expr_ptrtoint
+  | ConstExprBinaryOp of const_expr_binaryop
   ] <ocaml repr="classic">
 
 type constant = [
   | ConstInt of const_int
   | ConstFloat of const_float
-  | ConstNull of (int * value_type)
+  | ConstNull of (int * value_type) (* addr space, type *)
   | ConstUndef of value_type 
   | ConstGlobalVarAddr of const_global_var_addr 
   | ConstDataVector of (value_type * constant list)
+  | ConstZeroInitializer of value_type
   | ConstExpr of constant_expr
   ] <ocaml repr="classic">
 
@@ -125,18 +145,6 @@ type pointer = {
   v : value;
   ty : value_type;
 }
-
-type bop = [ | BopAdd | BopSub | BopMul | BopUdiv 
-             | BopSdiv | BopUrem | BopSrem | BopShl 
-             | BopLshr | BopAshr | BopAnd | BopOr 
-             | BopXor ] <ocaml repr="classic">
-
-type fbop = [ BopFadd | BopFsub | BopFmul | BopFdiv | BopFrem ] <ocaml repr="classic">
-
-type icmp_pred = [ | CondEq | CondNe | CondUgt | CondUge | CondUlt 
-              | CondUle | CondSgt | CondSge | CondSlt | CondSle ] <ocaml repr="classic">
-
-type fcmp_pred = [ CondFfalse | CondFoeq | CondFogt | CondFoge | CondFolt | CondFole | CondFone | CondFord | CondFuno | CondFueq | CondFugt | CondFuge | CondFult | CondFule | CondFune | CondFtrue ] <ocaml repr="classic">
 
 type binary_operator = {
   opcode : bop;
@@ -229,6 +237,12 @@ type trunc_inst = {
   toty : value_type;
 }
 
+type fptosi_inst = {
+  fromty : value_type;
+  v : value;
+  toty : value_type;
+}
+
 type sitofp_inst = {
   fromty : value_type;
   v : value;
@@ -248,6 +262,21 @@ type select_inst = {
   falseval : value;
 }
 
+type extract_value_inst = {
+  aggrty : value_type;
+  aggrv : value;
+  idx : int list;
+  retty : value_type;
+}
+
+type insert_value_inst = {
+  aggrty : value_type;
+  aggrv : value;
+  argty : value_type;
+  argv : value;
+  idx : int list;
+}
+
 type instruction = [ 
   | BinaryOp of binary_operator
   | FloatBinaryOp of float_binary_operator
@@ -264,8 +293,11 @@ type instruction = [
   | ZextInst of zext_inst
   | SextInst of sext_inst
   | TruncInst of trunc_inst
+  | FptosiInst of fptosi_inst
   | SitofpInst of sitofp_inst
   | UitofpInst of uitofp_inst
+  | InsertValueInst of insert_value_inst
+  | ExtractValueInst of extract_value_inst
 ] <ocaml repr="classic">
 
 type expr = [
@@ -405,6 +437,12 @@ type substitute = {
 }
 
 type substitute_rev = {
+  x : register;
+  y : value;
+  e : expr;
+}
+
+type substitute_tgt = {
   x : register;
   y : value;
   e : expr;
@@ -621,6 +659,14 @@ type bop_commutative = {
   sz : size;
 }
 
+type fbop_commutative = {
+  e : expr;
+  fbop : fbop;
+  x : value;
+  y : value;
+  fty : float_type;
+}
+
 type bop_distributive_over_selectinst = {
   opcode : bop;
   r : register;
@@ -636,13 +682,6 @@ type bop_distributive_over_selectinst = {
 }
 
 type bitcastptr = {
-  v : value;
-  vprime : value;
-  bitcastinst : expr;
-}
-
-type bitcastptr_tgt = {
-  v : value;
   vprime : value;
   bitcastinst : expr;
 }
@@ -801,6 +840,13 @@ type fbop_distributive_over_selectinst2 = {
   selty : value_type;
 }
 
+type fmul_commutative_tgt = {
+  z : register;
+  x : value;
+  y : value;
+  fty : float_type;
+}
+
 type fpext_fpext = {
     src : value;
     mid : value;
@@ -874,7 +920,6 @@ type fptrunc_fpext = {
 }
 
 type gepzero = {
-  v : value;
   vprime : value;
   gepinst : expr;
 }
@@ -883,17 +928,25 @@ type gep_inbounds_remove = {
   gepinst : expr;
 }
 
+type gep_inbounds_add = {
+    v : value;
+    ptr : value;
+    loadty : value_type;
+    al : size;
+    e : expr;
+}
+
 type intro_ghost = {
   x : expr;
   g : register;
 }
 
 type intro_eq = {
-  x : value;
+  x : expr;
 }
 
 type intro_eq_tgt = {
-  x : value;
+  x : expr;
 }
 
 type inttoptr_load = {
@@ -1004,8 +1057,13 @@ type diffblock_global_global = {
   gy : constant;
 }
 
-type diffblock_global_alloca = {
-  gx : constant;
+type diffblock_global_unique = {
+    gx : constant;
+    y : register;
+}
+
+type diffblock_unique = {
+  x : register;
   y : register;
 }
 
@@ -1137,6 +1195,15 @@ type ptrtoint_bitcast = {
     dstty : value_type;
 }
 
+type ptrtoint_inttoptr = {
+    src : value;
+    mid : value;
+    dst : value;
+    srcty : value_type;
+    midty : value_type;
+    dstty : value_type;
+}
+
 type ptrtoint_load = {
     ptr : value;
     ptrty : value_type;
@@ -1146,12 +1213,163 @@ type ptrtoint_load = {
     a : size;
 }
 
+type ptrtoint_zero = {
+    ptrty : value_type;
+    intty : value_type;
+}
+
 type rem_neg = {
   z : register;
   my : value;
   x : value;
   y : value;
   sz : size;
+}
+
+type select_icmp_eq = {
+    z : value;
+    y : value;
+    x : value;
+    v : value;
+    c : constant;
+    cty : value_type;
+}
+
+type select_icmp_eq_xor1 = {
+    z : value;
+    zprime : value;
+    v : value;
+    x : value;
+    u : value;
+    w : value;
+    c : const_int;
+    cprime : const_int;
+    s : size;
+}
+
+type select_icmp_eq_xor2 = {
+    z : value;
+    zprime : value;
+    v : value;
+    x : value;
+    u : value;
+    w : value;
+    c : const_int;
+    s : size;
+}
+
+type select_icmp_ne = {
+    z : value;
+    y : value;
+    x : value;
+    v : value;
+    c : constant;
+    cty : value_type;
+}
+
+type select_icmp_ne_xor1 = {
+    z : value;
+    zprime : value;
+    v : value;
+    x : value;
+    u : value;
+    w : value;
+    c : const_int;
+    cprime : const_int;
+    s : size;
+}
+
+type select_icmp_ne_xor2 = {
+    z : value;
+    zprime : value;
+    v : value;
+    x : value;
+    u : value;
+    w : value;
+    c : const_int;
+    s : size;
+}
+
+type select_icmp_sgt_const = {
+    z : register;
+    y : value;
+    x : value;
+    c : const_int;
+    cprime : const_int;
+    selcomm : bool;
+    s : size;
+}
+
+type select_icmp_sgt_xor1 = {
+    z : value;
+    zprime : value;
+    v : value;
+    x : value;
+    u : value;
+    c : const_int;
+    cprime : const_int;
+    s : size;
+}
+
+type select_icmp_sgt_xor2 = {
+    z : value;
+    zprime : value;
+    v : value;
+    x : value;
+    u : value;
+    c : const_int;
+    s : size;
+}
+
+type select_icmp_slt_const = {
+    z : register;
+    y : value;
+    x : value;
+    c : const_int;
+    cprime : const_int;
+    selcomm : bool;
+    s : size;
+}
+
+type select_icmp_slt_xor1 = {
+    z : value;
+    zprime : value;
+    v : value;
+    x : value;
+    u : value;
+    c : const_int;
+    cprime : const_int;
+    s : size;
+}
+
+type select_icmp_slt_xor2 = {
+    z : value;
+    zprime : value;
+    v : value;
+    x : value;
+    u : value;
+    c : const_int;
+    s : size;
+}
+
+type select_icmp_ugt_const = {
+    z : register;
+    y : value;
+    x : value;
+    c : const_int;
+    cprime : const_int;
+    selcomm : bool;
+    s : size;
+}
+
+type select_icmp_ult_const = {
+    z : register;
+    y : value;
+    x : value;
+    c : const_int;
+    cprime : const_int;
+    selcomm : bool;
+    s : size;
 }
 
 type sext_ashr = {
@@ -1183,6 +1401,16 @@ type sext_trunc = {
   c : const_int;
   sz1 : size;
   sz2 : size;
+}
+
+type sext_trunc_ashr = {
+    z : value;
+    x : value;
+    xprime : value;
+    v : value;
+    s1 : size;
+    s2 : size;
+    i3 : const_int;
 }
 
 type shift_undef1 = {
@@ -1541,6 +1769,7 @@ type zext_xor = {
     y : value;
     yprime : value;
     x : value;
+    s : size;
 }
 
 type zext_zext = {
@@ -1571,6 +1800,14 @@ type icmp_inverse_rhs = {
 type icmp_swap_operands = {
   predicate : icmp_pred;
   ty : value_type;
+  x : value;
+  y : value;
+  z : value;
+}
+
+type fcmp_swap_operands = {
+  predicate : fcmp_pred;
+  fty : float_type;
   x : value;
   y : value;
   z : value;
@@ -1807,15 +2044,18 @@ type infrule = [
   | Bitcastptr of bitcastptr
   | BopAssociative of bop_associative
   | BopCommutative of bop_commutative
+  | FbopCommutative of fbop_commutative
   | BopDistributiveOverSelectinst of bop_distributive_over_selectinst
   | BopDistributiveOverSelectinst2 of bop_distributive_over_selectinst2
-  | DiffblockGlobalAlloca of diffblock_global_alloca
+  | DiffblockUnique of diffblock_unique
   | DiffblockGlobalGlobal of diffblock_global_global
+  | DiffblockGlobalUnique of diffblock_global_unique
   | DiffblockLessthan of diffblock_lessthan
   | DiffblockNoalias of diffblock_noalias
   | FaddCommutativeTgt of fadd_commutative_tgt
   | FbopDistributiveOverSelectinst of fbop_distributive_over_selectinst
   | FbopDistributiveOverSelectinst2 of fbop_distributive_over_selectinst2
+  | FmulCommutativeTgt of fmul_commutative_tgt
   | FpextBitcast of fpext_bitcast
   | FpextFpext of fpext_fpext
   | FptosiBitcast of fptosi_bitcast
@@ -1826,6 +2066,7 @@ type infrule = [
   | FptruncFpext of fptrunc_fpext
   | Gepzero of gepzero
   | GepInboundsRemove of gep_inbounds_remove
+  | GepInboundsAdd of gep_inbounds_add
   | IntroGhost of intro_ghost
   | IntroEq of intro_eq
   | IntroEqTgt of intro_eq_tgt
@@ -1853,7 +2094,9 @@ type infrule = [
   | OrXor4 of or_xor4
   | OrZero of or_zero
   | PtrtointBitcast of ptrtoint_bitcast
+  | PtrtointInttoptr of ptrtoint_inttoptr
   | PtrtointLoad of ptrtoint_load
+  | PtrtointZero of ptrtoint_zero
   | MulBool of mul_bool
   | MulMone of mul_mone
   | MulNeg of mul_neg
@@ -1861,12 +2104,28 @@ type infrule = [
   | RemNeg of rem_neg
   | Substitute of substitute
   | SubstituteRev of substitute_rev
+  | SubstituteTgt of substitute_tgt
   | ReplaceRhs of replace_rhs
   | ReplaceRhsOpt of replace_rhs_opt
   | SdivMone of sdiv_mone
   | SdivSubSrem of sdiv_sub_srem
+  | SelectIcmpEq of select_icmp_eq
+  | SelectIcmpEqXor1 of select_icmp_eq_xor1
+  | SelectIcmpEqXor2 of select_icmp_eq_xor2
+  | SelectIcmpNe of select_icmp_ne
+  | SelectIcmpNeXor1 of select_icmp_ne_xor1
+  | SelectIcmpNeXor2 of select_icmp_ne_xor2
+  | SelectIcmpSgtConst of select_icmp_sgt_const
+  | SelectIcmpSgtXor1 of select_icmp_sgt_xor1
+  | SelectIcmpSgtXor2 of select_icmp_sgt_xor2
+  | SelectIcmpSltXor1 of select_icmp_slt_xor1
+  | SelectIcmpSltXor2 of select_icmp_slt_xor2
+  | SelectIcmpSltConst of select_icmp_slt_const
+  | SelectIcmpUgtConst of select_icmp_ugt_const
+  | SelectIcmpUltConst of select_icmp_ult_const
   | SextBitcast of sext_bitcast
   | SextSext of sext_sext
+  | SextTruncAshr of sext_trunc_ashr
   | SextZext of sext_zext
   | ShiftUndef1 of shift_undef1
   | ShiftUndef2 of shift_undef2
@@ -1915,6 +2174,7 @@ type infrule = [
   | IcmpInverse of icmp_inverse
   | IcmpInverseRhs of icmp_inverse_rhs
   | IcmpSwapOperands of icmp_swap_operands
+  | FcmpSwapOperands of fcmp_swap_operands
   | ImpliesFalse of implies_false
   | IcmpEqAddAdd of icmp_eq_add_add
   | IcmpEqSrem of icmp_eq_srem

@@ -20,6 +20,7 @@ Require Import Nop.
 Require Import Simulation.
 Require Import SimulationLocal.
 Require Import Inject.
+Require Import SoundBase.
 Require InvMem.
 Require InvState.
 
@@ -233,15 +234,23 @@ Lemma nop_sim
       (CONF: inject_conf conf_src conf_tgt):
   (nop_state_sim conf_src conf_tgt) <6= (sim_local conf_src conf_tgt).
 Proof.
-  intros stack0_src stack0_tgt.
-  pcofix CIH.
-  intros inv0 idx0 st_src st_tgt SIM. pfold.
+  s. intros stack0_src stack0_tgt.
+  pcofix CIH. intros inv0 idx0 st_src st_tgt SIM. pfold.
   generalize (classic (stuck_state conf_tgt st_tgt)). intro STUCK_TGT. des.
-  { inv SIM. eapply _sim_local_error.
-    - econs 1.
-    - admit.
-      (* tgt stuck -> src stuck; old simplberry *)
-      (* final state *)
+  { destruct (s_isFinialState conf_tgt st_tgt) eqn:FINAL_TGT; cycle 1.
+    - exploit error_state_intro; eauto. i.
+      (* tgt stuck -> src stuck; see old simplberry *)
+      admit.
+    - destruct st_tgt; ss. destruct EC0; ss. destruct CurCmds0; ss.
+      destruct ECS0; [|by destruct Terminator0].
+      inv SIM.
+      exploit nop_cmds_tgt_nil; eauto. intro NOPS.
+      rewrite (app_nil_end cmds_src).
+      eapply sop_star_sim_local; [by apply nops_sop_star|].
+      destruct Terminator0; inv FINAL_TGT.
+      + econs 2; ss. s. i.
+        eapply inject_locals_getOperandValue; eauto.
+      + econs 3; ss.
   }
   apply NNPP in STUCK_TGT. destruct STUCK_TGT as (st'_tgt & tr_tgt & PROGRESS_TGT).
   destruct st_src as [ec_src ecs_src mem_src].
@@ -263,13 +272,22 @@ Proof.
     eapply _sim_local_call; try apply STEPS; try eexact x0; ss; try reflexivity; eauto.
     { s. i. eapply inject_locals_getOperandValue; eauto. }
     { s. i. eapply inject_locals_params2GVs; eauto. }
-    s. i. esplits.
-    + admit.
-    + reflexivity.
-    + right. eapply CIH. econs; ss.
-      * eapply inject_locals_inj_incr; eauto.
-        admit.
-      * eapply inject_allocas_inj_incr; eauto.
+    exists nil, nil, nil, nil. esplits; try (ii; des; contradiction).
+    s. i.
+    exploit return_locals_inject_locals; eauto.
+    { assert (INJECT_LOCALS_LIFT: inject_locals (InvMem.Rel.lift mem_src mem_tgt [] [] [] [] inv0) locals_src locals_tgt).
+      { eapply meminj_eq_inject_locals; eauto. }
+      eapply inject_locals_inj_incr; eauto.
+    }
+    i. des.
+    esplits; eauto.
+    + inv CONF. rewrite <- TARGETDATA. eauto.
+    + eapply lift_unlift_le. eauto.
+    + right. eapply CIH.
+      econs; ss; eauto.
+      { eapply inject_incr_inject_allocas; eauto.
+        ss. inv INCR. ss. }
+      { eapply invmem_unlift; eauto. }
   - (* return *)
     exploit get_status_return_inv; eauto. i. des.
     inv SIM. ss. subst.

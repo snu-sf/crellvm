@@ -19,6 +19,7 @@ Require Import Decs.
 Require Import Hints.
 Require Import Validator.
 Require Import GenericValues.
+Require Import TODOProof.
 Require Import PropOpsem.
 Require Import SimulationLocal.
 Require Import Simulation.
@@ -26,6 +27,7 @@ Require Import AdequacyLocal.
 Require Import Inject.
 Require InvMem.
 Require InvState.
+Require Import PropValid.
 Require Import SoundBase.
 Require Import SoundImplies.
 Require Import SoundPostcondCmd.
@@ -48,7 +50,7 @@ Inductive valid_state_sim
     fdef_hint cmds_hint
     inv inv_term
     invst
-    (CONF: valid_conf m_src m_tgt conf_src conf_tgt)
+    (CONF: InvState.valid_conf m_src m_tgt conf_src conf_tgt)
     (ECS_SRC: st_src.(ECS) = stack0_src)
     (ECS_TGT: st_tgt.(ECS) = stack0_tgt)
     (FDEF: valid_fdef m_src m_tgt st_src.(EC).(CurFunction) st_tgt.(EC).(CurFunction) fdef_hint)
@@ -77,7 +79,7 @@ Lemma valid_init
       (FDEF: valid_fdef m_src m_tgt fdef_src fdef_tgt fdef_hint)
       (ARGS: list_forall2 (genericvalues_inject.gv_inject inv.(InvMem.Rel.inject)) args_src args_tgt)
       (MEM: InvMem.Rel.sem conf_src conf_tgt mem_src mem_tgt inv)
-      (CONF: valid_conf m_src m_tgt conf_src conf_tgt)
+      (CONF: InvState.valid_conf m_src m_tgt conf_src conf_tgt)
       (INIT_SRC: init_fdef conf_src fdef_src args_src ec_src):
   exists ec_tgt,
     <<INIT_TGT: init_fdef conf_tgt fdef_tgt args_tgt ec_tgt>> /\
@@ -128,38 +130,246 @@ Proof.
     rewrite COND0, COND1, COND2, COND3, COND4. ss.
 Qed.
 
-(* TODO: position *)
-Lemma valid_fdef_valid_stmts
-      m_src m_tgt fdef_src fdef_tgt fdef_hint l
-      phinodes_src cmds_src terminator_src
-      phinodes_tgt cmds_tgt terminator_tgt
-      stmts_hint
-      (FDEF: valid_fdef m_src m_tgt fdef_src fdef_tgt fdef_hint)
-      (SRC: lookupAL stmts (get_blocks fdef_src) l = Some (stmts_intro phinodes_src cmds_src terminator_src))
-      (TGT: lookupAL stmts (get_blocks fdef_tgt) l = Some (stmts_intro phinodes_tgt cmds_tgt terminator_tgt))
-      (HINT: lookupAL _ fdef_hint l = Some stmts_hint):
-  exists inv_term,
-    <<CMDS: valid_cmds m_src m_tgt cmds_src cmds_tgt
-                       stmts_hint.(Hints.ValidationHint.cmds)
-                       stmts_hint.(ValidationHint.invariant_after_phinodes) =
-            Some inv_term>> /\
-    <<TERM: valid_terminator fdef_hint inv_term m_src m_tgt
-                             fdef_src.(get_blocks) fdef_tgt.(get_blocks)
-                             l terminator_src terminator_tgt>>.
+Lemma valid_sim_term
+      (conf_src conf_tgt : Config)
+      (r : ECStack -> ECStack -> InvMem.Rel.t -> nat -> State -> State -> Prop)
+      (inv0 : InvMem.Rel.t)
+      (idx0 : nat)
+      (CurFunction0 : fdef)
+      (CurBB0 : block)
+      (Terminator0 : terminator)
+      (Locals0 : GVsMap)
+      (Allocas0 : list mblock)
+      (ECS0 : ECStack)
+      (Mem0 : mem)
+      (CurFunction1 : fdef)
+      (CurBB1 : block)
+      (Terminator1 : terminator)
+      (Locals1 : GVsMap)
+      (Allocas1 : list mblock)
+      (ECS1 : ECStack)
+      (Mem1 : mem)
+      (ERROR_SRC : ~
+                     error_state conf_src
+                     {|
+                       EC := {|
+                              CurFunction := CurFunction0;
+                              CurBB := CurBB0;
+                              CurCmds := [];
+                              Terminator := Terminator0;
+                              Locals := Locals0;
+                              Allocas := Allocas0 |};
+                       ECS := ECS0;
+                       Mem := Mem0 |})
+      (m_src m_tgt : module)
+      (fdef_hint : ValidationHint.fdef)
+      (inv_term : Invariant.t)
+      (invst : InvState.Rel.t)
+      (CONF : InvState.valid_conf m_src m_tgt conf_src conf_tgt)
+      (FDEF : valid_fdef m_src m_tgt CurFunction0 CurFunction1 fdef_hint)
+      (LABEL : fst CurBB0 = fst CurBB1)
+      (TERM : valid_terminator fdef_hint inv_term m_src m_tgt (get_blocks CurFunction0)
+                               (get_blocks CurFunction1) (fst CurBB0) Terminator0 Terminator1)
+      (MEM : InvMem.Rel.sem conf_src conf_tgt Mem0 Mem1 inv0)
+      (CIH : forall (x2 : InvMem.Rel.t) (x3 : nat) (x4 x5 : State),
+          valid_state_sim conf_src conf_tgt ECS0 ECS1 x2 x3 x4 x5 -> r ECS0 ECS1 x2 x3 x4 x5)
+      (STATE : InvState.Rel.sem conf_src conf_tgt
+                                {|
+                                  EC := {|
+                                         CurFunction := CurFunction0;
+                                         CurBB := CurBB0;
+                                         CurCmds := [];
+                                         Terminator := Terminator0;
+                                         Locals := Locals0;
+                                         Allocas := Allocas0 |};
+                                  ECS := ECS0;
+                                  Mem := Mem0 |}
+                                {|
+                                  EC := {|
+                                         CurFunction := CurFunction1;
+                                         CurBB := CurBB1;
+                                         CurCmds := [];
+                                         Terminator := Terminator1;
+                                         Locals := Locals1;
+                                         Allocas := Allocas1 |};
+                                  ECS := ECS1;
+                                  Mem := Mem1 |} invst inv0 inv_term)
+  :
+    <<GOAL: _sim_local conf_src conf_tgt (upaco6 (_sim_local conf_src conf_tgt) r) ECS0 ECS1 inv0 idx0
+                       {|
+                         EC := {|
+                                CurFunction := CurFunction0;
+                                CurBB := CurBB0;
+                                CurCmds := [];
+                                Terminator := Terminator0;
+                                Locals := Locals0;
+                                Allocas := Allocas0 |};
+                         ECS := ECS0;
+                         Mem := Mem0 |}
+                       {|
+                         EC := {|
+                                CurFunction := CurFunction1;
+                                CurBB := CurBB1;
+                                CurCmds := [];
+                                Terminator := Terminator1;
+                                Locals := Locals1;
+                                Allocas := Allocas1 |};
+                         ECS := ECS1;
+                         Mem := Mem1 |}>>
+.
 Proof.
-  unfold valid_fdef in FDEF.
-  do 2 simtac0.
-  destruct (negb (fheader_dec fheader5 fheader0)) eqn:X; ss.
-  apply andb_true_iff in FDEF. des. clear FDEF. simtac.
-  revert SRC TGT FDEF0.
-  generalize blocks0 at 1 3.
-  generalize blocks5 at 1 3.
-  induction blocks1; i; ss.
-  destruct blocks2; [by inv FDEF0|].
-  unfold forallb2AL in FDEF0. simtac; eauto.
-  rewrite HINT in COND. inv COND.
-  esplits; eauto.
-Qed.
+  unfold valid_terminator in TERM.
+  simtac;
+    (try by exfalso; eapply has_false_False; eauto).
+  destruct Terminator0, Terminator1; simtac.
+  + (* return *)
+    eapply _sim_local_return; eauto; ss.
+    i. exploit InvState.Rel.inject_value_spec; eauto.
+    { rewrite InvState.Unary.sem_valueT_physical. eauto. }
+    i. des. rewrite InvState.Unary.sem_valueT_physical in VAL_TGT. ss.
+    esplits; eauto.
+  + (* return_void *)
+    eapply _sim_local_return_void; eauto; ss.
+  + (* br *)
+    exploit nerror_nfinal_nstuck; eauto. i. des. inv x0.
+    rewrite <- (ite_spec decision l0 l3) in *. simtac.
+    exploit InvState.Rel.inject_value_spec; eauto.
+    { rewrite InvState.Unary.sem_valueT_physical. eauto. }
+    rewrite InvState.Unary.sem_valueT_physical. s. i. des.
+    eapply _sim_local_step.
+    { admit. (* tgt not stuck *) }
+    i. inv STEP. unfold valid_phinodes in *.
+    do 12 simtac0. rewrite <- (ite_spec decision0 l0 l3) in *. simtac.
+    rewrite VAL_TGT in H16. inv H16.
+    exploit decide_nonzero_inject_aux; eauto.
+    { inv CONF. inv INJECT0. ss. subst. eauto. }
+    i. subst.
+    exploit add_terminator_cond_br; eauto. i. des.
+    rewrite lookupBlockViaLabelFromFdef_spec in *.
+    exploit (lookupAL_ite fdef_hint decision0 l0 l3); eauto. clear COND7 COND3. i.
+    exploit (lookupAL_ite CurFunction0.(get_blocks) decision0 l0 l3); eauto. clear COND8 COND4. i.
+    exploit (lookupAL_ite CurFunction1.(get_blocks) decision0 l0 l3); eauto. clear COND9 COND5. i.
+    idtac.
+    unfold l in H14. rewrite x2 in H14. inv H14.
+    unfold l in H18. rewrite x3 in H18. inv H18.
+    destruct decision0; inv H0; inv H1; ss.
+    * exploit postcond_phinodes_sound;
+        (try instantiate (1 := (mkState (mkEC _ _ _ _ _ _) _ _))); s;
+          (try eexact x0; try eexact MEM);
+          (try eexact H19; try eexact H15); ss; eauto.
+      i. des.
+      exploit apply_infrules_sound; try exact STATE0; eauto; ss. i. des.
+      exploit reduce_maydiff_sound; eauto; ss. i. des.
+      exploit implies_sound; try exact COND2; eauto; ss. i. des.
+      exploit valid_fdef_valid_stmts; eauto. i. des.
+      esplits; eauto.
+      { econs 1. econs; eauto. rewrite lookupBlockViaLabelFromFdef_spec. ss. }
+      { right. apply CIH. econs; ss; eauto; ss; eauto. }
+    * exploit postcond_phinodes_sound;
+        (try instantiate (1 := (mkState (mkEC _ _ _ _ _ _) _ _))); s;
+          (try eexact x0; try eexact MEM);
+          (try eexact H19; try eexact H15); ss; eauto.
+      i. des.
+      exploit apply_infrules_sound; try exact STATE0; eauto; ss. i. des.
+      exploit reduce_maydiff_sound; eauto; ss. i. des.
+      exploit implies_sound; try exact COND11; eauto; ss. i. des.
+      exploit valid_fdef_valid_stmts; eauto. i. des.
+      esplits; eauto.
+      { econs 1. econs; eauto. rewrite lookupBlockViaLabelFromFdef_spec. ss. }
+      { right. apply CIH. econs; ss; eauto; ss; eauto. }
+  + (* br_uncond *)
+    exploit nerror_nfinal_nstuck; eauto. i. des. inv x0. simtac.
+    eapply _sim_local_step.
+    { admit. (* tgt not stuck *) }
+    i. inv STEP. unfold valid_phinodes in *. simtac.
+    rewrite add_terminator_cond_br_uncond in *.
+    rewrite lookupBlockViaLabelFromFdef_spec in *.
+    rewrite COND2 in H10. inv H10.
+    rewrite COND3 in H12. inv H12.
+    exploit postcond_phinodes_sound;
+      (try instantiate (1 := (mkState (mkEC _ _ _ _ _ _) _ _))); s;
+        (try eexact COND4; try eexact MEM);
+        (try eexact H11; try eexact H13); ss; eauto.
+    i. des.
+    exploit apply_infrules_sound; eauto; ss. i. des.
+    exploit reduce_maydiff_sound; eauto; ss. i. des.
+    exploit implies_sound; eauto; ss. i. des.
+    exploit implies_sound; eauto; ss. i. des.
+    exploit valid_fdef_valid_stmts; eauto. i. des.
+    esplits; eauto.
+    * econs 1. econs; eauto. rewrite lookupBlockViaLabelFromFdef_spec. ss.
+    * right. apply CIH. econs; ss; eauto; ss; eauto.
+  + (* switch *)
+    destruct (list_const_l_dec l0 l1); ss. subst.
+    exploit nerror_nfinal_nstuck; eauto. i. des. inv x0.
+    exploit InvState.Rel.inject_value_spec; eauto.
+    { rewrite InvState.Unary.sem_valueT_physical. eauto. }
+    rewrite InvState.Unary.sem_valueT_physical. s. i. des.
+    exploit get_switch_branch_inject; eauto. i.
+    eapply _sim_local_step.
+    { admit. (* tgt not stuck *) }
+    i. inv STEP.
+    assert (CONF_EQ: TD0 = TD /\ gl0 = gl).
+    { inv CONF.
+      match goal with
+      | [INJ: inject_conf _ _ |- _] => inv INJ
+      end. ss. }
+    des. subst. ss. clarify.
+    unfold valid_phinodes in *. simtac.
+    exploit add_terminator_cond_switch; eauto. i. des.
+    rewrite lookupBlockViaLabelFromFdef_spec in *.
+
+    rewrite forallb_forall in COND2.
+    exploit get_switch_branch_in_successors; eauto.
+    i. unfold successors_terminator in *.
+    apply nodup_In in x2. ss. des.
+    { (* default *)
+      subst.
+      rewrite COND4 in H15. inv H15.
+      rewrite COND5 in H19. inv H19.
+      exploit postcond_phinodes_sound; try exact x1; eauto.
+      { rewrite <- LABEL. eauto. }
+      i. des.
+      exploit apply_infrules_sound; eauto; ss. i. des.
+      exploit reduce_maydiff_sound; eauto; ss. i. des.
+      exploit implies_sound; eauto; ss. i. des.
+      exploit implies_sound; eauto; ss. i. des.
+      exploit valid_fdef_valid_stmts; eauto. i. des.
+      esplits; eauto.
+      * econs 1. econs; eauto. rewrite lookupBlockViaLabelFromFdef_spec. ss.
+      * right. apply CIH. econs; ss; eauto; ss; eauto.
+    }
+    { (* case *)
+      apply list_prj2_inv in x2. des.
+      exploit COND2; eauto. i.
+      des_ifs. simtac. clear COND2.
+      rewrite <- H15 in Heq1. inv Heq1.
+      rewrite <- H19 in Heq2. inv Heq2.
+      clear dependent phinodes5.
+      clear dependent phinodes0.
+      exploit postcond_phinodes_sound; try exact x1; eauto.
+      { rewrite <- LABEL. eauto. }
+      i. des.
+      exploit apply_infrules_sound; eauto; ss. i. des.
+      exploit reduce_maydiff_sound; eauto; ss. i. des.
+      exploit implies_sound; eauto; ss. i. des.
+      exploit implies_sound; eauto; ss. i. des.
+      exploit valid_fdef_valid_stmts; eauto. i. des.
+      esplits; eauto.
+      * econs 1. econs; eauto. rewrite lookupBlockViaLabelFromFdef_spec. ss.
+      * right. apply CIH. econs; ss; eauto; ss; eauto.
+    }
+  + (* unreachable *)
+    exploit nerror_nfinal_nstuck; eauto. i. des. inv x0.
+Unshelve.
+apply O.
+apply O.
+apply O.
+ss.
+ss.
+apply O.
+apply O.
+Admitted.
 
 Lemma valid_sim
       conf_src conf_tgt:
@@ -174,90 +384,101 @@ Proof.
   destruct CurCmds0; simtac;
     (try by exfalso; eapply has_false_False; eauto).
   - (* term *)
-    unfold valid_terminator in TERM.
-    simtac;
-      (try by exfalso; eapply has_false_False; eauto).
-    destruct Terminator0, Terminator1; simtac.
-    + (* return *)
-      eapply _sim_local_return; eauto; ss.
-      i. exploit InvState.Rel.inject_value_spec; eauto.
-      { rewrite InvState.Unary.sem_valueT_physical. eauto. }
-      i. des. rewrite InvState.Unary.sem_valueT_physical in VAL_TGT. ss.
-      esplits; eauto.
-    + (* return_void *)
-      eapply _sim_local_return_void; eauto; ss.
-    + (* br *)
-      (* rewrite <- (ite_spec decision l1 l2) in *. simtac. rewrite ite_spec in *. *)
-      (* exploit InvState.Rel.inject_value_spec; eauto. *)
-      (* { rewrite InvState.Unary.sem_valueT_physical. eauto. } *)
-      (* rewrite InvState.Unary.sem_valueT_physical. s. i. des. *)
-      (* eapply _sim_local_step. *)
-      (* { admit. (* tgt not stuck *) } *)
-      (* i. inv STEP. ss. *)
-      (* rewrite VAL_TGT in H16. inv H16. *)
-      (* inv CONF. inv INJECT0. ss. subst. *)
-      (* exploit inject_decide_nonzero; eauto. i. subst. *)
-      (* assert (PHINODES: *)
-      (*           valid_phinodes fdef_hint inv_term m_src m_tgt *)
-      (*                          (get_blocks CurFunction0) (get_blocks CurFunction1) *)
-      (*                          (fst CurBB0) (if decision0 then l0 else l3)) *)
-      (*   by (destruct decision0; ss). *)
-      (* clear COND1 COND2. *)
-      (* unfold valid_phinodes in *. *)
-      (* rewrite <- (ite_spec decision0 l0 l3) in *. *)
-      (* simtac. unfold Postcond.postcond_phinodes in *. simtac. *)
-      (* rewrite ite_spec in *. *)
-      (* (* TODO: Lemma sound_postcond_phinodes *) *)
-      (* esplits; eauto. *)
-      (* { econs 1. econs; eauto. } *)
-      (* { reflexivity. } *)
-      (* right. apply CIH. *)
-      (* instantiate (1 := mkState _ _ _). *)
-      (* instantiate (3 := mkEC _ _ _ _ _ _). *)
-      (* econs; ss; eauto. *)
-      (* * admit. (* valid_cmds *) *)
-      (* * admit. (* valid_terminator *) *)
-      (* * admit. (* InvState.Rel.sem *) *)
-      admit.
-    + (* br_uncond *)
-      exploit nerror_nfinal_nstuck; eauto. i. des. inv x0. simtac.
-      eapply _sim_local_step.
-      { admit. (* tgt not stuck *) }
-      i. inv STEP. unfold valid_phinodes in *. simtac.
-      rewrite add_terminator_cond_br_uncond in *.
-      rewrite lookupBlockViaLabelFromFdef_spec in *.
-      rewrite COND2 in H10. inv H10.
-      rewrite COND3 in H12. inv H12.
-      exploit postcond_phinodes_sound;
-        (try instantiate (1 := (mkState (mkEC _ _ _ _ _ _) _ _))); s;
-        (try eexact COND4; try eexact MEM);
-        (try eexact H11; try eexact H13); ss; eauto.
-      i. des.
-      exploit apply_infrules_sound; eauto; ss. i. des.
-      exploit reduce_maydiff_sound; eauto; ss. i. des.
-      exploit implies_sound; eauto; ss. i. des.
-      exploit implies_sound; eauto; ss. i. des.
-      exploit valid_fdef_valid_stmts; eauto. i. des.
-      esplits; eauto.
-      * econs 1. econs; eauto. rewrite lookupBlockViaLabelFromFdef_spec. ss.
-      * right. apply CIH. econs; ss; eauto; ss; eauto.
-    + (* switch *)
-      admit.
-    + exploit nerror_nfinal_nstuck; eauto. i. des. inv x0.
+    eapply valid_sim_term; eauto.
   - (* cmd *)
     destruct (Instruction.isCallInst c) eqn:CALL.
     + (* call *)
+      exploit postcond_cmd_is_call; eauto. i.
       destruct c; ss. destruct c0; ss.
-      exploit postcond_call_sound;
-        (try instantiate (1 := (mkState (mkEC _ _ _ _ _ _) _ _))); ss; eauto; ss.
-      i. des. subst. simtac.
+      hexploit postcond_call_sound; try exact COND; eauto;
+        (try instantiate (2 := (mkState (mkEC _ _ _ _ _ _) _ _))); ss; eauto; ss.
+      i. des. subst. do 24 simtac0. des.
       eapply _sim_local_call; ss; eauto; ss.
+      eexists (memory_blocks_of conf_src Locals0
+                          (Invariant.unique (Invariant.src inv))),
+        (memory_blocks_of conf_tgt Locals1
+                          (Invariant.unique (Invariant.tgt inv))),
+        (memory_blocks_of_t conf_src _ _
+                          (Invariant.private (Invariant.src inv))),
+        (memory_blocks_of_t conf_tgt _ _
+                          (Invariant.private (Invariant.tgt inv)))
+      .
+      esplits.
+      { inv STATE. inv SRC.
+        unfold memory_blocks_of. ii.
+        des.
+        match goal with [ H: In _ (flat_map _ _) |- _ ] => eapply in_flat_map in H; eauto end.
+        des.
+        des_ifs.
+        exploit UNIQUE.
+        { apply AtomSetFacts.elements_iff, InA_iff_In. eauto. }
+        intro UNIQUE_A. inv UNIQUE_A. ss. clarify.
+        exploit MEM0; eauto.
+      }
+      { inv STATE. inv SRC.
+        unfold memory_blocks_of. ii.
+        des.
+        match goal with [ H: In _ (flat_map _ _) |- _ ] => eapply in_flat_map in H; eauto end.
+        des.
+        des_ifs.
+        exploit UNIQUE.
+        { apply AtomSetFacts.elements_iff, InA_iff_In. eauto. }
+        intro UNIQUE_A. inv UNIQUE_A. ss. clarify.
+        exploit GLOBALS; eauto.
+        (* NEED TO STRENGTHEN GLOBALS *)
+      }
+
+      { inv STATE. inv TGT.
+        unfold memory_blocks_of. ii.
+        des.
+        match goal with [ H: In _ (flat_map _ _) |- _ ] => eapply in_flat_map in H; eauto end.
+        des.
+        des_ifs.
+        exploit UNIQUE.
+        { apply AtomSetFacts.elements_iff, InA_iff_In. eauto. }
+        intro UNIQUE_A. inv UNIQUE_A. ss. clarify.
+        exploit MEM0; eauto.
+      }
+      { inv STATE. inv TGT.
+        unfold memory_blocks_of. ii.
+        des.
+        match goal with [ H: In _ (flat_map _ _) |- _ ] => eapply in_flat_map in H; eauto end.
+        des.
+        des_ifs.
+        exploit UNIQUE.
+        { apply AtomSetFacts.elements_iff, InA_iff_In. eauto. }
+        intro UNIQUE_A. inv UNIQUE_A. ss. clarify.
+        exploit GLOBALS; eauto.
+      }
+      { inv STATE. inv SRC. ss.
+        i. unfold memory_blocks_of_t in IN.
+        des.
+        match goal with [ H: In _ (flat_map _ _) |- _ ] => eapply in_flat_map in H; eauto end.
+        des.
+        des_ifs.
+        exploit PRIVATE; eauto.
+        { apply Exprs.IdTSetFacts.elements_iff.
+          apply In_InA; eauto. }
+        ss. i. des. clarify.
+      }
+      { inv STATE. inv TGT. ss.
+        i. unfold memory_blocks_of_t in IN.
+        des.
+        match goal with [ H: In _ (flat_map _ _) |- _ ] => eapply in_flat_map in H; eauto end.
+        des.
+        des_ifs.
+        exploit PRIVATE; eauto.
+        { apply Exprs.IdTSetFacts.elements_iff.
+          apply In_InA; eauto. }
+        ss. i. des. clarify.
+      }
       i. exploit RETURN; eauto. i. des.
       exploit apply_infrules_sound; eauto; ss. i. des.
       exploit reduce_maydiff_sound; eauto; ss. i. des.
       exploit implies_sound; eauto; ss. i. des.
-      exists locals1_tgt, 0%nat, invmem1. splits; ss.
-      right. apply CIH. econs; eauto.
+      exists locals2_tgt, 0%nat, invmem1. splits; ss.
+      * etransitivity; eauto.
+      * right. apply CIH. econs; eauto.
     + (* non-call *)
       eapply _sim_local_step.
       { admit. (* tgt not stuck *) }
@@ -271,8 +492,7 @@ Proof.
       exploit implies_sound; eauto; ss. i. des.
       esplits; (try by etransitivity; eauto); eauto.
       { econs 1. eauto. }
-      instantiate (1 := mkState (mkEC _ _ _ _ _ _) _ _).
-      right. apply CIH. econs; try exact STATE3; eauto.
+      right. apply CIH. econs; try exact x1; eauto.
 Admitted.
 
 Lemma valid_sim_fdef
@@ -280,7 +500,7 @@ Lemma valid_sim_fdef
       conf_src conf_tgt
       fdef_src fdef_tgt
       fdef_hint
-      (CONF: valid_conf m_src m_tgt conf_src conf_tgt)
+      (CONF: InvState.valid_conf m_src m_tgt conf_src conf_tgt)
       (FDEF: valid_fdef m_src m_tgt fdef_src fdef_tgt fdef_hint):
   sim_fdef conf_src conf_tgt fdef_src fdef_tgt.
 Proof.
@@ -352,9 +572,8 @@ Proof.
     destruct (initFunTable mem0 id0); eauto.
 Qed.
 
-(* TODO: extract lemma for module initialization *)
 Lemma valid_sim_module m_hint:
-  (valid_module m_hint) <2= sim_module.
+  (fun p q => valid_module m_hint p q = Some true) <2= sim_module.
 Proof.
   s. intros module_src module_tgt MODULE.
   unfold valid_module in MODULE. simtac.
@@ -367,11 +586,13 @@ Proof.
     match goal with
     | [|- context [productInModuleB_dec ?a ?b]] => destruct (productInModuleB_dec a b)
     end; simtac; cycle 1.
-    { admit. (* lookupFdefViaIDFromProducts -> InProductsB *) }
+    { apply infrastructure_props.lookupFdefViaIDFromProducts_inv in TGT. congruence. }
     unfold initTargetData in *.
     erewrite <- valid_products_genGlobalAndInitMem; eauto. rewrite COND2.
     rewrite COND3. eauto.
-  - apply sim_local_lift_sim. econs; ss.
+  - apply sim_local_lift_sim.
+    { admit. (* sim_conf *) }
+    econs; ss.
     + econs.
     + generalize H0. i.
       unfold forallb2AL in H1. ss. apply andb_true_iff in H1. des. simtac.
@@ -379,7 +600,7 @@ Proof.
       { admit. (* init_locals inject_locals *) }
       i. des.
       apply valid_sim. econs; eauto.
-      * admit. (* valid_conf *)
+      * ss.
       * (* TODO: reorganize tactics *)
         repeat
           (try match goal with
@@ -406,4 +627,5 @@ Proof.
         }
         rewrite COND5, COND6, COND7, COND8, COND9. ss.
       * ss. admit. (* InvMem.Rel.sem init_mem *)
+    + reflexivity.
 Admitted.

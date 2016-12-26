@@ -36,8 +36,6 @@ Module Invariant.
     alias: aliasrel;
     unique: atoms;
     private: IdTSet.t;
-    malloc: IdTSet.t; (* p malloc if `p = call i8* malloc(..)` *)
-                      (* p+1 is not malloc. *)
   }.
 
   Structure t := mk {
@@ -51,8 +49,7 @@ Module Invariant.
       (f invariant.(lessdef))
       invariant.(alias)
       invariant.(unique)
-      invariant.(private)
-      invariant.(malloc).
+      invariant.(private).
 
   Definition update_diffblock_rel (f:ValueTPairSet.t -> ValueTPairSet.t) (alias:aliasrel): aliasrel :=
     mk_aliasrel
@@ -69,8 +66,7 @@ Module Invariant.
       invariant.(lessdef)
       (f invariant.(alias))
       invariant.(unique)
-      invariant.(private)
-      invariant.(malloc).
+      invariant.(private).
 
   Definition update_diffblock (f:ValueTPairSet.t -> ValueTPairSet.t) (invariant:unary): unary :=
     update_alias (update_diffblock_rel f) invariant.
@@ -83,24 +79,14 @@ Module Invariant.
       invariant.(lessdef)
       invariant.(alias)
       (f invariant.(unique))
-      invariant.(private)
-      invariant.(malloc).
+      invariant.(private).
 
   Definition update_private (f:IdTSet.t -> IdTSet.t) (invariant:unary): unary :=
     mk_unary
       invariant.(lessdef)
       invariant.(alias)
       invariant.(unique)
-      (f invariant.(private))
-      invariant.(malloc).
-  
-  Definition update_malloc (f:IdTSet.t -> IdTSet.t) (invariant:unary): unary :=
-    mk_unary
-      invariant.(lessdef)
-      invariant.(alias)
-      invariant.(unique)
-      invariant.(private)
-      (f invariant.(malloc)).
+      (f invariant.(private)).
 
   Definition update_src (f:unary -> unary) (invariant:t): t :=
     mk
@@ -126,12 +112,6 @@ Module Invariant.
     | ValueT.const _ => false
     end.
 
-  Definition is_malloc (inv:unary) (value:ValueT.t): bool :=
-    match value with
-    | ValueT.id id => IdTSet.mem id inv.(malloc)
-    | ValueT.const _ => false
-    end.
-
   Definition is_unique_value (inv0:unary) (value:ValueT.t): bool :=
     match value with
     | ValueT.id idt =>
@@ -143,44 +123,56 @@ Module Invariant.
   Definition is_unique_ptr (inv0:unary) (ptr:Ptr.t): bool :=
     is_unique_value inv0 ptr.(fst).
 
+  Definition values_diffblock_from_unique (v:ValueT.t): bool :=
+    match v with
+    | ValueT.id (Tag.physical, _) => true
+    | ValueT.const _ => true
+    | _ => false
+    end.
+
+  Definition diffblock_by_unique (inv0:unary) (v1 v2:ValueT.t): bool :=
+    (negb (ValueT.eq_dec v1 v2)) &&
+    ((is_unique_value inv0 v1 && values_diffblock_from_unique v2) ||
+     (is_unique_value inv0 v2 && values_diffblock_from_unique v1)).
+
   Definition implies_noalias (inv0:unary) (na0 na:PtrPairSet.t): bool :=
     flip PtrPairSet.for_all na
       (fun pp =>
-         (negb (Ptr.eq_dec pp.(fst) pp.(snd)) &&
-           is_unique_ptr inv0 pp.(fst) || is_unique_ptr inv0 pp.(snd)) ||
-         (PtrPairSet.mem pp na0)
-      ).
+         (diffblock_by_unique inv0 pp.(fst).(fst) pp.(snd).(fst)) ||
+         (PtrPairSet.mem pp na0)).
 
   Definition implies_diffblock (inv0:unary) (db0 db:ValueTPairSet.t): bool :=
     flip ValueTPairSet.for_all db
       (fun vp =>
-         (negb (ValueT.eq_dec vp.(fst) vp.(snd)) &&
-           is_unique_value inv0 vp.(fst) || is_unique_value inv0 vp.(snd)) ||
-         (ValueTPairSet.mem vp db0)
-      ).
+         (diffblock_by_unique inv0 vp.(fst) vp.(snd)) ||
+         (ValueTPairSet.mem vp db0)).
 
   Definition implies_alias inv0 (alias0 alias:aliasrel): bool :=
     implies_noalias inv0 (alias0.(noalias)) (alias.(noalias)) &&
     implies_diffblock inv0 (alias0.(diffblock)) (alias.(diffblock)).
 
+  (* TODO: name? (trivial, ..) *)
+  Definition syntactic_lessdef (e1 e2:Expr.t): bool :=
+    (Expr.eq_dec e1 e2) ||
+      (match e1, e2 with
+       | Expr.value (ValueT.const (const_undef ty)),
+         Expr.value v => true
+       | _, _ => false
+       end).
+
+  Definition implies_lessdef (inv0 inv:ExprPairSet.t): bool :=
+    flip ExprPairSet.for_all inv
+         (fun q =>
+            flip ExprPairSet.exists_ inv0
+                 (fun p =>
+                    (Expr.eq_dec p.(fst) q.(fst)) &&
+                      (syntactic_lessdef p.(snd) q.(snd)))).
+
   Definition implies_unary (inv0 inv:unary): bool :=
-    ExprPairSet.for_all
-          (fun p => ExprPairSet.exists_
-                      (fun q =>
-                        (if (Expr.eq_dec p.(fst) q.(fst))
-                         then ((Expr.eq_dec p.(snd) q.(snd)) ||
-                               (match p.(snd), q.(snd) with
-                                | Expr.value v, 
-                                  Expr.value (ValueT.const (const_undef ty)) => true
-                                | _, _ => false
-                                end))
-                         else false))
-                      inv0.(lessdef))
-    inv.(lessdef) &&
+    implies_lessdef inv0.(lessdef) inv.(lessdef) &&
     implies_alias inv0 (inv0.(alias)) (inv.(alias)) &&
     AtomSetImpl.subset (inv.(unique)) (inv0.(unique)) &&
-    IdTSet.subset (inv.(private)) (inv0.(private)) &&
-    IdTSet.subset (inv.(malloc)) (inv0.(malloc)).
+    IdTSet.subset (inv.(private)) (inv0.(private)).
 
   Definition has_false (inv: t): bool :=
     (ExprPairSet.mem false_encoding inv.(src).(lessdef)).
@@ -271,33 +263,63 @@ Module Invariant.
     ExprPairSet.is_empty inv.(lessdef) &&
     is_empty_alias inv.(alias) &&
     AtomSetImpl.is_empty inv.(unique) &&
-    IdTSet.is_empty inv.(private) &&
-    IdTSet.is_empty inv.(malloc).
+    IdTSet.is_empty inv.(private).
 
   Definition is_empty (inv:t): bool :=
     is_empty_unary inv.(src) &&
     is_empty_unary inv.(tgt) &&
     IdTSet.is_empty inv.(maydiff).
 
+  Definition get_idTs_lessdef (ld: ExprPairSet.t): list IdT.t :=
+    List.concat (List.map
+                   (fun (p: ExprPair.t) =>
+                      Expr.get_idTs p.(fst) ++ Expr.get_idTs p.(snd))
+                   (ExprPairSet.elements ld)).
+
+  Definition get_idTs_noalias (noal: PtrPairSet.t): list IdT.t :=
+    List.concat (List.map PtrPair.get_idTs (PtrPairSet.elements noal)).
+
+  Definition get_idTs_diffblock (db: ValueTPairSet.t): list IdT.t :=
+    List.concat (List.map ValueTPair.get_idTs (ValueTPairSet.elements db)).
+
+  Definition get_idTs_alias (ar: aliasrel): list IdT.t :=
+    (get_idTs_noalias ar.(noalias))
+      ++ (get_idTs_diffblock ar.(diffblock)).
+
+  Definition get_idTs_unique (uniq: atoms): list IdT.t :=
+    (List.map (IdT.lift Tag.physical) (AtomSetImpl.elements uniq)).
+
+  Definition get_idTs_private (prvt: IdTSet.t): list IdT.t :=
+    IdTSet.elements prvt.
+
   Definition get_idTs_unary (u: unary): list IdT.t :=
-    List.concat
-      (List.map
-         (fun (p: ExprPair.t) =>
-            Expr.get_idTs p.(fst) ++ Expr.get_idTs p.(snd))
-         (ExprPairSet.elements u.(lessdef))) ++
-    List.concat
-      (List.map
-         (fun (pp: PtrPair.t) =>
-            TODO.filter_map Ptr.get_idTs [pp.(fst) ; pp.(snd)])
-         (PtrPairSet.elements (u.(alias).(noalias)))) ++
-      (List.map (IdT.lift Tag.physical) (AtomSetImpl.elements u.(unique))) ++
-      IdTSet.elements u.(private) ++
-      IdTSet.elements u.(malloc).
+    (get_idTs_lessdef u.(lessdef))
+      ++ (get_idTs_alias u.(alias))
+      ++ (get_idTs_unique u.(unique))
+      ++ (get_idTs_private u.(private)).
 
   Definition get_idTs (inv: t): list IdT.t :=
     (get_idTs_unary inv.(src))
       ++ (get_idTs_unary inv.(tgt))
       ++ (IdTSet.elements inv.(maydiff)).
+
+  (* Subset predicates *)
+
+  Inductive Subset_unary (inv1 inv2: unary): Prop :=
+  | Subset_unary_intro
+      (SUBSET_LESSDEF: ExprPairSet.Subset inv1.(lessdef) inv2.(lessdef))
+      (SUBSET_NOALIAS: ValueTPairSet.Subset inv1.(alias).(diffblock) inv2.(alias).(diffblock) /\
+                       PtrPairSet.Subset inv1.(alias).(noalias) inv2.(alias).(noalias))
+      (SUBSET_UNIQUE: AtomSetImpl.Subset inv1.(unique) inv2.(unique))
+      (SUBSET_PRIVATE: IdTSet.Subset inv1.(private) inv2.(private))
+  .
+
+  Inductive Subset (inv1 inv2: t): Prop :=
+  | Subset_intro
+      (SUBSET_SRC: Subset_unary inv1.(src) inv2.(src))
+      (SUBSET_TGT: Subset_unary inv1.(tgt) inv2.(tgt))
+      (SUBSET_MAYDIFF: IdTSet.Subset inv2.(maydiff) inv1.(maydiff))
+  .
 End Invariant.
 
 Module Infrule.
@@ -328,11 +350,12 @@ Module Infrule.
   | and_or_not1 (z:IdT.t) (x:IdT.t) (y:IdT.t) (a:ValueT.t) (b:ValueT.t) (s:sz)
   | bop_associative (x:IdT.t) (y:IdT.t) (z:IdT.t) (opcode:bop) (c1:INTEGER.t) (c2:INTEGER.t) (c3:INTEGER.t) (s:sz)
   | bop_commutative (e:Expr.t) (opcode:bop) (x:ValueT.t) (y:ValueT.t) (s:sz)
+  | fbop_commutative (e:Expr.t) (opcode:fbop) (x:ValueT.t) (y:ValueT.t) (fty:floating_point)
   | bop_distributive_over_selectinst (opcode:bop) (r:IdT.t) (s:IdT.t) (t':IdT.t) (t0:IdT.t) (x:ValueT.t) (y:ValueT.t) (z:ValueT.t) (c:ValueT.t) (bopsz:sz) (selty:typ)
   | bop_distributive_over_selectinst2 (opcode:bop) (r:IdT.t) (s:IdT.t) (t':IdT.t) (t0:IdT.t) (x:ValueT.t) (y:ValueT.t) (z:ValueT.t) (c:ValueT.t) (bopsz:sz) (selty:typ)
-  | bitcastptr (v:ValueT.t) (v':ValueT.t) (bitcastinst:Expr.t)
+  | bitcastptr (v':ValueT.t) (bitcastinst:Expr.t)
   | bitcast_bitcast (src:ValueT.t) (mid:ValueT.t) (dst:ValueT.t) (srcty:typ) (midty:typ) (dstty:typ)
-  | bitcast_load (ptr:ValueT.t) (ptrty:typ) (v1:ValueT.t) (ptrty2:typ) (v2:ValueT.t) (a:align)
+  | bitcast_load (ptr:ValueT.t) (ty:typ) (v1:ValueT.t) (ty2:typ) (v2:ValueT.t) (a:align)
   | bitcast_fpext (src:ValueT.t) (mid:ValueT.t) (dst:ValueT.t) (srcty:typ) (midty:typ) (dstty:typ)
   | bitcast_fptosi (src:ValueT.t) (mid:ValueT.t) (dst:ValueT.t) (srcty:typ) (midty:typ) (dstty:typ)
   | bitcast_fptoui (src:ValueT.t) (mid:ValueT.t) (dst:ValueT.t) (srcty:typ) (midty:typ) (dstty:typ)
@@ -345,13 +368,15 @@ Module Infrule.
   | bitcast_trunc (src:ValueT.t) (mid:ValueT.t) (dst:ValueT.t) (srcty:typ) (midty:typ) (dstty:typ)
   | bitcast_uitofp (src:ValueT.t) (mid:ValueT.t) (dst:ValueT.t) (srcty:typ) (midty:typ) (dstty:typ)
   | bitcast_zext (src:ValueT.t) (mid:ValueT.t) (dst:ValueT.t) (srcty:typ) (midty:typ) (dstty:typ)
-  | diffblock_global_alloca (gx:const) (y:IdT.t)
+  | diffblock_unique (x:IdT.t) (y:IdT.t)
+  | diffblock_global_unique (gx:const) (y:IdT.t)
   | diffblock_global_global (gx:const) (gy:const)
   | diffblock_lessthan (x:ValueT.t) (y:ValueT.t) (x':ValueT.t) (y':ValueT.t)
   | diffblock_noalias (x:ValueT.t) (y:ValueT.t) (x':Ptr.t) (y':Ptr.t)
   | fadd_commutative_tgt (z:IdT.t) (x:ValueT.t) (y:ValueT.t) (fty:floating_point)
   | fbop_distributive_over_selectinst (opcode:fbop) (r:IdT.t) (s:IdT.t) (t':IdT.t) (t0:IdT.t) (x:ValueT.t) (y:ValueT.t) (z:ValueT.t) (c:ValueT.t) (fbopty:floating_point) (selty:typ)
   | fbop_distributive_over_selectinst2 (opcode:fbop) (r:IdT.t) (s:IdT.t) (t':IdT.t) (t0:IdT.t) (x:ValueT.t) (y:ValueT.t) (z:ValueT.t) (c:ValueT.t) (fbopty:floating_point) (selty:typ)
+  | fmul_commutative_tgt (z:IdT.t) (x:ValueT.t) (y:ValueT.t) (fty:floating_point)
   | fpext_bitcast (src:ValueT.t) (mid:ValueT.t) (dst:ValueT.t) (srcty:typ) (midty:typ) (dstty:typ)
   | fpext_fpext (src:ValueT.t) (mid:ValueT.t) (dst:ValueT.t) (srcty:typ) (midty:typ) (dstty:typ)
   | fptosi_bitcast (src:ValueT.t) (mid:ValueT.t) (dst:ValueT.t) (srcty:typ) (midty:typ) (dstty:typ)
@@ -360,8 +385,9 @@ Module Infrule.
   | fptoui_fpext (src:ValueT.t) (mid:ValueT.t) (dst:ValueT.t) (srcty:typ) (midty:typ) (dstty:typ)
   | fptrunc_bitcast (src:ValueT.t) (mid:ValueT.t) (dst:ValueT.t) (srcty:typ) (midty:typ) (dstty:typ)
   | fptrunc_fpext (src:ValueT.t) (mid:ValueT.t) (dst:ValueT.t) (srcty:typ) (midty:typ) (dstty:typ)
-  | gepzero (v:ValueT.t) (v':ValueT.t) (gepinst:Expr.t)
+  | gepzero (v':ValueT.t) (gepinst:Expr.t)
   | gep_inbounds_remove (gepinst:Expr.t)
+  | gep_inbounds_add (v:ValueT.t) (ptr:ValueT.t) (loadty:typ) (al:align) (e:Expr.t)
   | inttoptr_bitcast (src:ValueT.t) (mid:ValueT.t) (dst:ValueT.t) (srcty:typ) (midty:typ) (dstty:typ)
   | inttoptr_ptrtoint (src:ValueT.t) (mid:ValueT.t) (dst:ValueT.t) (srcty:typ) (midty:typ) (dstty:typ)
   | inttoptr_zext (src:ValueT.t) (mid:ValueT.t) (dst:ValueT.t) (srcty:typ) (midty:typ) (dstty:typ)
@@ -389,14 +415,32 @@ Module Infrule.
   | or_xor4 (z:ValueT.t) (x:ValueT.t) (y:ValueT.t) (a:ValueT.t) (b:ValueT.t) (nb:ValueT.t) (s:sz)
   | or_zero (z:ValueT.t) (a:ValueT.t) (s:sz)
   | ptrtoint_bitcast (src:ValueT.t) (mid:ValueT.t) (dst:ValueT.t) (srcty:typ) (midty:typ) (dstty:typ)
+  | ptrtoint_inttoptr (src:ValueT.t) (mid:ValueT.t) (dst:ValueT.t) (srcty:typ) (midty:typ) (dstty:typ)
   | ptrtoint_load (ptr:ValueT.t) (ptrty:typ) (v1:ValueT.t) (intty:typ) (v2:ValueT.t) (a:align)
+  | ptrtoint_zero (ptrty:typ) (intty:typ)
   | replace_rhs (x:IdT.t) (y:ValueT.t) (e1:Expr.t) (e2:Expr.t) (e2':Expr.t)
   | replace_rhs_opt	(x:IdT.t) (y:ValueT.t) (e1:Expr.t) (e2:Expr.t) (e2':Expr.t)
   | rem_neg (z:IdT.t) (my:ValueT.t) (x:ValueT.t) (y:ValueT.t) (sz:sz)
   | sdiv_mone (z:IdT.t) (x:ValueT.t) (sz:sz)
   | sdiv_sub_srem (z:IdT.t) (b:IdT.t) (a:IdT.t) (x:ValueT.t) (y:ValueT.t) (sz:sz)
+  | select_icmp_eq (z y x v:ValueT.t) (c:const) (cty:typ)
+  | select_icmp_eq_xor1 (z z' v x u w:ValueT.t) (c c':INTEGER.t) (s:sz)
+  | select_icmp_eq_xor2 (z z' v x u w:ValueT.t) (c:INTEGER.t) (s:sz)
+  | select_icmp_ne (z y x v:ValueT.t) (c:const) (cty:typ)
+  | select_icmp_ne_xor1 (z z' v x u w:ValueT.t) (c c':INTEGER.t) (s:sz)
+  | select_icmp_ne_xor2 (z z' v x u w:ValueT.t) (c:INTEGER.t) (s:sz)
+  | select_icmp_sgt_const (z:IdT.t) (y x:ValueT.t) (c c':INTEGER.t) (selcomm:bool) (s:sz) 
+  | select_icmp_sgt_xor1 (z z' v x u:ValueT.t) (c c':INTEGER.t) (s:sz)
+  | select_icmp_sgt_xor2 (z z' v x u:ValueT.t) (c:INTEGER.t) (s:sz)
+  | select_icmp_slt_const (z:IdT.t) (y x:ValueT.t) (c c':INTEGER.t) (selcomm:bool) (s:sz) 
+  | select_icmp_slt_xor1 (z z' v x u:ValueT.t) (c c':INTEGER.t) (s:sz)
+  | select_icmp_slt_xor2 (z z' v x u:ValueT.t) (c:INTEGER.t) (s:sz)
+  | select_icmp_slt_one (z:ValueT.t) (y:IdT.t) (x:ValueT.t) (c c':INTEGER.t) (s:sz) 
+  | select_icmp_ugt_const (z:IdT.t) (y x:ValueT.t) (c c':INTEGER.t) (selcomm:bool) (s:sz) 
+  | select_icmp_ult_const (z:IdT.t) (y x:ValueT.t) (c c':INTEGER.t) (selcomm:bool) (s:sz) 
   | sext_bitcast (src:ValueT.t) (mid:ValueT.t) (dst:ValueT.t) (srcty:typ) (midty:typ) (dstty:typ)
   | sext_sext (src:ValueT.t) (mid:ValueT.t) (dst:ValueT.t) (srcty:typ) (midty:typ) (dstty:typ)
+  | sext_trunc_ashr (z x x' v:ValueT.t) (s1 s2:sz) (i3:INTEGER.t)
   | sext_zext (src:ValueT.t) (mid:ValueT.t) (dst:ValueT.t) (srcty:typ) (midty:typ) (dstty:typ)
   | shift_undef1 (z:ValueT.t) (y:ValueT.t) (s:sz)
   | shift_undef2 (z:ValueT.t) (y:ValueT.t) (c:INTEGER.t) (s:sz)
@@ -427,6 +471,7 @@ Module Infrule.
   | trunc_trunc (src:ValueT.t) (mid:ValueT.t) (dst:ValueT.t) (srcty:typ) (midty:typ) (dstty:typ)
   | substitute (x:IdT.t) (y:ValueT.t) (e:Expr.t)
   | substitute_rev (x:IdT.t) (y:ValueT.t) (e:Expr.t)
+  | substitute_tgt (x:IdT.t) (y:ValueT.t) (e:Expr.t)
   | udiv_sub_urem (z:IdT.t) (b:IdT.t) (a:IdT.t) (x:ValueT.t) (y:ValueT.t) (sz:sz)
   | udiv_zext (z:IdT.t) (x:IdT.t) (y:IdT.t) (k:IdT.t) (a:ValueT.t) (b:ValueT.t) (sz1:sz) (sz2:sz)
   | udiv_zext_const (z:IdT.t) (x:IdT.t) (c:INTEGER.t) (k:IdT.t) (a:ValueT.t) (sz1:sz) (sz2:sz)
@@ -442,14 +487,15 @@ Module Infrule.
   | zext_bitcast (src:ValueT.t) (mid:ValueT.t) (dst:ValueT.t) (srcty:typ) (midty:typ) (dstty:typ)
   | zext_trunc_and (z:ValueT.t) (x:ValueT.t) (y:ValueT.t) (w:ValueT.t) (c:const) (s:sz) (s':sz)
   | zext_trunc_and_xor (z:ValueT.t) (x:ValueT.t) (v:ValueT.t) (w:ValueT.t) (y:ValueT.t) (y':ValueT.t) (c:const) (s:sz) (s':sz)
-  | zext_xor (z:ValueT.t) (y:ValueT.t) (y':ValueT.t) (x:ValueT.t)
+  | zext_xor (z:ValueT.t) (y:ValueT.t) (y':ValueT.t) (x:ValueT.t) (s:sz)
   | zext_zext (src:ValueT.t) (mid:ValueT.t) (dst:ValueT.t) (srcty:typ) (midty:typ) (dstty:typ)
   | intro_ghost (x:Expr.t) (g:id)
-  | intro_eq (x:ValueT.t)
-  | intro_eq_tgt (x:ValueT.t)
+  | intro_eq (x:Expr.t)
+  | intro_eq_tgt (x:Expr.t)
   | icmp_inverse (c:cond) (ty:typ) (x:ValueT.t) (y:ValueT.t) (v:INTEGER.t)
   | icmp_inverse_rhs (c:cond) (ty:typ) (x:ValueT.t) (y:ValueT.t) (v:INTEGER.t)
   | icmp_swap_operands (c:cond) (ty:typ) (x:ValueT.t) (y:ValueT.t) (z:ValueT.t)
+  | fcmp_swap_operands (c:fcond) (fty:floating_point) (x:ValueT.t) (y:ValueT.t) (z:ValueT.t)
   | icmp_eq_add_add (z:ValueT.t) (w:ValueT.t) (x:ValueT.t) (y:ValueT.t) (a:ValueT.t) (b:ValueT.t) (s:sz)
   | icmp_eq_same (ty:typ) (x:ValueT.t) (y:ValueT.t)
   | icmp_eq_sub_sub (z:ValueT.t) (w:ValueT.t) (x:ValueT.t) (y:ValueT.t) (a:ValueT.t) (b:ValueT.t) (s:sz)
