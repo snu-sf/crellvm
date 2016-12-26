@@ -504,18 +504,17 @@ Proof.
     + ii. cbn in *. clarify.
       esplits; eauto.
       ii. inv LU_SRC.
-    + {
-        ii.
-        cbn in LOCALS_SRC. des_ifs.
-        exploit IHla; eauto; []; ii; des.
-        cbn in *. rewrite LOCALS_TGT. inv CONF. rewrite <- TARGETDATA. rewrite Heq0.
-        esplits; eauto.
-        ii.
-        des_lookupAL_updateAddAL.
-        - esplits; eauto.
-          eapply gv_inject_gundef; eauto.
-        - exploit LOCALS; eauto.
-      }
+    +
+      ii.
+      cbn in LOCALS_SRC. des_ifs.
+      exploit IHla; eauto; []; ii; des.
+      cbn in *. rewrite LOCALS_TGT. inv CONF. rewrite <- TARGETDATA. rewrite Heq0.
+      esplits; eauto.
+      ii.
+      des_lookupAL_updateAddAL.
+      * esplits; eauto.
+        eapply gv_inject_gundef; eauto.
+      * exploit LOCALS; eauto.
   -
     ii.
     destruct la; clarify.
