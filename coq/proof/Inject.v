@@ -402,6 +402,76 @@ Proof.
     rewrite TGT, PARAM_TGT. esplits; eauto. econs; eauto.
 Qed.
 
+Inductive GVsMap_inject meminj gvs0 gvs1: Prop :=
+| GVsMap_inject_intro
+    (INJECT:
+       forall id gv0
+       (LOOKUP: lookupAL GenericValue gvs0 id = ret gv0),
+         exists gv1, lookupAL GenericValue gvs1 id = ret gv1 /\ gv_inject meminj gv0 gv1)
+    (* (INJECT id gv *)
+    (*    (LOOKUP: lookupAL GenericValue gvs0 id = ret gv) *)
+    (*    : *)
+    (* <<LOOKUP: lookupAL GenericValue gvs1 id = ret gv>>) *)
+.
+
+Ltac des_lookupAL_updateAddAL :=
+  repeat match goal with
+         | [ H: context[lookupAL ?t (updateAddAL ?t _ ?idA _) ?idB] |- _ ] =>
+           destruct (eq_atom_dec idB idA);
+           [ss; clarify; rewrite lookupAL_updateAddAL_eq in H |
+            ss; clarify; rewrite <- lookupAL_updateAddAL_neq in H]; ss; clarify
+         | [ |- context[lookupAL ?t (updateAddAL ?t _ ?idA _) ?idB] ] =>
+           destruct (eq_atom_dec idB idA);
+           [ss; clarify; rewrite lookupAL_updateAddAL_eq |
+            ss; clarify; rewrite <- lookupAL_updateAddAL_neq]; ss; clarify
+         end.
+
+Lemma gv_inject_initialize_frames
+      al bl meminj TD la g
+  (INJECT: list_forall2 (gv_inject meminj) al bl)
+  (FRAMES: _initializeFrameValues TD la al [] = ret g)
+  :
+    <<FRAMES: exists g',
+      (_initializeFrameValues TD la bl [] = ret g')
+        /\ GVsMap_inject meminj g g'>>
+.
+(* use meminj instead inv? just conservatively (inv have more info) *)
+Proof.
+  red.
+  generalize dependent la.
+  generalize dependent g.
+  induction INJECT; ii; ss; des.
+  - rewrite FRAMES.
+    Print _initializeFrameValues.
+    {
+      esplits; eauto.
+      generalize dependent g.
+      induction la; ii; ss; des; clarify; ss.
+      des_ifs.
+      exploit IHla; eauto; []; ii; des.
+      inv x.
+      econs; eauto. ii.
+      des_lookupAL_updateAddAL.
+      + esplits; eauto. eapply gv_inject_gundef; eauto.
+      + exploit INJECT; eauto.
+    }
+  -
+    destruct la.
+    { ss. clarify. esplits; eauto. econs; eauto. ii; des. inv LOOKUP. }
+    cbn in FRAMES. des_ifs.
+    exploit IHINJECT; eauto; []; ii; des.
+    cbn.
+    exploit simulation__fit_gv; eauto.
+    { admit. (* wf_sb_mi *) } ii; des.
+    des_ifs.
+    esplits; eauto.
+    econs; eauto.
+    ii.
+    des_lookupAL_updateAddAL.
+    + esplits; eauto.
+    + inv x0. eapply INJECT0; eauto.
+Admitted.
+
 Lemma locals_init
       inv la gvs_src
       args_src args_tgt
@@ -415,16 +485,39 @@ Lemma locals_init
 Proof.
   unfold initLocals in *.
   revert gvs_src LOCALS_SRC. induction ARGS; ss.
-  - i. destruct la; cycle 1.
-    { inv CONF.
-      destruct p. destruct p.
-      exists gvs_src.
-      splits; eauto.
-      - rewrite <- TARGETDATA. ss.
-      - admit. (* refl *)
-    }
-    ss. inv LOCALS_SRC. esplits; eauto. ss.
-  - admit. (* TODO: what? *)
+  -
+    induction la.
+    + ii. cbn in *. clarify.
+      esplits; eauto.
+      ii. inv LU_SRC.
+    + {
+        ii.
+        cbn in LOCALS_SRC. des_ifs.
+        exploit IHla; eauto; []; ii; des.
+        cbn in *. rewrite LOCALS_TGT. inv CONF. rewrite <- TARGETDATA. rewrite Heq0.
+        esplits; eauto.
+        ii.
+        des_lookupAL_updateAddAL.
+        - esplits; eauto.
+          eapply gv_inject_gundef; eauto.
+        - exploit LOCALS; eauto.
+      }
+  -
+    ii.
+    destruct la; clarify.
+    { ss. inv LOCALS_SRC. esplits; eauto. ii. inv LU_SRC. }
+    cbn in LOCALS_SRC. des_ifs.
+    cbn. inv CONF. rewrite <- TARGETDATA. clear TARGETDATA.
+    exploit gv_inject_initialize_frames; eauto; []; ii; des. inv x1.
+    exploit simulation__fit_gv; eauto.
+    { admit. (* wf_sb_mi *) }
+    ii; des.
+    des_ifs.
+    esplits; eauto.
+    ii.
+    des_lookupAL_updateAddAL; clear IHARGS.
+    + esplits; eauto.
+    + exploit INJECT; eauto.
 Admitted.
 
 Lemma updateAddAL_inject_locals
