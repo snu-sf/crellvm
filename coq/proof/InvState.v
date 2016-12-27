@@ -333,7 +333,7 @@ Module Unary.
            InvMem.gv_diffblock_with_blocks conf ptr invmem.(InvMem.Unary.unique_parent))
       (WF_INSNS:
          forall insn
-                (IN: insnInBlockB insn st.(EC).(CurBB)),
+                (IN: exists b, insnInBlockB insn b /\ blockInFdefB b (st.(EC).(CurFunction))),
            <<WF_INSN: wf_insn (conf.(CurSystem))
                               (module_intro (conf.(CurTargetData).(fst))
                                             (conf.(CurTargetData).(snd))
