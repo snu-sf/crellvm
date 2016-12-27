@@ -331,14 +331,16 @@ Module Unary.
          forall x ptr
            (PTR:lookupAL _ st.(EC).(Locals) x = Some ptr),
            InvMem.gv_diffblock_with_blocks conf ptr invmem.(InvMem.Unary.unique_parent))
-      (WF_VALUE:
-         forall val gval
-                (VAL: sem_valueT conf st invst (ValueT.lift Tag.physical val) = Some gval),
-         exists typ, wf_value conf.(CurSystem)
-                                     (module_intro (conf.(CurTargetData).(fst))
-                                                   (conf.(CurTargetData).(snd))
-                                                   (conf.(CurProducts)))
-                                     st.(EC).(CurFunction) val typ)
+      (WF_INSNS:
+         forall insn
+                (IN: insnInBlockB insn st.(EC).(CurBB)),
+           <<WF_INSN: wf_insn (conf.(CurSystem))
+                              (module_intro (conf.(CurTargetData).(fst))
+                                            (conf.(CurTargetData).(snd))
+                                            (conf.(CurProducts)))
+                              (st.(EC).(CurFunction))
+                              (st.(EC).(CurBB))
+                              insn>>)
   .
 
   Lemma sem_empty
