@@ -968,7 +968,6 @@ Lemma forget_stack_unary_sound
       (UNIQUE_PRESERVED : unique_preserved_except conf inv invmem.(InvMem.Unary.unique_parent) st1 gmax (AtomSetImpl.union defs leaks))
       (STATE : InvState.Unary.sem conf st0 invst invmem gmax public inv)
       (WF_LC: memory_props.MemProps.wf_lc st1.(Mem) st1.(EC).(Locals))
-      (EQ_BB: st0.(EC).(CurBB) = st1.(EC).(CurBB))
       (EQ_FUNC: st0.(EC).(CurFunction) = st1.(EC).(CurFunction))
   : InvState.Unary.sem conf st1 invst invmem gmax public (ForgetStack.unary defs leaks inv).
 Proof.
@@ -1019,7 +1018,7 @@ Proof.
   - inv EQUIV. rewrite <- MEM. eauto.
   - inv EQUIV. rewrite <- MEM. eauto.
   - inv UNIQUE_PRESERVED. eauto.
-  - rewrite <- EQ_BB. rewrite <- EQ_FUNC.
+  - rewrite <- EQ_FUNC.
     ii.
     exploit WF_INSNS; eauto.
 Qed.
@@ -1046,9 +1045,7 @@ Lemma forget_stack_sound
                      (AtomSetImpl.union defs_tgt leaks_tgt))
       (WF_LC_SRC: memory_props.MemProps.wf_lc st1_src.(Mem) st1_src.(EC).(Locals))
       (WF_LC_TGT: memory_props.MemProps.wf_lc st1_tgt.(Mem) st1_tgt.(EC).(Locals))
-      (EQ_BB_SRC: st0_src.(EC).(CurBB) = st1_src.(EC).(CurBB))
       (EQ_FUNC_SRC: st0_src.(EC).(CurFunction) = st1_src.(EC).(CurFunction))
-      (EQ_BB_TGT: st0_tgt.(EC).(CurBB) = st1_tgt.(EC).(CurBB))
       (EQ_FUNC_TGT: st0_tgt.(EC).(CurFunction) = st1_tgt.(EC).(CurFunction))
   : <<STATE_FORGET: InvState.Rel.sem conf_src conf_tgt st1_src st1_tgt
                                      invst invmem (ForgetStack.t defs_src defs_tgt leaks_src leaks_tgt inv0)>>.
