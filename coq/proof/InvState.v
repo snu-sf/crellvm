@@ -332,14 +332,14 @@ Module Unary.
            (PTR:lookupAL _ st.(EC).(Locals) x = Some ptr),
            InvMem.gv_diffblock_with_blocks conf ptr invmem.(InvMem.Unary.unique_parent))
       (WF_INSNS:
-         forall insn
-                (IN: exists b, insnInBlockB insn b /\ blockInFdefB b (st.(EC).(CurFunction))),
+         forall insn b
+                (IN: insnInBlockB insn b /\ blockInFdefB b (st.(EC).(CurFunction))),
            <<WF_INSN: wf_insn (conf.(CurSystem))
                               (module_intro (conf.(CurTargetData).(fst))
                                             (conf.(CurTargetData).(snd))
                                             (conf.(CurProducts)))
                               (st.(EC).(CurFunction))
-                              (st.(EC).(CurBB))
+                              b
                               insn>>)
   .
 
