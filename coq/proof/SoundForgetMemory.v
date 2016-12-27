@@ -1829,7 +1829,7 @@ Proof.
       + ss. eapply MemProps.mstore_preserves_wf_lc; eauto.
       + ss. eapply MemProps.mstore_preserves_wf_lc; eauto.
       + eauto.
-      + ii. exploit WF_VALUE; eauto.
+      + ii. exploit WF_INSNS; eauto.
     }
     { destruct value1; ss.
       rename value2 into v_sptr.
@@ -1862,7 +1862,7 @@ Proof.
       + ss. eapply MemProps.mstore_preserves_wf_lc; eauto.
       + ss. eapply MemProps.mstore_preserves_wf_lc; eauto.
       + eauto.
-      + ii. exploit WF_VALUE; eauto.
+      + ii. exploit WF_INSNS; eauto.
     }
   - destruct cmd; ss; des_ifs.
     inv STATE_MC.
