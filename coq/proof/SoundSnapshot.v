@@ -410,9 +410,6 @@ Proof.
       - exploit PRIVATE; eauto.
       - exploit PRIVATE; eauto.
     }
-  - ii. exploit WF_VALUE; eauto.
-    rewrite InvState.Unary.sem_valueT_physical in *.
-    eauto.
 Qed.
 
 Lemma snapshot_maydiff_spec
