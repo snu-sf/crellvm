@@ -190,7 +190,10 @@ Proof.
   rename MEM0 into MEM_FORGET_MEMORY.
 
   (* forget *)
-  exploit forget_stack_sound; eauto.
+  exploit forget_stack_sound.
+  instantiate (5 := {| EC := EC st0_src; ECS := ECS st0_src; Mem := Mem st1_src |}).
+  instantiate (4 := {| EC := EC st0_tgt; ECS := ECS st0_tgt; Mem := Mem st1_tgt |}).
+  { eauto. }
   { hexploit step_state_equiv_except; try exact CMDS_SRC; eauto. }
   { hexploit step_state_equiv_except; try exact CMDS_TGT; eauto. }
   { inv STATE_FORGET_MEMORY. inv MEM_FORGET_MEMORY.
@@ -204,6 +207,10 @@ Proof.
   { eapply step_wf_lc; try exact STEP_TGT; eauto.
     - inv MEM. inv TGT. eauto.
     - inv STATE. inv TGT. eauto. }
+  { ss. inv STEP_SRC; ss. clarify. }
+  { ss. inv STEP_SRC; ss. clarify. }
+  { ss. inv STEP_TGT; ss. clarify. }
+  { ss. inv STEP_TGT; ss. clarify. }
   i. des.
 
   hexploit postcond_cmd_add_sound; try apply CONF; try eapply STEP_SRC; try eapply MEMLE;
