@@ -290,7 +290,7 @@ Proof.
     - ss. eapply mem_le_wf_lc; eauto.
     - ss. eapply mem_le_wf_lc; eauto.
     - ss.
-    - ii. exploit WF_VALUE; eauto.
+    - ii. exploit WF_INSNS; eauto.
   }
   { (* MEM *)
     hexploit mem_lift_le_nextblock; try exact MEM_LE; eauto. intro NEXT_BLOCK.
