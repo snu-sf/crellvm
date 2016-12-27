@@ -446,7 +446,6 @@ Lemma unary_sem_eq_locals_mem
       (MEM_EQ : Mem st0 = Mem st1)
       (STATE: InvState.Unary.sem conf st0 invst0 invmem0 gmax public inv0)
       (EQ_FUNC: st0.(EC).(CurFunction) = st1.(EC).(CurFunction))
-      (EQ_BB: st0.(EC).(CurBB) = st1.(EC).(CurBB))
   : InvState.Unary.sem conf st1 invst0 invmem0 gmax public inv0.
 Proof.
   inv STATE.
@@ -469,9 +468,7 @@ Proof.
   - rewrite <- MEM_EQ. eauto.
   - rewrite <- MEM_EQ. eauto.
   - rewrite <- LOCALS_EQ. eauto.
-  - ii.
-    rewrite <- EQ_BB. rewrite <- EQ_FUNC.
-    exploit WF_INSNS; eauto. rewrite EQ_BB. eauto.
+  - rewrite <- EQ_FUNC. ss.
 Qed.
 
 Definition memory_blocks_of (conf: Config) lc ids : list mblock :=
