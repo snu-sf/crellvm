@@ -208,8 +208,6 @@ Proof.
     - inv MEM. inv TGT. eauto.
     - inv STATE. inv TGT. eauto. }
   { ss. inv STEP_SRC; ss. clarify. }
-  { ss. inv STEP_SRC; ss. clarify. }
-  { ss. inv STEP_TGT; ss. clarify. }
   { ss. inv STEP_TGT; ss. clarify. }
   i. des.
 
