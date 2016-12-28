@@ -490,7 +490,6 @@ Module Rel.
            (v : ValueT.t) (t0 : typ) (a : align) (gv_expr_src : GenericValue),
       valid_conf m_src m_tgt conf_src conf_tgt ->
       Invariant.not_in_maydiff inv v = true ->
-      true = true ->
       (forall id : Tag.t * id,
           IdTSet.mem id (Invariant.maydiff inv) = false ->
           sem_inject st_src st_tgt invst (InvMem.Rel.inject invmem) id) ->
@@ -509,7 +508,7 @@ Module Rel.
                                            gv_expr_tgt.
   Proof.
     intros inv invmem invst m_src conf_src st_src m_tgt conf_tgt st_tgt v t0 a
-           gv_expr_src CONF NIMD NIMD0 MAYDIFF g0 Heq0 VAL_SRC MEM
+           gv_expr_src CONF NIMD MAYDIFF g0 Heq0 VAL_SRC MEM
            TARGETDATA GLOBALS g H H0.
     eapply mload_inv in VAL_SRC; eauto; []; ii; des.
     clarify.
