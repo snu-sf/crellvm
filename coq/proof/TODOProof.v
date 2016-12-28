@@ -107,3 +107,17 @@ Proof.
   - econs; eauto. apply Pos.le_1_l.
   - eapply memory_props.MemProps.redundant__wf_globals.
 Qed.
+
+Lemma int_add_0
+      (ofs : int32)
+  :
+    <<INT_ARITH: Int.signed 31 ofs =
+                 Int.signed 31 (Int.add 31 ofs (Int.repr 31 0))>>
+.
+Proof.
+  unfold Int.add. ss.
+  replace (Int.repr 31 (Int.unsigned 31 ofs + 0)) with ofs; ss.
+  destruct ofs. unfold Int.repr. ss.
+  rewrite Z.add_comm. ss.
+  admit. (* Int.signed arithmetic *)
+Admitted.

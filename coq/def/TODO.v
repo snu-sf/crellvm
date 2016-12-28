@@ -557,3 +557,9 @@ Module WFacts_fun2 (E:DecidableType) (M:(WSfun E)).
         * right. apply IHl0. auto.
   Qed.
 End WFacts_fun2.
+
+Definition isMallocInst(c: cmd): bool :=
+  match c with
+  | LLVMsyntax.insn_malloc _ _ _ _ => true
+  | _ => false
+  end.
