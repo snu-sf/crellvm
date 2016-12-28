@@ -564,7 +564,58 @@ Proof.
   + eapply IHval'; eauto.
 Qed.
 
-Lemma wf_const_diffblock
+Lemma valid_ptr_globals_diffblock2
+  conf gmax val val'
+  (GLOBALS : forall b : Values.block, In b (GV2blocks val') -> (gmax < b)%positive)
+  (VALID_PTR : memory_props.MemProps.valid_ptrs (gmax + 1)%positive val')
+  :
+  <<DIFFBLOCK: InvState.Unary.sem_diffblock conf val val' >>
+.
+Proof.
+  ii.
+  exploit GLOBALS; eauto; []; intro GMAX; des.
+  clear - VALID_PTR INR GMAX.
+  induction val'; ss.
+  cbn in *. destruct a; ss. cbn in *.
+  unfold compose in *. ss.
+  destruct v; ss; try (eapply IHval'; eauto; fail).
+  des; clarify.
+  + rewrite <- Pplus_one_succ_r in VALID_PTR.
+    apply Plt_succ_inv in VALID_PTR.
+    des.
+    * exploit Plt_trans; eauto. ii.
+      exploit dom_libs.PositiveSet.MSet.Raw.L.MO.lt_irrefl; eauto.
+    * clarify.
+      exploit dom_libs.PositiveSet.MSet.Raw.L.MO.lt_irrefl; eauto.
+  + eapply IHval'; eauto.
+Qed.
+
+Lemma valid_ptr_globals_diffblock_with_blocks
+  conf gmax val blocks
+  (GLOBALS : forall b : Values.block, In b blocks -> (gmax < b)%positive)
+  (VALID_PTR : memory_props.MemProps.valid_ptrs (gmax + 1)%positive val)
+  :
+  <<DIFFBLOCK: InvMem.gv_diffblock_with_blocks conf val blocks>>
+.
+Proof.
+  ii.
+  exploit GLOBALS; eauto; []; intro GMAX; des.
+  induction val; ss.
+  cbn in *. destruct a; ss. cbn in *.
+  unfold compose in *. ss.
+  destruct v; ss; try (eapply IHval; eauto; fail).
+  des; clarify.
+  + rewrite <- Pplus_one_succ_r in VALID_PTR.
+    apply Plt_succ_inv in VALID_PTR.
+    des.
+    * exploit Plt_trans; eauto. ii.
+      exploit dom_libs.PositiveSet.MSet.Raw.L.MO.lt_irrefl; eauto.
+    * clarify.
+      exploit dom_libs.PositiveSet.MSet.Raw.L.MO.lt_irrefl; eauto.
+  + eapply IHval; eauto.
+Qed.
+
+Lemma wf_const_valid_ptr
       conf st0 invmem phinodes gmax public
   (MEM : InvMem.Unary.sem conf gmax public (Mem st0) invmem)
   (WF_SUBSET : Forall
@@ -576,13 +627,12 @@ Lemma wf_const_diffblock
              wf_insn (CurSystem conf)
                (module_intro (fst (CurTargetData conf)) (snd (CurTargetData conf)) (CurProducts conf))
                (CurFunction (EC st0)) b insn >>)
-  val reg val' t1 vls1 const5
-  (GLOBALS : forall b : Values.block, In b (GV2blocks val) -> (gmax < b)%positive)
+  reg val' t1 vls1 const5
   (INCOMING_IN : In (insn_phi reg t1 vls1) phinodes)
   (INCOMING_VALUES : getValueViaLabelFromValuels vls1 (getBlockLabel (CurBB (EC st0))) = Some (value_const const5))
   (INCOMING_GET : const2GV (CurTargetData conf) (Globals conf) const5 = Some val')
   :
-    <<DIFFBLOCK: InvState.Unary.sem_diffblock conf val val'>>
+    <<VALID_PTR: memory_props.MemProps.valid_ptrs (gmax + 1)%positive val'>>
 .
 Proof.
   move WF_SUBSET at bottom.
@@ -620,13 +670,36 @@ Proof.
   inv MEM.
   clear WF PRIVATE_PARENT MEM_PARENT UNIQUE_PARENT_MEM
         UNIQUE_PARENT_GLOBALS UNIQUE_PRIVATE_PARENT NEXTBLOCK.
-  rename GLOBALS0 into WF_GLOBALS.
+  rename GLOBALS into WF_GLOBALS.
   eapply wf_globals_eq in WF_GLOBALS.
 
   exploit memory_props.MemProps.const2GV_valid_ptrs; eauto.
   { destruct (CurTargetData conf); ss; eauto. }
-  intro VALID_PTR.
+Qed.
 
+Lemma wf_const_diffblock
+      conf st0 invmem phinodes gmax public
+  (MEM : InvMem.Unary.sem conf gmax public (Mem st0) invmem)
+  (WF_SUBSET : Forall
+                (fun phi : phinode =>
+                 exists b : block, phinodeInBlockB phi b /\ blockInFdefB b (CurFunction (EC st0))) phinodes)
+  (WF_INSNS : forall (insn : insn) (b : block),
+             insnInBlockB insn b /\ blockInFdefB b (CurFunction (EC st0)) ->
+             <<WF_INSN:
+             wf_insn (CurSystem conf)
+               (module_intro (fst (CurTargetData conf)) (snd (CurTargetData conf)) (CurProducts conf))
+               (CurFunction (EC st0)) b insn >>)
+  val reg val' t1 vls1 const5
+  (GLOBALS : forall b : Values.block, In b (GV2blocks val) -> (gmax < b)%positive)
+  (INCOMING_IN : In (insn_phi reg t1 vls1) phinodes)
+  (INCOMING_VALUES : getValueViaLabelFromValuels vls1 (getBlockLabel (CurBB (EC st0))) = Some (value_const const5))
+  (INCOMING_GET : const2GV (CurTargetData conf) (Globals conf) const5 = Some val')
+  :
+    <<DIFFBLOCK: InvState.Unary.sem_diffblock conf val val'>>
+.
+Proof.
+  ii.
+  exploit wf_const_valid_ptr; eauto; []; ii; des.
   eapply valid_ptr_globals_diffblock; eauto.
 Qed.
 
@@ -712,16 +785,19 @@ Proof.
       clarify.
       destruct v as [y|]; ss.
       - eapply UNIQUE_PARENT_LOCAL; eauto.
-      - eapply wf_const_diffblock; eauto.
+      -
+        hexploit wf_const_valid_ptr; eauto; []; intro VALID_PTR; des.
         inv MEM.
-        admit. (* wf_const, wf_globals memory_props.MemProps.const2GV_valid_ptrs *)
+        eapply valid_ptr_globals_diffblock_with_blocks; eauto.
     }
     { rewrite <- AtomSetFacts.not_mem_iff in REG_MEM.
       rewrite opsem_props.OpsemProps.updateValuesForNewBlock_spec7' in PTR; eauto.
     }
   - inv MEM. eauto.
   - inv MEM. eauto.
-Admitted.
+Unshelve.
+ss.
+Qed.
 
 Lemma switchToNewBasicBlock_wf
       conf mem locals locals'
