@@ -538,6 +538,98 @@ Qed.
 (*       esplits; eauto. *)
 (* Qed. *)
 
+Lemma valid_ptr_globals_diffblock
+  conf gmax val val'
+  (GLOBALS : forall b : Values.block, In b (GV2blocks val) -> (gmax < b)%positive)
+  (VALID_PTR : memory_props.MemProps.valid_ptrs (gmax + 1)%positive val')
+  :
+  <<DIFFBLOCK: InvState.Unary.sem_diffblock conf val val' >>
+.
+Proof.
+  ii.
+  exploit GLOBALS; eauto; []; intro GMAX; des.
+  clear - VALID_PTR INR GMAX.
+  induction val'; ss.
+  cbn in *. destruct a; ss. cbn in *.
+  unfold compose in *. ss.
+  destruct v; ss; try (eapply IHval'; eauto; fail).
+  des; clarify.
+  + rewrite <- Pplus_one_succ_r in VALID_PTR.
+    apply Plt_succ_inv in VALID_PTR.
+    des.
+    * exploit Plt_trans; eauto. ii.
+      exploit dom_libs.PositiveSet.MSet.Raw.L.MO.lt_irrefl; eauto.
+    * clarify.
+      exploit dom_libs.PositiveSet.MSet.Raw.L.MO.lt_irrefl; eauto.
+  + eapply IHval'; eauto.
+Qed.
+
+Lemma wf_const_diffblock
+      conf st0 invmem phinodes gmax public
+  (MEM : InvMem.Unary.sem conf gmax public (Mem st0) invmem)
+  (WF_SUBSET : Forall
+                (fun phi : phinode =>
+                 exists b : block, phinodeInBlockB phi b /\ blockInFdefB b (CurFunction (EC st0))) phinodes)
+  (WF_INSNS : forall (insn : insn) (b : block),
+             insnInBlockB insn b /\ blockInFdefB b (CurFunction (EC st0)) ->
+             <<WF_INSN:
+             wf_insn (CurSystem conf)
+               (module_intro (fst (CurTargetData conf)) (snd (CurTargetData conf)) (CurProducts conf))
+               (CurFunction (EC st0)) b insn >>)
+  val reg val' t1 vls1 const5
+  (GLOBALS : forall b : Values.block, In b (GV2blocks val) -> (gmax < b)%positive)
+  (INCOMING_IN : In (insn_phi reg t1 vls1) phinodes)
+  (INCOMING_VALUES : getValueViaLabelFromValuels vls1 (getBlockLabel (CurBB (EC st0))) = Some (value_const const5))
+  (INCOMING_GET : const2GV (CurTargetData conf) (Globals conf) const5 = Some val')
+  :
+    <<DIFFBLOCK: InvState.Unary.sem_diffblock conf val val'>>
+.
+Proof.
+  move WF_SUBSET at bottom.
+  rewrite List.Forall_forall in WF_SUBSET.
+  specialize (WF_SUBSET (insn_phi reg t1 vls1) INCOMING_IN). des.
+  exploit WF_INSNS; eauto.
+  { esplits; eauto.
+    instantiate (1:= (insn_phinode (insn_phi reg t1 vls1))).
+    ss.
+  }
+  intros WF_INSN; des.
+
+  inv WF_INSN. clear H7 H8.
+  exploit H6.
+  {
+    instantiate (1:= value_const const5).
+    exploit infrastructure_props.getValueViaLabelFromValuels__InValueList; eauto.
+    intros IN_CONST.
+    clear - IN_CONST.
+    {
+      induction vls1; ss.
+      des_ifs.
+      des; clarify.
+      - left; ss.
+      - right; ss. eapply IHvls1; eauto.
+    }
+  (* split_combine *)
+  (* in_combine_l *)
+  }
+  intro WF_VALUE. ss. des.
+
+  inv WF_VALUE.
+  symmetry in INCOMING_GET.
+
+  inv MEM.
+  clear WF PRIVATE_PARENT MEM_PARENT UNIQUE_PARENT_MEM
+        UNIQUE_PARENT_GLOBALS UNIQUE_PRIVATE_PARENT NEXTBLOCK.
+  rename GLOBALS0 into WF_GLOBALS.
+  eapply wf_globals_eq in WF_GLOBALS.
+
+  exploit memory_props.MemProps.const2GV_valid_ptrs; eauto.
+  { destruct (CurTargetData conf); ss; eauto. }
+  intro VALID_PTR.
+
+  eapply valid_ptr_globals_diffblock; eauto.
+Qed.
+
 Lemma phinodes_unique_preserved_except
       conf st0 inv0 invmem invst
       l_to phinodes cmds terminator locals l0
@@ -598,64 +690,7 @@ Proof.
           ii. subst.
           apply NOT_IN_USE. clarify.
           eapply filter_map_spec; eauto.
-        - cbn in *.
-          assert(TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT: True) by ss.
-          clear - INCOMING_GET MEM WF_SUBSET INCOMING_IN INCOMING_VALUES WF_INSNS GLOBALS.
-          inv MEM.
-          clear WF PRIVATE_PARENT MEM_PARENT UNIQUE_PARENT_MEM
-                UNIQUE_PARENT_GLOBALS UNIQUE_PRIVATE_PARENT NEXTBLOCK.
-          eapply wf_globals_eq in GLOBALS0.
-
-          move WF_SUBSET at bottom.
-          rewrite List.Forall_forall in WF_SUBSET.
-          specialize (WF_SUBSET (insn_phi reg t1 vls1) INCOMING_IN). des.
-          exploit WF_INSNS; eauto.
-          { esplits; eauto.
-            instantiate (1:= (insn_phinode (insn_phi reg t1 vls1))).
-            ss.
-          }
-          intros WF_INSN; des.
-
-          inv WF_INSN. clear H7 H8.
-          exploit H6.
-          {
-            instantiate (1:= value_const const5).
-            exploit infrastructure_props.getValueViaLabelFromValuels__InValueList; eauto.
-            intros IN_CONST.
-            clear - IN_CONST.
-            {
-              induction vls1; ss.
-              des_ifs.
-              des; clarify.
-              - left; ss.
-              - right; ss. eapply IHvls1; eauto.
-            }
-            (* split_combine *)
-            (* in_combine_l *)
-          }
-          intro WF_VALUE. ss. des.
-
-          inv WF_VALUE.
-          symmetry in INCOMING_GET.
-          exploit memory_props.MemProps.const2GV_valid_ptrs; eauto.
-          { destruct (CurTargetData conf); ss; eauto. }
-          intro VALID_PTR.
-          ii.
-          exploit GLOBALS; eauto; []; intro GMAX; des.
-          clear - VALID_PTR INR GMAX.
-          induction val'; ss.
-          cbn in *. destruct a; ss. cbn in *.
-          unfold compose in *. ss.
-          destruct v; ss; try (eapply IHval'; eauto; fail).
-          des; clarify.
-          + rewrite <- Pplus_one_succ_r in VALID_PTR.
-            apply Plt_succ_inv in VALID_PTR.
-            des.
-            * exploit Plt_trans; eauto. ii.
-              exploit dom_libs.PositiveSet.MSet.Raw.L.MO.lt_irrefl; eauto.
-            * clarify.
-              exploit dom_libs.PositiveSet.MSet.Raw.L.MO.lt_irrefl; eauto.
-          + eapply IHval'; eauto.
+        - eapply wf_const_diffblock; eauto.
       }
       { rewrite <- AtomSetFacts.not_mem_iff in REG_MEM.
         rewrite opsem_props.OpsemProps.updateValuesForNewBlock_spec7' in VAL'; eauto.
@@ -677,7 +712,8 @@ Proof.
       clarify.
       destruct v as [y|]; ss.
       - eapply UNIQUE_PARENT_LOCAL; eauto.
-      - inv MEM.
+      - eapply wf_const_diffblock; eauto.
+        inv MEM.
         admit. (* wf_const, wf_globals memory_props.MemProps.const2GV_valid_ptrs *)
     }
     { rewrite <- AtomSetFacts.not_mem_iff in REG_MEM.
