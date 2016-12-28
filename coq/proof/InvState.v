@@ -566,10 +566,9 @@ Module Rel.
         (INJECT : genericvalues_inject.gv_inject (InvMem.Rel.inject invmem) g0 g)
     :
       exists gval_tgt : GenericValue,
-        <<VAL_TGT: mload (CurTargetData conf_src) (Mem st_tgt) g t1 a0
-                   = ret gval_tgt >> /\
-                   <<INJECT: genericvalues_inject.gv_inject
-                               (InvMem.Rel.inject invmem) gval_src gval_tgt >>
+        (<<VAL_TGT: mload (CurTargetData conf_src) (Mem st_tgt) g t1 a0 = ret gval_tgt >>) /\
+        (<<INJECT: genericvalues_inject.gv_inject (InvMem.Rel.inject invmem)
+                                                  gval_src gval_tgt >>)
   .
   Proof.
     eapply mload_inv in VAL_SRC; eauto; []; ii; des.
