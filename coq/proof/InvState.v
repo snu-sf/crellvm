@@ -367,6 +367,7 @@ Module Unary.
     - admit. (* wf_lc prev *)
     - admit. (* wf_lc ghost *)
     - admit. (* unique_parent *)
+    - admit. (* wf_INSNS *)
       (* TODO: This lemma is currently wrong: need wf condition to st, invst, invmem *)
   Admitted.
 
