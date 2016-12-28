@@ -97,3 +97,13 @@ Proof.
   - apply IHl in IN. des.
     esplits; eauto.
 Qed.
+
+Lemma wf_globals_eq maxb gl
+  :
+    <<EQ: genericvalues_inject.wf_globals maxb gl <-> memory_props.MemProps.wf_globals maxb gl>>
+.
+Proof.
+  split.
+  - econs; eauto. apply Pos.le_1_l.
+  - eapply memory_props.MemProps.redundant__wf_globals.
+Qed.
