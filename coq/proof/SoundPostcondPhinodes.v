@@ -548,6 +548,10 @@ Lemma phinodes_unique_preserved_except
       (UNIQUE_ID : unique id_dec (List.map Phinode.get_def l0) = true)
       (STEP : switchToNewBasicBlock (CurTargetData conf) (l_to, stmts_intro phinodes cmds terminator)
                                     (CurBB (EC st0)) (Globals conf) (Locals (EC st0)) = Some locals)
+      (WF_SUBSET: List.Forall (fun phi =>
+                          exists b,
+                            insnInBlockB (insn_phinode phi) b
+                            /\ blockInFdefB b (CurFunction (EC st0))) phinodes)
   : unique_preserved_except conf inv0 invmem.(InvMem.Unary.unique_parent)
                                                (mkState (mkEC
                                                            st0.(EC).(CurFunction)
@@ -584,7 +588,8 @@ Proof.
       { rewrite <- AtomSetFacts.mem_iff in REG_MEM.
         hexploit indom_lookupAL_Some; eauto. i. des.
         exploit opsem_props.OpsemProps.getIncomingValuesForBlockFromPHINodes_spec9'; eauto.
-        i. des.
+        intros INCOMING. destruct INCOMING as [t1 [vls1 [v [INCOMING_IN [INCOMING_VALUES INCOMING_GET]]]]].
+        (* better way to name it?? *)
 
         exploit resolve_eq_getValueViaLabelFromValuels; eauto. intro IN_PASSIGNS.
         rewrite opsem_props.OpsemProps.updateValuesForNewBlock_spec6' in *; eauto. clarify.
@@ -593,9 +598,64 @@ Proof.
           ii. subst.
           apply NOT_IN_USE. clarify.
           eapply filter_map_spec; eauto.
-        - admit. (* const to wf_const *)
-          (* memory_props.MemProps.const2GV_valid_ptrs says that valid_ptrs maxb +1 *)
-          (* For this lemma we need wf_globals *)
+        - cbn in *.
+          assert(TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT: True) by ss.
+          clear - INCOMING_GET MEM WF_SUBSET INCOMING_IN INCOMING_VALUES WF_INSNS GLOBALS.
+          inv MEM.
+          clear WF PRIVATE_PARENT MEM_PARENT UNIQUE_PARENT_MEM
+                UNIQUE_PARENT_GLOBALS UNIQUE_PRIVATE_PARENT NEXTBLOCK.
+          eapply wf_globals_eq in GLOBALS0.
+
+          move WF_SUBSET at bottom.
+          rewrite List.Forall_forall in WF_SUBSET.
+          specialize (WF_SUBSET (insn_phi reg t1 vls1) INCOMING_IN). des.
+          exploit WF_INSNS; eauto.
+          { esplits; eauto.
+            instantiate (1:= (insn_phinode (insn_phi reg t1 vls1))).
+            ss.
+          }
+          intros WF_INSN; des.
+
+          inv WF_INSN. clear H7 H8.
+          exploit H6.
+          {
+            instantiate (1:= value_const const5).
+            exploit infrastructure_props.getValueViaLabelFromValuels__InValueList; eauto.
+            intros IN_CONST.
+            clear - IN_CONST.
+            {
+              induction vls1; ss.
+              des_ifs.
+              des; clarify.
+              - left; ss.
+              - right; ss. eapply IHvls1; eauto.
+            }
+            (* split_combine *)
+            (* in_combine_l *)
+          }
+          intro WF_VALUE. ss. des.
+
+          inv WF_VALUE.
+          symmetry in INCOMING_GET.
+          exploit memory_props.MemProps.const2GV_valid_ptrs; eauto.
+          { destruct (CurTargetData conf); ss; eauto. }
+          intro VALID_PTR.
+          ii.
+          exploit GLOBALS; eauto; []; intro GMAX; des.
+          clear - VALID_PTR INR GMAX.
+          induction val'; ss.
+          cbn in *. destruct a; ss. cbn in *.
+          unfold compose in *. ss.
+          destruct v; ss; try (eapply IHval'; eauto; fail).
+          des; clarify.
+          + rewrite <- Pplus_one_succ_r in VALID_PTR.
+            apply Plt_succ_inv in VALID_PTR.
+            des.
+            * exploit Plt_trans; eauto. ii.
+              exploit dom_libs.PositiveSet.MSet.Raw.L.MO.lt_irrefl; eauto.
+            * clarify.
+              exploit dom_libs.PositiveSet.MSet.Raw.L.MO.lt_irrefl; eauto.
+          + eapply IHval'; eauto.
       }
       { rewrite <- AtomSetFacts.not_mem_iff in REG_MEM.
         rewrite opsem_props.OpsemProps.updateValuesForNewBlock_spec7' in VAL'; eauto.
@@ -648,6 +708,41 @@ Proof.
     rewrite opsem_props.OpsemProps.updateValuesForNewBlock_spec7' in Hx; eauto.
   }
 Admitted.
+
+Lemma lookup_implies_wf_subset
+      st0 l_to phinodes cmds terminator
+      (STMT : lookupAL stmts (get_blocks (CurFunction (EC st0))) l_to =
+                  Some (stmts_intro phinodes cmds terminator))
+  :
+    <<WF_SUBSET: List.Forall
+      (fun phi : phinode =>
+         exists b : block, insnInBlockB (insn_phinode phi) b /\ blockInFdefB b (CurFunction (EC st0)))
+      phinodes>>
+.
+Proof.
+  destruct st0; ss. destruct EC0; ss. destruct CurFunction0; ss.
+  clear - phinodes STMT.
+  red.
+  rewrite List.Forall_forall.
+  i.
+  induction blocks5; ii; ss.
+  destruct a; ss.
+  rename s into __s__.
+  des_ifs.
+  - esplits; eauto; cycle 1.
+    + unfold is_true.
+      rewrite orb_true_iff.
+      left. instantiate (1:= (l0, stmts_intro phinodes cmds terminator)).
+      rewrite infrastructure_props.blockEqB_refl. ss.
+    + ss. clear - H.
+      apply infrastructure_props.In_InPhiNodesB; ss.
+  - exploit IHblocks5; eauto; []; ii; des.
+    esplits; eauto.
+    unfold is_true.
+    rewrite orb_true_iff.
+    right.
+    ss.
+Qed.
 
 Lemma postcond_phinodes_sound
       m_src conf_src st0_src phinodes_src cmds_src terminator_src locals_src
@@ -719,10 +814,12 @@ Proof.
   }
   { inv STATE_SNAPSHOT. inv MEM.
     eapply phinodes_unique_preserved_except; eauto.
+    eapply lookup_implies_wf_subset; eauto.
   }
   { inv STATE_SNAPSHOT. inv MEM.
     eapply phinodes_unique_preserved_except; eauto.
     rewrite L_TGT. eauto.
+    eapply lookup_implies_wf_subset; eauto.
   }
   { inv STATE. inv SRC. ss.
     eapply switchToNewBasicBlock_wf; try exact STEP_SRC; eauto. }
