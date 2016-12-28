@@ -356,10 +356,11 @@ Definition inject_allocas
 
 Lemma inject_locals_getOperandValue
       inv val
-      conf_src locals_src gval_src
-      conf_tgt locals_tgt
+      conf_src mem_src locals_src gval_src
+      conf_tgt mem_tgt locals_tgt
       (CONF: inject_conf conf_src conf_tgt)
       (LOCALS: inject_locals inv locals_src locals_tgt)
+      (MEM: InvMem.Rel.sem conf_src conf_tgt mem_src mem_tgt inv)
       (SRC: getOperandValue conf_src.(CurTargetData) val locals_src (Globals conf_src) = Some gval_src):
   exists gval_tgt,
     <<TGT: getOperandValue conf_tgt.(CurTargetData) val locals_tgt (Globals conf_tgt) = Some gval_tgt>> /\
@@ -369,17 +370,17 @@ Proof.
   - exploit LOCALS; eauto.
   - destruct conf_src, conf_tgt. inv CONF. ss. subst.
     esplits; eauto.
+    inv MEM. inv TGT.
     eapply const2GV_inject; eauto.
-    + admit. (* wf_sb_mi *)
-    + admit. (* wf_globals *)
-Admitted.
+Qed.
 
 Lemma inject_locals_params2GVs
       inv0 args0
-      conf_src locals_src gvs_param_src
-      conf_tgt locals_tgt
+      conf_src mem_src locals_src gvs_param_src
+      conf_tgt mem_tgt locals_tgt
       (CONF: inject_conf conf_src conf_tgt)
       (LOCALS: inject_locals inv0 locals_src locals_tgt)
+      (MEM: InvMem.Rel.sem conf_src conf_tgt mem_src mem_tgt inv0)
       (PARAM_SRC:params2GVs (CurTargetData conf_src) args0 locals_src (Globals conf_src) = Some gvs_param_src):
   exists gvs_param_tgt,
     <<PARAM_TGT:params2GVs (CurTargetData conf_tgt) args0 locals_tgt (Globals conf_tgt) = Some gvs_param_tgt>> /\
