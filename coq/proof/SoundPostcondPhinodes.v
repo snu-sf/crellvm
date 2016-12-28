@@ -108,7 +108,26 @@ Proof.
         replace (wz+1-1)%nat with wz; try omega.
         rewrite Integers.Int.repr_signed. eauto.
       }
-      { admit. (* chunk *) }
+      { admit. (* chunk *)
+        (* clarification for "chunk" admit *)
+        (*
+        "GenericValue = list (Values.val * AST.memory_chunk)"
+        GVs.lessdef checks both "Values.val" and "AST.memory_chunk" are same.
+        When validator meets "if(c) then ~ else ~"
+        it generates postcond (c <=> 1) in "then" case, and (c <=> 0) in "else" case.
+        We need to prove it ("GVs.lessdef c 1" holds), but proving the snd of the pair (chunk) is problem.
+        In semantics, we use "GV2int: ~ GenericValue -> option Z".
+        This only looks at the fst of the pair.
+        From the semantics, we get "GV2int c = Some 1", however that does not say anything about c's chunk.
+        I think every "GenericValue" generated from the semantics has matching fst/snd of the pair.
+        Solution may include:
+          1. Relax GVs.lessdef? I am not sure if it is relaxable or not. Maybe not.
+          2. Create new wf condition, that describes fst/snd of the pair are related.
+          3. Cut off semantics, change GV2int to consider the second argument too.
+        I think the third is the easiest, and it seems it makes sense. (it does not make sane program to UB)
+        For now, we left this as ad-mit with mark "chunk"
+        *)
+      }
   - ss. clarify. ss.
     rewrite InvState.Unary.sem_valueT_physical. clarify.
 
