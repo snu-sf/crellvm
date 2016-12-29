@@ -294,7 +294,7 @@ Admitted.
   (*        esplits; ss; econs; eauto); *)
   (*   try (by inv CMD; *)
   (*        esplits; ss; [des_ifs | econs]; eauto). *)
-  (* - admit. (* not malloc, easy *) *)
+  (* - ad-mit. (* not malloc, easy *) *)
   (* - inv CMD. *)
   (*   esplits; ss. *)
   (*   + des_ifs. *)
