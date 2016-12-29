@@ -147,5 +147,18 @@ Lemma wf_globals_const2GV
     <<VALID_PTR: MemProps.valid_ptrs gmax gv>>
 .
 Proof.
-  exact (EXCUSED_ADMIT "Language should provide this. This should be provable.").
+  exact (EXCUSED_ADMIT "
+Language should provide this. This should be provable.
+- Inside _const2GV, it seems the only source of pointer is ""gid"", which looks up globals table.
+- Note that int2ptr/ptr2int is currently defind as undef in mcast.
+- null has pointer type but its value is int.
+Therefore, any pointer returned by const2GV may originate from globals table, so this theorem should hold.
+
+Also, even in case this does not hold, look: https://github.com/snu-sf/llvmberry/blob/c6acd1462bdb06c563185e23756897914f80e53a/coq/proof/SoundForgetMemory.v#L1504
+This is provable with wf_const, by the lemma ""MemProps.const2GV_valid_ptrs"".
+Claiming all const satisfies wf_const is too strong and it will introduce inconsistency.
+We might need to add some constraints in our validator,
+such as, the const of interest (all that appears in hint/invariant) actually exists in the original code,
+which passed type checking, so wf_const holds.
+").
 Qed.
