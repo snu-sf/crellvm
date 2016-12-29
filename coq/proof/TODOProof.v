@@ -9,7 +9,9 @@ Set Implicit Arguments.
 (* Motivation: I want to distinguish excused ad-mits from normal ad-mits, *)
 (* and further, I do not want to "grep" excused ones, so I give them different name. *)
 (* @jeehoonkang adviced me to use semantic ad-mit instead of just comment. *)
-Tactic Notation "EXCUSED_ADMIT" string(excuse) := idtac excuse; admit.
+(* Tactic Notation "EXCUSED_ADMIT" string(excuse) := idtac excuse; ad-mit. *)
+(* above definition requires "Adm-itted" at the end of the proof, and I consider that not good *)
+Definition EXCUSED_ADMIT (excuse: String.string) {T: Type} : T.  Admitted.
 
 (* Clarify purpose of this file more clearly? *)
 (* Should prevent circular dependency *)
