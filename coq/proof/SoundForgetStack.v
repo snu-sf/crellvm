@@ -679,16 +679,14 @@ Proof.
     move gvs at bottom.
     assert(list_disjoint (GV2blocks __val__) (GV2blocks gvs)).
     {
-      clear - VAL H LOCALS NOT_LEAKED_U UNIQUE_BEF.
+      clear - VAL H LOCALS NOT_LEAKED_U UNIQUE_BEF GLOBALS.
       destruct value5; ss.
       { eapply LOCALS; eauto.
         { compute in NOT_LEAKED_U.
           apply AtomSetFacts.not_mem_iff in NOT_LEAKED_U.
           eapply notin_add_1 in NOT_LEAKED_U. ii; subst; ss. }
       }
-      { hexploit SoundForgetMemory.unique_const_diffblock; ss; eauto; []; ii; des.
-        eapply H0; eauto.
-      }
+      { hexploit unique_const_diffblock; ss; eauto. }
     }
     clear - INL INR H0 H1.
     exploit In_incl; eauto.
@@ -708,7 +706,7 @@ Proof.
     move gvs' at bottom.
     assert(list_disjoint (GV2blocks __val__) (GV2blocks gvs)).
     {
-      clear - VAL H LOCALS NOT_LEAKED_U UNIQUE_BEF.
+      clear - VAL H LOCALS NOT_LEAKED_U UNIQUE_BEF GLOBALS.
       destruct value5; ss.
       { eapply LOCALS; eauto.
         { compute in NOT_LEAKED_U.
@@ -719,13 +717,11 @@ Proof.
           - eapply notin_add_1 in NOT_LEAKED_U. ss.
         }
       }
-      { hexploit SoundForgetMemory.unique_const_diffblock; ss; eauto; []; ii; des.
-        eapply H0; eauto.
-      }
+      { hexploit unique_const_diffblock; ss; eauto. }
     }
     assert(list_disjoint (GV2blocks __val__) (GV2blocks gvs')).
     {
-      clear - VAL H0 LOCALS NOT_LEAKED_U UNIQUE_BEF.
+      clear - VAL H0 LOCALS NOT_LEAKED_U UNIQUE_BEF GLOBALS.
       destruct value'; ss.
       { eapply LOCALS; eauto.
         { compute in NOT_LEAKED_U.
@@ -736,9 +732,7 @@ Proof.
           - eapply notin_add_1 in NOT_LEAKED_U. ss.
         }
       }
-      { hexploit SoundForgetMemory.unique_const_diffblock; ss; eauto; []; ii; des.
-        eapply H; eauto.
-      }
+      { hexploit unique_const_diffblock; ss; eauto. }
     }
     clear - H2 H3 H1 INR INL.
     exploit In_incl.
