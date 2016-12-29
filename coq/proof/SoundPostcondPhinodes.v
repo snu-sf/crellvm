@@ -109,7 +109,7 @@ Proof.
         rewrite Integers.Int.repr_signed. eauto.
       }
       { exact (EXCUSED_ADMIT "chunk").
-        (* clarification for "chunk" admit *)
+        (* clarification for "chunk" ad-mit *)
         (*
         "GenericValue = list (Values.val * AST.memory_chunk)"
         GVs.lessdef checks both "Values.val" and "AST.memory_chunk" are same.

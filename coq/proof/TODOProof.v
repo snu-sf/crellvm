@@ -65,7 +65,7 @@ See common/Memdata.v, ""encode_decode_encode_val__eq__encode_val"" is commented
 and all tainted Theorems are commented.
 It seems those Theorems are commented at that moment because they are not used in Vellvm.
 One may able to track this issue with git lg/blame, also with actual compcert code before/after upgrade.
-I consider this admit can be solved, but it does not worth to.
+I consider this ad-mit can be solved, but it does not worth to.
 ").
   (* eapply MemProps.mstore_mload_same; eauto. *) (* From Vellvm, should uncomment *)
   (* eapply mstore_implies_gv_chunks_match; eauto. *)
