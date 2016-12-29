@@ -655,9 +655,8 @@ Proof.
 Qed.
 
 Lemma unique_const_diffblock
-      gval1 gval2 conf gmax inv0 st i0 cnst
-      (UNIQUE: AtomSetImpl.For_all (InvState.Unary.sem_unique conf st gmax) (Invariant.unique inv0))
-      (UNIQUE2: AtomSetImpl.mem i0 (Invariant.unique inv0) = true)
+      gval1 gval2 conf gmax st i0 cnst
+      (UNIQUE: InvState.Unary.sem_unique conf st gmax i0)
       (GLOBALS: genericvalues_inject.wf_globals gmax (Globals conf))
       (VAL1: lookupAL GenericValue (Locals (EC st)) i0 = Some gval1)
       (VAL2: const2GV (CurTargetData conf) (Globals conf) cnst = Some gval2)
@@ -667,10 +666,6 @@ Lemma unique_const_diffblock
 Proof.
   red.
   eapply TODOProof.wf_globals_const2GV in VAL2; eauto. des.
-
-  unfold AtomSetImpl.For_all in *.
-  eapply AtomSetFacts.mem_iff in UNIQUE2.
-  specialize (UNIQUE i0 UNIQUE2). clear UNIQUE2.
 
   inv UNIQUE. clear LOCALS MEM. clarify.
 

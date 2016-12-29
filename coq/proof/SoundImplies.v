@@ -175,6 +175,10 @@ Proof.
         ss.
       }
     * (* const *)
+      unfold AtomSetImpl.For_all in *.
+      eapply AtomSetFacts.mem_iff in IMPLIES_ALIAS2.
+      specialize (UNIQUE i0 IMPLIES_ALIAS2). clear IMPLIES_ALIAS2.
+
       eapply unique_const_diffblock; eauto.
   + (* exactly copied from above *)
     clear IMPLIES_ALIAS0.
@@ -200,6 +204,10 @@ Proof.
         ss.
       }
     * (* const *)
+      unfold AtomSetImpl.For_all in *.
+      eapply AtomSetFacts.mem_iff in IMPLIES_ALIAS2.
+      specialize (UNIQUE i0 IMPLIES_ALIAS2). clear IMPLIES_ALIAS2.
+
       eapply InvState.Unary.diffblock_comm.
       eapply unique_const_diffblock; eauto.
 Qed.
