@@ -138,3 +138,14 @@ Proof.
   rewrite Z.add_comm. ss.
   admit. (* Int.signed arithmetic *)
 Admitted.
+
+Lemma wf_globals_const2GV
+      gmax gl TD cnst gv
+      (GLOBALS: genericvalues_inject.wf_globals gmax gl)
+      (C2G: const2GV TD gl cnst = Some gv)
+  :
+    <<VALID_PTR: MemProps.valid_ptrs gmax gv>>
+.
+Proof.
+  exact (EXCUSED_ADMIT "Language should provide this. This should be provable.").
+Qed.
