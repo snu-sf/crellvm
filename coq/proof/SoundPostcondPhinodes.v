@@ -108,7 +108,7 @@ Proof.
         replace (wz+1-1)%nat with wz; try omega.
         rewrite Integers.Int.repr_signed. eauto.
       }
-      { admit. (* chunk *)
+      { exact (EXCUSED_ADMIT "chunk").
         (* clarification for "chunk" admit *)
         (*
         "GenericValue = list (Values.val * AST.memory_chunk)"
@@ -143,9 +143,9 @@ Proof.
       replace (wz+1-1)%nat with wz; try omega.
       rewrite Integers.Int.repr_signed. eauto.
     }
-    { admit. (* chunk *) }
+    { exact (EXCUSED_ADMIT "chunk"). }
   - apply LESSDEF; eauto.
-Admitted.
+Qed.
 
 Lemma add_terminator_cond_switch
       conf_src conf_tgt
@@ -254,7 +254,7 @@ Proof.
       econs; eauto.
       { (* value *)
         des; subst; unfold Integers.Int.repr; ss. }
-      { admit. (* chunk *) }
+      { exact (EXCUSED_ADMIT "chunk"). }
     +  esplits; ss. ss.
        destruct wz; try omega.
        specialize (int_sizezero_cases i0). i.
@@ -263,7 +263,7 @@ Proof.
        econs; eauto.
        { (* value *)
          des; subst; unfold Integers.Int.repr; ss. }
-       { admit. (* chunk *) }
+       { exact (EXCUSED_ADMIT "chunk"). }
   - clarify. ss.
     rewrite InvState.Unary.sem_valueT_physical.
     unfold ite in *.
@@ -282,7 +282,7 @@ Proof.
       econs; eauto.
       { (* value *)
         des; subst; unfold Integers.Int.repr; ss. }
-      { admit. (* chunk *) }
+      { exact (EXCUSED_ADMIT "chunk"). }
     + esplits; ss; eauto.
       destruct wz; try omega.
       specialize (int_sizezero_cases i0). i.
@@ -295,9 +295,9 @@ Proof.
       econs; eauto.
       { (* value *)
         des; subst; unfold Integers.Int.repr; ss. }
-      { admit. (* chunk *) }
+      { exact (EXCUSED_ADMIT "chunk"). }
   - exploit LESSDEF; eauto.
-Admitted.
+Qed.
 
 Lemma add_terminator_cond_br
       conf_src conf_tgt
