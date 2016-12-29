@@ -22,6 +22,7 @@ Require Import GenericValues.
 Require Import Inject.
 Require InvMem.
 Require InvState.
+Require Import Hints.
 
 Set Implicit Arguments.
 
@@ -651,4 +652,33 @@ Proof.
       * exploit UNIQUE_PARENT_GLOBALS; eauto.
     + apply sublist_app; eauto.
       apply filter_sublist.
+Qed.
+
+Lemma unique_const_diffblock
+      gval1 gval2 conf gmax inv0 st i0 cnst
+      (UNIQUE: AtomSetImpl.For_all (InvState.Unary.sem_unique conf st gmax) (Invariant.unique inv0))
+      (UNIQUE2: AtomSetImpl.mem i0 (Invariant.unique inv0) = true)
+      (GLOBALS: genericvalues_inject.wf_globals gmax (Globals conf))
+      (VAL1: lookupAL GenericValue (Locals (EC st)) i0 = Some gval1)
+      (VAL2: const2GV (CurTargetData conf) (Globals conf) cnst = Some gval2)
+      :
+  <<DIFFBLOCK: InvState.Unary.sem_diffblock conf gval1 gval2>>
+.
+Proof.
+  red.
+  eapply TODOProof.wf_globals_const2GV in VAL2; eauto. des.
+
+  unfold AtomSetImpl.For_all in *.
+  eapply AtomSetFacts.mem_iff in UNIQUE2.
+  specialize (UNIQUE i0 UNIQUE2). clear UNIQUE2.
+
+  inv UNIQUE. clear LOCALS MEM. clarify.
+
+  ii. eapply GLOBALS0 in INL. clear GLOBALS0 VAL gval1.
+  induction gval2; i; ss.
+  des_ifs; try (eapply IHgval2; eauto; fail).
+  des. cbn in *.
+  des.
+  - clarify. exploit Pos.lt_trans; eauto. intro CONTR. apply Pos.lt_irrefl in CONTR. ss.
+  - eapply IHgval2; eauto.
 Qed.
