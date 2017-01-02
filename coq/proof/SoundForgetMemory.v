@@ -234,7 +234,7 @@ Definition alloc_inject conf_src conf_tgt st0_src st0_tgt
 (* Proof. *)
 (*   apply WF_LOCAL in VAL. *)
 (* (* hope MemProps.operand__lt_nextblock helps *) *)
-(* Admitted. *)
+(* Adm-itted. *)
 
 Lemma step_mem_change
       st0 st1 invst0 invmem0 inv0

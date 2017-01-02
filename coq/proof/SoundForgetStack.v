@@ -553,7 +553,7 @@ Admitted.
 (*     + admit. *)
 (*       (* may need some wf coditions *) *)
 (*       (* const2GV_disjoint_with_runtime_alloca *) *)
-(* Admitted. *)
+(* Adm-itted. *)
 
 (* Lemma extractGenericValue_diffblock *)
 (*       conf st cmd *)
@@ -572,7 +572,7 @@ Admitted.
 (*   rewrite VAL. clear VAL. *)
 (*   unfold extractGenericValue in *. *)
 (*   des_ifs. *)
-(* Admitted. *)
+(* Adm-itted. *)
 
 Lemma extractValue_sub
       TD typ5 gvs l0 val'
