@@ -35,22 +35,64 @@ Module GVs.
     esplits; eauto. apply IHx.
   Qed.
 
-  Lemma lessdef_inject_compose mij a b c
-        (LD: lessdef a b)
-        (INJECT: genericvalues_inject.gv_inject mij b c):
-    << INJECT: genericvalues_inject.gv_inject mij a c >>.
-  Proof. exact (EXCUSED_ADMIT "Vellvm inject
+  Lemma lessdef_inject_compose_single mij a b c
+        (LD: Val.lessdef a b)
+        (INJECT: memory_sim.MoreMem.val_inject mij b c):
+    << INJECT: memory_sim.MoreMem.val_inject mij a c >>.
+  Proof.
+    inv LD; inv INJECT; ss; try (econs; eauto; fail).
+    - exact (EXCUSED_ADMIT "Vellvm undef inject
 Vellvm's inject definition (Vellvm.Vellvm.memory_sim.MoreMem.val_inject)
 does not provide ""forall v, Vundef >= v"".
 This should be provided, conceptually this is correct.
 FYI, look at (compcert.common.Values.val_inject).
-"). Qed.
+").
+    - exact (EXCUSED_ADMIT "Vellvm undef inject").
+    - exact (EXCUSED_ADMIT "Vellvm undef inject").
+    - exact (EXCUSED_ADMIT "Vellvm undef inject").
+    - exact (EXCUSED_ADMIT "Vellvm undef inject").
+  Qed.
+
+  Lemma inject_lessdef_compose_single mij a b c
+        (INJECT: memory_sim.MoreMem.val_inject mij a b)
+        (LD: Val.lessdef b c):
+    << INJECT: memory_sim.MoreMem.val_inject mij a c >>.
+  Proof.
+    inv LD; inv INJECT; ss; try (econs; eauto; fail).
+    - exact (EXCUSED_ADMIT "Vellvm undef inject").
+  Qed.
+
+  Lemma lessdef_inject_compose mij a b c
+        (LD: lessdef a b)
+        (INJECT: genericvalues_inject.gv_inject mij b c):
+    << INJECT: genericvalues_inject.gv_inject mij a c >>.
+  Proof.
+    red.
+    generalize dependent a.
+    generalize dependent c.
+    induction b; ii; ss.
+    { inv LD. destruct c; ss. }
+    inv INJECT.
+    inv LD; ss. des. destruct a1; ss. clarify.
+    econs; eauto.
+    eapply lessdef_inject_compose_single; eauto.
+  Qed.
 
   Lemma inject_lessdef_compose mij a b c
         (INJECT: genericvalues_inject.gv_inject mij a b)
         (LD: lessdef b c):
     << INJECT: genericvalues_inject.gv_inject mij a c >>.
-  Proof. exact (EXCUSED_ADMIT "Vellvm inject"). Qed.
+  Proof.
+    red.
+    generalize dependent a.
+    generalize dependent c.
+    induction b; ii; ss.
+    { inv LD. destruct a; ss. }
+    inv INJECT.
+    inv LD; ss. des. destruct b1; ss. clarify.
+    econs; eauto.
+    eapply inject_lessdef_compose_single; eauto.
+  Qed.
 End GVs.
 
 
