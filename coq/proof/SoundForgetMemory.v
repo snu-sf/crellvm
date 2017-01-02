@@ -294,7 +294,7 @@ Admitted.
   (*        esplits; ss; econs; eauto); *)
   (*   try (by inv CMD; *)
   (*        esplits; ss; [des_ifs | econs]; eauto). *)
-  (* - admit. (* not malloc, easy *) *)
+  (* - ad-mit. (* not malloc, easy *) *)
   (* - inv CMD. *)
   (*   esplits; ss. *)
   (*   + des_ifs. *)
@@ -1501,25 +1501,6 @@ Proof.
     eapply NOALIAS; subst; eauto.
 Qed.
 
-(* TODO: jeehoon.kang *)
-Lemma unique_const_diffblock
-      conf st x gv_x c gv_c gmax (* S ty *)
-      (UNIQUE_X : InvState.Unary.sem_unique conf st gmax x)
-      (INV_PTR : lookupAL GenericValue (Locals (EC st)) x = Some gv_x)
-      (* (WF_CONST: wf_const S conf.(CurTargetData) c ty) *)
-      (FORGET_PTR : const2GV (CurTargetData conf) (Globals conf) c = Some gv_c)
-  : InvState.Unary.sem_diffblock conf gv_c gv_x.
-Proof.
-(* exploit MemProps.const2GV_valid_ptrs; eauto. *)
-(* { admit. } *)
-(* inv UNIQUE_X. *)
-(* i. unfold InvState.Unary.sem_diffblock. des_ifs. *)
-(* ii. subst.  *)
-(* we can use the lemma below if we have MemProps.wf_globals and wf_const *)
-(* MemProps.const2GV_valid_ptrs *)
-(* wf_const requires a system.. *)
-Admitted.
-
 (* TODO: simplify proof script *)
 Lemma forget_memory_is_noalias_expr
       conf st1 invst0 invmem0 inv1 mem0 gmax public
@@ -1529,6 +1510,7 @@ Lemma forget_memory_is_noalias_expr
       (NOALIAS_PTR: ForgetMemory.is_noalias_Ptr inv1 (ValueT.lift Tag.physical v_forget, ty_forget) (vt_inv, ty_inv) = true)
       (FORGET_PTR: getOperandValue (CurTargetData conf) v_forget (Locals (EC st1)) (Globals conf) = Some gv_forget)
       (INV_PTR: InvState.Unary.sem_valueT conf st1 invst0 vt_inv = Some gv_inv)
+      (WF_GLOBALS: genericvalues_inject.wf_globals gmax (Globals conf))
   : InvState.Unary.sem_noalias conf gv_forget gv_inv ty_forget ty_inv.
 Proof.
   unfold ForgetMemory.is_noalias_Ptr in *.
@@ -1563,6 +1545,7 @@ Proof.
       eapply LOCALS; eauto.
     + apply diffblock_implies_noalias.
       unfold InvState.Unary.sem_idT in *. ss. clarify.
+      eapply InvState.Unary.diffblock_comm.
       eapply unique_const_diffblock; eauto.
   - rename NOALIAS_PTR0 into DIFFBLOCK_FROM_UNIQUE.
     des_bool. des. des_bool.
@@ -1599,6 +1582,7 @@ Proof.
     + apply diffblock_implies_noalias.
       apply InvState.Unary.diffblock_comm.
       unfold InvState.Unary.sem_idT in *. ss. clarify.
+      eapply InvState.Unary.diffblock_comm.
       eapply unique_const_diffblock; eauto.
   - apply InvState.Unary.noalias_comm.
     eapply is_noalias_sem; eauto.
@@ -1618,6 +1602,7 @@ Lemma forget_memory_is_noalias_exprpair
       (FORGET_MEMORY_NOALIAS : ForgetMemory.is_noalias_ExprPair inv1 (ValueT.lift Tag.physical v_forget, ty_forget) p = true)
       (FORGET_PTR: getOperandValue (CurTargetData conf) v_forget (Locals (EC st1)) (Globals conf) = Some gv_forget)
       (INV_PTR: InvState.Unary.sem_valueT conf st1 invst0 vt_inv = Some gv_inv)
+      (WF_GLOBALS: genericvalues_inject.wf_globals gmax (Globals conf))
   : InvState.Unary.sem_noalias conf gv_forget gv_inv ty_forget ty_inv.
 Proof.
   unfold ForgetMemory.is_noalias_ExprPair in *.
@@ -1630,6 +1615,7 @@ Lemma exprpair_forget_memory_disjoint
       (STATE: InvState.Unary.sem conf st0 invst0 invmem0 gmax public inv1)
       (MC_SOME : mem_change_of_cmd conf cmd st0.(EC).(Locals) = Some mc)
       (STATE_EQUIV : states_mem_change conf st0.(Mem) mem1 mc)
+      (WF_GLOBALS: genericvalues_inject.wf_globals gmax (Globals conf))
   : <<SEM_EXPR_EQ: forall p e1 e2
              (PAIR: p = (e1, e2) \/ p = (e2, e1))
              (FORGET_MEMORY : ExprPairSet.In p
@@ -1695,13 +1681,13 @@ Proof.
         destruct FORGET_MEMORY as [FORGET_MEMORY_IN FORGET_MEMORY_NOALIAS].
         symmetry. eapply mstore_noalias_mload; eauto.
         eapply forget_memory_is_noalias_exprpair; eauto.
-        instantiate (4:= st0.(Mem)).
+        instantiate (3:= st0.(Mem)).
         destruct st0. ss. exact STATE.
       * apply ExprPairSetFacts.filter_iff in FORGET_MEMORY; try by solve_compat_bool.
         destruct FORGET_MEMORY as [FORGET_MEMORY_IN FORGET_MEMORY_NOALIAS].
         symmetry. eapply mstore_noalias_mload; eauto.
         eapply forget_memory_is_noalias_exprpair; eauto.
-        instantiate (4:= st0.(Mem)).
+        instantiate (3:= st0.(Mem)).
         destruct st0. ss. exact STATE.
   - (* free *)
     destruct cmd; ss; des_ifs.
@@ -1716,7 +1702,7 @@ Proof.
 
       symmetry. eapply mfree_noalias_mload; eauto.
       eapply forget_memory_is_noalias_exprpair; eauto.
-      instantiate (4:= st0.(Mem)).
+      instantiate (3:= st0.(Mem)).
       destruct st0. exact STATE.
   - (* none *)
     inv STATE_EQUIV. destruct st0; eauto.
@@ -1751,6 +1737,7 @@ Lemma forget_memory_sem_unary
       (STATE: InvState.Unary.sem conf st0 invst0 invmem0 gmax public inv1)
       (MC_SOME : mem_change_of_cmd conf cmd st0.(EC).(Locals) = Some mc)
       (STATE_MC : states_mem_change conf st0.(Mem) mem1 mc)
+      (WF_GLOBALS: genericvalues_inject.wf_globals gmax (Globals conf))
   : InvState.Unary.sem conf (mkState st0.(EC) st0.(ECS) mem1) invst0 invmem0 gmax public
                        (ForgetMemory.unary
                           (Cmd.get_def_memory cmd)
@@ -1830,6 +1817,7 @@ Proof.
       + ss. eapply MemProps.mstore_preserves_wf_lc; eauto.
       + ss. eapply MemProps.mstore_preserves_wf_lc; eauto.
       + eauto.
+      + ii. exploit WF_INSNS; eauto.
     }
     { destruct value1; ss.
       rename value2 into v_sptr.
@@ -1862,6 +1850,7 @@ Proof.
       + ss. eapply MemProps.mstore_preserves_wf_lc; eauto.
       + ss. eapply MemProps.mstore_preserves_wf_lc; eauto.
       + eauto.
+      + ii. exploit WF_INSNS; eauto.
     }
   - destruct cmd; ss; des_ifs.
     inv STATE_MC.
@@ -1901,6 +1890,8 @@ Lemma forget_memory_sem
       conf_tgt st0_tgt mem1_tgt mc_tgt cmd_tgt
       inv0 invst0 invmem0
       (STATE : InvState.Rel.sem conf_src conf_tgt st0_src st0_tgt invst0 invmem0 inv0)
+      (WF_GLOBALS_SRC: genericvalues_inject.wf_globals (InvMem.Rel.gmax invmem0) (Globals conf_src))
+      (WF_GLOBALS_TGT: genericvalues_inject.wf_globals (InvMem.Rel.gmax invmem0) (Globals conf_tgt))
       (MC_SOME_SRC : mem_change_of_cmd conf_src cmd_src st0_src.(EC).(Locals) = Some mc_src)
       (MC_SOME_TGT : mem_change_of_cmd conf_tgt cmd_tgt st0_tgt.(EC).(Locals) = Some mc_tgt)
       (STATE_MC_SRC : states_mem_change conf_src st0_src.(Mem) mem1_src mc_src)
@@ -2009,4 +2000,6 @@ Proof.
   eapply forget_memory_sem; eauto.
 
   eapply inv_state_sem_monotone_wrt_invmem; eauto.
+  { apply MEM0. }
+  { apply MEM0. }
 Qed.

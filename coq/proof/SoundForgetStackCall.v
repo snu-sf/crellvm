@@ -44,6 +44,10 @@ Lemma invst_sem_eq_locals_mem
       (LOCAL_SRC: st0_src.(EC).(Locals) = st1_src.(EC).(Locals))
       (LOCAL_TGT: st0_tgt.(EC).(Locals) = st1_tgt.(EC).(Locals))
       (STATE : InvState.Rel.sem conf_src conf_tgt st0_src st0_tgt invst invmem inv)
+      (EQ_BB_SRC: st0_src.(EC).(CurBB) = st1_src.(EC).(CurBB))
+      (EQ_BB_TGT: st0_tgt.(EC).(CurBB) = st1_tgt.(EC).(CurBB))
+      (EQ_FUNC_SRC: st0_src.(EC).(CurFunction) = st1_src.(EC).(CurFunction))
+      (EQ_FUNC_TGT: st0_tgt.(EC).(CurFunction) = st1_tgt.(EC).(CurFunction))
   : InvState.Rel.sem conf_src conf_tgt st1_src st1_tgt invst invmem inv.
 Proof.
   inv STATE.

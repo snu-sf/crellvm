@@ -22,6 +22,7 @@ Require Import GenericValues.
 Require Import Inject.
 Require InvMem.
 Require InvState.
+Require Import Hints.
 
 Set Implicit Arguments.
 
@@ -449,6 +450,7 @@ Lemma unary_sem_eq_locals_mem
       (LOCALS_EQ: Locals (EC st0) = Locals (EC st1))
       (MEM_EQ : Mem st0 = Mem st1)
       (STATE: InvState.Unary.sem conf st0 invst0 invmem0 gmax public inv0)
+      (EQ_FUNC: st0.(EC).(CurFunction) = st1.(EC).(CurFunction))
   : InvState.Unary.sem conf st1 invst0 invmem0 gmax public inv0.
 Proof.
   inv STATE.
@@ -471,6 +473,7 @@ Proof.
   - rewrite <- MEM_EQ. eauto.
   - rewrite <- MEM_EQ. eauto.
   - rewrite <- LOCALS_EQ. eauto.
+  - rewrite <- EQ_FUNC. ss.
 Qed.
 
 Definition memory_blocks_of (conf: Config) lc ids : list mblock :=
@@ -649,4 +652,28 @@ Proof.
       * exploit UNIQUE_PARENT_GLOBALS; eauto.
     + apply sublist_app; eauto.
       apply filter_sublist.
+Qed.
+
+Lemma unique_const_diffblock
+      gval1 gval2 conf gmax st i0 cnst
+      (UNIQUE: InvState.Unary.sem_unique conf st gmax i0)
+      (GLOBALS: genericvalues_inject.wf_globals gmax (Globals conf))
+      (VAL1: lookupAL GenericValue (Locals (EC st)) i0 = Some gval1)
+      (VAL2: const2GV (CurTargetData conf) (Globals conf) cnst = Some gval2)
+      :
+  <<DIFFBLOCK: InvState.Unary.sem_diffblock conf gval1 gval2>>
+.
+Proof.
+  red.
+  eapply TODOProof.wf_globals_const2GV in VAL2; eauto. des.
+
+  inv UNIQUE. clear LOCALS MEM. clarify.
+
+  ii. eapply GLOBALS0 in INL. clear GLOBALS0 VAL gval1.
+  induction gval2; i; ss.
+  des_ifs; try (eapply IHgval2; eauto; fail).
+  des. cbn in *.
+  des.
+  - clarify. exploit Pos.lt_trans; eauto. intro CONTR. apply Pos.lt_irrefl in CONTR. ss.
+  - eapply IHgval2; eauto.
 Qed.

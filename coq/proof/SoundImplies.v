@@ -19,7 +19,6 @@ Require Import Validator.
 Require Import Exprs.
 Require Import Hints.
 Require Import GenericValues.
-Require Import SimulationLocal.
 Require InvMem.
 Require InvState.
 Require Import SoundBase.
@@ -133,14 +132,100 @@ Proof.
   esplits; eauto. etransitivity; eauto.
 Qed.
 
+Lemma implies_diffblock_sound
+      inv0 conf st invst gmax
+      val1 val2 gval1 gval2
+      (UNIQUE : AtomSetImpl.For_all (InvState.Unary.sem_unique conf st gmax) (Invariant.unique inv0))
+      (IMPLIES_ALIAS : Invariant.diffblock_by_unique inv0 val1 val2 = true)
+      (GLOBALS : genericvalues_inject.wf_globals gmax (Globals conf))
+      (VAL1: InvState.Unary.sem_valueT conf st invst val1 = Some gval1)
+      (VAL2: InvState.Unary.sem_valueT conf st invst val2 = Some gval2)
+  :
+    <<DIFFBLOCK: InvState.Unary.sem_diffblock conf gval1 gval2>>
+.
+Proof.
+  red.
+  unfold Invariant.diffblock_by_unique in *.
+  move IMPLIES_ALIAS at bottom.
+  repeat (des_bool; des);
+    unfold Invariant.is_unique_value in *; des_ifs;
+      unfold Invariant.values_diffblock_from_unique in *; repeat (des_bool; des);
+        destruct x; destruct t; ss.
+  +
+    clear IMPLIES_ALIAS0.
+    des_ifs.
+    * (* tag is physical *)
+      clear IMPLIES_ALIAS1.
+
+      apply AtomSetFacts.mem_iff in IMPLIES_ALIAS2.
+      exploit UNIQUE; try eapply IMPLIES_ALIAS2; []; intros HUniq; des.
+      inv HUniq. clear MEM GLOBALS.
+
+      unfold InvState.Unary.sem_idT in *. ss.
+      clarify.
+
+      exploit UNIQUE; eauto; []; ii; des.
+      eapply LOCALS with (reg := i1); eauto.
+      {
+        des_sumbool.
+        ii.
+        unfold not in IMPLIES_ALIAS.
+        apply IMPLIES_ALIAS.
+        subst.
+        ss.
+      }
+    * (* const *)
+      unfold AtomSetImpl.For_all in *.
+      eapply AtomSetFacts.mem_iff in IMPLIES_ALIAS2.
+      specialize (UNIQUE i0 IMPLIES_ALIAS2). clear IMPLIES_ALIAS2.
+
+      eapply unique_const_diffblock; eauto.
+  + (* exactly copied from above *)
+    clear IMPLIES_ALIAS0.
+    des_ifs.
+    * (* tag is physical *)
+      clear IMPLIES_ALIAS1.
+
+      apply AtomSetFacts.mem_iff in IMPLIES_ALIAS2.
+      exploit UNIQUE; try eapply IMPLIES_ALIAS2; []; intros HUniq; des.
+      inv HUniq. clear MEM GLOBALS.
+
+      unfold InvState.Unary.sem_idT in *. ss.
+      clarify.
+
+      exploit UNIQUE; eauto; []; ii; des.
+      eapply LOCALS with (reg := i1); eauto.
+      {
+        des_sumbool.
+        ii.
+        unfold not in IMPLIES_ALIAS.
+        apply IMPLIES_ALIAS.
+        subst.
+        ss.
+      }
+    * (* const *)
+      unfold AtomSetImpl.For_all in *.
+      eapply AtomSetFacts.mem_iff in IMPLIES_ALIAS2.
+      specialize (UNIQUE i0 IMPLIES_ALIAS2). clear IMPLIES_ALIAS2.
+
+      eapply InvState.Unary.diffblock_comm.
+      eapply unique_const_diffblock; eauto.
+Qed.
+
 (* TODO: premise for unique *)
 Lemma implies_alias_sound
       inv0 inv1 conf st invst gmax
       (UNIQUE: AtomSetImpl.For_all (InvState.Unary.sem_unique conf st gmax) (Invariant.unique inv0))
       (IMPLIES_ALIAS: Invariant.implies_alias inv0 inv0.(Invariant.alias) inv1.(Invariant.alias) = true)
-      (ALIAS: InvState.Unary.sem_alias conf st invst (Invariant.alias inv0)):
+      (ALIAS: InvState.Unary.sem_alias conf st invst (Invariant.alias inv0))
+      public mem invmem
+      (MEM: InvMem.Unary.sem conf gmax public mem invmem)
+  :
   <<ALIAS: InvState.Unary.sem_alias conf st invst (Invariant.alias inv1)>>.
 Proof.
+  inv MEM.
+  clear WF PRIVATE_PARENT MEM_PARENT UNIQUE_PARENT_MEM
+        UNIQUE_PARENT_GLOBALS UNIQUE_PRIVATE_PARENT NEXTBLOCK.
   inv ALIAS.
   unfold Invariant.implies_alias in *.
   solve_bool_true.
@@ -151,157 +236,23 @@ Proof.
     { solve_compat_bool. }
     apply ValueTPairSet.mem_2 in MEM.
     specialize (IMPLIES_ALIAS0 (val1, val2) MEM). ss.
-    (* solve_bool_true. *)
-    (* + unfold Invariant.is_unique_value in *. *)
-    (*   solve_match_bool. *)
-    (*   solve_bool_true. *)
-    (*   apply AtomSetImpl.mem_2 in IMPLIES_ALIAS2. *)
-    (*   specialize (UNIQUE (snd x) IMPLIES_ALIAS2). *)
-    (*   inv UNIQUE. *)
-    (*   assert (XVAL: val = gval1). *)
-    (*   { unfold InvState.Unary.sem_idT in VAL1. *)
-    (*     unfold InvState.Unary.sem_tag in VAL1. *)
-    (*     rewrite e in VAL1. congruence. } *)
-    (*   subst. *)
-    (*   apply negb_true_iff in IMPLIES_ALIAS0. *)
-    (*   destruct val2. *)
-    (*   * ss. *)
-    (*     admit. (* InvState.Unary.sem_unique - ghost? *) *)
-    (*     apply (LOCALS (snd x0)). *)
-    (*     { ii.  *)
-
-      
-
-    (*   InvState.Unary.sem_unique *)
-    (*   unfold InvState.Unary.sem_diffblock. InvState.Unary.sem_noalias *)
-
-    (*   admit. (* unique vp.(fst) *) *)
-    (* + admit. (* unique vp.(snd) *) *)
-    (* + eapply DIFFBLOCK; eauto. *)
-
     des_bool.
     des; cycle 1.
     { eapply DIFFBLOCK; eauto. }
-    unfold Invariant.diffblock_by_unique in *.
-    move IMPLIES_ALIAS0 at bottom.
-    repeat (des_bool; des);
-      unfold Invariant.is_unique_value in *; des_ifs;
-        unfold Invariant.values_diffblock_from_unique in *; repeat (des_bool; des);
-          destruct x; destruct t; ss.
-    +
-      clear IMPLIES_ALIAS1.
-      des_ifs.
-      * (* tag is physical *)
-        clear IMPLIES_ALIAS2.
-
-        apply AtomSetFacts.mem_iff in IMPLIES_ALIAS3.
-        exploit UNIQUE; try eapply IMPLIES_ALIAS3; []; intros HUniq; des.
-        inv HUniq. clear MEM0 GLOBALS.
-
-        unfold InvState.Unary.sem_idT in *. ss.
-        clarify.
-
-        exploit UNIQUE; eauto; []; ii; des.
-        eapply LOCALS with (reg := i1); eauto.
-        {
-          des_sumbool.
-          ii.
-          unfold not in IMPLIES_ALIAS0.
-          apply IMPLIES_ALIAS0.
-          subst.
-          ss.
-        }
-      * (* const *)
-        clear IMPLIES_ALIAS2.
-        cbn in *.
-        admit. (* wf_const case *)
-
-(*         (* should be able to build gval1 <> cnst, where cnst is diffblock with gval1 IN INV1. *) *)
-(*         (* If it was in INV0? trivial *) *)
-(*         assert(MEM0: ValueTPairSet.In *)
-(*                        (ValueT.id (Tag.physical, i1), ValueT.const ___cnst___) *)
-(*                        (Invariant.diffblock (Invariant.alias inv0))); cycle 1. *)
-(*         { *)
-(*           apply ValueTPairSetFacts.mem_iff in MEM0. *)
-(*           eapply DIFFBLOCK; try apply MEM0; eauto. *)
-(*         } *)
-
-(*         (* sem_unique *) *)
-(*         (* (forall (b : Values.block) (ofs : Integers.Int.int 31), *) *)
-(*         (*     GV2ptr (CurTargetData conf) (getPointerSize (CurTargetData conf)) val = *) *)
-(*         (*     Some (Values.Vptr b ofs) -> (gmax < b)%positive) *) *)
-
-(*         (* memory_props.MemProps.const2GV_valid_ptrs: *) *)
-(*         (*   forall (c0 : const) (maxb : positive) (gl : GVMap) (g : GenericValue) (S : system) (td : targetdata) (t : typ), *) *)
-(*         (*     memory_props.MemProps.wf_globals maxb gl -> *) *)
-(*         (*     wf_const S td c0 t -> Some g = const2GV td gl c0 -> memory_props.MemProps.valid_ptrs (maxb + 1)%positive g *) *)
-
-(*         (* asked @yoonseung, answer was above lemma. *)
-(* with wf condition, gval2 should be < maxb + 1, which means it is global. *)
-(* (first maxb block = global, later = locals) *)
-(* I think, then using global part of sem_unique may produce similar result with above. *)
-(*          *) *)
-
-(*         apply AtomSetFacts.mem_iff in IMPLIES_ALIAS3. *)
-(*         exploit UNIQUE; try eapply IMPLIES_ALIAS3; []; intros HUniq; des. *)
-(*         inv HUniq. clear LOCALS MEM0. *)
-
-(*         unfold InvState.Unary.sem_idT in *. ss. *)
-
-(*         (* (* exploit LOCALS; try apply VAL2; eauto. *) *) *)
-(*         (* (* { *) *) *)
-(*         (* (*   des_sumbool. *) *) *)
-(*         (* (*   ii. *) *) *)
-(*         (* (*   unfold not in IMPLIES_ALIAS0. *) *) *)
-(*         (* (*   apply IMPLIES_ALIAS0. *) *) *)
-(*         (* (*   subst. *) *) *)
-(*         (* (*   ss. *) *) *)
-(*         (* (* } *) *) *)
-(*         (* (* ii; des. *) *) *)
-(*         (* (* rename val into ttttttttt. *) *) *)
-
-(*         (* unfold InvState.Unary.sem_diffblock. *) *)
-(*         (* des_ifs. *) *)
-(*         (* unfold GV2ptr in *. *) *)
-(*         (* des_ifs. *) *)
-
-(*         (* { *) *)
-(*         (*   unfold InvState.Unary.sem_diffblock. *) *)
-(*         (*   des_ifs. *) *)
-(*         (* } *) *)
-(*         admit. *)
-
-
-    + (* exactly copied from above *)
-      clear IMPLIES_ALIAS1.
-      des_ifs.
-      * (* tag is physical *)
-        clear IMPLIES_ALIAS2.
-
-        apply AtomSetFacts.mem_iff in IMPLIES_ALIAS3.
-        exploit UNIQUE; try eapply IMPLIES_ALIAS3; []; intros HUniq; des.
-        inv HUniq. clear MEM0 GLOBALS.
-
-        unfold InvState.Unary.sem_idT in *. ss.
-        clarify.
-
-        exploit UNIQUE; eauto; []; ii; des.
-        eapply LOCALS with (reg := i1); eauto.
-        {
-          des_sumbool.
-          ii.
-          unfold not in IMPLIES_ALIAS0.
-          apply IMPLIES_ALIAS0.
-          subst.
-          ss.
-        }
-      * (* const *)
-        clear IMPLIES_ALIAS2.
-        cbn in *.
-        admit. (* wf_const case *)
-  - (* noalias *)
-    (* should be same with diffblock *)
-Admitted.
+    eapply ValueTPairSetFacts.mem_iff in MEM.
+    eapply implies_diffblock_sound; eauto.
+  - clear IMPLIES_ALIAS0 DIFFBLOCK.
+    unfold Invariant.implies_noalias, flip in *.
+    i. apply PtrPairSet.for_all_2 in IMPLIES_ALIAS; cycle 1.
+    { solve_compat_bool. }
+    apply PtrPairSet.mem_2 in MEM.
+    specialize (IMPLIES_ALIAS (ptr1, ptr2) MEM). ss.
+    des_bool.
+    des; cycle 1.
+    { eapply NOALIAS; eauto. }
+    eapply PtrPairSetFacts.mem_iff in MEM.
+    eapply implies_diffblock_sound; eauto.
+Qed.
 
 Lemma implies_unique_sound
       inv0 inv1 conf st gmax
@@ -333,7 +284,9 @@ Qed.
 
 Lemma implies_unary_sound
     inv0 inv1 invmem invst conf st gmax public
+    mem
     (IMPLIES_UNARY: Invariant.implies_unary inv0 inv1 = true)
+    (MEM: InvMem.Unary.sem conf gmax public mem invmem)
     (UNARY: InvState.Unary.sem conf st invst invmem gmax public inv0):
       <<UNARY: InvState.Unary.sem conf st invst invmem gmax public inv1>>.
 Proof.
@@ -361,8 +314,8 @@ Proof.
   solve_bool_true.
   { exfalso. eapply has_false_False; eauto. }
   inv STATE. econs.
-  - eapply implies_unary_sound; eauto.
-  - eapply implies_unary_sound; eauto.
+  - eapply implies_unary_sound; eauto. apply MEM.
+  - eapply implies_unary_sound; eauto. apply MEM.
   - i. apply MAYDIFF.
     apply IdTSetFacts.not_mem_iff. ii.
     apply IdTSetFacts.not_mem_iff in NOTIN. apply NOTIN.

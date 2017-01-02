@@ -679,16 +679,14 @@ Proof.
     move gvs at bottom.
     assert(list_disjoint (GV2blocks __val__) (GV2blocks gvs)).
     {
-      clear - VAL H LOCALS NOT_LEAKED_U UNIQUE_BEF.
+      clear - VAL H LOCALS NOT_LEAKED_U UNIQUE_BEF GLOBALS.
       destruct value5; ss.
       { eapply LOCALS; eauto.
         { compute in NOT_LEAKED_U.
           apply AtomSetFacts.not_mem_iff in NOT_LEAKED_U.
           eapply notin_add_1 in NOT_LEAKED_U. ii; subst; ss. }
       }
-      { hexploit SoundForgetMemory.unique_const_diffblock; ss; eauto; []; ii; des.
-        eapply H0; eauto.
-      }
+      { hexploit unique_const_diffblock; ss; eauto. }
     }
     clear - INL INR H0 H1.
     exploit In_incl; eauto.
@@ -708,7 +706,7 @@ Proof.
     move gvs' at bottom.
     assert(list_disjoint (GV2blocks __val__) (GV2blocks gvs)).
     {
-      clear - VAL H LOCALS NOT_LEAKED_U UNIQUE_BEF.
+      clear - VAL H LOCALS NOT_LEAKED_U UNIQUE_BEF GLOBALS.
       destruct value5; ss.
       { eapply LOCALS; eauto.
         { compute in NOT_LEAKED_U.
@@ -719,13 +717,11 @@ Proof.
           - eapply notin_add_1 in NOT_LEAKED_U. ss.
         }
       }
-      { hexploit SoundForgetMemory.unique_const_diffblock; ss; eauto; []; ii; des.
-        eapply H0; eauto.
-      }
+      { hexploit unique_const_diffblock; ss; eauto. }
     }
     assert(list_disjoint (GV2blocks __val__) (GV2blocks gvs')).
     {
-      clear - VAL H0 LOCALS NOT_LEAKED_U UNIQUE_BEF.
+      clear - VAL H0 LOCALS NOT_LEAKED_U UNIQUE_BEF GLOBALS.
       destruct value'; ss.
       { eapply LOCALS; eauto.
         { compute in NOT_LEAKED_U.
@@ -736,9 +732,7 @@ Proof.
           - eapply notin_add_1 in NOT_LEAKED_U. ss.
         }
       }
-      { hexploit SoundForgetMemory.unique_const_diffblock; ss; eauto; []; ii; des.
-        eapply H; eauto.
-      }
+      { hexploit unique_const_diffblock; ss; eauto. }
     }
     clear - H2 H3 H1 INR INL.
     exploit In_incl.
@@ -969,6 +963,7 @@ Lemma forget_stack_unary_sound
       (UNIQUE_PRESERVED : unique_preserved_except conf inv invmem.(InvMem.Unary.unique_parent) st1 gmax (AtomSetImpl.union defs leaks))
       (STATE : InvState.Unary.sem conf st0 invst invmem gmax public inv)
       (WF_LC: memory_props.MemProps.wf_lc st1.(Mem) st1.(EC).(Locals))
+      (EQ_FUNC: st0.(EC).(CurFunction) = st1.(EC).(CurFunction))
   : InvState.Unary.sem conf st1 invst invmem gmax public (ForgetStack.unary defs leaks inv).
 Proof.
   inv STATE.
@@ -1018,6 +1013,9 @@ Proof.
   - inv EQUIV. rewrite <- MEM. eauto.
   - inv EQUIV. rewrite <- MEM. eauto.
   - inv UNIQUE_PRESERVED. eauto.
+  - rewrite <- EQ_FUNC.
+    ii.
+    exploit WF_INSNS; eauto.
 Qed.
 
 Lemma forget_stack_sound
@@ -1042,6 +1040,8 @@ Lemma forget_stack_sound
                      (AtomSetImpl.union defs_tgt leaks_tgt))
       (WF_LC_SRC: memory_props.MemProps.wf_lc st1_src.(Mem) st1_src.(EC).(Locals))
       (WF_LC_TGT: memory_props.MemProps.wf_lc st1_tgt.(Mem) st1_tgt.(EC).(Locals))
+      (EQ_FUNC_SRC: st0_src.(EC).(CurFunction) = st1_src.(EC).(CurFunction))
+      (EQ_FUNC_TGT: st0_tgt.(EC).(CurFunction) = st1_tgt.(EC).(CurFunction))
   : <<STATE_FORGET: InvState.Rel.sem conf_src conf_tgt st1_src st1_tgt
                                      invst invmem (ForgetStack.t defs_src defs_tgt leaks_src leaks_tgt inv0)>>.
 Proof.

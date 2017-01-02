@@ -332,6 +332,16 @@ Module Unary.
          forall x ptr
            (PTR:lookupAL _ st.(EC).(Locals) x = Some ptr),
            InvMem.gv_diffblock_with_blocks conf ptr invmem.(InvMem.Unary.unique_parent))
+      (WF_INSNS:
+         forall insn b
+                (IN: insnInBlockB insn b /\ blockInFdefB b (st.(EC).(CurFunction))),
+           <<WF_INSN: wf_insn (conf.(CurSystem))
+                              (module_intro (conf.(CurTargetData).(fst))
+                                            (conf.(CurTargetData).(snd))
+                                            (conf.(CurProducts)))
+                              (st.(EC).(CurFunction))
+                              b
+                              insn>>)
   .
 
   Lemma sem_empty
@@ -358,6 +368,7 @@ Module Unary.
     - admit. (* wf_lc prev *)
     - admit. (* wf_lc ghost *)
     - admit. (* unique_parent *)
+    - admit. (* wf_INSNS *)
       (* TODO: This lemma is currently wrong: need wf condition to st, invst, invmem *)
   Admitted.
 
