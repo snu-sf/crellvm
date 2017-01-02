@@ -674,6 +674,93 @@ Proof.
   des_ifs; try (eapply IHgval2; eauto; fail).
   des. cbn in *.
   des.
-  - clarify. exploit Pos.lt_trans; eauto. intro CONTR. apply Pos.lt_irrefl in CONTR. ss.
+  - clarify.
+    clear - INL VAL2.
+    replace (gmax + 1)%positive with (Pos.succ gmax)%positive in *; cycle 1.
+    { rewrite Pos.add_comm. ss. destruct gmax; ss. }
+    rewrite Pos.lt_succ_r in VAL2.
+    apply Pos.le_lteq in VAL2; eauto.
+    des.
+    + exploit Pos.lt_trans; eauto. ii.
+      apply Pos.lt_irrefl in x0; ss.
+    + clarify.
+      apply Pos.lt_irrefl in INL; ss.
   - eapply IHgval2; eauto.
+Qed.
+
+Lemma valid_ptr_globals_diffblock
+  conf gmax val val'
+  (GLOBALS : forall b : Values.block, In b (GV2blocks val) -> (gmax < b)%positive)
+  (VALID_PTR : memory_props.MemProps.valid_ptrs (gmax + 1)%positive val')
+  :
+  <<DIFFBLOCK: InvState.Unary.sem_diffblock conf val val' >>
+.
+Proof.
+  ii.
+  exploit GLOBALS; eauto; []; intro GMAX; des.
+  clear - VALID_PTR INR GMAX.
+  induction val'; ss.
+  cbn in *. destruct a; ss. cbn in *.
+  unfold compose in *. ss.
+  destruct v; ss; try (eapply IHval'; eauto; fail).
+  des; clarify.
+  + rewrite <- Pplus_one_succ_r in VALID_PTR.
+    apply Plt_succ_inv in VALID_PTR.
+    des.
+    * exploit Plt_trans; eauto. ii.
+      exploit dom_libs.PositiveSet.MSet.Raw.L.MO.lt_irrefl; eauto.
+    * clarify.
+      exploit dom_libs.PositiveSet.MSet.Raw.L.MO.lt_irrefl; eauto.
+  + eapply IHval'; eauto.
+Qed.
+
+Lemma valid_ptr_globals_diffblock2
+  conf gmax val val'
+  (GLOBALS : forall b : Values.block, In b (GV2blocks val') -> (gmax < b)%positive)
+  (VALID_PTR : memory_props.MemProps.valid_ptrs (gmax + 1)%positive val')
+  :
+  <<DIFFBLOCK: InvState.Unary.sem_diffblock conf val val' >>
+.
+Proof.
+  ii.
+  exploit GLOBALS; eauto; []; intro GMAX; des.
+  clear - VALID_PTR INR GMAX.
+  induction val'; ss.
+  cbn in *. destruct a; ss. cbn in *.
+  unfold compose in *. ss.
+  destruct v; ss; try (eapply IHval'; eauto; fail).
+  des; clarify.
+  + rewrite <- Pplus_one_succ_r in VALID_PTR.
+    apply Plt_succ_inv in VALID_PTR.
+    des.
+    * exploit Plt_trans; eauto. ii.
+      exploit dom_libs.PositiveSet.MSet.Raw.L.MO.lt_irrefl; eauto.
+    * clarify.
+      exploit dom_libs.PositiveSet.MSet.Raw.L.MO.lt_irrefl; eauto.
+  + eapply IHval'; eauto.
+Qed.
+
+Lemma valid_ptr_globals_diffblock_with_blocks
+  conf gmax val blocks
+  (GLOBALS : forall b : Values.block, In b blocks -> (gmax < b)%positive)
+  (VALID_PTR : memory_props.MemProps.valid_ptrs (gmax + 1)%positive val)
+  :
+  <<DIFFBLOCK: InvMem.gv_diffblock_with_blocks conf val blocks>>
+.
+Proof.
+  ii.
+  exploit GLOBALS; eauto; []; intro GMAX; des.
+  induction val; ss.
+  cbn in *. destruct a; ss. cbn in *.
+  unfold compose in *. ss.
+  destruct v; ss; try (eapply IHval; eauto; fail).
+  des; clarify.
+  + rewrite <- Pplus_one_succ_r in VALID_PTR.
+    apply Plt_succ_inv in VALID_PTR.
+    des.
+    * exploit Plt_trans; eauto. ii.
+      exploit dom_libs.PositiveSet.MSet.Raw.L.MO.lt_irrefl; eauto.
+    * clarify.
+      exploit dom_libs.PositiveSet.MSet.Raw.L.MO.lt_irrefl; eauto.
+  + eapply IHval; eauto.
 Qed.

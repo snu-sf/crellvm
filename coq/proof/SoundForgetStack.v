@@ -435,6 +435,11 @@ Lemma GEP_diffblock
              CurProducts := Ps;
              Globals := gl;
              FunTable := fs |} val val')
+  (MEM : forall (mptr : mptr) (typ : typ) (align : align) (val' : GenericValue),
+        mload TD Mem0 mptr typ align = Some val' ->
+        InvState.Unary.sem_diffblock
+          {| CurSystem := S; CurTargetData := TD; CurProducts := Ps; Globals := gl; FunTable := fs |} val val')
+  (GLOBALS0 : forall b : Values.block, In b (GV2blocks val) -> (gmax < b)%positive)
   (reg : atom)
   (val' : GenericValue)
   (REG : u <> reg)
@@ -443,6 +448,9 @@ Lemma GEP_diffblock
                       (Cmd.get_leaked_ids (insn_gep reg inbounds5 typ5 value_5 l0 typ'))) =
                  false)
   (H1 : GEP TD typ5 mp vidxs inbounds5 typ' = Some val')
+  (WF_INSNS: forall (insn : insn) (b : block),
+             insnInBlockB insn b /\ blockInFdefB b F ->
+             <<WF_INSN: wf_insn S (module_intro (fst TD) (snd TD) Ps) F b insn >>)
   :
   <<DIFFBLOCK: InvState.Unary.sem_diffblock
     {| CurSystem := S; CurTargetData := TD; CurProducts := Ps; Globals := gl; FunTable := fs |}
@@ -462,6 +470,13 @@ Proof.
   { eapply undef_implies_diffblock; eauto. }
   clarify. ss.
   {
+    assert (BLOCK_IN_FDEF: blockInFdefB B F).
+    { admit. } (* wf_EC *)
+    assert (INSN_IN_BLOCK: insnInBlockB (insn_cmd (insn_gep reg inbounds5 typ5 value_5 l0 typ')) B).
+    { admit. } (* wf_EC *)
+    exploit WF_INSNS; eauto; []; intro WF_INSN; des.
+    clear BLOCK_IN_FDEF INSN_IN_BLOCK.
+
     ii.
     destruct v0; ss; des; ss.
     clarify.
@@ -470,29 +485,37 @@ Proof.
     unfold Cmd.get_leaked_ids in *.
     ss.
     {
+      symmetry in T3. apply mgep_inv in T3. des. clarify.
       destruct value_5; ss.
       -
         apply not_or_and in NOT_LEAKED_U.
         des.
         hexploit LOCALS; try apply H; eauto; []; ii; des.
-        clarify.
-        ss.
-        rename v into ____v____.
         (* b0 <-> b0 *)
         destruct mp; ss. destruct p, v; ss.
         destruct mp; ss. clarify.
-        symmetry in T3.
-        apply mgep_inv in T3.
-        des. clarify.
         unfold InvState.Unary.sem_diffblock in *.
-        ss.
         unfold list_disjoint in *.
         eapply H0; eauto. ss. left; ss.
       -
-        admit. (* const *)
+        (* const5 -> mp -> Vptr b <= gmax *)
+        rename val into __val__.
+        rename u into __u__.
+        rename b into __b__.
+        destruct TD; ss.
+        apply TODOProof.wf_globals_eq in GLOBALS.
+        exploit const2GV_valid_ptrs; eauto.
+        { inv WF_INSN. inv H11. eauto. }
+        intro VALID_PTR; des. clear WF_INSN.
+        ss.
+        idtac.
+        exploit valid_ptr_globals_diffblock; eauto.
+        eapply {| CurSystem := S; CurTargetData := (l2, n);
+                  CurProducts := Ps; Globals := gl; FunTable := fs |}.
+        destruct mp; ss. destruct p; ss. destruct v; ss. des. des_ifs.
+        left; ss.
     }
 Admitted.
-
 
 (* Definition leaks_diffblock_with conf st cmd ptr: Prop := *)
 (*   forall v gv *)
@@ -795,7 +818,11 @@ Proof.
       subst.
       unfold getOperandValue in *.
       des_ifs; cycle 1.
-      * admit. (* const case *)
+      * ss.
+        rename g into __g__.
+        rename val into __val__.
+        exploit TODOProof.wf_globals_const2GV; eauto; []; i; des.
+        eapply valid_ptr_globals_diffblock; eauto.
       * eapply LOCALS; try apply Heq; eauto.
         apply AtomSetFacts.not_mem_iff in NOT_LEAKED_U.
         apply AtomSetImpl_from_list_spec2 in NOT_LEAKED_U.
@@ -812,29 +839,55 @@ Proof.
     move gvs1 at bottom.
     move gvs2 at bottom.
     unfold getOperandValue in *.
-    destruct value1, value2; ss.
-    {
-      apply_all_once AtomSetFacts.not_mem_iff.
-      apply_all_once AtomSetImpl_from_list_spec2.
-      unfold Cmd.get_leaked_ids in *. ss.
-      destruct decision; eapply LOCALS; try apply H0; try apply H1; eauto.
+    destruct decision; ss.
+    { clear H1.
+      destruct value1; ss.
       {
-        ii. apply NOT_LEAKED_U. subst.
-        destruct value0; ss.
-        - right. left. ss.
-        - left. ss.
+        apply_all_once AtomSetFacts.not_mem_iff.
+        apply_all_once AtomSetImpl_from_list_spec2.
+        unfold Cmd.get_leaked_ids in *. ss.
+        eapply LOCALS; try apply H0; eauto.
+        {
+          ii. apply NOT_LEAKED_U. subst.
+          destruct value0; ss.
+          - right. left. ss.
+          - left. ss.
+        }
       }
       {
-        ii. apply NOT_LEAKED_U. subst.
-        destruct value0; ss.
-        - right. right. left. ss.
-        - right. left. ss.
+        exploit TODOProof.wf_globals_const2GV; eauto; []; intro VALID_PTR; des.
+        eapply valid_ptr_globals_diffblock; eauto.
       }
     }
-    { (* const case *) admit. }
-    { (* const case *) admit. }
-    { (* const case *) admit. }
-Admitted.
+    { clear H0.
+      destruct value2; ss.
+      {
+        apply_all_once AtomSetFacts.not_mem_iff.
+        apply_all_once AtomSetImpl_from_list_spec2.
+        unfold Cmd.get_leaked_ids in *. ss.
+        eapply LOCALS; try apply H1; eauto.
+        {
+          ii. apply NOT_LEAKED_U. subst.
+          destruct value0; ss.
+          - right. destruct (Value.get_ids value1); ss.
+            + right. left. ss.
+            + left. ss.
+          - destruct (Value.get_ids value1); ss.
+            + right. left. ss.
+            + left. ss.
+        }
+      }
+      {
+        exploit TODOProof.wf_globals_const2GV; eauto; []; intro VALID_PTR; des.
+        eapply valid_ptr_globals_diffblock; eauto.
+      }
+    }
+Unshelve.
+apply {| CurSystem := S; CurTargetData := TD; CurProducts := Ps; Globals := gl; FunTable := fs |}.
+apply {| CurSystem := S; CurTargetData := TD; CurProducts := Ps; Globals := gl; FunTable := fs |}.
+apply {| CurSystem := S; CurTargetData := TD; CurProducts := Ps; Globals := gl; FunTable := fs |}.
+apply {| CurSystem := S; CurTargetData := TD; CurProducts := Ps; Globals := gl; FunTable := fs |}.
+Qed.
 
 Lemma step_unique_preserved_except_parent
       conf st0 st1 evt
