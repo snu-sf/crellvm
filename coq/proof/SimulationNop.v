@@ -85,7 +85,9 @@ Proof.
   inv INIT. inv NOP_FDEF. inv FDEF.
   destruct blocks_tgt, lb; inv NOP_FIRST_MATCHES; try inv ENTRY.
   destruct b. ss. subst. destruct s.
-  exploit locals_init; eauto. i. des.
+  exploit locals_init; eauto.
+  { apply MEM. }
+  i. des.
   esplits.
   - econs; eauto. ss.
   - generalize (BLOCKS l0). s.

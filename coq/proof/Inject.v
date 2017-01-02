@@ -446,6 +446,8 @@ Lemma gv_inject_initialize_frames
       al bl meminj TD la g
   (INJECT: list_forall2 (gv_inject meminj) al bl)
   (FRAMES: _initializeFrameValues TD la al [] = ret g)
+  gmax mem_src mem_tgt
+  (WASABI: wf_sb_mi gmax meminj mem_src mem_tgt)
   :
     <<FRAMES: exists g',
       (_initializeFrameValues TD la bl [] = ret g')
@@ -476,7 +478,6 @@ Proof.
     exploit IHINJECT; eauto; []; ii; des.
     cbn.
     exploit simulation__fit_gv; eauto.
-    { admit. (* wf_sb_mi *) }
     ii; des.
     des_ifs.
     esplits; eauto.
@@ -485,7 +486,7 @@ Proof.
     des_lookupAL_updateAddAL.
     + esplits; eauto.
     + inv x0. eapply INJECT0; eauto.
-Admitted.
+Qed.
 
 Lemma locals_init
       inv la gvs_src
@@ -493,7 +494,10 @@ Lemma locals_init
       conf_src conf_tgt
       (CONF: inject_conf conf_src conf_tgt)
       (ARGS: list_forall2 (genericvalues_inject.gv_inject inv.(InvMem.Rel.inject)) args_src args_tgt)
-      (LOCALS_SRC : initLocals (CurTargetData conf_src) la args_src = Some gvs_src) :
+      (LOCALS_SRC : initLocals (CurTargetData conf_src) la args_src = Some gvs_src)
+      mem_src mem_tgt
+      (WASABI: wf_sb_mi inv.(InvMem.Rel.gmax) inv.(InvMem.Rel.inject) mem_src mem_tgt)
+  :
   exists gvs_tgt,
     << LOCALS_TGT : initLocals (CurTargetData conf_tgt) la args_tgt = Some gvs_tgt >> /\
                     << LOCALS: inject_locals inv gvs_src gvs_tgt >>.
@@ -524,7 +528,6 @@ Proof.
     cbn. inv CONF. rewrite <- TARGETDATA. clear TARGETDATA.
     exploit gv_inject_initialize_frames; eauto; []; ii; des. inv x1.
     exploit simulation__fit_gv; eauto.
-    { admit. (* wf_sb_mi *) }
     ii; des.
     des_ifs.
     esplits; eauto.
@@ -532,7 +535,7 @@ Proof.
     des_lookupAL_updateAddAL; clear IHARGS.
     + esplits; eauto.
     + exploit INJECT; eauto.
-Admitted.
+Qed.
 
 Lemma updateAddAL_inject_locals
       id inv
