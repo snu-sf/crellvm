@@ -438,13 +438,17 @@ Module Rel.
       exploit LOCALS; eauto.
   Qed.
 
-  (* genericvalues_inject.sb_mem_inj__const2GV: *)
   Lemma const2GV_gv_inject_refl
         TD globals cnst gv meminj
-        (CONST: const2GV TD globals cnst = ret gv):
+        (CONST: const2GV TD globals cnst = ret gv)
+        gmax mem_src mem_tgt
+        (WASABI: genericvalues_inject.wf_sb_mi gmax meminj mem_src mem_tgt)
+        (WF_GLOBALS: genericvalues_inject.wf_globals gmax globals)
+    :
     <<REFL: genericvalues_inject.gv_inject meminj gv gv>>.
   Proof.
-  Admitted.
+    eapply const2GV_inject; eauto.
+  Qed.
 
   Lemma not_in_maydiff_value_spec
         inv invmem invst
@@ -456,7 +460,9 @@ Module Rel.
         (MAYDIFF: forall id : Tag.t * id,
             IdTSet.mem id (Invariant.maydiff inv) = false ->
             sem_inject st_src st_tgt invst (InvMem.Rel.inject invmem) id)
-        (VAL_SRC: Unary.sem_valueT conf_src st_src (src invst) val = ret gv_val_src):
+        (VAL_SRC: Unary.sem_valueT conf_src st_src (src invst) val = ret gv_val_src)
+        (MEM: InvMem.Rel.sem conf_src conf_tgt st_src.(Mem) st_tgt.(Mem) invmem)
+    :
     exists gv_val_tgt, Unary.sem_valueT conf_tgt st_tgt (tgt invst) val = ret gv_val_tgt /\
                        genericvalues_inject.gv_inject (InvMem.Rel.inject invmem) gv_val_src gv_val_tgt.
   Proof.
@@ -466,6 +472,8 @@ Module Rel.
     - esplits.
       + rewrite <- TARGETDATA, <- GLOBALS. eauto.
       + eapply const2GV_gv_inject_refl; eauto.
+        apply MEM.
+        apply MEM.
   Qed.
 
   Lemma not_in_maydiff_list_value_spec
@@ -478,7 +486,9 @@ Module Rel.
         (MAYDIFF: forall id : Tag.t * id,
             IdTSet.mem id (Invariant.maydiff inv) = false ->
             sem_inject st_src st_tgt invst (InvMem.Rel.inject invmem) id)
-        (VAL_SRC: Unary.sem_list_valueT conf_src st_src (src invst) vals = ret gv_vals_src):
+        (VAL_SRC: Unary.sem_list_valueT conf_src st_src (src invst) vals = ret gv_vals_src)
+        (MEM: InvMem.Rel.sem conf_src conf_tgt st_src.(Mem) st_tgt.(Mem) invmem)
+    :
     exists gv_vals_tgt,
       Unary.sem_list_valueT conf_tgt st_tgt (tgt invst) vals = ret gv_vals_tgt /\
       list_forall2 (genericvalues_inject.gv_inject invmem.(InvMem.Rel.inject)) gv_vals_src gv_vals_tgt.
@@ -651,12 +661,12 @@ Module Rel.
     Ltac exploit_not_in_maydiff_value_spec_with x :=
       match (type of x) with
       | (Unary.sem_valueT _ _ _ _ = Some _) =>
-        (exploit not_in_maydiff_value_spec; [| | | exact x |]; eauto; ii; des; [])
+        (exploit not_in_maydiff_value_spec; [| | | exact x | |]; eauto; ii; des; [])
       end.
     Ltac exploit_not_in_maydiff_list_value_spec_with x :=
       match (type of x) with
       | (Unary.sem_list_valueT _ _ _ _ = Some _) =>
-        (exploit not_in_maydiff_list_value_spec; [| | | exact x |]; eauto; ii; des; [])
+        (exploit not_in_maydiff_list_value_spec; [| | | exact x | |]; eauto; ii; des; [])
       end.
     Ltac exploit_eq_GV2int :=
       let tmp := fresh in
