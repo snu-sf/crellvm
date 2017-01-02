@@ -110,6 +110,17 @@ Definition cond_mask_up (s:sz) (c1i c2i:INTEGER.t) : bool :=
   let c1up := (Int.not ws (Int.sub ws (Int.and ws c1 mc1) (Int.one ws))) in
     (Int.eq_dec ws) (Int.and ws c1up c2) c1up.
 
+(* cond_double_to_i64 : is (bitcast double d to i64 == i)? *)
+Definition cond_double_to_i64 (d:const) (i:INTEGER.t) : bool :=
+  match d with
+  | const_floatpoint fpty f =>
+    match fpty with
+    | fp_double =>
+      true (* XXX : This should be fixed.. *)
+    | _ => false
+    end
+  | _ => false
+  end.
 
 Definition cond_signbit (s:sz) (v:ValueT.t) : bool :=
   match signbit_of s, v with
@@ -576,6 +587,16 @@ Definition apply_infrule
     if $$ inv0 |-src (Expr.value mid) >= (Expr.cast castop_bitcast srcty src midty) $$ &&
        $$ inv0 |-src (Expr.value dst) >= (Expr.cast castop_bitcast midty mid dstty) $$
     then {{ inv0 +++src (Expr.value dst) >= (Expr.cast castop_bitcast srcty src dstty) }}
+    else apply_fail tt
+  | Infrule.bitcast_double_i64 src tgt =>
+    let s := Size.from_Z 64%Z in
+    if cond_double_to_i64 src tgt
+    then {{ inv0 +++tgt (Expr.cast castop_bitcast 
+        (typ_floatpoint fp_double)
+        (ValueT.const src)
+        (typ_int s))
+        >=
+        (Expr.value (ValueT.const (const_int s tgt))) }}
     else apply_fail tt
   | Infrule.bitcast_load ptr ty v1 ty2 v2 a =>
     if $$ inv0 |-src (Expr.load ptr ty a) >= (Expr.value v1) $$ &&

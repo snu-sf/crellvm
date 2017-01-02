@@ -294,6 +294,7 @@ type instruction = [
   | SextInst of sext_inst
   | TruncInst of trunc_inst
   | FptosiInst of fptosi_inst
+  | FptouiInst of fptosi_inst
   | SitofpInst of sitofp_inst
   | UitofpInst of uitofp_inst
   | InsertValueInst of insert_value_inst
@@ -629,6 +630,11 @@ type bitcast_bitcast = {
     srcty : value_type;
     midty : value_type;
     dstty : value_type;
+}
+
+type bitcast_double_i64 = {
+    src : constant;
+    tgt : const_int;
 }
 
 type bitcast_load = {
@@ -2028,6 +2034,7 @@ type infrule = [
   | AndZero of and_zero
   | AndOrNot1 of and_or_not1
   | BitcastBitcast of bitcast_bitcast
+  | BitcastDoubleI64 of bitcast_double_i64
   | BitcastLoad of bitcast_load
   | BitcastFpext of bitcast_fpext
   | BitcastFptosi of bitcast_fptosi
