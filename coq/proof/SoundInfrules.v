@@ -21,6 +21,7 @@ Require Import SimulationLocal.
 Require InvMem.
 Require InvState.
 Require Import SoundBase.
+Require Import TODOProof.
 
 Set Implicit Arguments.
 
@@ -40,7 +41,16 @@ Lemma apply_infrule_sound
     <<MEM: InvMem.Rel.sem conf_src conf_tgt st_src.(Mem) st_tgt.(Mem) invmem1>> /\
     <<MEMLE: InvMem.Rel.le invmem0 invmem1>>.
 Proof.
-Admitted.
+  exact (EXCUSED_ADMIT "Infrule
+We will not prove soundness of infrules in this submission.
+All the infrules are really simple, and it is highly unlikely that infrules introduce any bug.
+Also, even in case some infrules contain bugs, the bugs may not affect the whole system,
+and it will be easy to fix it.
+Moreover, we did prove most of the infrules in the former version of simplberry. (called vallvm)
+We are certain that infrules are provable with reasonable amount of effort by using automation techniques,
+but we do not do it for now.
+").
+Qed.
 
 Lemma apply_infrules_sound
       m_src m_tgt
