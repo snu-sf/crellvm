@@ -39,13 +39,18 @@ Module GVs.
         (LD: lessdef a b)
         (INJECT: genericvalues_inject.gv_inject mij b c):
     << INJECT: genericvalues_inject.gv_inject mij a c >>.
-  Proof. Admitted.
+  Proof. exact (EXCUSED_ADMIT "Vellvm inject
+Vellvm's inject definition (Vellvm.Vellvm.memory_sim.MoreMem.val_inject)
+does not provide ""forall v, Vundef >= v"".
+This should be provided, conceptually this is correct.
+FYI, look at (compcert.common.Values.val_inject).
+"). Qed.
 
   Lemma inject_lessdef_compose mij a b c
         (INJECT: genericvalues_inject.gv_inject mij a b)
         (LD: lessdef b c):
     << INJECT: genericvalues_inject.gv_inject mij a c >>.
-  Proof. Admitted.
+  Proof. exact (EXCUSED_ADMIT "Vellvm inject"). Qed.
 End GVs.
 
 
