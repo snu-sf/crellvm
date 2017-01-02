@@ -95,26 +95,40 @@ Lemma get_operand_valid_ptr
       (WF_LC: MemProps.wf_lc Mem0 lc)
       (WF_CONST: True)
       (GET_OPERAND: getOperandValue TD value lc gl = Some gvs)
+      gmax
+      (GLOBALS : genericvalues_inject.wf_globals gmax gl)
+      (WF : MemProps.wf_Mem gmax TD Mem0)
   :
     <<VALID_PTR: MemProps.valid_ptrs (Memory.Mem.nextblock Mem0) gvs>>
 .
 Proof.
   destruct value.
   - eapply WF_LC; eauto.
-  - (* wf_const *) admit.
-Admitted.
+  - ss.
+    exploit TODOProof.wf_globals_const2GV; eauto; []; ii; des.
+    destruct WF as [_ WF_MEM].
+    eapply MemProps.valid_ptrs__trans; eauto.
+    apply Pos.lt_succ_r.
+    replace (gmax + 1)%positive with (Pos.succ gmax); cycle 1.
+    { destruct gmax; ss. }
+    rewrite <- Pos.succ_lt_mono.
+    ss.
+Qed.
 
 Lemma step_wf_lc
-      gmax conf st0 st1 evt
+      conf st0 st1 evt
       cmd cmds
-      (WF_MEM: MemProps.wf_Mem gmax conf.(CurTargetData) st0.(Mem))
       (WF_LC: MemProps.wf_lc st0.(Mem) st0.(EC).(Locals))
       (STEP: sInsn conf st0 st1 evt)
       (CMDS: st0.(EC).(CurCmds) = cmd :: cmds)
       (NONCALL_SRC: Instruction.isCallInst cmd = false)
+      gmax public invmem0
+      (MEM: InvMem.Unary.sem conf gmax public st0.(Mem) invmem0)
   : <<WF_LOCAL: MemProps.wf_lc st1.(Mem) st1.(EC).(Locals)>> /\
     <<WF_MEM: MemProps.wf_Mem gmax conf.(CurTargetData) st1.(Mem)>>.
 Proof.
+  inv MEM.
+  clear PRIVATE_PARENT MEM_PARENT UNIQUE_PARENT_MEM UNIQUE_PARENT_GLOBALS UNIQUE_PRIVATE_PARENT.
   inv STEP; destruct cmd; ss;
     try (split; [apply MemProps.updateAddAL__wf_lc; eauto; [] | by auto]); clarify.
   -
@@ -127,6 +141,8 @@ Proof.
     eapply MemProps.mfbop_preserves_valid_ptrs; eauto.
   -
     eapply MemProps.extractGenericValue_preserves_valid_ptrs; eauto.
+    (* unfold MemProps.wf_Mem in *. *)
+    (* des. clear WF. *)
     eapply get_operand_valid_ptr; eauto.
   -
     eapply MemProps.insertGenericValue_preserves_valid_ptrs; eauto.
@@ -157,7 +173,7 @@ Proof.
         eapply MemProps.malloc_preserves_wf_lc_in_tail; eauto.
     + eapply MemProps.malloc_preserves_wf_Mem; eauto.
   - unfold MemProps.wf_Mem in *. des.
-    eapply WF_MEM; eauto.
+    eapply WF; eauto.
   - (* store *)
     assert(WF_LC2: MemProps.wf_lc Mem' lc).
     { eapply MemProps.mstore_preserves_wf_lc; eauto. }
@@ -180,10 +196,19 @@ Proof.
       (*   des_sumbool. } *)
       exploit MemProps.mstore_aux_preserves_mload_aux_inv; eauto; []; ii; des.
       eapply MemProps.valid_ptrs_overlap; eauto.
-      { eapply get_operand_valid_ptr; eauto. }
+      { eapply get_operand_valid_ptr; eauto.
+        exploit mstore_aux_valid_ptrs_preserves_wf_Mem; eauto.
+        { instantiate (1:= {| CurSystem := S;
+                              CurTargetData := TD;
+                              CurProducts := Ps;
+                              Globals := gl;
+                              FunTable := fs|}). ss.
+          instantiate (1:= gmax). ss. }
+        { eapply get_operand_valid_ptr; eauto. splits; ss. }
+        ii; ss. }
       {
         rewrite <- NEXTBLOCK_SAME.
-        eapply WF_MEM; eauto.
+        eapply WF; eauto.
         Check ([(Values.Vptr b0 ofs0, cm)]): mptr.
         instantiate (3:= ([(Values.Vptr b0 ofs0, cm)])).
         cbn.
@@ -282,11 +307,11 @@ Proof.
     eapply step_unique_preserved_except; try exact CMDS_TGT; eauto.
     apply STATE. }
   { eapply step_wf_lc; try exact STEP_SRC; eauto.
-    - inv MEM. inv SRC. eauto.
-    - inv STATE. inv SRC. eauto. }
+    - apply STATE.
+    - apply MEM. }
   { eapply step_wf_lc; try exact STEP_TGT; eauto.
-    - inv MEM. inv TGT. eauto.
-    - inv STATE. inv TGT. eauto. }
+    - apply STATE.
+    - apply MEM. }
   { ss. inv STEP_SRC; ss. clarify. }
   { ss. inv STEP_TGT; ss. clarify. }
   i. des.
