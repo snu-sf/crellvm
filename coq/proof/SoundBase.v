@@ -674,7 +674,17 @@ Proof.
   des_ifs; try (eapply IHgval2; eauto; fail).
   des. cbn in *.
   des.
-  - clarify. exploit Pos.lt_trans; eauto. intro CONTR. apply Pos.lt_irrefl in CONTR. ss.
+  - clarify.
+    clear - INL VAL2.
+    replace (gmax + 1)%positive with (Pos.succ gmax)%positive in *; cycle 1.
+    { rewrite Pos.add_comm. ss. destruct gmax; ss. }
+    rewrite Pos.lt_succ_r in VAL2.
+    apply Pos.le_lteq in VAL2; eauto.
+    des.
+    + exploit Pos.lt_trans; eauto. ii.
+      apply Pos.lt_irrefl in x0; ss.
+    + clarify.
+      apply Pos.lt_irrefl in INL; ss.
   - eapply IHgval2; eauto.
 Qed.
 

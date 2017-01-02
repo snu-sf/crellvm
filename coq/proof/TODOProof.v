@@ -144,9 +144,11 @@ Lemma wf_globals_const2GV
       (GLOBALS: genericvalues_inject.wf_globals gmax gl)
       (C2G: const2GV TD gl cnst = Some gv)
   :
-    <<VALID_PTR: MemProps.valid_ptrs gmax gv>>
+    <<VALID_PTR: MemProps.valid_ptrs (gmax + 1)%positive gv>>
 .
 Proof.
+  (* globals: <= gmax *)
+  (* valid_ptr: < gmax+1 *)
   exact (EXCUSED_ADMIT "
 Language should provide this. This should be provable.
 - Inside _const2GV, it seems the only source of pointer is ""gid"", which looks up globals table.

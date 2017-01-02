@@ -818,7 +818,11 @@ Proof.
       subst.
       unfold getOperandValue in *.
       des_ifs; cycle 1.
-      * admit. (* const case *)
+      * ss.
+        rename g into __g__.
+        rename val into __val__.
+        exploit TODOProof.wf_globals_const2GV; eauto; []; i; des.
+        eapply valid_ptr_globals_diffblock; eauto.
       * eapply LOCALS; try apply Heq; eauto.
         apply AtomSetFacts.not_mem_iff in NOT_LEAKED_U.
         apply AtomSetImpl_from_list_spec2 in NOT_LEAKED_U.
