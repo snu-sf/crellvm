@@ -892,8 +892,8 @@ Proof.
     rewrite L_TGT. eauto.
     eapply lookup_implies_wf_subset; eauto.
   }
-  { eapply switchToNewBasicBlock_wf; try exact STEP_SRC; eauto. apply STATE. }
-  { eapply switchToNewBasicBlock_wf; try exact STEP_TGT; eauto. apply STATE. }
+  { eapply switchToNewBasicBlock_wf; try exact STEP_SRC; eauto. apply STATE. apply MEM. }
+  { eapply switchToNewBasicBlock_wf; try exact STEP_TGT; eauto. apply STATE. apply MEM. }
   { ss. }
   { ss. }
   intros STATE_FORGET. des.
