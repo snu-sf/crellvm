@@ -92,7 +92,7 @@ Lemma valid_init
         (mkState ec_tgt stack0_tgt mem_tgt)>>.
 Proof.
   inv INIT_SRC. unfold valid_fdef in FDEF. simtac.
-  exploit locals_init; eauto; [by apply CONF|]. i. des.
+  exploit locals_init; eauto; [by apply CONF|apply MEM|]. i. des.
   generalize FDEF. i.
   unfold forallb2AL in FDEF0. ss. apply andb_true_iff in FDEF0. des. simtac.
   hexploit InvState.Rel.sem_empty; eauto.
