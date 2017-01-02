@@ -294,7 +294,6 @@ type instruction = [
   | SextInst of sext_inst
   | TruncInst of trunc_inst
   | FptosiInst of fptosi_inst
-  | FptouiInst of fptosi_inst
   | SitofpInst of sitofp_inst
   | UitofpInst of uitofp_inst
   | InsertValueInst of insert_value_inst
