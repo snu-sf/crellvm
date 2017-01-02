@@ -839,29 +839,55 @@ Proof.
     move gvs1 at bottom.
     move gvs2 at bottom.
     unfold getOperandValue in *.
-    destruct value1, value2; ss.
-    {
-      apply_all_once AtomSetFacts.not_mem_iff.
-      apply_all_once AtomSetImpl_from_list_spec2.
-      unfold Cmd.get_leaked_ids in *. ss.
-      destruct decision; eapply LOCALS; try apply H0; try apply H1; eauto.
+    destruct decision; ss.
+    { clear H1.
+      destruct value1; ss.
       {
-        ii. apply NOT_LEAKED_U. subst.
-        destruct value0; ss.
-        - right. left. ss.
-        - left. ss.
+        apply_all_once AtomSetFacts.not_mem_iff.
+        apply_all_once AtomSetImpl_from_list_spec2.
+        unfold Cmd.get_leaked_ids in *. ss.
+        eapply LOCALS; try apply H0; eauto.
+        {
+          ii. apply NOT_LEAKED_U. subst.
+          destruct value0; ss.
+          - right. left. ss.
+          - left. ss.
+        }
       }
       {
-        ii. apply NOT_LEAKED_U. subst.
-        destruct value0; ss.
-        - right. right. left. ss.
-        - right. left. ss.
+        exploit TODOProof.wf_globals_const2GV; eauto; []; intro VALID_PTR; des.
+        eapply valid_ptr_globals_diffblock; eauto.
       }
     }
-    { (* const case *) admit. }
-    { (* const case *) admit. }
-    { (* const case *) admit. }
-Admitted.
+    { clear H0.
+      destruct value2; ss.
+      {
+        apply_all_once AtomSetFacts.not_mem_iff.
+        apply_all_once AtomSetImpl_from_list_spec2.
+        unfold Cmd.get_leaked_ids in *. ss.
+        eapply LOCALS; try apply H1; eauto.
+        {
+          ii. apply NOT_LEAKED_U. subst.
+          destruct value0; ss.
+          - right. destruct (Value.get_ids value1); ss.
+            + right. left. ss.
+            + left. ss.
+          - destruct (Value.get_ids value1); ss.
+            + right. left. ss.
+            + left. ss.
+        }
+      }
+      {
+        exploit TODOProof.wf_globals_const2GV; eauto; []; intro VALID_PTR; des.
+        eapply valid_ptr_globals_diffblock; eauto.
+      }
+    }
+Unshelve.
+apply {| CurSystem := S; CurTargetData := TD; CurProducts := Ps; Globals := gl; FunTable := fs |}.
+apply {| CurSystem := S; CurTargetData := TD; CurProducts := Ps; Globals := gl; FunTable := fs |}.
+apply {| CurSystem := S; CurTargetData := TD; CurProducts := Ps; Globals := gl; FunTable := fs |}.
+apply {| CurSystem := S; CurTargetData := TD; CurProducts := Ps; Globals := gl; FunTable := fs |}.
+Qed.
 
 Lemma step_unique_preserved_except_parent
       conf st0 st1 evt
