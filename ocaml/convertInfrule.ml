@@ -199,6 +199,10 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
      let midty = Convert.value_type args.midty in
      let dstty = Convert.value_type args.dstty in
      Infrule.Coq_bitcast_bitcast (src, mid, dst, srcty, midty, dstty)
+  | CoreHint_t.BitcastDoubleI64 (args:CoreHint_t.bitcast_double_i64) -> 
+     let src = Convert.constant args.src in
+     let tgt = Convert.const_int args.tgt in
+     Infrule.Coq_bitcast_double_i64 (src, tgt)
   | CoreHint_t.BitcastLoad (args:CoreHint_t.bitcast_load) -> 
      let ptr = Convert.value args.ptr in
      let ptrty = Convert.value_type args.ptrty in

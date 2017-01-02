@@ -631,6 +631,11 @@ type bitcast_bitcast = {
     dstty : value_type;
 }
 
+type bitcast_double_i64 = {
+    src : constant;
+    tgt : const_int;
+}
+
 type bitcast_load = {
     ptr : value;
     ptrty : value_type;
@@ -2028,6 +2033,7 @@ type infrule = [
   | AndZero of and_zero
   | AndOrNot1 of and_or_not1
   | BitcastBitcast of bitcast_bitcast
+  | BitcastDoubleI64 of bitcast_double_i64
   | BitcastLoad of bitcast_load
   | BitcastFpext of bitcast_fpext
   | BitcastFptosi of bitcast_fptosi
