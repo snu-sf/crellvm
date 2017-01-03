@@ -237,6 +237,7 @@ Definition alloc_inject conf_src conf_tgt st0_src st0_tgt
 (* Adm-itted. *)
 
 (* not high priority for proof *)
+
 Lemma mstore_never_produce_new_ptr
       TD mem0 mem1
       sptr sty val sa nptr
@@ -250,7 +251,10 @@ Lemma mstore_never_produce_new_ptr
     MemProps.no_alias nptr gv
 .
 Proof.
-Admitted.
+  unfold mstore in *.
+  des_ifs.
+  eapply TODOProof.mstore_aux_never_produce_new_ptr; eauto.
+Qed.
 
 Lemma vellvm_no_alias_is_diffblock
       conf gv1 gv2
@@ -733,12 +737,21 @@ Lemma mstore_noalias_mload
       (NOALIAS: InvState.Unary.sem_noalias conf sptr lptr sty lty)
   : mload TD mem1 lptr lty la = mload TD mem0 lptr lty la.
 Proof.
-  (* destruct (mload TD mem1 lptr lty la) eqn:LOAD1. *)
-  (* - exploit MemProps.mstore_preserves_mload_inv'; eauto. *)
-  (* MemProps.mstore_preserves_mload *)
-
-  (* MemProps.no_alias is diffblock for us, so we cannot prove this right now *)
-Admitted.
+  destruct (mload TD mem1 lptr lty la) eqn:LOAD1.
+  - exploit MemProps.mstore_preserves_mload_inv'; eauto.
+    rewrite vellvm_no_alias_is_diffblock.
+    instantiate (1:=conf).
+    unfold InvState.Unary.sem_noalias in *.
+    unfold InvState.Unary.sem_diffblock.
+    eauto.
+  - destruct (mload TD mem0 lptr lty la) eqn:LOAD0; eauto.
+    exploit MemProps.mstore_preserves_mload; eauto; try congruence.
+    rewrite vellvm_no_alias_is_diffblock.
+    instantiate (1:=conf).
+    unfold InvState.Unary.sem_noalias in *.
+    unfold InvState.Unary.sem_diffblock.
+    eauto.
+Qed.
 
 Lemma mfree_noalias_mload
       conf mem0 mem1 TD
@@ -747,17 +760,63 @@ Lemma mfree_noalias_mload
       (NOALIAS: InvState.Unary.sem_noalias conf ptr lptr ty lty)
   : mload TD mem1 lptr lty la = mload TD mem0 lptr lty la.
 Proof.
-Admitted.
+  destruct (mload TD mem1 lptr lty la) eqn:LOAD1.
+  - exploit MemProps.free_preserves_mload_inv; eauto.
+  - destruct (mload TD mem0 lptr lty la) eqn:LOAD0; eauto.
+    exploit MemProps.free_preserves_mload; eauto; try congruence.
+    rewrite vellvm_no_alias_is_diffblock.
+    instantiate (1 := conf).
+    unfold InvState.Unary.sem_noalias in *.
+    unfold InvState.Unary.sem_diffblock.
+    eauto.
+Qed.
+
+Lemma valid_ptrs__no_alias__fresh_ptr_iff
+      bound TD gvs
+  : MemProps.valid_ptrs bound gvs <->
+    forall mb (BOUND: (bound <= mb)%positive),
+      MemProps.no_alias gvs (blk2GV TD mb).
+Proof.
+  split.
+  { i. eapply MemProps.valid_ptrs__no_alias__fresh_ptr; eauto. }
+  induction gvs; ss.
+  destruct a.
+  destruct v; eauto.
+  i. exploit IHgvs; eauto.
+  { i. exploit H; eauto.
+    i. des. eauto. }
+  i. split; eauto.
+  specialize (H b).
+  destruct (plt b bound); ss.
+  rewrite Pos.le_nlt in *.
+  unfold Plt in *.
+  exploit H; eauto.
+  i. des. congruence.
+Qed.
 
 Lemma mstore_aux_valid_ptrs_preserves_wf_Mem
       gmax conf mem0 mem1
       b ofs ch gv
       (WF_MEM : MemProps.wf_Mem gmax conf.(CurTargetData) mem0)
       (VALID_PTRS: MemProps.valid_ptrs mem0.(Memory.Mem.nextblock) gv)
-      (STORE : mstore_aux mem0 ch gv b ofs = Some mem1)
+      (MSTORE_AUX : mstore_aux mem0 ch gv b ofs = Some mem1)
   : MemProps.wf_Mem gmax (CurTargetData conf) mem1.
 Proof.
-Admitted.
+  unfold MemProps.wf_Mem in *. des.
+  exploit MemProps.nextblock_mstore_aux; eauto. i.
+  split; try congruence.
+  i. eapply valid_ptrs__no_alias__fresh_ptr_iff.
+  instantiate (1:=conf.(CurTargetData)).
+  i. apply MemProps.no_alias_sym.
+  eapply TODOProof.mstore_aux_never_produce_new_ptr; eauto.
+  - i. exploit WF_MEM; eauto. i.
+    erewrite valid_ptrs__no_alias__fresh_ptr_iff in x.
+    apply MemProps.no_alias_sym.
+    exploit x; eauto. congruence.
+  - apply MemProps.no_alias_sym.
+    rewrite valid_ptrs__no_alias__fresh_ptr_iff in VALID_PTRS.
+    apply VALID_PTRS. congruence.
+Qed.
 
 Lemma mstore_const_leak_no_unique
       conf st0 gmax u
@@ -768,6 +827,12 @@ Lemma mstore_const_leak_no_unique
       (STORE : mstore conf.(CurTargetData) st0.(Mem) ptr ty gv a = Some mem1)
   : InvState.Unary.sem_unique conf (mkState st0.(EC) st0.(ECS) mem1) gmax u.
 Proof.
+  inv UNIQUE_U.
+  econs; eauto. ss.
+  i. hexploit mstore_never_produce_new_ptr; eauto.
+  { i. rewrite vellvm_no_alias_is_diffblock. eauto. }
+  { admit. (* unique and const noailas *) }
+  rewrite <- vellvm_no_alias_is_diffblock. eauto.
 Admitted.
 
 Lemma mstore_register_leak_no_unique
@@ -780,7 +845,14 @@ Lemma mstore_register_leak_no_unique
       (STORE : mstore conf.(CurTargetData) st0.(Mem) ptr ty gv a = Some mem1)
   : InvState.Unary.sem_unique conf (mkState st0.(EC) st0.(ECS) mem1) gmax u.
 Proof.
-Admitted.
+  inv UNIQUE_U.
+  econs; eauto. ss.
+  i. hexploit mstore_never_produce_new_ptr; eauto.
+  { i. rewrite vellvm_no_alias_is_diffblock. eauto. }
+  { rewrite vellvm_no_alias_is_diffblock.
+    eapply LOCALS; eauto. }
+  rewrite <- vellvm_no_alias_is_diffblock. eauto.
+Qed.
 
 (* tactic for positive. TODO: can we use Hint instead of this? *)
 Ltac psimpl :=
