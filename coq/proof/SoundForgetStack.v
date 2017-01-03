@@ -1110,8 +1110,10 @@ Proof.
     replace gl with conf.(Globals) in H0, H1; [|subst; ss].
     hexploit getOperandValue_diffblock; try exact H0; eauto; try apply MEM.
     i; des.
-
-    (* gep *) admit.
+    apply dopsem.GEP_inv in H2.
+    des.
+    { eapply undef_implies_diffblock_with_blocks; eauto. }
+    clarify.
   - des_lookupAL_updateAddAL; [|eapply UNIQUE_PARENT_LOCAL; eauto].
     eapply TRUNC_diffblock_with_blocks; eauto.
   - des_lookupAL_updateAddAL; [|eapply UNIQUE_PARENT_LOCAL; eauto].
@@ -1137,7 +1139,9 @@ Proof.
     destruct decision; ss.
     + hexploit getOperandValue_diffblock; try exact H1; eauto; try apply MEM.
     + hexploit getOperandValue_diffblock; try exact H2; eauto; try apply MEM.
-Admitted.
+Unshelve.
+ss.
+Qed.
 
 Lemma step_unique_preserved_except
       conf st0 st1 evt
