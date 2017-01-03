@@ -948,6 +948,40 @@ Lemma step_unique_preserved_except_parent
       lookupAL GenericValue (Locals (EC st1)) x = Some ptr ->
       InvMem.gv_diffblock_with_blocks conf ptr (InvMem.Unary.unique_parent invmem)>>.
 Proof.
+  red; i.
+  inv STATE. clear LESSDEF NOALIAS UNIQUE PRIVATE WF_LOCAL WF_PREVIOUS WF_GHOST WF_INSNS.
+  inv STEP; ss; clarify.
+  - (* nop *) eapply UNIQUE_PARENT_LOCAL; eauto.
+  - des_lookupAL_updateAddAL; [|eapply UNIQUE_PARENT_LOCAL; eauto].
+    eapply BOP_diffblock_with_blocks; eauto.
+  - des_lookupAL_updateAddAL; [|eapply UNIQUE_PARENT_LOCAL; eauto].
+    eapply FBOP_diffblock_with_blocks; eauto.
+  - des_lookupAL_updateAddAL; [|eapply UNIQUE_PARENT_LOCAL; eauto].
+    admit. (* extractGenericvalue *)
+  - des_lookupAL_updateAddAL; [|eapply UNIQUE_PARENT_LOCAL; eauto].
+    admit. (* insertGenericvalue *)
+  - des_lookupAL_updateAddAL; [|eapply UNIQUE_PARENT_LOCAL; eauto].
+    admit. (* malloc *)
+  - (* free *) eapply UNIQUE_PARENT_LOCAL; eauto.
+  - des_lookupAL_updateAddAL; [|eapply UNIQUE_PARENT_LOCAL; eauto].
+    admit. (* malloc *)
+  - des_lookupAL_updateAddAL; [|eapply UNIQUE_PARENT_LOCAL; eauto].
+    admit. (* load *)
+  - (* store *) eapply UNIQUE_PARENT_LOCAL; eauto.
+  - des_lookupAL_updateAddAL; [|eapply UNIQUE_PARENT_LOCAL; eauto].
+    (* gep *) admit.
+  - des_lookupAL_updateAddAL; [|eapply UNIQUE_PARENT_LOCAL; eauto].
+    eapply TRUNC_diffblock_with_blocks; eauto.
+  - des_lookupAL_updateAddAL; [|eapply UNIQUE_PARENT_LOCAL; eauto].
+    eapply EXT_diffblock_with_blocks; eauto.
+  - des_lookupAL_updateAddAL; [|eapply UNIQUE_PARENT_LOCAL; eauto].
+    (* cast *) admit.
+  - des_lookupAL_updateAddAL; [|eapply UNIQUE_PARENT_LOCAL; eauto].
+    eapply ICMP_diffblock_with_blocks; eauto.
+  - des_lookupAL_updateAddAL; [|eapply UNIQUE_PARENT_LOCAL; eauto].
+    eapply FCMP_diffblock_with_blocks; eauto.
+  - des_lookupAL_updateAddAL; [|eapply UNIQUE_PARENT_LOCAL; eauto].
+    (* select *) admit.
 Admitted.
 
 Lemma step_unique_preserved_except
