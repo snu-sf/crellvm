@@ -1025,6 +1025,9 @@ Lemma step_unique_preserved_except_parent
       gmax public
       (STATE: InvState.Unary.sem conf (mkState st0.(EC) st0.(ECS) st1.(Mem)) invst invmem gmax public inv0)
       (MEM: InvMem.Unary.sem conf gmax public st1.(Mem) invmem)
+      (PRIVATE_PARENT_BEFORE:
+         forall b (IN: In b invmem.(InvMem.Unary.private_parent)),
+           (b < Memory.Mem.nextblock st0.(Mem))%positive)
       (NONCALL: Instruction.isCallInst cmd = false)
       (CMDS : CurCmds st0.(EC) = cmd :: cmds)
       (STEP : sInsn conf st0 st1 evt)
@@ -1121,6 +1124,9 @@ Lemma step_unique_preserved_except
       gmax public
       (STATE: InvState.Unary.sem conf (mkState st0.(EC) st0.(ECS) st1.(Mem)) invst invmem gmax public inv0)
       (WF_LC_BEFORE: wf_lc st0.(Mem) st0.(EC).(Locals))
+      (PRIVATE_PARENT_BEFORE:
+         forall b (IN: In b invmem.(InvMem.Unary.private_parent)),
+           (b < Memory.Mem.nextblock st0.(Mem))%positive)
       (MEM: InvMem.Unary.sem conf gmax public st1.(Mem) invmem)
       (NONCALL: Instruction.isCallInst cmd = false)
       (CMDS : CurCmds st0.(EC) = cmd :: cmds)
