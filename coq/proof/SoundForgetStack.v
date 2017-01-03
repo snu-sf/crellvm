@@ -228,6 +228,32 @@ Proof.
   exploit IHgval1; eauto.
 Qed.
 
+Lemma getOperandValue_diffblock
+      conf gmax (* public Mem0 invmem *)
+      blocks
+      lc
+      valy gvaly
+      (GET_OPERAND: getOperandValue conf.(CurTargetData) valy lc conf.(Globals) = Some gvaly)
+      (* (MEM: InvMem.Unary.sem conf gmax public Mem0 invmem) *)
+      (* in MEM, WF_GLOBALS and GLOBALS exist, but blocks will be bound to unique_parent *)
+      (WF_GLOBALS: genericvalues_inject.wf_globals gmax (Globals conf))
+      (GLOBALS: forall b : Values.block, In b blocks -> (gmax < b)%positive)
+      (LOOKUP_DIFFBLOCK:
+         forall valx gvalx (LOOKUP: lookupAL GenericValue lc valx = Some gvalx),
+           InvMem.gv_diffblock_with_blocks conf gvalx blocks)
+  :
+    InvMem.gv_diffblock_with_blocks conf gvaly blocks
+.
+Proof.
+  destruct valy; ss.
+  - hexploit LOOKUP_DIFFBLOCK; eauto.
+  - eapply TODOProof.wf_globals_const2GV in GET_OPERAND; eauto.
+    des.
+    eapply valid_ptr_globals_diffblock_with_blocks; eauto.
+Unshelve.
+ss.
+Qed.
+
 Lemma no_alias_diffblock
       conf gval1 gval2
       (NOALIAS: no_alias gval1 gval2)
@@ -291,6 +317,20 @@ Lemma undef_implies_diffblock
 .
 Proof.
   ii. exploit undef_implies_diffblock_with_blocks; eauto; i; des.
+Qed.
+
+Lemma app_diffblock_with_blocks
+      conf gvs gvs' blocks
+  (DIFFBLOCK1: InvMem.gv_diffblock_with_blocks conf gvs blocks)
+  (DIFFBLOCK2: InvMem.gv_diffblock_with_blocks conf gvs' blocks)
+  :
+  <<DIFFBLOCK: InvMem.gv_diffblock_with_blocks conf (gvs ++ gvs') blocks>>
+.
+Proof.
+  ii.
+  apply GV2blocks_app_inv in ING. des.
+  - eapply DIFFBLOCK1; eauto.
+  - eapply DIFFBLOCK2; eauto.
 Qed.
 
 Lemma incl_diffblock_with_blocks
@@ -1006,17 +1046,33 @@ Proof.
     apply extractValue_sub in EXTRACT.
     des; cycle 1.
     { eapply undef_implies_diffblock_with_blocks; eauto. }
-    destruct v; ss.
-    { hexploit UNIQUE_PARENT_LOCAL; eauto; []; intro DIFFBLOCK; des.
-      clear - EXTRACT DIFFBLOCK.
-      eapply incl_diffblock_with_blocks; eauto. }
-    { exploit TODOProof.wf_globals_const2GV; eauto; [apply MEM|]; intro VALID_PTR; des.
-      eapply incl_diffblock_with_blocks; eauto.
-      inv MEM. clear GLOBALS WF PRIVATE_PARENT MEM_PARENT
-                     UNIQUE_PARENT_MEM UNIQUE_PRIVATE_PARENT NEXTBLOCK.
-      eapply valid_ptr_globals_diffblock_with_blocks; eauto. }
+    remember {| CurSystem := S;
+                CurTargetData := TD;
+                CurProducts := Ps;
+                Globals := gl;
+                FunTable := fs |} as conf.
+    replace TD with conf.(CurTargetData) in H0; [|subst; ss].
+    replace gl with conf.(Globals) in H0; [|subst; ss].
+    hexploit getOperandValue_diffblock; ss; try exact H0; eauto; [apply MEM|apply MEM|]; intro DIFFBLOCK1.
+    eapply incl_diffblock_with_blocks; eauto.
   - des_lookupAL_updateAddAL; [|eapply UNIQUE_PARENT_LOCAL; eauto].
-    admit. (* insertGenericvalue *)
+    rename H2 into INSERT.
+    apply insertValue_sub in INSERT.
+    des; cycle 1.
+    { eapply undef_implies_diffblock_with_blocks; eauto. }
+    remember {| CurSystem := S;
+                CurTargetData := TD;
+                CurProducts := Ps;
+                Globals := gl;
+                FunTable := fs |} as conf.
+    replace TD with conf.(CurTargetData) in H0, H1; [|subst; ss].
+    (* replace TD with conf.(CurTargetData) in *; [|subst; ss]. *)
+    (* Heconf becomes recursive!! ?? *)
+    replace gl with conf.(Globals) in H0, H1; [|subst; ss].
+    hexploit getOperandValue_diffblock; ss; try exact H0; eauto; [apply MEM|apply MEM|]; intro DIFFBLOCK1.
+    hexploit getOperandValue_diffblock; ss; try exact H1; eauto; [apply MEM|apply MEM|]; intro DIFFBLOCK2.
+    eapply incl_diffblock_with_blocks; eauto.
+    eapply app_diffblock_with_blocks; eauto.
   - des_lookupAL_updateAddAL; [|eapply UNIQUE_PARENT_LOCAL; eauto].
     (* eapply valid_ptr_malloc_diffblock; eauto. *)
     (* hexploit locals_malloc_diffblock; eauto. *)
