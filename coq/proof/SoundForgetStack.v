@@ -1074,8 +1074,16 @@ Proof.
     eapply incl_diffblock_with_blocks; eauto.
     eapply app_diffblock_with_blocks; eauto.
   - des_lookupAL_updateAddAL; [|eapply UNIQUE_PARENT_LOCAL; eauto].
-    (* eapply valid_ptr_malloc_diffblock; eauto. *)
-    (* hexploit locals_malloc_diffblock; eauto. *)
+    inv MEM. clear WF MEM_PARENT UNIQUE_PARENT_MEM UNIQUE_PARENT_GLOBALS.
+    ii.
+    clear H0 H1 NONCALL UNIQUE_PARENT_LOCAL.
+    cbn in *. des; ss. clarify.
+    exploit PRIVATE_PARENT; eauto.
+    { eapply sublist_In; eauto. }
+    intro VALID_PTR. unfold InvMem.private_block in *. des; ss.
+    clear - H2 VALID_PTR0 INB.
+    eapply malloc_result in H2. subst.
+    (* need MEM_BEF *)
     admit. (* malloc *)
   - (* free *) eapply UNIQUE_PARENT_LOCAL; eauto.
   - des_lookupAL_updateAddAL; [|eapply UNIQUE_PARENT_LOCAL; eauto].
