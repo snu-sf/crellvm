@@ -252,7 +252,7 @@ Lemma mstore_never_produce_new_ptr
 Proof.
 Admitted.
 
-Lemma vellvm_no_alias_is_noalias
+Lemma vellvm_no_alias_is_diffblock
       conf gv1 gv2
   : MemProps.no_alias gv1 gv2 <->
     InvState.Unary.sem_diffblock conf gv1 gv2.
@@ -368,15 +368,15 @@ Proof.
   i. hexploit mstore_never_produce_new_ptr; eauto.
   { instantiate (1:= [(Values.Vptr b (Integers.Int.repr 31 0), AST.Mint 31)]).
     i. hexploit MEM_NOALIAS; eauto. i.
-    eapply vellvm_no_alias_is_noalias.
+    eapply vellvm_no_alias_is_diffblock.
     instantiate (1:= conf).
     ii. ss. des; eauto.
     subst. eauto. }
-  { eapply vellvm_no_alias_is_noalias.
+  { eapply vellvm_no_alias_is_diffblock.
     instantiate (1:= conf).
     ii. ss. des; eauto.
     subst. eauto. }
-  ii. rewrite (vellvm_no_alias_is_noalias conf) in *.
+  ii. rewrite (vellvm_no_alias_is_diffblock conf) in *.
   unfold InvState.Unary.sem_diffblock in *.
   unfold list_disjoint in *.
   eapply H0; eauto. ss. eauto.
@@ -431,7 +431,12 @@ Proof.
     assert (INSN_IN_BLOCK: insnInBlockB (insn_cmd (insn_store id5 typ5 value1 value2 align5)) B).
     { admit. } (* wf_EC *)
     split.
-    + ii. exploit mstore_never_produce_new_ptr'; eauto.
+    + ii.
+      exploit (mstore_never_produce_new_ptr' {| CurSystem := S;
+                                                CurTargetData := TD;
+                                                CurProducts := Ps;
+                                                Globals := gl;
+                                                FunTable := fs |}); eauto.
       { i. hexploit UNIQUE_PARENT_MEM; eauto. }
       hexploit getOperandValue_not_unique_parent.
       { eauto. }
@@ -445,6 +450,7 @@ Proof.
         apply H10.
       }
       { instantiate (1 := gv1). eauto. }
+      ss. clarify.
       unfold InvMem.gv_diffblock_with_blocks. eauto.
     + esplits; ss.
       * des_ifs.
