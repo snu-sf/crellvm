@@ -561,6 +561,25 @@ Proof.
     }
 Admitted.
 
+(* care for quantification position of the "blocks".
+If it is inside getOperand_diffblock && DIFFBLOCK, this lemma is not usable in intended use case. *)
+Lemma CAST_diffblock_with_blocks
+      S Ps fs val1
+      TD lc gl castop0 t1 v1 t2
+      (H: CAST TD lc gl castop0 t1 v1 t2 = Some val1)
+      blocks
+      (getOperand_diffblock: forall v2 val2,
+          getOperandValue TD v2 lc gl = Some val2 ->
+          InvMem.gv_diffblock_with_blocks (mkCfg S TD Ps gl fs) val2 blocks)
+  : <<DIFFBLOCK: InvMem.gv_diffblock_with_blocks (mkCfg S TD Ps gl fs) val1 blocks>>.
+Proof.
+  red; i.
+  apply opsem_props.OpsemProps.CAST_inversion in H. des.
+  unfold mcast in *.
+  des_ifs; try (eapply undef_implies_diffblock_with_blocks; eauto; fail);
+    try (apply mbitcast_inv in H0; clarify; []; hexploit getOperand_diffblock; eauto).
+Qed.
+
 (* Definition leaks_diffblock_with conf st cmd ptr: Prop := *)
 (*   forall v gv *)
 (*     (IN_LEAK: In v (Cmd.get_leaked_values cmd)) *)
@@ -957,16 +976,26 @@ Proof.
   - des_lookupAL_updateAddAL; [|eapply UNIQUE_PARENT_LOCAL; eauto].
     eapply FBOP_diffblock_with_blocks; eauto.
   - des_lookupAL_updateAddAL; [|eapply UNIQUE_PARENT_LOCAL; eauto].
-    admit. (* extractGenericvalue *)
+    destruct v; ss.
+    { hexploit UNIQUE_PARENT_LOCAL; eauto; []; intro VALID_PTR; des.
+      (* ptr is from gvs *)
+      admit. }
+    { exploit TODOProof.wf_globals_const2GV; eauto; [apply MEM|]; intro VALID_PTR; des.
+      (* gvs <= gmax *)
+      (* ptr <= gmax *)
+      (* gmax < unique_parent *)
+      admit. }
   - des_lookupAL_updateAddAL; [|eapply UNIQUE_PARENT_LOCAL; eauto].
     admit. (* insertGenericvalue *)
   - des_lookupAL_updateAddAL; [|eapply UNIQUE_PARENT_LOCAL; eauto].
+    (* eapply valid_ptr_malloc_diffblock; eauto. *)
+    (* hexploit locals_malloc_diffblock; eauto. *)
     admit. (* malloc *)
   - (* free *) eapply UNIQUE_PARENT_LOCAL; eauto.
   - des_lookupAL_updateAddAL; [|eapply UNIQUE_PARENT_LOCAL; eauto].
     admit. (* malloc *)
   - des_lookupAL_updateAddAL; [|eapply UNIQUE_PARENT_LOCAL; eauto].
-    admit. (* load *)
+    eapply MEM; eauto.
   - (* store *) eapply UNIQUE_PARENT_LOCAL; eauto.
   - des_lookupAL_updateAddAL; [|eapply UNIQUE_PARENT_LOCAL; eauto].
     (* gep *) admit.
@@ -975,7 +1004,14 @@ Proof.
   - des_lookupAL_updateAddAL; [|eapply UNIQUE_PARENT_LOCAL; eauto].
     eapply EXT_diffblock_with_blocks; eauto.
   - des_lookupAL_updateAddAL; [|eapply UNIQUE_PARENT_LOCAL; eauto].
-    (* cast *) admit.
+    idtac.
+    eapply CAST_diffblock_with_blocks; eauto.
+    { i. destruct v2; ss.
+      - eapply UNIQUE_PARENT_LOCAL; eauto.
+      - eapply TODOProof.wf_globals_const2GV in H; [|apply MEM]; des.
+        (* unique_parent > gmax, val2 <= gmax *)
+        admit.
+    }
   - des_lookupAL_updateAddAL; [|eapply UNIQUE_PARENT_LOCAL; eauto].
     eapply ICMP_diffblock_with_blocks; eauto.
   - des_lookupAL_updateAddAL; [|eapply UNIQUE_PARENT_LOCAL; eauto].
