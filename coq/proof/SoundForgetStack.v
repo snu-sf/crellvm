@@ -1077,20 +1077,26 @@ Proof.
     eapply incl_diffblock_with_blocks; eauto.
     eapply app_diffblock_with_blocks; eauto.
   - des_lookupAL_updateAddAL; [|eapply UNIQUE_PARENT_LOCAL; eauto].
-    inv MEM. clear WF MEM_PARENT UNIQUE_PARENT_MEM UNIQUE_PARENT_GLOBALS.
     ii.
     clear H0 H1 NONCALL UNIQUE_PARENT_LOCAL.
     cbn in *. des; ss. clarify.
-    exploit PRIVATE_PARENT; eauto.
-    { eapply sublist_In; eauto. }
-    intro VALID_PTR. unfold InvMem.private_block in *. des; ss.
-    clear - H2 VALID_PTR0 INB.
+    exploit PRIVATE_PARENT_BEFORE; eauto.
+    { eapply sublist_In; eauto. apply MEM. }
+    intro VALID_PTR.
+    clear - H2 VALID_PTR.
     eapply malloc_result in H2. subst.
-    (* need MEM_BEF *)
-    admit. (* malloc *)
+    apply Pos.lt_irrefl in VALID_PTR. ss.
   - (* free *) eapply UNIQUE_PARENT_LOCAL; eauto.
   - des_lookupAL_updateAddAL; [|eapply UNIQUE_PARENT_LOCAL; eauto].
-    admit. (* malloc *)
+    ii.
+    clear H0 H1 NONCALL UNIQUE_PARENT_LOCAL.
+    cbn in *. des; ss. clarify.
+    exploit PRIVATE_PARENT_BEFORE; eauto.
+    { eapply sublist_In; eauto. apply MEM. }
+    intro VALID_PTR.
+    clear - H2 VALID_PTR.
+    eapply malloc_result in H2. subst.
+    apply Pos.lt_irrefl in VALID_PTR. ss.
   - des_lookupAL_updateAddAL; [|eapply UNIQUE_PARENT_LOCAL; eauto].
     eapply MEM; eauto.
   - (* store *) eapply UNIQUE_PARENT_LOCAL; eauto.
