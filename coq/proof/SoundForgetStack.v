@@ -228,6 +228,7 @@ Proof.
   exploit IHgval1; eauto.
 Qed.
 
+(* TODO move diffblock theories to SoundBase? or some root file so that others can see? *)
 Lemma getOperandValue_diffblock
       conf gmax (* public Mem0 invmem *)
       blocks
