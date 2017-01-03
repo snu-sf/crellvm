@@ -293,6 +293,32 @@ Proof.
   ii. exploit undef_implies_diffblock_with_blocks; eauto; i; des.
 Qed.
 
+Lemma incl_diffblock_with_blocks
+      gvsx gvsy conf blocks
+  (INCL: incl gvsx gvsy)
+  (DIFFBLOCK: InvMem.gv_diffblock_with_blocks conf gvsy blocks)
+  :
+    <<DIFFBLOCK: InvMem.gv_diffblock_with_blocks conf gvsx blocks>>
+.
+Proof.
+  red.
+  generalize dependent gvsy.
+  induction gvsx; i; ss.
+  assert(INCL2: incl gvsx gvsy).
+  { ii. eapply INCL. ss. right. ss. }
+  ii.
+  destruct a; ss.
+  unfold GV2blocks in *. unfold compose in *.
+  destruct v; cbn in *; try (eapply IHgvsx; eauto; fail).
+  rename b into __b__.
+  des.
+  - clarify. eapply IHgvsx; eauto.
+    exploit DIFFBLOCK; eauto.
+    { eapply GV2blocks_incl in INCL. eapply INCL. ss. left. ss. }
+    i; ss.
+  - eapply IHgvsx; eauto.
+Qed.
+
 Lemma BOP_diffblock_with_blocks
       S TD Ps gl fs
       lc bop sz v1 v2 val
@@ -976,15 +1002,19 @@ Proof.
   - des_lookupAL_updateAddAL; [|eapply UNIQUE_PARENT_LOCAL; eauto].
     eapply FBOP_diffblock_with_blocks; eauto.
   - des_lookupAL_updateAddAL; [|eapply UNIQUE_PARENT_LOCAL; eauto].
+    rename H1 into EXTRACT.
+    apply extractValue_sub in EXTRACT.
+    des; cycle 1.
+    { eapply undef_implies_diffblock_with_blocks; eauto. }
     destruct v; ss.
-    { hexploit UNIQUE_PARENT_LOCAL; eauto; []; intro VALID_PTR; des.
-      (* ptr is from gvs *)
-      admit. }
+    { hexploit UNIQUE_PARENT_LOCAL; eauto; []; intro DIFFBLOCK; des.
+      clear - EXTRACT DIFFBLOCK.
+      eapply incl_diffblock_with_blocks; eauto. }
     { exploit TODOProof.wf_globals_const2GV; eauto; [apply MEM|]; intro VALID_PTR; des.
-      (* gvs <= gmax *)
-      (* ptr <= gmax *)
-      (* gmax < unique_parent *)
-      admit. }
+      eapply incl_diffblock_with_blocks; eauto.
+      inv MEM. clear GLOBALS WF PRIVATE_PARENT MEM_PARENT
+                     UNIQUE_PARENT_MEM UNIQUE_PRIVATE_PARENT NEXTBLOCK.
+      eapply valid_ptr_globals_diffblock_with_blocks; eauto. }
   - des_lookupAL_updateAddAL; [|eapply UNIQUE_PARENT_LOCAL; eauto].
     admit. (* insertGenericvalue *)
   - des_lookupAL_updateAddAL; [|eapply UNIQUE_PARENT_LOCAL; eauto].
