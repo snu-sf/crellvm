@@ -164,3 +164,27 @@ such as, the const of interest (all that appears in hint/invariant) actually exi
 which passed type checking, so wf_const holds.
 ").
 Qed.
+
+Lemma mstore_aux_never_produce_new_ptr
+      TD mem0 mem1
+      nptr ch val b o
+      (MEM_NOALIAS: forall ptr ty a gv,
+          mload TD mem0 ptr ty a = Some gv ->
+          MemProps.no_alias nptr gv)
+      (STORE_AUX: mstore_aux mem0 ch val b o = Some mem1)
+      (NOALIAS: MemProps.no_alias nptr val)
+  : forall ptr ty a gv,
+    mload TD mem1 ptr ty a = Some gv ->
+    MemProps.no_alias nptr gv
+.
+Proof.
+  exact (EXCUSED_ADMIT "
+Memory model should provide this.
+- [nptr] is a pointer.
+- [mem0] contains no pointers aliased with [nptr].
+- [val] is also not aliased with [nptr].
+- Then, only storing [val] into somewhere in [mem0] shouldn't produce an
+  alias to [nptr]
+- Therefore, the result memory [mem1] contains no aliases to [nptr]
+").
+Qed.
