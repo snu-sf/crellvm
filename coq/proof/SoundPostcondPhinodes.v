@@ -747,6 +747,10 @@ Lemma switchToNewBasicBlock_wf
       (WF_LOCAL : memory_props.MemProps.wf_lc mem locals)
       (STEP: switchToNewBasicBlock (CurTargetData conf) (l_to, stmts)
                                    l_from (Globals conf) locals = Some locals')
+      gmax public invmem
+      (* st0 invst0 inv0 *)
+      (* (STATE: InvState.Unary.sem conf st0 invst0 invmem0 gmax public inv0) *)
+      (MEM : InvMem.Unary.sem conf gmax public mem invmem)
   : memory_props.MemProps.wf_lc mem locals'.
 Proof.
   unfold switchToNewBasicBlock in *. des_ifs.
@@ -755,13 +759,26 @@ Proof.
   { rewrite <- AtomSetFacts.mem_iff in REG_MEM.
     hexploit indom_lookupAL_Some; eauto. i. des.
     exploit opsem_props.OpsemProps.getIncomingValuesForBlockFromPHINodes_spec9'; eauto. i. des.
+    (* assert(H2:= H). *)
     apply opsem_props.OpsemProps.updateValuesForNewBlock_spec4 with (lc:=locals) in H. clarify.
-    admit. (* getoperandvalue implies valid_ptrs *)
+    {
+      destruct v; ss.
+      - eapply WF_LOCAL; eauto.
+      - inv MEM.
+        exploit wf_globals_const2GV; eauto; []; ii; des.
+        unfold memory_props.MemProps.wf_Mem in WF. des.
+        clear - WF0 x4.
+        eapply memory_props.MemProps.valid_ptrs__trans; eauto.
+        eapply Pos.lt_succ_r.
+        replace (gmax + 1)%positive with (Pos.succ gmax); cycle 1.
+        { destruct gmax; ss. }
+        rewrite <- Pos.succ_lt_mono; eauto.
+    }
   }
   { rewrite <- AtomSetFacts.not_mem_iff in REG_MEM.
     rewrite opsem_props.OpsemProps.updateValuesForNewBlock_spec7' in Hx; eauto.
   }
-Admitted.
+Qed.
 
 Lemma lookup_implies_wf_subset
       st0 l_to phinodes cmds terminator
@@ -875,10 +892,8 @@ Proof.
     rewrite L_TGT. eauto.
     eapply lookup_implies_wf_subset; eauto.
   }
-  { inv STATE. inv SRC. ss.
-    eapply switchToNewBasicBlock_wf; try exact STEP_SRC; eauto. }
-  { inv STATE. inv TGT. ss.
-    eapply switchToNewBasicBlock_wf; try exact STEP_TGT; eauto. }
+  { eapply switchToNewBasicBlock_wf; try exact STEP_SRC; eauto. apply STATE. apply MEM. }
+  { eapply switchToNewBasicBlock_wf; try exact STEP_TGT; eauto. apply STATE. apply MEM. }
   { ss. }
   { ss. }
   intros STATE_FORGET. des.
