@@ -1072,8 +1072,8 @@ Proof.
     (* replace TD with conf.(CurTargetData) in *; [|subst; ss]. *)
     (* Heconf becomes recursive!! ?? *)
     replace gl with conf.(Globals) in H0, H1; [|subst; ss].
-    hexploit getOperandValue_diffblock; ss; try exact H0; eauto; [apply MEM|apply MEM|]; intro DIFFBLOCK1.
-    hexploit getOperandValue_diffblock; ss; try exact H1; eauto; [apply MEM|apply MEM|]; intro DIFFBLOCK2.
+    hexploit getOperandValue_diffblock; ss; try exact H0; eauto; try apply MEM; intro DIFFBLOCK1.
+    hexploit getOperandValue_diffblock; ss; try exact H1; eauto; try apply MEM; intro DIFFBLOCK2.
     eapply incl_diffblock_with_blocks; eauto.
     eapply app_diffblock_with_blocks; eauto.
   - des_lookupAL_updateAddAL; [|eapply UNIQUE_PARENT_LOCAL; eauto].
@@ -1101,6 +1101,16 @@ Proof.
     eapply MEM; eauto.
   - (* store *) eapply UNIQUE_PARENT_LOCAL; eauto.
   - des_lookupAL_updateAddAL; [|eapply UNIQUE_PARENT_LOCAL; eauto].
+    remember {| CurSystem := S;
+                CurTargetData := TD;
+                CurProducts := Ps;
+                Globals := gl;
+                FunTable := fs |} as conf.
+    replace TD with conf.(CurTargetData) in H0, H1; [|subst; ss].
+    replace gl with conf.(Globals) in H0, H1; [|subst; ss].
+    hexploit getOperandValue_diffblock; try exact H0; eauto; try apply MEM.
+    i; des.
+
     (* gep *) admit.
   - des_lookupAL_updateAddAL; [|eapply UNIQUE_PARENT_LOCAL; eauto].
     eapply TRUNC_diffblock_with_blocks; eauto.
@@ -1109,12 +1119,8 @@ Proof.
   - des_lookupAL_updateAddAL; [|eapply UNIQUE_PARENT_LOCAL; eauto].
     idtac.
     eapply CAST_diffblock_with_blocks; eauto.
-    { i. destruct v2; ss.
-      - eapply UNIQUE_PARENT_LOCAL; eauto.
-      - eapply TODOProof.wf_globals_const2GV in H; [|apply MEM]; des.
-        (* unique_parent > gmax, val2 <= gmax *)
-        admit.
-    }
+    i.
+    eapply getOperandValue_diffblock; eauto; try apply MEM.
   - des_lookupAL_updateAddAL; [|eapply UNIQUE_PARENT_LOCAL; eauto].
     eapply ICMP_diffblock_with_blocks; eauto.
   - des_lookupAL_updateAddAL; [|eapply UNIQUE_PARENT_LOCAL; eauto].
