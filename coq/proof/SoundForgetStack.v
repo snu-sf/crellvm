@@ -1126,7 +1126,17 @@ Proof.
   - des_lookupAL_updateAddAL; [|eapply UNIQUE_PARENT_LOCAL; eauto].
     eapply FCMP_diffblock_with_blocks; eauto.
   - des_lookupAL_updateAddAL; [|eapply UNIQUE_PARENT_LOCAL; eauto].
-    (* select *) admit.
+    clear NONCALL.
+    remember {| CurSystem := S;
+                CurTargetData := TD;
+                CurProducts := Ps;
+                Globals := gl;
+                FunTable := fs |} as conf.
+    replace TD with conf.(CurTargetData) in H0, H1, H2; [|subst; ss].
+    replace gl with conf.(Globals) in H0, H1, H2; [|subst; ss].
+    destruct decision; ss.
+    + hexploit getOperandValue_diffblock; try exact H1; eauto; try apply MEM.
+    + hexploit getOperandValue_diffblock; try exact H2; eauto; try apply MEM.
 Admitted.
 
 Lemma step_unique_preserved_except
