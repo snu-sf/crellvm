@@ -302,10 +302,16 @@ Proof.
   { hexploit step_state_equiv_except; try exact CMDS_TGT; eauto. }
   { inv STATE_FORGET_MEMORY. inv MEM_FORGET_MEMORY.
     eapply step_unique_preserved_except; try exact CMDS_SRC; eauto.
-    apply STATE. }
+    apply STATE.
+    inv MEMLE. inv SRC1.
+    rewrite <- PRIVATE_PARENT_EQ. ss.
+    apply MEM. }
   { inv STATE_FORGET_MEMORY. inv MEM_FORGET_MEMORY.
     eapply step_unique_preserved_except; try exact CMDS_TGT; eauto.
-    apply STATE. }
+    apply STATE.
+    inv MEMLE. inv TGT1.
+    rewrite <- PRIVATE_PARENT_EQ. ss.
+    apply MEM. }
   { eapply step_wf_lc; try exact STEP_SRC; eauto.
     - apply STATE.
     - apply MEM. }

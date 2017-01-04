@@ -1859,6 +1859,7 @@ Lemma exprpair_forget_memory_disjoint
       (MC_SOME : mem_change_of_cmd conf cmd st0.(EC).(Locals) = Some mc)
       (STATE_EQUIV : states_mem_change conf st0.(Mem) mem1 mc)
       (WF_GLOBALS: genericvalues_inject.wf_globals gmax (Globals conf))
+      (WF_MEM: MemProps.wf_Mem gmax (CurTargetData conf) st0.(Mem))
   : <<SEM_EXPR_EQ: forall p e1 e2
              (PAIR: p = (e1, e2) \/ p = (e2, e1))
              (FORGET_MEMORY : ExprPairSet.In p
@@ -1908,7 +1909,22 @@ Proof.
           ss. des. psimpl.
       }
       { (* const case : need wf_const *)
-        admit. (* c is evaluated into a global pointer, and GV2ptr cannot be mb *)
+        ss.
+        rename g into __g__.
+        exploit TODOProof.wf_globals_const2GV; eauto; []; intro VALID_PTR; des.
+        destruct WF_MEM as [_ WF_MEM].
+        clear - WF_MEM MALLOC GV2PTR VALID_PTR.
+        (* GV2ptr is a bit weird? it is artificially made from above destruct, *)
+        (* and it seems main concern here is "load", so it may make sense.. *)
+        destruct __g__ as [|[headVal headChunki] tail]; ss.
+        destruct headVal; ss. des_ifs.
+        des. ss. clear VALID_PTR0.
+        clear - WF_MEM VALID_PTR.
+        replace (gmax + 1)%positive with (Pos.succ gmax)%positive in *; cycle 1.
+        { destruct gmax; ss. }
+        rewrite Pos.lt_succ_r in VALID_PTR.
+        exploit Pos.lt_le_trans; eauto.
+        intro CONTR. apply Pos.lt_irrefl in CONTR. ss.
       }
   - (* store *)
     destruct cmd; ss; des_ifs.
@@ -1949,7 +1965,7 @@ Proof.
       destruct st0. exact STATE.
   - (* none *)
     inv STATE_EQUIV. destruct st0; eauto.
-Admitted.
+Qed.
 
 Lemma forget_memory_maydiff_preserved
       conf_src mem1_src st0_src mem_change_src def_mem_src leaks_src
@@ -1981,6 +1997,7 @@ Lemma forget_memory_sem_unary
       (MC_SOME : mem_change_of_cmd conf cmd st0.(EC).(Locals) = Some mc)
       (STATE_MC : states_mem_change conf st0.(Mem) mem1 mc)
       (WF_GLOBALS: genericvalues_inject.wf_globals gmax (Globals conf))
+      (WF_MEM: MemProps.wf_Mem gmax (CurTargetData conf) st0.(Mem))
   : InvState.Unary.sem conf (mkState st0.(EC) st0.(ECS) mem1) invst0 invmem0 gmax public
                        (ForgetMemory.unary
                           (Cmd.get_def_memory cmd)
@@ -2139,6 +2156,8 @@ Lemma forget_memory_sem
       (MC_SOME_TGT : mem_change_of_cmd conf_tgt cmd_tgt st0_tgt.(EC).(Locals) = Some mc_tgt)
       (STATE_MC_SRC : states_mem_change conf_src st0_src.(Mem) mem1_src mc_src)
       (STATE_MC_TGT : states_mem_change conf_tgt st0_tgt.(Mem) mem1_tgt mc_tgt)
+      (WF_MEM_SRC: MemProps.wf_Mem invmem0.(InvMem.Rel.gmax) (CurTargetData conf_src) st0_src.(Mem))
+      (WF_MEM_TGT: MemProps.wf_Mem invmem0.(InvMem.Rel.gmax) (CurTargetData conf_tgt) st0_tgt.(Mem))
   : InvState.Rel.sem conf_src conf_tgt
                      (mkState st0_src.(EC) st0_src.(ECS) mem1_src)
                      (mkState st0_tgt.(EC) st0_tgt.(ECS) mem1_tgt)
@@ -2245,4 +2264,6 @@ Proof.
   eapply inv_state_sem_monotone_wrt_invmem; eauto.
   { apply MEM0. }
   { apply MEM0. }
+  { inv MEMLE. rewrite <- GMAX. apply MEM. }
+  { inv MEMLE. rewrite <- GMAX. apply MEM. }
 Qed.
