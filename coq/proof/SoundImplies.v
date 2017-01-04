@@ -85,33 +85,33 @@ Next Obligation.
   - etransitivity; eauto.
 Qed.
 
-Lemma syntactic_lessdef_spec
-      conf st invst e1 e2
-      (SYNTACTIC_LESSDEF:Invariant.syntactic_lessdef e1 e2):
-  <<LESSDEF: InvState.Unary.sem_lessdef conf st invst (e1, e2)>>.
-Proof.
-  unfold Invariant.syntactic_lessdef in *. solve_bool_true; ss.
-  - subst. ii. esplits; eauto. reflexivity.
-  - solve_match_bool. subst.
-    red. unfold InvState.Unary.sem_lessdef. ss.
-    ii. ss.
-    destruct v0; ss.
-    +
-      unfold InvState.Unary.sem_idT.
-      destruct x. ss.
-      destruct t; ss.
-      * esplits; eauto.
-        ss.
-        -- admit. (* not provable, allow None? *)
-        -- admit. (* undef should lessdef with all *)
-      * (* ditto *) admit.
-      * (* ditto *) admit.
-    +
-      esplits; eauto.
-      (* ditto *)
-      admit.
-      admit.
-Admitted.
+(* Lemma syntactic_lessdef_spec *)
+(*       conf st invst e1 e2 inv0 *)
+(*       (SYNTACTIC_LESSDEF:Invariant.syntactic_lessdef e1 e2 inv0): *)
+(*   <<LESSDEF: InvState.Unary.sem_lessdef conf st invst (e1, e2)>>. *)
+(* Proof. *)
+(*   unfold Invariant.syntactic_lessdef in *. solve_bool_true; ss. *)
+(*   - subst. ii. esplits; eauto. reflexivity. *)
+(*   - solve_match_bool. subst. *)
+(*     red. unfold InvState.Unary.sem_lessdef. ss. *)
+(*     ii. ss. *)
+(*     destruct v0; ss. *)
+(*     + *)
+(*       unfold InvState.Unary.sem_idT. *)
+(*       destruct x. ss. *)
+(*       destruct t; ss. *)
+(*       * esplits; eauto. *)
+(*         ss. *)
+(*         -- admit. (* not provable, allow None? *) *)
+(*         -- admit. (* undef should lessdef with all *) *)
+(*       * (* ditto *) admit. *)
+(*       * (* ditto *) admit. *)
+(*     + *)
+(*       esplits; eauto. *)
+(*       (* ditto *) *)
+(*       admit. *)
+(*       admit. *)
+(* Admitted. *)
 
 Lemma implies_lessdef_sound
       ld0 ld1 invst conf st
@@ -127,10 +127,11 @@ Proof.
   inv IMPLIES_LESSDEF. des. solve_bool_true.
   destruct x0, x; ss. subst.
   specialize (LESSDEF _ H0 _ VAL1). ss. des.
-  hexploit syntactic_lessdef_spec; eauto. i. des.
-  specialize (H3 _ VAL2). ss. des.
-  esplits; eauto. etransitivity; eauto.
-Qed.
+  (* hexploit syntactic_lessdef_spec; eauto. i. des. *)
+  (* specialize (H3 _ VAL2). ss. des. *)
+  (* esplits; eauto. etransitivity; eauto. *)
+  (* Qed. *)
+Admitted.
 
 Lemma implies_diffblock_sound
       inv0 conf st invst gmax

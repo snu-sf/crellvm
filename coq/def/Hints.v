@@ -152,11 +152,22 @@ Module Invariant.
     implies_diffblock inv0 (alias0.(diffblock)) (alias.(diffblock)).
 
   (* TODO: name? (trivial, ..) *)
-  Definition syntactic_lessdef (e1 e2:Expr.t): bool :=
+  Definition syntactic_lessdef (e1 e2:Expr.t) (inv0:ExprPairSet.t): bool :=
     (Expr.eq_dec e1 e2) ||
       (match e1, e2 with
        | Expr.value (ValueT.const (const_undef ty)),
-         Expr.value v => true
+         Expr.value v =>
+         match v with
+         | ValueT.const c => true
+         | v => flip ExprPairSet.exists_ inv0
+                     (fun p =>
+                        (Expr.eq_dec p.(snd) v) &&
+                        match p.(fst) with
+                        | Expr.value (ValueT.const _) => true
+                        | _ => false
+                        end
+                     )
+         end
        | _, _ => false
        end).
 
@@ -166,7 +177,7 @@ Module Invariant.
             flip ExprPairSet.exists_ inv0
                  (fun p =>
                     (Expr.eq_dec p.(fst) q.(fst)) &&
-                      (syntactic_lessdef p.(snd) q.(snd)))).
+                      (syntactic_lessdef p.(snd) q.(snd) inv0))).
 
   Definition implies_unary (inv0 inv:unary): bool :=
     implies_lessdef inv0.(lessdef) inv.(lessdef) &&
