@@ -213,74 +213,101 @@ Proof.
   des_ifs.
 Qed.
 
-Lemma BOP_diffblock
-      S TD Ps gl fs
-      lc bop sz v1 v2 val ptr
-      (H : BOP TD lc gl bop sz v1 v2 = Some val)
-  : InvState.Unary.sem_diffblock (mkCfg S TD Ps gl fs) ptr val.
-Proof.
-  apply opsem_props.OpsemProps.BOP_inversion in H. des.
-  (* exploit mbop_preserves_no_alias; eauto; []; ii; des. *)
-  exploit mbop_preserves_no_embedded_ptrs; eauto; []; ii; des.
-  clear H H0.
-  unfold InvState.Unary.sem_diffblock.
-  destruct val; ss; des_ifs.
-Qed. (* memory_props.MemProps.mbop_preserves_no_embedded_ptrs or *)
-(* memory_props.MemProps.mbop_preserves_no_alias? *)
-
-Lemma FBOP_diffblock
-      S TD Ps gl fs
-      lc bop sz v1 v2 val ptr
-      (H : FBOP TD lc gl bop sz v1 v2 = Some val)
-  : InvState.Unary.sem_diffblock (mkCfg S TD Ps gl fs) ptr val.
-Proof.
-  apply opsem_props.OpsemProps.FBOP_inversion in H. des.
-  (* exploit mfbop_preserves_no_alias; eauto; []; ii; des. *)
-  exploit mfbop_preserves_no_embedded_ptrs; eauto; []; ii; des.
-  clear H H0.
-  unfold InvState.Unary.sem_diffblock.
-  destruct val; ss; des_ifs.
-Qed.
-
-Lemma TRUNC_diffblock
-      S TD Ps gl fs lc val ptr
-      truncop1 typ1 value1 typ2
-      (H: TRUNC TD lc gl truncop1 typ1 value1 typ2 = Some val)
-  : InvState.Unary.sem_diffblock (mkCfg S TD Ps gl fs) ptr val.
-Proof.
-  apply opsem_props.OpsemProps.TRUNC_inversion in H. des.
-  exploit mtrunc_preserves_no_embedded_ptrs; eauto; []; ii; des.
-  clear H H0.
-  unfold InvState.Unary.sem_diffblock.
-  destruct val; ss; des_ifs.
-Qed.
-
-Lemma EXT_diffblock
-      S TD Ps gl fs lc val ptr
-      extop1 typ1 value1 typ2
-      (H: EXT TD lc gl extop1 typ1 value1 typ2 = Some val)
-  : InvState.Unary.sem_diffblock (mkCfg S TD Ps gl fs) ptr val.
-Proof.
-  apply opsem_props.OpsemProps.EXT_inversion in H. des.
-  exploit mext_preserves_no_embedded_ptrs; eauto; []; ii; des.
-  clear H H0.
-  unfold InvState.Unary.sem_diffblock.
-  destruct val; ss; des_ifs.
-Qed.
-
-Lemma noalias_implies_diffblock
-      conf valx valy
-      (NOALIAS: no_alias valx valy)
+Lemma no_alias_not_in_gv_blocks
+      gval1 b
+      (NOALIAS: no_alias_with_blk gval1 b)
+      (IN: In b (GV2blocks gval1))
   :
-    InvState.Unary.sem_diffblock conf valx valy
+    False
 .
 Proof.
-  unfold InvState.Unary.sem_diffblock.
-  destruct valx, valy; ss; try by des_ifs.
-  destruct p0, p; ss.
-  destruct v, v0; ss; try by des_ifs.
+  induction gval1; ss.
+  destruct a; ss.
+  destruct v; ss; try (exploit IHgval1; eauto; fail).
+  des;clarify.
+  exploit IHgval1; eauto.
+Qed.
+
+(* TODO move diffblock theories to SoundBase? or some root file so that others can see? *)
+Lemma getOperandValue_diffblock
+      conf gmax (* public Mem0 invmem *)
+      blocks
+      lc
+      valy gvaly
+      (GET_OPERAND: getOperandValue conf.(CurTargetData) valy lc conf.(Globals) = Some gvaly)
+      (* (MEM: InvMem.Unary.sem conf gmax public Mem0 invmem) *)
+      (* in MEM, WF_GLOBALS and GLOBALS exist, but blocks will be bound to unique_parent *)
+      (WF_GLOBALS: genericvalues_inject.wf_globals gmax (Globals conf))
+      (GLOBALS: forall b : Values.block, In b blocks -> (gmax < b)%positive)
+      (LOOKUP_DIFFBLOCK:
+         forall valx gvalx (LOOKUP: lookupAL GenericValue lc valx = Some gvalx),
+           InvMem.gv_diffblock_with_blocks conf gvalx blocks)
+  :
+    InvMem.gv_diffblock_with_blocks conf gvaly blocks
+.
+Proof.
+  destruct valy; ss.
+  - hexploit LOOKUP_DIFFBLOCK; eauto.
+  - eapply TODOProof.wf_globals_const2GV in GET_OPERAND; eauto.
+    des.
+    eapply valid_ptr_globals_diffblock_with_blocks; eauto.
+Unshelve.
+ss.
+Qed.
+
+Lemma no_alias_diffblock
+      conf gval1 gval2
+      (NOALIAS: no_alias gval1 gval2)
+  :
+    <<DIFFBLOCK: InvState.Unary.sem_diffblock conf gval1 gval2>>
+.
+Proof.
+  generalize dependent gval1.
+  induction gval2; ii; ss; des; ss.
+  destruct a; ss.
+  destruct v; ss; try (exploit IHgval2; eauto; fail).
+  (* des. exploit IHgval2; eauto. esplits; eauto. *)
   des.
-  destruct valx, valy; try by des_ifs.
+  - clarify.
+    eapply no_alias_not_in_gv_blocks; eauto.
+    (* eapply no_alias_with_blk__neq_blk in NOALIAS; eauto. *)
+  - exploit IHgval2; eauto.
+Qed.
+
+Lemma diffblock_with_blocks_any_diffblock_any
+      conf valx
+      (DIFFBLOCK: forall blocks, InvMem.gv_diffblock_with_blocks conf valx blocks)
+  :
+    <<DIFFBLOCK: forall gvs, InvState.Unary.sem_diffblock conf valx gvs>>
+.
+Proof.
+  ii. eapply DIFFBLOCK; eauto.
+Qed.
+
+Lemma no_embedded_ptrs_diffblock_with_blocks
+      val blocks
+      (NO_PTR: no_embedded_ptrs val)
+  :
+    (* moving conf above : (to premise) will make Unshelved goals in BOP_diffblock_with_blocks *)
+  <<DIFFBLOCK: forall conf, InvMem.gv_diffblock_with_blocks conf val blocks>>
+.
+Proof.
+  induction val; ii; ss.
+  des_ifs; ss; exploit IHval; eauto.
+Qed.
+
+Lemma undef_implies_diffblock_with_blocks
+      TD ty1 valx conf
+      (UNDEF: gundef TD ty1 = Some valx)
+  :
+    <<DIFFBLOCK: forall blocks, InvMem.gv_diffblock_with_blocks conf valx blocks>>
+.
+Proof.
+  unfold gundef in *.
+  des_ifs.
+  clear Heq.
+  induction l0; ii; ss; des; ss.
+  exploit IHl0; eauto.
 Qed.
 
 Lemma undef_implies_diffblock
@@ -290,11 +317,155 @@ Lemma undef_implies_diffblock
     InvState.Unary.sem_diffblock conf valx valy
 .
 Proof.
-  unfold gundef in *.
-  des_ifs.
-  unfold InvState.Unary.sem_diffblock in *.
-  des_ifs.
-  destruct l0; ss.
+  ii. exploit undef_implies_diffblock_with_blocks; eauto; i; des.
+Qed.
+
+Lemma app_diffblock_with_blocks
+      conf gvs gvs' blocks
+  (DIFFBLOCK1: InvMem.gv_diffblock_with_blocks conf gvs blocks)
+  (DIFFBLOCK2: InvMem.gv_diffblock_with_blocks conf gvs' blocks)
+  :
+  <<DIFFBLOCK: InvMem.gv_diffblock_with_blocks conf (gvs ++ gvs') blocks>>
+.
+Proof.
+  ii.
+  apply GV2blocks_app_inv in ING. des.
+  - eapply DIFFBLOCK1; eauto.
+  - eapply DIFFBLOCK2; eauto.
+Qed.
+
+Lemma incl_diffblock_with_blocks
+      gvsx gvsy conf blocks
+  (INCL: incl gvsx gvsy)
+  (DIFFBLOCK: InvMem.gv_diffblock_with_blocks conf gvsy blocks)
+  :
+    <<DIFFBLOCK: InvMem.gv_diffblock_with_blocks conf gvsx blocks>>
+.
+Proof.
+  red.
+  generalize dependent gvsy.
+  induction gvsx; i; ss.
+  assert(INCL2: incl gvsx gvsy).
+  { ii. eapply INCL. ss. right. ss. }
+  ii.
+  destruct a; ss.
+  unfold GV2blocks in *. unfold compose in *.
+  destruct v; cbn in *; try (eapply IHgvsx; eauto; fail).
+  rename b into __b__.
+  des.
+  - clarify. eapply IHgvsx; eauto.
+    exploit DIFFBLOCK; eauto.
+    { eapply GV2blocks_incl in INCL. eapply INCL. ss. left. ss. }
+    i; ss.
+  - eapply IHgvsx; eauto.
+Qed.
+
+Lemma BOP_diffblock_with_blocks
+      S TD Ps gl fs
+      lc bop sz v1 v2 val
+      (H : BOP TD lc gl bop sz v1 v2 = Some val)
+  : <<DIFFBLOCK: forall blocks, InvMem.gv_diffblock_with_blocks (mkCfg S TD Ps gl fs) val blocks>>.
+Proof.
+  apply opsem_props.OpsemProps.BOP_inversion in H. des.
+  apply mbop_preserves_no_embedded_ptrs in H1.
+  red; i.
+  eapply no_embedded_ptrs_diffblock_with_blocks; eauto.
+Qed.
+
+Lemma BOP_diffblock
+      S TD Ps gl fs
+      lc bop sz v1 v2 val ptr
+      (H : BOP TD lc gl bop sz v1 v2 = Some val)
+  : InvState.Unary.sem_diffblock (mkCfg S TD Ps gl fs) ptr val.
+Proof.
+  ii. exploit BOP_diffblock_with_blocks; eauto; i; des.
+Qed.
+
+Lemma FBOP_diffblock_with_blocks
+      S TD Ps gl fs
+      lc fbop sz v1 v2 val
+      (H : FBOP TD lc gl fbop sz v1 v2 = Some val)
+  : <<DIFFBLOCK: forall blocks, InvMem.gv_diffblock_with_blocks (mkCfg S TD Ps gl fs) val blocks>>.
+Proof.
+  apply opsem_props.OpsemProps.FBOP_inversion in H. des.
+  apply mfbop_preserves_no_embedded_ptrs in H1.
+  red; i.
+  eapply no_embedded_ptrs_diffblock_with_blocks; eauto.
+Qed.
+
+Lemma FBOP_diffblock
+      S TD Ps gl fs
+      lc fbop sz v1 v2 val ptr
+      (H : FBOP TD lc gl fbop sz v1 v2 = Some val)
+  : InvState.Unary.sem_diffblock (mkCfg S TD Ps gl fs) ptr val.
+Proof.
+  ii. exploit FBOP_diffblock_with_blocks; eauto; i; des.
+Qed.
+
+Lemma TRUNC_diffblock_with_blocks
+      S TD Ps gl fs lc val
+      truncop1 typ1 value1 typ2
+      (H: TRUNC TD lc gl truncop1 typ1 value1 typ2 = Some val)
+  : <<DIFFBLOCK: forall blocks, InvMem.gv_diffblock_with_blocks (mkCfg S TD Ps gl fs) val blocks>>.
+Proof.
+  apply opsem_props.OpsemProps.TRUNC_inversion in H. des.
+  apply mtrunc_preserves_no_embedded_ptrs in H0.
+  red; i.
+  eapply no_embedded_ptrs_diffblock_with_blocks; eauto.
+Qed.
+
+Lemma TRUNC_diffblock
+      S TD Ps gl fs lc val ptr
+      truncop1 typ1 value1 typ2
+      (H: TRUNC TD lc gl truncop1 typ1 value1 typ2 = Some val)
+  : InvState.Unary.sem_diffblock (mkCfg S TD Ps gl fs) ptr val.
+Proof.
+  ii. exploit TRUNC_diffblock_with_blocks; eauto; i; des.
+Qed.
+
+Lemma EXT_diffblock_with_blocks
+      S TD Ps gl fs lc val
+      extop1 typ1 value1 typ2
+      (H: EXT TD lc gl extop1 typ1 value1 typ2 = Some val)
+  : <<DIFFBLOCK: forall blocks, InvMem.gv_diffblock_with_blocks (mkCfg S TD Ps gl fs) val blocks>>.
+Proof.
+  apply opsem_props.OpsemProps.EXT_inversion in H. des.
+  apply mext_preserves_no_embedded_ptrs in H0.
+  red; i.
+  eapply no_embedded_ptrs_diffblock_with_blocks; eauto.
+Qed.
+
+Lemma EXT_diffblock
+      S TD Ps gl fs lc val ptr
+      extop1 typ1 value1 typ2
+      (H: EXT TD lc gl extop1 typ1 value1 typ2 = Some val)
+  : InvState.Unary.sem_diffblock (mkCfg S TD Ps gl fs) ptr val.
+Proof.
+  ii. exploit EXT_diffblock_with_blocks; eauto; i; des.
+Qed.
+
+Lemma micmp_preserves_no_embedded_ptrs
+      td cnd ty vx vy vres
+      (MICMP: micmp td cnd ty vx vy = Some vres)
+  :
+    <<NO_PTR: no_embedded_ptrs vres>>
+.
+Proof.
+  unfold micmp in *. des_ifs.
+  - eapply micmp_int_preserves_no_embedded_ptrs; eauto.
+  - eapply undef__no_embedded_ptrs; eauto.
+Qed.
+
+Lemma ICMP_diffblock_with_blocks
+      S TD Ps gl fs lc val
+      cond1 typ1 value1 value2
+      (H: ICMP TD lc gl cond1 typ1 value1 value2 = Some val)
+  : <<DIFFBLOCK: forall blocks, InvMem.gv_diffblock_with_blocks (mkCfg S TD Ps gl fs) val blocks>>.
+Proof.
+  apply opsem_props.OpsemProps.ICMP_inversion in H. des.
+  apply micmp_preserves_no_embedded_ptrs in H1.
+  red; i.
+  eapply no_embedded_ptrs_diffblock_with_blocks; eauto.
 Qed.
 
 Lemma ICMP_diffblock
@@ -303,10 +474,30 @@ Lemma ICMP_diffblock
       (H: ICMP TD lc gl cond1 typ1 value1 value2 = Some val)
   : InvState.Unary.sem_diffblock (mkCfg S TD Ps gl fs) ptr val.
 Proof.
-  apply opsem_props.OpsemProps.ICMP_inversion in H. des.
-  apply micmp_preserves_no_alias with (gv0:= ptr) in H1.
-  apply SoundForgetMemory.diffblock_comm.
-  eapply noalias_implies_diffblock; eauto.
+  ii. exploit ICMP_diffblock_with_blocks; eauto; i; des.
+Qed.
+
+Lemma mfcmp_preserves_no_embedded_ptrs
+      td cnd ty vx vy vres
+      (MFCMP: mfcmp td cnd ty vx vy = Some vres)
+  :
+    <<NO_PTR: no_embedded_ptrs vres>>
+.
+Proof.
+  unfold mfcmp in *. red.
+  des_ifs; cbn in *; try (eapply undef__no_embedded_ptrs; eauto; fail); try (des_ifs; fail).
+Qed.
+
+Lemma FCMP_diffblock_with_blocks
+      S TD Ps gl fs lc val
+      fcond1 floating_point1 value1 value2
+      (H: FCMP TD lc gl fcond1 floating_point1 value1 value2 = Some val)
+  : <<DIFFBLOCK: forall blocks, InvMem.gv_diffblock_with_blocks (mkCfg S TD Ps gl fs) val blocks>>.
+Proof.
+  apply opsem_props.OpsemProps.FCMP_inversion in H. des.
+  apply mfcmp_preserves_no_embedded_ptrs in H1.
+  red; i.
+  eapply no_embedded_ptrs_diffblock_with_blocks; eauto.
 Qed.
 
 Lemma FCMP_diffblock
@@ -315,10 +506,145 @@ Lemma FCMP_diffblock
       (H: FCMP TD lc gl fcond1 floating_point1 value1 value2 = Some val)
   : InvState.Unary.sem_diffblock (mkCfg S TD Ps gl fs) ptr val.
 Proof.
-  apply opsem_props.OpsemProps.FCMP_inversion in H. des.
-  apply mfcmp_preserves_no_alias with (gv0:= ptr) in H1.
-  apply SoundForgetMemory.diffblock_comm.
-  eapply noalias_implies_diffblock; eauto.
+  ii. exploit FCMP_diffblock_with_blocks; eauto; i; des.
+Qed.
+
+Lemma GEP_diffblock
+  (invmem : InvMem.Unary.t)
+  (inbounds5 : inbounds)
+  (typ5 : typ)
+  (value_5 : value)
+  (l0 : list (sz * value))
+  (typ' : typ)
+  (gmax : positive)
+  (u : atom)
+  (S : system)
+  (TD : TargetData)
+  (Ps : list product)
+  (F : fdef)
+  (B : block)
+  (lc : GVsMap)
+  (gl fs : GVMap)
+  (vidxs : list GenericValue)
+  (mp : GenericValue)
+  (tmn : terminator)
+  (Mem0 : mem)
+  (als : list mblock)
+  (NEXTBLOCK : Memory.Mem.nextblock Mem0 = InvMem.Unary.nextblock invmem)
+  (GLOBALS : genericvalues_inject.wf_globals gmax gl)
+  (WF : wf_Mem gmax TD Mem0)
+  (H : getOperandValue TD value_5 lc gl = Some mp)
+  (val : GenericValue)
+  (VAL : lookupAL GenericValue lc u = Some val)
+  (LOCALS : forall (reg : atom) (val' : GenericValue),
+           u <> reg ->
+           lookupAL GenericValue lc reg = Some val' ->
+           InvState.Unary.sem_diffblock
+             {|
+             CurSystem := S;
+             CurTargetData := TD;
+             CurProducts := Ps;
+             Globals := gl;
+             FunTable := fs |} val val')
+  (MEM : forall (mptr : mptr) (typ : typ) (align : align) (val' : GenericValue),
+        mload TD Mem0 mptr typ align = Some val' ->
+        InvState.Unary.sem_diffblock
+          {| CurSystem := S; CurTargetData := TD; CurProducts := Ps; Globals := gl; FunTable := fs |} val val')
+  (GLOBALS0 : forall b : Values.block, In b (GV2blocks val) -> (gmax < b)%positive)
+  (reg : atom)
+  (val' : GenericValue)
+  (REG : u <> reg)
+  (NOT_LEAKED_U : AtomSetImpl.mem u
+                   (AtomSetImpl_from_list
+                      (Cmd.get_leaked_ids (insn_gep reg inbounds5 typ5 value_5 l0 typ'))) =
+                 false)
+  (H1 : GEP TD typ5 mp vidxs inbounds5 typ' = Some val')
+  (WF_INSNS: forall (insn : insn) (b : block),
+             insnInBlockB insn b /\ blockInFdefB b F ->
+             <<WF_INSN: wf_insn S (module_intro (fst TD) (snd TD) Ps) F b insn >>)
+  :
+  <<DIFFBLOCK: InvState.Unary.sem_diffblock
+    {| CurSystem := S; CurTargetData := TD; CurProducts := Ps; Globals := gl; FunTable := fs |}
+    val val'>>
+.
+Proof.
+  (* i; des. *)
+  unfold GEP in *. unfold gep in *. unfold genericvalues.LLVMgv.GEP in *.
+  assert(TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT: True) by ss.
+  move val at bottom.
+  eapply InvState.Unary.diffblock_comm.
+  destruct (GV2ptr TD (getPointerSize TD) mp) eqn:T1; cycle 1.
+  { eapply undef_implies_diffblock; eauto. }
+  destruct (GVs2Nats TD vidxs) eqn:T2; cycle 1.
+  { eapply undef_implies_diffblock; eauto. }
+  destruct (mgep TD typ5 v l1) eqn:T3; cycle 1.
+  { eapply undef_implies_diffblock; eauto. }
+  clarify. ss.
+  {
+    assert (BLOCK_IN_FDEF: blockInFdefB B F).
+    { admit. } (* wf_EC *)
+    assert (INSN_IN_BLOCK: insnInBlockB (insn_cmd (insn_gep reg inbounds5 typ5 value_5 l0 typ')) B).
+    { admit. } (* wf_EC *)
+    exploit WF_INSNS; eauto; []; intro WF_INSN; des.
+    clear BLOCK_IN_FDEF INSN_IN_BLOCK.
+
+    ii.
+    destruct v0; ss; des; ss.
+    clarify.
+    apply AtomSetFacts.not_mem_iff in NOT_LEAKED_U.
+    apply AtomSetImpl_from_list_spec2 in NOT_LEAKED_U.
+    unfold Cmd.get_leaked_ids in *.
+    ss.
+    {
+      symmetry in T3. apply mgep_inv in T3. des. clarify.
+      destruct value_5; ss.
+      -
+        apply not_or_and in NOT_LEAKED_U.
+        des.
+        hexploit LOCALS; try apply H; eauto; []; ii; des.
+        (* b0 <-> b0 *)
+        destruct mp; ss. destruct p, v; ss.
+        destruct mp; ss. clarify.
+        unfold InvState.Unary.sem_diffblock in *.
+        unfold list_disjoint in *.
+        eapply H0; eauto. ss. left; ss.
+      -
+        (* const5 -> mp -> Vptr b <= gmax *)
+        rename val into __val__.
+        rename u into __u__.
+        rename b into __b__.
+        destruct TD; ss.
+        apply TODOProof.wf_globals_eq in GLOBALS.
+        exploit const2GV_valid_ptrs; eauto.
+        { inv WF_INSN. inv H11. eauto. }
+        intro VALID_PTR; des. clear WF_INSN.
+        ss.
+        idtac.
+        exploit valid_ptr_globals_diffblock; eauto.
+        eapply {| CurSystem := S; CurTargetData := (l2, n);
+                  CurProducts := Ps; Globals := gl; FunTable := fs |}.
+        destruct mp; ss. destruct p; ss. destruct v; ss. des. des_ifs.
+        left; ss.
+    }
+Admitted.
+
+(* care for quantification position of the "blocks".
+If it is inside getOperand_diffblock && DIFFBLOCK, this lemma is not usable in intended use case. *)
+Lemma CAST_diffblock_with_blocks
+      S Ps fs val1
+      TD lc gl castop0 t1 v1 t2
+      (H: CAST TD lc gl castop0 t1 v1 t2 = Some val1)
+      blocks
+      (getOperand_diffblock: forall v2 val2,
+          getOperandValue TD v2 lc gl = Some val2 ->
+          InvMem.gv_diffblock_with_blocks (mkCfg S TD Ps gl fs) val2 blocks)
+  : <<DIFFBLOCK: InvMem.gv_diffblock_with_blocks (mkCfg S TD Ps gl fs) val1 blocks>>.
+Proof.
+  red; i.
+  apply opsem_props.OpsemProps.CAST_inversion in H. des.
+  unfold mcast in *.
+  des_ifs; try (eapply undef_implies_diffblock_with_blocks; eauto; fail);
+    try (apply mbitcast_inv in H0; clarify; []; hexploit getOperand_diffblock; eauto).
 Qed.
 
 (* Definition leaks_diffblock_with conf st cmd ptr: Prop := *)
@@ -357,7 +683,7 @@ Qed.
 (*     + admit. *)
 (*       (* may need some wf coditions *) *)
 (*       (* const2GV_disjoint_with_runtime_alloca *) *)
-(* Admitted. *)
+(* Adm-itted. *)
 
 (* Lemma extractGenericValue_diffblock *)
 (*       conf st cmd *)
@@ -376,14 +702,68 @@ Qed.
 (*   rewrite VAL. clear VAL. *)
 (*   unfold extractGenericValue in *. *)
 (*   des_ifs. *)
-(* Admitted. *)
+(* Adm-itted. *)
+
+Lemma extractValue_sub
+      TD typ5 gvs l0 val'
+      (EXTRACT: extractGenericValue TD typ5 gvs l0 = Some val')
+  :
+    <<SUB: List.incl val' gvs \/ exists t, <<UNDEF: (gundef TD t) = Some val'>> >>
+.
+Proof.
+  unfold extractGenericValue in *.
+  des_ifs.
+  unfold mget' in *.
+  des_ifs; cycle 1.
+  { right; eexists; eauto. }
+  left.
+  clear Heq0 Heq.
+  unfold mget in *.
+  unfold monad.mbind in *.
+  des_ifs.
+  apply_all_once splitGenericValue_spec1.
+  des.
+  clarify.
+  eapply incl_appr; eauto.
+  eapply incl_appl; eauto.
+  eapply incl_refl; eauto.
+Qed.
+
+Lemma insertValue_sub
+      TD typ5 gvs l0 typ' gvs' val'
+      (INSERT: insertGenericValue TD typ5 gvs l0 typ' gvs' = Some val')
+  :
+    <<SUB: List.incl val' (gvs ++ gvs') \/ exists t, <<UNDEF: (gundef TD t) = Some val'>> >>
+.
+Proof.
+  unfold insertGenericValue in *.
+  des_ifs.
+  unfold mset' in *.
+  des_ifs; cycle 1.
+  { right; eexists; eauto. }
+  left.
+  clear Heq0 Heq.
+  unfold mset in *.
+  unfold monad.mbind in *.
+  des_ifs.
+  apply_all_once splitGenericValue_spec1.
+  des.
+  clarify.
+  ii.
+  repeat (apply_all_once in_app; des).
+  - repeat (apply in_app; left); ss.
+  - repeat (apply in_app; right); ss.
+  - apply in_app; left.
+    repeat (apply in_app; right); ss.
+Qed.
 
 Lemma step_unique_preserved_except_current
       conf st0 st1 evt
       invst invmem inv0
       cmd cmds
       gmax public
-      (STATE: InvState.Unary.sem conf (mkState st0.(EC) st0.(ECS) st1.(Mem)) invst invmem gmax inv0)
+      (STATE: InvState.Unary.sem conf (mkState st0.(EC) st0.(ECS) st1.(Mem)) invst invmem gmax public inv0)
+      (WF_LC_BEFORE: wf_lc st0.(Mem) st0.(EC).(Locals))
       (MEM: InvMem.Unary.sem conf gmax public st1.(Mem) invmem)
       (NONCALL: Instruction.isCallInst cmd = false)
       (CMDS : CurCmds st0.(EC) = cmd :: cmds)
@@ -439,113 +819,120 @@ Proof.
     eapply BOP_diffblock; eauto.
   - inv UNIQUE_BEF; narrow_down_unique.
     eapply FBOP_diffblock; eauto.
-  - admit. (* extract value *)
-  (* we may need to strengthen sem_unique,
-such that all values that computed gv carries should also diffblock with given u *)
-  - admit. (* insertvalue *)
-    (* ditto *)
+  -
+    (* inv UNIQUE_BEF; narrow_down_unique. *)
+    inversion UNIQUE_BEF; subst; narrow_down_unique.
+    ii.
+    rename val into __val__.
+    apply extractValue_sub in H0.
+    des; cycle 1.
+    { exploit undef_implies_diffblock; eauto. ii; ss. }
+    assert(TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT: True) by ss.
+    move val' at bottom.
+    move gvs at bottom.
+    assert(list_disjoint (GV2blocks __val__) (GV2blocks gvs)).
+    {
+      clear - VAL H LOCALS NOT_LEAKED_U UNIQUE_BEF GLOBALS.
+      destruct value5; ss.
+      { eapply LOCALS; eauto.
+        { compute in NOT_LEAKED_U.
+          apply AtomSetFacts.not_mem_iff in NOT_LEAKED_U.
+          eapply notin_add_1 in NOT_LEAKED_U. ii; subst; ss. }
+      }
+      { hexploit unique_const_diffblock; ss; eauto. }
+    }
+    clear - INL INR H0 H1.
+    exploit In_incl; eauto.
+    eapply GV2blocks_incl; eauto.
+  -
+    inversion UNIQUE_BEF; subst; narrow_down_unique.
+    ii.
+    rename val into __val__.
+    (* move value5 at bottom. *)
+    (* destruct value5; ss. *)
+    apply insertValue_sub in H1.
+    des; cycle 1.
+    { exploit undef_implies_diffblock; eauto. ii; ss. }
+    assert(TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT: True) by ss.
+    move val' at bottom.
+    move gvs at bottom.
+    move gvs' at bottom.
+    assert(list_disjoint (GV2blocks __val__) (GV2blocks gvs)).
+    {
+      clear - VAL H LOCALS NOT_LEAKED_U UNIQUE_BEF GLOBALS.
+      destruct value5; ss.
+      { eapply LOCALS; eauto.
+        { compute in NOT_LEAKED_U.
+          apply AtomSetFacts.not_mem_iff in NOT_LEAKED_U.
+          ii; subst; ss.
+          des_ifs.
+          - eapply notin_add_2 in NOT_LEAKED_U. eapply notin_add_1 in NOT_LEAKED_U. ss.
+          - eapply notin_add_1 in NOT_LEAKED_U. ss.
+        }
+      }
+      { hexploit unique_const_diffblock; ss; eauto. }
+    }
+    assert(list_disjoint (GV2blocks __val__) (GV2blocks gvs')).
+    {
+      clear - VAL H0 LOCALS NOT_LEAKED_U UNIQUE_BEF GLOBALS.
+      destruct value'; ss.
+      { eapply LOCALS; eauto.
+        { compute in NOT_LEAKED_U.
+          apply AtomSetFacts.not_mem_iff in NOT_LEAKED_U.
+          ii; subst; ss.
+          des_ifs.
+          - eapply notin_add_1 in NOT_LEAKED_U. ss.
+          - eapply notin_add_1 in NOT_LEAKED_U. ss.
+        }
+      }
+      { hexploit unique_const_diffblock; ss; eauto. }
+    }
+    clear - H2 H3 H1 INR INL.
+    exploit In_incl.
+    { eapply INR. }
+    { instantiate (1:= (GV2blocks (gvs ++ gvs'))). eapply GV2blocks_incl; eauto. }
+    intro IN.
+    (* unfold list_disjoint in *. *)
+
+    {
+      eapply GV2blocks_app_inv in IN.
+      des.
+      -
+        apply GV2blocks_in_inv in IN.
+        des.
+        eapply H2; eauto.
+        eapply GV2blocks_lift; eauto.
+      -
+        apply GV2blocks_in_inv in IN.
+        des.
+        eapply H3; eauto.
+        eapply GV2blocks_lift; eauto.
+    }
   - (* malloc *)
     inv UNIQUE_BEF; narrow_down_unique.
-    exploit locals_malloc_diffblock; eauto.
-    admit.
-    ii; des.
-    apply SoundForgetMemory.diffblock_comm. ss.
-    (* below is proof without using admit, but it may basically same *)
-
-  (*   inv UNIQUE_BEF. *)
-  (*   move NOT_DEF_U at bottom. *)
-  (*   apply_all_once AtomSetFacts.not_mem_iff. *)
-  (*   apply_all_once AtomSetImpl_from_list_spec2. *)
-  (*   unfold not in NOT_DEF_U. *)
-  (*   destruct (eq_atom_dec u id5); [clarify; exfalso; apply NOT_DEF_U; econs; ss|]. *)
-  (*   econs; eauto; ss. *)
-  (*   + des_lookupAL_updateAddAL. *)
-  (*   + ii. *)
-  (*     des_lookupAL_updateAddAL. *)
-  (*     * rename val into ___val___. *)
-  (*       exploit WF_LOCAL; eauto; []; ii; des. *)
-  (*       (* exploit SoundForgetMemory.malloc_result; eauto; []; ii; des. *) *)
-  (*       exploit nextblock_malloc; eauto; []; ii; des. *)
-  (*       exploit valid_ptr_malloc_diffblock; try apply H1; eauto. *)
-  (*       { *)
-  (*         instantiate (1:= ___val___). *)
-  (*         admit. *)
-  (* (* x : valid_ptrs (Memory.Mem.nextblock Mem') ___val___ *) *)
-  (* (* x1 : (Memory.Mem.nextblock Mem0 + 1)%positive = Memory.Mem.nextblock Mem' *) *)
-  (* (* ============================ *) *)
-  (* (* valid_ptrs (Memory.Mem.nextblock Mem0) ___val___ *) *)
-  (*       } *)
-  (*       ii; des. *)
-  (*       apply SoundForgetMemory.diffblock_comm. *)
-  (*       ss. *)
-  (*     * eapply LOCALS; eauto. *)
+    assert(TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT: True) by reflexivity.
+    move val at bottom.
+    move mb at bottom.
+    hexploit locals_malloc_diffblock; eauto; []; ii; des.
+    unfold InvState.Unary.sem_diffblock in H2.
+    unfold list_disjoint in H2.
+    eapply H2; eauto.
   - (* alloca *)
     inv UNIQUE_BEF; narrow_down_unique.
+    ii.
     exploit locals_malloc_diffblock; eauto.
-    admit.
-    ii; des.
-    apply SoundForgetMemory.diffblock_comm. ss.
+    apply {|
+        CurSystem := S;
+        CurTargetData := TD;
+        CurProducts := Ps;
+        Globals := gl;
+        FunTable := fs |}.
   - (* load *)
     inv UNIQUE_BEF; narrow_down_unique.
     eapply MEM; eauto.
   - (* GEP *)
     inv UNIQUE_BEF; narrow_down_unique.
-    {
-      (*
-val <-> val' = GEP mp ~~ = value_5
-value_5 <> u (NOT_LEAKED_U)
-=> val <-> lookup value_5
-lookup value_5, GEP mp has same basic block!!
-       *)
-      ii.
-      unfold InvState.Unary.sem_diffblock. ss.
-      unfold GEP in *. unfold gep in *. unfold genericvalues.LLVMgv.GEP in *.
-      move VAL at bottom.
-      destruct val; ss. destruct p; ss. destruct v; ss. destruct val; ss. (* at once? *)
-      destruct (GV2ptr TD (getPointerSize TD) mp) eqn:T1.
-      destruct (GVs2Nats TD vidxs) eqn:T2.
-      destruct (mgep TD typ5 v l1) eqn:T3.
-      clarify. ss. destruct v0; ss.
-      apply AtomSetFacts.not_mem_iff in NOT_LEAKED_U.
-      apply AtomSetImpl_from_list_spec2 in NOT_LEAKED_U.
-      unfold Cmd.get_leaked_ids in *.
-      ss.
-      {
-        destruct value_5; ss.
-        -
-          apply not_or_and in NOT_LEAKED_U.
-          des.
-          exploit LOCALS; try apply H; eauto; []; ii; des.
-          clarify.
-          ss.
-          rename v into ____v____.
-          (* b0 <-> b0 *)
-          destruct mp; ss. destruct p, v; ss.
-          destruct mp; ss. clarify.
-          symmetry in T3.
-          apply mgep_inv in T3.
-          des. clarify.
-          unfold InvState.Unary.sem_diffblock in *.
-          ss.
-        -
-          admit. (* const *)
-      }
-      {
-        unfold gundef in *. destruct (flatten_typ TD (typ_pointer typ')) eqn:T; try by clarify.
-        inv H1.
-        destruct l2; ss.
-      }
-      {
-        unfold gundef in *. destruct (flatten_typ TD (typ_pointer typ')) eqn:T; try by clarify.
-        inv H1.
-        destruct l1; ss.
-      }
-      {
-        unfold gundef in *. destruct (flatten_typ TD (typ_pointer typ')) eqn:T; try by clarify.
-        inv H1.
-        destruct l1; ss.
-      }
-    }
+    eapply GEP_diffblock; eauto.
   - inv UNIQUE_BEF; narrow_down_unique.
     eapply TRUNC_diffblock; eauto.
   - inv UNIQUE_BEF; narrow_down_unique.
@@ -555,13 +942,17 @@ lookup value_5, GEP mp has same basic block!!
     unfold CAST in *. des_ifs. apply mcast_inv in H.
     des; cycle 1.
     +
-      apply SoundForgetMemory.diffblock_comm.
+      apply InvState.Unary.diffblock_comm.
       eapply undef_implies_diffblock; eauto.
     +
       subst.
       unfold getOperandValue in *.
       des_ifs; cycle 1.
-      * admit. (* const case *)
+      * ss.
+        rename g into __g__.
+        rename val into __val__.
+        exploit TODOProof.wf_globals_const2GV; eauto; []; i; des.
+        eapply valid_ptr_globals_diffblock; eauto.
       * eapply LOCALS; try apply Heq; eauto.
         apply AtomSetFacts.not_mem_iff in NOT_LEAKED_U.
         apply AtomSetImpl_from_list_spec2 in NOT_LEAKED_U.
@@ -578,37 +969,66 @@ lookup value_5, GEP mp has same basic block!!
     move gvs1 at bottom.
     move gvs2 at bottom.
     unfold getOperandValue in *.
-    destruct value1, value2; ss.
-    {
-      apply_all_once AtomSetFacts.not_mem_iff.
-      apply_all_once AtomSetImpl_from_list_spec2.
-      unfold Cmd.get_leaked_ids in *. ss.
-      destruct decision; eapply LOCALS; try apply H0; try apply H1; eauto.
+    destruct decision; ss.
+    { clear H1.
+      destruct value1; ss.
       {
-        ii. apply NOT_LEAKED_U. subst.
-        destruct value0; ss.
-        - right. left. ss.
-        - left. ss.
+        apply_all_once AtomSetFacts.not_mem_iff.
+        apply_all_once AtomSetImpl_from_list_spec2.
+        unfold Cmd.get_leaked_ids in *. ss.
+        eapply LOCALS; try apply H0; eauto.
+        {
+          ii. apply NOT_LEAKED_U. subst.
+          destruct value0; ss.
+          - right. left. ss.
+          - left. ss.
+        }
       }
       {
-        ii. apply NOT_LEAKED_U. subst.
-        destruct value0; ss.
-        - right. right. left. ss.
-        - right. left. ss.
+        exploit TODOProof.wf_globals_const2GV; eauto; []; intro VALID_PTR; des.
+        eapply valid_ptr_globals_diffblock; eauto.
       }
     }
-    { (* const case *) admit. }
-    { (* const case *) admit. }
-    { (* const case *) admit. }
-Admitted.
+    { clear H0.
+      destruct value2; ss.
+      {
+        apply_all_once AtomSetFacts.not_mem_iff.
+        apply_all_once AtomSetImpl_from_list_spec2.
+        unfold Cmd.get_leaked_ids in *. ss.
+        eapply LOCALS; try apply H1; eauto.
+        {
+          ii. apply NOT_LEAKED_U. subst.
+          destruct value0; ss.
+          - right. destruct (Value.get_ids value1); ss.
+            + right. left. ss.
+            + left. ss.
+          - destruct (Value.get_ids value1); ss.
+            + right. left. ss.
+            + left. ss.
+        }
+      }
+      {
+        exploit TODOProof.wf_globals_const2GV; eauto; []; intro VALID_PTR; des.
+        eapply valid_ptr_globals_diffblock; eauto.
+      }
+    }
+Unshelve.
+apply {| CurSystem := S; CurTargetData := TD; CurProducts := Ps; Globals := gl; FunTable := fs |}.
+apply {| CurSystem := S; CurTargetData := TD; CurProducts := Ps; Globals := gl; FunTable := fs |}.
+apply {| CurSystem := S; CurTargetData := TD; CurProducts := Ps; Globals := gl; FunTable := fs |}.
+apply {| CurSystem := S; CurTargetData := TD; CurProducts := Ps; Globals := gl; FunTable := fs |}.
+Qed.
 
 Lemma step_unique_preserved_except_parent
       conf st0 st1 evt
       invst invmem inv0
       cmd cmds
       gmax public
-      (STATE: InvState.Unary.sem conf (mkState st0.(EC) st0.(ECS) st1.(Mem)) invst invmem gmax inv0)
+      (STATE: InvState.Unary.sem conf (mkState st0.(EC) st0.(ECS) st1.(Mem)) invst invmem gmax public inv0)
       (MEM: InvMem.Unary.sem conf gmax public st1.(Mem) invmem)
+      (PRIVATE_PARENT_BEFORE:
+         forall b (IN: In b invmem.(InvMem.Unary.private_parent)),
+           (b < Memory.Mem.nextblock st0.(Mem))%positive)
       (NONCALL: Instruction.isCallInst cmd = false)
       (CMDS : CurCmds st0.(EC) = cmd :: cmds)
       (STEP : sInsn conf st0 st1 evt)
@@ -617,14 +1037,123 @@ Lemma step_unique_preserved_except_parent
       lookupAL GenericValue (Locals (EC st1)) x = Some ptr ->
       InvMem.gv_diffblock_with_blocks conf ptr (InvMem.Unary.unique_parent invmem)>>.
 Proof.
-Admitted.
+  red; i.
+  inv STATE. clear LESSDEF NOALIAS UNIQUE PRIVATE WF_LOCAL WF_PREVIOUS WF_GHOST WF_INSNS.
+  inv STEP; ss; clarify.
+  - (* nop *) eapply UNIQUE_PARENT_LOCAL; eauto.
+  - des_lookupAL_updateAddAL; [|eapply UNIQUE_PARENT_LOCAL; eauto].
+    eapply BOP_diffblock_with_blocks; eauto.
+  - des_lookupAL_updateAddAL; [|eapply UNIQUE_PARENT_LOCAL; eauto].
+    eapply FBOP_diffblock_with_blocks; eauto.
+  - des_lookupAL_updateAddAL; [|eapply UNIQUE_PARENT_LOCAL; eauto].
+    rename H1 into EXTRACT.
+    apply extractValue_sub in EXTRACT.
+    des; cycle 1.
+    { eapply undef_implies_diffblock_with_blocks; eauto. }
+    remember {| CurSystem := S;
+                CurTargetData := TD;
+                CurProducts := Ps;
+                Globals := gl;
+                FunTable := fs |} as conf.
+    replace TD with conf.(CurTargetData) in H0; [|subst; ss].
+    replace gl with conf.(Globals) in H0; [|subst; ss].
+    hexploit getOperandValue_diffblock; ss; try exact H0; eauto; [apply MEM|apply MEM|]; intro DIFFBLOCK1.
+    eapply incl_diffblock_with_blocks; eauto.
+  - des_lookupAL_updateAddAL; [|eapply UNIQUE_PARENT_LOCAL; eauto].
+    rename H2 into INSERT.
+    apply insertValue_sub in INSERT.
+    des; cycle 1.
+    { eapply undef_implies_diffblock_with_blocks; eauto. }
+    remember {| CurSystem := S;
+                CurTargetData := TD;
+                CurProducts := Ps;
+                Globals := gl;
+                FunTable := fs |} as conf.
+    replace TD with conf.(CurTargetData) in H0, H1; [|subst; ss].
+    (* replace TD with conf.(CurTargetData) in *; [|subst; ss]. *)
+    (* Heconf becomes recursive!! ?? *)
+    replace gl with conf.(Globals) in H0, H1; [|subst; ss].
+    hexploit getOperandValue_diffblock; ss; try exact H0; eauto; try apply MEM; intro DIFFBLOCK1.
+    hexploit getOperandValue_diffblock; ss; try exact H1; eauto; try apply MEM; intro DIFFBLOCK2.
+    eapply incl_diffblock_with_blocks; eauto.
+    eapply app_diffblock_with_blocks; eauto.
+  - des_lookupAL_updateAddAL; [|eapply UNIQUE_PARENT_LOCAL; eauto].
+    ii.
+    clear H0 H1 NONCALL UNIQUE_PARENT_LOCAL.
+    cbn in *. des; ss. clarify.
+    exploit PRIVATE_PARENT_BEFORE; eauto.
+    { eapply sublist_In; eauto. apply MEM. }
+    intro VALID_PTR.
+    clear - H2 VALID_PTR.
+    eapply malloc_result in H2. subst.
+    apply Pos.lt_irrefl in VALID_PTR. ss.
+  - (* free *) eapply UNIQUE_PARENT_LOCAL; eauto.
+  - des_lookupAL_updateAddAL; [|eapply UNIQUE_PARENT_LOCAL; eauto].
+    ii.
+    clear H0 H1 NONCALL UNIQUE_PARENT_LOCAL.
+    cbn in *. des; ss. clarify.
+    exploit PRIVATE_PARENT_BEFORE; eauto.
+    { eapply sublist_In; eauto. apply MEM. }
+    intro VALID_PTR.
+    clear - H2 VALID_PTR.
+    eapply malloc_result in H2. subst.
+    apply Pos.lt_irrefl in VALID_PTR. ss.
+  - des_lookupAL_updateAddAL; [|eapply UNIQUE_PARENT_LOCAL; eauto].
+    eapply MEM; eauto.
+  - (* store *) eapply UNIQUE_PARENT_LOCAL; eauto.
+  - des_lookupAL_updateAddAL; [|eapply UNIQUE_PARENT_LOCAL; eauto].
+    remember {| CurSystem := S;
+                CurTargetData := TD;
+                CurProducts := Ps;
+                Globals := gl;
+                FunTable := fs |} as conf.
+    replace TD with conf.(CurTargetData) in H0, H1; [|subst; ss].
+    replace gl with conf.(Globals) in H0, H1; [|subst; ss].
+    hexploit getOperandValue_diffblock; try exact H0; eauto; try apply MEM.
+    i; des.
+    apply dopsem.GEP_inv in H2.
+    des.
+    { eapply undef_implies_diffblock_with_blocks; eauto. }
+    clarify.
+  - des_lookupAL_updateAddAL; [|eapply UNIQUE_PARENT_LOCAL; eauto].
+    eapply TRUNC_diffblock_with_blocks; eauto.
+  - des_lookupAL_updateAddAL; [|eapply UNIQUE_PARENT_LOCAL; eauto].
+    eapply EXT_diffblock_with_blocks; eauto.
+  - des_lookupAL_updateAddAL; [|eapply UNIQUE_PARENT_LOCAL; eauto].
+    idtac.
+    eapply CAST_diffblock_with_blocks; eauto.
+    i.
+    eapply getOperandValue_diffblock; eauto; try apply MEM.
+  - des_lookupAL_updateAddAL; [|eapply UNIQUE_PARENT_LOCAL; eauto].
+    eapply ICMP_diffblock_with_blocks; eauto.
+  - des_lookupAL_updateAddAL; [|eapply UNIQUE_PARENT_LOCAL; eauto].
+    eapply FCMP_diffblock_with_blocks; eauto.
+  - des_lookupAL_updateAddAL; [|eapply UNIQUE_PARENT_LOCAL; eauto].
+    clear NONCALL.
+    remember {| CurSystem := S;
+                CurTargetData := TD;
+                CurProducts := Ps;
+                Globals := gl;
+                FunTable := fs |} as conf.
+    replace TD with conf.(CurTargetData) in H0, H1, H2; [|subst; ss].
+    replace gl with conf.(Globals) in H0, H1, H2; [|subst; ss].
+    destruct decision; ss.
+    + hexploit getOperandValue_diffblock; try exact H1; eauto; try apply MEM.
+    + hexploit getOperandValue_diffblock; try exact H2; eauto; try apply MEM.
+Unshelve.
+ss.
+Qed.
 
 Lemma step_unique_preserved_except
       conf st0 st1 evt
       invst invmem inv0
       cmd cmds
       gmax public
-      (STATE: InvState.Unary.sem conf (mkState st0.(EC) st0.(ECS) st1.(Mem)) invst invmem gmax inv0)
+      (STATE: InvState.Unary.sem conf (mkState st0.(EC) st0.(ECS) st1.(Mem)) invst invmem gmax public inv0)
+      (WF_LC_BEFORE: wf_lc st0.(Mem) st0.(EC).(Locals))
+      (PRIVATE_PARENT_BEFORE:
+         forall b (IN: In b invmem.(InvMem.Unary.private_parent)),
+           (b < Memory.Mem.nextblock st0.(Mem))%positive)
       (MEM: InvMem.Unary.sem conf gmax public st1.(Mem) invmem)
       (NONCALL: Instruction.isCallInst cmd = false)
       (CMDS : CurCmds st0.(EC) = cmd :: cmds)
@@ -722,13 +1251,14 @@ Proof.
 Qed.
 
 Lemma forget_stack_unary_sound
-      conf defs leaks st0 st1 gmax
+      conf defs leaks st0 st1 gmax public
       inv invst invmem
       (EQUIV : state_equiv_except defs st0 st1)
       (UNIQUE_PRESERVED : unique_preserved_except conf inv invmem.(InvMem.Unary.unique_parent) st1 gmax (AtomSetImpl.union defs leaks))
-      (STATE : InvState.Unary.sem conf st0 invst invmem gmax inv)
+      (STATE : InvState.Unary.sem conf st0 invst invmem gmax public inv)
       (WF_LC: memory_props.MemProps.wf_lc st1.(Mem) st1.(EC).(Locals))
-  : InvState.Unary.sem conf st1 invst invmem gmax (ForgetStack.unary defs leaks inv).
+      (EQ_FUNC: st0.(EC).(CurFunction) = st1.(EC).(CurFunction))
+  : InvState.Unary.sem conf st1 invst invmem gmax public (ForgetStack.unary defs leaks inv).
 Proof.
   inv STATE.
   assert (EQUIV_REV: state_equiv_except defs st1 st0).
@@ -767,6 +1297,8 @@ Proof.
     unfold flip, compose in *.
     apply negb_true_iff in H0.
     destruct x as [t x].
+
+    inv EQUIV. rewrite <- MEM.
     destruct t; try (exploit PRIVATE; eauto; fail).
     exploit sem_idT_equiv_except; eauto.
     { rewrite <- lift_physical_atoms_idtset_spec1. eauto. }
@@ -775,6 +1307,9 @@ Proof.
   - inv EQUIV. rewrite <- MEM. eauto.
   - inv EQUIV. rewrite <- MEM. eauto.
   - inv UNIQUE_PRESERVED. eauto.
+  - rewrite <- EQ_FUNC.
+    ii.
+    exploit WF_INSNS; eauto.
 Qed.
 
 Lemma forget_stack_sound
@@ -799,6 +1334,8 @@ Lemma forget_stack_sound
                      (AtomSetImpl.union defs_tgt leaks_tgt))
       (WF_LC_SRC: memory_props.MemProps.wf_lc st1_src.(Mem) st1_src.(EC).(Locals))
       (WF_LC_TGT: memory_props.MemProps.wf_lc st1_tgt.(Mem) st1_tgt.(EC).(Locals))
+      (EQ_FUNC_SRC: st0_src.(EC).(CurFunction) = st1_src.(EC).(CurFunction))
+      (EQ_FUNC_TGT: st0_tgt.(EC).(CurFunction) = st1_tgt.(EC).(CurFunction))
   : <<STATE_FORGET: InvState.Rel.sem conf_src conf_tgt st1_src st1_tgt
                                      invst invmem (ForgetStack.t defs_src defs_tgt leaks_src leaks_tgt inv0)>>.
 Proof.

@@ -204,14 +204,13 @@ Proof.
   exploit MemProps.malloc_result; try apply MALLOC; []; ii; des.
   subst.
 
-  unfold InvState.Unary.sem_diffblock.
-  destruct val'; ss.
-  destruct p; ss.
-  destruct v; ss.
-  des.
-  destruct val'; ss.
-  unfold not; ii; subst.
-  exploit Pos.lt_irrefl; eauto.
+  induction val'; ss.
+  destruct a; ss.
+  des; ss.
+  destruct v; ss; try (eapply IHval'; eauto; fail).
+  des; clarify.
+  - ss. exploit Pos.lt_irrefl; eauto.
+  - eapply IHval'; ss.
 Qed.
 
 Lemma locals_malloc_diffblock
@@ -262,18 +261,14 @@ val': read from SRC_MEM_STEP.
 if read from SRC_MEM -> use WF.
 if read from SRC_MEM_STEP - SRC_MEM -> undef
    *)
-  exploit MemProps.malloc_preserves_mload_inv; try apply LOAD; eauto; []; ii.
+  exploit MemProps.malloc_preserves_mload_inv; try apply LOAD; eauto; []; i.
   des.
   - exploit WF_A; try apply LOAD; eauto; []; clear WF_A; intros WF_A; des.
-    clear - MALLOC WF_A.
     eapply valid_ptr_malloc_diffblock; eauto.
-  - unfold not in x1.
-    unfold InvState.Unary.sem_diffblock.
-    destruct val'; ss.
-    destruct p; ss.
-    exploit x0; eauto; []; ii; des.
-    subst. ss.
+  - eapply InvState.Unary.diffblock_comm.
+    eapply InvState.Unary.undef_diffblock; eauto.
 Unshelve.
+eauto.
 eauto.
 Qed.
 
@@ -314,80 +309,18 @@ Proof.
   apply AtomSetFacts.add_iff in xIn.
   des; [clear UNIQUE; subst id0|apply UNIQUE; auto].
   econs; eauto; ss.
-  +
-    (* VAL *)
+  + (* VAL *)
     des_lookupAL_updateAddAL.
-  +
-    (* LOCALS *)
+  + (* LOCALS *)
     ii.
     des_lookupAL_updateAddAL.
     eapply locals_malloc_diffblock; ss; eauto.
-  +
-    (* MEM *)
+  + (* MEM *)
     ii. eapply mload_malloc_diffblock; eauto.
   + (* GLOBALS *)
     ii. ss. clarify.
+    des; ss. clarify.
     eapply globals_malloc_diffblock; eauto.
-Qed.
-
-Lemma add_private_alloca
-  id5 typ5 value5 align5 cmds_src invst_unary invmem_unary inv_unary S TD Ps
-  F B lc gl fs gn ECS0 tmn Mem0 als Mem' tsz mb
-  (MALLOC : malloc TD Mem0 tsz gn align5 = Some (Mem', mb))
-  (H1 : getOperandValue TD value5 lc gl = Some gn)
-  (H0 : getTypeAllocSize TD typ5 = Some tsz)
-  (ALLOC_PRIVATE : forall (x : id) (ty : typ) (v : value) (a : align),
-                  GVsMap ->
-                  insn_alloca id5 typ5 value5 align5 = insn_alloca x ty v a ->
-                  Some mem_change_none = Some mem_change_none ->
-                  exists gptr : GenericValue,
-                    In (Memory.Mem.nextblock Mem0) (InvMem.Unary.private invmem_unary) /\
-                    lookupAL GenericValue (updateAddAL GenericValue lc id5 (blk2GV TD mb)) x = Some gptr /\
-                    GV2ptr TD (getPointerSize TD) gptr =
-                    Some (Values.Vptr (Memory.Mem.nextblock Mem0) (Integers.Int.zero 31)))
-  (* revise above invariant *)
-  (PRIVATE : IdTSet.For_all
-              (InvState.Unary.sem_private
-                 {| CurSystem := S; CurTargetData := TD; CurProducts := Ps; Globals := gl; FunTable := fs |}
-                 {|
-                 EC := {|
-                       CurFunction := F;
-                       CurBB := B;
-                       CurCmds := cmds_src;
-                       Terminator := tmn;
-                       Locals := updateAddAL GenericValue lc id5 (blk2GV TD mb);
-                       Allocas := mb :: als |};
-                 ECS := ECS0;
-                 Mem := Mem' |} invst_unary (InvMem.Unary.private invmem_unary))
-              (Invariant.private inv_unary))
-  :
-  <<PRIVATE_ADD: IdTSet.For_all
-    (InvState.Unary.sem_private
-       {| CurSystem := S; CurTargetData := TD; CurProducts := Ps; Globals := gl; FunTable := fs |}
-       {|
-       EC := {|
-             CurFunction := F;
-             CurBB := B;
-             CurCmds := cmds_src;
-             Terminator := tmn;
-             Locals := updateAddAL GenericValue lc id5 (blk2GV TD mb);
-             Allocas := mb :: als |};
-       ECS := ECS0;
-       Mem := Mem' |} invst_unary (InvMem.Unary.private invmem_unary))
-    (IdTSet.add (IdT.lift Tag.physical id5) (Invariant.private inv_unary))>>
-.
-Proof.
-  intros id IN. (* SHOULD NOT USE ii HERE, OR BELOW eauto WILL NOT WORK!! WHY? *)
-  eapply IdTSetFacts.add_iff in IN.
-  des; [|eauto]; [].
-  subst.
-  ii. ss.
-  u. ss. des_lookupAL_updateAddAL. clear_true.
-  destruct invmem_unary; simpl.
-  ss.
-  exploit ALLOC_PRIVATE; eauto; []; ii; des.
-  exploit MemProps.malloc_result; try apply MALLOC; []; intro MALLOC_RES1; des.
-  subst. ss.
 Qed.
 
 Lemma postcond_cmd_add_inject_sound
@@ -432,7 +365,7 @@ Proof.
   destruct (classic (Postcond.postcond_cmd_add_inject cmd_src cmd_tgt inv1 = inv1)).
   { rewrite H in *. esplits; eauto. }
   destruct cmd_src, cmd_tgt; ss.
-  - (* alloca, nop *)
+  - (* nop, alloca *)
     clear ALLOC_INJECT.
     unfold postcond_cmd_check in *. des_ifs; des_bool; clarify.
     ss. clear_true.
@@ -461,6 +394,7 @@ Proof.
     (* inv TGT. clear LESSDEF0 NOALIAS0 UNIQUE0 PRIVATE0 WF_LOCAL0. *)
     unfold alloc_private, alloc_private_unary in *. ss.
     destruct ALLOC_PRIVATE as [_ ALLOC_PRIVATE].
+    exploit ALLOC_PRIVATE; eauto. clear ALLOC_PRIVATE. intro ALLOC_PRIVATE.
     econs; eauto; [|]; clear LESSDEF NOALIAS WF_LOCAL.
     + clear ALLOC_PRIVATE.
       clear PRIVATE.
@@ -474,8 +408,14 @@ Proof.
     + clear UNIQUE.
       clear MEM SRC STATE.
       unfold Invariant.update_private. ss.
-      eapply add_private_alloca; eauto.
-  - (* nop, allica *)
+      ii. rewrite IdTSetFacts.add_iff in *. des.
+      { (* x is alloca *)
+        destruct x as [[] x]; ss.
+        unfold IdT.lift, InvState.Unary.sem_idT in *. ss. clarify.
+        exploit ALLOC_PRIVATE0; eauto.
+      }
+      { exploit PRIVATE; eauto. }
+  - (* allica, nop *)
     clear ALLOC_INJECT.
     unfold postcond_cmd_check in *. des_ifs; des_bool; clarify.
     ss. clear_true.
@@ -504,6 +444,7 @@ Proof.
     (* inv TGT. clear LESSDEF0 NOALIAS0 UNIQUE0 PRIVATE0 WF_LOCAL0. *)
     unfold alloc_private, alloc_private_unary in *. ss.
     destruct ALLOC_PRIVATE as [ALLOC_PRIVATE _].
+    exploit ALLOC_PRIVATE; eauto. clear ALLOC_PRIVATE. intro ALLOC_PRIVATE.
     econs; eauto; [|]; clear LESSDEF NOALIAS WF_LOCAL.
     + clear ALLOC_PRIVATE.
       clear PRIVATE.
@@ -517,9 +458,14 @@ Proof.
     + clear UNIQUE.
       clear MEM TGT STATE.
       unfold Invariant.update_private. ss.
-      eapply add_private_alloca; eauto.
+      ii. rewrite IdTSetFacts.add_iff in *. des.
+      { (* x is alloca *)
+        destruct x as [[] x]; ss.
+        unfold IdT.lift, InvState.Unary.sem_idT in *. ss. clarify.
+        exploit ALLOC_PRIVATE0; eauto. }
+      { exploit PRIVATE; eauto. }
   - (* alloca, alloca *)
-    (*
+    (*    
      * invmem1 = invmem0 + (newl_src -> newl_tgt)
      * invstate.rel.sem inv0: possible (monotone w.r.t. invmem)
      * invstate.rel.sem unique (added): newl <> old locations
@@ -705,7 +651,7 @@ Lemma postcond_cmd_add_lessdef_unary_sound_alloca
       invst0 invmem0 inv0 gmax public
       evt
       (POSTCOND_CHECK: AtomSetImpl.is_empty (AtomSetImpl.inter def uses))
-      (STATE: InvState.Unary.sem conf st1 invst0 invmem0 gmax inv0)
+      (STATE: InvState.Unary.sem conf st1 invst0 invmem0 gmax public inv0)
       (MEM: InvMem.Unary.sem conf gmax public st1.(Mem) invmem0)
       (STEP: sInsn conf st0 st1 evt)
       (CMDS: st0.(EC).(CurCmds) = cmd :: cmds)
@@ -716,7 +662,7 @@ Lemma postcond_cmd_add_lessdef_unary_sound_alloca
       (GEP: cmd = insn_alloca id1 typ1 value1 align1)
   :
     <<STATE: InvState.Unary.sem
-               conf st1 invst0 invmem0 gmax
+               conf st1 invst0 invmem0 gmax public
                (Invariant.update_lessdef (postcond_cmd_add_lessdef cmd) inv0)>>
 .
 Proof.
@@ -812,7 +758,7 @@ Lemma postcond_cmd_add_lessdef_unary_sound_gep
       invst0 invmem0 inv0 gmax public
       evt
       (POSTCOND_CHECK: AtomSetImpl.is_empty (AtomSetImpl.inter def uses))
-      (STATE: InvState.Unary.sem conf st1 invst0 invmem0 gmax inv0)
+      (STATE: InvState.Unary.sem conf st1 invst0 invmem0 gmax public inv0)
       (MEM: InvMem.Unary.sem conf gmax public st1.(Mem) invmem0)
       (STEP: sInsn conf st0 st1 evt)
       (CMDS: st0.(EC).(CurCmds) = cmd :: cmds)
@@ -823,7 +769,7 @@ Lemma postcond_cmd_add_lessdef_unary_sound_gep
       (GEP: cmd = insn_gep id1 inbounds1 typ1 value1 sz_values1 typ2)
   :
     <<STATE: InvState.Unary.sem
-               conf st1 invst0 invmem0 gmax
+               conf st1 invst0 invmem0 gmax public
                (Invariant.update_lessdef (postcond_cmd_add_lessdef cmd) inv0)>>
 .
 Proof.
@@ -882,7 +828,7 @@ Lemma postcond_cmd_add_lessdef_unary_sound_select
       invst0 invmem0 inv0 gmax public
       evt
       (POSTCOND_CHECK: AtomSetImpl.is_empty (AtomSetImpl.inter def uses))
-      (STATE: InvState.Unary.sem conf st1 invst0 invmem0 gmax inv0)
+      (STATE: InvState.Unary.sem conf st1 invst0 invmem0 gmax public inv0)
       (MEM: InvMem.Unary.sem conf gmax public st1.(Mem) invmem0)
       (STEP: sInsn conf st0 st1 evt)
       (CMDS: st0.(EC).(CurCmds) = cmd :: cmds)
@@ -893,7 +839,7 @@ Lemma postcond_cmd_add_lessdef_unary_sound_select
       (GEP: cmd = insn_select id1 value_cond typ1 value1 value2)
   :
     <<STATE: InvState.Unary.sem
-               conf st1 invst0 invmem0 gmax
+               conf st1 invst0 invmem0 gmax public
                (Invariant.update_lessdef (postcond_cmd_add_lessdef cmd) inv0)>>
 .
 Proof.
@@ -944,7 +890,7 @@ Lemma postcond_cmd_add_lessdef_unary_sound
       invst0 invmem0 inv0 gmax public
       evt
       (POSTCOND_CHECK: AtomSetImpl.is_empty (AtomSetImpl.inter def uses))
-      (STATE: InvState.Unary.sem conf st1 invst0 invmem0 gmax inv0)
+      (STATE: InvState.Unary.sem conf st1 invst0 invmem0 gmax public inv0)
       (MEM: InvMem.Unary.sem conf gmax public st1.(Mem) invmem0)
       (STEP: sInsn conf st0 st1 evt)
       (CMDS: st0.(EC).(CurCmds) = cmd :: cmds)
@@ -953,7 +899,7 @@ Lemma postcond_cmd_add_lessdef_unary_sound
       (USES: uses = AtomSetImpl_from_list (Cmd.get_ids cmd))
   :
     <<STATE: InvState.Unary.sem
-               conf st1 invst0 invmem0 gmax
+               conf st1 invst0 invmem0 gmax public
                (Invariant.update_lessdef (postcond_cmd_add_lessdef cmd) inv0)>>
 .
 Proof.

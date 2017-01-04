@@ -22,6 +22,7 @@ Require Import GenericValues.
 Require Import Inject.
 Require InvMem.
 Require InvState.
+Require Import Hints.
 
 Set Implicit Arguments.
 
@@ -78,8 +79,10 @@ Lemma return_locals_inject_locals
       TD id noret ty inv
       retval_src locals1_src locals2_src
       retval_tgt locals1_tgt
+      conf_src conf_tgt mem_src mem_tgt
       (RETVAL: lift2_option (genericvalues_inject.gv_inject inv.(InvMem.Rel.inject)) retval_src retval_tgt)
       (LOCAL: inject_locals inv locals1_src locals1_tgt)
+      (MEM: InvMem.Rel.sem conf_src conf_tgt mem_src mem_tgt inv)
       (SRC: return_locals TD retval_src id noret ty locals1_src = Some locals2_src):
   exists locals2_tgt,
     <<TGT: return_locals TD retval_tgt id noret ty locals1_tgt = Some locals2_tgt>> /\
@@ -87,11 +90,11 @@ Lemma return_locals_inject_locals
 Proof.
   unfold return_locals in *.
   simtac; try by esplits; eauto.
-  exploit genericvalues_inject.simulation__fit_gv; eauto.
-  { admit. (* wf_sb_mi *) }
-  i. des. rewrite x0. esplits; eauto.
+  inv MEM. clear SRC TGT INJECT.
+  exploit genericvalues_inject.simulation__fit_gv; eauto; []; ii; des.
+  rewrite x0. esplits; eauto.
   apply updateAddAL_inject_locals; ss.
-Admitted.
+Qed.
 
 Lemma meminj_eq_inject_locals
       inv0 inv1 locals_src locals_tgt
@@ -135,8 +138,10 @@ Proof.
   specialize (LESSDEF _ HAS_FALSE).
   clear -LESSDEF.
   unfold InvState.Unary.sem_lessdef in *. ss.
-  admit.
-Admitted.
+  compute in LESSDEF.
+  exploit LESSDEF; eauto; []; ii; des.
+  inv x. inv x0. inv H4. inv H2. inv H0. inv H.
+Qed.
 
 Lemma inject_incr_inject_allocas
       (inv0 inv1 : InvMem.Rel.t)
@@ -175,10 +180,11 @@ Ltac inject_clarify :=
 
 Lemma Subset_unary_sem
       conf st
-      invst invmem gmax inv0 inv1
-      (STATE: InvState.Unary.sem conf st invst invmem gmax inv1)
+      invst invmem gmax public
+      inv0 inv1
+      (STATE: InvState.Unary.sem conf st invst invmem gmax public inv1)
       (SUBSET: Hints.Invariant.Subset_unary inv0 inv1)
-  : InvState.Unary.sem conf st invst invmem gmax inv0.
+  : InvState.Unary.sem conf st invst invmem gmax public inv0.
 Proof.
   inv STATE. inv SUBSET.
   econs; eauto.
@@ -440,11 +446,12 @@ Proof.
 Qed.
 
 Lemma unary_sem_eq_locals_mem
-      conf st0 st1 invst0 invmem0 inv0 gmax
+      conf st0 st1 invst0 invmem0 inv0 gmax public
       (LOCALS_EQ: Locals (EC st0) = Locals (EC st1))
       (MEM_EQ : Mem st0 = Mem st1)
-      (STATE: InvState.Unary.sem conf st0 invst0 invmem0 gmax inv0)
-  : InvState.Unary.sem conf st1 invst0 invmem0 gmax inv0.
+      (STATE: InvState.Unary.sem conf st0 invst0 invmem0 gmax public inv0)
+      (EQ_FUNC: st0.(EC).(CurFunction) = st1.(EC).(CurFunction))
+  : InvState.Unary.sem conf st1 invst0 invmem0 gmax public inv0.
 Proof.
   inv STATE.
   econs.
@@ -455,30 +462,35 @@ Proof.
     esplits; eauto.
     erewrite sem_expr_eq_locals_mem; eauto.
   - inv NOALIAS.
-    econs; i; [exploit DIFFBLOCK | exploit NOALIAS0]; eauto;
-      erewrite sem_valueT_eq_locals; eauto.
+    econs; i; [eapply DIFFBLOCK | eapply NOALIAS0];
+      try erewrite sem_valueT_eq_locals; eauto.
   - ii. exploit UNIQUE; eauto. intro UNIQ_X. inv UNIQ_X.
     econs; try rewrite <- LOCALS_EQ; try rewrite <- MEM_EQ; eauto.
   - ii. exploit PRIVATE; eauto.
-    erewrite sem_idT_eq_locals; eauto.
+    { erewrite sem_idT_eq_locals; eauto. }
+    rewrite <- MEM_EQ. eauto.
   - rewrite <- LOCALS_EQ. rewrite <- MEM_EQ. eauto.
   - rewrite <- MEM_EQ. eauto.
   - rewrite <- MEM_EQ. eauto.
   - rewrite <- LOCALS_EQ. eauto.
+  - rewrite <- EQ_FUNC. ss.
 Qed.
 
-Definition memory_blocks_of conf lc ids : list mblock :=
-  filter_map (fun x =>
-                match lookupAL _ lc x with
-                | Some ptr =>
-                  match GV2ptr conf.(CurTargetData) (getPointerSize conf.(CurTargetData)) ptr with
-                  | Some (Values.Vptr b ofs) => Some b
-                  | _ => None
-                  end
-                | _ => None
-                end
-             )
-             (AtomSetImpl.elements ids).
+Definition memory_blocks_of (conf: Config) lc ids : list mblock :=
+  List.flat_map (fun x =>
+                   match lookupAL _ lc x with
+                   | Some gv => GV2blocks gv
+                   | _ => []
+                   end)
+                (AtomSetImpl.elements ids).
+
+Definition memory_blocks_of_t (conf: Config) st invst idts : list mblock :=
+  (List.flat_map (fun x =>
+                    match InvState.Unary.sem_idT st invst x with
+                    | Some gv => GV2blocks gv
+                    | _ => []
+                    end)
+                 (IdTSet.elements idts)).
 
 Definition unique_is_private_unary inv : Prop :=
   forall x (UNIQUE: AtomSetImpl.mem x inv.(Hints.Invariant.unique) = true),
@@ -486,9 +498,9 @@ Definition unique_is_private_unary inv : Prop :=
 
 Lemma lift_unlift_le
       inv0 inv1
-      mem_src uniqs_src
-      mem_tgt uniqs_tgt
-      (LE : InvMem.Rel.le (InvMem.Rel.lift mem_src mem_tgt uniqs_src uniqs_tgt inv0) inv1)
+      mem_src uniqs_src privs_src
+      mem_tgt uniqs_tgt privs_tgt
+      (LE : InvMem.Rel.le (InvMem.Rel.lift mem_src mem_tgt uniqs_src uniqs_tgt privs_src privs_tgt inv0) inv1)
   : InvMem.Rel.le inv0 (InvMem.Rel.unlift inv0 inv1).
 Proof.
   inv LE. ss.
@@ -504,11 +516,11 @@ Ltac des_matchH H :=
     end.
 
 Lemma invmem_unlift
-      conf_src mem_src uniqs_src mem1_src
-      conf_tgt mem_tgt uniqs_tgt mem1_tgt
+      conf_src mem_src uniqs_src privs_src mem1_src
+      conf_tgt mem_tgt uniqs_tgt privs_tgt mem1_tgt
       inv0 inv1
       (MEM_CALLER : InvMem.Rel.sem conf_src conf_tgt mem_src mem_tgt inv0)
-      (LIFT : InvMem.Rel.le (InvMem.Rel.lift mem_src mem_tgt uniqs_src uniqs_tgt inv0) inv1)
+      (LIFT : InvMem.Rel.le (InvMem.Rel.lift mem_src mem_tgt uniqs_src uniqs_tgt privs_src privs_tgt inv0) inv1)
       (MEM_CALLEE : InvMem.Rel.sem conf_src conf_tgt mem1_src mem1_tgt inv1)
   : InvMem.Rel.sem conf_src conf_tgt mem1_src mem1_tgt (InvMem.Rel.unlift inv0 inv1).
 Proof.
@@ -526,10 +538,10 @@ Proof.
     inv CALLEE_SRC. inv CALLER_SRC.
     econs; eauto; ss.
     + rewrite GMAX. eauto.
-    + i. apply PRIVATE_PARENT.
-      inv LE_SRC.
-      rewrite <- PRIVATE_PARENT_EQ. ss.
-      apply in_app. left. eauto.
+    (* + i. apply PRIVATE_PARENT. *)
+    (*   inv LE_SRC. *)
+    (*   rewrite <- PRIVATE_PARENT_EQ. ss. *)
+    (*   apply in_app. left. eauto. *)
     + i. apply PRIVATE_PARENT.
       inv LE_SRC.
       rewrite <- PRIVATE_PARENT_EQ. ss.
@@ -541,17 +553,18 @@ Proof.
       rewrite <- PRIVATE_PARENT_EQ.
       apply in_app. right. eauto.
     + ii. exploit UNIQUE_PARENT_MEM; eauto.
-      inv LE_SRC. ss.
+      des. esplits; eauto.
+      inv LE_SRC; ss.
       rewrite <- UNIQUE_PARENT_EQ.
       apply in_app. right. eauto.
   - (* tgt *)
     inv CALLEE_TGT. inv CALLER_TGT.
     econs; eauto; ss.
     + rewrite GMAX. eauto.
-    + i. apply PRIVATE_PARENT.
-      inv LE_TGT.
-      rewrite <- PRIVATE_PARENT_EQ. ss.
-      apply in_app. left. eauto.
+    (* + i. apply PRIVATE_PARENT. *)
+    (*   inv LE_TGT. *)
+    (*   rewrite <- PRIVATE_PARENT_EQ. ss. *)
+    (*   apply in_app. left. eauto. *)
     + i. apply PRIVATE_PARENT.
       inv LE_TGT.
       rewrite <- PRIVATE_PARENT_EQ. ss.
@@ -563,7 +576,8 @@ Proof.
       rewrite <- PRIVATE_PARENT_EQ.
       apply in_app. right. eauto.
     + ii. exploit UNIQUE_PARENT_MEM; eauto.
-      inv LE_TGT. ss.
+      des. esplits; eauto.
+      inv LE_TGT; ss.
       rewrite <- UNIQUE_PARENT_EQ.
       apply in_app. right. eauto.
   - inv CALLEE_WF.
@@ -573,36 +587,36 @@ Proof.
 Qed.
 
 Lemma invmem_lift
-      conf_src mem_src uniqs_src
-      conf_tgt mem_tgt uniqs_tgt
+      conf_src mem_src uniqs_src privs_src
+      conf_tgt mem_tgt uniqs_tgt privs_tgt
       inv
       (MEM: InvMem.Rel.sem conf_src conf_tgt mem_src mem_tgt inv)
-      (UNIQS_SRC : forall (mptr : mptr) (typ : typ) (align : align)
-                     (val : GenericValue) (b : Values.block) (o : Integers.Int.int 31),
-          mload conf_src.(CurTargetData) mem_src mptr typ align = Some val ->
-          GV2ptr conf_src.(CurTargetData) (getPointerSize conf_src.(CurTargetData)) val = Some (Values.Vptr b o) -> ~ In b uniqs_src)
+      (UNIQS_SRC : forall (mptr : mptr) (typ : typ) (align : align) (val : GenericValue),
+                     mload conf_src.(CurTargetData) mem_src mptr typ align = Some val ->
+                     InvMem.gv_diffblock_with_blocks conf_src val uniqs_src)
       (UNIQS_GLOBALS_SRC: forall b, In b uniqs_src -> (inv.(InvMem.Rel.gmax) < b)%positive)
-      (UNIQS_TGT : forall (mptr : mptr) (typ : typ) (align : align)
-                     (val : GenericValue) (b : Values.block) (o : Integers.Int.int 31),
-          mload conf_tgt.(CurTargetData) mem_tgt mptr typ align = Some val ->
-          GV2ptr conf_tgt.(CurTargetData) (getPointerSize conf_tgt.(CurTargetData)) val = Some (Values.Vptr b o) -> ~ In b uniqs_tgt)
+      (UNIQS_TGT : forall (mptr : mptr) (typ : typ) (align : align) (val : GenericValue),
+                     mload conf_tgt.(CurTargetData) mem_tgt mptr typ align = Some val ->
+                     InvMem.gv_diffblock_with_blocks conf_tgt val uniqs_tgt)
       (UNIQS_GLOBALS_TGT: forall b, In b uniqs_tgt -> (inv.(InvMem.Rel.gmax) < b)%positive)
+      (PRIVS_SRC: forall b, In b privs_src -> InvMem.private_block mem_src (InvMem.Rel.public_src inv.(InvMem.Rel.inject)) b)
+      (PRIVS_TGT: forall b, In b privs_tgt -> InvMem.private_block mem_tgt (InvMem.Rel.public_tgt inv.(InvMem.Rel.inject)) b)
   : InvMem.Rel.sem conf_src conf_tgt mem_src mem_tgt
-                   (InvMem.Rel.lift mem_src mem_tgt uniqs_src uniqs_tgt inv).
+                   (InvMem.Rel.lift mem_src mem_tgt uniqs_src uniqs_tgt privs_src privs_tgt inv).
 Proof.
   inv MEM.
   econs; eauto.
   - inv SRC.
     econs; eauto; ss.
     +  i. apply in_app in IN. des.
-       * exploit PRIVATE; eauto.
+       * apply PRIVS_SRC; eauto.
        * exploit PRIVATE_PARENT; eauto.
-    + ii. apply in_app in H. des.
-      * apply filter_In in H. des.
-        exploit PRIVATE; eauto. i. des.
+    + ii. apply in_app in INB. des.
+      * apply filter_In in INB. des.
+        exploit PRIVS_SRC; eauto. i. des.
         exploit UNIQS_SRC; eauto.
         rewrite existsb_exists in *. des.
-        destruct (Values.eq_block b x1); ss.
+        destruct (Values.eq_block b x0); ss.
         subst. eauto.
       * exploit UNIQUE_PARENT_MEM; eauto.
     + inv WF0.
@@ -618,14 +632,14 @@ Proof.
   - inv TGT.
     econs; eauto; ss.
     +  i. apply in_app in IN. des.
-       * exploit PRIVATE; eauto.
+       * apply PRIVS_TGT; eauto.
        * exploit PRIVATE_PARENT; eauto.
-    + ii. apply in_app in H. des.
-      * apply filter_In in H. des.
-        exploit PRIVATE; eauto. i. des.
+    + ii. apply in_app in INB. des.
+      * apply filter_In in INB. des.
+        exploit PRIVS_TGT; eauto. i. des.
         exploit UNIQS_TGT; eauto.
         rewrite existsb_exists in *. des.
-        destruct (Values.eq_block b x1); ss.
+        destruct (Values.eq_block b x0); ss.
         subst. eauto.
       * exploit UNIQUE_PARENT_MEM; eauto.
     + inv WF0.
@@ -638,4 +652,115 @@ Proof.
       * exploit UNIQUE_PARENT_GLOBALS; eauto.
     + apply sublist_app; eauto.
       apply filter_sublist.
+Qed.
+
+Lemma unique_const_diffblock
+      gval1 gval2 conf gmax st i0 cnst
+      (UNIQUE: InvState.Unary.sem_unique conf st gmax i0)
+      (GLOBALS: genericvalues_inject.wf_globals gmax (Globals conf))
+      (VAL1: lookupAL GenericValue (Locals (EC st)) i0 = Some gval1)
+      (VAL2: const2GV (CurTargetData conf) (Globals conf) cnst = Some gval2)
+      :
+  <<DIFFBLOCK: InvState.Unary.sem_diffblock conf gval1 gval2>>
+.
+Proof.
+  red.
+  eapply TODOProof.wf_globals_const2GV in VAL2; eauto. des.
+
+  inv UNIQUE. clear LOCALS MEM. clarify.
+
+  ii. eapply GLOBALS0 in INL. clear GLOBALS0 VAL gval1.
+  induction gval2; i; ss.
+  des_ifs; try (eapply IHgval2; eauto; fail).
+  des. cbn in *.
+  des.
+  - clarify.
+    clear - INL VAL2.
+    replace (gmax + 1)%positive with (Pos.succ gmax)%positive in *; cycle 1.
+    { rewrite Pos.add_comm. ss. destruct gmax; ss. }
+    rewrite Pos.lt_succ_r in VAL2.
+    apply Pos.le_lteq in VAL2; eauto.
+    des.
+    + exploit Pos.lt_trans; eauto. ii.
+      apply Pos.lt_irrefl in x0; ss.
+    + clarify.
+      apply Pos.lt_irrefl in INL; ss.
+  - eapply IHgval2; eauto.
+Qed.
+
+Lemma valid_ptr_globals_diffblock
+  conf gmax val val'
+  (GLOBALS : forall b : Values.block, In b (GV2blocks val) -> (gmax < b)%positive)
+  (VALID_PTR : memory_props.MemProps.valid_ptrs (gmax + 1)%positive val')
+  :
+  <<DIFFBLOCK: InvState.Unary.sem_diffblock conf val val' >>
+.
+Proof.
+  ii.
+  exploit GLOBALS; eauto; []; intro GMAX; des.
+  clear - VALID_PTR INR GMAX.
+  induction val'; ss.
+  cbn in *. destruct a; ss. cbn in *.
+  unfold compose in *. ss.
+  destruct v; ss; try (eapply IHval'; eauto; fail).
+  des; clarify.
+  + rewrite <- Pplus_one_succ_r in VALID_PTR.
+    apply Plt_succ_inv in VALID_PTR.
+    des.
+    * exploit Plt_trans; eauto. ii.
+      exploit dom_libs.PositiveSet.MSet.Raw.L.MO.lt_irrefl; eauto.
+    * clarify.
+      exploit dom_libs.PositiveSet.MSet.Raw.L.MO.lt_irrefl; eauto.
+  + eapply IHval'; eauto.
+Qed.
+
+Lemma valid_ptr_globals_diffblock2
+  conf gmax val val'
+  (GLOBALS : forall b : Values.block, In b (GV2blocks val') -> (gmax < b)%positive)
+  (VALID_PTR : memory_props.MemProps.valid_ptrs (gmax + 1)%positive val')
+  :
+  <<DIFFBLOCK: InvState.Unary.sem_diffblock conf val val' >>
+.
+Proof.
+  ii.
+  exploit GLOBALS; eauto; []; intro GMAX; des.
+  clear - VALID_PTR INR GMAX.
+  induction val'; ss.
+  cbn in *. destruct a; ss. cbn in *.
+  unfold compose in *. ss.
+  destruct v; ss; try (eapply IHval'; eauto; fail).
+  des; clarify.
+  + rewrite <- Pplus_one_succ_r in VALID_PTR.
+    apply Plt_succ_inv in VALID_PTR.
+    des.
+    * exploit Plt_trans; eauto. ii.
+      exploit dom_libs.PositiveSet.MSet.Raw.L.MO.lt_irrefl; eauto.
+    * clarify.
+      exploit dom_libs.PositiveSet.MSet.Raw.L.MO.lt_irrefl; eauto.
+  + eapply IHval'; eauto.
+Qed.
+
+Lemma valid_ptr_globals_diffblock_with_blocks
+  conf gmax val blocks
+  (GLOBALS : forall b : Values.block, In b blocks -> (gmax < b)%positive)
+  (VALID_PTR : memory_props.MemProps.valid_ptrs (gmax + 1)%positive val)
+  :
+  <<DIFFBLOCK: InvMem.gv_diffblock_with_blocks conf val blocks>>
+.
+Proof.
+  ii.
+  exploit GLOBALS; eauto; []; intro GMAX; des.
+  induction val; ss.
+  cbn in *. destruct a; ss. cbn in *.
+  unfold compose in *. ss.
+  destruct v; ss; try (eapply IHval; eauto; fail).
+  des; clarify.
+  + rewrite <- Pplus_one_succ_r in VALID_PTR.
+    apply Plt_succ_inv in VALID_PTR.
+    des.
+    * exploit Plt_trans; eauto. ii.
+      exploit dom_libs.PositiveSet.MSet.Raw.L.MO.lt_irrefl; eauto.
+    * clarify.
+      exploit dom_libs.PositiveSet.MSet.Raw.L.MO.lt_irrefl; eauto.
+  + eapply IHval; eauto.
 Qed.

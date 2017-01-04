@@ -1,3 +1,7 @@
+# vim related
+*.swp
+
+# coq related
 *.vo
 *.v.d
 *.vio

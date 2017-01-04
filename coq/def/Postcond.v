@@ -304,6 +304,7 @@ Lemma lift_physical_atoms_idtset_spec1
   IdTSet.mem (Tag.physical, id) (lift_physical_atoms_idtset l) =
   AtomSetImpl.mem id l.
 Proof.
+  (* jeehoonkang will do this *)
 Admitted.
 
 Module ForgetMemory.
@@ -676,6 +677,15 @@ Definition postcond_cmd_inject_event
   | _, _ => true
   end.
 
+Lemma postcond_cmd_inject_event_non_malloc
+      src tgt inv
+      (INJECT: postcond_cmd_inject_event src tgt inv)
+  :
+    (<<NONMALLOC_SRC: (isMallocInst src = false)>>)
+    /\ (<<NONMALLOC_TGT: (isMallocInst tgt = false)>>).
+Proof.
+  destruct src, tgt; ss.
+Qed.
 
 (* TODO: we will not consider insn_malloc more. *)
 
