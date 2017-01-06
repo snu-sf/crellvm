@@ -155,19 +155,20 @@ Module Invariant.
   Definition syntactic_lessdef (e1 e2:Expr.t) (inv0:ExprPairSet.t): bool :=
     (Expr.eq_dec e1 e2) ||
       (match e1, e2 with
-       | Expr.value (ValueT.const (const_undef ty)),
+       | Expr.value (ValueT.const (const_undef ty1)),
          Expr.value v =>
-         match v with
-         | ValueT.const c => true
-         | v => flip ExprPairSet.exists_ inv0
-                     (fun p =>
-                        (Expr.eq_dec p.(snd) v) &&
-                        match p.(fst) with
-                        | Expr.value (ValueT.const _) => true
-                        | _ => false
-                        end
-                     )
-         end
+         flip ExprPairSet.exists_ inv0
+              (fun p =>
+                 (Expr.eq_dec p.(snd) v) &&
+                  match p.(fst) with
+                  | Expr.value (ValueT.const c) =>
+                    match c with
+                    | const_undef ty2 => typ_dec ty1 ty2
+                    | _ => false
+                    end
+                  | _ => false
+                  end
+              )
        | _, _ => false
        end).
 

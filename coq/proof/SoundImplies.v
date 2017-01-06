@@ -94,20 +94,23 @@ Proof.
   unfold Invariant.syntactic_lessdef in *. solve_bool_true; ss.
   - subst. ii. esplits; eauto. reflexivity.
   - solve_match_bool; cycle 1.
-    { subst. ii. ss.
-      admit. (* does every const2GV succeeds? or do we change it into undef? *)
-    }
+    (* { subst. ii. ss. *)
+    (*   esplits. *)
+    (*   admit. (* does every const2GV succeeds? or do we change it into undef? *) *)
+    (* } *)
     subst. red.
     unfold InvState.Unary.sem_lessdef. ss. ii.
     unfold flip in SYNTACTIC_LESSDEF.
     rewrite <- ExprPairSetFacts.exists_iff in SYNTACTIC_LESSDEF; try by solve_compat_bool.
     inv SYNTACTIC_LESSDEF. des.
-    destruct x0. ss. destruct t; try by solve_des_bool; ss.
+    destruct x. ss. destruct t; try by solve_des_bool; ss.
     destruct v; solve_des_bool; ss.
-    destruct (Expr.eq_dec t0 (Expr.value x)); ss. subst.
+    destruct c; ss.
+    destruct (Expr.eq_dec t0 v0); ss. subst.
     exploit LESSDEF; eauto. ss.
-    admit. (* const2GV *)
-Admitted.
+    unfold proj_sumbool in *.
+    destruct (typ_dec typ5 typ0); subst; ss.
+Qed.
 
 Lemma implies_lessdef_sound
       ld0 ld1 invst conf st
