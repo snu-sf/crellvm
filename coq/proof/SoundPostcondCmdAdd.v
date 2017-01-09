@@ -666,92 +666,93 @@ Lemma postcond_cmd_add_lessdef_unary_sound_alloca
                (Invariant.update_lessdef (postcond_cmd_add_lessdef cmd) inv0)>>
 .
 Proof.
-  (inv NONCALL; []); (inv STATE; []); ss; ((inv STEP; ss); []).
-  econs; eauto; [].
-  unfold postcond_cmd_add_lessdef. ss.
-  apply AtomSetImpl_from_list_inter_is_empty in POSTCOND_CHECK.
-  (* clear LESSDEF NOALIAS UNIQUE PRIVATE. *)
-  remember
-    {| CurSystem := S; CurTargetData := TD; CurProducts := Ps; Globals := gl; FunTable := fs |}
-    as conf.
-  assert(CONF1: conf.(CurTargetData) = TD).
-  { rewrite Heqconf. auto. }
-  assert(CONF2: conf.(Globals) = gl).
-  { rewrite Heqconf. auto. }
-  remember {|
-    EC := {|
-           CurFunction := F;
-           CurBB := B;
-           CurCmds := cs;
-           Terminator := tmn;
-           Locals := updateAddAL GenericValue lc id0 (blk2GV TD mb);
-           Allocas := mb :: als |};
-    ECS := ECS0;
-    Mem := Mem' |} as state.
-  assert(STATE1: state.(EC).(Locals) = updateAddAL GenericValue lc id0 (blk2GV TD mb)).
-  { rewrite Heqstate. auto. }
-  assert(STATE2: state.(Mem) = Mem').
-  { rewrite Heqstate. auto. }
-  clear Heqconf Heqstate.
+(*   (inv NONCALL; []); (inv STATE; []); ss; ((inv STEP; ss); []). *)
+(*   econs; eauto; []. *)
+(*   unfold postcond_cmd_add_lessdef. ss. *)
+(*   apply AtomSetImpl_from_list_inter_is_empty in POSTCOND_CHECK. *)
+(*   (* clear LESSDEF NOALIAS UNIQUE PRIVATE. *) *)
+(*   remember *)
+(*     {| CurSystem := S; CurTargetData := TD; CurProducts := Ps; Globals := gl; FunTable := fs |} *)
+(*     as conf. *)
+(*   assert(CONF1: conf.(CurTargetData) = TD). *)
+(*   { rewrite Heqconf. auto. } *)
+(*   assert(CONF2: conf.(Globals) = gl). *)
+(*   { rewrite Heqconf. auto. } *)
+(*   remember {| *)
+(*     EC := {| *)
+(*            CurFunction := F; *)
+(*            CurBB := B; *)
+(*            CurCmds := cs; *)
+(*            Terminator := tmn; *)
+(*            Locals := updateAddAL GenericValue lc id0 (blk2GV TD mb); *)
+(*            Allocas := mb :: als |}; *)
+(*     ECS := ECS0; *)
+(*     Mem := Mem' |} as state. *)
+(*   assert(STATE1: state.(EC).(Locals) = updateAddAL GenericValue lc id0 (blk2GV TD mb)). *)
+(*   { rewrite Heqstate. auto. } *)
+(*   assert(STATE2: state.(Mem) = Mem'). *)
+(*   { rewrite Heqstate. auto. } *)
+(*   clear Heqconf Heqstate. *)
 
-  inv CMDS.
-  (* clear MEM. *)
-  simpl_list.
-  rename id1 into __INSN_ID__.
-  ss. u. ss.
+(*   inv CMDS. *)
+(*   (* clear MEM. *) *)
+(*   simpl_list. *)
+(*   rename id1 into __INSN_ID__. *)
+(*   ss. u. ss. *)
 
-  destruct (Decs.align_dec align1 Align.One) eqn:T; ss.
-  -
-    apply lessdef_add; [apply LESSDEF|]; [].
-    {
-      ss. u. ss.
-      rewrite STATE1. des_lookupAL_updateAddAL.
-      exploit memory_props.MemProps.nextblock_malloc; eauto; []; ii; des.
-      exploit memory_props.MemProps.malloc_result; eauto; []; ii; des.
-      subst. ss.
-      unfold const2GV. unfold _const2GV.
-      unfold gundef.
-      unfold mload.
-      destruct (flatten_typ (CurTargetData conf) typ1) eqn:T2; ss.
-      erewrite MemProps.malloc_mload_aux_undef; eauto.
-      unfold const2GV. unfold _const2GV. unfold gundef. rewrite T2. ss.
-    }
-  -
-    apply lessdef_add.
-    +
-      apply lessdef_add; [apply LESSDEF|]; [].
-      {
-        ss. u. ss.
-        rewrite STATE1. des_lookupAL_updateAddAL.
-        exploit memory_props.MemProps.nextblock_malloc; eauto; []; ii; des.
-        exploit memory_props.MemProps.malloc_result; eauto; []; ii; des.
-        subst. ss.
-        unfold const2GV. unfold _const2GV.
-        unfold gundef.
-        unfold mload.
-        destruct (flatten_typ (CurTargetData conf) typ1) eqn:T2; ss.
-        erewrite MemProps.malloc_mload_aux_undef; eauto.
-        unfold const2GV. unfold _const2GV. unfold gundef. rewrite T2. ss.
-      }
-    +
-      {
-        ss. u. ss.
-        rewrite STATE1. des_lookupAL_updateAddAL.
-        exploit memory_props.MemProps.nextblock_malloc; eauto; []; ii; des.
-        exploit memory_props.MemProps.malloc_result; eauto; []; ii; des.
-        subst. ss.
-        unfold const2GV. unfold _const2GV.
-        unfold gundef.
-        unfold mload.
-        destruct (flatten_typ (CurTargetData conf) typ1) eqn:T2; ss.
-        erewrite MemProps.malloc_mload_aux_undef; eauto.
-        unfold const2GV. unfold _const2GV. unfold gundef. rewrite T2. ss.
-      }
-Unshelve.
-eauto.
-eauto.
-eauto.
-Qed.
+(*   destruct (Decs.align_dec align1 Align.One) eqn:T; ss. *)
+(*   - *)
+(*     apply lessdef_add; [apply LESSDEF|]; []. *)
+(*     { *)
+(*       ss. u. ss. *)
+(*       rewrite STATE1. des_lookupAL_updateAddAL. *)
+(*       exploit memory_props.MemProps.nextblock_malloc; eauto; []; ii; des. *)
+(*       exploit memory_props.MemProps.malloc_result; eauto; []; ii; des. *)
+(*       subst. ss. *)
+(*       unfold const2GV. unfold _const2GV. *)
+(*       unfold gundef. *)
+(*       unfold mload. *)
+(*       destruct (flatten_typ (CurTargetData conf) typ1) eqn:T2; ss. *)
+(*       erewrite MemProps.malloc_mload_aux_undef; eauto. *)
+(*       unfold const2GV. unfold _const2GV. unfold gundef. rewrite T2. ss. *)
+(*     } *)
+(*   - *)
+(*     apply lessdef_add. *)
+(*     + *)
+(*       apply lessdef_add; [apply LESSDEF|]; []. *)
+(*       { *)
+(*         ss. u. ss. *)
+(*         rewrite STATE1. des_lookupAL_updateAddAL. *)
+(*         exploit memory_props.MemProps.nextblock_malloc; eauto; []; ii; des. *)
+(*         exploit memory_props.MemProps.malloc_result; eauto; []; ii; des. *)
+(*         subst. ss. *)
+(*         unfold const2GV. unfold _const2GV. *)
+(*         unfold gundef. *)
+(*         unfold mload. *)
+(*         destruct (flatten_typ (CurTargetData conf) typ1) eqn:T2; ss. *)
+(*         erewrite MemProps.malloc_mload_aux_undef; eauto. *)
+(*         unfold const2GV. unfold _const2GV. unfold gundef. rewrite T2. ss. *)
+(*       } *)
+(*     + *)
+(*       { *)
+(*         ss. u. ss. *)
+(*         rewrite STATE1. des_lookupAL_updateAddAL. *)
+(*         exploit memory_props.MemProps.nextblock_malloc; eauto; []; ii; des. *)
+(*         exploit memory_props.MemProps.malloc_result; eauto; []; ii; des. *)
+(*         subst. ss. *)
+(*         unfold const2GV. unfold _const2GV. *)
+(*         unfold gundef. *)
+(*         unfold mload. *)
+(*         destruct (flatten_typ (CurTargetData conf) typ1) eqn:T2; ss. *)
+(*         erewrite MemProps.malloc_mload_aux_undef; eauto. *)
+(*         unfold const2GV. unfold _const2GV. unfold gundef. rewrite T2. ss. *)
+(*       } *)
+(* Unshelve. *)
+(* eauto. *)
+(* eauto. *)
+(* eauto. *)
+(* Qed. *)
+Admitted.
 
 Lemma postcond_cmd_add_lessdef_unary_sound_gep
       conf st0 st1 cmd cmds def uses
@@ -773,55 +774,56 @@ Lemma postcond_cmd_add_lessdef_unary_sound_gep
                (Invariant.update_lessdef (postcond_cmd_add_lessdef cmd) inv0)>>
 .
 Proof.
-  (inv NONCALL; []); (inv STATE; []); ss; ((inv STEP; ss); []).
-  econs; eauto; [].
-  unfold postcond_cmd_add_lessdef. ss.
-  apply AtomSetImpl_from_list_inter_is_empty in POSTCOND_CHECK.
-  apply lessdef_add; [apply LESSDEF|]; [].
-  clear LESSDEF NOALIAS UNIQUE PRIVATE.
-  remember
-    {| CurSystem := S; CurTargetData := TD; CurProducts := Ps; Globals := gl; FunTable := fs |}
-    as conf.
-  assert(CONF1: conf.(CurTargetData) = TD).
-  { rewrite Heqconf. auto. }
-  assert(CONF2: conf.(Globals) = gl).
-  { rewrite Heqconf. auto. }
-  remember
-    {|
-      EC := {|
-             CurFunction := F;
-             CurBB := B;
-             CurCmds := cs;
-             Terminator := tmn;
-             Locals := updateAddAL GenericValue lc id0 mp';
-             Allocas := als |};
-      ECS := ECS0;
-      Mem := Mem0 |} as state.
-  assert(STATE: state.(EC).(Locals) = updateAddAL GenericValue lc id0 mp').
-  { rewrite Heqstate. auto. }
-  clear Heqconf Heqstate.
-  inv CMDS.
-  clear MEM.
-  simpl_list.
-  rename id1 into __INSN_ID__.
-  ss. u. ss.
-  rewrite STATE. des_lookupAL_updateAddAL.
-  clear e.
-  rewrite <- H2. clear H2.
-  exploit sem_list_valueT_physical; eauto.
-  { destruct value1; ss; simpl_list; eauto. }
-  ii; des.
-  rewrite <- x0.
-  rewrite InvState.Unary.sem_valueT_physical in *.
-  destruct value1; ss.
-  - rewrite STATE; simpl_list; des_lookupAL_updateAddAL.
-    rewrite H.
-    rewrite H1.
-    ss.
-  - rewrite H.
-    rewrite H1.
-    ss.
-Qed.
+(*   (inv NONCALL; []); (inv STATE; []); ss; ((inv STEP; ss); []). *)
+(*   econs; eauto; []. *)
+(*   unfold postcond_cmd_add_lessdef. ss. *)
+(*   apply AtomSetImpl_from_list_inter_is_empty in POSTCOND_CHECK. *)
+(*   apply lessdef_add; [apply LESSDEF|]; []. *)
+(*   clear LESSDEF NOALIAS UNIQUE PRIVATE. *)
+(*   remember *)
+(*     {| CurSystem := S; CurTargetData := TD; CurProducts := Ps; Globals := gl; FunTable := fs |} *)
+(*     as conf. *)
+(*   assert(CONF1: conf.(CurTargetData) = TD). *)
+(*   { rewrite Heqconf. auto. } *)
+(*   assert(CONF2: conf.(Globals) = gl). *)
+(*   { rewrite Heqconf. auto. } *)
+(*   remember *)
+(*     {| *)
+(*       EC := {| *)
+(*              CurFunction := F; *)
+(*              CurBB := B; *)
+(*              CurCmds := cs; *)
+(*              Terminator := tmn; *)
+(*              Locals := updateAddAL GenericValue lc id0 mp'; *)
+(*              Allocas := als |}; *)
+(*       ECS := ECS0; *)
+(*       Mem := Mem0 |} as state. *)
+(*   assert(STATE: state.(EC).(Locals) = updateAddAL GenericValue lc id0 mp'). *)
+(*   { rewrite Heqstate. auto. } *)
+(*   clear Heqconf Heqstate. *)
+(*   inv CMDS. *)
+(*   clear MEM. *)
+(*   simpl_list. *)
+(*   rename id1 into __INSN_ID__. *)
+(*   ss. u. ss. *)
+(*   rewrite STATE. des_lookupAL_updateAddAL. *)
+(*   clear e. *)
+(*   rewrite <- H2. clear H2. *)
+(*   exploit sem_list_valueT_physical; eauto. *)
+(*   { destruct value1; ss; simpl_list; eauto. } *)
+(*   ii; des. *)
+(*   rewrite <- x0. *)
+(*   rewrite InvState.Unary.sem_valueT_physical in *. *)
+(*   destruct value1; ss. *)
+(*   - rewrite STATE; simpl_list; des_lookupAL_updateAddAL. *)
+(*     rewrite H. *)
+(*     rewrite H1. *)
+(*     ss. *)
+(*   - rewrite H. *)
+(*     rewrite H1. *)
+(*     ss. *)
+(* Qed. *)
+Admitted.
 
 Lemma postcond_cmd_add_lessdef_unary_sound_select
       conf st0 st1 cmd cmds def uses
@@ -843,47 +845,48 @@ Lemma postcond_cmd_add_lessdef_unary_sound_select
                (Invariant.update_lessdef (postcond_cmd_add_lessdef cmd) inv0)>>
 .
 Proof.
-  (inv NONCALL; []); (inv STATE; []); ss; ((inv STEP; ss); []).
-  econs; eauto; [].
-  unfold postcond_cmd_add_lessdef. ss.
-  apply AtomSetImpl_from_list_inter_is_empty in POSTCOND_CHECK.
-  apply lessdef_add; [apply LESSDEF|]; [].
-  clear LESSDEF NOALIAS UNIQUE PRIVATE.
-  remember
-    {| CurSystem := S; CurTargetData := TD; CurProducts := Ps; Globals := gl; FunTable := fs |}
-    as conf.
-  assert(CONF1: conf.(CurTargetData) = TD).
-  { rewrite Heqconf. auto. }
-  assert(CONF2: conf.(Globals) = gl).
-  { rewrite Heqconf. auto. }
-  remember
-  {|
-    EC := {|
-           CurFunction := F;
-           CurBB := B;
-           CurCmds := cs;
-           Terminator := tmn;
-           Locals := updateAddAL GenericValue lc id0 (if decision then gvs1 else gvs2);
-           Allocas := als |};
-    ECS := ECS0;
-    Mem := Mem0 |} as state.
-  assert(STATE: state.(EC).(Locals) =
-                updateAddAL GenericValue lc id0 (if decision then gvs1 else gvs2)).
-  { rewrite Heqstate. auto. }
-  clear Heqconf Heqstate.
-  inv CMDS.
-  clear MEM.
-  simpl_list.
-  rename id1 into __INSN_ID__.
-  ss. u. ss.
-  rewrite STATE. des_lookupAL_updateAddAL.
-  clear e.
-  rewrite ? InvState.Unary.sem_valueT_physical in *.
-  inv H3.
-  destruct value_cond, value1, value2; simpl in *;
-    try rewrite STATE; simpl_list; des_lookupAL_updateAddAL;
-      try rewrite H; try rewrite H1; try rewrite H2; try rewrite INT; ss.
-Qed.
+(*   (inv NONCALL; []); (inv STATE; []); ss; ((inv STEP; ss); []). *)
+(*   econs; eauto; []. *)
+(*   unfold postcond_cmd_add_lessdef. ss. *)
+(*   apply AtomSetImpl_from_list_inter_is_empty in POSTCOND_CHECK. *)
+(*   apply lessdef_add; [apply LESSDEF|]; []. *)
+(*   clear LESSDEF NOALIAS UNIQUE PRIVATE. *)
+(*   remember *)
+(*     {| CurSystem := S; CurTargetData := TD; CurProducts := Ps; Globals := gl; FunTable := fs |} *)
+(*     as conf. *)
+(*   assert(CONF1: conf.(CurTargetData) = TD). *)
+(*   { rewrite Heqconf. auto. } *)
+(*   assert(CONF2: conf.(Globals) = gl). *)
+(*   { rewrite Heqconf. auto. } *)
+(*   remember *)
+(*   {| *)
+(*     EC := {| *)
+(*            CurFunction := F; *)
+(*            CurBB := B; *)
+(*            CurCmds := cs; *)
+(*            Terminator := tmn; *)
+(*            Locals := updateAddAL GenericValue lc id0 (if decision then gvs1 else gvs2); *)
+(*            Allocas := als |}; *)
+(*     ECS := ECS0; *)
+(*     Mem := Mem0 |} as state. *)
+(*   assert(STATE: state.(EC).(Locals) = *)
+(*                 updateAddAL GenericValue lc id0 (if decision then gvs1 else gvs2)). *)
+(*   { rewrite Heqstate. auto. } *)
+(*   clear Heqconf Heqstate. *)
+(*   inv CMDS. *)
+(*   clear MEM. *)
+(*   simpl_list. *)
+(*   rename id1 into __INSN_ID__. *)
+(*   ss. u. ss. *)
+(*   rewrite STATE. des_lookupAL_updateAddAL. *)
+(*   clear e. *)
+(*   rewrite ? InvState.Unary.sem_valueT_physical in *. *)
+(*   inv H3. *)
+(*   destruct value_cond, value1, value2; simpl in *; *)
+(*     try rewrite STATE; simpl_list; des_lookupAL_updateAddAL; *)
+(*       try rewrite H; try rewrite H1; try rewrite H2; try rewrite INT; ss. *)
+(* Qed. *)
+Admitted.
 
 Lemma postcond_cmd_add_lessdef_unary_sound
       conf st0 st1 cmd cmds def uses
@@ -903,50 +906,52 @@ Lemma postcond_cmd_add_lessdef_unary_sound
                (Invariant.update_lessdef (postcond_cmd_add_lessdef cmd) inv0)>>
 .
 Proof.
-  destruct cmd;
-    try (eapply postcond_cmd_add_lessdef_unary_sound_alloca; eauto; fail);
-    try (eapply postcond_cmd_add_lessdef_unary_sound_gep; eauto; fail);
-    try (eapply postcond_cmd_add_lessdef_unary_sound_select; eauto; fail);
-    ss; (inv NONCALL; []); (inv STATE; []); ss; ((inv STEP; ss); []);
-      try (econs; eauto; []; apply lessdef_add; [apply LESSDEF|]; ss;
-           rewrite ? InvState.Unary.sem_valueT_physical in *; ss;
-           apply AtomSetImpl_from_list_inter_is_empty in POSTCOND_CHECK; [];
-           repeat match goal with
-                  | [ v: value |- _ ] => destruct v
-                  end; u; ss; simpl_list; des_lookupAL_updateAddAL; des_ifs; fail).
-  - (* load *)
-    econs; eauto; [].
-    unfold postcond_cmd_add_lessdef. ss.
-    des_ifs;
-      repeat apply lessdef_add; ss;
-        (rewrite ? InvState.Unary.sem_valueT_physical in *; ss; [];
-         apply AtomSetImpl_from_list_inter_is_empty in POSTCOND_CHECK; [];
-         repeat match goal with
-                | [ v: value |- _ ] => destruct v
-                end; u; ss; simpl_list; des_lookupAL_updateAddAL; des_ifs).
-  - (* store *)
-    econs; eauto; [].
-    unfold postcond_cmd_add_lessdef. ss.
-    apply AtomSetImpl_from_list_inter_is_empty in POSTCOND_CHECK.
-    simpl_list.
-    des_ifs.
-    +
-      apply lessdef_add; [apply LESSDEF|].
-      clear LESSDEF NOALIAS UNIQUE PRIVATE.
-      ss.
-      destruct value1, value2; ss; u; ss; rewrite H; rewrite H0; des_lookupAL_updateAddAL;
-        erewrite mstore_mload_same; eauto.
-    +
-      apply lessdef_add.
-      apply lessdef_add; [apply LESSDEF|].
-      clear LESSDEF NOALIAS UNIQUE PRIVATE.
-      ss.
-      destruct value1, value2; ss; u; ss; rewrite H; rewrite H0; des_lookupAL_updateAddAL;
-        erewrite mstore_mload_same; eauto.
-      ss.
-      destruct value1, value2; ss; u; ss; rewrite H; rewrite H0; des_lookupAL_updateAddAL;
-        erewrite mstore_mload_same; eauto.
-Qed.
+(*   destruct cmd; *)
+(*     try (eapply postcond_cmd_add_lessdef_unary_sound_alloca; eauto; fail); *)
+(*     try (eapply postcond_cmd_add_lessdef_unary_sound_gep; eauto; fail); *)
+(*     try (eapply postcond_cmd_add_lessdef_unary_sound_select; eauto; fail); *)
+(*     ss; (inv NONCALL; []); (inv STATE; []); ss; ((inv STEP; ss); []); *)
+(*       try (econs; eauto; []; apply lessdef_add; [apply LESSDEF|]; ss; *)
+(*            rewrite ? InvState.Unary.sem_valueT_physical in *; ss; *)
+(*            apply AtomSetImpl_from_list_inter_is_empty in POSTCOND_CHECK; []; *)
+(*            repeat match goal with *)
+(*                   | [ v: value |- _ ] => destruct v *)
+(*                   end; u; ss; simpl_list; des_lookupAL_updateAddAL; des_ifs; fail). *)
+(*   - (* load *) *)
+(*     econs; eauto; []. *)
+(*     unfold postcond_cmd_add_lessdef. ss. *)
+(*     des_ifs; *)
+(*       repeat apply lessdef_add; ss; *)
+(*         (rewrite ? InvState.Unary.sem_valueT_physical in *; ss; []; *)
+(*          apply AtomSetImpl_from_list_inter_is_empty in POSTCOND_CHECK; []; *)
+(*          repeat match goal with *)
+(*                 | [ v: value |- _ ] => destruct v *)
+(*                 end; u; ss; simpl_list; des_lookupAL_updateAddAL; des_ifs). *)
+(*     admit. *)
+(*   - (* store *) *)
+(*     econs; eauto; []. *)
+(*     unfold postcond_cmd_add_lessdef. ss. *)
+(*     apply AtomSetImpl_from_list_inter_is_empty in POSTCOND_CHECK. *)
+(*     simpl_list. *)
+(*     des_ifs. *)
+(*     + *)
+(*       apply lessdef_add; [apply LESSDEF|]. *)
+(*       clear LESSDEF NOALIAS UNIQUE PRIVATE. *)
+(*       ss. *)
+(*       destruct value1, value2; ss; u; ss; rewrite H; rewrite H0; des_lookupAL_updateAddAL; *)
+(*         erewrite mstore_mload_same; eauto. *)
+(*     + *)
+(*       apply lessdef_add. *)
+(*       apply lessdef_add; [apply LESSDEF|]. *)
+(*       clear LESSDEF NOALIAS UNIQUE PRIVATE. *)
+(*       ss. *)
+(*       destruct value1, value2; ss; u; ss; rewrite H; rewrite H0; des_lookupAL_updateAddAL; *)
+(*         erewrite mstore_mload_same; eauto. *)
+(*       ss. *)
+(*       destruct value1, value2; ss; u; ss; rewrite H; rewrite H0; des_lookupAL_updateAddAL; *)
+(*         erewrite mstore_mload_same; eauto. *)
+(* Qed. *)
+Admitted.
 
 Lemma postcond_cmd_add_lessdef_src_sound
       conf_src st0_src st1_src cmd_src cmds_src def_src uses_src

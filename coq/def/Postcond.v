@@ -758,6 +758,15 @@ Definition postcond_cmd_get_lessdef
     end
   end.
 
+Definition postcond_cmd_get_definedness (c:cmd)
+  : option ExprPair.t :=
+  match Cmd.get_def c, getCmdTyp c with
+  | Some x, Some ty =>
+    Some (Expr.value (ValueT.const (const_undef ty)),
+                    Expr.value (ValueT.id (Tag.physical, x)))
+  | _, _ => None
+  end.
+
 Definition postcond_cmd_add_lessdef
            (c:cmd)
            (inv0:ExprPairSet.t): ExprPairSet.t :=
@@ -765,7 +774,13 @@ Definition postcond_cmd_add_lessdef
   | None => inv0
   | Some (lhs, rhs) =>
     let inv1 := ExprPairSet.add (lhs, rhs) inv0 in
-    let inv2 := ExprPairSet.add (rhs, lhs) inv1 in
+    let inv1' := ExprPairSet.add (rhs, lhs) inv1 in
+    let inv2 :=
+        match postcond_cmd_get_definedness c with
+        | None => inv1'
+        | Some exp_pair => ExprPairSet.add exp_pair inv1'
+        end
+    in
     match (lhs, rhs) with
     | (Expr.load v ty a, _) =>
       if (align_dec a Align.One)
