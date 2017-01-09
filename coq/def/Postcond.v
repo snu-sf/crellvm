@@ -770,17 +770,18 @@ Definition postcond_cmd_get_definedness (c:cmd)
 Definition postcond_cmd_add_lessdef
            (c:cmd)
            (inv0:ExprPairSet.t): ExprPairSet.t :=
+  let inv0 :=
+      match postcond_cmd_get_definedness c with
+      | None => inv0
+      | Some exp_pair => ExprPairSet.add exp_pair inv0
+      end
+  in
   match postcond_cmd_get_lessdef c with
-  | None => inv0
+  | None =>
+    inv0
   | Some (lhs, rhs) =>
     let inv1 := ExprPairSet.add (lhs, rhs) inv0 in
-    let inv1' := ExprPairSet.add (rhs, lhs) inv1 in
-    let inv2 :=
-        match postcond_cmd_get_definedness c with
-        | None => inv1'
-        | Some exp_pair => ExprPairSet.add exp_pair inv1'
-        end
-    in
+    let inv2 := ExprPairSet.add (rhs, lhs) inv1 in
     match (lhs, rhs) with
     | (Expr.load v ty a, _) =>
       if (align_dec a Align.One)
