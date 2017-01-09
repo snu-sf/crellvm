@@ -86,32 +86,31 @@ Next Obligation.
 Qed.
 
 Lemma syntactic_lessdef_spec
-      conf st invst e1 e2
-      (SYNTACTIC_LESSDEF:Invariant.syntactic_lessdef e1 e2):
+      conf st invst e1 e2 ld
+      (LESSDEF: ExprPairSet.For_all (InvState.Unary.sem_lessdef conf st invst) ld)
+      (SYNTACTIC_LESSDEF:Invariant.syntactic_lessdef e1 e2 ld):
   <<LESSDEF: InvState.Unary.sem_lessdef conf st invst (e1, e2)>>.
 Proof.
   unfold Invariant.syntactic_lessdef in *. solve_bool_true; ss.
   - subst. ii. esplits; eauto. reflexivity.
-  - solve_match_bool. subst.
-    red. unfold InvState.Unary.sem_lessdef. ss.
-    ii. ss.
-    destruct v0; ss.
-    +
-      unfold InvState.Unary.sem_idT.
-      destruct x. ss.
-      destruct t; ss.
-      * esplits; eauto.
-        ss.
-        -- admit. (* not provable, allow None? *)
-        -- admit. (* undef should lessdef with all *)
-      * (* ditto *) admit.
-      * (* ditto *) admit.
-    +
-      esplits; eauto.
-      (* ditto *)
-      admit.
-      admit.
-Admitted.
+  - solve_match_bool; cycle 1.
+    (* { subst. ii. ss. *)
+    (*   esplits. *)
+    (*   admit. (* does every const2GV succeeds? or do we change it into undef? *) *)
+    (* } *)
+    subst. red.
+    unfold InvState.Unary.sem_lessdef. ss. ii.
+    unfold flip in SYNTACTIC_LESSDEF.
+    rewrite <- ExprPairSetFacts.exists_iff in SYNTACTIC_LESSDEF; try by solve_compat_bool.
+    inv SYNTACTIC_LESSDEF. des.
+    destruct x. ss. destruct t; try by solve_des_bool; ss.
+    destruct v; solve_des_bool; ss.
+    destruct c; ss.
+    destruct (Expr.eq_dec t0 v0); ss. subst.
+    exploit LESSDEF; eauto. ss.
+    unfold proj_sumbool in *.
+    destruct (typ_dec typ5 typ0); subst; ss.
+Qed.
 
 Lemma implies_lessdef_sound
       ld0 ld1 invst conf st
@@ -126,9 +125,9 @@ Proof.
   { ii. subst. ss. }
   inv IMPLIES_LESSDEF. des. solve_bool_true.
   destruct x0, x; ss. subst.
-  specialize (LESSDEF _ H0 _ VAL1). ss. des.
-  hexploit syntactic_lessdef_spec; eauto. i. des.
-  specialize (H3 _ VAL2). ss. des.
+  generalize (LESSDEF _ H0 _ VAL1). ss. i. des.
+  hexploit syntactic_lessdef_spec; eauto. intro LD_SYNT. des.
+  specialize (LD_SYNT _ VAL2). des. ss.
   esplits; eauto. etransitivity; eauto.
 Qed.
 
