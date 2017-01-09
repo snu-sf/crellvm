@@ -811,6 +811,7 @@ Proof.
   unfold postcond_cmd_get_lessdef.
   ss.
   des_ifs.
+  apply ExprPairSetFacts.add_iff. eauto.
 Qed.
 
 Definition filter_leaked
