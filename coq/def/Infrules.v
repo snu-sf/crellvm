@@ -837,6 +837,8 @@ Definition apply_infrule
     {{ inv0 +++src (Expr.value (ValueT.const (const_undef ty))) >= (Expr.value v) }}
   | Infrule.lessthan_undef_tgt ty v => 
     {{ inv0 +++tgt (Expr.value (ValueT.const (const_undef ty))) >= (Expr.value v) }}
+  | Infrule.lessthan_undef_constint_tgt c s =>
+    {{ inv0 +++tgt (Expr.value (ValueT.const (const_undef (typ_int s)))) >= (Expr.value (const_int s c)) }}
   | Infrule.sdiv_sub_srem z b a x y s =>
     if $$ inv0 |-src (Expr.value (ValueT.id b)) >= (Expr.bop bop_srem s x y) $$ &&
        $$ inv0 |-src (Expr.value (ValueT.id a)) >= (Expr.bop bop_sub s x (ValueT.id b)) $$ &&
