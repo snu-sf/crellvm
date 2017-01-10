@@ -493,13 +493,25 @@ Module Phinode.
      Expr.value (ValueT.lift Tag.previous (get_rhs a))).
 
   Definition get_lessdef (assigns:list assign): ExprPairSet.t :=
+    let ld_assns :=
+        List.fold_left
+          (fun s eq =>
+             ExprPairSet.add
+               (eq.(fst), eq.(snd))
+               (ExprPairSet.add (eq.(snd), eq.(fst)) s))
+          (List.map get_equation assigns)
+          ExprPairSet.empty
+    in
     List.fold_left
-      (fun s eq =>
-         ExprPairSet.add
-           (eq.(fst), eq.(snd))
-           (ExprPairSet.add (eq.(snd), eq.(fst)) s))
-      (List.map get_equation assigns)
-      ExprPairSet.empty.
+      (fun s a =>
+         match a with
+         | assign_intro x ty _ =>
+           ExprPairSet.add (Expr.value (ValueT.const (const_undef ty)),
+                            Expr.value (ValueT.id (Tag.physical, x))) s
+         end
+      )
+      assigns
+      ld_assns.
 End Phinode.
 
 Definition add_terminator_cond_lessdef
