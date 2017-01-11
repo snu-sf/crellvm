@@ -1000,9 +1000,8 @@ type lessthan_undef_tgt = {
   v : value;
 }
 
-type lessthan_undef_constint_tgt = {
-  c : const_int;
-  sz : size;
+type lessthan_undef_const_tgt = {
+  c : constant;
 }
 
 type mul_bool = {
@@ -2087,7 +2086,7 @@ type infrule = [
   | InttoptrZext of inttoptr_zext
   | LessthanUndef of lessthan_undef
   | LessthanUndefTgt of lessthan_undef_tgt
-  | LessthanUndefConstIntTgt of lessthan_undef_constint_tgt
+  | LessthanUndefConstTgt of lessthan_undef_const_tgt
   | MulAddDistributive of mul_add_distributive
   | NegVal of neg_val
   | OrAnd of or_and
