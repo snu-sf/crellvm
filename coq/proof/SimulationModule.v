@@ -50,12 +50,6 @@ Inductive transl_product m_src m_tgt
 Definition transl_products m_src m_tgt prods_src prods_tgt : Prop :=
   List.Forall2 (transl_product m_src m_tgt) prods_src prods_tgt.
 
-(* Definition transl_products m_src m_tgt prods_src prods_tgt : Prop := *)
-(*   forall prod_src (IN_SRC: In prod_src prods_src), *)
-(*   exists prod_tgt, *)
-(*     <<IN_TGT: In prod_tgt prods_tgt>> /\ *)
-(*     <<TRANSL_PRODUCT: transl_product m_src m_tgt prod_src prod_tgt>>. *)
-
 Inductive transl_module : forall m_src m_tgt, Prop :=
 | transl_module_intro
     l_src ndts_src prods_src
@@ -69,36 +63,6 @@ Inductive transl_module : forall m_src m_tgt, Prop :=
                   (module_intro l_tgt ndts_tgt prods_tgt)
 .
 
-(* Lemma valid_products_lookupFdefViaIDFromProducts *)
-(*       m_hint m_src m_tgt *)
-(*       products_src products_tgt *)
-(*       f fdef_src *)
-(*       (PRODUCTS: valid_products m_hint m_src m_tgt products_src products_tgt) *)
-(*       (SRC: lookupFdefViaIDFromProducts products_src f = Some fdef_src): *)
-(*   exists fdef_tgt, *)
-(*     <<TGT: lookupFdefViaIDFromProducts products_tgt f = Some fdef_tgt>> /\ *)
-(*     <<FDEF: valid_product m_hint m_src m_tgt (product_fdef fdef_src) (product_fdef fdef_tgt)>>. *)
-(* Proof. *)
-(*   revert products_tgt PRODUCTS SRC. *)
-(*   induction products_src; [done|]. *)
-(*   i. destruct products_tgt; [done|]. *)
-(*   unfold valid_products in PRODUCTS. s in PRODUCTS. apply andb_true_iff in PRODUCTS. des. *)
-(*   s in SRC. simtac. *)
-(*   - destruct a, p; simtac. esplits; eauto. *)
-(*     + destruct (getFdefID fdef0 == getFdefID fdef_src); eauto. congruence. *)
-(*     + destruct (id_dec (getFdefID fdef_src) (getFdefID fdef0)); ss. *)
-(*       destruct (valid_fdef m_src m_tgt fdef_src fdef0 f0) eqn:FDEF; ss. congruence. *)
-(*   - destruct a, p; simtac. congruence. *)
-(*   - exploit IHproducts_src; eauto. i. des. *)
-(*     esplits; eauto. *)
-(*     destruct (lookupFdefViaIDFromProduct p f) eqn:HD; ss. *)
-(*     destruct a, p; simtac. *)
-(*   - exploit IHproducts_src; eauto. i. des. *)
-(*     esplits; eauto. *)
-(*     destruct (lookupFdefViaIDFromProduct p f) eqn:HD; ss. *)
-(*     destruct a, p; simtac. *)
-(* Qed. *)
-
 Lemma transl_products_lookupFdefViaIDFromProducts
       m_src m_tgt
       products_src products_tgt
@@ -109,7 +73,31 @@ Lemma transl_products_lookupFdefViaIDFromProducts
     <<TGT: lookupFdefViaIDFromProducts products_tgt f = Some fdef_tgt>> /\
     <<FDEF: transl_product m_src m_tgt (product_fdef fdef_src) (product_fdef fdef_tgt)>>.
 Proof.
-Admitted.
+  revert products_tgt PRODUCTS SRC.
+  induction products_src; [done|]. i.
+  destruct products_tgt.
+  { inv PRODUCTS. }
+  ss. inv PRODUCTS.
+  match goal with
+  | [H: transl_product _ _ _ _ |- _] => inv H
+  end.
+  - des_ifs. apply IHproducts_src; eauto.
+  - des_ifs. apply IHproducts_src; eauto.
+  - des_ifs.
+    + unfold lookupFdefViaIDFromProduct in *. des_ifs.
+      esplits; eauto.
+      eapply transl_product_fdef_nop; eauto.
+    + inv NOP_FDEF. simtac.
+    + inv NOP_FDEF. simtac.
+    + apply IHproducts_src; eauto.
+  - des_ifs.
+    + unfold lookupFdefViaIDFromProduct in *. des_ifs.
+      esplits; eauto.
+      eapply transl_product_fdef_valid; eauto.
+    + unfold valid_fdef in *. simtac.
+    + unfold valid_fdef in *. simtac.
+    + apply IHproducts_src; eauto.
+Qed.
 
 Lemma transl_products_genGlobalAndInitMem
       layouts namedts
@@ -149,7 +137,51 @@ Proof.
   destruct fdef_tgt. unfold LLVMinfra.is_true in *. simtac.
   destruct fheader5.
   inv FDEF.
-  { admit. (* nop *) }
+  { inv NOP_FDEF.
+    exploit lookupFdefViaIDFromProducts_ideq; eauto. i.
+    assert (NOP_BLOCKS_ENTRY:
+              exists phi' cmds' term' b',
+                blocks5 = ((l0, stmts_intro phi' cmds' term')::b')).
+    { inv BLOCKS.
+      destruct y. destruct s.
+      assert (LEQ: l1 = l0).
+      {
+        exploit transl_products_lookupFdefViaIDFromProducts; eauto. i. des.
+        clarify.
+      }
+      subst.
+      esplits; eauto.
+    }
+    des.
+    esplits.
+    - unfold s_genInitState. ss. rewrite TGT.
+      match goal with
+      | [|- context [productInModuleB_dec ?a ?b]] => destruct (productInModuleB_dec a b)
+      end; simtac; cycle 1.
+      { apply infrastructure_props.lookupFdefViaIDFromProducts_inv in TGT. congruence. }
+      unfold initTargetData in *.
+      erewrite <- transl_products_genGlobalAndInitMem; eauto. rewrite COND1.
+      rewrite COND2.
+      eauto.
+    - apply sim_local_lift_sim.
+      { admit. (* sim_conf *) }
+      hexploit InvState.Rel.sem_empty; eauto.
+      { admit. (* init_locals inject_locals *) }
+
+      econs; ss.
+      + econs.
+      + apply nop_sim.
+        * econs; eauto.
+        * clarify.
+          inv BLOCKS. des. clarify.
+          econs; eauto.
+          { econs; eauto.
+            econs; eauto. }
+          { econs. esplits; eauto. admit. (* inject_locals *) }
+          { econs. }
+          { admit. (* init mem *) }
+      + reflexivity.
+  }
   { ss. simtac.
     inv e0.
     esplits.
