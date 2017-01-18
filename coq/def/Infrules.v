@@ -564,7 +564,8 @@ Definition apply_infrule
     else apply_fail tt
   | Infrule.and_undef z x s =>
     if $$ inv0 |-src (Expr.value z) >= (Expr.bop bop_and s x (ValueT.const (const_undef (typ_int s)))) $$
-    then {{inv0 +++src (Expr.value z) >= (Expr.value (ValueT.const (const_undef (typ_int s))))}}
+    then {{ inv0 +++src (Expr.value z) >= (Expr.value
+              (ValueT.const (const_int s (INTEGER.of_Z (Size.to_Z s) (0)%Z true)))) }}
     else apply_fail tt
   | Infrule.and_xor_const z y y' x c1 c2 c3 s =>
     if $$ inv0 |-tgt (Expr.bop bop_xor s x (const_int s c1)) >= (Expr.value (ValueT.id y')) $$ &&
@@ -1633,7 +1634,8 @@ Definition apply_infrule
     else apply_fail tt
   | Infrule.xor_undef z a s =>
     if $$ inv0 |-src (Expr.value z) >= (Expr.bop bop_xor s a (ValueT.const (const_undef (typ_int s)))) $$
-    then {{ inv0 +++src (Expr.value z) >= (Expr.value (ValueT.const (const_undef (typ_int s)))) }}
+    then {{ inv0 +++src (Expr.value z) >= (Expr.value 
+              (ValueT.const (const_int s (INTEGER.of_Z (Size.to_Z s) (0)%Z true)))) }}
     else apply_fail tt
   | Infrule.xor_zero z a s =>
     if $$ inv0 |-src (Expr.value z) >= (Expr.bop bop_xor s a 
