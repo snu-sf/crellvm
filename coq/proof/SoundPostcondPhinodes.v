@@ -342,7 +342,9 @@ Lemma get_lessdef_spec
   exists phix phiv phity,
     <<IN: In (Postcond.Phinode.assign_intro phix phity phiv) assigns>> /\
     __guard__
-      (<<PAIR1: ep = (Expr.value (ValueT.id (Tag.physical, phix)),
+      (<<DEFINEDNESS: ep = (Expr.value (ValueT.const (const_undef phity)),
+                            Expr.value (ValueT.id (Tag.physical, phix)))>> \/
+       <<PAIR1: ep = (Expr.value (ValueT.id (Tag.physical, phix)),
                       Expr.value (ValueT.lift Tag.previous phiv))>> \/
        <<PAIR2: ep = (Expr.value (ValueT.lift Tag.previous phiv),
                       Expr.value (ValueT.id (Tag.physical, phix)))>>).
@@ -351,20 +353,35 @@ Proof.
     (exists phix phiv phity,
         <<IN: In (Postcond.Phinode.assign_intro phix phity phiv) (rev assigns)>> /\
         __guard__
-          (<<PAIR1: ep = (Expr.value (ValueT.id (Tag.physical, phix)),
+          (<<DEFINEDNESS: ep = (Expr.value (ValueT.const (const_undef phity)),
+                            Expr.value (ValueT.id (Tag.physical, phix)))>> \/
+           <<PAIR1: ep = (Expr.value (ValueT.id (Tag.physical, phix)),
                           Expr.value (ValueT.lift Tag.previous phiv))>> \/
            <<PAIR2: ep = (Expr.value (ValueT.lift Tag.previous phiv),
                           Expr.value (ValueT.id (Tag.physical, phix)))>>)).
   { i. des. esplits; eauto. apply in_rev. eauto. }
   unfold Postcond.Phinode.get_lessdef in IN.
-  rewrite <- fold_left_rev_right, <- map_rev in IN.
-  induction (rev assigns); ss.
-  { apply ExprPairSetFacts.empty_iff in IN. done. }
-  destruct a. ss.
-  repeat rewrite -> ExprPairSetFacts.add_iff in IN. des.
-  - esplits; eauto. left. eauto.
-  - esplits; eauto. right. eauto.
-  - exploit IHl0; eauto. i. des. esplits; eauto.
+  rewrite <- fold_left_rev_right in IN.
+  rewrite <- fold_left_rev_right in IN.
+  rewrite <- map_rev in IN.
+  rewrite ExprPairSetFacts.union_iff in IN. des.
+  { (* assigns *)
+    induction (rev assigns); ss.
+    { apply ExprPairSetFacts.empty_iff in IN. done. }
+    destruct a. ss.
+    repeat rewrite -> ExprPairSetFacts.add_iff in IN. des.
+    - esplits; eauto. right. left. eauto.
+    - esplits; eauto. right. right. eauto.
+    - exploit IHl0; eauto. i. des. esplits; eauto.
+  }
+  { (* definedness *)
+    induction (rev assigns); ss.
+    { apply ExprPairSetFacts.empty_iff in IN. done. }
+    destruct a. ss.
+    repeat rewrite -> ExprPairSetFacts.add_iff in IN. des.
+    - esplits; eauto. left. eauto.
+    - exploit IHl0; eauto. i. des. esplits; eauto.
+  }
 Qed.
 
 Lemma phinode_assign_sound
@@ -428,7 +445,6 @@ Proof.
   s. ii. apply ExprPairSet.union_1 in H.  des.
   { eapply STATE; eauto. }
   exploit get_lessdef_spec; eauto. i. des.
-  esplits; [|reflexivity].
   unfold switchToNewBasicBlock in *.
   solve_match_bool. inv STEP. ss.
   destruct (CurBB (EC st0)). ss. des_ifs.
@@ -438,20 +454,25 @@ Proof.
   | [H: updateValuesForNewBlock _ _ = _ |- _] => rewrite H; i
   end.
   unguardH x0. des; subst; ss.
-  - assert (GV_VAL1: gv = val1).
+  - esplits.
+    + unfold InvState.Unary.sem_idT. ss. eauto.
+    + admit. (* const2GV undef is undef *)
+  - esplits; [|reflexivity].
+    assert (GV_VAL1: gv = val1).
     { unfold InvState.Unary.sem_idT in VAL1. ss. congruence. }
     subst.
     unfold getOperandValue in VAL_V.
     destruct phiv; eauto.
     rewrite <- PREV in VAL_V. ss.
-  - assert (GV_VAL1: gv = val1).
+  - esplits; [|reflexivity].
+    assert (GV_VAL1: gv = val1).
     { destruct phiv; ss.
       - rewrite <- PREV in VAL_V.
         unfold InvState.Unary.sem_idT in *. ss. congruence.
       - congruence.
     }
     subst. eauto.
-Qed.
+Admitted.
 
 Lemma phinodes_progress_getPhiNodeID_safe
       TD phinodes b gl locals locals' id assigns
