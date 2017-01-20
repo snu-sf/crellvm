@@ -150,6 +150,7 @@ Lemma updateAddAL_lessdef_undef
       locals id gv typ
       (LOCALS : updateAddAL GenericValue locals id gv = Locals (EC st))
       (STATE : InvState.Unary.sem conf st invst invmem gmax public inv)
+      (CHUNK: exists mcs, flatten_typ conf.(CurTargetData) typ = Some mcs /\ List.map snd gv = mcs)
   : InvState.Unary.sem conf st invst invmem gmax public
                        (Invariant.update_lessdef
                           (Exprs.ExprPairSet.add
@@ -159,9 +160,13 @@ Lemma updateAddAL_lessdef_undef
 Proof.
   inv STATE. econs; eauto.
   ii. ss. simpl_ep_set.
-  - ss. admit. (* undef >= x *)
+  - ss. esplits.
+    { unfold InvState.Unary.sem_idT. ss.
+      rewrite <- LOCALS. apply lookupAL_updateAddAL_eq. }
+    exploit const2GV_undef; eauto. i. des.
+    { clarify. apply all_undef_lessdef_aux; eauto. }
   - apply LESSDEF; eauto.
-Admitted.
+Qed.
 
 Lemma postcond_cmd_add_call
       m_src conf_src st0_src retval1_src id_src fun_src args_src locals0_src
@@ -190,7 +195,8 @@ Proof.
     des_ifs.
     + instantiate (1:=invst0).
       inv STATE.
-      econs; try by eapply updateAddAL_lessdef_undef; eauto.
+      econs; try by (eapply updateAddAL_lessdef_undef; eauto);
+        (eapply fit_gv_chunks_aux; eauto).
       i. destruct id0 as []. ss.
       rewrite Exprs.IdTSetFacts.remove_b in *.
       des_bool. des.
@@ -215,7 +221,8 @@ Proof.
       }
     + inv STATE.
       econs; [ | | by eauto];
-        ss; eapply updateAddAL_lessdef_undef; eauto.
+        ss; try by (eapply updateAddAL_lessdef_undef; eauto);
+        (eapply fit_gv_chunks_aux; eauto).
   - rewrite postcond_cmd_add_noret_call.
     exploit SoundReduceMaydiff.reduce_maydiff_sound; eauto.
 Qed.

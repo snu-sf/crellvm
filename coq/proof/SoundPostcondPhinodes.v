@@ -456,7 +456,10 @@ Proof.
   unguardH x0. des; subst; ss.
   - esplits.
     + unfold InvState.Unary.sem_idT. ss. eauto.
-    + admit. (* const2GV undef is undef *)
+    + exploit const2GV_undef; eauto. i. des.
+      apply all_undef_lessdef_aux; eauto.
+      exact (EXCUSED_ADMIT "PHI registers have the specified types (or chunks):
+ the current semantics doesn't support this ").
   - esplits; [|reflexivity].
     assert (GV_VAL1: gv = val1).
     { unfold InvState.Unary.sem_idT in VAL1. ss. congruence. }
@@ -472,7 +475,7 @@ Proof.
       - congruence.
     }
     subst. eauto.
-Admitted.
+Qed.
 
 Lemma phinodes_progress_getPhiNodeID_safe
       TD phinodes b gl locals locals' id assigns

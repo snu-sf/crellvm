@@ -593,15 +593,6 @@ Proof.
     }
 Qed.
 
-Lemma const2GV_undef
-      TD gl ty val
-      (CONST2GV_UNDEF: const2GV TD gl (const_undef ty) = Some val)
-  : exists mcs, flatten_typ TD ty = Some mcs /\ val = mc2undefs mcs.
-Proof.
-  unfold const2GV, _const2GV, gundef in *. des_ifs.
-  esplits; eauto.
-Qed.
-
 Lemma lessdef_definedness
       conf st0 st1 invst evt
       cmd cmds exp_pair
@@ -618,7 +609,8 @@ Proof.
     esplits.
     + unfold InvState.Unary.sem_idT. ss.
       apply lookupAL_updateAddAL_eq.
-    + admit. (* undef >= (result of BOP) *)
+    + apply all_undef_lessdef_aux; eauto.
+      admit. (* BOP's return chunk corresponds to sz5 *)
 Admitted.
 
 Lemma lessdef_add_definedness
@@ -970,7 +962,17 @@ Proof.
                   | [ v: value |- _ ] => destruct v
                   end; u; ss; simpl_list; des_lookupAL_updateAddAL; des_ifs; fail).
   - (* malloc *)
-    admit. (* non-malloc? *)
+    clarify.
+    econs; eauto; [].
+    unfold postcond_cmd_add_lessdef. ss.
+    des_ifs;
+      repeat apply lessdef_add; ss;
+        (rewrite ? InvState.Unary.sem_valueT_physical in *; ss; [];
+         apply AtomSetImpl_from_list_inter_is_empty in POSTCOND_CHECK; [];
+         repeat match goal with
+                | [ v: value |- _ ] => destruct v
+                end; u; ss; simpl_list; des_lookupAL_updateAddAL; des_ifs;
+         apply DEFINEDNESS; ss).
   - (* load *)
     econs; eauto; [].
     unfold postcond_cmd_add_lessdef. ss.
@@ -1004,7 +1006,7 @@ Proof.
       ss.
       destruct value1, value2; ss; u; ss; rewrite H; rewrite H0; des_lookupAL_updateAddAL;
         erewrite mstore_mload_same; eauto.
-Admitted.
+Qed.
 
 Lemma postcond_cmd_add_lessdef_src_sound
       conf_src st0_src st1_src cmd_src cmds_src def_src uses_src
