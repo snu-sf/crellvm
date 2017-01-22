@@ -102,7 +102,13 @@ Qed.
 
 Lemma postcond_cmd_add_lessdef_call
       id noret clattrs typ varg funval args s
-  : postcond_cmd_add_lessdef (insn_call id noret clattrs typ varg funval args) s = s.
+  : postcond_cmd_add_lessdef (insn_call id noret clattrs typ varg funval args) s =
+    if noret then s else
+      Exprs.ExprPairSet.add
+        (Exprs.Expr.value (Exprs.ValueT.const (const_undef typ)),
+         Exprs.Expr.value (Exprs.ValueT.id (Exprs.Tag.physical, id)))
+        s
+.
 Proof.
   unfold postcond_cmd_add_lessdef, postcond_cmd_get_lessdef. ss.
   destruct noret; eauto.
@@ -125,12 +131,42 @@ Lemma postcond_cmd_add_ret_call
       clattrs typ varg inv
   : postcond_cmd_add (insn_call id_src false clattrs typ varg fun_src args_src)
                      (insn_call id_tgt false clattrs typ varg fun_tgt args_tgt) inv =
-    reduce_maydiff (remove_def_from_maydiff id_src id_tgt inv).
+    reduce_maydiff
+      (Invariant.update_tgt
+         (Invariant.update_lessdef
+            (Exprs.ExprPairSet.add
+               (Exprs.Expr.value (Exprs.ValueT.const (const_undef typ)),
+                Exprs.Expr.value (Exprs.ValueT.id (Exprs.Tag.physical, id_tgt)))))
+         (Invariant.update_src
+            (Invariant.update_lessdef
+               (Exprs.ExprPairSet.add
+                  (Exprs.Expr.value (Exprs.ValueT.const (const_undef typ)),
+                   Exprs.Expr.value (Exprs.ValueT.id (Exprs.Tag.physical, id_src)))))
+                                     (remove_def_from_maydiff id_src id_tgt inv))).
+Proof. ss. Qed.
+
+Lemma updateAddAL_lessdef_undef
+      conf st invst invmem gmax public inv
+      locals id gv typ
+      (LOCALS : updateAddAL GenericValue locals id gv = Locals (EC st))
+      (STATE : InvState.Unary.sem conf st invst invmem gmax public inv)
+      (CHUNK: exists mcs, flatten_typ conf.(CurTargetData) typ = Some mcs /\ List.map snd gv = mcs)
+  : InvState.Unary.sem conf st invst invmem gmax public
+                       (Invariant.update_lessdef
+                          (Exprs.ExprPairSet.add
+                             (Exprs.Expr.value (Exprs.ValueT.const (const_undef typ)),
+                              Exprs.Expr.value (Exprs.ValueT.id (Exprs.Tag.physical, id))))
+                          inv).
 Proof.
-  unfold postcond_cmd_add. ss.
-  remember (remove_def_from_maydiff id_src id_tgt inv) as inv'.
-  destruct inv'. destruct src. destruct tgt. ss.
-Qed.  
+  inv STATE. econs; eauto.
+  ii. ss. simpl_ep_set.
+  - ss. esplits.
+    { unfold InvState.Unary.sem_idT. ss.
+      rewrite <- LOCALS. apply lookupAL_updateAddAL_eq. }
+    exploit const2GV_undef; eauto. i. des.
+    { clarify. apply all_undef_lessdef_aux; eauto. }
+  - apply LESSDEF; eauto.
+Qed.
 
 Lemma postcond_cmd_add_call
       m_src conf_src st0_src retval1_src id_src fun_src args_src locals0_src
@@ -157,14 +193,17 @@ Proof.
     exploit SoundReduceMaydiff.reduce_maydiff_sound; try (by intro PR; exact PR); eauto.
     unfold remove_def_from_maydiff.
     des_ifs.
-    + inv STATE.
-      econs; eauto.
-      i. ss.
+    + instantiate (1:=invst0).
+      inv STATE.
+      econs; try by (eapply updateAddAL_lessdef_undef; eauto);
+        (eapply fit_gv_chunks_aux; eauto).
+      i. destruct id0 as []. ss.
       rewrite Exprs.IdTSetFacts.remove_b in *.
       des_bool. des.
       * eauto.
       * simtac. unfold Exprs.IdTSetFacts.eqb in *.
         des_ifs.
+        unfold Exprs.IdT.lift in *. clarify.
         econs.
         esplits.
         { unfold InvState.Unary.sem_idT. ss.
@@ -179,8 +218,11 @@ Proof.
           rewrite <- LOCALS_SRC in VAL_SRC.
           rewrite lookupAL_updateAddAL_eq in VAL_SRC.
           clarify.
-        }
-    + ss.
+      }
+    + inv STATE.
+      econs; [ | | by eauto];
+        ss; try by (eapply updateAddAL_lessdef_undef; eauto);
+        (eapply fit_gv_chunks_aux; eauto).
   - rewrite postcond_cmd_add_noret_call.
     exploit SoundReduceMaydiff.reduce_maydiff_sound; eauto.
 Qed.

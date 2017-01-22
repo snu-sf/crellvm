@@ -134,10 +134,13 @@ Lemma int_add_0
 Proof.
   unfold Int.add. ss.
   replace (Int.repr 31 (Int.unsigned 31 ofs + 0)) with ofs; ss.
-  destruct ofs. unfold Int.repr. ss.
-  rewrite Z.add_comm. ss.
-  admit. (* Int.signed arithmetic *)
-Admitted.
+  remember (Int.unsigned 31 ofs) as Z_ofs eqn:DEF_Z_ofs.
+  destruct ofs.
+  rewrite Z.add_0_r.
+  symmetry.
+  rewrite -> DEF_Z_ofs.
+  apply Int.repr_unsigned.
+Qed.
 
 Lemma wf_globals_const2GV
       gmax gl TD cnst gv

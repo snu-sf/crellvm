@@ -29,19 +29,20 @@ let nop_position_atd_to_coq (x : CoreHint_t.position) : Nop.nop_position =
     | CoreHint_t.Command pc -> Nop.Coq_command_index (nat_of_int pc.CoreHint_t.index)
   in
   (x.CoreHint_t.block_name, nop_pos_i)
-  
+
+let sort_nop nops =
+  List.sort (fun p1 p2 ->
+             match p1.CoreHint_t.instr_index, p2.CoreHint_t.instr_index with
+             | CoreHint_t.Phinode _, CoreHint_t.Phinode _ -> 0
+             | CoreHint_t.Phinode _, CoreHint_t.Command _ -> (-1)
+             | CoreHint_t.Command _, CoreHint_t.Phinode _ -> 1
+             | CoreHint_t.Command c1, CoreHint_t.Command c2 ->
+                (compare c1.CoreHint_t.index c2.CoreHint_t.index))
+            nops
+
 let insert_nop (f_id : string) (m : LLVMsyntax.coq_module)
                (nops : CoreHint_t.position list) : LLVMsyntax.coq_module =
-  let nops =   
-    List.sort (fun p1 p2 ->   
-               match p1.CoreHint_t.instr_index, p2.CoreHint_t.instr_index with    
-               | CoreHint_t.Phinode _, CoreHint_t.Phinode _ -> 0    
-               | CoreHint_t.Phinode _, CoreHint_t.Command _ -> (-1)    
-               | CoreHint_t.Command _, CoreHint_t.Phinode _ -> 1   
-               | CoreHint_t.Command c1, CoreHint_t.Command c2 ->    
-                  (compare c1.CoreHint_t.index c2.CoreHint_t.index))    
-              nops    
-  in
+  let nops = sort_nop nops in
   let Coq_module_intro (l, ns, ps) = m in
   let ps = List.map (fun (x : product) ->
                       match x with
@@ -178,9 +179,11 @@ let convert
   let rfdef = TODOCAML.get (LLVMinfra.lookupFdefViaIDFromModule rm fid) in
   let dtree_lfdef = TODOCAML.get (AlgDom.create_dom_tree lfdef) in
 
+  let nops = sort_nop core_hint.CoreHint_t.nop_positions in
+
   let hint_fdef = EmptyHint.fdef_hint lfdef in
   let hint_fdef = List.fold_left
-                    (TODOCAML.flip (apply_corehint_command lfdef rfdef dtree_lfdef core_hint.CoreHint_t.nop_positions))
+                    (TODOCAML.flip (apply_corehint_command lfdef rfdef dtree_lfdef nops))
                     hint_fdef core_hint.CoreHint_t.commands in
   let hint_fdef = add_false_to_dead_block hint_fdef lfdef in
 

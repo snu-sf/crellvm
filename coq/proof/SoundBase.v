@@ -764,3 +764,81 @@ Proof.
       exploit dom_libs.PositiveSet.MSet.Raw.L.MO.lt_irrefl; eauto.
   + eapply IHval; eauto.
 Qed.
+
+Lemma const2GV_mc2undefs
+      TD gl ty val
+      (CONST2GV_UNDEF: const2GV TD gl (const_undef ty) = Some val)
+  : exists mcs, flatten_typ TD ty = Some mcs /\ val = mc2undefs mcs.
+Proof.
+  unfold const2GV, _const2GV, gundef in *. des_ifs.
+  esplits; eauto.
+Qed.
+
+Lemma mc2undefs_vundef
+      mcs val
+      (VAL: val = mc2undefs mcs)
+  : List.Forall (eq Values.Vundef) (List.map fst val) /\
+    List.map snd val = mcs.
+Proof.
+  split.
+  - revert val VAL.
+    induction mcs; i; ss.
+    { subst. econs. }
+    subst. ss.
+    econs; eauto.
+  - revert val VAL.
+    induction mcs; i; ss.
+    { subst. eauto. }
+    subst. ss.
+    exploit IHmcs; eauto.
+    i. rewrite x. reflexivity.
+Qed.
+
+Lemma const2GV_undef
+      TD gl ty val
+      (CONST2GV_UNDEF: const2GV TD gl (const_undef ty) = Some val)
+  : exists mcs, flatten_typ TD ty = Some mcs /\
+                List.Forall (eq Values.Vundef) (List.map fst val) /\
+                List.map snd val = mcs.
+Proof.
+  exploit const2GV_mc2undefs; eauto. i. des.
+  exploit mc2undefs_vundef; eauto.
+Qed.
+
+Lemma all_undef_lessdef_aux
+      gv1 gv2
+      (VUNDEFS : Forall (eq Values.Vundef) (List.map fst gv1))
+      (CHUNKS : List.map snd gv1 = List.map snd gv2)
+  : GVs.lessdef gv1 gv2.
+Proof.
+  revert gv2 CHUNKS.
+  induction gv1; i; ss.
+  - destruct gv2; ss. econs.
+  - destruct gv2; ss.
+    inv CHUNKS. inv VUNDEFS.
+    econs.
+    { split; eauto.
+      rewrite <- H3. eauto. }
+    eapply IHgv1; eauto.
+Qed.
+
+Lemma fit_gv_chunks_aux
+      g1 g2 typ TD
+      (FITGV : fit_gv TD typ g1 = Some g2)
+  : exists mcs : list AST.memory_chunk,
+    flatten_typ TD typ = Some mcs /\ List.map snd g2 = mcs.
+Proof.
+  exploit genericvalues_props.fit_gv__matches_chunks.
+  { symmetry; eauto. }
+  intro CHUNKS_MATCH_TYP.
+  unfold gv_chunks_match_typ in *. des_ifs.
+  esplits; eauto.
+  clear -CHUNKS_MATCH_TYP.
+  revert dependent l0.
+  induction g2; i.
+  { inv CHUNKS_MATCH_TYP. eauto. }
+  inv CHUNKS_MATCH_TYP.
+  unfold vm_matches_typ in *. des. subst. ss.
+  exploit IHg2; eauto.
+  i. congruence.
+Qed.

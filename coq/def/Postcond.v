@@ -504,13 +504,28 @@ Module Phinode.
      Expr.value (ValueT.lift Tag.previous (get_rhs a))).
 
   Definition get_lessdef (assigns:list assign): ExprPairSet.t :=
-    List.fold_left
-      (fun s eq =>
-         ExprPairSet.add
-           (eq.(fst), eq.(snd))
-           (ExprPairSet.add (eq.(snd), eq.(fst)) s))
-      (List.map get_equation assigns)
-      ExprPairSet.empty.
+    let ld_assns :=
+        List.fold_left
+          (fun s eq =>
+             ExprPairSet.add
+               (eq.(fst), eq.(snd))
+               (ExprPairSet.add (eq.(snd), eq.(fst)) s))
+          (List.map get_equation assigns)
+          ExprPairSet.empty
+    in
+    let defs:=
+        List.fold_left
+          (fun s a =>
+             match a with
+             | assign_intro x ty _ =>
+               ExprPairSet.add (Expr.value (ValueT.const (const_undef ty)),
+                                Expr.value (ValueT.id (Tag.physical, x))) s
+             end
+          )
+          assigns
+          ExprPairSet.empty
+    in
+    ExprPairSet.union ld_assns defs.
 End Phinode.
 
 Definition add_terminator_cond_lessdef
@@ -769,11 +784,27 @@ Definition postcond_cmd_get_lessdef
     end
   end.
 
+Definition postcond_cmd_get_definedness (c:cmd)
+  : option ExprPair.t :=
+  match Cmd.get_def c, getCmdTyp c with
+  | Some x, Some ty =>
+    Some (Expr.value (ValueT.const (const_undef ty)),
+                    Expr.value (ValueT.id (Tag.physical, x)))
+  | _, _ => None
+  end.
+
 Definition postcond_cmd_add_lessdef
            (c:cmd)
            (inv0:ExprPairSet.t): ExprPairSet.t :=
+  let inv0 :=
+      match postcond_cmd_get_definedness c with
+      | None => inv0
+      | Some exp_pair => ExprPairSet.add exp_pair inv0
+      end
+  in
   match postcond_cmd_get_lessdef c with
-  | None => inv0
+  | None =>
+    inv0
   | Some (lhs, rhs) =>
     let inv1 := ExprPairSet.add (lhs, rhs) inv0 in
     let inv2 := ExprPairSet.add (rhs, lhs) inv1 in
@@ -806,6 +837,7 @@ Proof.
   unfold postcond_cmd_get_lessdef.
   ss.
   des_ifs.
+  apply ExprPairSetFacts.add_iff. eauto.
 Qed.
 
 Definition filter_leaked

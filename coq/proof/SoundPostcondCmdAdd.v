@@ -593,6 +593,45 @@ Proof.
     }
 Qed.
 
+Lemma lessdef_definedness
+      conf st0 st1 invst evt
+      cmd cmds exp_pair
+      (STEP: sInsn conf st0 st1 evt)
+      (CMDS: st0.(EC).(CurCmds) = cmd :: cmds)
+      (DEFINED: postcond_cmd_get_definedness cmd = Some exp_pair)
+  : InvState.Unary.sem_lessdef conf st1 invst exp_pair.
+Proof.
+  inv STEP; destruct cmd; ss.
+  - unfold InvState.Unary.sem_lessdef.
+    unfold postcond_cmd_get_definedness in *. ss.
+    inv DEFINED. ss. clarify.
+    i. exploit const2GV_undef; eauto. i. des.
+    esplits.
+    + unfold InvState.Unary.sem_idT. ss.
+      apply lookupAL_updateAddAL_eq.
+    + apply all_undef_lessdef_aux; eauto.
+      admit. (* BOP's return chunk corresponds to sz5 *)
+Admitted.
+
+Lemma lessdef_add_definedness
+      conf st0 st1 evt
+      cmd cmds
+      (STEP: sInsn conf st0 st1 evt)
+      (CMDS: st0.(EC).(CurCmds) = cmd :: cmds)
+  : forall invst exp_pair lessdef
+           (DEFINED: postcond_cmd_get_definedness cmd = Some exp_pair)
+           (FORALL: ExprPairSet.For_all
+                      (InvState.Unary.sem_lessdef conf st1 invst)
+                      lessdef),
+    ExprPairSet.For_all
+      (InvState.Unary.sem_lessdef conf st1 invst)
+      (ExprPairSet.add exp_pair lessdef).
+Proof.
+  ii. simpl_ep_set; ss; cycle 1.
+  - apply FORALL; ss.
+  - exploit lessdef_definedness; eauto.
+Qed.
+
 Lemma lessdef_add
       conf st invst lessdef lhs rhs
       (FORALL: ExprPairSet.For_all
@@ -666,6 +705,8 @@ Lemma postcond_cmd_add_lessdef_unary_sound_alloca
                (Invariant.update_lessdef (postcond_cmd_add_lessdef cmd) inv0)>>
 .
 Proof.
+  generalize (lessdef_add_definedness STEP CMDS).
+  intro DEFINEDNESS.
   (inv NONCALL; []); (inv STATE; []); ss; ((inv STEP; ss); []).
   econs; eauto; [].
   unfold postcond_cmd_add_lessdef. ss.
@@ -702,7 +743,7 @@ Proof.
 
   destruct (Decs.align_dec align1 Align.One) eqn:T; ss.
   -
-    apply lessdef_add; [apply LESSDEF|]; [].
+    apply lessdef_add; [apply DEFINEDNESS; ss|];[].
     {
       ss. u. ss.
       rewrite STATE1. des_lookupAL_updateAddAL.
@@ -719,7 +760,7 @@ Proof.
   -
     apply lessdef_add.
     +
-      apply lessdef_add; [apply LESSDEF|]; [].
+      apply lessdef_add; [apply DEFINEDNESS; ss|]; [].
       {
         ss. u. ss.
         rewrite STATE1. des_lookupAL_updateAddAL.
@@ -773,11 +814,13 @@ Lemma postcond_cmd_add_lessdef_unary_sound_gep
                (Invariant.update_lessdef (postcond_cmd_add_lessdef cmd) inv0)>>
 .
 Proof.
+  generalize (lessdef_add_definedness STEP CMDS).
+  intro DEFINEDNESS.
   (inv NONCALL; []); (inv STATE; []); ss; ((inv STEP; ss); []).
   econs; eauto; [].
   unfold postcond_cmd_add_lessdef. ss.
   apply AtomSetImpl_from_list_inter_is_empty in POSTCOND_CHECK.
-  apply lessdef_add; [apply LESSDEF|]; [].
+  apply lessdef_add; [apply DEFINEDNESS; ss|]; [].
   clear LESSDEF NOALIAS UNIQUE PRIVATE.
   remember
     {| CurSystem := S; CurTargetData := TD; CurProducts := Ps; Globals := gl; FunTable := fs |}
@@ -843,11 +886,13 @@ Lemma postcond_cmd_add_lessdef_unary_sound_select
                (Invariant.update_lessdef (postcond_cmd_add_lessdef cmd) inv0)>>
 .
 Proof.
+  generalize (lessdef_add_definedness STEP CMDS).
+  intro DEFINEDNESS.
   (inv NONCALL; []); (inv STATE; []); ss; ((inv STEP; ss); []).
   econs; eauto; [].
   unfold postcond_cmd_add_lessdef. ss.
   apply AtomSetImpl_from_list_inter_is_empty in POSTCOND_CHECK.
-  apply lessdef_add; [apply LESSDEF|]; [].
+  apply lessdef_add; [apply DEFINEDNESS; ss|]; [].
   clear LESSDEF NOALIAS UNIQUE PRIVATE.
   remember
     {| CurSystem := S; CurTargetData := TD; CurProducts := Ps; Globals := gl; FunTable := fs |}
@@ -903,17 +948,31 @@ Lemma postcond_cmd_add_lessdef_unary_sound
                (Invariant.update_lessdef (postcond_cmd_add_lessdef cmd) inv0)>>
 .
 Proof.
+  generalize (lessdef_add_definedness STEP CMDS).
+  intro DEFINEDNESS.
   destruct cmd;
     try (eapply postcond_cmd_add_lessdef_unary_sound_alloca; eauto; fail);
     try (eapply postcond_cmd_add_lessdef_unary_sound_gep; eauto; fail);
     try (eapply postcond_cmd_add_lessdef_unary_sound_select; eauto; fail);
     ss; (inv NONCALL; []); (inv STATE; []); ss; ((inv STEP; ss); []);
-      try (econs; eauto; []; apply lessdef_add; [apply LESSDEF|]; ss;
+      try (econs; eauto; []; apply lessdef_add; [apply DEFINEDNESS;ss |]; ss;
            rewrite ? InvState.Unary.sem_valueT_physical in *; ss;
            apply AtomSetImpl_from_list_inter_is_empty in POSTCOND_CHECK; [];
            repeat match goal with
                   | [ v: value |- _ ] => destruct v
                   end; u; ss; simpl_list; des_lookupAL_updateAddAL; des_ifs; fail).
+  - (* malloc *)
+    clarify.
+    econs; eauto; [].
+    unfold postcond_cmd_add_lessdef. ss.
+    des_ifs;
+      repeat apply lessdef_add; ss;
+        (rewrite ? InvState.Unary.sem_valueT_physical in *; ss; [];
+         apply AtomSetImpl_from_list_inter_is_empty in POSTCOND_CHECK; [];
+         repeat match goal with
+                | [ v: value |- _ ] => destruct v
+                end; u; ss; simpl_list; des_lookupAL_updateAddAL; des_ifs;
+         apply DEFINEDNESS; ss).
   - (* load *)
     econs; eauto; [].
     unfold postcond_cmd_add_lessdef. ss.
@@ -923,7 +982,8 @@ Proof.
          apply AtomSetImpl_from_list_inter_is_empty in POSTCOND_CHECK; [];
          repeat match goal with
                 | [ v: value |- _ ] => destruct v
-                end; u; ss; simpl_list; des_lookupAL_updateAddAL; des_ifs).
+                end; u; ss; simpl_list; des_lookupAL_updateAddAL; des_ifs;
+         apply DEFINEDNESS; ss).
   - (* store *)
     econs; eauto; [].
     unfold postcond_cmd_add_lessdef. ss.

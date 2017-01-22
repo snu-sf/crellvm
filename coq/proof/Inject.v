@@ -182,10 +182,6 @@ Lemma cgv2gv_inject
   gv_inject mi (cgv2gv g t) (cgv2gv g t).
 Proof.
   destruct g; eauto.
-  destruct p; s; destruct v; eauto.
-  destruct g; eauto. 
-  destruct t; s; try by econs; eauto.
-  - destruct floating_point5; econs; eauto.
 Qed.
 
 Lemma cgv2gv_inject_rev
@@ -195,8 +191,6 @@ Lemma cgv2gv_inject_rev
   gv_inject mi g g.
 Proof.
   destruct g; eauto.
-  destruct p; s; destruct v; eauto.
-  destruct g; eauto. 
 Qed.
 
 Lemma const2GV_list_inject
@@ -235,6 +229,7 @@ Proof.
   - inv Hgv; inv Hwf; econs; eauto.
   - i; revert l0 IH gv Hgv; induction l0.
     + i; inv Hgv; eauto using uninits_inject.
+      econs; eauto.
     + i; inv IH; unfold const2GV in Hgv; s in Hgv; inv_mbind.
       destruct typ_dec; subst; [|done].
       inv_mbind; inv H0.
