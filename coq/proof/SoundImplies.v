@@ -96,7 +96,7 @@ Proof.
   - solve_match_bool; cycle 1.
     (* { subst. ii. ss. *)
     (*   esplits. *)
-    (*   admit. (* does every const2GV succeeds? or do we change it into undef? *) *)
+    (*   ad-mit. (* does every const2GV succeeds? or do we change it into undef? *) *)
     (* } *)
     subst. red.
     unfold InvState.Unary.sem_lessdef. ss. ii.
