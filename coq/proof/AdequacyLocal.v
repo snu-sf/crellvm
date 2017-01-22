@@ -143,7 +143,7 @@ Proof.
           + admit. (* free_allocas *)
           + rewrite returnUpdateLocals_spec, RET_TGT. ss.
         - exploit genericvalues_inject.simulation__fit_gv; eauto.
-          { admit. (* genericvalues_inject.wf_sb_mi *) }
+          { inv MEM. eauto. }
           i. des.
           esplits. econs; ss; eauto.
           + admit. (* free_allocas *)
