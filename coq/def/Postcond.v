@@ -304,8 +304,19 @@ Lemma lift_physical_atoms_idtset_spec1
   IdTSet.mem (Tag.physical, id) (lift_physical_atoms_idtset l) =
   AtomSetImpl.mem id l.
 Proof.
-  (* jeehoonkang will do this *)
-Admitted.
+  unfold lift_physical_atoms_idtset.
+  rewrite AtomSetProperties.fold_spec_right.
+  rewrite AtomSetFacts.elements_b, existsb_rev.
+  unfold AtomSetImpl.elt.
+  induction (rev (AtomSetImpl.elements l)); ss.
+  { apply IdTSetFacts.empty_b. }
+  unfold compose at 1. ss.
+  rewrite IdTSetFacts.add_b, IHl0. f_equal.
+  unfold IdT.lift, IdTSetFacts.eqb, AtomSetFacts.eqb.
+  repeat (des_if; ss).
+  - by inv e.
+  - contradict n. by subst.
+Qed.
 
 Module ForgetMemory.
   Definition is_noalias_Ptr
