@@ -601,16 +601,41 @@ Lemma lessdef_definedness
       (DEFINED: postcond_cmd_get_definedness cmd = Some exp_pair)
   : InvState.Unary.sem_lessdef conf st1 invst exp_pair.
 Proof.
-  inv STEP; destruct cmd; ss.
-  - unfold InvState.Unary.sem_lessdef.
-    unfold postcond_cmd_get_definedness in *. ss.
-    inv DEFINED. ss. clarify.
-    i. exploit const2GV_undef; eauto. i. des.
-    esplits.
-    + unfold InvState.Unary.sem_idT. ss.
-      apply lookupAL_updateAddAL_eq.
-    + apply all_undef_lessdef_aux; eauto.
-      admit. (* BOP's return chunk corresponds to sz5 *)
+  {
+    ii.
+    inv DEFINED.
+    unfold postcond_cmd_get_definedness in *. des_ifs. ss.
+    unfold InvState.Unary.sem_idT. ss.
+    unfold Cmd.get_def in *.
+    hexploit const2GV_undef; eauto; []; intro UNDEF; des. clarify.
+    unfold const2GV in VAL1. unfold _const2GV in VAL1. des_ifs.
+    unfold cgv2gv in *.
+    rename g into __g__.
+    inv STEP; repeat (ss; clarify);
+      try (esplits; [apply lookupAL_updateAddAL_eq|]; [];
+           apply all_undef_lessdef_aux; eauto; clarify
+          ).
+    - eapply BOP_inversion in H. des.
+      unfold mbop in H1.
+      unfold Size.to_nat in *.
+      des_ifs; ss;
+        match goal with
+        | [ H: flatten_typ _ _ = Some _ |- _ ] => compute in H; des_ifs
+        end.
+    - eapply FBOP_inversion in H. des.
+      unfold mfbop in H1.
+      unfold Size.to_nat in *.
+      des_ifs; ss;
+        match goal with
+        | [ H: flatten_typ _ _ = Some _ |- _ ] => compute in H; des_ifs
+        end.
+    - unfold extractGenericValue in *.
+      des_ifs.
+      exact (EXCUSED_ADMIT "Upnrovable for now. Semantics should check
+ extractValue's return type. It seems there is neither no wf condition to derive this").
+    - unfold insertGenericValue in *.
+      des_ifs.
+      exact (EXCUSED_ADMIT "Ditto").
 Admitted.
 
 Lemma lessdef_add_definedness
