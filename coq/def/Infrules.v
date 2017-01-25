@@ -722,6 +722,11 @@ Definition apply_infrule
       (is_commutative_bop opcode)
     then {{ inv0 +++src e >= (Expr.bop opcode s y x) }}
     else apply_fail tt
+  | Infrule.bop_commutative_rev e opcode x y s =>
+    if $$ inv0 |-src (Expr.bop opcode s x y) >= e $$ &&
+      (is_commutative_bop opcode)
+    then {{ inv0 +++src (Expr.bop opcode s y x) >= e }}
+    else apply_fail tt
   | Infrule.fbop_commutative e opcode x y fty =>
     if $$ inv0 |-src e >= (Expr.fbop opcode fty x y) $$ &&
       (is_commutative_fbop opcode)

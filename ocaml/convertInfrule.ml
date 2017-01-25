@@ -325,6 +325,13 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
      let y = Convert.value args.y in
      let sz = Convert.size args.sz in
      Infrule.Coq_bop_commutative (e, bop, x, y, sz)
+  | CoreHint_t.BopCommutativeRev (args:CoreHint_t.bop_commutative_rev) ->
+     let e = Convert.expr args.e src_fdef tgt_fdef in
+     let bop = Convert.bop args.bop in
+     let x = Convert.value args.x in
+     let y = Convert.value args.y in
+     let sz = Convert.size args.sz in
+     Infrule.Coq_bop_commutative_rev (e, bop, x, y, sz)
   | CoreHint_t.FbopCommutative (args:CoreHint_t.fbop_commutative) ->
      let e = Convert.expr args.e src_fdef tgt_fdef in
      let fbop = Convert.fbop args.fbop in

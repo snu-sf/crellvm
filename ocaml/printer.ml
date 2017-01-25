@@ -208,6 +208,10 @@ module PrintHints = struct
                                                 ExprsToString.of_expr(e) ^ " ≥ " ^
                                                 ExprsToString.of_expr(Expr.Coq_value x) ^ (string_of_bop bop) ^
                                                 ExprsToString.of_expr(Expr.Coq_value y) ^ " to commutate"
+      | Infrule.Coq_bop_commutative_rev (e, bop, x, y, s) -> "bop_commutative_rev : " ^
+                                                ExprsToString.of_expr(Expr.Coq_value x) ^ (string_of_bop bop) ^ " ≥ " ^
+                                                ExprsToString.of_expr(e) ^
+                                                ExprsToString.of_expr(Expr.Coq_value y) ^ " to commutate"
       | Infrule.Coq_bitcast_load (ptr, ptrty, v1, ptrty2, v2, a) ->
          "bitcast_load " ^ 
              (ExprsToString.of_ValueT ptr) ^ " " ^

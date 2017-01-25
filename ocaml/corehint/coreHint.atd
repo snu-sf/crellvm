@@ -664,6 +664,14 @@ type bop_commutative = {
   sz : size;
 }
 
+type bop_commutative_rev = {
+  e : expr;
+  bop : bop;
+  x : value;
+  y : value;
+  sz : size;
+}
+
 type fbop_commutative = {
   e : expr;
   fbop : fbop;
@@ -2050,6 +2058,7 @@ type infrule = [
   | Bitcastptr of bitcastptr
   | BopAssociative of bop_associative
   | BopCommutative of bop_commutative
+  | BopCommutativeRev of bop_commutative_rev
   | FbopCommutative of fbop_commutative
   | BopDistributiveOverSelectinst of bop_distributive_over_selectinst
   | BopDistributiveOverSelectinst2 of bop_distributive_over_selectinst2
