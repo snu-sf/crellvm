@@ -18,6 +18,11 @@ quick: exec-rsync proof-quick
 
 init:
 	opam install menhir ott batteries biniou atdgen cppo easy-format ctypes coq.8.5.2~camlp4
+	git clone git@github.com:snu-sf/llvmberry-tests.git llvmberry-tests
+	git clone git@github.com:snu-sf/llvm.git lib/llvm
+	git clone git@github.com:snu-sf/cereal.git lib/llvm/include/llvm/cereal
+	git clone git@github.com:snu-sf/paco.git lib/paco
+	git clone git@github.com:snu-sf/vellvm-legacy.git lib/vellvm
 	$(MAKE) -C lib/vellvm init
 
 Makefile.coq: Makefile $(COQTHEORIES)
