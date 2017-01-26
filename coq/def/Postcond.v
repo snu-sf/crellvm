@@ -304,8 +304,19 @@ Lemma lift_physical_atoms_idtset_spec1
   IdTSet.mem (Tag.physical, id) (lift_physical_atoms_idtset l) =
   AtomSetImpl.mem id l.
 Proof.
-  (* jeehoonkang will do this *)
-Admitted.
+  unfold lift_physical_atoms_idtset.
+  rewrite AtomSetProperties.fold_spec_right.
+  rewrite AtomSetFacts.elements_b, existsb_rev.
+  unfold AtomSetImpl.elt.
+  induction (rev (AtomSetImpl.elements l)); ss.
+  { apply IdTSetFacts.empty_b. }
+  unfold compose at 1. ss.
+  rewrite IdTSetFacts.add_b, IHl0. f_equal.
+  unfold IdT.lift, IdTSetFacts.eqb, AtomSetFacts.eqb.
+  repeat (des_if; ss).
+  - by inv e.
+  - contradict n. by subst.
+Qed.
 
 Module ForgetMemory.
   Definition is_noalias_Ptr
@@ -502,16 +513,19 @@ Module Phinode.
           (List.map get_equation assigns)
           ExprPairSet.empty
     in
-    List.fold_left
-      (fun s a =>
-         match a with
-         | assign_intro x ty _ =>
-           ExprPairSet.add (Expr.value (ValueT.const (const_undef ty)),
-                            Expr.value (ValueT.id (Tag.physical, x))) s
-         end
-      )
-      assigns
-      ld_assns.
+    let defs:=
+        List.fold_left
+          (fun s a =>
+             match a with
+             | assign_intro x ty _ =>
+               ExprPairSet.add (Expr.value (ValueT.const (const_undef ty)),
+                                Expr.value (ValueT.id (Tag.physical, x))) s
+             end
+          )
+          assigns
+          ExprPairSet.empty
+    in
+    ExprPairSet.union ld_assns defs.
 End Phinode.
 
 Definition add_terminator_cond_lessdef
