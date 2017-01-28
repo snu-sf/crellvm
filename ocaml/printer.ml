@@ -251,7 +251,11 @@ module PrintHints = struct
          "gep inbounds remove: " ^ (ExprsToString.of_expr gepinst)
       | Infrule.Coq_gepzero _ -> "gepzero"
       | Infrule.Coq_intro_eq v -> "intro_eq : " ^ ExprsToString.of_expr(v)
-      | Infrule.Coq_intro_ghost _ -> "intro_ghost"
+      | Infrule.Coq_intro_ghost (e, id) -> "intro_ghost:"
+                                           ^ "[src] " ^ (ExprsToString.of_expr e)
+                                           ^ " >= " ^ (ExprsToString.of_IdT (Tag.Coq_ghost, id))
+                                           ^ "[tgt] " ^ (ExprsToString.of_IdT (Tag.Coq_ghost, id))
+                                           ^ " >= " ^ (ExprsToString.of_expr e)
       | Infrule.Coq_or_xor3 (z, y, a, b, s) -> "or_xor3 : " ^ 
                                                 ExprsToString.of_expr(Expr.Coq_value y) ^ " ≥ "
                                                         ^ ExprsToString.of_expr(Expr.Coq_value a) ^ " ^ "
