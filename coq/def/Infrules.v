@@ -431,6 +431,12 @@ Notation "{{ inv +++tgt y _||_ x }}" := (Invariant.update_tgt (Invariant.update_
 Notation "{{ inv --- x }}" := (Invariant.update_maydiff (IdTSet.filter (fun y => negb (IdT.eq_dec x y))) inv) (at level 41, inv, x at level 41).
 
 (* TODO *)
+
+Definition is_defined inv0 expr :=
+  ExprPairSet.exists_
+    (fun xy => let (_, y) := xy in
+               Expr.eq_dec expr y) (Invariant.lessdef inv0).
+
 Definition apply_infrule
            (m_src m_tgt:module)
            (infrule:Infrule.t)
@@ -1608,6 +1614,7 @@ Definition apply_infrule
     {{ inv0 +++tgt x >= x }}
   | Infrule.intro_ghost_src expr g =>
     if (match expr with | Expr.load _ _ _ => false | _ => true end)
+         && (is_defined inv0.(Invariant.src) expr)
     then
       let inv1 := (Invariant.update_src (Invariant.update_lessdef
         (ExprPairSet.filter
