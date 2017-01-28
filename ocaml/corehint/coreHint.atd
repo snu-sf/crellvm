@@ -954,6 +954,11 @@ type intro_ghost = {
   g : register;
 }
 
+type intro_ghost_src = {
+  x : expr;
+  g : register;
+}
+
 type intro_eq = {
   x : expr;
 }
@@ -2083,6 +2088,7 @@ type infrule = [
   | GepInboundsRemove of gep_inbounds_remove
   | GepInboundsAdd of gep_inbounds_add
   | IntroGhost of intro_ghost
+  | IntroGhostSrc of intro_ghost_src
   | IntroEq of intro_eq
   | IntroEqTgt of intro_eq_tgt
   | InttoptrLoad of inttoptr_load

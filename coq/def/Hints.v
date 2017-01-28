@@ -503,6 +503,7 @@ Module Infrule.
   | zext_trunc_and_xor (z:ValueT.t) (x:ValueT.t) (v:ValueT.t) (w:ValueT.t) (y:ValueT.t) (y':ValueT.t) (c:const) (s:sz) (s':sz)
   | zext_xor (z:ValueT.t) (y:ValueT.t) (y':ValueT.t) (x:ValueT.t) (s:sz)
   | zext_zext (src:ValueT.t) (mid:ValueT.t) (dst:ValueT.t) (srcty:typ) (midty:typ) (dstty:typ)
+  | intro_ghost_src (x:Expr.t) (g:id)
   | intro_ghost (x:Expr.t) (g:id)
   | intro_eq (x:Expr.t)
   | intro_eq_tgt (x:Expr.t)

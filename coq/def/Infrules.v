@@ -1606,6 +1606,17 @@ Definition apply_infrule
     {{ inv0 +++src x >= x }}
   | Infrule.intro_eq_tgt x => 
     {{ inv0 +++tgt x >= x }}
+  | Infrule.intro_ghost_src expr g =>
+    if (match expr with | Expr.load _ _ _ => false | _ => true end)
+    then
+      let inv1 := (Invariant.update_src (Invariant.update_lessdef
+        (ExprPairSet.filter
+          (fun (p: ExprPair.t) => negb (Expr.eq_dec (Expr.value (ValueT.id (Tag.ghost, g))) (snd p)) &&
+                                        negb (Expr.eq_dec (Expr.value (ValueT.id (Tag.ghost, g))) (fst p)))))
+          inv0) in
+      let inv2 := {{ inv1 +++src (Expr.value (ValueT.id (Tag.ghost, g))) >= expr }} in
+      inv2
+    else apply_fail tt
   | Infrule.intro_ghost expr g =>
     if List.forallb (fun x => Invariant.not_in_maydiff inv0 x) (Expr.get_valueTs expr) &&
       (match expr with | Expr.load _ _ _ => false | _ => true end)
