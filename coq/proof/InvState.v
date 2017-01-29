@@ -364,13 +364,27 @@ Module Unary.
       exfalso. eapply EMPTY1; eauto.
     - ii. apply IdTSet.is_empty_2 in EMPTY0.
       exfalso. eapply EMPTY0; eauto.
-    - admit. (* wf_lc locals *)
-    - admit. (* wf_lc prev *)
-    - admit. (* wf_lc ghost *)
-    - admit. (* unique_parent *)
-    - admit. (* wf_INSNS *)
-      (* TODO: This lemma is currently wrong: need wf condition to st, invst, invmem *)
-  Admitted.
+    - exact (SF_ADMIT "wf_lc locals. This is unprovable for now,
+but it is provable if we pull the calling point of this lemma
+into the start of the function. At the start of the function,
+locals is empty, and proving this becomes trivial, so skip it for now.").
+    - exact (SF_ADMIT "wf_lc previous. ditto").
+    - exact (SF_ADMIT "wf_lc ghost. ditto").
+    - exact (SF_ADMIT "unique_parent. ditto").
+    - exact (SF_ADMIT "wf_INSNS. This is unprovable for now.
+I think Vellvm introduced/used it in proving optimizations (later paper).
+However, current repository is ""sanitized"" version, and ""wf_insn""'s
+introduction/usage does not exist. It is just defined and that is all.
+If we find old Vellvm code that introduced/used ""wf_insn"",
+we may simply port it. (maybe some extracted validator have existed before)
+I insist that this is not a serious problem, because
+- ""wf_insn"" predicate is for type. dominance, existance check,
+  which our validator already checks using LLVM's type checker.
+  Passing LLVM's type checker will mostly imply ""wf_insn"" property.
+  Actually, we use wf_insn in 2-3 cases, and all of them
+  exploited simple checkings mentioned above, and not more.
+").
+  Qed.
 
   Lemma sem_valueT_physical
         conf st inv val:
