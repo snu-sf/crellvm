@@ -164,10 +164,9 @@ Proof.
       rewrite COND2.
       eauto.
     - apply sim_local_lift_sim.
-      { admit. (* sim_conf *) }
-      hexploit InvState.Rel.sem_empty; eauto.
-      { admit. (* init_locals inject_locals *) }
-
+      { unfold transl_products in TRANSL_PRODUCTS.
+        econs.
+        admit. (* sim_conf *) }
       econs; ss.
       + econs.
       + apply nop_sim.
