@@ -90,11 +90,11 @@ Proof.
   i. des.
   esplits.
   - econs; eauto. ss.
-  - generalize (BLOCKS l0). s.
-    match goal with
-    | [|- context[if ?c then _ else _]] => destruct c
-    end; [|done]. ss. i. des. subst.
-    econs; ss. econs.
+  - unfold nop_blocks in BLOCKS. inv BLOCKS.
+    des. subst.
+    econs; eauto.
+    + econs. econs; eauto.
+    + econs.
 Qed.
 
 Inductive status :=

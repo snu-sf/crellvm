@@ -59,16 +59,18 @@ Definition nop_cmds (cmds_src cmds_tgt:cmds) :=
   filter (negb <*> is_nop) cmds_src = filter (negb <*> is_nop) cmds_tgt.
 
 Definition nop_blocks (blocks_src blocks_tgt:blocks): Prop :=
-  forall bid,
-    lift2_option
-      (fun stmts_src stmts_tgt =>
-         let '(stmts_intro phinodes_src cmds_src terminator_src) := stmts_src in
-         let '(stmts_intro phinodes_tgt cmds_tgt terminator_tgt) := stmts_tgt in
-         phinodes_src = phinodes_tgt /\
-         nop_cmds cmds_src cmds_tgt /\
-         terminator_src = terminator_tgt)
-    (lookupAL _ blocks_src bid)
-    (lookupAL _ blocks_tgt bid).
+  List.Forall2
+    (fun (block_src block_tgt : block) =>
+       let (l_src, stmts_src) := block_src in
+       let (l_tgt, stmts_tgt) := block_tgt in
+       let '(stmts_intro phinodes_src cmds_src terminator_src) := stmts_src in
+       let '(stmts_intro phinodes_tgt cmds_tgt terminator_tgt) := stmts_tgt in
+       l_src = l_tgt /\
+       phinodes_src = phinodes_tgt /\
+       nop_cmds cmds_src cmds_tgt /\
+       terminator_src = terminator_tgt)
+    blocks_src blocks_tgt
+.
 
 Inductive nop_fdef: forall (fdef_src fdef_tgt:fdef), Prop :=
 | nop_fdef_intro
@@ -97,11 +99,11 @@ Lemma nop_blocks_commutes
       x y (NOP: nop_blocks x y):
   nop_blocks y x.
 Proof.
-  ii. specialize (NOP bid).
-  destruct (lookupAL _ x bid), (lookupAL _ y bid);
-    simpl in *; try congruence.
-  destruct s, s0. des. splits; auto.
-  apply nop_cmds_commutes. auto.
+  induction NOP; ss.
+  econs; eauto.
+  destruct x. destruct y. destruct s0. destruct s.
+  des. esplits; eauto.
+  apply nop_cmds_commutes. eauto.
 Qed.
 
 Lemma lookupAL_mapiAL :
@@ -118,48 +120,42 @@ Proof.
   - auto.
 Qed.
 
+Lemma insert_nop_nop_cmds
+      cmds n next_id
+  : nop_cmds cmds (insert_at n (insn_nop next_id) cmds).
+Proof.
+  revert n.
+  induction cmds.
+  - i. unfold insert_at. ss.
+    rewrite util.firstn_nil. ss.
+    rewrite util.skipn_nil. ss.
+  - i. unfold nop_cmds in *.
+    unfold insert_at.
+    rewrite <- (firstn_skipn n (a::cmds0)) at 1.
+    rewrite util.filter_app.
+    rewrite util.filter_app.
+    ss.
+Qed.
+
 Lemma insert_nop_spec1 nop_position bs:
   nop_blocks bs (insert_nop nop_position bs).
 Proof.
-  Ltac insert_nop_ltac :=
-    repeat
-    match goal with
-      | [|- context[match ?c with | Some _ => _ | None => _ end]] =>
-        let T := fresh "T" in
-        destruct c eqn:T
-      | [|- context[if ?c then _ else _]] =>
-        let T := fresh "T" in
-        destruct c eqn:T
-      | [ H : option_map _ (Some _) = None |- _ ] => inv H
-      | [ H : option_map _ None = (Some _) |- _ ] => inv H
-    end;
-    simpl; splits; auto.
-
   ii. unfold insert_nop.
   unfold lift2_option.
   destruct nop_position.
+  remember (next_nop_id bs) as next_id.
+  clear Heqnext_id.
   destruct n; simpl.
-  - rewrite lookupAL_mapiAL.
-    insert_nop_ltac.
-    destruct s, s0.
-    simpl in *.
-    destruct (eq_atom_dec bid l0);
-      inv T0; unfold nop_cmds; auto.
-  - rewrite lookupAL_mapiAL.
-    insert_nop_ltac.
-    destruct s, s0.
-    simpl in T0.
-    inv T0.
-    destruct (eq_atom_dec bid l0).
-    + inv H0.
-      unfold insert_at.
-      unfold nop_cmds.
-      rewrite util.filter_app.
-      simpl.
-      rewrite <- util.filter_app.
-      rewrite firstn_skipn.
-      auto.
-    + inv H0. unfold nop_cmds. eauto.
+  - unfold nop_blocks.
+    induction bs; ss.
+    econs; eauto.
+    des_ifs.
+  - unfold nop_blocks.
+    induction bs; ss.
+    econs; eauto.
+    des_ifs.
+    esplits; eauto.
+    apply insert_nop_nop_cmds.
 Qed.
 
 Lemma insert_nop_spec2 id bs:
