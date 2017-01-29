@@ -612,6 +612,8 @@ Proof.
       esplits; (try by etransitivity; eauto); eauto.
       { econs 1. eauto. }
       right. apply CIH. econs; try exact x1; eauto.
+Unshelve.
+apply 0%nat.
 Qed.
 
 Lemma valid_sim_fdef
