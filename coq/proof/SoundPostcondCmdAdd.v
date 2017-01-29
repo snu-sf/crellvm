@@ -631,11 +631,11 @@ Proof.
         end.
     - unfold extractGenericValue in *.
       des_ifs.
-      exact (EXCUSED_ADMIT "Upnrovable for now. Semantics should check
+      exact (SF_ADMIT "Upnrovable for now. Semantics should check
  extractValue's return type. It seems there is neither no wf condition to derive this").
     - unfold insertGenericValue in *.
       des_ifs.
-      exact (EXCUSED_ADMIT "Ditto").
+      exact (SF_ADMIT "Ditto").
 Admitted.
 
 Lemma lessdef_add_definedness

@@ -9,9 +9,9 @@ Set Implicit Arguments.
 (* Motivation: I want to distinguish excused ad-mits from normal ad-mits, *)
 (* and further, I do not want to "grep" excused ones, so I give them different name. *)
 (* @jeehoonkang adviced me to use semantic ad-mit instead of just comment. *)
-(* Tactic Notation "EXCUSED_ADMIT" string(excuse) := idtac excuse; ad-mit. *)
+(* Tactic Notation "SF_AD-MIT" string(excuse) := idtac excuse; ad-mit. *)
 (* above definition requires "Adm-itted" at the end of the proof, and I consider that not good *)
-Definition EXCUSED_ADMIT (excuse: String.string) {T: Type} : T.  Admitted.
+Definition SF_ADMIT (excuse: String.string) {T: Type} : T.  Admitted.
 
 (* Clarify purpose of this file more clearly? *)
 (* Should prevent circular dependency *)
@@ -57,7 +57,7 @@ Lemma mstore_mload_same
     <<MLOAD: mload td Mem' mp2 typ1 align1 = ret gv1>>
 .
 Proof.
-  exact (EXCUSED_ADMIT "
+  exact (SF_ADMIT "
 Language/Memory model should provide this.
 This lemma was originally in Vellvm (Compcert memory model).
 However, when we upgraded Vellvm's Compcert memory model to version 2, this lemma was commented.
@@ -152,7 +152,7 @@ Lemma wf_globals_const2GV
 Proof.
   (* globals: <= gmax *)
   (* valid_ptr: < gmax+1 *)
-  exact (EXCUSED_ADMIT "
+  exact (SF_ADMIT "
 Language should provide this. This should be provable.
 - Inside _const2GV, it seems the only source of pointer is ""gid"", which looks up globals table.
 - Note that int2ptr/ptr2int is currently defind as undef in mcast.
@@ -181,7 +181,7 @@ Lemma mstore_aux_never_produce_new_ptr
     MemProps.no_alias nptr gv
 .
 Proof.
-  exact (EXCUSED_ADMIT "
+  exact (SF_ADMIT "
 Memory model should provide this.
 - [nptr] is a pointer.
 - [mem0] contains no pointers aliased with [nptr].

@@ -41,7 +41,7 @@ Lemma apply_infrule_sound
     <<MEM: InvMem.Rel.sem conf_src conf_tgt st_src.(Mem) st_tgt.(Mem) invmem1>> /\
     <<MEMLE: InvMem.Rel.le invmem0 invmem1>>.
 Proof.
-  exact (EXCUSED_ADMIT "Infrule
+  exact (SF_ADMIT "Infrule
 We will not prove soundness of infrules in this submission.
 All the infrules are really simple, and it is highly unlikely that infrules introduce any bug.
 Also, even in case some infrules contain bugs, the bugs may not affect the whole system,
