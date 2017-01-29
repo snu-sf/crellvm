@@ -250,7 +250,7 @@ Proof.
     { rewrite InvState.Unary.sem_valueT_physical. eauto. }
     rewrite InvState.Unary.sem_valueT_physical. s. i. des.
     eapply _sim_local_step.
-    { admit. (* tgt not stuck *)
+    { exact (SF_ADMIT "tgt not stuck").
       (* clear STATE MEM CIH. *)
 
       (* unfold not. ii. unfold stuck_state in H. apply H. clear H. *)
@@ -399,7 +399,7 @@ Proof.
   + (* br_uncond *)
     exploit nerror_nfinal_nstuck; eauto. i. des. inv x0. simtac.
     eapply _sim_local_step.
-    { admit. (* tgt not stuck *) }
+    { exact (SF_ADMIT "tgt not stuck"). }
     i. inv STEP. unfold valid_phinodes in *. simtac.
     rewrite add_terminator_cond_br_uncond in *.
     rewrite lookupBlockViaLabelFromFdef_spec in *.
@@ -426,7 +426,7 @@ Proof.
     rewrite InvState.Unary.sem_valueT_physical. s. i. des.
     exploit get_switch_branch_inject; eauto. i.
     eapply _sim_local_step.
-    { admit. (* tgt not stuck *) }
+    { exact (SF_ADMIT "tgt not stuck"). }
     i. inv STEP.
     assert (CONF_EQ: TD0 = TD /\ gl0 = gl).
     { inv CONF.
@@ -481,7 +481,14 @@ Proof.
   + (* unreachable *)
     exploit nerror_nfinal_nstuck; eauto. i. des. inv x0.
 Unshelve.
-Admitted.
+apply 0%nat.
+apply 0%nat.
+apply 0%nat.
+ss.
+apply value_id; ss.
+apply 0%nat.
+apply 0%nat.
+Qed.
 
 Lemma valid_sim
       conf_src conf_tgt:
@@ -593,7 +600,7 @@ Proof.
       * right. apply CIH. econs; eauto.
     + (* non-call *)
       eapply _sim_local_step.
-      { admit. (* tgt not stuck *) }
+      { exact (SF_ADMIT "tgt not stuck"). }
       i.
       exploit postcond_cmd_is_call; eauto. i. rewrite CALL in x0.
       exploit sInsn_non_call; eauto; try congruence. i. des. subst. ss.
@@ -605,7 +612,7 @@ Proof.
       esplits; (try by etransitivity; eauto); eauto.
       { econs 1. eauto. }
       right. apply CIH. econs; try exact x1; eauto.
-Admitted.
+Qed.
 
 Lemma valid_sim_fdef
       m_src m_tgt
