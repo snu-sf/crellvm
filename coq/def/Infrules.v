@@ -849,6 +849,15 @@ Definition apply_infrule
     {{ inv0 +++src (Expr.value (ValueT.const (const_undef ty))) >= (Expr.value v) }}
   | Infrule.lessthan_undef_tgt ty v => 
     {{ inv0 +++tgt (Expr.value (ValueT.const (const_undef ty))) >= (Expr.value v) }}
+  | Infrule.lessthan_undef_const_tgt c =>
+    let vc := ValueT.const c in
+    match vc with
+    | const_int s v =>
+      {{ inv0 +++tgt (Expr.value (ValueT.const (const_undef (typ_int s)))) >= (Expr.value (const_int s v)) }}
+    | const_floatpoint fptyp fp =>
+      {{ inv0 +++tgt (Expr.value (ValueT.const (const_undef (typ_floatpoint fptyp)))) >= (Expr.value (const_floatpoint fptyp fp)) }}
+    | _ => apply_fail tt
+    end
   | Infrule.sdiv_sub_srem z b a x y s =>
     if $$ inv0 |-src (Expr.value (ValueT.id b)) >= (Expr.bop bop_srem s x y) $$ &&
        $$ inv0 |-src (Expr.value (ValueT.id a)) >= (Expr.bop bop_sub s x (ValueT.id b)) $$ &&

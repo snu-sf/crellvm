@@ -408,6 +408,7 @@ Module Infrule.
   | inttoptr_load (ptr:ValueT.t) (intty:typ) (v1:ValueT.t) (ptrty:typ) (v2:ValueT.t) (a:align)
   | lessthan_undef (ty:typ) (v:ValueT.t)
   | lessthan_undef_tgt (ty:typ) (v:ValueT.t)
+  | lessthan_undef_const_tgt (c:const)
   | mul_bool (z:IdT.t) (x:IdT.t) (y:IdT.t)
   | mul_mone (z:IdT.t) (x:ValueT.t) (sz:sz)
   | mul_neg (z:IdT.t) (mx:ValueT.t) (my:ValueT.t) (x:ValueT.t) (y:ValueT.t) (s:sz)  
