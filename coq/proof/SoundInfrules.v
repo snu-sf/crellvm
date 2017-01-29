@@ -43,13 +43,11 @@ Lemma apply_infrule_sound
 Proof.
   exact (SF_ADMIT "Infrule
 We will not prove soundness of infrules in this submission.
-All the infrules are really simple, and it is highly unlikely that infrules introduce any bug.
-Also, even in case some infrules contain bugs, the bugs may not affect the whole system,
-and it will be easy to fix it.
-Moreover, we did prove most of the infrules in the former version of simplberry. (called vallvm)
-We are certain that infrules are provable with reasonable amount of effort by using automation techniques,
-but we do not do it for now.
-").
+All the infrules are simple, and we carefully installed it, so it is less likely to introduce a bug.
+Also, even in case some infrules contain bugs, the bugs does not affect the whole system,
+and it should be easy to fix. Moreover, we did prove most of the infrules in the former version of simplberry.
+To our experience, proving infrules can be done withn reasonable amount of engineering effort (maybe 2 weeks)
+by using automation techniques. However, we skip it for now.").
 Qed.
 
 Lemma apply_infrules_sound
