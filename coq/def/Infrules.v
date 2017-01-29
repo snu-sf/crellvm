@@ -1622,7 +1622,8 @@ Definition apply_infrule
                                         negb (Expr.eq_dec (Expr.value (ValueT.id (Tag.ghost, g))) (fst p)))))
           inv0) in
       let inv2 := {{ inv1 +++src (Expr.value (ValueT.id (Tag.ghost, g))) >= expr }} in
-      inv2
+      let inv3 := {{ inv2 +++src  expr >= (Expr.value (ValueT.id (Tag.ghost, g))) }} in
+      inv3
     else apply_fail tt
   | Infrule.intro_ghost expr g =>
     if List.forallb (fun x => Invariant.not_in_maydiff inv0 x) (Expr.get_valueTs expr) &&
