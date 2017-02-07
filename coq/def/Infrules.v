@@ -431,6 +431,12 @@ Notation "{{ inv +++tgt y _||_ x }}" := (Invariant.update_tgt (Invariant.update_
 Notation "{{ inv --- x }}" := (Invariant.update_maydiff (IdTSet.filter (fun y => negb (IdT.eq_dec x y))) inv) (at level 41, inv, x at level 41).
 
 (* TODO *)
+
+Definition is_defined inv0 expr :=
+  ExprPairSet.exists_
+    (fun xy => let (_, y) := xy in
+               Expr.eq_dec expr y) (Invariant.lessdef inv0).
+
 Definition apply_infrule
            (m_src m_tgt:module)
            (infrule:Infrule.t)
@@ -721,6 +727,11 @@ Definition apply_infrule
     if $$ inv0 |-src e >= (Expr.bop opcode s x y) $$ &&
       (is_commutative_bop opcode)
     then {{ inv0 +++src e >= (Expr.bop opcode s y x) }}
+    else apply_fail tt
+  | Infrule.bop_commutative_rev e opcode x y s =>
+    if $$ inv0 |-src (Expr.bop opcode s x y) >= e $$ &&
+      (is_commutative_bop opcode)
+    then {{ inv0 +++src (Expr.bop opcode s y x) >= e }}
     else apply_fail tt
   | Infrule.fbop_commutative e opcode x y fty =>
     if $$ inv0 |-src e >= (Expr.fbop opcode fty x y) $$ &&
@@ -1610,6 +1621,19 @@ Definition apply_infrule
     {{ inv0 +++src x >= x }}
   | Infrule.intro_eq_tgt x => 
     {{ inv0 +++tgt x >= x }}
+  | Infrule.intro_ghost_src expr g =>
+    if (match expr with | Expr.load _ _ _ => false | _ => true end)
+         && (is_defined inv0.(Invariant.src) expr)
+    then
+      let inv1 := (Invariant.update_src (Invariant.update_lessdef
+        (ExprPairSet.filter
+          (fun (p: ExprPair.t) => negb (Expr.eq_dec (Expr.value (ValueT.id (Tag.ghost, g))) (snd p)) &&
+                                        negb (Expr.eq_dec (Expr.value (ValueT.id (Tag.ghost, g))) (fst p)))))
+          inv0) in
+      let inv2 := {{ inv1 +++src (Expr.value (ValueT.id (Tag.ghost, g))) >= expr }} in
+      let inv3 := {{ inv2 +++src  expr >= (Expr.value (ValueT.id (Tag.ghost, g))) }} in
+      inv3
+    else apply_fail tt
   | Infrule.intro_ghost expr g =>
     if List.forallb (fun x => Invariant.not_in_maydiff inv0 x) (Expr.get_valueTs expr) &&
       (match expr with | Expr.load _ _ _ => false | _ => true end)

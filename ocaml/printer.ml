@@ -208,6 +208,10 @@ module PrintHints = struct
                                                 ExprsToString.of_expr(e) ^ " ≥ " ^
                                                 ExprsToString.of_expr(Expr.Coq_value x) ^ (string_of_bop bop) ^
                                                 ExprsToString.of_expr(Expr.Coq_value y) ^ " to commutate"
+      | Infrule.Coq_bop_commutative_rev (e, bop, x, y, s) -> "bop_commutative_rev : " ^
+                                                ExprsToString.of_expr(Expr.Coq_value x) ^ (string_of_bop bop) ^ " ≥ " ^
+                                                ExprsToString.of_expr(e) ^
+                                                ExprsToString.of_expr(Expr.Coq_value y) ^ " to commutate"
       | Infrule.Coq_bitcast_load (ptr, ptrty, v1, ptrty2, v2, a) ->
          "bitcast_load " ^ 
              (ExprsToString.of_ValueT ptr) ^ " " ^
@@ -247,9 +251,11 @@ module PrintHints = struct
          "gep inbounds remove: " ^ (ExprsToString.of_expr gepinst)
       | Infrule.Coq_gepzero _ -> "gepzero"
       | Infrule.Coq_intro_eq v -> "intro_eq : " ^ ExprsToString.of_expr(v)
-      | Infrule.Coq_intro_ghost (e, g) -> "intro_ghost:" ^
-                                            ExprsToString.of_expr(e) ^ ", " ^
-                                            g 
+      | Infrule.Coq_intro_ghost (e, id) -> "intro_ghost:"
+                                           ^ "[src] " ^ (ExprsToString.of_expr e)
+                                           ^ " >= " ^ (ExprsToString.of_IdT (Tag.Coq_ghost, id))
+                                           ^ "[tgt] " ^ (ExprsToString.of_IdT (Tag.Coq_ghost, id))
+                                           ^ " >= " ^ (ExprsToString.of_expr e)
       | Infrule.Coq_or_xor3 (z, y, a, b, s) -> "or_xor3 : " ^ 
                                                 ExprsToString.of_expr(Expr.Coq_value y) ^ " ≥ "
                                                         ^ ExprsToString.of_expr(Expr.Coq_value a) ^ " ^ "

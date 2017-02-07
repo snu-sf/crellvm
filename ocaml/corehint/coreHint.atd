@@ -664,6 +664,14 @@ type bop_commutative = {
   sz : size;
 }
 
+type bop_commutative_rev = {
+  e : expr;
+  bop : bop;
+  x : value;
+  y : value;
+  sz : size;
+}
+
 type fbop_commutative = {
   e : expr;
   fbop : fbop;
@@ -942,6 +950,11 @@ type gep_inbounds_add = {
 }
 
 type intro_ghost = {
+  x : expr;
+  g : register;
+}
+
+type intro_ghost_src = {
   x : expr;
   g : register;
 }
@@ -2054,6 +2067,7 @@ type infrule = [
   | Bitcastptr of bitcastptr
   | BopAssociative of bop_associative
   | BopCommutative of bop_commutative
+  | BopCommutativeRev of bop_commutative_rev
   | FbopCommutative of fbop_commutative
   | BopDistributiveOverSelectinst of bop_distributive_over_selectinst
   | BopDistributiveOverSelectinst2 of bop_distributive_over_selectinst2
@@ -2078,6 +2092,7 @@ type infrule = [
   | GepInboundsRemove of gep_inbounds_remove
   | GepInboundsAdd of gep_inbounds_add
   | IntroGhost of intro_ghost
+  | IntroGhostSrc of intro_ghost_src
   | IntroEq of intro_eq
   | IntroEqTgt of intro_eq_tgt
   | InttoptrLoad of inttoptr_load
