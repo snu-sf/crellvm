@@ -2233,6 +2233,11 @@ type hint_command = [
   | Infrule of (position * infrule)
   ] <ocaml repr="classic">
 
+type cpp_debug_info = {
+  file_name : string;
+  line_number : int;
+}
+
 type hints = {
   module_id : string;
   function_id : string;
@@ -2241,5 +2246,5 @@ type hints = {
   return_code : return_code_type;
   nop_positions: position list; (* insert after position *)
 
-  commands : hint_command list;
+  commands : (hint_command * cpp_debug_info) list;
 }

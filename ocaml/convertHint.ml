@@ -118,9 +118,10 @@ let apply_corehint_command
       (lfdef:LLVMsyntax.fdef) (rfdef:LLVMsyntax.fdef)
       (dtree_lfdef:LLVMsyntax.l coq_DTree)
       (nops:CoreHint_t.position list)
-      (command:CoreHint_t.hint_command)
+      (cmd_d:(CoreHint_t.hint_command * CoreHint_t.cpp_debug_info))
       (hint_fdef:ValidationHint.fdef)
     : ValidationHint.fdef =
+  let (command, d) = cmd_d in
   match command with
   | CoreHint_t.Propagate prop ->
      let invariant = PropagateHint.InvariantObject.convert prop.propagate lfdef rfdef in
