@@ -18,7 +18,7 @@ Require Import Debug.
 
 Set Implicit Arguments.
 
-Parameter gen_infrules_from_cmds : cmd -> cmd -> Invariant.t -> list Infrule.t.
+Parameter gen_infrules_from_insns : insn -> insn -> Invariant.t -> list Infrule.t.
 Parameter gen_infrules : Invariant.t -> Invariant.t -> list Infrule.t.
 
 Fixpoint valid_cmds
@@ -35,7 +35,9 @@ Fixpoint valid_cmds
         match postcond_cmd cmd_src cmd_tgt inv0 with
         | Some inv1 => Some inv1
         | None =>
-          let infr := gen_infrules_from_cmds cmd_src cmd_tgt inv0 in
+          let infr := gen_infrules_from_insns (insn_cmd cmd_src)
+                                              (insn_cmd cmd_tgt)
+                                              inv0 in
           let inv0_infr := apply_infrules m_src m_tgt infr inv0 in
           postcond_cmd cmd_src cmd_tgt inv0_infr
         end
@@ -217,7 +219,16 @@ Definition valid_stmts
   | None => failwith_false "valid_stmts: valid_cmds failed at block" [bid]
   | Some inv =>
     if negb (valid_terminator hint_fdef inv m_src m_tgt blocks_src blocks_tgt bid terminator_src terminator_tgt)
-    then failwith_false "valid_stmts: valid_terminator failed at block" [bid]
+    then
+      let infrules := gen_infrules_from_insns
+                    (insn_terminator terminator_src)
+                    (insn_terminator terminator_tgt)
+                    inv in
+      let inv' := apply_infrules m_src m_tgt infrules inv in
+      if negb (valid_terminator hint_fdef inv' m_src m_tgt blocks_src blocks_tgt bid terminator_src terminator_tgt)
+      then
+        failwith_false "valid_stmts: valid_terminator failed at block" [bid]
+      else true
     else true
   end.
 

@@ -33,8 +33,8 @@ Extract Constant infrule_printer => "Printer.infrule_printer".
 Extract Constant invariant_printer => "Printer.PrintHints.invariant".
 Extract Constant expr_printer => "Printer.expr_printer".
 
-Extract Constant gen_infrules_from_cmds =>
-"InfruleGen.gen_infrules_from_cmds".
+Extract Constant gen_infrules_from_insns =>
+"InfruleGen.gen_infrules_from_insns".
 Extract Constant gen_infrules =>
 "InfruleGen.gen_infrules".
 
