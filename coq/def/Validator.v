@@ -18,6 +18,9 @@ Require Import Debug.
 
 Set Implicit Arguments.
 
+Parameter gen_infrules_from_cmds : cmd -> cmd -> Invariant.t -> list Infrule.t.
+Parameter gen_infrules : Invariant.t -> Invariant.t -> list Infrule.t.
+
 Fixpoint valid_cmds
          (m_src m_tgt:module)
          (src tgt:list cmd)
@@ -28,13 +31,29 @@ Fixpoint valid_cmds
     let (cmd_src, cmd_tgt) :=
         (debug_print cmd_pair_printer (cmd_src, cmd_tgt)) in
     if (Invariant.has_false inv0) then valid_cmds m_src m_tgt src tgt hint inv else
-    match postcond_cmd cmd_src cmd_tgt inv0 with
+    let oinv1 :=
+        match postcond_cmd cmd_src cmd_tgt inv0 with
+        | Some inv1 => Some inv1
+        | None =>
+          let infr := gen_infrules_from_cmds cmd_src cmd_tgt inv0 in
+          let inv0_infr := apply_infrules m_src m_tgt infr inv0 in
+          postcond_cmd cmd_src cmd_tgt inv0_infr
+        end
+    in
+    match oinv1 with
     | None => failwith_None "valid_cmds: postcond_cmd returned None" nil
     | Some inv1 =>
       let inv2 := apply_infrules m_src m_tgt infrules inv1 in
       let inv3 := reduce_maydiff inv2 in
       let inv := debug_print_validation_process infrules inv0 inv1 inv2 inv3 inv in
-      if Invariant.implies inv3 inv
+      if
+        (if Invariant.implies inv3 inv
+         then true
+         else
+           (* TODO: need new print method *)
+           let infrules := gen_infrules inv3 inv in
+           let inv3_infr := apply_infrules m_src m_tgt infrules inv3 in
+           Invariant.implies inv3_infr inv)
       then valid_cmds m_src m_tgt src tgt hint inv
       else failwith_None "valid_cmds: Invariant.implies returned false" nil
     end
