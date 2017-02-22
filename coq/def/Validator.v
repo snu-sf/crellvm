@@ -55,7 +55,8 @@ Fixpoint valid_cmds
            (* TODO: need new print method *)
            let infrules := gen_infrules inv3 inv in
            let inv3_infr := apply_infrules m_src m_tgt infrules inv3 in
-           Invariant.implies inv3_infr inv)
+           let inv3_red := reduce_maydiff inv3_infr in
+           Invariant.implies inv3_red inv)
       then valid_cmds m_src m_tgt src tgt hint inv
       else failwith_None "valid_cmds: Invariant.implies returned false" nil
     end
