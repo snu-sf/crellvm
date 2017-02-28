@@ -441,12 +441,12 @@ Proof.
     rewrite forallb_forall in COND2.
     exploit get_switch_branch_in_successors; eauto.
     i. unfold successors_terminator in *.
-    apply nodup_In in x2. ss. des.
+    apply nodup_In in x1. ss. des.
     { (* default *)
       subst.
       rewrite COND4 in H15. inv H15.
       rewrite COND5 in H19. inv H19.
-      exploit postcond_phinodes_sound; try exact x1; eauto.
+      exploit postcond_phinodes_sound; try exact x0; eauto.
       { rewrite <- LABEL. eauto. }
       i. des.
       exploit apply_infrules_sound; eauto; ss. i. des.
@@ -459,14 +459,14 @@ Proof.
       * right. apply CIH. econs; ss; eauto; ss; eauto.
     }
     { (* case *)
-      apply list_prj2_inv in x2. des.
+      apply list_prj2_inv in x1. des.
       exploit COND2; eauto. i.
       des_ifs. simtac. clear COND2.
       rewrite <- H15 in Heq1. inv Heq1.
       rewrite <- H19 in Heq2. inv Heq2.
       clear dependent phinodes5.
       clear dependent phinodes0.
-      exploit postcond_phinodes_sound; try exact x1; eauto.
+      exploit postcond_phinodes_sound; try exact x0; eauto.
       { rewrite <- LABEL. eauto. }
       i. des.
       exploit apply_infrules_sound; eauto; ss. i. des.

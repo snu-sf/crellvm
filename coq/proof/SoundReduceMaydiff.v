@@ -194,11 +194,11 @@ Section Filter.
       exploit filter_subset_expr; eauto. i. des.
       exploit LESSDEF; eauto. i. des.
       exploit incl_implies_preserved; eauto.
-      eapply incl_tran; [|eapply incl_tran].
+      eapply incl_tran; [|eapply incl_tran]; swap 2 3.
       + apply incl_appr. apply incl_refl.
-      + eapply In_map_incl in H. des. refine H.
       + unfold Invariant.get_idTs_unary.
         apply incl_appl. apply incl_refl.
+      + eapply In_map_incl in H. des. refine H.
     - inv NOALIAS. econs; i.
       + eapply DIFFBLOCK; eauto.
         * eapply filter_subset_valueT; eauto.

@@ -166,6 +166,8 @@ Proof.
     - apply sim_local_lift_sim.
       { admit. (* sim_conf *) }
       hexploit InvState.Rel.sem_empty; eauto.
+      { admit. (* is_empty_unary src *) }
+      { admit. (* is_empty_unary tgt *) }
       { admit. (* init_locals inject_locals *) }
 
       econs; ss.
