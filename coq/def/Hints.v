@@ -332,6 +332,39 @@ Module Invariant.
       (SUBSET_TGT: Subset_unary inv1.(tgt) inv2.(tgt))
       (SUBSET_MAYDIFF: IdTSet.Subset inv2.(maydiff) inv1.(maydiff))
   .
+
+  Definition function_entry_inv (la_src: args) (la_tgt: args): t :=
+  let add_Args_IDs (la: args) :=
+    let argsIDs := getArgsIDs la in
+      List.fold_right
+        (fun id inv =>
+          let ty := lookupTypViaIDFromArgs la id in
+          match lookupTypViaIDFromArgs la id with
+          | Some ty =>
+              ExprPairSet.add (Expr.value (ValueT.const (const_undef ty)),
+                               Expr.value (ValueT.id (Tag.physical, id))) inv
+          | None => inv
+          end
+        )
+        ExprPairSet.empty argsIDs
+  in
+  mk
+    (mk_unary
+      (add_Args_IDs la_src)
+      (mk_aliasrel
+        ValueTPairSet.empty
+        PtrPairSet.empty)
+      AtomSetImpl.empty
+      IdTSet.empty)
+    (mk_unary
+      (add_Args_IDs la_tgt)
+      (mk_aliasrel
+        ValueTPairSet.empty
+        PtrPairSet.empty)
+      AtomSetImpl.empty
+      IdTSet.empty)
+    IdTSet.empty
+  .
 End Invariant.
 
 Module Infrule.

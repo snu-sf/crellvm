@@ -202,7 +202,7 @@ Definition valid_stmts
     else true
   end.
 
-Definition valid_entry_stmts (src tgt:stmts) (hint:ValidationHint.stmts): bool :=
+Definition valid_entry_stmts (src tgt:stmts) (hint:ValidationHint.stmts) (la_src:args) (la_tgt:args): bool :=
   let '(stmts_intro phinodes_src _ _) := src in
   let '(stmts_intro phinodes_tgt _ _) := tgt in
   if negb (is_empty phinodes_src)
@@ -211,11 +211,15 @@ Definition valid_entry_stmts (src tgt:stmts) (hint:ValidationHint.stmts): bool :
   if negb (is_empty phinodes_tgt)
   then failwith_false "valid_entry_stmts: phinode of target not empty" nil
   else
+  if negb (Invariant.implies (Invariant.function_entry_inv la_src la_tgt) hint.(ValidationHint.invariant_after_phinodes))
+  then failwith_false "valid_entry_stmts: implies fail" nil
+(*
   if negb (Invariant.is_empty_unary hint.(ValidationHint.invariant_after_phinodes).(Invariant.src))
   then failwith_false "valid_entry_stmts: invariant_after_phinodes of source not empty" nil
   else
   if negb (Invariant.is_empty_unary hint.(ValidationHint.invariant_after_phinodes).(Invariant.tgt))
   then failwith_false "valid_entry_stmts: invariant_after_phinodes of target not empty" nil
+*)
   else true
   .
 
@@ -239,7 +243,7 @@ Definition valid_fdef
     else
     match lookupAL _ hint bid_src with
     | Some hint_stmts =>
-      if negb (valid_entry_stmts block_src block_tgt hint_stmts)
+      if negb (valid_entry_stmts block_src block_tgt hint_stmts (getArgsOfFdef src) (getArgsOfFdef tgt))
       then failwith_false "valid_fdef: valid_entry_stmts failed at" (fid_src::bid_src::nil)
       else true
 
