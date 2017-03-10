@@ -89,7 +89,13 @@ Definition valid_phinodes
         let inv4 := hint_stmts.(ValidationHint.invariant_after_phinodes) in
         let inv4 := debug_print_validation_process infrules inv0 inv1 inv2 inv3 inv4 in
         if negb (Invariant.implies inv3 inv4)
-        then failwith_false "valid_phinodes: Invariant.implies returned false at phinode" (l_from::l_to::nil)
+        then
+          let infrules := gen_infrules_next_inv inv3 inv4 in
+          let inv3_infr := apply_infrules m_src m_tgt infrules inv3 in
+          let inv3_red := reduce_maydiff inv3_infr in
+          if negb (Invariant.implies inv3_red inv4)
+          then failwith_false "valid_phinodes: Invariant.implies returned false at phinode" (l_from::l_to::nil)
+          else true
         else true
     end
   | _, _, _ => false
