@@ -146,10 +146,13 @@ module AutoTransHelper = struct
 
     let rec gen_infrules (scp:AutoUtils.scope_t) (chain:Expr.t list)
             : Infrule.t list =
-      match chain with
+      let res = match chain with
       | e1::e2::e3::chain_t ->
          (AutoUtils.transitivity scp e1 e2 e3)::(gen_infrules scp (e1::e3::chain_t))
       | _ -> []
+      in
+      Printer.debug_print ("AutoInfruleGen: gen_infrules succeeds with length :"^(string_of_int (List.length res)));
+      res
 
     let run_inj (inv:Invariant.t) (e1:Expr.t) (e2:Expr.t)
         : (Infrule.t list) option =
@@ -312,7 +315,7 @@ module AutoRemMD (IEG:InjectExprGenerator) : AutoNextInv = struct
       let md_goal : IdT.t list =
         IdTSet.elements inv_goal.Invariant.maydiff in
       let md_remain : IdT.t list =
-        List.filter (fun x -> not (List.mem x md_goal)) md in
+        List.filter (fun x -> not (List.exists (IdT.eq_dec x) md_goal)) md in
       run_intl inv inv_goal [] md_remain
   end
 
@@ -327,7 +330,8 @@ module AutoUnary (ULDG:UnaryLDGenerator): AutoNextInv = struct
                      (inv_u:Invariant.unary) (inv_u_goal:Invariant.unary)
                      (infrs_acc:Infrule.t list) (ld:(Expr.t * Expr.t) list)
             : Infrule.t list * Invariant.unary =
-      match ld with
+      Printer.debug_print "AutoInfruleGen: AutoUnary.run_intl start";
+      let res = match ld with
       | [] -> (infrs_acc, inv_u_goal)
       | (e_l, e_r)::ld_t ->
          (match ULDG.f scp inv_u e_l e_r with
@@ -337,27 +341,38 @@ module AutoUnary (ULDG:UnaryLDGenerator): AutoNextInv = struct
              in
              run_intl scp inv_u inv_u_goal_new (infrs_acc@infrs) ld_t
           | None -> run_intl scp inv_u inv_u_goal infrs_acc ld_t)
+      in
+      Printer.debug_print "AutoInfruleGen: AutoUnary.run_intl end";
+      res
 
     let run_unary (scp:AutoUtils.scope_t)
                   (inv_u:Invariant.unary) (inv_u_goal:Invariant.unary)
         : Infrule.t list * Invariant.unary =
+      Printer.debug_print "AutoInfruleGen: AutoUnary.run_unary start";
       let ld : ExprPair.t list =
         ExprPairSet.elements inv_u.Invariant.lessdef in
+      Printer.debug_print "AutoInfruleGen: AutoUnary.run_unary ld generated";
       let ld_goal : ExprPair.t list =
         ExprPairSet.elements inv_u_goal.Invariant.lessdef in
+      Printer.debug_print "AutoInfruleGen: AutoUnary.run_unary ld_goal generated";
       let ld_remain : ExprPair.t list =
-        List.filter (fun x -> not (List.mem x ld)) ld_goal in
+        List.filter (fun x -> not (List.exists (ExprPair.eq_dec x) ld)) ld_goal in
+      Printer.debug_print "AutoInfruleGen: AutoUnary.run_unary ld_remain calculated";
       run_intl scp inv_u inv_u_goal [] ld_remain
 
     let run (inv:Invariant.t) (inv_goal:Invariant.t)
         : Infrule.t list * Invariant.t =
+      Printer.debug_print "AutoInfruleGen: AutoUnary.run start";
       let (infrs_src, inv_src) =
         run_unary AutoUtils.Src inv.Invariant.src inv_goal.Invariant.src in
+      Printer.debug_print "AutoInfruleGen: AutoUnary.run_unary src end";
       let (infrs_tgt, inv_tgt) =
         run_unary AutoUtils.Tgt inv.Invariant.tgt inv_goal.Invariant.tgt in
+      Printer.debug_print "AutoInfruleGen: AutoUnary.run_unary tgt end";
       let new_goal = Invariant.update_tgt
                        (fun _ -> inv_tgt)
                        (Invariant.update_src (fun _ -> inv_src) inv_goal) in
+      Printer.debug_print "AutoInfruleGen: AutoUnary new goal generated";
       (infrs_src@infrs_tgt, new_goal)
   end
 
@@ -492,15 +507,20 @@ let gen_infrules_from_insns
         | _, _ -> None)
     | _, _ -> None
   in
-  match get_value_pairs_from_insns insn_src insn_tgt with
+  let res = match get_value_pairs_from_insns insn_src insn_tgt with
   | Some vpl -> fst (run inv vpl)
   | None -> []
+  in
+  Printer.debug_print "AutoInfruleGen: AutoInjVal end";
+  res
 
 let gen_infrules_next_inv (inv:Invariant.t) (inv_nxt:Invariant.t)
     : Infrule.t list =
   Printer.debug_print "AutoInfruleGen: AutoNextInv start";
   let run = fst (AutoStrategy.select ()) in
-  fst (run inv inv_nxt)
+  let res = fst (run inv inv_nxt) in
+  Printer.debug_print "AutoInfruleGen: AutoNextInv end";
+  res
 
 (* module AutoGenTest = struct *)
 (*     let empty_inv_unary : Invariant.unary = *)
