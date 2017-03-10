@@ -4,15 +4,14 @@ open Syntax
 open MetatheoryAtom
 open LLVMsyntax
 
-(* TODO: add option *)
+(* TODO: turning on/off option *)
+module AutoOpt = struct
+    type pass_t =
+      GVN | SROA | INSTCOMBINE | TEST1 | TEST2 | TEST3 | TEST4 | DEFAULT
+    let pass_option : pass_t ref = ref GVN
+  end
 
 module AutoUtils = struct
-    type pass_t =
-      GVN | SROA | INSTCOMBINE
-      | TEST1 | TEST2 | TEST3 | TEST4
-
-    let pass_option : pass_t ref = ref GVN
-
     type scope_t = Src | Tgt
 
     let transitivity (scp:scope_t) e1 e2 e3 : Infrule.t =
@@ -99,6 +98,10 @@ module AutoTransHelper = struct
 
     module ExprSet = FSetExtra.Make(Expr)
 
+    let string_of_exprlist (el:Expr.t list): string =
+      let sl = List.map (fun e -> Printer.ExprsToString.of_expr e) el in
+      List.fold_left (fun ss s -> ss^"-"^s) "" sl
+
     (* to_visit in reachables & graph *)
     let rec get_reachable
           (get_adj:Expr.t -> Expr.t list)
@@ -108,25 +111,22 @@ module AutoTransHelper = struct
       match to_visit with
       | [] -> (reachables, graph)
       | e_cur::to_visit_later ->
+         Printer.debug_print ("AutoInfruleGen: reachable processing "^(Printer.ExprsToString.of_expr e_cur));
          let new_visit =
-           List.filter
-           (fun e -> not (ExprSet.mem e reachables))
-           (get_adj e_cur)
+           List.filter (fun e -> not (ExprSet.mem e reachables)) (get_adj e_cur)
          in
+         Printer.debug_print ("AutoInfruleGen: filtered new visit="^(string_of_exprlist new_visit));
          let new_reachables =
-           List.fold_left
-             (fun s e -> ExprSet.add e s)
-             reachables new_visit
+           List.fold_left (fun s e -> ExprSet.add e s) reachables new_visit
          in
          let new_graph =
-           List.fold_left
-             (fun g e -> ExprPairSet.add (e_cur, e) g)
-             graph new_visit
+           List.fold_left (fun g e -> ExprPairSet.add (e_cur, e) g) graph new_visit
          in
          get_reachable get_adj (to_visit_later@new_visit) new_reachables new_graph
 
     let get_reachable_from_l (inv_u:Invariant.unary) (e:Expr.t)
         : ExprSet.t * ExprPairSet.t =
+      Printer.debug_print "AutoInfruleGen: AutoTransHelper.get_reachable_from_l start";
       get_reachable (AutoUtils.get_rhs_list inv_u.Invariant.lessdef)
                     [e] (ExprSet.singleton e) ExprPairSet.empty
 
@@ -140,31 +140,25 @@ module AutoTransHelper = struct
                      (e_from:Expr.t) (e_to:Expr.t)
         : Expr.t list =
       if Expr.eq_dec e_from e_to then e_to::acc
-      else
-        match AutoUtils.get_lhs_list gr e_to with
-        | e_l::_ -> get_path (e_to::acc) gr e_from e_l
-        | _ -> []
+      else match AutoUtils.get_lhs_list gr e_to with
+           | e_l::_ -> get_path (e_to::acc) gr e_from e_l
+           | _ -> []
 
     let rec gen_infrules (scp:AutoUtils.scope_t) (chain:Expr.t list)
             : Infrule.t list =
       match chain with
       | e1::e2::e3::chain_t ->
-         (AutoUtils.transitivity scp e1 e2 e3)::
-           (gen_infrules scp (e1::e3::chain_t))
+         (AutoUtils.transitivity scp e1 e2 e3)::(gen_infrules scp (e1::e3::chain_t))
       | _ -> []
 
     let run_inj (inv:Invariant.t) (e1:Expr.t) (e2:Expr.t)
         : (Infrule.t list) option =
-      let (rch_src, gr_src) =
-        get_reachable_from_l inv.Invariant.src e1 in
-      let (rch_tgt, gr_tgt) =
-        get_reachable_from_r inv.Invariant.tgt e2 in
-      let cand_exprs =
-        ExprSet.elements (ExprSet.inter rch_src rch_tgt) in
+      let (rch_src, gr_src) = get_reachable_from_l inv.Invariant.src e1 in
+      let (rch_tgt, gr_tgt) = get_reachable_from_r inv.Invariant.tgt e2 in
+      let cand_exprs = ExprSet.elements (ExprSet.inter rch_src rch_tgt) in
       let filtered_cand_exprs =
         List.filter
-          (fun e ->
-           List.for_all (Invariant.not_in_maydiff inv) (Expr.get_valueTs e))
+          (fun e -> List.for_all (Invariant.not_in_maydiff inv) (Expr.get_valueTs e))
           cand_exprs in
       match filtered_cand_exprs with
       | e::_ ->
@@ -178,14 +172,13 @@ module AutoTransHelper = struct
     let run_unary (scp:AutoUtils.scope_t) (inv_u:Invariant.unary)
                   (e1:Expr.t) (e2:Expr.t)
         : (Infrule.t list) option =
-      let (rch, gr) =
-        get_reachable_from_l inv_u e1 in
+      Printer.debug_print "AutoInfruleGen: AutoTransHelper.run_unary start";
+      let (rch, gr) = get_reachable_from_l inv_u e1 in
       let path = get_path [] gr e1 e2 in
-      let infrs = gen_infrules scp path in
-      Some infrs
-
+      Printer.debug_print
+        ("AutoInfruleGen: path-length: " ^ string_of_int (List.length path));
+      Some (gen_infrules scp path)
   end
-
 
 module AutoSubstTransHelper = struct
     (* produce x >= v applying seq of subst-transitivity *)
@@ -196,33 +189,31 @@ module AutoSubstTransHelper = struct
       then Some [] else
         let exp_x = (Expr.Coq_value (ValueT.Coq_id x)) in
         let exp_v = (Expr.Coq_value v) in
-
         let e_l_cands = AutoUtils.get_rhs_list inv_u.Invariant.lessdef exp_x in
         let e_r_cands = AutoUtils.get_lhs_list inv_u.Invariant.lessdef exp_v in
+
         (* 1. Find direct application *)
         match AutoUtils.expr_find_first_match2
                 (fun e_l e_r ->
                  if Expr.eq_dec e_l e_r
                  then Some [AutoUtils.transitivity scp exp_x e_l exp_v]
-                 else
-                   match try_subst scp inv_u e_l e_r with
-                   | Some infrs ->
-                      Some (infrs@[AutoUtils.transitivity scp exp_x e_l e_r;
-                                   AutoUtils.transitivity scp exp_x e_r exp_v])
-                   | None -> None)
+                 else match try_subst scp inv_u e_l e_r with
+                      | Some infrs ->
+                         Some (infrs@[AutoUtils.transitivity scp exp_x e_l e_r;
+                                      AutoUtils.transitivity scp exp_x e_r exp_v])
+                      | None -> None)
                 e_l_cands e_r_cands
         with
         | Some infrs -> Some infrs
         | None ->
            (* 2. Try applying one transitivity from v's side *)
            (match AutoUtils.expr_find_first_match
-                    (fun e ->
-                     match e with
-                     | Expr.Coq_value nv ->
-                        (match try_trans scp inv_u x nv with
-                         | Some infrs -> Some (e, infrs)
-                         | None -> None)
-                     | _ -> None) e_r_cands
+                    (fun e -> match e with
+                              | Expr.Coq_value nv ->
+                                 (match try_trans scp inv_u x nv with
+                                  | Some infrs -> Some (e, infrs)
+                                  | None -> None)
+                              | _ -> None) e_r_cands
             with
             | Some (exp_m, infrs) -> Some (infrs@[AutoUtils.transitivity scp exp_x exp_m exp_v])
             | None -> None)
@@ -269,13 +260,22 @@ module AutoSubstTransHelper = struct
 
   end
 
-module type InjectExprGenerator = sig
-    val f : Invariant.t -> Expr.t -> Expr.t -> (Infrule.t list) option
+(** AutoInfruleGenerator Framework *)
+type auto1_t = Invariant.t -> Invariant.t -> (Infrule.t list * Invariant.t)
+type auto2_t = Invariant.t -> ValueTPair.t list -> (Infrule.t list * ValueTPair.t list)
+type auto_t = auto1_t * auto2_t
+
+(** Framework 1. AutoNextInvariant *)
+module type AutoNextInv = sig
+    val run : auto1_t
   end
 
-(** 1-1. Resolving Next-Precond: Removing Maydiff *)
-module AutoRemMD (IEG:InjectExprGenerator)
-  = struct
+(** Framework 1-1. Removing Maydiff *)
+module type InjectExprGenerator = sig
+    val f : Invariant.t -> Expr.t -> Expr.t -> (Infrule.t list) option
+  end                                    
+
+module AutoRemMD (IEG:InjectExprGenerator) : AutoNextInv = struct
     let find_inject (inv:Invariant.t) (x:IdT.t)
         : (Infrule.t list) option =
       let exp_x = Expr.Coq_value (ValueT.Coq_id x) in
@@ -316,13 +316,13 @@ module AutoRemMD (IEG:InjectExprGenerator)
       run_intl inv inv_goal [] md_remain
   end
 
+(** Framework 1-2. Unary Invariants *)
 module type UnaryLDGenerator = sig
     val f : AutoUtils.scope_t -> Invariant.unary ->
             Expr.t -> Expr.t -> (Infrule.t list) option
   end
 
-(** 1-2. Resolving Next-Precond: Unary Conditions *)
-module AutoUnary (ULDG:UnaryLDGenerator) = struct
+module AutoUnary (ULDG:UnaryLDGenerator): AutoNextInv = struct
     let rec run_intl (scp:AutoUtils.scope_t)
                      (inv_u:Invariant.unary) (inv_u_goal:Invariant.unary)
                      (infrs_acc:Infrule.t list) (ld:(Expr.t * Expr.t) list)
@@ -333,8 +333,7 @@ module AutoUnary (ULDG:UnaryLDGenerator) = struct
          (match ULDG.f scp inv_u e_l e_r with
           | Some infrs ->
              let inv_u_goal_new =
-               Invariant.update_lessdef
-                 (ExprPairSet.remove (e_l, e_r)) inv_u_goal
+               Invariant.update_lessdef (ExprPairSet.remove (e_l, e_r)) inv_u_goal
              in
              run_intl scp inv_u inv_u_goal_new (infrs_acc@infrs) ld_t
           | None -> run_intl scp inv_u inv_u_goal infrs_acc ld_t)
@@ -353,21 +352,40 @@ module AutoUnary (ULDG:UnaryLDGenerator) = struct
     let run (inv:Invariant.t) (inv_goal:Invariant.t)
         : Infrule.t list * Invariant.t =
       let (infrs, inv_src) =
-        run_unary AutoUtils.Src inv.Invariant.src inv_goal.Invariant.src
-      in
+        run_unary AutoUtils.Src inv.Invariant.src inv_goal.Invariant.src in
       (infrs, Invariant.update_src (fun _ -> inv_src) inv_goal)
   end
 
-(** Instances of Resolving Next-Precond *)
-module AutoRemMD_SubstTransSrc =
+(** 2. AutoInjectValues *)
+module type AutoInjVal = sig
+    val run : auto2_t
+  end
+
+module AutoInjectValues (IEG:InjectExprGenerator): AutoInjVal = struct
+    let rec run_intl (inv:Invariant.t) (vpl_acc:ValueTPair.t list)
+                     (infrs_acc:Infrule.t list) (vpl:ValueTPair.t list)
+            : Infrule.t list * (ValueTPair.t list) =
+      match vpl with
+      | [] -> (infrs_acc, vpl_acc)
+      | (v_l, v_r)::vpl_t ->
+         (match IEG.f inv (Expr.Coq_value v_l) (Expr.Coq_value v_r) with
+          | Some infrs -> run_intl inv vpl_acc (infrs_acc@infrs) vpl_t
+          | None -> run_intl inv ((v_l, v_r)::vpl_acc) infrs_acc vpl_t)
+
+    let run (inv : Invariant.t) (vpl:(ValueT.t * ValueT.t) list)
+        : Infrule.t list * (ValueT.t * ValueT.t) list =
+      run_intl inv [] [] vpl
+  end
+
+(** Instances of Resolving Next Invariant *)
+module AutoRemMD_SubstTransSrc : AutoNextInv =
   AutoRemMD
     (struct
         let f = fun inv ->
-          AutoSubstTransHelper.try_subst
-            AutoUtils.Src inv.Invariant.src
+          AutoSubstTransHelper.try_subst AutoUtils.Src inv.Invariant.src
     end)
 
-module AutoUnary_SubstTrans =
+module AutoUnary_SubstTrans : AutoNextInv =
   AutoUnary
     (struct
         let f = fun scp inv_u e1 e2 ->
@@ -377,120 +395,65 @@ module AutoUnary_SubstTrans =
           | _, _ -> None
       end)
 
-module AutoUnary_Trans =
+module AutoUnary_Trans : AutoNextInv =
   AutoUnary
     (struct
         let f = AutoTransHelper.run_unary
       end)
 
-let default1 : Invariant.t -> Invariant.t -> (Infrule.t list * Invariant.t) =
-  fun _ r -> ([], r)
-
-(** 2. AutoInjectEvent *)
-
-module AutoInjectEvent (IEG:InjectExprGenerator) = struct
-    let rec run_intl (inv:Invariant.t) (vpl_acc:ValueTPair.t list)
-                     (infrs_acc:Infrule.t list) (vpl:ValueTPair.t list)
-            : Infrule.t list * (ValueTPair.t list) =
-      match vpl with
-      | [] -> (infrs_acc, vpl_acc)
-      | (v_l, v_r)::vpl_t ->
-         (match IEG.f inv (Expr.Coq_value v_l) (Expr.Coq_value v_r) with
-          | Some infrs ->
-             run_intl inv vpl_acc (infrs_acc@infrs) vpl_t
-          | None ->
-             run_intl inv ((v_l, v_r)::vpl_acc) infrs_acc vpl_t)
-
-    let run (inv : Invariant.t) (vpl:(ValueT.t * ValueT.t) list)
-        : Infrule.t list * (ValueT.t * ValueT.t) list =
-      run_intl inv [] [] vpl
+module Auto_Default1 : AutoNextInv = struct
+    let run : auto1_t = fun _ r -> ([], r)
   end
 
-(** Instances of AutoInjectEvent *)
-module AutoInjectEvent_SubstTransSrc =
-  AutoInjectEvent
+(** Instances of AutoInjectValues *)
+module AutoInjectValues_SubstTransSrc : AutoInjVal =
+  AutoInjectValues
     (struct
         let f = fun inv e1 e2 ->
           match e1, e2 with
           | Expr.Coq_value (ValueT.Coq_id x),
             Expr.Coq_value v ->
              if Invariant.not_in_maydiff inv v
-             then
-               AutoSubstTransHelper.try_trans
-                 AutoUtils.Src inv.Invariant.src x v
+             then AutoSubstTransHelper.try_trans
+                    AutoUtils.Src inv.Invariant.src x v
              else None
           | _, _ -> None
       end)
 
-module AutoInjectEvent_Trans =
-  AutoInjectEvent
+module AutoInjectValues_Trans : AutoInjVal =
+  AutoInjectValues
     (struct
         let f = AutoTransHelper.run_inj
       end)
 
-let default2: Invariant.t -> ValueTPair.t list ->
-              (Infrule.t list * ValueTPair.t list) =
-  fun _ vp -> ([], vp)
+module Auto_Default2 : AutoInjVal = struct
+    let run : auto2_t = fun _ vp -> ([], vp)
+  end
 
 (** candidates *)
-module AutoGVN = struct
-    let run1 = AutoUnary_SubstTrans.run
-    let run2 = default2
-  end
 
-module AutoSROA = struct
-    let run1 = AutoUnary_Trans.run
-    let run2 = AutoInjectEvent_Trans.run
-  end
+let autoGVN : auto_t = (AutoUnary_SubstTrans.run, Auto_Default2.run)
+let autoSROA : auto_t = (AutoUnary_Trans.run, AutoInjectValues_Trans.run)
+let autoDflt : auto_t = (Auto_Default1.run, Auto_Default2.run)
 
-module AutoTest1 = struct
-    let run1 = AutoRemMD_SubstTransSrc.run
-    let run2 = default2
-  end
-
-module AutoTest2 = struct
-    let run1 = AutoUnary_SubstTrans.run
-    let run2 = default2
-  end
-
-module AutoTest3 = struct
-    let run1 = AutoUnary_Trans.run
-    let run2 = default2
-  end
-
-module AutoTest4 = struct
-    let run1 = default1
-    let run2 = AutoInjectEvent_SubstTransSrc.run
-  end
+let autoTest1 : auto_t = (AutoRemMD_SubstTransSrc.run, Auto_Default2.run)
+let autoTest2 : auto_t = (AutoUnary_SubstTrans.run, Auto_Default2.run)
+let autoTest3 : auto_t = (AutoUnary_Trans.run, Auto_Default2.run)
+let autoTest4 : auto_t = (Auto_Default1.run, AutoInjectValues_SubstTransSrc.run)
 
 (** interface *)
 
-module RunSet = struct
-    let run1
-        : unit -> Invariant.t -> Invariant.t ->
-          (Infrule.t list * Invariant.t) =
+module AutoStrategy = struct
+    let select : unit -> auto_t =
       fun _ ->
-      match !AutoUtils.pass_option with
-      | AutoUtils.GVN -> AutoGVN.run1
-      | AutoUtils.SROA -> AutoSROA.run1
-      | AutoUtils.TEST1 -> AutoTest1.run1
-      | AutoUtils.TEST2 -> AutoTest2.run1
-      | AutoUtils.TEST3 -> AutoTest3.run1
-      | AutoUtils.TEST4 -> AutoTest4.run1
-      | _ -> default1
-
-    let run2
-        : unit -> Invariant.t -> ValueTPair.t list ->
-          (Infrule.t list) * (ValueTPair.t list) =
-      fun _ ->
-      match !AutoUtils.pass_option with
-      | AutoUtils.GVN -> AutoGVN.run2
-      | AutoUtils.SROA -> AutoSROA.run2
-      | AutoUtils.TEST1 -> AutoTest1.run2
-      | AutoUtils.TEST2 -> AutoTest2.run2
-      | AutoUtils.TEST3 -> AutoTest3.run2
-      | AutoUtils.TEST4 -> AutoTest4.run2
-      | _ -> default2
+      match !AutoOpt.pass_option with
+      | AutoOpt.GVN -> autoGVN
+      | AutoOpt.SROA -> autoSROA
+      | AutoOpt.TEST1 -> autoTest1
+      | AutoOpt.TEST2 -> autoTest2
+      | AutoOpt.TEST3 -> autoTest3
+      | AutoOpt.TEST4 -> autoTest4
+      | _ -> autoDflt
   end
 
 let gen_infrules_from_insns
@@ -498,7 +461,8 @@ let gen_infrules_from_insns
       (insn_tgt : LLVMsyntax.insn)
       (inv : Invariant.t)
     : Infrule.t list =
-  let run = RunSet.run2 () in
+  Printer.debug_print "AutoInfruleGen: AutoInjVal start";
+  let run = snd (AutoStrategy.select ()) in
   let get_value_pairs_from_insns
         (insn_src : LLVMsyntax.insn)
         (insn_tgt : LLVMsyntax.insn)
@@ -524,297 +488,295 @@ let gen_infrules_from_insns
     | _, _ -> None
   in
   match get_value_pairs_from_insns insn_src insn_tgt with
-  | Some vpl ->
-     let (infrs, _) = run inv vpl in
-     infrs
+  | Some vpl -> fst (run inv vpl)
   | None -> []
 
-let gen_infrules (inv:Invariant.t) (inv_nxt:Invariant.t)
+let gen_infrules_next_inv (inv:Invariant.t) (inv_nxt:Invariant.t)
     : Infrule.t list =
-  let run = RunSet.run1 () in
-  let (infrs1, _) = run inv inv_nxt in
-  infrs1
+  Printer.debug_print "AutoInfruleGen: AutoNextInv start";
+  let run = fst (AutoStrategy.select ()) in
+  fst (run inv inv_nxt)
 
-(* module AutoGenTest = struct *)
-(*     let empty_inv_unary : Invariant.unary = *)
-(*       { Invariant.lessdef = ExprPairSet.empty; *)
-(*         Invariant.alias = *)
-(*           { Invariant.diffblock = ValueTPairSet.empty; *)
-(*             Invariant.noalias = PtrPairSet.empty }; *)
-(*         Invariant.unique = AtomSetImpl.empty; *)
-(*         Invariant.coq_private = IdTSet.empty } *)
+module AutoGenTest = struct
+    let empty_inv_unary : Invariant.unary =
+      { Invariant.lessdef = ExprPairSet.empty;
+        Invariant.alias =
+          { Invariant.diffblock = ValueTPairSet.empty;
+            Invariant.noalias = PtrPairSet.empty };
+        Invariant.unique = AtomSetImpl.empty;
+        Invariant.coq_private = IdTSet.empty }
 
-(*     let empty_inv : Invariant.t = *)
-(*       { Invariant.src = empty_inv_unary; *)
-(*         Invariant.tgt = empty_inv_unary; *)
-(*         Invariant.maydiff = IdTSet.empty } *)
+    let empty_inv : Invariant.t =
+      { Invariant.src = empty_inv_unary;
+        Invariant.tgt = empty_inv_unary;
+        Invariant.maydiff = IdTSet.empty }
 
-(*     let value_of_str (s:string) : ValueT.t = *)
-(*       ValueT.Coq_id (Tag.Coq_physical, s) *)
+    let value_of_str (s:string) : ValueT.t =
+      ValueT.Coq_id (Tag.Coq_physical, s)
 
-(*     let vA = value_of_str "A" *)
-(*     let vB = value_of_str "B" *)
-(*     let vC = value_of_str "C" *)
-(*     let va = value_of_str "a" *)
-(*     let vb = value_of_str "b" *)
-(*     let vc = value_of_str "c" *)
-(*     let vd = value_of_str "d" *)
-(*     let ve = value_of_str "e" *)
-(*     let vf = value_of_str "f" *)
-(*     let vone = value_of_str "one" *)
-(*     (\* Coq_const_int of sz * coq_Int *\) *)
-(*     let vz = value_of_str "z" *)
+    let vA = value_of_str "A"
+    let vB = value_of_str "B"
+    let vC = value_of_str "C"
+    let va = value_of_str "a"
+    let vb = value_of_str "b"
+    let vc = value_of_str "c"
+    let vd = value_of_str "d"
+    let ve = value_of_str "e"
+    let vf = value_of_str "f"
+    let vone = value_of_str "one"
+    (* Coq_const_int of sz * coq_Int *)
+    let vz = value_of_str "z"
 
-(*     let eA = Expr.Coq_value vA *)
-(*     let eB = Expr.Coq_value vB *)
-(*     let eC = Expr.Coq_value vC *)
-(*     let ea = Expr.Coq_value va *)
-(*     let eb = Expr.Coq_value vb *)
-(*     let ec = Expr.Coq_value vc *)
-(*     let ed = Expr.Coq_value vd *)
-(*     let ee = Expr.Coq_value ve *)
-(*     let ef = Expr.Coq_value vf *)
-(*     let eone = Expr.Coq_value vone *)
-(*     let ez = Expr.Coq_value vz *)
+    let eA = Expr.Coq_value vA
+    let eB = Expr.Coq_value vB
+    let eC = Expr.Coq_value vC
+    let ea = Expr.Coq_value va
+    let eb = Expr.Coq_value vb
+    let ec = Expr.Coq_value vc
+    let ed = Expr.Coq_value vd
+    let ee = Expr.Coq_value ve
+    let ef = Expr.Coq_value vf
+    let eone = Expr.Coq_value vone
+    let ez = Expr.Coq_value vz
 
-(*     let gen_pair1 e v1 v2 : ExprPair.t = *)
-(*       (e, Expr.Coq_bop (LLVMsyntax.Coq_bop_add, 1, v1, v2)) *)
-(*     let gen_pair2 e v1 v2 : ExprPair.t = *)
-(*       (Expr.Coq_bop (LLVMsyntax.Coq_bop_add, 1, v1, v2), e) *)
+    let gen_pair1 e v1 v2 : ExprPair.t =
+      (e, Expr.Coq_bop (LLVMsyntax.Coq_bop_add, 1, v1, v2))
+    let gen_pair2 e v1 v2 : ExprPair.t =
+      (Expr.Coq_bop (LLVMsyntax.Coq_bop_add, 1, v1, v2), e)
 
-(*     let expr_pair_set_add_list (epl:ExprPair.t list) *)
-(*         : ExprPairSet.t -> ExprPairSet.t = *)
-(*       fun eps -> *)
-(*       List.fold_left *)
-(*         (fun s ep -> ExprPairSet.add ep s) *)
-(*         eps epl *)
+    let expr_pair_set_add_list (epl:ExprPair.t list)
+        : ExprPairSet.t -> ExprPairSet.t =
+      fun eps ->
+      List.fold_left
+        (fun s ep -> ExprPairSet.add ep s)
+        eps epl
 
-(*     let inv_precond : Invariant.t = *)
-(*       Invariant.update_src *)
-(*         (Invariant.update_lessdef *)
-(*            (expr_pair_set_add_list *)
-(*               [gen_pair1 ef vd vA; *)
-(*                gen_pair1 ed vb vB; *)
-(*                gen_pair1 eb vone vC; *)
-(*                gen_pair1 ee vc vA; *)
-(*                gen_pair1 ec va vB; *)
-(*                gen_pair1 ea vone vC; *)
-(*                gen_pair2 ef vd vA; *)
-(*                gen_pair2 ed vb vB; *)
-(*                gen_pair2 eb vone vC; *)
-(*                gen_pair2 ee vc vA; *)
-(*                gen_pair2 ec va vB; *)
-(*                gen_pair2 ea vone vC *)
-(*         ])) *)
-(*         empty_inv *)
+    let inv_precond : Invariant.t =
+      Invariant.update_src
+        (Invariant.update_lessdef
+           (expr_pair_set_add_list
+              [gen_pair1 ef vd vA;
+               gen_pair1 ed vb vB;
+               gen_pair1 eb vone vC;
+               gen_pair1 ee vc vA;
+               gen_pair1 ec va vB;
+               gen_pair1 ea vone vC;
+               gen_pair2 ef vd vA;
+               gen_pair2 ed vb vB;
+               gen_pair2 eb vone vC;
+               gen_pair2 ee vc vA;
+               gen_pair2 ec va vB;
+               gen_pair2 ea vone vC
+        ]))
+        empty_inv
 
-(*     let inv_postcond_src : Invariant.t = *)
-(*       Invariant.update_src *)
-(*         (Invariant.update_lessdef *)
-(*            (expr_pair_set_add_list *)
-(*               [gen_pair1 ez vf vone; *)
-(*                gen_pair2 ez vf vone])) *)
-(*         inv_precond *)
+    let inv_postcond_src : Invariant.t =
+      Invariant.update_src
+        (Invariant.update_lessdef
+           (expr_pair_set_add_list
+              [gen_pair1 ez vf vone;
+               gen_pair2 ez vf vone]))
+        inv_precond
 
-(*     let inv_postcond_tgt : Invariant.t = *)
-(*       Invariant.update_tgt *)
-(*         (Invariant.update_lessdef *)
-(*            (expr_pair_set_add_list *)
-(*               [gen_pair1 ez ve vone; *)
-(*                gen_pair2 ez ve vone])) *)
-(*         inv_postcond_src *)
+    let inv_postcond_tgt : Invariant.t =
+      Invariant.update_tgt
+        (Invariant.update_lessdef
+           (expr_pair_set_add_list
+              [gen_pair1 ez ve vone;
+               gen_pair2 ez ve vone]))
+        inv_postcond_src
 
-(*     let inv_postcond : Invariant.t = *)
-(*       Invariant.update_maydiff *)
-(*         (fun s -> IdTSet.add (Tag.Coq_physical, "z") s) *)
-(*         inv_postcond_tgt *)
+    let inv_postcond : Invariant.t =
+      Invariant.update_maydiff
+        (fun s -> IdTSet.add (Tag.Coq_physical, "z") s)
+        inv_postcond_tgt
 
-(*     let inv_ld_f_e : Invariant.t = *)
-(*       Invariant.update_src *)
-(*         (Invariant.update_lessdef *)
-(*            (expr_pair_set_add_list *)
-(*               [(ef, ee)])) *)
-(*         empty_inv *)
+    let inv_ld_f_e : Invariant.t =
+      Invariant.update_src
+        (Invariant.update_lessdef
+           (expr_pair_set_add_list
+              [(ef, ee)]))
+        empty_inv
 
-(*     let inv_for_trans : Invariant.t = *)
-(*       Invariant.update_src *)
-(*         (Invariant.update_lessdef *)
-(*            (expr_pair_set_add_list *)
-(*               [(ef, ea); *)
-(*                (ea, eb); *)
-(*                (eb, ea); *)
-(*                (ea, ef); *)
-(*                (eb, ec); *)
-(*                (ec, ea); *)
-(*                (ec, ed); *)
-(*                (ed, ee); *)
-(*                (ee, eb); *)
-(*                (ed, ec) *)
-(*               ] *)
-(*         )) *)
-(*         empty_inv *)
+    let inv_for_trans : Invariant.t =
+      Invariant.update_src
+        (Invariant.update_lessdef
+           (expr_pair_set_add_list
+              [(ef, ea);
+               (ea, eb);
+               (eb, ea);
+               (ea, ef);
+               (eb, ec);
+               (ec, ea);
+               (ec, ed);
+               (ed, ee);
+               (ee, eb);
+               (ed, ec)
+              ]
+        ))
+        empty_inv
 
-(*     let inv_for_trans2 : Invariant.t = *)
-(*       Invariant.update_maydiff *)
-(*         (fun s -> IdTSet.add (Tag.Coq_physical, "b") s) *)
-(*       (Invariant.update_tgt *)
-(*         (Invariant.update_lessdef *)
-(*            (expr_pair_set_add_list *)
-(*               [(eb, ed); *)
-(*                (ed, ee); *)
-(*                (ee, ed); *)
-(*                (ee, ec); *)
-(*                (ec, ee) *)
-(*               ] *)
-(*            )) *)
-(*         (Invariant.update_src *)
-(*            (Invariant.update_lessdef *)
-(*               (expr_pair_set_add_list *)
-(*                  [(ef, ea); *)
-(*                   (ea, eb); *)
-(*                   (ea, ed); *)
-(*                   (ea, ef); *)
-(*                   (eb, ea) *)
-(*                  ] *)
-(*            )) *)
-(*            empty_inv)) *)
+    let inv_for_trans2 : Invariant.t =
+      Invariant.update_maydiff
+        (fun s -> IdTSet.add (Tag.Coq_physical, "b") s)
+      (Invariant.update_tgt
+        (Invariant.update_lessdef
+           (expr_pair_set_add_list
+              [(eb, ed);
+               (ed, ee);
+               (ee, ed);
+               (ee, ec);
+               (ec, ee)
+              ]
+           ))
+        (Invariant.update_src
+           (Invariant.update_lessdef
+              (expr_pair_set_add_list
+                 [(ef, ea);
+                  (ea, eb);
+                  (ea, ed);
+                  (ea, ef);
+                  (eb, ea)
+                 ]
+           ))
+           empty_inv))
 
-(*     let print_string_list sl : unit = *)
-(*       let size = List.length sl in *)
-(*       print_endline ("length: "^(string_of_int size)); *)
-(*       List.fold_left *)
-(*         (fun _ s -> (print_endline "MID"); print_endline s) *)
-(*         () sl *)
+    let print_string_list sl : unit =
+      let size = List.length sl in
+      print_endline ("length: "^(string_of_int size));
+      List.fold_left
+        (fun _ s -> (print_endline "MID"); print_endline s)
+        () sl
 
-(*     let string_of_terminator i : string = *)
-(*       match i with *)
-(*       | LLVMsyntax.Coq_insn_br (id, v, l1, l2) -> *)
-(*          Printf.sprintf "  %s = br %s %s %s\n" id (Coq_pretty_printer.string_of_value v) l1 l2 *)
-(*       | LLVMsyntax.Coq_insn_br_uncond (id, l) -> *)
-(*          Printf.sprintf "  %s = br %s \n" id l *)
-(*       | LLVMsyntax.Coq_insn_switch (id, ty, v, dflt, cases) -> *)
-(*          Printf.sprintf "  %s = switch %s %s, %s %s\n" id (Coq_pretty_printer.string_of_typ ty) (Coq_pretty_printer.string_of_value v) dflt *)
-(*                  (List.fold_left (fun s (c, l) -> s ^ "[" ^ (Coq_pretty_printer.string_of_constant c) ^ ", " ^ l ^ "] ") "" cases) *)
-(*       | LLVMsyntax.Coq_insn_return (id, t, v) -> *)
-(*          Printf.sprintf "  %s = ret %s %s\n" id (Coq_pretty_printer.string_of_typ t) (Coq_pretty_printer.string_of_value v) *)
-(*       | LLVMsyntax.Coq_insn_return_void id -> *)
-(*          Printf.sprintf "  %s = ret void\n" id *)
-(*       | LLVMsyntax.Coq_insn_unreachable id -> *)
-(*          Printf.sprintf "  %s = unreachable\n" id *)
+    let string_of_terminator i : string =
+      match i with
+      | LLVMsyntax.Coq_insn_br (id, v, l1, l2) ->
+         Printf.sprintf "  %s = br %s %s %s\n" id (Coq_pretty_printer.string_of_value v) l1 l2
+      | LLVMsyntax.Coq_insn_br_uncond (id, l) ->
+         Printf.sprintf "  %s = br %s \n" id l
+      | LLVMsyntax.Coq_insn_switch (id, ty, v, dflt, cases) ->
+         Printf.sprintf "  %s = switch %s %s, %s %s\n" id (Coq_pretty_printer.string_of_typ ty) (Coq_pretty_printer.string_of_value v) dflt
+                 (List.fold_left (fun s (c, l) -> s ^ "[" ^ (Coq_pretty_printer.string_of_constant c) ^ ", " ^ l ^ "] ") "" cases)
+      | LLVMsyntax.Coq_insn_return (id, t, v) ->
+         Printf.sprintf "  %s = ret %s %s\n" id (Coq_pretty_printer.string_of_typ t) (Coq_pretty_printer.string_of_value v)
+      | LLVMsyntax.Coq_insn_return_void id ->
+         Printf.sprintf "  %s = ret void\n" id
+      | LLVMsyntax.Coq_insn_unreachable id ->
+         Printf.sprintf "  %s = unreachable\n" id
 
-(*     let dv = !Globalstates.debug *)
-(*     let _ = Globalstates.debug := true *)
-(*     let ch = !Printer.out_channel *)
-(*     let _ = Printer.out_channel := stdout *)
-(*     let po = !AutoUtils.pass_option *)
+    let dv = !Globalstates.debug
+    let _ = Globalstates.debug := true
+    let ch = !Printer.out_channel
+    let _ = Printer.out_channel := stdout
+    let po = !AutoOpt.pass_option
 
-(*     (\* Test 1 *\) *)
-(*     let _ = AutoUtils.pass_option := AutoUtils.TEST1 *)
-(*     let _ = print_endline "Test 1: AutoRemMD_SubstTransSrc" *)
-(*     let _ = print_endline "- inv:" *)
-(*     let _ = Printer.PrintHints.invariant inv_postcond *)
-(*     let _ = print_endline "- inv_goal:" *)
-(*     let _ = Printer.PrintHints.invariant empty_inv *)
+    (* Test 1 *)
+    let _ = AutoOpt.pass_option := AutoOpt.TEST1
+    let _ = print_endline "Test 1: AutoRemMD_SubstTransSrc"
+    let _ = print_endline "- inv:"
+    let _ = Printer.PrintHints.invariant inv_postcond
+    let _ = print_endline "- inv_goal:"
+    let _ = Printer.PrintHints.invariant empty_inv
 
-(*     let gen_infrs1 = *)
-(*       gen_infrules inv_postcond empty_inv *)
+    let gen_infrs1 =
+      gen_infrules_next_inv inv_postcond empty_inv
 
-(*     let gen_infrs_str1 = *)
-(*       List.map Printer.PrintHints.infrule_to_string gen_infrs1 *)
+    let gen_infrs_str1 =
+      List.map Printer.PrintHints.infrule_to_string gen_infrs1
 
-(*     let _ = print_endline "- generated infrules:" *)
+    let _ = print_endline "- generated infrules:"
 
-(*     let _ = print_string_list gen_infrs_str1 *)
+    let _ = print_string_list gen_infrs_str1
 
-(*     (\* Test 2 *\) *)
-(*     let _ = AutoUtils.pass_option := AutoUtils.TEST2 *)
-(*     let _ = print_endline "Test 2: AutoUnary_SubstTrans" *)
-(*     let _ = print_endline "- inv:" *)
-(*     let _ = Printer.PrintHints.invariant inv_precond *)
-(*     let _ = print_endline "- inv_goal:" *)
-(*     let _ = Printer.PrintHints.invariant inv_ld_f_e *)
+    (* Test 2 *)
+    let _ = AutoOpt.pass_option := AutoOpt.TEST2
+    let _ = print_endline "Test 2: AutoUnary_SubstTrans"
+    let _ = print_endline "- inv:"
+    let _ = Printer.PrintHints.invariant inv_precond
+    let _ = print_endline "- inv_goal:"
+    let _ = Printer.PrintHints.invariant inv_ld_f_e
 
-(*     let gen_infrs2 = *)
-(*       gen_infrules inv_postcond_tgt inv_ld_f_e *)
+    let gen_infrs2 =
+      gen_infrules_next_inv inv_postcond_tgt inv_ld_f_e
 
-(*     let gen_infrs_str2 = *)
-(*       List.map *)
-(*          Printer.PrintHints.infrule_to_string gen_infrs2 *)
+    let gen_infrs_str2 =
+      List.map
+         Printer.PrintHints.infrule_to_string gen_infrs2
 
-(*     let _ = print_endline "- generated infrules:" *)
+    let _ = print_endline "- generated infrules:"
 
-(*     let _ = print_string_list gen_infrs_str2 *)
+    let _ = print_string_list gen_infrs_str2
 
-(*     (\* Test 3 *\) *)
-(*     let _ = AutoUtils.pass_option := AutoUtils.TEST3 *)
-(*     let _ = print_endline "Test 3: AutoUnary_Trans" *)
-(*     let _ = print_endline "- inv:" *)
-(*     let _ = Printer.PrintHints.invariant inv_for_trans *)
-(*     let _ = print_endline "- inv_goal:" *)
-(*     let _ = Printer.PrintHints.invariant inv_ld_f_e *)
+    (* Test 3 *)
+    let _ = AutoOpt.pass_option := AutoOpt.TEST3
+    let _ = print_endline "Test 3: AutoUnary_Trans"
+    let _ = print_endline "- inv:"
+    let _ = Printer.PrintHints.invariant inv_for_trans
+    let _ = print_endline "- inv_goal:"
+    let _ = Printer.PrintHints.invariant inv_ld_f_e
 
-(*     let gen_infrs3 = *)
-(*       gen_infrules inv_for_trans inv_ld_f_e *)
+    let gen_infrs3 =
+      gen_infrules_next_inv inv_for_trans inv_ld_f_e
 
-(*     let gen_infrs_str3 = *)
-(*       List.map *)
-(*          Printer.PrintHints.infrule_to_string gen_infrs3 *)
+    let gen_infrs_str3 =
+      List.map
+         Printer.PrintHints.infrule_to_string gen_infrs3
 
-(*     let _ = print_endline "- generated infrules:" *)
+    let _ = print_endline "- generated infrules:"
 
-(*     let _ = print_string_list gen_infrs_str3 *)
+    let _ = print_string_list gen_infrs_str3
 
-(*     (\* Test 4 *\) *)
-(*     let _ = AutoUtils.pass_option := AutoUtils.TEST4 *)
-(*     let _ = print_endline "Test 4: AutoInjectEvent_SubstTransSrc" *)
-(*     let _ = print_endline "- inv:" *)
-(*     let _ = Printer.PrintHints.invariant inv_precond *)
-(*     let _ = print_endline "- insns:" *)
+    (* Test 4 *)
+    let _ = AutoOpt.pass_option := AutoOpt.TEST4
+    let _ = print_endline "Test 4: AutoInjectValues_SubstTransSrc"
+    let _ = print_endline "- inv:"
+    let _ = Printer.PrintHints.invariant inv_precond
+    let _ = print_endline "- insns:"
 
-(*     let tmn1 : terminator = *)
-(*       Coq_insn_return ("id1", Coq_typ_int 1, Coq_value_id "f") *)
-(*     let ret_insn1 : insn = Coq_insn_terminator tmn1 *)
+    let tmn1 : terminator =
+      Coq_insn_return ("id1", Coq_typ_int 1, Coq_value_id "f")
+    let ret_insn1 : insn = Coq_insn_terminator tmn1
 
-(*     let tmn2 : terminator = *)
-(*       Coq_insn_return ("id3", Coq_typ_int 1, Coq_value_id "e") *)
-(*     let ret_insn2 : insn = Coq_insn_terminator tmn2 *)
+    let tmn2 : terminator =
+      Coq_insn_return ("id3", Coq_typ_int 1, Coq_value_id "e")
+    let ret_insn2 : insn = Coq_insn_terminator tmn2
 
-(*     let _ = print_endline (string_of_terminator tmn1) *)
-(*     let _ = print_endline (string_of_terminator tmn2) *)
+    let _ = print_endline (string_of_terminator tmn1)
+    let _ = print_endline (string_of_terminator tmn2)
 
-(*     let gen_infrs4 = *)
-(*       gen_infrules_from_insns ret_insn1 ret_insn2 inv_precond *)
+    let gen_infrs4 =
+      gen_infrules_from_insns ret_insn1 ret_insn2 inv_precond
 
-(*     let gen_infrs_str4 = *)
-(*       List.map Printer.PrintHints.infrule_to_string gen_infrs4 *)
+    let gen_infrs_str4 =
+      List.map Printer.PrintHints.infrule_to_string gen_infrs4
 
-(*     let _ = print_endline "- generated infrules:" *)
+    let _ = print_endline "- generated infrules:"
 
-(*     let _ = print_string_list gen_infrs_str4 *)
+    let _ = print_string_list gen_infrs_str4
 
-(*     (\* Test 5:SROA *\) *)
-(*     let _ = AutoUtils.pass_option := AutoUtils.SROA *)
-(*     let _ = print_endline "Test 5: AutoInjectEvent_Trans(SROA)" *)
-(*     let _ = print_endline "- inv:" *)
-(*     let _ = Printer.PrintHints.invariant inv_for_trans2 *)
-(*     let _ = print_endline "- insns:" *)
+    (* Test 5:SROA *)
+    let _ = AutoOpt.pass_option := AutoOpt.SROA
+    let _ = print_endline "Test 5: AutoInjectValues_Trans(SROA)"
+    let _ = print_endline "- inv:"
+    let _ = Printer.PrintHints.invariant inv_for_trans2
+    let _ = print_endline "- insns:"
 
-(*     let _ = print_endline (string_of_terminator tmn1) *)
-(*     let _ = print_endline (string_of_terminator tmn2) *)
+    let _ = print_endline (string_of_terminator tmn1)
+    let _ = print_endline (string_of_terminator tmn2)
 
-(*     let gen_infrs5 = *)
-(*       gen_infrules_from_insns ret_insn1 ret_insn2 inv_for_trans2 *)
+    let gen_infrs5 =
+      gen_infrules_from_insns ret_insn1 ret_insn2 inv_for_trans2
 
-(*     let gen_infrs_str5 = *)
-(*       List.map Printer.PrintHints.infrule_to_string gen_infrs5 *)
+    let gen_infrs_str5 =
+      List.map Printer.PrintHints.infrule_to_string gen_infrs5
 
-(*     let _ = print_endline "- generated infrules:" *)
+    let _ = print_endline "- generated infrules:"
 
-(*     let _ = print_string_list gen_infrs_str5 *)
+    let _ = print_string_list gen_infrs_str5
 
-(*     (\* Test end *\) *)
-(*     let _ = AutoUtils.pass_option := po *)
-(*     let _ = Globalstates.debug := dv *)
-(*     let _ = Printer.out_channel := ch *)
+    (* Test end *)
+    let _ = AutoOpt.pass_option := po
+    let _ = Globalstates.debug := dv
+    let _ = Printer.out_channel := ch
 
-(*   end *)
+  end

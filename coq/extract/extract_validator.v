@@ -35,8 +35,8 @@ Extract Constant expr_printer => "Printer.expr_printer".
 
 Extract Constant gen_infrules_from_insns =>
 "InfruleGen.gen_infrules_from_insns".
-Extract Constant gen_infrules =>
-"InfruleGen.gen_infrules".
+Extract Constant gen_infrules_next_inv =>
+"InfruleGen.gen_infrules_next_inv".
 
 Extract Constant power_sz => "(fun x ->
   if x = 0 then Coq_xH else Coq_xO (power_sz (x-1)))".

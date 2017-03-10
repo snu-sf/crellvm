@@ -19,7 +19,7 @@ Require Import Debug.
 Set Implicit Arguments.
 
 Parameter gen_infrules_from_insns : insn -> insn -> Invariant.t -> list Infrule.t.
-Parameter gen_infrules : Invariant.t -> Invariant.t -> list Infrule.t.
+Parameter gen_infrules_next_inv : Invariant.t -> Invariant.t -> list Infrule.t.
 
 Fixpoint valid_cmds
          (m_src m_tgt:module)
@@ -53,7 +53,7 @@ Fixpoint valid_cmds
          then true
          else
            (* TODO: need new print method *)
-           let infrules := gen_infrules inv3 inv in
+           let infrules := gen_infrules_next_inv inv3 inv in
            let inv3_infr := apply_infrules m_src m_tgt infrules inv3 in
            let inv3_red := reduce_maydiff inv3_infr in
            Invariant.implies inv3_red inv)
