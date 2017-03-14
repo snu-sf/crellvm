@@ -351,6 +351,7 @@ type propagate_object = [
 
 type propagate_range = [
   | Bounds of (position * position)
+  | BoundSet of (position * position list)
   | Global
   ] <ocaml repr="classic">
 
