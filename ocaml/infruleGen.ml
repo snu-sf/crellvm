@@ -8,7 +8,7 @@ open LLVMsyntax
 module AutoOpt = struct
     type pass_t =
       GVN | SROA | INSTCOMBINE | TEST1 | TEST2 | TEST3 | TEST4 | DEFAULT
-    let pass_option : pass_t ref = ref SROA
+    let pass_option : pass_t ref = ref DEFAULT
   end
 
 module AutoUtils = struct

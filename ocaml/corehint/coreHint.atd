@@ -2239,12 +2239,15 @@ type cpp_debug_info = {
   line_number : int;
 }
 
+type auto_opt = [AUTO_GVN | AUTO_SROA | AUTO_INSTCOMBINE | AUTO_DEFAULT] <ocaml repr="classic">
+
 type hints = {
   module_id : string;
   function_id : string;
   opt_name : string;
   ~description : string;
   return_code : return_code_type;
+  ~auto_option <ocaml default="AUTO_DEFAULT"> : auto_opt;
   nop_positions: position list; (* insert after position *)
 
   commands : (hint_command * cpp_debug_info) list;
