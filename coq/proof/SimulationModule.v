@@ -213,6 +213,7 @@ Proof.
       + econs.
       + generalize VALID_FDEF. i.
         unfold forallb2AL in VALID_FDEF0. ss. apply andb_true_iff in VALID_FDEF0. des. simtac.
+        { admit. (* gen_infrules *) }
         hexploit InvState.Rel.sem_empty; eauto.
         { exact (SF_ADMIT "init_locals inject_locals"). }
         i. des.
@@ -244,6 +245,7 @@ Proof.
             | [H: proj_sumbool (id_dec ?a ?a) = false |- _] => destruct (id_dec a a); ss
             end.
           }
+        * admit. (* gen_infrules. easy. *)
         * ss. exact (SF_ADMIT "InvMem.Rel.sem init_mem").
       + reflexivity.
   }
@@ -251,4 +253,5 @@ Unshelve.
 { apply empty_invmem. }
 { apply 0%nat. }
 { apply empty_invmem. }
-Qed.
+(* Qed. *)
+Admitted.
