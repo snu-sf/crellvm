@@ -1825,7 +1825,7 @@ type icmp_swap_operands = {
   ty : value_type;
   x : value;
   y : value;
-  z : value;
+  e : expr;
 }
 
 type fcmp_swap_operands = {
@@ -1833,7 +1833,7 @@ type fcmp_swap_operands = {
   fty : float_type;
   x : value;
   y : value;
-  z : value;
+  e : expr;
 }
 
 type implies_false = {
