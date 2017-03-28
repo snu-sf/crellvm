@@ -39,6 +39,7 @@ Fixpoint valid_cmds
                                               (insn_cmd cmd_tgt)
                                               inv0 in
           let inv0_infr := apply_infrules m_src m_tgt infr inv0 in
+          let inv0_infr := debug_print_auto infr inv0_infr in
           postcond_cmd cmd_src cmd_tgt inv0_infr
         end
     in
@@ -56,6 +57,7 @@ Fixpoint valid_cmds
            let infrules := gen_infrules_next_inv inv3 inv in
            let inv3_infr := apply_infrules m_src m_tgt infrules inv3 in
            let inv3_red := reduce_maydiff inv3_infr in
+           let inv3_red := debug_print_auto infrules inv3_red in
            Invariant.implies inv3_red inv)
       then valid_cmds m_src m_tgt src tgt hint inv
       else failwith_None "valid_cmds: Invariant.implies returned false" nil

@@ -229,8 +229,7 @@ module AutoSubstTransHelper = struct
                  then Some [AutoUtils.transitivity scp exp_x e_l exp_v]
                  else match try_subst scp inv_u exp_x e_l e_r with
                       | Some infrs ->
-                         Some (infrs@[AutoUtils.transitivity scp exp_x e_l e_r;
-                                      AutoUtils.transitivity scp exp_x e_r exp_v])
+                         Some (infrs@[AutoUtils.transitivity scp exp_x e_r exp_v])
                       | None -> None)
                 e_l_cands e_r_cands
         with
@@ -248,7 +247,7 @@ module AutoSubstTransHelper = struct
             | Some (exp_m, infrs) -> Some (infrs@[AutoUtils.transitivity scp exp_x exp_m exp_v])
             | None -> None)
 
-    (* generate e_l >= e_r if possible *)
+    (* generate e_ll >= e_r if possible *)
     (* when e_l = e_r, return (Some []) *)
     and try_subst (scp:AutoUtils.scope_t) (inv_u:Invariant.unary) (e_ll:Expr.t)
                       (e_l:Expr.t) (e_r:Expr.t)
@@ -259,12 +258,11 @@ module AutoSubstTransHelper = struct
       | _, _->
          let fst_result =
            match AutoUtils.eq_exps_values e_l e_r with
-           | Some vpl ->
-              try_subst_intl scp inv_u e_l e_l vpl []
+           | Some vpl -> try_subst_intl scp inv_u e_l e_l vpl []
            | _ -> None
          in
          (match fst_result with
-          | Some _ -> fst_result
+          | Some infrs -> Some (infrs@[AutoUtils.transitivity scp e_ll e_l e_r])
           | None ->
              (* modify and try again *)
              (match try_modify scp e_ll e_l with
@@ -433,11 +431,12 @@ module AutoRemMD_SubstTransSrc : AutoNextInv =
             AutoUtils.get_lhs_list inv.Invariant.tgt.Invariant.lessdef exp2 in
           AutoUtils.expr_find_first_match2
             (fun e1 e2 ->
+             AutoSubstTransHelper.try_subst AutoUtils.Src inv.Invariant.src exp1 e1 e2)
              (* TODO: check e2 disjoint with MD *)
-             match AutoSubstTransHelper.try_subst AutoUtils.Src inv.Invariant.src exp1 e1 e2 with
-             | Some infrs ->
-                Some (infrs@[AutoUtils.transitivity AutoUtils.Src exp1 e1 e2])
-             | None -> None)
+             (* match AutoSubstTransHelper.try_subst AutoUtils.Src inv.Invariant.src exp1 e1 e2 with *)
+             (* | Some infrs -> *)
+             (*    Some (infrs@[AutoUtils.transitivity AutoUtils.Src exp1 e1 e2]) *)
+             (* | None -> None) *)
             e_src_cands e_tgt_cands
       end)
 
