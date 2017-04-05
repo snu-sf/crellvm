@@ -169,11 +169,26 @@ let add_false_to_dead_block hint_fdef lfdef =
     TODO.mapiAL f hint_fdef in
   hint_fdef
 
+module ConvertAuto = struct
+    let convert_auto_option (opt:CoreHint_t.auto_opt)
+        : InfruleGen.AutoOpt.pass_t =
+      match opt with
+      | CoreHint_t.AUTO_GVN -> InfruleGen.AutoOpt.GVN
+      | CoreHint_t.AUTO_SROA -> InfruleGen.AutoOpt.SROA
+      | CoreHint_t.AUTO_INSTCOMBINE -> InfruleGen.AutoOpt.INSTCOMBINE
+      | _ -> InfruleGen.AutoOpt.DEFAULT
+
+    let set_auto (opt:CoreHint_t.auto_opt): unit =
+      let auto_opt = convert_auto_option opt in
+      InfruleGen.AutoOpt.pass_option := auto_opt
+  end
+
 let convert
       (lm:LLVMsyntax.coq_module)
       (rm:LLVMsyntax.coq_module)
       (core_hint:CoreHint_t.hints)
     : ValidationHint.coq_module =
+  let _ = ConvertAuto.set_auto core_hint.CoreHint_t.auto_option in
 
   let fid = core_hint.function_id in
   let lfdef = TODOCAML.get (LLVMinfra.lookupFdefViaIDFromModule lm fid) in

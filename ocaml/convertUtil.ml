@@ -22,6 +22,7 @@ module Position = struct
 
   type range =
     | Bounds of (t * t)
+    | BoundSet of (t * t list)
     | Global
 
   let idx_any_phinode: idx = Phinode "any"
@@ -93,6 +94,7 @@ module Position = struct
   let convert_range (range:CoreHint_t.propagate_range) (nops:CoreHint_t.position list) (lfdef:fdef) (rfdef:fdef) =
     match range with
     | CoreHint_t.Bounds (f, t) -> Bounds (convert f nops lfdef rfdef, convert t nops lfdef rfdef)
+    | CoreHint_t.BoundSet (f, tset) -> BoundSet (convert f nops lfdef rfdef, List.map (fun t -> (convert t nops lfdef rfdef)) tset)
     | CoreHint_t.Global -> Global
 end
 

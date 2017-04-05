@@ -289,5 +289,69 @@ let propagate_hint
           then PropagateStmts.global invariant hint_stmts
           else hint_stmts)
          hint_fdef
+  | Position.BoundSet (position_from, position_to_lst) ->
+     let (bid_from, idx_from) = position_from in
+     let rec remove_dups lst =
+       match lst with
+       | [] -> []
+       | h::t -> h::(remove_dups (List.filter (fun x -> x<>h) t)) in
+     let position_to_lst_reduced = remove_dups position_to_lst in
+     let position_to_lst_reduced =
+       List.map
+        (fun (bid_to, idx_to) ->
+          match idx_to with
+          | Position.Phinode bid_prev ->
+             (bid_prev, Position.idx_final bid_prev lfdef)
+          | Position.Command _ -> (bid_to, idx_to))
+        position_to_lst_reduced in
+    let position_to_lst_filtered =
+      List.filter
+       (fun (bid_to, idx_to) -> bid_to <> bid_from) position_to_lst_reduced in
+    if position_to_lst_filtered = []
+    then
+      List.fold_left
+        (fun hint_fdef (bid_to, idx_to) ->
+          let hint_stmts = TODOCAML.get (Alist.lookupAL hint_fdef bid_from) in
+          let hint_stmts = PropagateStmts.bounds idx_from idx_to invariant hint_stmts in
+          Alist.updateAL hint_fdef bid_from hint_stmts)
+        hint_fdef position_to_lst_reduced (* TODO: find furthermost idx_to *)
+    else
+      let hint_fdef =
+        List.fold_left
+         (fun hint_fdef (bid_to, idx_to) ->
+           let (to_until_end, interm_bids) =
+             Reachable.get_intermediate_block_ids bid_from bid_to lfdef dtree_lfdef in
+           let hint_stmts_from = TODOCAML.get (Alist.lookupAL hint_fdef bid_from) in
+           let hint_stmts_from =
+             PropagateStmts.bounds_from idx_from invariant hint_stmts_from in
+           let hint_stmts_to = TODOCAML.get (Alist.lookupAL hint_fdef bid_to) in
+           let hint_stmts_to =
+             if to_until_end
+             then PropagateStmts.global invariant hint_stmts_to
+             else PropagateStmts.bounds_to idx_to invariant hint_stmts_to
+           in
+           let hint_fdef = Alist.updateAL hint_fdef bid_from hint_stmts_from in
+           let hint_fdef = Alist.updateAL hint_fdef bid_to hint_stmts_to in
+           hint_fdef)
+         hint_fdef position_to_lst_filtered in
+      let interm_bids_lst =
+        List.map
+         (fun (bid_to, idx_to) ->
+           (* TODO: optimize below to prevent caliing same function again *)
+           let (to_until_end, interm_bids) =
+             Reachable.get_intermediate_block_ids bid_from bid_to lfdef dtree_lfdef in
+           AtomSetImpl.remove bid_from (AtomSetImpl.remove bid_to interm_bids))
+         position_to_lst_filtered in
+      let interm_bids =
+        List.fold_left
+         (fun interm_bids_set interm_bids_elem ->
+           AtomSetImpl.union interm_bids_set interm_bids_elem)
+         AtomSetImpl.empty interm_bids_lst in
+      TODO.mapiAL
+        (fun bid hint_stmts ->
+          if AtomSetImpl.mem bid interm_bids
+          then PropagateStmts.global invariant hint_stmts
+          else hint_stmts)
+        hint_fdef
   | Position.Global ->
      propagate_global invariant hint_fdef
