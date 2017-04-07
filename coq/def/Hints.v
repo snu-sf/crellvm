@@ -333,31 +333,60 @@ Module Invariant.
       (SUBSET_MAYDIFF: IdTSet.Subset inv2.(maydiff) inv1.(maydiff))
   .
 
-  Definition function_entry_inv (la_src: args) (la_tgt: args): t :=
-  let add_Args_IDs (la: args) :=
-    let argsIDs := getArgsIDs la in
-      List.fold_right
-        (fun id inv =>
-          let ty := lookupTypViaIDFromArgs la id in
-          match lookupTypViaIDFromArgs la id with
-          | Some ty =>
-              ExprPairSet.add (Expr.value (ValueT.const (const_undef ty)),
-                               Expr.value (ValueT.id (Tag.physical, id))) inv
-          | None => inv
+  Definition function_entry_inv (la_src la_tgt: args) (products_src products_tgt: products): t :=
+  let getGvarIDs (ps: products) :=
+    List.map
+      getGvarID
+      (List.fold_right
+        (fun p lst =>
+          match p with
+          | product_gvar gvar => gvar::lst
+          | _ => lst
           end
         )
-        ExprPairSet.empty argsIDs
+        [] ps)
   in
+  let add_Gvar_IDs (ps: products) :=
+    let gvarIDs := getGvarIDs ps in
+    List.fold_right
+      (fun id inv =>
+        match lookupTypViaGIDFromProducts ps id with
+        | Some ty =>
+            ExprPairSet.add (Expr.value (ValueT.const (const_undef ty)),
+                             Expr.value (ValueT.const (const_gid ty id))) inv
+        | None => inv
+        end
+      )
+      ExprPairSet.empty gvarIDs
+  in
+  let add_Args_IDs (la: args) :=
+    let argsIDs := getArgsIDs la in
+    List.fold_right
+      (fun id inv =>
+(*        let ty := lookupTypViaIDFromArgs la id in *)
+        match lookupTypViaIDFromArgs la id with
+        | Some ty =>
+            ExprPairSet.add (Expr.value (ValueT.const (const_undef ty)),
+                             Expr.value (ValueT.id (Tag.physical, id))) inv
+        | None => inv
+        end
+      )
+      ExprPairSet.empty argsIDs
+  in
+  let inv_src :=
+      ExprPairSet.union (add_Args_IDs la_src) (add_Gvar_IDs products_src) in
+  let inv_tgt :=
+      ExprPairSet.union (add_Args_IDs la_tgt) (add_Gvar_IDs products_tgt) in
   mk
     (mk_unary
-      (add_Args_IDs la_src)
+      inv_src
       (mk_aliasrel
         ValueTPairSet.empty
         PtrPairSet.empty)
       AtomSetImpl.empty
       IdTSet.empty)
     (mk_unary
-      (add_Args_IDs la_tgt)
+      inv_tgt
       (mk_aliasrel
         ValueTPairSet.empty
         PtrPairSet.empty)
