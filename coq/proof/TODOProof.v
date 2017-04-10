@@ -6,6 +6,49 @@ Import Opsem.
 
 Set Implicit Arguments.
 
+Ltac clearTac :=
+  repeat multimatch goal with
+         | [H: ?T |- _] =>
+           match (type of T) with
+           | Prop => idtac
+           | _ => try clear H
+           end
+         end;
+  repeat match goal with
+         | [H: ?A = ?B, H2: ?B = ?A |- _] => clear H2
+         | [H: True |- _] => clear H
+         | [H: ?X, H2: ?X |- _] => clear H2
+         end
+.
+
+Ltac abstr x := let var_name := fresh "abstr_var_name" in
+                  let hyp_name := fresh "abstr_hyp_name" in
+                  remember x as var_name eqn:hyp_name; clear hyp_name
+.
+
+Ltac des_ifsH H :=
+  clarify;
+  repeat
+    match goal with
+    | H': context[ match ?x with _ => _ end ] |- _ =>
+      check_equal H' H;
+      match (type of x) with
+      | { _ } + { _ } => destruct x; clarify
+      | _ => let Heq := fresh "Heq" in destruct x as [] eqn: Heq; clarify
+      end
+    end.
+
+Ltac des_ifsG :=
+  clarify;
+  repeat
+    match goal with
+    | |- context[match ?x with _ => _ end] =>
+      match (type of x) with
+      | { _ } + { _ } => destruct x; clarify
+      | _ => let Heq := fresh "Heq" in destruct x as [] eqn: Heq; clarify
+      end
+    end.
+
 Ltac expl_aux H TAC := exploit H; TAC; []; let n := fresh H in repeat intro n; des.
 
 Tactic Notation "expl" constr(H) := expl_aux H eauto.

@@ -51,21 +51,22 @@ Inductive valid_state_sim
 | valid_state_sim_intro
     m_src m_tgt
     fdef_hint cmds_hint
-    inv inv_term inv_term'
+    inv
     invst
     (CONF: InvState.valid_conf m_src m_tgt conf_src conf_tgt)
     (ECS_SRC: st_src.(ECS) = stack0_src)
     (ECS_TGT: st_tgt.(ECS) = stack0_tgt)
     (FDEF: valid_fdef m_src m_tgt st_src.(EC).(CurFunction) st_tgt.(EC).(CurFunction) fdef_hint)
     (LABEL: st_src.(EC).(CurBB).(fst) = st_tgt.(EC).(CurBB).(fst))
+    inv_term
     (CMDS: valid_cmds m_src m_tgt st_src.(EC).(CurCmds) st_tgt.(EC).(CurCmds) cmds_hint inv = Some inv_term)
-    (INV_TERM: TODO_implies inv_term inv_term')
-    (TERM: valid_terminator fdef_hint inv_term' m_src m_tgt
-                            st_src.(EC).(CurFunction).(get_blocks)
-                            st_tgt.(EC).(CurFunction).(get_blocks)
-                            st_src.(EC).(CurBB).(fst)
-                            st_src.(EC).(Terminator)
-                            st_tgt.(EC).(Terminator))
+    (TERM: exists infrules,
+        valid_terminator fdef_hint (Infrules.apply_infrules m_src m_tgt infrules inv_term) m_src m_tgt
+                         (st_src.(EC).(CurFunction).(get_blocks))
+                         (st_tgt.(EC).(CurFunction).(get_blocks))
+                         (st_src.(EC).(CurBB).(fst))
+                         (st_src.(EC).(Terminator))
+                         (st_tgt.(EC).(Terminator)))
     (STATE: InvState.Rel.sem conf_src conf_tgt st_src st_tgt invst invmem inv)
     (MEM: InvMem.Rel.sem conf_src conf_tgt st_src.(Mem) st_tgt.(Mem) invmem)
 .
@@ -106,8 +107,8 @@ Proof.
                   ((l0, stmts_intro ps' cs' tmn') :: b0) ((l0, stmts_intro phinodes5 cmds5 terminator5) :: b1) l0 tmn'
                   terminator5).
   { simtac.
-    - eexists; eauto.
-    - exists nil. eauto.
+    - eexists; eassumption.
+    - exists nil. assumption.
   }
   clear COND5. des.
 
@@ -146,7 +147,6 @@ Proof.
       }
       rewrite COND0, COND1, COND2, COND3, COND4. ss.
     }
-    { eapply apply_infrules_implies; eauto. }
 Qed.
 
 Lemma decide_nonzero_inject
@@ -383,7 +383,6 @@ Proof.
     esplits; eauto.
     * econs 1. econs; eauto. rewrite lookupBlockViaLabelFromFdef_spec. ss.
     * econs; ss; eauto; ss; eauto.
-      admit. (* gen_infrules *)
   + (* switch *)
     destruct (list_const_l_dec l0 l1); ss. subst.
     exploit nerror_nfinal_nstuck; eauto. i. des. inv x0.
@@ -424,7 +423,6 @@ Proof.
       esplits; eauto.
       * econs 1. econs; eauto. rewrite lookupBlockViaLabelFromFdef_spec. ss.
       * econs; ss; eauto; ss; eauto.
-        admit. (* gen_infrules *)
     }
     { (* case *)
       apply list_prj2_inv in x1. des.
@@ -445,7 +443,6 @@ Proof.
       esplits; eauto.
       * econs 1. econs; eauto. rewrite lookupBlockViaLabelFromFdef_spec. ss.
       * econs; ss; eauto; ss; eauto.
-        admit. (* gen_infrules *)
     }
   + (* unreachable *)
     exploit nerror_nfinal_nstuck; eauto. i. des. inv x0.
