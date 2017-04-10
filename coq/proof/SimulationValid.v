@@ -164,36 +164,11 @@ Proof.
 Qed.
 
 Lemma valid_sim_term
-      (conf_src conf_tgt : Config)
-      (r : ECStack -> ECStack -> InvMem.Rel.t -> nat -> State -> State -> Prop)
-      (inv0 : InvMem.Rel.t)
-      (idx0 : nat)
-      (CurFunction0 : fdef)
-      (CurBB0 : block)
-      (Terminator0 : terminator)
-      (Locals0 : GVsMap)
-      (Allocas0 : list mblock)
-      (ECS0 : ECStack)
-      (Mem0 : mem)
-      (CurFunction1 : fdef)
-      (CurBB1 : block)
-      (Terminator1 : terminator)
-      (Locals1 : GVsMap)
-      (Allocas1 : list mblock)
-      (ECS1 : ECStack)
-      (Mem1 : mem)
-      (ERROR_SRC : ~
-                     error_state conf_src
-                     {|
-                       EC := {|
-                              CurFunction := CurFunction0;
-                              CurBB := CurBB0;
-                              CurCmds := [];
-                              Terminator := Terminator0;
-                              Locals := Locals0;
-                              Allocas := Allocas0 |};
-                       ECS := ECS0;
-                       Mem := Mem0 |})
+      conf_src conf_tgt inv0 idx0
+      CurFunction0 CurBB0 Terminator0 Locals0 Allocas0
+      ECS0 Mem0 CurFunction1 CurBB1 Terminator1 Locals1 Allocas1 ECS1 Mem1
+      (ERROR_SRC : ~ error_state conf_src
+                     (mkState (mkEC CurFunction0 CurBB0 [] Terminator0 Locals0 Allocas0) ECS0 Mem0))
       (m_src m_tgt : module)
       (fdef_hint : ValidationHint.fdef)
       (inv_term : Invariant.t)
@@ -204,51 +179,17 @@ Lemma valid_sim_term
       (TERM : valid_terminator fdef_hint inv_term m_src m_tgt (get_blocks CurFunction0)
                                (get_blocks CurFunction1) (fst CurBB0) Terminator0 Terminator1)
       (MEM : InvMem.Rel.sem conf_src conf_tgt Mem0 Mem1 inv0)
-      (CIH : forall (x2 : InvMem.Rel.t) (x3 : nat) (x4 x5 : State),
-          valid_state_sim conf_src conf_tgt ECS0 ECS1 x2 x3 x4 x5 -> r ECS0 ECS1 x2 x3 x4 x5)
       (STATE : InvState.Rel.sem conf_src conf_tgt
-                                {|
-                                  EC := {|
-                                         CurFunction := CurFunction0;
-                                         CurBB := CurBB0;
-                                         CurCmds := [];
-                                         Terminator := Terminator0;
-                                         Locals := Locals0;
-                                         Allocas := Allocas0 |};
-                                  ECS := ECS0;
-                                  Mem := Mem0 |}
-                                {|
-                                  EC := {|
-                                         CurFunction := CurFunction1;
-                                         CurBB := CurBB1;
-                                         CurCmds := [];
-                                         Terminator := Terminator1;
-                                         Locals := Locals1;
-                                         Allocas := Allocas1 |};
-                                  ECS := ECS1;
-                                  Mem := Mem1 |} invst inv0 inv_term)
+                                (mkState (mkEC CurFunction0 CurBB0 [] Terminator0 Locals0 Allocas0) ECS0 Mem0)
+                                (mkState (mkEC CurFunction1 CurBB1 [] Terminator1 Locals1 Allocas1) ECS1 Mem1)
+                                invst inv0 inv_term)
   :
-    <<GOAL: _sim_local conf_src conf_tgt (upaco6 (_sim_local conf_src conf_tgt) r) ECS0 ECS1 inv0 idx0
-                       {|
-                         EC := {|
-                                CurFunction := CurFunction0;
-                                CurBB := CurBB0;
-                                CurCmds := [];
-                                Terminator := Terminator0;
-                                Locals := Locals0;
-                                Allocas := Allocas0 |};
-                         ECS := ECS0;
-                         Mem := Mem0 |}
-                       {|
-                         EC := {|
-                                CurFunction := CurFunction1;
-                                CurBB := CurBB1;
-                                CurCmds := [];
-                                Terminator := Terminator1;
-                                Locals := Locals1;
-                                Allocas := Allocas1 |};
-                         ECS := ECS1;
-                         Mem := Mem1 |}>>
+    <<SIM_TERM: _sim_local conf_src conf_tgt
+                           (valid_state_sim conf_src conf_tgt)
+                           ECS0 ECS1 inv0 idx0
+                           (mkState (mkEC CurFunction0 CurBB0 [] Terminator0 Locals0 Allocas0) ECS0 Mem0)
+                           (mkState (mkEC CurFunction1 CurBB1 [] Terminator1 Locals1 Allocas1) ECS1 Mem1)
+                           >>
 .
 Proof.
   unfold valid_terminator in TERM.
@@ -441,7 +382,7 @@ Proof.
     exploit valid_fdef_valid_stmts; eauto. i. des.
     esplits; eauto.
     * econs 1. econs; eauto. rewrite lookupBlockViaLabelFromFdef_spec. ss.
-    * right. apply CIH. econs; ss; eauto; ss; eauto.
+    * econs; ss; eauto; ss; eauto.
       admit. (* gen_infrules *)
   + (* switch *)
     destruct (list_const_l_dec l0 l1); ss. subst.
@@ -482,7 +423,7 @@ Proof.
       exploit valid_fdef_valid_stmts; eauto. i. des.
       esplits; eauto.
       * econs 1. econs; eauto. rewrite lookupBlockViaLabelFromFdef_spec. ss.
-      * right. apply CIH. econs; ss; eauto; ss; eauto.
+      * econs; ss; eauto; ss; eauto.
         admit. (* gen_infrules *)
     }
     { (* case *)
@@ -503,7 +444,7 @@ Proof.
       exploit valid_fdef_valid_stmts; eauto. i. des.
       esplits; eauto.
       * econs 1. econs; eauto. rewrite lookupBlockViaLabelFromFdef_spec. ss.
-      * right. apply CIH. econs; ss; eauto; ss; eauto.
+      * econs; ss; eauto; ss; eauto.
         admit. (* gen_infrules *)
     }
   + (* unreachable *)
@@ -523,17 +464,20 @@ Lemma valid_sim
       conf_src conf_tgt:
   (valid_state_sim conf_src conf_tgt) <6= (sim_local conf_src conf_tgt).
 Proof.
-  intros stack0_src stack0_tgt.
   pcofix CIH.
-  intros inv0 idx0 st_src st_tgt SIM. pfold.
+  intros stack0_src stack0_tgt inv0 idx0 st_src st_tgt SIM. pfold.
   apply _sim_local_src_error. i.
   destruct st_src, st_tgt. destruct EC0, EC1.
   inv SIM. ss.
   destruct CurCmds0; simtac;
     (try by exfalso; eapply has_false_False; eauto).
   - (* term *)
-    eapply valid_sim_term; eauto.
-    admit. (* gen_infrules *)
+    Require Import Program.
+    rapply _sim_local_mon.
+    { eapply valid_sim_term; eauto.
+      admit. (* gen_infrules *)
+    }
+    i. eapply paco6_unfold; eauto.
   - (* cmd *)
     destruct (Instruction.isCallInst c) eqn:CALL.
     + (* call *)

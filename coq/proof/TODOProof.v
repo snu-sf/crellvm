@@ -6,6 +6,21 @@ Import Opsem.
 
 Set Implicit Arguments.
 
+Ltac expl_aux H TAC := exploit H; TAC; []; let n := fresh H in repeat intro n; des.
+
+Tactic Notation "expl" constr(H) := expl_aux H eauto.
+
+Tactic Notation "expl" constr(H) tactic(TAC) := expl_aux H TAC.
+
+(* multimatch is needed for "solve [all inv]" *)
+Ltac all TAC :=
+  multimatch goal with
+  | H: _ |- _ => TAC H
+  end
+.
+
+Ltac apply_all x := all (ltac:(apply_in) x).
+
 (* Motivation: I want to distinguish excused ad-mits from normal ad-mits, *)
 (* and further, I do not want to "grep" excused ones, so I give them different name. *)
 (* @jeehoonkang adviced me to use semantic ad-mit instead of just comment. *)

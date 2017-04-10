@@ -1,5 +1,6 @@
 # vim related
 *.swp
+*.swo
 
 # coq related
 *.vo
