@@ -63,7 +63,7 @@ Proof.
   unfold forallb2AL in FDEF0. simtac; eauto.
   - rewrite HINT in COND. inv COND.
     esplits; eauto.
+    instantiate (1:= []). ss.
   - rewrite HINT in COND. inv COND.
     esplits; eauto.
-    instantiate (1:= []). ss.
 Qed.

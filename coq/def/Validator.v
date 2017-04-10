@@ -225,18 +225,17 @@ Definition valid_stmts
   match valid_cmds m_src m_tgt cmds_src cmds_tgt hint.(ValidationHint.cmds) hint.(ValidationHint.invariant_after_phinodes) with
   | None => failwith_false "valid_stmts: valid_cmds failed at block" [bid]
   | Some inv =>
-    if negb (valid_terminator hint_fdef inv m_src m_tgt blocks_src blocks_tgt bid terminator_src terminator_tgt)
-    then
-      let infrules := gen_infrules_from_insns
-                    (insn_terminator terminator_src)
-                    (insn_terminator terminator_tgt)
-                    inv in
-      let inv' := apply_infrules m_src m_tgt infrules inv in
-      if negb (valid_terminator hint_fdef inv' m_src m_tgt blocks_src blocks_tgt bid terminator_src terminator_tgt)
-      then
-        failwith_false "valid_stmts: valid_terminator failed at block" [bid]
-      else true
-    else true
+    (if (valid_terminator hint_fdef inv m_src m_tgt blocks_src blocks_tgt bid terminator_src terminator_tgt)
+     then true
+     else
+       let infrules := gen_infrules_from_insns
+                         (insn_terminator terminator_src)
+                         (insn_terminator terminator_tgt)
+                         inv in
+       let inv' := apply_infrules m_src m_tgt infrules inv in
+       (if (valid_terminator hint_fdef inv' m_src m_tgt blocks_src blocks_tgt bid terminator_src terminator_tgt)
+        then true
+        else failwith_false "valid_stmts: valid_terminator failed at block" [bid]))
   end.
 
 Definition valid_entry_stmts (src tgt:stmts) (hint:ValidationHint.stmts): bool :=

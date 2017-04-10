@@ -107,8 +107,8 @@ Proof.
                   ((l0, stmts_intro ps' cs' tmn') :: b0) ((l0, stmts_intro phinodes5 cmds5 terminator5) :: b1) l0 tmn'
                   terminator5).
   { simtac.
-    - eexists; eassumption.
     - exists nil. assumption.
+    - eexists; eassumption.
   }
   clear COND5. des.
 
@@ -318,48 +318,54 @@ Proof.
     }
     i. inv STEP. unfold valid_phinodes in *.
     do 12 simtac0. rewrite <- (ite_spec decision0 l0 l3) in *.
-    (* due to gen_infrules *)
-    admit.
-    (* simtac. *)
-    (* rewrite VAL_TGT in H16. inv H16. *)
-    (* exploit decide_nonzero_inject_aux; eauto. *)
-    (* { inv CONF. inv INJECT0. ss. subst. eauto. } *)
-    (* i. subst. *)
-    (* exploit add_terminator_cond_br; eauto. i. des. *)
-    (* rewrite lookupBlockViaLabelFromFdef_spec in *. *)
-    (* exploit (lookupAL_ite fdef_hint decision0 l0 l3); eauto. clear COND7 COND3. i. *)
-    (* exploit (lookupAL_ite CurFunction0.(get_blocks) decision0 l0 l3); eauto. clear COND8 COND4. i. *)
-    (* exploit (lookupAL_ite CurFunction1.(get_blocks) decision0 l0 l3); eauto. clear COND9 COND5. i. *)
-    (* idtac. *)
-    (* unfold l in H14. rewrite x2 in H14. inv H14. *)
-    (* unfold l in H18. rewrite x3 in H18. inv H18. *)
-    (* destruct decision0; inv H0; inv H1; ss. *)
-    (* * exploit postcond_phinodes_sound; *)
-    (*     (try instantiate (1 := (mkState (mkEC _ _ _ _ _ _) _ _))); s; *)
-    (*       (try eexact x0; try eexact MEM); *)
-    (*       (try eexact H19; try eexact H15); ss; eauto. *)
-    (*   i. des. *)
-    (*   exploit apply_infrules_sound; try exact STATE0; eauto; ss. i. des. *)
-    (*   exploit reduce_maydiff_sound; eauto; ss. i. des. *)
-    (*   exploit implies_sound; try exact COND2; eauto; ss. i. des. *)
-    (*   exploit valid_fdef_valid_stmts; eauto. i. des. *)
-    (*   esplits; eauto. *)
+    {
+      move COND1 at bottom.
+      move COND2 at bottom.
+      rename s0 into __s0__.
+      rename s into __s__.
+      rewrite VAL_TGT in *. clarify.
+      exploit decide_nonzero_inject_aux; eauto.
+      { inv CONF. inv INJECT0. ss. subst. eauto. }
+      i. subst.
+      expl add_terminator_cond_br.
+      rewrite lookupBlockViaLabelFromFdef_spec in *.
+      exploit (lookupAL_ite fdef_hint decision0 l0 l3); eauto. clear COND7 COND3. i.
+      exploit (lookupAL_ite CurFunction0.(get_blocks) decision0 l0 l3); eauto. clear COND8 COND4. i.
+      exploit (lookupAL_ite CurFunction1.(get_blocks) decision0 l0 l3); eauto. clear COND9 COND5. i.
+      idtac.
+      unfold l in *.
+      rewrite x1 in *. clarify.
+      rewrite x2 in *. clarify.
+      destruct decision0; inv H0; inv H1; ss.
+      * exploit postcond_phinodes_sound;
+          (try instantiate (1 := (mkState (mkEC _ _ _ _ _ _) _ _))); s;
+            (try eexact x0; try eexact MEM);
+            (try eexact H19; try eexact H15); ss; eauto; [].
+        i. des.
+        exploit apply_infrules_sound; try exact STATE0; eauto; ss; []. i. des.
+        exploit reduce_maydiff_sound; eauto; ss; []. i. des.
+        (* exploit implies_sound; try exact COND2; eauto; ss. i. des. *)
+        exploit valid_fdef_valid_stmts; eauto; []. i. des.
+        esplits; eauto.
 
 
-    (*   { econs 1. econs; eauto. rewrite lookupBlockViaLabelFromFdef_spec. ss. } *)
-    (*   { right. apply CIH. econs; ss; eauto; ss; eauto. } *)
-    (* * exploit postcond_phinodes_sound; *)
-    (*     (try instantiate (1 := (mkState (mkEC _ _ _ _ _ _) _ _))); s; *)
-    (*       (try eexact x0; try eexact MEM); *)
-    (*       (try eexact H19; try eexact H15); ss; eauto. *)
-    (*   i. des. *)
-    (*   exploit apply_infrules_sound; try exact STATE0; eauto; ss. i. des. *)
-    (*   exploit reduce_maydiff_sound; eauto; ss. i. des. *)
-    (*   exploit implies_sound; try exact COND11; eauto; ss. i. des. *)
-    (*   exploit valid_fdef_valid_stmts; eauto. i. des. *)
-    (*   esplits; eauto. *)
-    (*   { econs 1. econs; eauto. rewrite lookupBlockViaLabelFromFdef_spec. ss. } *)
-    (*   { right. apply CIH. econs; ss; eauto; ss; eauto. } *)
+        { econs 1. econs; eauto. rewrite lookupBlockViaLabelFromFdef_spec. ss. }
+        { econs; ss; eauto.
+          exploit implies_sound; eauto. }
+      * exploit postcond_phinodes_sound;
+          (try instantiate (1 := (mkState (mkEC _ _ _ _ _ _) _ _))); s;
+            (try eexact x0; try eexact MEM);
+            (try eexact H19; try eexact H15); ss; eauto; [].
+        i. des.
+        exploit apply_infrules_sound; try exact STATE0; eauto; ss; []. i. des.
+        exploit reduce_maydiff_sound; eauto; ss; []. i. des.
+        (* exploit implies_sound; try exact COND11; eauto; ss. i. des. *)
+        exploit valid_fdef_valid_stmts; eauto; []. i. des.
+        esplits; eauto.
+        { econs 1. econs; eauto. rewrite lookupBlockViaLabelFromFdef_spec. ss. }
+        { econs; ss; eauto.
+          exploit implies_sound; eauto. }
+    }
   + (* br_uncond *)
     exploit nerror_nfinal_nstuck; eauto. i. des. inv x0. simtac.
     eapply _sim_local_step.
