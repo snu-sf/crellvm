@@ -37,11 +37,6 @@ Require Import SoundReduceMaydiff.
 
 Set Implicit Arguments.
 
-Variable TODO_implies : Invariant.t -> Invariant.t -> Prop.
-Variable apply_infrules_implies:
-  forall m1 m2 infrules inv1 inv2, Infrules.apply_infrules m1 m2 infrules inv1 = inv2 ->
-                    TODO_implies inv1 inv2.
-
 Inductive valid_state_sim
           (conf_src conf_tgt:Config)
           (stack0_src stack0_tgt:ECStack)
@@ -370,25 +365,25 @@ Proof.
     exploit nerror_nfinal_nstuck; eauto. i. des. inv x0. simtac.
     eapply _sim_local_step.
     { exact (SF_ADMIT "tgt not stuck"). }
-    i. inv STEP. unfold valid_phinodes in *. simtac.
-    { (* gen_infrules *) admit. }
+    i. inv STEP. unfold valid_phinodes in *.
     rewrite add_terminator_cond_br_uncond in *.
     rewrite lookupBlockViaLabelFromFdef_spec in *.
-    rewrite COND2 in H10. inv H10.
-    rewrite COND3 in H12. inv H12.
+    do 6 des_outest_ifs COND0.
+    unfold Debug.debug_print in *. unfold l in *.
+    rewrite Heq0 in *. clarify.
+    rewrite Heq1 in *. clarify.
     exploit postcond_phinodes_sound;
       (try instantiate (1 := (mkState (mkEC _ _ _ _ _ _) _ _))); s;
         (try eexact COND4; try eexact MEM);
-        (try eexact H11; try eexact H13); ss; eauto.
+        (try eexact H11; try eexact H13); ss; eauto; [] .
     i. des.
-    exploit apply_infrules_sound; eauto; ss. i. des.
-    exploit reduce_maydiff_sound; eauto; ss. i. des.
-    exploit implies_sound; eauto; ss. i. des.
-    exploit implies_sound; eauto; ss. i. des.
-    exploit valid_fdef_valid_stmts; eauto. i. des.
+    exploit apply_infrules_sound; eauto; ss; []. i. des.
+    exploit reduce_maydiff_sound; eauto; ss; []. i. des.
+    exploit valid_fdef_valid_stmts; eauto; []. i. des.
     esplits; eauto.
     * econs 1. econs; eauto. rewrite lookupBlockViaLabelFromFdef_spec. ss.
     * econs; ss; eauto; ss; eauto.
+      exploit implies_sound; eauto.
   + (* switch *)
     destruct (list_const_l_dec l0 l1); ss. subst.
     exploit nerror_nfinal_nstuck; eauto. i. des. inv x0.

@@ -6,6 +6,16 @@ Import Opsem.
 
 Set Implicit Arguments.
 
+Ltac des_outest_ifs H :=
+  match goal with
+  | H': context[ match ?x with _ => _ end ] |- _ =>
+    check_equal H' H;
+    match (type of x) with
+    | { _ } + { _ } => destruct x; clarify
+    | _ => let Heq := fresh "Heq" in destruct x as [] eqn: Heq; clarify
+    end
+  end.
+
 Ltac clearTac :=
   repeat multimatch goal with
          | [H: ?T |- _] =>
