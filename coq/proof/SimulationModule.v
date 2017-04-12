@@ -227,6 +227,7 @@ Proof.
                  | H:context [id_dec ?a ?b] |- _ => destruct (id_dec a b); ss
                  end.
           repeat (des; des_bool; des_sumbool; des_ifs_safe).
+        * ss. econs; eauto.
         * ss. des_ifsH Heq0.
           { exists []. ss. }
           { eexists; eauto. }
