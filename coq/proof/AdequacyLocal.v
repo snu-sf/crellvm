@@ -20,6 +20,7 @@ Require Import Inject.
 Require Import SoundBase.
 Require Import Simulation.
 Require Import SimulationLocal.
+Require Import TODOProof.
 
 Set Implicit Arguments.
 
@@ -111,6 +112,94 @@ Inductive sim_conf (conf_src conf_tgt:Config): Prop :=
     (SIM_PRODUCTS: sim_products conf_src conf_tgt conf_src.(CurProducts) conf_tgt.(CurProducts))
 .
 
+(* TODO: Move to TODOProof *)
+Lemma invmem_free_invmem
+      conf_src conf_tgt inv
+      m0 m1
+      (MEM: InvMem.Rel.sem conf_src conf_tgt m0 m1 inv)
+      x0 x1 lo hi
+      (BOUNDS0: Mem.bounds m0 x0 = (lo, hi))
+      (BOUNDS1: Mem.bounds m1 x1 = (lo, hi))
+      m0' m1'
+      TD
+      (FREE0 : free TD m0 (blk2GV TD x0) = ret m0')
+      (MFREE0: Mem.free m0 x0 lo hi = ret m0')
+      (INJECT: inv.(InvMem.Rel.inject) x0 = ret (x1, 0))
+      (MFREE1: Mem.free m1 x1 lo hi = ret m1')
+  :
+    <<MEM: InvMem.Rel.sem conf_src conf_tgt m0' m1' inv>>
+.
+Proof.
+  inv MEM.
+  econs; eauto.
+  - clear TGT INJECT0 WF.
+    inv SRC.
+    expl Mem.nextblock_free.
+    move MFREE0 at bottom.
+    expl Mem.nextblock_free.
+    econs; eauto.
+    +
+      eapply memory_props.MemProps.free_preserves_wf_Mem; eauto.
+    (* unfold memory_props.MemProps.wf_Mem in *. *)
+    (* des. *)
+    (* splits; ss; cycle 1. *)
+    (* { rewrite nextblock_free0. ss. } *)
+    (* ii. exploit WF; eauto. *)
+    (* (* eapply memory_props.MemProps.free_preserves_wf_Mem; eauto. *) *)
+    + ii.
+      expl PRIVATE_PARENT.
+      inv PRIVATE_PARENT0.
+      econs; eauto. rewrite nextblock_free0 in *. ss.
+    + ii.
+      expl MEM_PARENT.
+      rewrite MEM_PARENT0.
+      admit. (* is this true? *)
+    + ii.
+      expl UNIQUE_PARENT_MEM.
+      expl memory_props.MemProps.free_preserves_mload_inv.
+    + rewrite NEXTBLOCK in *. rewrite nextblock_free0 in *. ss.
+  - admit. (* should be same with src *)
+  - expl genericvalues_inject.mem_inj__free.
+    repeat rewrite Z.add_0_r in *. clarify.
+  - expl genericvalues_inject.mem_inj__free.
+    repeat rewrite Z.add_0_r in *. clarify.
+Admitted.
+
+Lemma inject_allocas_free_allocas
+      inv Allocas0 Allocas1
+      (ALLOCAS: inject_allocas inv Allocas0 Allocas1)
+      TD Mem0 Mem0'
+      (FREE_ALLOCAS: free_allocas TD Mem0 Allocas0 = ret Mem0')
+      Mem1 conf_src conf_tgt
+      (MEM: InvMem.Rel.sem conf_src conf_tgt Mem0 Mem1 inv)
+  :
+    <<FREE_ALLOCAS: exists Mem1', free_allocas TD Mem1 Allocas1 = ret Mem1'>>
+.
+Proof.
+  revert_until Allocas1.
+  revert Allocas1.
+  induction Allocas0; ii; ss; clarify; inv ALLOCAS.
+  - esplits; eauto. unfold free_allocas. eauto.
+  - des_ifs.
+    unfold InvMem.Rel.inject in *. des_ifs.
+    assert(FREE:= Heq).
+    cbn in Heq. des_ifs.
+    dup MEM. inv MEM. simpl in *. (* cbn causes FREE to shatter *)
+    expl genericvalues_inject.mi_bounds.
+    rewrite Heq0 in *.
+    cbn. des_ifs; [|]; cycle 1.
+    {
+      exfalso.
+      expl genericvalues_inject.mem_inj__free.
+      repeat rewrite <- Zplus_0_r_reverse in *. clarify.
+    }
+    expl IHAllocas0.
+    clear_tac.
+    instantiate (1:= conf_tgt).
+    instantiate (1:= conf_src).
+    eapply invmem_free_invmem; eauto.
+Qed.
+
 Lemma sim_local_lift_sim conf_src conf_tgt
       (SIM_CONF: sim_conf conf_src conf_tgt):
   (sim_local_lift conf_src conf_tgt) <3= (sim conf_src conf_tgt).
@@ -138,17 +227,20 @@ Proof.
       exploit RET; eauto. i. des.
       apply _sim_step.
       { intro STUCK. apply STUCK. destruct conf_tgt. ss.
+        inv CONF. ss. clarify.
+        inv SIM_CONF. ss.
+        eapply inject_allocas_inj_incr in ALLOCAS; eauto.
+        hexploit inject_allocas_free_allocas; eauto; i; des.
+        expl inject_allocas_free_allocas.
         destruct noret_tgt; simtac.
         - esplits. econs; ss; eauto.
-          + admit. (* free_allocas *)
           + rewrite returnUpdateLocals_spec, RET_TGT. ss.
         - exploit genericvalues_inject.simulation__fit_gv; eauto.
           { inv MEM. eauto. }
           i. des.
           esplits. econs; ss; eauto.
-          + admit. (* free_allocas *)
           + rewrite returnUpdateLocals_spec, RET_TGT. ss.
-            inv CONF. ss. subst. rewrite x0. eauto.
+            rewrite x0. eauto.
       }
       i. inv STEP0. ss. rewrite returnUpdateLocals_spec in *. ss.
       destruct noret_tgt; simtac.
