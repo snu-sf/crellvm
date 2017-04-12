@@ -53,6 +53,7 @@ Inductive valid_state_sim
     (ECS_TGT: st_tgt.(ECS) = stack0_tgt)
     (FDEF: valid_fdef m_src m_tgt st_src.(EC).(CurFunction) st_tgt.(EC).(CurFunction) fdef_hint)
     (LABEL: st_src.(EC).(CurBB).(fst) = st_tgt.(EC).(CurBB).(fst))
+    (ALLOCAS: inject_allocas invmem st_src.(EC).(Allocas) st_tgt.(EC).(Allocas))
     inv_term
     (CMDS: valid_cmds m_src m_tgt st_src.(EC).(CurCmds) st_tgt.(EC).(CurCmds) cmds_hint inv = Some inv_term)
     (TERM: exists infrules,
@@ -142,6 +143,10 @@ Proof.
       }
       rewrite COND0, COND1, COND2, COND3, COND4. ss.
     }
+    {
+      cbn in *.
+      econs; eauto.
+    }
 Qed.
 
 Lemma decide_nonzero_inject
@@ -169,6 +174,7 @@ Lemma valid_sim_term
       (CONF : InvState.valid_conf m_src m_tgt conf_src conf_tgt)
       (FDEF : valid_fdef m_src m_tgt CurFunction0 CurFunction1 fdef_hint)
       (LABEL : fst CurBB0 = fst CurBB1)
+      (ALLOCAS: inject_allocas inv0 Allocas0 Allocas1)
       (TERM: exists infrules,
           valid_terminator fdef_hint (Infrules.apply_infrules m_src m_tgt infrules inv_term)
                            m_src m_tgt (get_blocks CurFunction0)
@@ -351,7 +357,8 @@ Proof.
 
         { econs 1. econs; eauto. rewrite lookupBlockViaLabelFromFdef_spec. ss. }
         { econs; ss; eauto.
-          exploit implies_sound; eauto. }
+          - eapply inject_allocas_inj_incr; eauto.
+          - exploit implies_sound; eauto. }
       * exploit postcond_phinodes_sound;
           (try instantiate (1 := (mkState (mkEC _ _ _ _ _ _) _ _))); s;
             (try eexact x0; try eexact MEM0);
@@ -364,7 +371,8 @@ Proof.
         esplits; eauto.
         { econs 1. econs; eauto. rewrite lookupBlockViaLabelFromFdef_spec. ss. }
         { econs; ss; eauto.
-          exploit implies_sound; eauto. }
+          - eapply inject_allocas_inj_incr; eauto.
+          - exploit implies_sound; eauto. }
     }
   + (* br_uncond *)
     exploit nerror_nfinal_nstuck; eauto. i. des. inv x0. simtac.
@@ -389,7 +397,8 @@ Proof.
     esplits; eauto.
     * econs 1. econs; eauto. rewrite lookupBlockViaLabelFromFdef_spec. ss.
     * econs; ss; eauto; ss; eauto.
-      exploit implies_sound; eauto.
+      - eapply inject_allocas_inj_incr; eauto.
+      - exploit implies_sound; eauto.
   + (* switch *)
     destruct (list_const_l_dec l0 l1); ss. subst.
     exploit nerror_nfinal_nstuck; eauto. i. des. inv x0.
@@ -431,7 +440,8 @@ Proof.
       esplits; eauto.
       * econs 1. econs; eauto. rewrite lookupBlockViaLabelFromFdef_spec. ss.
       * econs; ss; eauto; ss; eauto.
-        exploit implies_sound; eauto.
+        - eapply inject_allocas_inj_incr; eauto.
+        - exploit implies_sound; eauto.
     }
     { (* case *)
       apply list_prj2_inv in x1. des.
@@ -449,7 +459,8 @@ Proof.
       esplits; eauto.
       * econs 1. econs; eauto. rewrite lookupBlockViaLabelFromFdef_spec. ss.
       * econs; ss; eauto; ss; eauto.
-        exploit implies_sound; eauto.
+        - eapply inject_allocas_inj_incr; eauto.
+        - exploit implies_sound; eauto.
     }
   + (* unreachable *)
     exploit nerror_nfinal_nstuck; eauto. i. des. inv x0.
@@ -573,6 +584,9 @@ Proof.
       exists locals2_tgt, 0%nat, invmem1. splits; ss.
       * etransitivity; eauto.
       * right. apply CIH. econs; eauto.
+        ss.
+        eapply inject_allocas_inj_incr; eauto.
+        etransitivity; eauto.
     + (* non-call *)
       eapply _sim_local_step.
       { exact (SF_ADMIT "tgt not stuck"). }

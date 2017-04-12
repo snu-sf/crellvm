@@ -18,6 +18,7 @@ Require Import SoundBase.
 Require InvMem.
 Require InvState.
 Require Import Simulation.
+Require Import Inject.
 
 Set Implicit Arguments.
 
@@ -43,6 +44,7 @@ Section SimLocal.
       (CMDS_TGT: st1_tgt.(EC).(CurCmds) = nil)
       (TERM_SRC: st2_src.(EC).(Terminator) = insn_return id2_src typ2_src ret2_src)
       (TERM_TGT: st1_tgt.(EC).(Terminator) = insn_return id1_tgt typ1_tgt ret1_tgt)
+      (ALLOCAS: inject_allocas inv1 st2_src.(EC).(Allocas) st1_tgt.(EC).(Allocas))
       (TYP: typ2_src = typ1_tgt)
       (STACK_SRC: st2_src.(ECS) = stack0_src)
       (STACK_TGT: st1_tgt.(ECS) = stack0_tgt)
