@@ -10,7 +10,8 @@ Ltac rewrite_everywhere H := rewrite H in *.
 Ltac all_with_term TAC TERM :=
   repeat multimatch goal with
          | H: context[TERM] |- _ => TAC H
-         end.
+         end
+.
 
 Ltac clear_unused :=
   repeat multimatch goal with
@@ -42,7 +43,7 @@ Ltac des_outest_ifs H :=
   end.
 
 Ltac des_ifs_safe_aux TAC :=
-  clarify;
+  TAC;
   repeat
     multimatch goal with
     | |- context[match ?x with _ => _ end] =>
@@ -52,7 +53,7 @@ Ltac des_ifs_safe_aux TAC :=
       end
     | H: context[ match ?x with _ => _ end ] |- _ =>
       match (type of x) with
-      | { _ } + { _ } => destruct x; clarify; []
+      | { _ } + { _ } => destruct x; TAC; []
       | _ => let Heq := fresh "Heq" in destruct x as [] eqn: Heq; TAC; []
       end
     end.
@@ -87,31 +88,12 @@ Ltac des_ifsG :=
       end
     end.
 
-(* Ltac zero_or_one_goal := fail || idtac; [> ]. *)
-(* Ltac zero_or_one_goal := (try idtac); [> ]. *)
-(* Ltac zero_or_one_goal := try (idtac; [> ]). *)
-Ltac zero_or_one_goal := first[fail | idtac; [> ]].
-
-Example zero_or_one_goal_demo: False /\ False.
-  Fail split; zero_or_one_goal.
-  Fail split; [> idtac ].
-  Fail split; [> ].
-  Fail split; [].
-
-  Fail split; (fail + idtac; [> ]).
-  Fail split; (fail || idtac; [> ]).
-  split; (fail + [> ]). Undo 1.
-  split; (fail || [> ]). Undo 1.
-  split; (fail + (idtac; [> ])). Undo 1.
-  split; (fail || (idtac; [> ])). Undo 1.
-  split. zero_or_one_goal.
-Abort.
-
-Example zero_or_one_goal_demo2: True.
-  ss; zero_or_one_goal.
-Abort.
-
-Ltac expl_aux H TAC := exploit H; TAC; zero_or_one_goal; let n := fresh H in repeat intro n; des.
+Ltac expl_aux H TAC :=
+  let n := fresh H in
+  (* one goal or zero goal *)
+  first[exploit H; TAC; []; repeat intro n; des|
+        exploit H; TAC; fail]
+.
 
 Tactic Notation "expl" constr(H) := expl_aux H eauto.
 
@@ -119,9 +101,9 @@ Tactic Notation "expl" constr(H) tactic(TAC) := expl_aux H TAC.
 
 (* multimatch is needed for "solve [all inv]" *)
 Ltac all TAC :=
-  multimatch goal with
-  | H: _ |- _ => TAC H
-  end
+  repeat multimatch goal with
+         | H: _ |- _ => TAC H
+         end
 .
 
 Ltac apply_all x := all (ltac:(apply_in) x).
