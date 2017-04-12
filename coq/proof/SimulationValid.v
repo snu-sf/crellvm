@@ -165,9 +165,7 @@ Lemma valid_sim_term
       (ERROR_SRC : ~ error_state conf_src
                      (mkState (mkEC CurFunction0 CurBB0 [] Terminator0 Locals0 Allocas0) ECS0 Mem0))
       (m_src m_tgt : module)
-      (fdef_hint : ValidationHint.fdef)
-      (inv_term : Invariant.t)
-      (invst : InvState.Rel.t)
+      fdef_hint inv_term invst
       (CONF : InvState.valid_conf m_src m_tgt conf_src conf_tgt)
       (FDEF : valid_fdef m_src m_tgt CurFunction0 CurFunction1 fdef_hint)
       (LABEL : fst CurBB0 = fst CurBB1)
@@ -368,7 +366,8 @@ Proof.
     i. inv STEP. unfold valid_phinodes in *.
     rewrite add_terminator_cond_br_uncond in *.
     rewrite lookupBlockViaLabelFromFdef_spec in *.
-    do 6 des_outest_ifs COND0.
+    des_ifs_safe (clarify; ss).
+    (* do 6 des_outest_ifs COND0. *)
     unfold Debug.debug_print in *. unfold l in *.
     rewrite Heq0 in *. clarify.
     rewrite Heq1 in *. clarify.
@@ -427,23 +426,36 @@ Proof.
     }
     { (* case *)
       apply list_prj2_inv in x1. des.
-      exploit COND2; eauto. i.
-      des_ifs. { admit. (* gen_infrules *)} simtac. clear COND2.
-      rewrite <- H15 in Heq1. inv Heq1.
-      rewrite <- H19 in Heq2. inv Heq2.
+      expl COND2. clear COND2.
+      des_ifs_safe ss. clear_tac. clarify.
+      unfold l in *. cbn in *.
       clear dependent phinodes5.
       clear dependent phinodes0.
       exploit postcond_phinodes_sound; try exact x0; eauto.
       { rewrite <- LABEL. eauto. }
       i. des.
-      exploit apply_infrules_sound; eauto; ss. i. des.
-      exploit reduce_maydiff_sound; eauto; ss. i. des.
-      exploit implies_sound; eauto; ss. i. des.
-      exploit implies_sound; eauto; ss. i. des.
-      exploit valid_fdef_valid_stmts; eauto. i. des.
+      expl apply_infrules_sound.
+      expl reduce_maydiff_sound.
+      expl valid_fdef_valid_stmts.
       esplits; eauto.
       * econs 1. econs; eauto. rewrite lookupBlockViaLabelFromFdef_spec. ss.
       * econs; ss; eauto; ss; eauto.
+        ttttttttttttttt
+        (* Ltac expl_aux H TAC := exploit H; TAC; zero_or_one_goal; let n := fresh H in repeat intro n; des. *)
+        (* Ltac expl_aux H TAC := exploit H; TAC; zero_or_one_goal. *)
+        Ltac expl_aux H TAC := exploit H; TAC; (fail || [> ]).
+        (* Ltac expl_aux H TAC := exploit H; TAC; (idtac "A"; fail; idtac "A" || idtac "B"; [> ]). *)
+        Goal True.
+          ss; zero_or_one_goal.
+        Abort.
+        Goal False /\ False.
+          split; zero_or_one_goal.
+        Abort.
+        expl_aux implies_sound eauto.
+        expl implies_sound.
+        exploit implies_sound; eauto; first[fail; []]. eauto; [].
+        expl implies_sound.
+        exploit implies_sound; eauto; ss. i. des.
     }
   + (* unreachable *)
     exploit nerror_nfinal_nstuck; eauto. i. des. inv x0.

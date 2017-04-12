@@ -6,6 +6,31 @@ Import Opsem.
 
 Set Implicit Arguments.
 
+Ltac rewrite_everywhere H := rewrite H in *.
+Ltac all_with_term TAC TERM :=
+  repeat multimatch goal with
+         | H: context[TERM] |- _ => TAC H
+         end.
+
+Ltac clear_unused :=
+  repeat multimatch goal with
+         | [H: ?T |- _] =>
+           match (type of T) with
+           | Prop => idtac
+           | _ => try clear H
+           end
+         end
+.
+Ltac clear_tautology :=
+  repeat match goal with
+         | [H: ?A = ?B, H2: ?B = ?A |- _] => clear H2
+         | [H: True |- _] => clear H
+         | [H: ?X, H2: ?X |- _] => clear H2
+         | [H: ?A = ?A |- _] => clear H
+         end
+.
+Ltac clear_tac := repeat (clear_unused; clear_tautology).
+
 Ltac des_outest_ifs H :=
   match goal with
   | H': context[ match ?x with _ => _ end ] |- _ =>
@@ -16,20 +41,23 @@ Ltac des_outest_ifs H :=
     end
   end.
 
-Ltac clearTac :=
-  repeat multimatch goal with
-         | [H: ?T |- _] =>
-           match (type of T) with
-           | Prop => idtac
-           | _ => try clear H
-           end
-         end;
-  repeat match goal with
-         | [H: ?A = ?B, H2: ?B = ?A |- _] => clear H2
-         | [H: True |- _] => clear H
-         | [H: ?X, H2: ?X |- _] => clear H2
-         end
-.
+Ltac des_ifs_safe_aux TAC :=
+  clarify;
+  repeat
+    multimatch goal with
+    | |- context[match ?x with _ => _ end] =>
+      match (type of x) with
+      | { _ } + { _ } => destruct x; TAC; []
+      | _ => let Heq := fresh "Heq" in destruct x as [] eqn: Heq; TAC; []
+      end
+    | H: context[ match ?x with _ => _ end ] |- _ =>
+      match (type of x) with
+      | { _ } + { _ } => destruct x; clarify; []
+      | _ => let Heq := fresh "Heq" in destruct x as [] eqn: Heq; TAC; []
+      end
+    end.
+Tactic Notation "des_ifs_safe" := des_ifs_safe_aux clarify.
+Tactic Notation "des_ifs_safe" tactic(TAC) := des_ifs_safe_aux TAC.
 
 Ltac abstr x := let var_name := fresh "abstr_var_name" in
                   let hyp_name := fresh "abstr_hyp_name" in
@@ -59,7 +87,31 @@ Ltac des_ifsG :=
       end
     end.
 
-Ltac expl_aux H TAC := exploit H; TAC; []; let n := fresh H in repeat intro n; des.
+(* Ltac zero_or_one_goal := fail || idtac; [> ]. *)
+(* Ltac zero_or_one_goal := (try idtac); [> ]. *)
+(* Ltac zero_or_one_goal := try (idtac; [> ]). *)
+Ltac zero_or_one_goal := first[fail | idtac; [> ]].
+
+Example zero_or_one_goal_demo: False /\ False.
+  Fail split; zero_or_one_goal.
+  Fail split; [> idtac ].
+  Fail split; [> ].
+  Fail split; [].
+
+  Fail split; (fail + idtac; [> ]).
+  Fail split; (fail || idtac; [> ]).
+  split; (fail + [> ]). Undo 1.
+  split; (fail || [> ]). Undo 1.
+  split; (fail + (idtac; [> ])). Undo 1.
+  split; (fail || (idtac; [> ])). Undo 1.
+  split. zero_or_one_goal.
+Abort.
+
+Example zero_or_one_goal_demo2: True.
+  ss; zero_or_one_goal.
+Abort.
+
+Ltac expl_aux H TAC := exploit H; TAC; zero_or_one_goal; let n := fresh H in repeat intro n; des.
 
 Tactic Notation "expl" constr(H) := expl_aux H eauto.
 
