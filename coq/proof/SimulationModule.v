@@ -212,39 +212,24 @@ Proof.
       econs; ss.
       + econs.
       + generalize VALID_FDEF. i.
-        unfold forallb2AL in VALID_FDEF0. ss. apply andb_true_iff in VALID_FDEF0. des. simtac.
-        { admit. (* gen_infrules *) }
+        unfold forallb2AL in VALID_FDEF0. ss. apply andb_true_iff in VALID_FDEF0.
+        repeat (des; des_bool; des_sumbool; des_ifs_safe).
         hexploit InvState.Rel.sem_empty; eauto.
         { exact (SF_ADMIT "init_locals inject_locals"). }
         i. des.
         apply valid_sim. econs; eauto.
         * ss.
-        * (* TODO: reorganize tactics *)
-          repeat
-            (try match goal with
-                 | [|- is_true (if ?c then _ else _)] =>
-                   let COND := fresh "COND" in
-                   destruct c eqn:COND
-                 end;
-             simtac).
-          des_ifs.
-          { simtac.
-            match goal with
-            | [H: proj_sumbool (fheader_dec ?a ?a) = false |- _] => destruct (fheader_dec a a); ss
-            end.
-          }
-          apply andb_true_iff. splits; [|by eauto].
-          repeat
-            (try match goal with
-                 | [|- (if ?c then _ else _) = true] =>
-                   let COND := fresh "COND" in
-                   destruct c eqn:COND
-                 end;
-             simtac).
-          { match goal with
-            | [H: proj_sumbool (id_dec ?a ?a) = false |- _] => destruct (id_dec a a); ss
-            end.
-          }
+        *
+          cbn in *.
+          clear_tac.
+          unfold Debug.failwith_false in *.
+          repeat multimatch goal with
+                 | H:context [id_dec ?a ?b] |- _ => destruct (id_dec a b); ss
+                 end.
+          repeat (des; des_bool; des_sumbool; des_ifs_safe).
+        * ss. des_ifsH Heq0.
+          { exists []. ss. }
+          { eexists; eauto. }
         * ss. exact (SF_ADMIT "InvMem.Rel.sem init_mem").
       + reflexivity.
   }
