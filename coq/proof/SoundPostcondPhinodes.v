@@ -460,6 +460,7 @@ Proof.
       apply all_undef_lessdef_aux; eauto.
       exact (SF_ADMIT "PHI registers have the specified types (or chunks):
  the current semantics doesn't support this ").
+      (* It also seem no wf condition provide this. *)
   - esplits; [|reflexivity].
     assert (GV_VAL1: gv = val1).
     { unfold InvState.Unary.sem_idT in VAL1. ss. congruence. }
