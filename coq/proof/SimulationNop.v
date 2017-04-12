@@ -250,7 +250,8 @@ Proof.
       rewrite (app_nil_end cmds_src).
       eapply sop_star_sim_local; [by apply nops_sop_star|].
       destruct Terminator0; inv FINAL_TGT.
-      + econs 2; ss. s. i.
+      + econs 2; try reflexivity; ss.
+        s. i.
         eapply inject_locals_getOperandValue; eauto.
       + econs 3; ss.
   }
@@ -297,6 +298,7 @@ Proof.
     rewrite (app_nil_end cmds_src).
     eapply sop_star_sim_local; [by apply nops_sop_star|].
     eapply _sim_local_return; eauto; ss.
+    { reflexivity. }
     i. eapply inject_locals_getOperandValue; eauto.
   - (* return void *)
     exploit get_status_return_void_inv; eauto. i. des.

@@ -152,7 +152,8 @@ Proof.
       }
       i. inv STEP0. ss. rewrite returnUpdateLocals_spec in *. ss.
       destruct noret_tgt; simtac.
-      * exploit LOCAL; eauto.
+      * exploit LOCAL; try exact MEM; eauto.
+        { etransitivity; eauto. }
         { instantiate (2 := Some _).
           instantiate (1 := Some _).
           eauto.
@@ -167,7 +168,8 @@ Proof.
           - admit. (* free_allocas *)
           - etransitivity; eauto.
         }
-      * exploit LOCAL; eauto.
+      * exploit LOCAL; try exact MEM; eauto.
+        { etransitivity; eauto. }
         { instantiate (2 := Some _).
           instantiate (1 := Some _).
           eauto.

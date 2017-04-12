@@ -46,13 +46,15 @@ Section SimLocal.
       (TYP: typ2_src = typ1_tgt)
       (STACK_SRC: st2_src.(ECS) = stack0_src)
       (STACK_TGT: st1_tgt.(ECS) = stack0_tgt)
-      (MEM: InvMem.Rel.sem conf_src conf_tgt st2_src.(Mem) st1_tgt.(Mem) inv1)
+      inv2
+      (MEMLE: InvMem.Rel.le inv1 inv2)
+      (MEM: InvMem.Rel.sem conf_src conf_tgt st2_src.(Mem) st1_tgt.(Mem) inv2)
       (RET:
          forall retval2_src
            (RET_SRC: getOperandValue conf_src.(CurTargetData) ret2_src st2_src.(EC).(Locals) conf_src.(Globals) = Some retval2_src),
          exists retval1_tgt,
            <<RET_TGT: getOperandValue conf_tgt.(CurTargetData) ret1_tgt st1_tgt.(EC).(Locals) conf_tgt.(Globals) = Some retval1_tgt>> /\
-           <<INJECT: genericvalues_inject.gv_inject inv1.(InvMem.Rel.inject) retval2_src retval1_tgt>>)
+           <<INJECT: genericvalues_inject.gv_inject inv2.(InvMem.Rel.inject) retval2_src retval1_tgt>>)
 
   (* TODO: seems duplicate of _sim_local_return. Change semantics? *)
   | _sim_local_return_void

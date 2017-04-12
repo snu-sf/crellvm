@@ -245,7 +245,6 @@ Proof.
             | [H: proj_sumbool (id_dec ?a ?a) = false |- _] => destruct (id_dec a a); ss
             end.
           }
-        * admit. (* gen_infrules. easy. *)
         * ss. exact (SF_ADMIT "InvMem.Rel.sem init_mem").
       + reflexivity.
   }
