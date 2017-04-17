@@ -451,6 +451,7 @@ Lemma unary_sem_eq_locals_mem
       (MEM_EQ : Mem st0 = Mem st1)
       (STATE: InvState.Unary.sem conf st0 invst0 invmem0 gmax public inv0)
       (EQ_FUNC: st0.(EC).(CurFunction) = st1.(EC).(CurFunction))
+      (EQ_ALLOCAS: st0.(EC).(Allocas) = st1.(EC).(Allocas))
   : InvState.Unary.sem conf st1 invst0 invmem0 gmax public inv0.
 Proof.
   inv STATE.
@@ -469,6 +470,7 @@ Proof.
   - ii. exploit PRIVATE; eauto.
     { erewrite sem_idT_eq_locals; eauto. }
     rewrite <- MEM_EQ. eauto.
+  - rewrite <- EQ_ALLOCAS. ss.
   - rewrite <- LOCALS_EQ. rewrite <- MEM_EQ. eauto.
   - rewrite <- MEM_EQ. eauto.
   - rewrite <- MEM_EQ. eauto.

@@ -900,7 +900,8 @@ Proof.
   unfold Postcond.postcond_phinodes_assigns in *.
   simtac.
   exploit snapshot_sound; eauto. i. des.
-  exploit forget_stack_sound; [eauto|eauto|eauto|eauto|eauto|eauto|eauto| | |].
+
+  exploit forget_stack_sound; [eauto|eauto|eauto|eauto|eauto|eauto|eauto| | | | |].
   { instantiate (1 := mkState (mkEC _ _ _ _ _ _) _ _). econs; s; eauto.
     eapply locals_equiv_after_phinode; eauto.
   }
@@ -919,6 +920,8 @@ Proof.
   }
   { eapply switchToNewBasicBlock_wf; try exact STEP_SRC; eauto. apply STATE. apply MEM. }
   { eapply switchToNewBasicBlock_wf; try exact STEP_TGT; eauto. apply STATE. apply MEM. }
+  { ss. }
+  { ss. }
   { ss. }
   { ss. }
   intros STATE_FORGET. des.
