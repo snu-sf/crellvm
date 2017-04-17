@@ -511,26 +511,8 @@ Proof.
 Qed.
 
 Lemma GEP_diffblock
-  (invmem : InvMem.Unary.t)
-  (inbounds5 : inbounds)
-  (typ5 : typ)
-  (value_5 : value)
-  (l0 : list (sz * value))
-  (typ' : typ)
-  (gmax : positive)
-  (u : atom)
-  (S : system)
-  (TD : TargetData)
-  (Ps : list product)
-  (F : fdef)
-  (B : block)
-  (lc : GVsMap)
-  (gl fs : GVMap)
-  (vidxs : list GenericValue)
-  (mp : GenericValue)
-  (tmn : terminator)
-  (Mem0 : mem)
-  (als : list mblock)
+  invmem inbounds5 typ5 value_5 l0 typ' gmax u S TD Ps F lc gl fs vidxs mp Mem0 reg val'
+  (B: block)
   (NEXTBLOCK : Memory.Mem.nextblock Mem0 = InvMem.Unary.nextblock invmem)
   (GLOBALS : genericvalues_inject.wf_globals gmax gl)
   (WF : wf_Mem gmax TD Mem0)
@@ -552,8 +534,6 @@ Lemma GEP_diffblock
         InvState.Unary.sem_diffblock
           {| CurSystem := S; CurTargetData := TD; CurProducts := Ps; Globals := gl; FunTable := fs |} val val')
   (GLOBALS0 : forall b : Values.block, In b (GV2blocks val) -> (gmax < b)%positive)
-  (reg : atom)
-  (val' : GenericValue)
   (REG : u <> reg)
   (NOT_LEAKED_U : AtomSetImpl.mem u
                    (AtomSetImpl_from_list
@@ -619,13 +599,15 @@ Prove wf_EC at the start of the function, and propagating it will do."). }
         destruct TD; ss.
         apply TODOProof.wf_globals_eq in GLOBALS.
         exploit const2GV_valid_ptrs; eauto.
-        { inv WF_INSN. inv H11. eauto. }
+        { inv WF_INSN. inv H12. eauto. }
         intro VALID_PTR; des. clear WF_INSN.
         ss.
         idtac.
         exploit valid_ptr_globals_diffblock; eauto.
-        eapply {| CurSystem := S; CurTargetData := (l2, n);
-                  CurProducts := Ps; Globals := gl; FunTable := fs |}.
+        {
+          eapply {| CurSystem := S; CurTargetData := (l2, l3);
+                    CurProducts := Ps; Globals := gl; FunTable := fs |}.
+        }
         destruct mp; ss. destruct p; ss. destruct v; ss. des. des_ifs.
         left; ss.
     }
@@ -845,9 +827,14 @@ Proof.
       }
       { hexploit unique_const_diffblock; ss; eauto. }
     }
-    clear - INL INR H0 H1.
-    exploit In_incl; eauto.
-    eapply GV2blocks_incl; eauto.
+    clarify.
+    {
+      clear - H1 H4 H2 H0.
+      exploit In_incl; eauto.
+      { eapply GV2blocks_incl; eauto. }
+      i.
+      exploit H4; eauto.
+    }
   -
     inversion UNIQUE_BEF; subst; narrow_down_unique.
     ii.
@@ -891,26 +878,24 @@ Proof.
       }
       { hexploit unique_const_diffblock; ss; eauto. }
     }
-    clear - H2 H3 H1 INR INL.
-    exploit In_incl.
-    { eapply INR. }
-    { instantiate (1:= (GV2blocks (gvs ++ gvs'))). eapply GV2blocks_incl; eauto. }
-    intro IN.
-    (* unfold list_disjoint in *. *)
-
+    clarify.
     {
+      clear - H1 H5 H6 H2 H3.
+      exploit In_incl; eauto.
+      { eapply GV2blocks_incl; eauto. }
+      intro IN.
       eapply GV2blocks_app_inv in IN.
       des.
       -
         apply GV2blocks_in_inv in IN.
         des.
-        eapply H2; eauto.
-        eapply GV2blocks_lift; eauto.
+        expl GV2blocks_lift.
+        expl H5.
       -
         apply GV2blocks_in_inv in IN.
         des.
-        eapply H3; eauto.
-        eapply GV2blocks_lift; eauto.
+        expl GV2blocks_lift.
+        expl H6.
     }
   - (* malloc *)
     inv UNIQUE_BEF; narrow_down_unique.

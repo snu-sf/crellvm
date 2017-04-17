@@ -23,6 +23,7 @@ Require Import Inject.
 Require InvMem.
 Require InvState.
 Require Import Hints.
+Require Import memory_props.
 
 Set Implicit Arguments.
 
@@ -654,6 +655,24 @@ Proof.
       apply filter_sublist.
 Qed.
 
+Lemma positive_lt_plus_one
+      y gmax
+      (POS1: (y < gmax + 1)%positive)
+      (POS2: (gmax < y)%positive)
+  :
+    False.
+Proof.
+  replace (gmax + 1)%positive with (Pos.succ gmax)%positive in *; cycle 1.
+  { rewrite Pos.add_comm. ss. destruct gmax; ss. }
+  rewrite Pos.lt_succ_r in POS1.
+  apply Pos.le_lteq in POS1; eauto.
+  des.
+  + exploit Pos.lt_trans; eauto. ii.
+    apply Pos.lt_irrefl in x0; ss.
+  + clarify.
+    apply Pos.lt_irrefl in POS2; ss.
+Qed.
+
 Lemma unique_const_diffblock
       gval1 gval2 conf gmax st i0 cnst
       (UNIQUE: InvState.Unary.sem_unique conf st gmax i0)
@@ -669,23 +688,20 @@ Proof.
 
   inv UNIQUE. clear LOCALS MEM. clarify.
 
-  ii. eapply GLOBALS0 in INL. clear GLOBALS0 VAL gval1.
-  induction gval2; i; ss.
-  des_ifs; try (eapply IHgval2; eauto; fail).
-  des. cbn in *.
-  des.
-  - clarify.
-    clear - INL VAL2.
-    replace (gmax + 1)%positive with (Pos.succ gmax)%positive in *; cycle 1.
-    { rewrite Pos.add_comm. ss. destruct gmax; ss. }
-    rewrite Pos.lt_succ_r in VAL2.
-    apply Pos.le_lteq in VAL2; eauto.
+  {
+    generalize dependent gval1.
+    induction gval2; i; ss.
+    hexploit IHgval2; eauto.
+    { des_ifs; ss. des; ss. }
+    i.
+    des_ifs.
+    ii. clarify.
+    cbn in H1.
     des.
-    + exploit Pos.lt_trans; eauto. ii.
-      apply Pos.lt_irrefl in x0; ss.
-    + clarify.
-      apply Pos.lt_irrefl in INL; ss.
-  - eapply IHgval2; eauto.
+    - clarify. exploit GLOBALS0; eauto; []; ii; des.
+      eapply positive_lt_plus_one; eauto.
+    - exploit H; eauto.
+  }
 Qed.
 
 Lemma valid_ptr_globals_diffblock
@@ -698,20 +714,17 @@ Lemma valid_ptr_globals_diffblock
 Proof.
   ii.
   exploit GLOBALS; eauto; []; intro GMAX; des.
-  clear - VALID_PTR INR GMAX.
-  induction val'; ss.
-  cbn in *. destruct a; ss. cbn in *.
-  unfold compose in *. ss.
-  destruct v; ss; try (eapply IHval'; eauto; fail).
-  des; clarify.
-  + rewrite <- Pplus_one_succ_r in VALID_PTR.
-    apply Plt_succ_inv in VALID_PTR.
+  {
+    clarify.
+    induction val'; ss.
+    exploit IHval'; eauto.
+    { des_ifs. des. ss. }
+    des_ifs.
     des.
-    * exploit Plt_trans; eauto. ii.
-      exploit dom_libs.PositiveSet.MSet.Raw.L.MO.lt_irrefl; eauto.
-    * clarify.
-      exploit dom_libs.PositiveSet.MSet.Raw.L.MO.lt_irrefl; eauto.
-  + eapply IHval'; eauto.
+    cbn in *. des.
+    - clarify. exfalso. eapply positive_lt_plus_one; eauto.
+    - ss.
+  }
 Qed.
 
 Lemma valid_ptr_globals_diffblock2
@@ -724,20 +737,14 @@ Lemma valid_ptr_globals_diffblock2
 Proof.
   ii.
   exploit GLOBALS; eauto; []; intro GMAX; des.
-  clear - VALID_PTR INR GMAX.
-  induction val'; ss.
-  cbn in *. destruct a; ss. cbn in *.
-  unfold compose in *. ss.
-  destruct v; ss; try (eapply IHval'; eauto; fail).
-  des; clarify.
-  + rewrite <- Pplus_one_succ_r in VALID_PTR.
-    apply Plt_succ_inv in VALID_PTR.
+  {
+    clarify.
+    induction val'; ss.
+    destruct a; ss. destruct v; ss; try (by exploit IHval'; eauto).
     des.
-    * exploit Plt_trans; eauto. ii.
-      exploit dom_libs.PositiveSet.MSet.Raw.L.MO.lt_irrefl; eauto.
-    * clarify.
-      exploit dom_libs.PositiveSet.MSet.Raw.L.MO.lt_irrefl; eauto.
-  + eapply IHval'; eauto.
+    - clarify. eapply positive_lt_plus_one; eauto.
+    - ss. exploit IHval'; eauto.
+  }
 Qed.
 
 Lemma valid_ptr_globals_diffblock_with_blocks
@@ -841,4 +848,61 @@ Proof.
   unfold vm_matches_typ in *. des. subst. ss.
   exploit IHg2; eauto.
   i. congruence.
+Qed.
+
+Lemma vellvm_no_alias_is_diffblock
+      conf gv1 gv2
+  : MemProps.no_alias gv1 gv2 <->
+    InvState.Unary.sem_diffblock conf gv1 gv2.
+Proof.
+  assert (NOALIAS_BLK_AUX:
+            forall gv b,
+              MemProps.no_alias_with_blk gv b <->
+              ~ In b (GV2blocks gv)).
+  { clear.
+    induction gv; ss.
+    destruct a. i.
+    destruct v; ss.
+    split.
+    - ii. des; eauto.
+      rewrite IHgv in *. eauto.
+    - i. split.
+      + ii. subst. eauto.
+      + rewrite IHgv. eauto.
+  }
+  split; i.
+  { unfold InvState.Unary.sem_diffblock.
+    revert dependent gv1.
+    induction gv2; i; ss.
+    destruct a. unfold GV2blocks in *.
+    destruct v; eauto.
+    ss.
+    cut (~ In b (filter_map (val2block <*> fst) gv1) /\
+         list_disjoint (filter_map (val2block <*> fst) gv1)
+                       (filter_map (val2block <*> fst) gv2)).
+    { i. des.
+      unfold list_disjoint in *.
+      i. ss.
+      des; subst; eauto.
+      ii. clarify.
+    }
+    des.
+    split; eauto.
+    apply NOALIAS_BLK_AUX. eauto.
+  }
+  { unfold InvState.Unary.sem_diffblock in *.
+    revert dependent gv1.
+    induction gv2; i; ss.
+    destruct a.
+    destruct v; eauto.
+    split.
+    - apply NOALIAS_BLK_AUX.
+      ii. unfold list_disjoint in *.
+      exploit H; eauto. ss. eauto.
+    - apply IHgv2.
+      unfold list_disjoint in *.
+      i.
+      ii; clarify.
+      exploit H; eauto. ss. right. eauto.
+  }
 Qed.

@@ -253,7 +253,7 @@ Module Unary.
   Proof.
     induction gv2; ii; des; ss.
     cut(GV2blocks gv1 = []).
-    { ii. rewrite H in INL. inv INL. }
+    { clarify. ii. rewrite H1 in *. ss. }
     clear - UNDEF.
     induction gv1; ii; ss.
     destruct a; ss.

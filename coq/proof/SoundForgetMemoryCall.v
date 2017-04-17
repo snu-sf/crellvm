@@ -238,7 +238,8 @@ Proof.
       (* clear VAL. *)
 
       {
-        unfold InvState.Unary.sem_diffblock. ii.
+        clear_tac.
+        unfold InvState.Unary.sem_diffblock. ii. clarify.
         unfold InvMem.gv_diffblock_with_blocks in *.
         eapply GV_DIFFBLOCK; eauto. clear GV_DIFFBLOCK.
         rewrite <- UNIQUE_PARENT_EQ. ss.
@@ -255,7 +256,7 @@ Proof.
             rewrite VAL. ss.
         - unfold memory_blocks_of.
           eapply existsb_exists.
-          exists z; splits; cycle 1.
+          exists y; splits; cycle 1.
           { compute. des_ifs. }
           apply in_flat_map.
           esplits; eauto.

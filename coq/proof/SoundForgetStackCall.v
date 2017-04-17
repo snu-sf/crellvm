@@ -15,6 +15,7 @@ Require Import paco.
 Import Opsem.
 
 Require Import TODO.
+Require Import TODOProof.
 Require Import Hints.
 Require Import Postcond.
 Require Import Validator.
@@ -180,8 +181,8 @@ Proof.
       eapply PRIVATE; eauto.
       eapply Exprs.IdTSetFacts.mem_iff; eauto.
       unfold InvMem.private_block in *. des.
-      hexploit gv_inject_public_src; eauto; []; ii; des.
-      clear - H PRIVATE_BLOCK. ss.
+      hexploit gv_inject_public_src; eauto; []; intro PUB; des.
+      clear - PUB PRIVATE_BLOCK. ss.
     }
   - clear STATE_SRC.
     inv STATE_TGT.
@@ -195,8 +196,8 @@ Proof.
       eapply PRIVATE; eauto.
       eapply Exprs.IdTSetFacts.mem_iff; eauto.
       unfold InvMem.private_block in *. des.
-      hexploit gv_inject_public_tgt; eauto; []; ii; des.
-      clear - H PRIVATE_BLOCK. ss.
+      hexploit gv_inject_public_tgt; eauto; []; intro PUB; des.
+      clear - PUB PRIVATE_BLOCK. ss.
     }
 Qed.
 
