@@ -112,8 +112,75 @@ Inductive sim_conf (conf_src conf_tgt:Config): Prop :=
     (SIM_PRODUCTS: sim_products conf_src conf_tgt conf_src.(CurProducts) conf_tgt.(CurProducts))
 .
 
+(* TODO: move definition into InvState *)
+(* I may want to swap list_joint definition between Coqlib/TODO, so I define this *)
+Inductive disjoint_with_parent (blks: list mblock) (inv: InvMem.Unary.t) :=
+  | disjoint_with_parent_intro (DISJOINT_PARENT: list_disjoint blks inv.(InvMem.Unary.private_parent))
+.
+
 (* TODO: Move to TODOProof *)
-Lemma invmem_free_invmem
+Lemma invmem_free_invmem_unary
+      conf_src inv m x lo hi m' TD inv_unary
+      (BOUNDS: Mem.bounds m x = (lo, hi))
+      (FREE: free TD m (blk2GV TD x) = ret m')
+      (PARENT: disjoint_with_parent [x] inv_unary)
+      (pub_unary: mblock -> Prop)
+      (UNARY: InvMem.Unary.sem conf_src (InvMem.Rel.gmax inv) pub_unary m inv_unary)
+  :
+    <<INVMEM: InvMem.Unary.sem conf_src (InvMem.Rel.gmax inv) pub_unary m' inv_unary>>
+.
+Proof.
+  inv UNARY.
+  assert(NEXTBLOCK_EQ: Mem.nextblock m' = Mem.nextblock m).
+  {
+    unfold free in *. des_ifs.
+    expl Mem.nextblock_free.
+  }
+  econs; eauto.
+  + eapply memory_props.MemProps.free_preserves_wf_Mem; eauto.
+  + ii.
+    expl PRIVATE_PARENT.
+    inv PRIVATE_PARENT0.
+    econs; eauto.
+    rewrite NEXTBLOCK_EQ in *. ss.
+  + ii.
+    expl MEM_PARENT.
+    rewrite MEM_PARENT0.
+    rename b into __b__.
+    clear - FREE IN PARENT.
+    inv PARENT.
+    abstr (InvMem.Unary.private_parent inv_unary) private_parent.
+    move mc at top.
+    revert_until mc.
+    induction mc; ii; ss.
+    {
+      expl IHmc.
+      rewrite IHmc0. clear IHmc0 IHmc.
+      assert(Mem.load a m __b__ o = Mem.load a m' __b__ o).
+      {
+        cbn in *. des_ifs.
+        symmetry.
+        eapply Mem.load_free; eauto.
+        left. ii. clarify.
+        exploit DISJOINT_PARENT; eauto. left. ss.
+      }
+      des_ifs.
+    }
+  + ii.
+    expl UNIQUE_PARENT_MEM.
+    exploit memory_props.MemProps.free_preserves_mload_inv; eauto.
+    Show Existentials. (* It can give some info whether there is Unshelved goals or not *)
+    Unshelve. Undo 2.
+    (* Just using hexploit/exploit && eauto gives Unshelved goals. *)
+    (* It seems when lemma's goal is exactly same with current goal, exploit; eauto approach *)
+    (* does not care on premises, just putting all the premises in the unshelved goal. *)
+    (* In this case, by using eapply, this problem can be avoided. *)
+    eapply memory_props.MemProps.free_preserves_mload_inv; eauto.
+  + rewrite NEXTBLOCK in *.
+    rewrite NEXTBLOCK_EQ in *. ss.
+Qed.
+
+Lemma invmem_free_invmem_rel
       conf_src conf_tgt inv
       m0 m1
       (MEM: InvMem.Rel.sem conf_src conf_tgt m0 m1 inv)
@@ -123,47 +190,31 @@ Lemma invmem_free_invmem
       m0' m1'
       TD
       (FREE0 : free TD m0 (blk2GV TD x0) = ret m0')
-      (MFREE0: Mem.free m0 x0 lo hi = ret m0')
       (INJECT: inv.(InvMem.Rel.inject) x0 = ret (x1, 0))
-      (MFREE1: Mem.free m1 x1 lo hi = ret m1')
+      (FREE1 : free TD m1 (blk2GV TD x1) = ret m1')
+      (PARENT_SRC: disjoint_with_parent [x0] inv.(InvMem.Rel.src))
+      (PARENT_TGT: disjoint_with_parent [x1] inv.(InvMem.Rel.tgt))
   :
     <<MEM: InvMem.Rel.sem conf_src conf_tgt m0' m1' inv>>
 .
 Proof.
   inv MEM.
   econs; eauto.
-  - clear TGT INJECT0 WF.
-    inv SRC.
-    expl Mem.nextblock_free.
-    move MFREE0 at bottom.
-    expl Mem.nextblock_free.
-    econs; eauto.
-    +
-      eapply memory_props.MemProps.free_preserves_wf_Mem; eauto.
-    (* unfold memory_props.MemProps.wf_Mem in *. *)
-    (* des. *)
-    (* splits; ss; cycle 1. *)
-    (* { rewrite nextblock_free0. ss. } *)
-    (* ii. exploit WF; eauto. *)
-    (* (* eapply memory_props.MemProps.free_preserves_wf_Mem; eauto. *) *)
-    + ii.
-      expl PRIVATE_PARENT.
-      inv PRIVATE_PARENT0.
-      econs; eauto. rewrite nextblock_free0 in *. ss.
-    + ii.
-      expl MEM_PARENT.
-      rewrite MEM_PARENT0.
-      admit. (* is this true? *)
-    + ii.
-      expl UNIQUE_PARENT_MEM.
-      expl memory_props.MemProps.free_preserves_mload_inv.
-    + rewrite NEXTBLOCK in *. rewrite nextblock_free0 in *. ss.
-  - admit. (* should be same with src *)
-  - expl genericvalues_inject.mem_inj__free.
+  - clear INJECT INJECT0 WF TGT PARENT_TGT BOUNDS1 FREE1. clear_tac.
+    abstr (InvMem.Rel.src inv) inv_unary.
+    abstr (InvMem.Rel.public_src (InvMem.Rel.inject inv)) pub_unary.
+    eapply invmem_free_invmem_unary; try eassumption.
+  - clear INJECT INJECT0 WF SRC PARENT_SRC BOUNDS0 FREE0. clear_tac.
+    abstr (InvMem.Rel.tgt inv) inv_unary.
+    abstr (InvMem.Rel.public_tgt (InvMem.Rel.inject inv)) pub_unary.
+    eapply invmem_free_invmem_unary; try eassumption.
+  - cbn in *. des_ifs.
+    expl genericvalues_inject.mem_inj__free.
     repeat rewrite Z.add_0_r in *. clarify.
-  - expl genericvalues_inject.mem_inj__free.
+  - cbn in *. des_ifs.
+    expl genericvalues_inject.mem_inj__free.
     repeat rewrite Z.add_0_r in *. clarify.
-Admitted.
+Qed.
 
 Lemma inject_allocas_free_allocas
       inv Allocas0 Allocas1
@@ -172,6 +223,8 @@ Lemma inject_allocas_free_allocas
       (FREE_ALLOCAS: free_allocas TD Mem0 Allocas0 = ret Mem0')
       Mem1 conf_src conf_tgt
       (MEM: InvMem.Rel.sem conf_src conf_tgt Mem0 Mem1 inv)
+      (ALLOCAS_PARENT_SRC: disjoint_with_parent Allocas0 inv.(InvMem.Rel.src))
+      (ALLOCAS_PARENT_TGT: disjoint_with_parent Allocas1 inv.(InvMem.Rel.tgt))
   :
     <<FREE_ALLOCAS: exists Mem1', free_allocas TD Mem1 Allocas1 = ret Mem1'>>
 .
@@ -182,23 +235,38 @@ Proof.
   - esplits; eauto. unfold free_allocas. eauto.
   - des_ifs.
     unfold InvMem.Rel.inject in *. des_ifs.
-    assert(FREE:= Heq).
+    assert(FREE_SRC:= Heq).
     cbn in Heq. des_ifs.
     dup MEM. inv MEM. simpl in *. (* cbn causes FREE to shatter *)
     expl genericvalues_inject.mi_bounds.
     rewrite Heq0 in *.
-    cbn. des_ifs; [|]; cycle 1.
     {
-      exfalso.
-      expl genericvalues_inject.mem_inj__free.
-      repeat rewrite <- Zplus_0_r_reverse in *. clarify.
+      des_ifsG; [|]; rename Heq1 into FREE_TGT; cycle 1.
+      {
+        exfalso.
+        expl genericvalues_inject.mem_inj__free.
+        repeat rewrite <- Zplus_0_r_reverse in *.
+        unfold free in FREE_TGT. unfold GV2ptr in FREE_TGT. cbn in FREE_TGT. des_ifs.
+      }
+      exploit IHAllocas0; try exact FREE_ALLOCAS; eauto.
+      {
+        clear_tac.
+        instantiate (1:= conf_tgt).
+        instantiate (1:= conf_src).
+        eapply invmem_free_invmem_rel; eauto.
+        { ss. admit. }
+        { ss. admit. }
+      }
+      {
+        inv ALLOCAS_PARENT_SRC.
+        econs; eauto; try eapply list_disjoint_cons_left; eassumption.
+      }
+      {
+        inv ALLOCAS_PARENT_TGT.
+        econs; eauto; try eapply list_disjoint_cons_left; eassumption.
+      }
     }
-    expl IHAllocas0.
-    clear_tac.
-    instantiate (1:= conf_tgt).
-    instantiate (1:= conf_src).
-    eapply invmem_free_invmem; eauto.
-Qed.
+Admitted.
 
 Lemma sim_local_lift_sim conf_src conf_tgt
       (SIM_CONF: sim_conf conf_src conf_tgt):
@@ -230,8 +298,10 @@ Proof.
         inv CONF. ss. clarify.
         inv SIM_CONF. ss.
         eapply inject_allocas_inj_incr in ALLOCAS; eauto.
-        hexploit inject_allocas_free_allocas; eauto; i; des.
-        expl inject_allocas_free_allocas.
+        exploit inject_allocas_free_allocas; eauto.
+        { admit. (* disjoint_with_parent *) }
+        { admit. (* disjoint_with_parent *) }
+        intro FREE_ALLOCAS; des.
         destruct noret_tgt; simtac.
         - esplits. econs; ss; eauto.
           + rewrite returnUpdateLocals_spec, RET_TGT. ss.

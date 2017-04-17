@@ -68,6 +68,7 @@ Section SimLocal.
       (CMDS_TGT: st1_tgt.(EC).(CurCmds) = nil)
       (TERM_SRC: st2_src.(EC).(Terminator) = insn_return_void id2_src)
       (TERM_TGT: st1_tgt.(EC).(Terminator) = insn_return_void id1_tgt)
+      (ALLOCAS: inject_allocas inv1 st2_src.(EC).(Allocas) st1_tgt.(EC).(Allocas))
       (STACK_SRC: st2_src.(ECS) = stack0_src)
       (STACK_TGT: st1_tgt.(ECS) = stack0_tgt)
       (MEM: InvMem.Rel.sem conf_src conf_tgt st2_src.(Mem) st1_tgt.(Mem) inv1)

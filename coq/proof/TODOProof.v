@@ -60,10 +60,19 @@ Ltac des_ifs_safe_aux TAC :=
 Tactic Notation "des_ifs_safe" := des_ifs_safe_aux clarify.
 Tactic Notation "des_ifs_safe" tactic(TAC) := des_ifs_safe_aux TAC.
 
-Ltac abstr x := let var_name := fresh "abstr_var_name" in
-                  let hyp_name := fresh "abstr_hyp_name" in
-                  remember x as var_name eqn:hyp_name; clear hyp_name
+Ltac abstr_aux x var_name :=
+  let hyp_name := fresh "abstr_hyp_name" in
+  remember x as var_name eqn:hyp_name; clear hyp_name
 .
+
+Tactic Notation "abstr" constr(H) := let var_name := fresh "abstr_var_name" in abstr_aux H var_name.
+Tactic Notation "abstr" constr(H) ident(var_name) := abstr_aux H var_name.
+
+Example abstr_demo: (1 + 2 = 3) -> False.
+  i.
+  abstr_aux (1 + 2) my_name. Undo 1.
+  abstr (1 + 2).
+Abort.
 
 Ltac des_ifsH H :=
   clarify;
