@@ -284,7 +284,6 @@ Proof.
       rewrite <- PRIVATE_PARENT_EQ. ss.
       apply in_app. left. eauto.
     - ss.
-    - ss.
       ii. exploit WF_LOCAL; eauto. i.
       eapply memory_props.MemProps.valid_ptrs__trans; eauto.
       eapply mem_lift_le_nextblock; eauto.

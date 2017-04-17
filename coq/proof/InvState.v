@@ -325,7 +325,6 @@ Module Unary.
       (NOALIAS: sem_alias conf st invst inv.(Invariant.alias))
       (UNIQUE: AtomSetImpl.For_all (sem_unique conf st gmax) inv.(Invariant.unique))
       (PRIVATE: IdTSet.For_all (sem_private conf st invst invmem.(InvMem.Unary.private_parent) public) inv.(Invariant.private))
-      (ALLOCAS_PARENT: list_disjoint st.(EC).(Allocas) invmem.(InvMem.Unary.private_parent))
       (WF_LOCAL: MemProps.wf_lc st.(Mem) st.(EC).(Locals))
       (WF_PREVIOUS: MemProps.wf_lc st.(Mem) invst.(previous))
       (WF_GHOST: MemProps.wf_lc st.(Mem) invst.(ghost))
@@ -365,7 +364,6 @@ Module Unary.
       exfalso. eapply EMPTY1; eauto.
     - ii. apply IdTSet.is_empty_2 in EMPTY0.
       exfalso. eapply EMPTY0; eauto.
-    - admit. (* This should be erased. Care at the start of the function *)
     - exact (SF_ADMIT "wf_lc locals. This is unprovable for now,
 but it is provable if we pull the calling point of this lemma
 into the start of the function. At the start of the function,
@@ -386,7 +384,7 @@ I insist that this is not a serious problem, because
   Actually, we use wf_insn in 2-3 cases, and all of them
   exploited simple checkings mentioned above, and not more.
 ").
-  Admitted.
+  Qed.
 
   Lemma sem_valueT_physical
         conf st inv val:

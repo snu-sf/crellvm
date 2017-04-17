@@ -48,8 +48,6 @@ Lemma invst_sem_eq_locals_mem
       (EQ_BB_TGT: st0_tgt.(EC).(CurBB) = st1_tgt.(EC).(CurBB))
       (EQ_FUNC_SRC: st0_src.(EC).(CurFunction) = st1_src.(EC).(CurFunction))
       (EQ_FUNC_TGT: st0_tgt.(EC).(CurFunction) = st1_tgt.(EC).(CurFunction))
-      (EQ_ALLOCAS_SRC: st0_src.(EC).(Allocas) = st1_src.(EC).(Allocas))
-      (EQ_ALLOCAS_TGT: st0_tgt.(EC).(Allocas) = st1_tgt.(EC).(Allocas))
   : InvState.Rel.sem conf_src conf_tgt st1_src st1_tgt invst invmem inv.
 Proof.
   inv STATE.

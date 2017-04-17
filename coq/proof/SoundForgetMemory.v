@@ -2075,7 +2075,6 @@ Proof.
         exploit MemProps.nextblock_mstore; eauto.
         intro NEXTBLOCK_EQ. rewrite <- NEXTBLOCK_EQ.
         psimpl.
-      + ss.
       + ss. eapply MemProps.mstore_preserves_wf_lc; eauto.
       + ss. eapply MemProps.mstore_preserves_wf_lc; eauto.
       + ss. eapply MemProps.mstore_preserves_wf_lc; eauto.
@@ -2109,7 +2108,6 @@ Proof.
         exploit MemProps.nextblock_mstore; eauto.
         intro NEXTBLOCK_EQ. rewrite <- NEXTBLOCK_EQ.
         psimpl.
-      + ss.
       + ss. eapply MemProps.mstore_preserves_wf_lc; eauto.
       + ss. eapply MemProps.mstore_preserves_wf_lc; eauto.
       + ss. eapply MemProps.mstore_preserves_wf_lc; eauto.
@@ -2207,13 +2205,11 @@ Proof.
     inv STATE_SRC.
     econs; eauto.
     + rewrite <- GMAX. eauto.
-    + rewrite <- PRIVATE_PARENT_EQ. ss.
     + rewrite <- UNIQUE_PARENT_EQ. eauto.
   - inv TGT.
     inv STATE_TGT.
     econs; eauto.
     + rewrite <- GMAX. eauto.
-    + rewrite <- PRIVATE_PARENT_EQ. ss.
     + rewrite <- UNIQUE_PARENT_EQ. eauto.
   - i. hexploit STATE_MAYDIFF; eauto.
     intros SEM_INJECT.

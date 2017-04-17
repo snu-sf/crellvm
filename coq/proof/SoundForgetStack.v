@@ -1262,7 +1262,6 @@ Lemma forget_stack_unary_sound
       (STATE : InvState.Unary.sem conf st0 invst invmem gmax public inv)
       (WF_LC: memory_props.MemProps.wf_lc st1.(Mem) st1.(EC).(Locals))
       (EQ_FUNC: st0.(EC).(CurFunction) = st1.(EC).(CurFunction))
-      (ALLOCAS_PARENT: list_disjoint (Allocas (EC st1)) (InvMem.Unary.private_parent invmem))
   : InvState.Unary.sem conf st1 invst invmem gmax public (ForgetStack.unary defs leaks inv).
 Proof.
   inv STATE.
@@ -1341,10 +1340,6 @@ Lemma forget_stack_sound
       (WF_LC_TGT: memory_props.MemProps.wf_lc st1_tgt.(Mem) st1_tgt.(EC).(Locals))
       (EQ_FUNC_SRC: st0_src.(EC).(CurFunction) = st1_src.(EC).(CurFunction))
       (EQ_FUNC_TGT: st0_tgt.(EC).(CurFunction) = st1_tgt.(EC).(CurFunction))
-      (ALLOCAS_PARENT_SRC: list_disjoint (Allocas (EC st1_src))
-                                         (InvMem.Unary.private_parent (InvMem.Rel.src invmem)))
-      (ALLOCAS_PARENT_TGT: list_disjoint (Allocas (EC st1_tgt))
-                                         (InvMem.Unary.private_parent (InvMem.Rel.tgt invmem)))
   : <<STATE_FORGET: InvState.Rel.sem conf_src conf_tgt st1_src st1_tgt
                                      invst invmem (ForgetStack.t defs_src defs_tgt leaks_src leaks_tgt inv0)>>.
 Proof.
