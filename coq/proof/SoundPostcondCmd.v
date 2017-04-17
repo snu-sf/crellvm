@@ -16,6 +16,7 @@ Require Import paco.
 Import Opsem.
 
 Require Import TODO.
+Require Import TODOProof.
 Require Import Exprs.
 Require Import Hints.
 Require Import Postcond.
@@ -320,10 +321,33 @@ Proof.
     - apply MEM. }
   { ss. inv STEP_SRC; ss. clarify. }
   { ss. inv STEP_TGT; ss. clarify. }
+  { inv STEP_SRC; try apply STATE_FORGET_MEMORY; cbn.
+    - (* return *)
+      admit.
+    - (* return_void *)
+      admit.
+    - assert(PARENT: list_disjoint (als) (InvMem.Unary.private_parent (InvMem.Rel.src invmem1))).
+      { apply STATE_FORGET_MEMORY. }
+      apply list_disjoint_cons_l; eauto.
+      ii.
+      inv MEM_FORGET_MEMORY. clear TGT INJECT WF.
+      inv SRC. ss. clear UNIQUE_PARENT_MEM UNIQUE_PARENT_GLOBALS UNIQUE_PRIVATE_PARENT.
+      expl MEM_PARENT.
+      move H1 at bottom.
+      clear - MEM_PARENT0 H1.
+      (* RHS of MEM_PARENT0 is Some, as mload just after malloc will give at least undef *)
+      (* LHS of MEM_PARENT0 is Some, as LHS = RHS *)
+      (* LHS of MEM_PARENT0 is None, as mem_parent's nextblock <= current's nextblock < mb *)
+      admit.
+    - ss. (* call *)
+  }
+  {
+    admit. (* same with above *)
+  }
   i. des.
 
   hexploit postcond_cmd_add_sound; try apply CONF; try eapply STEP_SRC; try eapply MEMLE;
     try eapply STEP_TGT; try apply x1; (* needed to prohibit applying STATE *) eauto; []; ii; des.
   esplits; eauto.
   etransitivity; eauto.
-Qed.
+Admitted.

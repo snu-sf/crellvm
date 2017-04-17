@@ -922,8 +922,8 @@ Proof.
   { eapply switchToNewBasicBlock_wf; try exact STEP_TGT; eauto. apply STATE. apply MEM. }
   { ss. }
   { ss. }
-  { ss. }
-  { ss. }
+  { apply STATE. }
+  { apply STATE. }
   intros STATE_FORGET. des.
   inv STATE_FORGET.
   exploit phinodes_add_lessdef_sound; try exact SRC; eauto; i.

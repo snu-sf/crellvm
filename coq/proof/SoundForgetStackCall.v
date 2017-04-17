@@ -357,6 +357,8 @@ Proof.
         inv MEM.
         exploit genericvalues_inject_wf_valid_ptrs_tgt; eauto.
       }
+      { apply STATE. }
+      { apply STATE. }
     - hexploit genericvalues_inject.simulation__fit_gv; eauto.
       { inv MEM. eauto. }
       i. des.
