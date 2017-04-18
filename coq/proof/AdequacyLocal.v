@@ -112,18 +112,12 @@ Inductive sim_conf (conf_src conf_tgt:Config): Prop :=
     (SIM_PRODUCTS: sim_products conf_src conf_tgt conf_src.(CurProducts) conf_tgt.(CurProducts))
 .
 
-(* TODO: move definition into InvState *)
-(* I may want to swap list_joint definition between Coqlib/TODO, so I define this *)
-Inductive disjoint_with_parent (blks: list mblock) (inv: InvMem.Unary.t) :=
-  | disjoint_with_parent_intro (DISJOINT_PARENT: list_disjoint blks inv.(InvMem.Unary.private_parent))
-.
-
 (* TODO: Move to TODOProof *)
 Lemma invmem_free_invmem_unary
       conf_src inv m x lo hi m' TD inv_unary
       (BOUNDS: Mem.bounds m x = (lo, hi))
       (FREE: free TD m (blk2GV TD x) = ret m')
-      (PARENT: disjoint_with_parent [x] inv_unary)
+      (PARENT: list_disjoint [x] inv_unary.(InvMem.Unary.private_parent))
       (pub_unary: mblock -> Prop)
       (UNARY: InvMem.Unary.sem conf_src (InvMem.Rel.gmax inv) pub_unary m inv_unary)
   :
@@ -148,7 +142,6 @@ Proof.
     rewrite MEM_PARENT0.
     rename b into __b__.
     clear - FREE IN PARENT.
-    inv PARENT.
     abstr (InvMem.Unary.private_parent inv_unary) private_parent.
     move mc at top.
     revert_until mc.
@@ -162,7 +155,7 @@ Proof.
         symmetry.
         eapply Mem.load_free; eauto.
         left. ii. clarify.
-        exploit DISJOINT_PARENT; eauto. left. ss.
+        exploit PARENT; eauto. left. ss.
       }
       des_ifs.
     }
@@ -192,8 +185,8 @@ Lemma invmem_free_invmem_rel
       (FREE0 : free TD m0 (blk2GV TD x0) = ret m0')
       (INJECT: inv.(InvMem.Rel.inject) x0 = ret (x1, 0))
       (FREE1 : free TD m1 (blk2GV TD x1) = ret m1')
-      (PARENT_SRC: disjoint_with_parent [x0] inv.(InvMem.Rel.src))
-      (PARENT_TGT: disjoint_with_parent [x1] inv.(InvMem.Rel.tgt))
+      (PARENT_SRC: list_disjoint [x0] inv.(InvMem.Rel.src).(InvMem.Unary.private_parent))
+      (PARENT_TGT: list_disjoint [x1] inv.(InvMem.Rel.tgt).(InvMem.Unary.private_parent))
   :
     <<MEM: InvMem.Rel.sem conf_src conf_tgt m0' m1' inv>>
 .
@@ -216,6 +209,19 @@ Proof.
     repeat rewrite Z.add_0_r in *. clarify.
 Qed.
 
+(* TODO: move to TODOProof or somewhere *)
+Lemma list_disjoint_cons_inv
+      X (hd: X) tl xs
+      (DISJOINT: list_disjoint (hd :: tl) xs)
+  :
+    <<DISJOINT: list_disjoint [hd] xs /\ list_disjoint tl xs>>
+.
+Proof.
+  splits.
+  - ii. clarify. ss. des; ss. clarify. expl DISJOINT. left. ss.
+  - eapply list_disjoint_cons_left; eauto.
+Qed.
+
 Lemma inject_allocas_free_allocas
       inv Allocas0 Allocas1
       (ALLOCAS: inject_allocas inv Allocas0 Allocas1)
@@ -223,8 +229,10 @@ Lemma inject_allocas_free_allocas
       (FREE_ALLOCAS: free_allocas TD Mem0 Allocas0 = ret Mem0')
       Mem1 conf_src conf_tgt
       (MEM: InvMem.Rel.sem conf_src conf_tgt Mem0 Mem1 inv)
-      (ALLOCAS_PARENT_SRC: disjoint_with_parent Allocas0 inv.(InvMem.Rel.src))
-      (ALLOCAS_PARENT_TGT: disjoint_with_parent Allocas1 inv.(InvMem.Rel.tgt))
+      (ALLOCAS_PARENT_SRC: list_disjoint Allocas0
+                                         inv.(InvMem.Rel.src).(InvMem.Unary.private_parent))
+      (ALLOCAS_PARENT_TGT: list_disjoint Allocas1
+                                         inv.(InvMem.Rel.tgt).(InvMem.Unary.private_parent))
   :
     <<FREE_ALLOCAS: exists Mem1', free_allocas TD Mem1 Allocas1 = ret Mem1'>>
 .
@@ -254,19 +262,13 @@ Proof.
         instantiate (1:= conf_tgt).
         instantiate (1:= conf_src).
         eapply invmem_free_invmem_rel; eauto.
-        { ss. admit. }
-        { ss. admit. }
+        { expl list_disjoint_cons_inv (try exact ALLOCAS_PARENT_SRC; eauto). ss. }
+        { expl list_disjoint_cons_inv (try exact ALLOCAS_PARENT_TGT; eauto). ss. }
       }
-      {
-        inv ALLOCAS_PARENT_SRC.
-        econs; eauto; try eapply list_disjoint_cons_left; eassumption.
-      }
-      {
-        inv ALLOCAS_PARENT_TGT.
-        econs; eauto; try eapply list_disjoint_cons_left; eassumption.
-      }
+      { expl list_disjoint_cons_inv (try exact ALLOCAS_PARENT_SRC; eauto). ss. }
+      { expl list_disjoint_cons_inv (try exact ALLOCAS_PARENT_TGT; eauto). ss. }
     }
-Admitted.
+Qed.
 
 Lemma sim_local_lift_sim conf_src conf_tgt
       (SIM_CONF: sim_conf conf_src conf_tgt):
