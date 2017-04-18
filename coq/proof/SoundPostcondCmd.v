@@ -247,6 +247,33 @@ Unshelve.
 ss.
 Qed.
 
+(* This lemma is not true *)
+(* Maybe need to strengthen InvMem - MemParent somehow? *)
+Lemma mload_aux_valid_ptr
+      Mem mc mb o gv
+      (MLOAD: mload_aux Mem mc mb o = Some gv)
+  :
+    <<VALID_PTR: (mb < Mem.(Memory.Mem.nextblock))%positive>>
+.
+Proof.
+  move mc at top.
+  revert_until mc.
+  induction mc; ii; ss;  clarify.
+  - admit.
+  - des_ifs.
+    exploit IHmc; eauto.
+Admitted.
+
+Lemma malloc_memory_next_block
+      TD Mem tsz gn align Mem' mb
+      (MALLOC: malloc TD Mem tsz gn align = Some (Mem', mb))
+  :
+    <<NEXTBLOCK: mb = Mem.(Memory.Mem.nextblock)>>
+.
+Proof.
+  unfold malloc in *. des_ifs.
+Qed.
+
 Lemma postcond_cmd_sound
       m_src conf_src st0_src cmd_src cmds_src
       m_tgt conf_tgt st0_tgt cmd_tgt cmds_tgt
@@ -323,22 +350,42 @@ Proof.
   { ss. inv STEP_TGT; ss. clarify. }
   { inv STEP_SRC; try apply STATE_FORGET_MEMORY; cbn.
     - (* return *)
-      admit.
+      clarify.
     - (* return_void *)
-      admit.
+      clarify.
     - assert(PARENT: list_disjoint (als) (InvMem.Unary.private_parent (InvMem.Rel.src invmem1))).
       { apply STATE_FORGET_MEMORY. }
       apply list_disjoint_cons_l; eauto.
       ii.
+      dup MEM_FORGET_MEMORY.
       inv MEM_FORGET_MEMORY. clear TGT INJECT WF.
       inv SRC. ss. clear UNIQUE_PARENT_MEM UNIQUE_PARENT_GLOBALS UNIQUE_PRIVATE_PARENT.
+      (* MemProps.malloc_mload_aux_undef *)
+      exploit MemProps.mload_aux_malloc_same'; eauto.
+      { move t at bottom. rename t into __t__.
+        admit. (* flatten_typ *) }
+      intro MLOAD; des.
       expl MEM_PARENT.
       move H1 at bottom.
-      clear - MEM_PARENT0 H1.
+      rewrite MLOAD in *.
+
+      expl mload_aux_valid_ptr.
+
+      expl malloc_memory_next_block.
+      clear - mload_aux_valid_ptr0 malloc_memory_next_block0 MEM MEMLE MEM_FORGET_MEMORY0.
+      clarify.
+      assert((Memory.Mem.nextblock (InvMem.Unary.mem_parent (InvMem.Rel.src invmem1)))
+              = (Memory.Mem.nextblock (InvMem.Unary.mem_parent (InvMem.Rel.src invmem0)))).
+      { admit. (* MEMLE *) }
+      rewrite H in *. clear H.
+      assert((Memory.Mem.nextblock (InvMem.Unary.mem_parent (InvMem.Rel.src invmem0))
+              <= Memory.Mem.nextblock Mem0)%positive).
+      { admit. (* MEM_FORGET_MEMORY0 *) }
+      hexploit Pos.le_nlt; eauto; []; intro POS.
+      des. apply POS in H. ss.
       (* RHS of MEM_PARENT0 is Some, as mload just after malloc will give at least undef *)
       (* LHS of MEM_PARENT0 is Some, as LHS = RHS *)
       (* LHS of MEM_PARENT0 is None, as mem_parent's nextblock <= current's nextblock < mb *)
-      admit.
     - ss. (* call *)
   }
   {
