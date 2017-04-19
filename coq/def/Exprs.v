@@ -94,18 +94,10 @@ Module ValueT <: UsualDecidableType.
       | id i => Some i
       | const _ => None
     end.
-
-  Definition unlift (v: t): value :=
-    match v with
-    | id idt => value_id idt.(snd)
-    | const c => value_const c
-    end.
-
 End ValueT.
 Hint Resolve ValueT.eq_dec: EqDecDb.
 Coercion ValueT.id: IdT.t >-> ValueT.t_.
 Coercion ValueT.const: const >-> ValueT.t_.
-Coercion ValueT.unlift: ValueT.t >-> value.
 
 Module ValueTSet : FSetExtra.WSfun ValueT := FSetExtra.Make ValueT.
 Module ValueTSetFacts := WFacts_fun2 ValueT ValueTSet.

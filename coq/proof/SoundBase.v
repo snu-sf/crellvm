@@ -681,7 +681,6 @@ Lemma unique_const_diffblock
       (GLOBALS: genericvalues_inject.wf_globals gmax (Globals conf))
       (VAL1: lookupAL GenericValue (Locals (EC st)) i0 = Some gval1)
       (VAL2: const2GV (CurTargetData conf) (Globals conf) cnst = Some gval2)
-      (WF_CONST: exists system ty, wf_const system (CurTargetData conf) cnst ty)
       :
   <<DIFFBLOCK: InvState.Unary.sem_diffblock conf gval1 gval2>>
 .

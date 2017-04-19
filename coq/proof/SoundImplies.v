@@ -131,18 +131,6 @@ Proof.
   esplits; eauto. etransitivity; eauto.
 Qed.
 
-Definition config_to_module (conf: Config): module
-  := module_intro conf.(CurTargetData).(fst) conf.(CurTargetData).(snd) conf.(CurProducts)
-.
-
-Coercion config_to_module: Config >-> module.
-
-Lemma fst_snd_eq A B (ab: A * B)
-  :
-    <<EQ: (ab.(fst), ab.(snd)) = ab>>
-.
-Proof. destruct ab; ss. Qed.
-
 Lemma implies_diffblock_sound
       inv0 conf st invst gmax
       val1 val2 gval1 gval2
@@ -151,8 +139,6 @@ Lemma implies_diffblock_sound
       (GLOBALS : genericvalues_inject.wf_globals gmax (Globals conf))
       (VAL1: InvState.Unary.sem_valueT conf st invst val1 = Some gval1)
       (VAL2: InvState.Unary.sem_valueT conf st invst val2 = Some gval2)
-      (WF_VALUE1: exists system fd ty, wf_value system conf fd val1 ty)
-      (WF_VALUE2: exists system fd ty, wf_value system conf fd val2 ty)
   :
     <<DIFFBLOCK: InvState.Unary.sem_diffblock conf gval1 gval2>>
 .
@@ -193,7 +179,6 @@ Proof.
       specialize (UNIQUE i0 IMPLIES_ALIAS2). clear IMPLIES_ALIAS2.
 
       eapply unique_const_diffblock; eauto.
-      { inv WF_VALUE2. ss. rewrite fst_snd_eq in *. esplits; eauto. }
   + (* exactly copied from above *)
     clear IMPLIES_ALIAS0.
     des_ifs.
@@ -224,7 +209,6 @@ Proof.
 
       eapply InvState.Unary.diffblock_comm.
       eapply unique_const_diffblock; eauto.
-      { inv WF_VALUE1. ss. rewrite fst_snd_eq in *. esplits; eauto. }
 Qed.
 
 (* TODO: premise for unique *)
