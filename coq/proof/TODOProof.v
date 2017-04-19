@@ -2,6 +2,7 @@ Require Import vellvm.
 Require Import sflib.
 Require Import memory_props.
 Require Import TODO.
+Require Import Decs.
 Import Opsem.
 
 Set Implicit Arguments.
@@ -253,30 +254,218 @@ Proof.
   apply Int.repr_unsigned.
 Qed.
 
+Fixpoint can_have_ptr c :=
+  match c with
+  | const_gep _ _ _ => true
+  | const_zeroinitializer _ => true
+  | const_arr _ cs => List.existsb can_have_ptr cs
+  | const_struct _ cs => List.existsb can_have_ptr cs
+  | const_gid _ _ => true
+  | const_castop _ c _ => can_have_ptr c
+  | const_select _ c2 c3 => can_have_ptr c2 || can_have_ptr c3
+  | const_extractvalue c cs =>
+    true (* can_have_ptr c || List.existsb can_have_ptr cs *)
+  | const_insertvalue c1 c2 cs =>
+    true (* can_have_ptr c || List.existsb can_have_ptr cs *)
+  | _ => false
+  end
+.
+
+Lemma gundef_not_ptr
+      TD ty
+      b ofs mc
+      (GUNDEF: gundef TD ty = Some [(Values.Vptr b ofs, mc)])
+  :
+    False
+.
+Proof.
+  unfold gundef in *. des_ifs.
+  induction l0; ss.
+Qed.
+
+Lemma const_ptr
+      TD gl c b ofs mc
+      (PTR: const2GV TD gl c = Some [(Values.Vptr b ofs, mc)])
+  :
+    can_have_ptr c
+.
+Proof.
+  move c at top.
+  revert_until c.
+  induction c using Decs.const_ind_gen; ii; ss;
+    unfold const2GV in *; ss; des_ifs_safe; unfold cgv2gv in *; clarify.
+  - des_ifs.
+  - expl gundef_not_ptr. ss.
+  -
+    {
+      move l0 at top.
+      clear Heq1.
+      revert_until l0.
+      induction l0; ii; ss.
+      des_ifs.
+      assert(UN: uninits (s - sizeGenericValue g0) = []).
+      { clear - H0.
+        unfold uninits in *.
+        destruct (s - sizeGenericValue g0)%nat; ss.
+        exfalso.
+        exploit f_equal; eauto.
+        instantiate (1:= @length (Values.val * AST.memory_chunk)). ss.
+        i.
+        repeat rewrite app_length in *.
+        destruct g0; ss; clarify.
+        omega.
+      }
+      rewrite UN in *. clear UN. ss.
+      destruct g0; ss.
+      - clarify.
+        exploit IHl0; eauto.
+        { inv IH. ss. }
+        i. rewrite x. apply orb_true_r.
+      - destruct p; ss. clarify.
+        destruct g0; ss. clarify.
+        inv IH.
+        exploit H1.
+        { rewrite Heq1. ss. }
+        i. rewrite x. apply orb_true_l.
+    }
+  -
+    {
+      move l0 at top.
+      clear Heq1.
+      revert_until l0.
+      induction l0; ii; ss.
+      des_ifs.
+      assert(UN: uninits (s - sizeGenericValue g0) = []).
+      { clear - H1.
+        unfold uninits in *.
+        destruct (s - sizeGenericValue g0)%nat; ss.
+        exfalso.
+        exploit f_equal; eauto.
+        instantiate (1:= @length (Values.val * AST.memory_chunk)). ss.
+        i.
+        repeat rewrite app_length in *.
+        destruct g0; ss; clarify.
+        omega.
+      }
+      rewrite UN in *. clear UN. ss.
+      destruct g0; ss.
+      - clarify.
+        exploit IHl0; eauto.
+        { inv IH. ss. }
+        i. rewrite x. apply orb_true_r.
+      - destruct p; ss. clarify.
+        destruct g0; ss. clarify.
+        inv IH.
+        exploit H1.
+        { rewrite Heq1. ss. }
+        i. rewrite x. apply orb_true_l.
+    }
+  - unfold mtrunc in *.
+    unfold val2GV in *.
+    des_ifs; try (expl gundef_not_ptr); ss.
+  - unfold mext in *.
+    unfold val2GV in *.
+    des_ifs; try (expl gundef_not_ptr); ss.
+  - unfold mcast in *.
+    unfold mbitcast in *.
+    des_ifs; try (expl gundef_not_ptr); ss;
+      try (expl IHc; rewrite Heq0; ss).
+  -
+    des_ifs.
+    + clear Heq1. clear Heq0.
+      clear_tac.
+      exploit IHc3; eauto.
+      rewrite Heq2. ss.
+      i.
+      rewrite x.
+      apply orb_true_r.
+    + clear Heq2. clear Heq0.
+      clear_tac.
+      exploit IHc2; eauto.
+      rewrite Heq1. ss.
+      i.
+      rewrite x.
+      apply orb_true_l.
+  - unfold micmp in *.
+    unfold micmp_int in *.
+    unfold Values.Val.cmp in *.
+    unfold Values.Val.cmpu_int in *.
+    unfold Values.Val.of_optbool in *.
+    des_ifs; try (expl gundef_not_ptr); ss.
+  - unfold mfcmp in *.
+    unfold Values.Val.cmpf in *.
+    des_ifs; try (expl gundef_not_ptr); ss.
+  (* - *)
+  (*   { *)
+  (*     move l0 at top. *)
+  (*     clear Heq1. clear_tac. *)
+  (*     revert_until l0. *)
+  (*     induction l0; ii; ss. *)
+  (*     { inv IH. *)
+  (*       cbn in Heq2. *)
+  (*       des_ifs; try (expl gundef_not_ptr); ss. *)
+  (*       exploit IHc. *)
+  (*       rewrite Heq0. *)
+  (*       { *)
+  (*         clear IHc Heq0. clear_tac. *)
+  (*         unfold mget in *. *)
+  (*         unfold monad.mbind in *. des_ifs. *)
+  (*         assert(g = [] /\ g1 = g0). *)
+  (*         { clear - Heq1. clear_tac. *)
+  (*           revert_until g0. *)
+  (*           induction g0; ii; ss ;clarify. } *)
+  (*         des; clarify. *)
+  (*         hexploit splitGenericValue_spec; eauto; []; i; des. *)
+  (*         admit. *)
+  (*       } *)
+  (*       i. rewrite x. apply orb_true_l. *)
+  (*     } *)
+  (*     { *)
+  (*       admit. *)
+  (*     } *)
+  (*   } *)
+  (* - unfold genericvalues.LLVMgv.insertGenericValue in *. *)
+  (*   des_ifs; try (expl gundef_not_ptr); ss. *)
+  (*   unfold mset in *. unfold monad.mbind in *. *)
+  (*   des_ifs. *)
+  (*   admit. *)
+  - unfold mbop in *.
+    unfold Values.Val.add in *.
+    unfold Values.Val.sub in *.
+    repeat (des_ifs; try (expl gundef_not_ptr); ss).
+  - unfold mfbop in *.
+    repeat (des_ifs; try (expl gundef_not_ptr); ss).
+Qed.
+
+
 Lemma wf_globals_const2GV
       gmax gl TD cnst gv
       (GLOBALS: genericvalues_inject.wf_globals gmax gl)
       (C2G: const2GV TD gl cnst = Some gv)
+      (WF_CONST: exists system ty, wf_const system TD cnst ty)
   :
     <<VALID_PTR: MemProps.valid_ptrs (gmax + 1)%positive gv>>
 .
 Proof.
+  des.
+  hexploit MemProps.const2GV_valid_ptrs; eauto.
+  { apply wf_globals_eq. ss. }
   (* globals: <= gmax *)
   (* valid_ptr: < gmax+1 *)
-  exact (SF_ADMIT "
-Language should provide this. This should be provable.
-- Inside _const2GV, it seems the only source of pointer is ""gid"", which looks up globals table.
-- Note that int2ptr/ptr2int is currently defind as undef in mcast.
-- null has pointer type but its value is int.
-Therefore, any pointer returned by const2GV may originate from globals table, so this theorem should hold.
+(*   exact (SF_ADMIT " *)
+(* Language should provide this. This should be provable. *)
+(* - Inside _const2GV, it seems the only source of pointer is ""gid"", which looks up globals table. *)
+(* - Note that int2ptr/ptr2int is currently defind as undef in mcast. *)
+(* - null has pointer type but its value is int. *)
+(* Therefore, any pointer returned by const2GV may originate from globals table, so this theorem should hold. *)
 
-Also, even in case this does not hold, look: https://github.com/snu-sf/llvmberry/blob/c6acd1462bdb06c563185e23756897914f80e53a/coq/proof/SoundForgetMemory.v#L1504
-This is provable with wf_const, by the lemma ""MemProps.const2GV_valid_ptrs"".
-Claiming all const satisfies wf_const is too strong and it will introduce inconsistency.
-We might need to add some constraints in our validator,
-such as, the const of interest (all that appears in hint/invariant) actually exists in the original code,
-which passed type checking, so wf_const holds.
-").
+(* Also, even in case this does not hold, look: https://github.com/snu-sf/llvmberry/blob/c6acd1462bdb06c563185e23756897914f80e53a/coq/proof/SoundForgetMemory.v#L1504 *)
+(* This is provable with wf_const, by the lemma ""MemProps.const2GV_valid_ptrs"". *)
+(* Claiming all const satisfies wf_const is too strong and it will introduce inconsistency. *)
+(* We might need to add some constraints in our validator, *)
+(* such as, the const of interest (all that appears in hint/invariant) actually exists in the original code, *)
+(* which passed type checking, so wf_const holds. *)
+(* "). *)
 Qed.
 
 Lemma mstore_aux_never_produce_new_ptr
