@@ -774,13 +774,41 @@ Lemma mstore_const_leak_no_unique
       (UNIQUE_U : InvState.Unary.sem_unique conf st0 gmax u)
       (PTR: const2GV conf.(CurTargetData) conf.(Globals) c = Some gv)
       (STORE : mstore conf.(CurTargetData) st0.(Mem) ptr ty gv a = Some mem1)
+      (WF_GLOBALS: genericvalues_inject.wf_globals gmax conf.(Globals))
   : InvState.Unary.sem_unique conf (mkState st0.(EC) st0.(ECS) mem1) gmax u.
 Proof.
   inv UNIQUE_U.
   econs; eauto. ss.
   i. hexploit mstore_never_produce_new_ptr; eauto.
   { i. rewrite vellvm_no_alias_is_diffblock. eauto. }
-  { exact (SF_ADMIT "unique and const noailas"). }
+  {
+    clear_tac.
+    expl wf_globals_const2GV.
+    unfold MemProps.wf_lc in *.
+    clear - wf_globals_const2GV VAL GLOBALS.
+    induction gv; ii; ss.
+    - des_ifs; des; expl IHgv; clear IHgv.
+      splits; ss.
+      clear IHgv0. clear_tac.
+      clear VAL.
+      induction val; ii; ss.
+      + des_ifs; des; try expl IHval.
+        exploit GLOBALS.
+        { ss. left. ss. }
+        i; des.
+        split; ss.
+        * ii. clarify.
+          apply_all_once Pos.le_succ_l.
+          rewrite <- Pplus_one_succ_r in *.
+          apply Pos.succ_le_mono in wf_globals_const2GV.
+          hexploit Pos.le_trans.
+          { apply x. }
+          { eauto. }
+          i; des.
+          apply_all_once Pos.le_succ_l.
+          expl Pos.lt_irrefl.
+        * expl IHval.
+  }
   rewrite <- vellvm_no_alias_is_diffblock. eauto.
 Qed.
 
