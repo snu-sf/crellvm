@@ -301,8 +301,14 @@ Proof.
         inv SIM_CONF. ss.
         eapply inject_allocas_inj_incr in ALLOCAS; eauto.
         exploit inject_allocas_free_allocas; eauto.
-        { admit. (* disjoint_with_parent *) }
-        { admit. (* disjoint_with_parent *) }
+        { replace (InvMem.Unary.private_parent (InvMem.Rel.src inv2))
+            with (InvMem.Unary.private_parent (InvMem.Rel.src inv)).
+          - ss.
+          - inv MEMLE. inv SRC. ss. }
+        { replace (InvMem.Unary.private_parent (InvMem.Rel.tgt inv2))
+            with (InvMem.Unary.private_parent (InvMem.Rel.tgt inv)).
+          - ss.
+          - inv MEMLE. inv TGT. ss. }
         intro FREE_ALLOCAS; des.
         destruct noret_tgt; simtac.
         - esplits. econs; ss; eauto.
