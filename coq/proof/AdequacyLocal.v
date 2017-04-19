@@ -371,8 +371,9 @@ Proof.
       inv x0. ss.
       apply _sim_step.
       { intro STUCK. apply STUCK. destruct conf_tgt. ss.
+        inv CONF. ss. clarify.
+        hexploit inject_allocas_free_allocas; eauto; []; intro FREE_ALLOCAS; des.
         esplits. econs; ss; eauto.
-        - admit. (* free_allocas *)
         - destruct noret_tgt; ss.
       }
       i. inv STEP0. ss.

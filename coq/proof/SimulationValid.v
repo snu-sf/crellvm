@@ -212,6 +212,8 @@ Proof.
     esplits; eauto.
   + (* return_void *)
     eapply _sim_local_return_void; eauto; ss.
+    { apply STATE. }
+    { apply STATE. }
   + (* br *)
     exploit nerror_nfinal_nstuck; eauto. i. des. inv x0.
     rewrite <- (ite_spec decision l0 l3) in *. simtac.
