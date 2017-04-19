@@ -194,6 +194,8 @@ Proof.
             exact (SF_ADMIT "inject_locals"). }
           { econs. }
           { exact (SF_ADMIT "init mem"). }
+          { ss. }
+          { ss. }
       + reflexivity.
   }
   { ss. simtac.

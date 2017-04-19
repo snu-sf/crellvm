@@ -42,7 +42,12 @@ Inductive nop_state_sim
     (CMDS: nop_cmds cmds_src cmds_tgt)
     (LOCALS: inject_locals inv locals_src locals_tgt)
     (ALLOCAS: inject_allocas inv allocas_src allocas_tgt)
-    (MEM: InvMem.Rel.sem conf_src conf_tgt mem_src mem_tgt inv):
+    (MEM: InvMem.Rel.sem conf_src conf_tgt mem_src mem_tgt inv)
+    (ALLOCAS_DISJOINT_SRC: list_disjoint allocas_src
+                                         (InvMem.Unary.private_parent inv.(InvMem.Rel.src)))
+    (ALLOCAS_DISJOINT_TGT: list_disjoint allocas_tgt
+                                         (InvMem.Unary.private_parent inv.(InvMem.Rel.tgt)))
+  :
     nop_state_sim
       conf_src conf_tgt
       stack0_src stack0_tgt inv
@@ -95,6 +100,8 @@ Proof.
     econs; eauto.
     + econs. econs; eauto.
     + econs.
+    + ss.
+    + ss.
 Qed.
 
 Inductive status :=

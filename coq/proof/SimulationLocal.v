@@ -47,6 +47,10 @@ Section SimLocal.
       (TYP: typ2_src = typ1_tgt)
       (STACK_SRC: st2_src.(ECS) = stack0_src)
       (STACK_TGT: st1_tgt.(ECS) = stack0_tgt)
+      (ALLOCAS_DISJOINT_SRC: list_disjoint st2_src.(EC).(Allocas)
+                                           (InvMem.Unary.private_parent inv1.(InvMem.Rel.src)))
+      (ALLOCAS_DISJOINT_TGT: list_disjoint st1_tgt.(EC).(Allocas)
+                                           (InvMem.Unary.private_parent inv1.(InvMem.Rel.tgt)))
       inv2
       (MEMLE: InvMem.Rel.le inv1 inv2)
       (MEM: InvMem.Rel.sem conf_src conf_tgt st2_src.(Mem) st1_tgt.(Mem) inv2)

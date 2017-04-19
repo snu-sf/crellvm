@@ -203,6 +203,8 @@ Proof.
     move inv0 at bottom.
     move invmem1 at bottom.
     eapply _sim_local_return; eauto; ss.
+    { apply STATE. }
+    { apply STATE. }
     i.
     exploit InvState.Rel.inject_value_spec; try exact COND0; eauto.
     { rewrite InvState.Unary.sem_valueT_physical. eauto. }
