@@ -16,7 +16,6 @@ Require Import GenericValues.
 Require Import Nop.
 Require Import SoundBase.
 Require InvMem.
-Require InvState.
 Require Import Simulation.
 Require Import Inject.
 
