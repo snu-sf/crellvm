@@ -247,23 +247,6 @@ Unshelve.
 ss.
 Qed.
 
-(* This lemma is not true *)
-(* Maybe need to strengthen InvMem - MemParent somehow? *)
-Lemma mload_aux_valid_ptr
-      Mem mc mb o gv
-      (MLOAD: mload_aux Mem mc mb o = Some gv)
-  :
-    <<VALID_PTR: (mb < Mem.(Memory.Mem.nextblock))%positive>>
-.
-Proof.
-  move mc at top.
-  revert_until mc.
-  induction mc; ii; ss;  clarify.
-  - admit.
-  - des_ifs.
-    exploit IHmc; eauto.
-Admitted.
-
 Lemma malloc_memory_next_block
       TD Mem tsz gn align Mem' mb
       (MALLOC: malloc TD Mem tsz gn align = Some (Mem', mb))
@@ -272,6 +255,48 @@ Lemma malloc_memory_next_block
 .
 Proof.
   unfold malloc in *. des_ifs.
+Qed.
+
+Lemma disjoint_allocas_private_parent
+      conf_unary st0_unary cmd_unary cmds_unary unary unary0 gmax evt
+      st1_unary unary1 gmax0 inv public_unary0 public_unary
+      (NONCALL_UNARY: Instruction.isCallInst cmd_unary = false)
+      (CMDS_UNARY: CurCmds (EC st0_unary) = cmd_unary :: cmds_unary)
+      (STEP_UNARY: sInsn conf_unary st0_unary st1_unary evt)
+      (STATE_FORGET_MEMORY_UNARY: InvState.Unary.sem conf_unary
+                                                     (mkState (EC st0_unary) (ECS st0_unary) (Mem st1_unary))
+                                                     unary unary1 gmax0 public_unary0 inv)
+      (MEMLE_UNARY: InvMem.Unary.le unary0 unary1)
+      (UNARY: InvMem.Unary.sem conf_unary gmax public_unary (Mem st0_unary) unary0)
+  :
+    <<DISJOINT: list_disjoint (Allocas (EC st1_unary)) (InvMem.Unary.private_parent unary1)>>
+.
+Proof.
+  inv STEP_UNARY; try apply STATE_FORGET_MEMORY_UNARY; cbn.
+  - (* return *)
+    clarify.
+  - (* return_void *)
+    clarify.
+  - ss.
+    assert(PARENT: list_disjoint (als) (InvMem.Unary.private_parent unary1)).
+    { apply STATE_FORGET_MEMORY_UNARY. }
+    apply list_disjoint_cons_l; eauto.
+    {
+      ss. expl malloc_memory_next_block. clarify. ss.
+      intro MB_PRIVATE_PARENT0.
+      assert(MB_PRIVATE_PARENT1: In (Memory.Mem.nextblock Mem0)
+                                    (InvMem.Unary.private_parent unary0)).
+      {
+        inv MEMLE_UNARY. rewrite PRIVATE_PARENT_EQ. ss.
+      }
+      clear - UNARY MB_PRIVATE_PARENT1.
+      inv UNARY. ss.
+      expl PRIVATE_PARENT.
+      unfold InvMem.private_block in PRIVATE_PARENT0.
+      des.
+      expl Pos.lt_irrefl.
+    }
+  - ss. (* call *)
 Qed.
 
 Lemma postcond_cmd_sound
@@ -348,48 +373,13 @@ Proof.
     - apply MEM. }
   { ss. inv STEP_SRC; ss. clarify. }
   { ss. inv STEP_TGT; ss. clarify. }
-  { inv STEP_SRC; try apply STATE_FORGET_MEMORY; cbn.
-    - (* return *)
-      clarify.
-    - (* return_void *)
-      clarify.
-    - assert(PARENT: list_disjoint (als) (InvMem.Unary.private_parent (InvMem.Rel.src invmem1))).
-      { apply STATE_FORGET_MEMORY. }
-      apply list_disjoint_cons_l; eauto.
-      ii.
-      dup MEM_FORGET_MEMORY.
-      inv MEM_FORGET_MEMORY. clear TGT INJECT WF.
-      inv SRC. ss. clear UNIQUE_PARENT_MEM UNIQUE_PARENT_GLOBALS UNIQUE_PRIVATE_PARENT.
-      (* MemProps.malloc_mload_aux_undef *)
-      exploit MemProps.mload_aux_malloc_same'; eauto.
-      { move t at bottom. rename t into __t__.
-        admit. (* flatten_typ *) }
-      intro MLOAD; des.
-      expl MEM_PARENT.
-      move H1 at bottom.
-      rewrite MLOAD in *.
-
-      expl mload_aux_valid_ptr.
-
-      expl malloc_memory_next_block.
-      clear - mload_aux_valid_ptr0 malloc_memory_next_block0 MEM MEMLE MEM_FORGET_MEMORY0.
-      clarify.
-      assert((Memory.Mem.nextblock (InvMem.Unary.mem_parent (InvMem.Rel.src invmem1)))
-              = (Memory.Mem.nextblock (InvMem.Unary.mem_parent (InvMem.Rel.src invmem0)))).
-      { admit. (* MEMLE *) }
-      rewrite H in *. clear H.
-      assert((Memory.Mem.nextblock (InvMem.Unary.mem_parent (InvMem.Rel.src invmem0))
-              <= Memory.Mem.nextblock Mem0)%positive).
-      { admit. (* MEM_FORGET_MEMORY0 *) }
-      hexploit Pos.le_nlt; eauto; []; intro POS.
-      des. apply POS in H. ss.
-      (* RHS of MEM_PARENT0 is Some, as mload just after malloc will give at least undef *)
-      (* LHS of MEM_PARENT0 is Some, as LHS = RHS *)
-      (* LHS of MEM_PARENT0 is None, as mem_parent's nextblock <= current's nextblock < mb *)
-    - ss. (* call *)
+  { Ltac apply_goal H := apply H.
+    hexploit disjoint_allocas_private_parent; try apply CMDS_SRC;
+      try (all apply_goal); eauto.
   }
   {
-    admit. (* same with above *)
+    hexploit disjoint_allocas_private_parent; try apply CMDS_TGT;
+      try (all apply_goal); eauto.
   }
   i. des.
 
@@ -397,4 +387,4 @@ Proof.
     try eapply STEP_TGT; try apply x1; (* needed to prohibit applying STATE *) eauto; []; ii; des.
   esplits; eauto.
   etransitivity; eauto.
-Admitted.
+Qed.
