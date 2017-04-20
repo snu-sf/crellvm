@@ -347,20 +347,18 @@ Proof.
   }
 Qed.
 
-
-Lemma invmem_free_allocas_invmem
-      TD Mem0 Mem1 Allocas0 Allocas1
-      Mem0' Mem1'
-      (FREE_ALLOCAS0: free_allocas TD Mem0 Allocas0 = ret Mem0')
-      (FREE_ALLOCAS1: free_allocas TD Mem1 Allocas1 = ret Mem1')
-      invmem0
-      conf_src conf_tgt
-      (MEM: InvMem.Rel.sem conf_src conf_tgt Mem0 Mem1 invmem0)
+Lemma mem_le_private_parent
+      inv0 inv1
+      (MEMLE: InvMem.Rel.le inv0 inv1)
   :
-    <<MEM: exists invmem1, InvMem.Rel.sem conf_src conf_tgt Mem0' Mem1' invmem1 /\
-                           InvMem.Rel.le invmem0 invmem1>>
+    <<PRIVATE_PARENT_EQ:
+    InvMem.Unary.private_parent (InvMem.Rel.src inv0) = InvMem.Unary.private_parent (InvMem.Rel.src inv1)
+    /\
+    InvMem.Unary.private_parent (InvMem.Rel.tgt inv0) = InvMem.Unary.private_parent (InvMem.Rel.tgt inv1)>>
 .
-Abort.
+Proof.
+  splits; apply MEMLE.
+Qed.
 
 Lemma sim_local_lift_sim conf_src conf_tgt
       (SIM_CONF: sim_conf conf_src conf_tgt):
@@ -387,20 +385,15 @@ Proof.
       inv x0. ss. rewrite returnUpdateLocals_spec in *. ss.
       simtac0. simtac0.
       exploit RET; eauto. i. des.
+      (expl mem_le_private_parent (try exact MEMLE));
+        rewrite mem_le_private_parent0 in *; clear mem_le_private_parent0;
+          rewrite mem_le_private_parent1 in *; clear mem_le_private_parent1.
       apply _sim_step.
       { intro STUCK. apply STUCK. destruct conf_tgt. ss.
         inv CONF. ss. clarify.
         inv SIM_CONF. ss.
         eapply inject_allocas_inj_incr in ALLOCAS; eauto.
         exploit inject_allocas_free_allocas; eauto.
-        { replace (InvMem.Unary.private_parent (InvMem.Rel.src inv2))
-            with (InvMem.Unary.private_parent (InvMem.Rel.src inv)).
-          - ss.
-          - inv MEMLE. inv SRC. ss. }
-        { replace (InvMem.Unary.private_parent (InvMem.Rel.tgt inv2))
-            with (InvMem.Unary.private_parent (InvMem.Rel.tgt inv)).
-          - ss.
-          - inv MEMLE. inv TGT. ss. }
         intro FREE_ALLOCAS; des.
         destruct noret_tgt; simtac.
         - esplits. econs; ss; eauto.
@@ -413,59 +406,33 @@ Proof.
             rewrite x0. eauto.
       }
       i. inv STEP0. ss. rewrite returnUpdateLocals_spec in *. ss.
+      inv CONF. ss. clarify.
       destruct noret_tgt; simtac.
       *
-        {
-          move MEM at bottom.
-          assert(MEMFREE:
-                     InvMem.Rel.sem
-                       {| CurSystem := S; CurTargetData := TD;
-                          CurProducts := Ps; Globals := gl; FunTable := fs |}
-                       {| CurSystem := S0; CurTargetData := TD0;
-                          CurProducts := Ps0; Globals := gl0; FunTable := fs0 |} Mem'
-                       Mem'0 inv2).
-          {
-            inv CONF. ss. clarify.
-            clear - H21 H19 MEM ALLOCAS_DISJOINT_SRC ALLOCAS_DISJOINT_TGT ALLOCAS MEMLE.
-            rename H19 into ALLOC_SRC.
-            rename H21 into ALLOC_TGT.
-            rename Mem0 into m_src0.
-            rename Mem1 into m_tgt0.
-            rename Mem' into m_src1.
-            rename Mem'0 into m_tgt1.
-            assert(EQ0: InvMem.Unary.private_parent (InvMem.Rel.src inv) =
-                        InvMem.Unary.private_parent (InvMem.Rel.src inv2)).
-            { inv MEMLE. inv SRC. ss. }
-            rewrite EQ0 in *. clear EQ0.
-            assert(EQ1: InvMem.Unary.private_parent (InvMem.Rel.tgt inv) =
-                        InvMem.Unary.private_parent (InvMem.Rel.tgt inv2)).
-            { inv MEMLE. inv TGT. ss. }
-            rewrite EQ1 in *. clear EQ1.
-
-            eapply inject_allocas_mem_le in ALLOCAS; eauto.
-
-            clear MEMLE. clear_tac.
-            rename inv2 into inv.
-            eapply invmem_free_allocas_invmem_rel; eauto.
-          }
-          des.
-          exploit LOCAL; try exact MEMFREE; eauto.
-          { etransitivity; eauto. }
-          { instantiate (2:= Some _).
-            instantiate (1:= Some _).
-            ss.
-          }
-          { ss. }
-          i. des. simtac.
-          esplits; eauto.
-          { econs 1. econs; eauto.
-            rewrite returnUpdateLocals_spec, COND. ss.
-          }
-          { right. apply CIH. econs; [..|M]; Mskip eauto.
-            - etransitivity; eauto.
-          }
+        exploit invmem_free_allocas_invmem_rel; eauto.
+        { eapply inject_allocas_mem_le in ALLOCAS; eauto. }
+        intro MEMFREE; des.
+        exploit LOCAL; try exact MEMFREE; eauto.
+        { etransitivity; eauto. }
+        { instantiate (2:= Some _).
+          instantiate (1:= Some _).
+          ss.
         }
-      * exploit LOCAL; try exact MEM; eauto.
+        { ss. }
+        i. des. simtac.
+        esplits; eauto.
+        { econs 1. econs; eauto.
+          rewrite returnUpdateLocals_spec, COND. ss.
+        }
+        { right. apply CIH. econs; [..|M]; Mskip eauto.
+          - ss.
+          - etransitivity; eauto.
+        }
+      *
+        exploit invmem_free_allocas_invmem_rel; eauto.
+        { eapply inject_allocas_mem_le in ALLOCAS; eauto. }
+        intro MEMFREE; des.
+        exploit LOCAL; try exact MEMFREE; eauto.
         { etransitivity; eauto. }
         { instantiate (2 := Some _).
           instantiate (1 := Some _).
@@ -479,7 +446,7 @@ Proof.
           rewrite COND2. ss.
         }
         { right. apply CIH. econs; [..|M]; Mskip eauto.
-          - admit. (* free_allocas *)
+          - ss.
           - etransitivity; eauto.
         }
   - (* return_void *)
