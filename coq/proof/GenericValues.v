@@ -41,16 +41,16 @@ Module GVs.
     << INJECT: memory_sim.MoreMem.val_inject mij a c >>.
   Proof.
     inv LD; inv INJECT; ss; try (econs; eauto; fail).
-    - exact (EXCUSED_ADMIT "Vellvm undef inject
+    - exact (SF_ADMIT "Vellvm undef inject
 Vellvm's inject definition (Vellvm.Vellvm.memory_sim.MoreMem.val_inject)
 does not provide ""forall v, Vundef >= v"".
 This should be provided, conceptually this is correct.
 FYI, look at (compcert.common.Values.val_inject).
 ").
-    - exact (EXCUSED_ADMIT "Vellvm undef inject").
-    - exact (EXCUSED_ADMIT "Vellvm undef inject").
-    - exact (EXCUSED_ADMIT "Vellvm undef inject").
-    - exact (EXCUSED_ADMIT "Vellvm undef inject").
+    - exact (SF_ADMIT "Vellvm undef inject").
+    - exact (SF_ADMIT "Vellvm undef inject").
+    - exact (SF_ADMIT "Vellvm undef inject").
+    - exact (SF_ADMIT "Vellvm undef inject").
   Qed.
 
   Lemma inject_lessdef_compose_single mij a b c
@@ -59,7 +59,7 @@ FYI, look at (compcert.common.Values.val_inject).
     << INJECT: memory_sim.MoreMem.val_inject mij a c >>.
   Proof.
     inv LD; inv INJECT; ss; try (econs; eauto; fail).
-    - exact (EXCUSED_ADMIT "Vellvm undef inject").
+    - exact (SF_ADMIT "Vellvm undef inject").
   Qed.
 
   Lemma lessdef_inject_compose mij a b c

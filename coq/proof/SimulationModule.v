@@ -22,6 +22,7 @@ Require Import SimulationValid.
 Require Import SimulationNop.
 Require Import AdequacyLocal.
 Require Import Simulation.
+Require Import TODOProof.
 
 Inductive transl_product m_src m_tgt
   : forall (prod_src prod_tgt: product), Prop :=
@@ -126,6 +127,19 @@ Proof.
       eauto.
 Qed.
 
+Definition empty_invmem : InvMem.Rel.t.
+  assert(UNARY: InvMem.Unary.t).
+  { econs; eauto.
+    - apply nil.
+    - apply Memory.Mem.empty.
+    - apply nil.
+    - apply xH. }
+  econs; eauto.
+  apply xH.
+  econs.
+  apply (xH, 0).
+Defined.
+
 Lemma transl_sim_module:
   transl_module <2= sim_module.
 Proof.
@@ -164,10 +178,9 @@ Proof.
       rewrite COND2.
       eauto.
     - apply sim_local_lift_sim.
-      { admit. (* sim_conf *) }
-      hexploit InvState.Rel.sem_empty; eauto.
-      { admit. (* init_locals inject_locals *) }
-
+      { unfold transl_products in TRANSL_PRODUCTS.
+        econs.
+        exact (SF_ADMIT "sim_conf"). }
       econs; ss.
       + econs.
       + apply nop_sim.
@@ -177,9 +190,10 @@ Proof.
           econs; eauto.
           { econs; eauto.
             econs; eauto. }
-          { econs. esplits; eauto. admit. (* inject_locals *) }
+          { econs. esplits; eauto.
+            exact (SF_ADMIT "inject_locals"). }
           { econs. }
-          { admit. (* init mem *) }
+          { exact (SF_ADMIT "init mem"). }
       + reflexivity.
   }
   { ss. simtac.
@@ -194,13 +208,14 @@ Proof.
       erewrite <- transl_products_genGlobalAndInitMem; eauto. rewrite COND1.
       rewrite COND2. eauto.
     - apply sim_local_lift_sim.
-      { admit. (* sim_conf *) }
+      { exact (SF_ADMIT "sim_conf"). }
       econs; ss.
       + econs.
       + generalize VALID_FDEF. i.
         unfold forallb2AL in VALID_FDEF0. ss. apply andb_true_iff in VALID_FDEF0. des. simtac.
+        { admit. (* gen_infrules *) }
         hexploit InvState.Rel.sem_empty; eauto.
-        { admit. (* init_locals inject_locals *) }
+        { exact (SF_ADMIT "init_locals inject_locals"). }
         i. des.
         apply valid_sim. econs; eauto.
         * ss.
@@ -230,6 +245,13 @@ Proof.
             | [H: proj_sumbool (id_dec ?a ?a) = false |- _] => destruct (id_dec a a); ss
             end.
           }
-        * ss. admit. (* InvMem.Rel.sem init_mem *)
+        * admit. (* gen_infrules. easy. *)
+        * ss. exact (SF_ADMIT "InvMem.Rel.sem init_mem").
       + reflexivity.
+  }
+Unshelve.
+{ apply empty_invmem. }
+{ apply 0%nat. }
+{ apply empty_invmem. }
+(* Qed. *)
 Admitted.
