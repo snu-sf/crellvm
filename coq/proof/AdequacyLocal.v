@@ -100,12 +100,19 @@ Inductive sim_local_lift
 .
 
 Definition sim_products
-          (conf_src conf_tgt:Config)
-          (prod_src prod_tgt:products): Prop :=
-  forall fid fdef_src fdef_tgt
-    (FDEF_SRC: lookupFdefViaIDFromProducts prod_src fid = Some fdef_src)
-    (FDEF_TGT: lookupFdefViaIDFromProducts prod_tgt fid = Some fdef_tgt),
-    sim_fdef conf_src conf_tgt fdef_src fdef_tgt.
+           (conf_src conf_tgt:Config)
+           (prod_src prod_tgt:products): Prop :=
+  (forall fid fdef_src fdef_tgt
+          (FDEF_SRC: lookupFdefViaIDFromProducts prod_src fid = Some fdef_src)
+          (FDEF_TGT: lookupFdefViaIDFromProducts prod_tgt fid = Some fdef_tgt),
+      sim_fdef conf_src conf_tgt fdef_src fdef_tgt)
+  /\
+  (forall fptr fid_src fid_tgt
+          (SRC: lookupFdefViaGVFromFunTable conf_src.(FunTable) fptr = Some fid_src)
+          (TGT: lookupFdefViaGVFromFunTable conf_tgt.(FunTable) fptr = Some fid_tgt)
+    ,
+      fid_src = fid_tgt)
+.
 
 Inductive sim_conf (conf_src conf_tgt:Config): Prop :=
 | sim_conf_intro
@@ -506,14 +513,29 @@ Proof.
 
       (* assert (SIM_FDEF: sim_fdef conf_src conf_tgt  *)
       assert (FID_SAME: fid0 = fid).
-      { admit. (* fid same *) }
+      {
+        assert(fun1_tgt = fun2_src) by admit.
+        clarify.
+        assert(exists f_cnst, fun2_src = value_const f_cnst) by admit.
+        des. clarify. cbn in *. des_ifs.
+        inv CONF. ss. clarify.
+        move H18 at bottom. move H23 at bottom.
+        Require Import TODO.
+        apply_all_once lookupFdefViaPtr_inversion. des.
+        move SIM_CONF at bottom.
+        assert(fn = fn0).
+        { inv SIM_CONF. ss. inv SIM_PRODUCTS. ss.
+          expl H2. }
+        clarify.
+        apply_all_once lookupFdefViaIDFromProducts_ideq. clarify.
+      }
       subst.
       exploit lookupFdefViaPtr_inversion; try exact H18. i. des.
       exploit lookupFdefViaIDFromProducts_ideq; try exact x1. i. subst.
       exploit lookupFdefViaPtr_inversion; try exact H23. i. des.
       exploit lookupFdefViaIDFromProducts_ideq; try exact x3. i. subst.
 
-      inv SIM_CONF.
+      inv SIM_CONF. unfold sim_products in *. des. ss.
       exploit SIM_PRODUCTS; try eapply invmem_lift; eauto.
       { econs; eauto. }
       i. des.
