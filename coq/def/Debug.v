@@ -28,6 +28,6 @@ Parameter expr_printer : Expr.t -> unit.
 Definition debug_print_validation_process
            (infrules: list Infrule.t)
            (inv0 inv1 inv2 inv3 inv: Invariant.t): Invariant.t := inv.
-Definition debug_print_cmd_pair (c_src c_tgt:cmd): cmd * cmd :=
-  (c_src, c_tgt).
 
+Definition debug_print_auto (infrules: list Infrule.t)
+           (inv: Invariant.t): Invariant.t := inv.

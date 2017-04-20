@@ -372,6 +372,19 @@ let debug_print_validation_process (infrules: Infrule.t list)
        let _ = PrintHints.invariant inv in ())
   in inv
 
+let debug_print_auto (infrules: Infrule.t list)
+                     (inv: Invariant.t)
+    : Invariant.t =
+  let _ =
+    debug_run
+      (fun _ ->
+       let _ = debug_print "** infrules by auto" in
+       let _ = PrintHints.infrules infrules in
+       let _ = debug_print "** applying infrule (with reducing maydiff?)" in
+       let _ = PrintHints.invariant inv in ())
+  in inv
+
+
 let cmd_printer (x: LLVMsyntax.cmd): unit =
   debug_run(
       fun _ ->
