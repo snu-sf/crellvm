@@ -270,6 +270,98 @@ Proof.
     }
 Qed.
 
+Lemma inject_allocas_cons_inv
+      a0 a1 Allocas0 Allocas1 inv
+      (ALLOCAS: inject_allocas inv (a0 :: Allocas0) (a1 :: Allocas1))
+  :
+    <<ALLOCAS: inject_allocas inv Allocas0 Allocas1 /\
+               InvMem.Rel.inject inv a0 = ret (a1, 0)>>
+.
+Proof.
+  inv ALLOCAS.
+  splits; ss.
+Qed.
+
+Lemma inject_allocas_mem_le
+      Allocas0 Allocas1 inv inv'
+      (MEMLE: InvMem.Rel.le inv inv')
+      (ALLOCAS: inject_allocas inv Allocas0 Allocas1)
+  :
+    <<ALLOCAS: inject_allocas inv' Allocas0 Allocas1>>
+.
+Proof.
+  inv MEMLE.
+  eapply list_forall2_imply; eauto.
+Qed.
+
+Lemma invmem_free_allocas_invmem_rel
+  S Ps fs S0 TD0 Ps0 gl0 fs0 Allocas1 m_tgt0 Allocas0 m_src0 inv m_src1 m_tgt1
+  (ALLOCAS_DISJOINT_SRC: list_disjoint Allocas0 (InvMem.Unary.private_parent (InvMem.Rel.src inv)))
+  (ALLOCAS_DISJOINT_TGT: list_disjoint Allocas1 (InvMem.Unary.private_parent (InvMem.Rel.tgt inv)))
+  (ALLOC_SRC: free_allocas TD0 m_src0 Allocas0 = ret m_src1)
+  (ALLOC_TGT: free_allocas TD0 m_tgt0 Allocas1 = ret m_tgt1)
+  (MEM: InvMem.Rel.sem
+          (mkCfg S TD0 Ps gl0 fs)
+          (mkCfg S0 TD0 Ps0 gl0 fs0)
+          m_src0 m_tgt0 inv)
+  (ALLOCAS: inject_allocas inv Allocas0 Allocas1)
+  :
+    <<INVMEM: InvMem.Rel.sem (mkCfg S TD0 Ps gl0 fs) (mkCfg S0 TD0 Ps0 gl0 fs0) m_src1 m_tgt1 inv>>
+.
+Proof.
+  {
+    ginduction Allocas0; ii; ss.
+    - clarify. ss.
+      inv ALLOCAS. ss. clarify.
+    - destruct Allocas1; ss.
+      { inv ALLOCAS. }
+      apply inject_allocas_cons_inv in ALLOCAS. des.
+      apply list_disjoint_cons_inv in ALLOCAS_DISJOINT_SRC.
+      apply list_disjoint_cons_inv in ALLOCAS_DISJOINT_TGT. des.
+      des_ifs. ss.
+      exploit IHAllocas0; try exact H; eauto. clear IHAllocas0.
+      rename Heq0 into FREE0.
+      rename Heq into FREE1.
+      dup FREE0. dup FREE1.
+      unfold free in FREE0, FREE1. des_ifs.
+      simpl in *. clarify. clear_tac.
+      exploit genericvalues_inject.mem_inj__free.
+      1: apply MEM.
+      1-5: try eassumption.
+      1: apply MEM.
+      ss.
+      i; des.
+
+      exploit genericvalues_inject.mi_bounds.
+      { apply MEM. }
+      { eauto. }
+      i. rewrite Heq2 in *. rewrite Heq0 in *. clarify.
+
+      exploit invmem_free_invmem_rel.
+      2: exact Heq2.
+      2: exact Heq0.
+      all: ss; try eassumption.
+      (* { apply MEMLE. eauto. } *)
+      i; des.
+      ss.
+  }
+Qed.
+
+
+Lemma invmem_free_allocas_invmem
+      TD Mem0 Mem1 Allocas0 Allocas1
+      Mem0' Mem1'
+      (FREE_ALLOCAS0: free_allocas TD Mem0 Allocas0 = ret Mem0')
+      (FREE_ALLOCAS1: free_allocas TD Mem1 Allocas1 = ret Mem1')
+      invmem0
+      conf_src conf_tgt
+      (MEM: InvMem.Rel.sem conf_src conf_tgt Mem0 Mem1 invmem0)
+  :
+    <<MEM: exists invmem1, InvMem.Rel.sem conf_src conf_tgt Mem0' Mem1' invmem1 /\
+                           InvMem.Rel.le invmem0 invmem1>>
+.
+Abort.
+
 Lemma sim_local_lift_sim conf_src conf_tgt
       (SIM_CONF: sim_conf conf_src conf_tgt):
   (sim_local_lift conf_src conf_tgt) <3= (sim conf_src conf_tgt).
@@ -322,21 +414,56 @@ Proof.
       }
       i. inv STEP0. ss. rewrite returnUpdateLocals_spec in *. ss.
       destruct noret_tgt; simtac.
-      * exploit LOCAL; try exact MEM; eauto.
-        { etransitivity; eauto. }
-        { instantiate (2 := Some _).
-          instantiate (1 := Some _).
-          eauto.
-        }
-        { ss. }
-        i. des. simtac.
-        esplits; eauto.
-        { econs 1. econs; eauto.
-          rewrite returnUpdateLocals_spec, COND. ss.
-        }
-        { right. apply CIH. econs; [..|M]; Mskip eauto.
-          - admit. (* free_allocas *)
-          - etransitivity; eauto.
+      *
+        {
+          move MEM at bottom.
+          assert(MEMFREE:
+                     InvMem.Rel.sem
+                       {| CurSystem := S; CurTargetData := TD;
+                          CurProducts := Ps; Globals := gl; FunTable := fs |}
+                       {| CurSystem := S0; CurTargetData := TD0;
+                          CurProducts := Ps0; Globals := gl0; FunTable := fs0 |} Mem'
+                       Mem'0 inv2).
+          {
+            inv CONF. ss. clarify.
+            clear - H21 H19 MEM ALLOCAS_DISJOINT_SRC ALLOCAS_DISJOINT_TGT ALLOCAS MEMLE.
+            rename H19 into ALLOC_SRC.
+            rename H21 into ALLOC_TGT.
+            rename Mem0 into m_src0.
+            rename Mem1 into m_tgt0.
+            rename Mem' into m_src1.
+            rename Mem'0 into m_tgt1.
+            assert(EQ0: InvMem.Unary.private_parent (InvMem.Rel.src inv) =
+                        InvMem.Unary.private_parent (InvMem.Rel.src inv2)).
+            { inv MEMLE. inv SRC. ss. }
+            rewrite EQ0 in *. clear EQ0.
+            assert(EQ1: InvMem.Unary.private_parent (InvMem.Rel.tgt inv) =
+                        InvMem.Unary.private_parent (InvMem.Rel.tgt inv2)).
+            { inv MEMLE. inv TGT. ss. }
+            rewrite EQ1 in *. clear EQ1.
+
+            eapply inject_allocas_mem_le in ALLOCAS; eauto.
+
+            clear MEMLE. clear_tac.
+            rename inv2 into inv.
+            eapply invmem_free_allocas_invmem_rel; eauto.
+          }
+          des.
+          exploit LOCAL; try exact MEMFREE; eauto.
+          { etransitivity; eauto. }
+          { instantiate (2:= Some _).
+            instantiate (1:= Some _).
+            ss.
+          }
+          { ss. }
+          i. des. simtac.
+          esplits; eauto.
+          { econs 1. econs; eauto.
+            rewrite returnUpdateLocals_spec, COND. ss.
+          }
+          { right. apply CIH. econs; [..|M]; Mskip eauto.
+            - etransitivity; eauto.
+          }
         }
       * exploit LOCAL; try exact MEM; eauto.
         { etransitivity; eauto. }
