@@ -36,3 +36,4 @@ Makefile.coq
 
 lib/*
 simplberry-tests
+llvmberry-tests
