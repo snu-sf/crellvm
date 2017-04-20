@@ -471,15 +471,22 @@ Proof.
         - destruct noret_tgt; ss.
       }
       i. inv STEP0. ss.
-      exploit LOCAL; [M|..]; Mskip eauto.
+      inv CONF. ss. clarify.
+      exploit invmem_free_allocas_invmem_rel; eauto; [].
+      intro MEMFREE; des.
+
+      exploit LOCAL; try exact MEMFREE; [M|..]; Mskip eauto.
       { ss. }
       { instantiate (1 := None). instantiate (1 := None). ss. }
       { destruct noret_tgt; ss. }
       i. des.
+      des_ifs. cbn in *. clarify. (* local_tgt' = locals_tgt *)
       esplits; eauto.
       * econs 1. econs; eauto.
-      * right. apply CIH. econs; eauto.
-        admit. (* free_allocas *)
+      * right. apply CIH.
+        econs; try apply SIM; try eassumption.
+        { ss. }
+        { etransitivity; eauto. }
   - (* call *)
     eapply sop_star_sim; eauto.
     destruct st2_src, st_tgt. ss.
