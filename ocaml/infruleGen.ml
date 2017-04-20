@@ -1,5 +1,6 @@
 open Hints
 open Exprs
+open Infrules
 open Syntax
 open MetatheoryAtom
 open LLVMsyntax
@@ -173,6 +174,43 @@ module AutoTransHelper = struct
   end
 
 module AutoSubstTransHelper = struct
+    let swap_expr_src (e_l:Expr.t) (e:Expr.t) : (Infrule.t list * Expr.t) option =
+      match e with
+      | Expr.Coq_bop (op, sz, v1, v2) ->
+         if is_commutative_bop op then
+           Some ([Infrule.Coq_bop_commutative (e_l, op, v1, v2, sz)],
+                 Expr.Coq_bop (op, sz, v2, v1))
+         else None
+      | Expr.Coq_fbop (op, fp, v1, v2) ->
+         if is_commutative_fbop op then
+           Some ([Infrule.Coq_fbop_commutative (e_l, op, v1, v2, fp)],
+                 Expr.Coq_fbop (op, fp, v2, v1))
+         else None
+      | Expr.Coq_icmp (c, ty, v1, v2) ->
+         Some ([Infrule.Coq_icmp_swap_operands (c, ty, v1, v2, e_l)],
+               Expr.Coq_icmp ((get_swapped_icmp_cond c), ty, v2, v1))
+      | Expr.Coq_fcmp (c, fp, v1, v2) ->
+         Some ([Infrule.Coq_fcmp_swap_operands (c, fp, v1, v2, e_l)],
+               Expr.Coq_fcmp ((get_swapped_fcmp_cond c), fp, v2, v1))
+      | _ -> None
+
+    let drop_inbounds (e_l:Expr.t) (e:Expr.t) : (Infrule.t list * Expr.t) option =
+      match e with
+      | Expr.Coq_gep (true, ty1, t, svl, ty2) ->
+         let e_noinb = Expr.Coq_gep (false, ty1, t, svl, ty2) in
+         Some ([Infrule.Coq_gep_inbounds_remove e;
+                Infrule.Coq_transitivity (e_l, e, e_noinb)], e_noinb)
+      | _ -> None
+
+    let try_modify (scp:AutoUtils.scope_t) (e_l:Expr.t) (e:Expr.t)
+        : (Infrule.t list * Expr.t) option =
+      match scp with
+      | AutoUtils.Src ->
+         (match swap_expr_src e_l e with
+          | Some x -> Some x
+          | None -> drop_inbounds e_l e)
+      | _ -> None
+
     (* produce x >= v applying seq of subst-transitivity *)
     let rec try_trans (scp:AutoUtils.scope_t) (inv_u : Invariant.unary)
                 (x : IdT.t) (v : ValueT.t)
@@ -189,10 +227,9 @@ module AutoSubstTransHelper = struct
                 (fun e_l e_r ->
                  if Expr.eq_dec e_l e_r
                  then Some [AutoUtils.transitivity scp exp_x e_l exp_v]
-                 else match try_subst scp inv_u e_l e_r with
+                 else match try_subst scp inv_u exp_x e_l e_r with
                       | Some infrs ->
-                         Some (infrs@[AutoUtils.transitivity scp exp_x e_l e_r;
-                                      AutoUtils.transitivity scp exp_x e_r exp_v])
+                         Some (infrs@[AutoUtils.transitivity scp exp_x e_r exp_v])
                       | None -> None)
                 e_l_cands e_r_cands
         with
@@ -210,19 +247,31 @@ module AutoSubstTransHelper = struct
             | Some (exp_m, infrs) -> Some (infrs@[AutoUtils.transitivity scp exp_x exp_m exp_v])
             | None -> None)
 
-    (* generate e_l >= e_r if possible *)
+    (* generate e_ll >= e_r if possible *)
     (* when e_l = e_r, return (Some []) *)
-    and try_subst (scp:AutoUtils.scope_t) (inv_u:Invariant.unary)
-                  (e_l:Expr.t) (e_r:Expr.t)
+    and try_subst (scp:AutoUtils.scope_t) (inv_u:Invariant.unary) (e_ll:Expr.t)
+                      (e_l:Expr.t) (e_r:Expr.t)
         : (Infrule.t list) option =
       match e_l, e_r with
       | Expr.Coq_value _, _
       | _, Expr.Coq_value _ -> None
       | _, _->
-         (match AutoUtils.eq_exps_values e_l e_r with
-          | Some vpl ->
-             try_subst_intl scp inv_u e_l e_l vpl []
-          | _ -> None)
+         let fst_result =
+           match AutoUtils.eq_exps_values e_l e_r with
+           | Some vpl -> try_subst_intl scp inv_u e_l e_l vpl []
+           | _ -> None
+         in
+         (match fst_result with
+          | Some infrs -> Some (infrs@[AutoUtils.transitivity scp e_ll e_l e_r])
+          | None ->
+             (* modify and try again *)
+             (match try_modify scp e_ll e_l with
+              | Some (infrs, e_l_sw) ->
+                 (match AutoUtils.eq_exps_values e_l_sw e_r with
+                  | Some vpl ->
+                     try_subst_intl scp inv_u e_l_sw e_l_sw vpl infrs
+                  | _ -> None)
+              | _ -> None))
 
     (* generate e_l >= e_l[rep vpl] *)
     (* when e_l = e_l[rep vpl], return (Some []) *)
@@ -263,25 +312,14 @@ module type AutoNextInv = sig
   end
 
 (** Framework 1-1. Removing Maydiff *)
-module type InjectExprGenerator = sig
-    val f : Invariant.t -> Expr.t -> Expr.t -> (Infrule.t list) option
-  end                                    
+module type InjectValueGenerator = sig
+    val f : Invariant.t -> ValueT.t -> ValueT.t -> (Infrule.t list) option
+  end
 
-module AutoRemMD (IEG:InjectExprGenerator) : AutoNextInv = struct
+module AutoRemMD (GEN:InjectValueGenerator) : AutoNextInv = struct
     let find_inject (inv:Invariant.t) (x:IdT.t)
         : (Infrule.t list) option =
-      let exp_x = Expr.Coq_value (ValueT.Coq_id x) in
-      let e_src_cands =
-        AutoUtils.get_rhs_list inv.Invariant.src.Invariant.lessdef exp_x in
-      let e_tgt_cands =
-        AutoUtils.get_lhs_list inv.Invariant.tgt.Invariant.lessdef exp_x in
-      AutoUtils.expr_find_first_match2
-        (fun e1 e2 ->
-         match IEG.f inv e1 e2 with
-           | Some infrs ->
-              Some (infrs@[AutoUtils.transitivity AutoUtils.Src exp_x e1 e2])
-           | None -> None)
-        e_src_cands e_tgt_cands
+      GEN.f inv (ValueT.Coq_id x) (ValueT.Coq_id x)
 
     let rec run_intl (inv:Invariant.t) (inv_goal:Invariant.t)
                      (infrs_acc:Infrule.t list) (md:IdT.t list)
@@ -362,14 +400,16 @@ module type AutoInjVal = sig
     val run : auto2_t
   end
 
-module AutoInjectValues (IEG:InjectExprGenerator): AutoInjVal = struct
+(* module AutoInjectValues (GEN:InjectExprGenerator): AutoInjVal = struct *)
+module AutoInjectValues (GEN:InjectValueGenerator): AutoInjVal = struct
     let rec run_intl (inv:Invariant.t) (vpl_acc:ValueTPair.t list)
                      (infrs_acc:Infrule.t list) (vpl:ValueTPair.t list)
             : Infrule.t list * (ValueTPair.t list) =
       match vpl with
       | [] -> (infrs_acc, vpl_acc)
       | (v_l, v_r)::vpl_t ->
-         (match IEG.f inv (Expr.Coq_value v_l) (Expr.Coq_value v_r) with
+         (* (match GEN.f inv (Expr.Coq_value v_l) (Expr.Coq_value v_r) with *)
+         (match GEN.f inv v_l v_r with
           | Some infrs -> run_intl inv vpl_acc (infrs_acc@infrs) vpl_t
           | None -> run_intl inv ((v_l, v_r)::vpl_acc) infrs_acc vpl_t)
 
@@ -382,9 +422,23 @@ module AutoInjectValues (IEG:InjectExprGenerator): AutoInjVal = struct
 module AutoRemMD_SubstTransSrc : AutoNextInv =
   AutoRemMD
     (struct
-        let f = fun inv ->
-          AutoSubstTransHelper.try_subst AutoUtils.Src inv.Invariant.src
-    end)
+        let f = fun inv v1 v2 ->
+          let exp1 = Expr.Coq_value v1 in
+          let exp2 = Expr.Coq_value v2 in
+          let e_src_cands =
+            AutoUtils.get_rhs_list inv.Invariant.src.Invariant.lessdef exp1 in
+          let e_tgt_cands =
+            AutoUtils.get_lhs_list inv.Invariant.tgt.Invariant.lessdef exp2 in
+          AutoUtils.expr_find_first_match2
+            (fun e1 e2 ->
+             AutoSubstTransHelper.try_subst AutoUtils.Src inv.Invariant.src exp1 e1 e2)
+             (* TODO: check e2 disjoint with MD *)
+             (* match AutoSubstTransHelper.try_subst AutoUtils.Src inv.Invariant.src exp1 e1 e2 with *)
+             (* | Some infrs -> *)
+             (*    Some (infrs@[AutoUtils.transitivity AutoUtils.Src exp1 e1 e2]) *)
+             (* | None -> None) *)
+            e_src_cands e_tgt_cands
+      end)
 
 module AutoUnary_SubstTrans : AutoNextInv =
   AutoUnary
@@ -410,21 +464,20 @@ module Auto_Default1 : AutoNextInv = struct
 module AutoInjectValues_SubstTransSrc : AutoInjVal =
   AutoInjectValues
     (struct
-        let f = fun inv e1 e2 ->
-          match e1, e2 with
-          | Expr.Coq_value (ValueT.Coq_id x),
-            Expr.Coq_value v ->
-             if Invariant.not_in_maydiff inv v
+        let f = fun inv v1 v2 ->
+          match v1 with
+          | ValueT.Coq_id x ->
+             if Invariant.not_in_maydiff inv v2
              then AutoSubstTransHelper.try_trans
-                    AutoUtils.Src inv.Invariant.src x v
+                    AutoUtils.Src inv.Invariant.src x v2
              else None
-          | _, _ -> None
+          | _ -> None
       end)
 
 module AutoInjectValues_Trans : AutoInjVal =
   AutoInjectValues
     (struct
-        let f = AutoTransHelper.run_inj
+        let f inv v1 v2 = AutoTransHelper.run_inj inv (Expr.Coq_value v1) (Expr.Coq_value v2)
       end)
 
 module Auto_Default2 : AutoInjVal = struct
