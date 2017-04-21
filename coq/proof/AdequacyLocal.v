@@ -21,6 +21,7 @@ Require Import SoundBase.
 Require Import Simulation.
 Require Import SimulationLocal.
 Require Import TODOProof.
+Require Import memory_props.
 
 Set Implicit Arguments.
 
@@ -86,6 +87,18 @@ Inductive sim_local_stack
       (InvMem.Rel.lift mem_src mem_tgt uniqs_src uniqs_tgt privs_src privs_tgt inv)
 .
 
+Definition sim_funtable gmax (fs_src fs_tgt: GVMap) :=
+  (forall fptr fs_src fid_src
+          (SRC: lookupFdefViaGVFromFunTable fs_src fptr = Some fid_src)
+    ,
+      MemProps.valid_ptrs gmax fptr)
+  /\
+  (forall fptr fs_tgt fid_tgt
+          (TGT: lookupFdefViaGVFromFunTable fs_tgt fptr = Some fid_tgt)
+    ,
+      MemProps.valid_ptrs gmax fptr)
+.
+
 Inductive sim_local_lift
           (conf_src conf_tgt:Config)
           (idx:nat) (st_src st_tgt: State): Prop :=
@@ -93,6 +106,7 @@ Inductive sim_local_lift
     ecs0_src ecs0_tgt inv0
     inv
     (CONF: inject_conf conf_src conf_tgt)
+    (FUNTABLE: sim_funtable inv.(InvMem.Rel.gmax) conf_src.(FunTable) conf_tgt.(FunTable))
     (STACK: sim_local_stack conf_src conf_tgt ecs0_src ecs0_tgt inv0)
     (LOCAL: sim_local conf_src conf_tgt ecs0_src ecs0_tgt
                       inv idx st_src st_tgt)
@@ -367,6 +381,50 @@ Proof.
   splits; apply MEMLE.
 Qed.
 
+Lemma f_equal6 (A1 A2 A3 A4 A5 A6 B: Type) (f: A1 -> A2 -> A3 -> A4 -> A5 -> A6 -> B)
+      (x1 y1: A1) (EQ1: x1 = y1)
+      (x2 y2: A2) (EQ2: x2 = y2)
+      (x3 y3: A3) (EQ3: x3 = y3)
+      (x4 y4: A4) (EQ4: x4 = y4)
+      (x5 y5: A5) (EQ5: x5 = y5)
+      (x6 y6: A6) (EQ6: x6 = y6)
+  :
+    <<EQ: f x1 x2 x3 x4 x5 x6 = f y1 y2 y3 y4 y5 y6>>
+.
+Proof. subst. reflexivity. Qed.
+
+Lemma f_equal7 (A1 A2 A3 A4 A5 A6 A7 B: Type) (f: A1 -> A2 -> A3 -> A4 -> A5 -> A6 -> A7 -> B)
+      (x1 y1: A1) (EQ1: x1 = y1)
+      (x2 y2: A2) (EQ2: x2 = y2)
+      (x3 y3: A3) (EQ3: x3 = y3)
+      (x4 y4: A4) (EQ4: x4 = y4)
+      (x5 y5: A5) (EQ5: x5 = y5)
+      (x6 y6: A6) (EQ6: x6 = y6)
+      (x7 y7: A7) (EQ7: x7 = y7)
+  :
+    <<EQ: f x1 x2 x3 x4 x5 x6 x7 = f y1 y2 y3 y4 y5 y6 y7>>
+.
+Proof. subst. reflexivity. Qed.
+
+Lemma f_equal8 (A1 A2 A3 A4 A5 A6 A7 A8 B: Type) (f: A1 -> A2 -> A3 -> A4 -> A5 -> A6 -> A7 -> A8 -> B)
+      (x1 y1: A1) (EQ1: x1 = y1)
+      (x2 y2: A2) (EQ2: x2 = y2)
+      (x3 y3: A3) (EQ3: x3 = y3)
+      (x4 y4: A4) (EQ4: x4 = y4)
+      (x5 y5: A5) (EQ5: x5 = y5)
+      (x6 y6: A6) (EQ6: x6 = y6)
+      (x7 y7: A7) (EQ7: x7 = y7)
+      (x8 y8: A8) (EQ8: x8 = y8)
+  :
+    <<EQ: f x1 x2 x3 x4 x5 x6 x7 x8 = f y1 y2 y3 y4 y5 y6 y7 y8>>
+.
+Proof. subst. reflexivity. Qed.
+
+Ltac rpapply H :=
+  first[erewrite f_equal8 | erewrite f_equal7 | erewrite f_equal6 | erewrite f_equal5 |
+        erewrite f_equal4 | erewrite f_equal3 | erewrite f_equal2 | erewrite f_equal];
+  [exact H|..]; try reflexivity.
+
 Lemma sim_local_lift_sim conf_src conf_tgt
       (SIM_CONF: sim_conf conf_src conf_tgt):
   (sim_local_lift conf_src conf_tgt) <3= (sim conf_src conf_tgt).
@@ -431,8 +489,10 @@ Proof.
         { econs 1. econs; eauto.
           rewrite returnUpdateLocals_spec, COND. ss.
         }
-        { right. apply CIH. econs; [..|M]; Mskip eauto.
+        { right. apply CIH. econs; try exact SIM; eauto.
           - ss.
+          - ss. rpapply FUNTABLE.
+            inv MEMLE0. inv LE0. symmetry in GMAX. etransitivity; eauto.
           - etransitivity; eauto.
         }
       *
@@ -452,8 +512,10 @@ Proof.
           rewrite returnUpdateLocals_spec, COND. s.
           rewrite COND2. ss.
         }
-        { right. apply CIH. econs; [..|M]; Mskip eauto.
+        { right. apply CIH. econs; try exact SIM; eauto.
           - ss.
+          - ss. rpapply FUNTABLE.
+            inv MEMLE0. inv LE0. symmetry in GMAX. etransitivity; eauto.
           - etransitivity; eauto.
         }
   - (* return_void *)
@@ -493,6 +555,8 @@ Proof.
       * right. apply CIH.
         econs; try apply SIM; try eassumption.
         { ss. }
+        { ss. rpapply FUNTABLE.
+          inv MEMLE. inv LE0. ss. symmetry in GMAX. etransitivity; eauto. }
         { etransitivity; eauto. }
   - (* call *)
     eapply sop_star_sim; eauto.
@@ -543,8 +607,9 @@ Proof.
       esplits; eauto.
       * econs 1. econs; eauto.
       * right. apply CIH. econs; try reflexivity.
-        { ss. }
-        { econs 2; eauto.
+        all:cycle 2.
+        {
+          econs 2; eauto.
           s. i.
           hexploit RETURN; eauto. i. des. inv SIM; ss.
           esplits; eauto.
@@ -555,6 +620,8 @@ Proof.
           ss. clarify.
           exact x4.
         }
+        { ss. }
+        { ss. }
     + (* excall *)
       exploit FUN; eauto. i. des.
       exploit ARGS; eauto. i. des.
@@ -579,5 +646,8 @@ Proof.
     econs 3; ss. i. exploit STEP; eauto. i. des.
     inv SIM; [|done].
     esplits; eauto. right.
-    apply CIH. econs; eauto. etransitivity; eauto.
+    apply CIH.
+    econs; [|M|..]; Mskip eauto.
+    { ss. rpapply FUNTABLE. inv MEMLE. ss. }
+    { etransitivity; eauto. }
 Admitted.
