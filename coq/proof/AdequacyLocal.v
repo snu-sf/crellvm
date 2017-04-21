@@ -106,10 +106,10 @@ Inductive sim_local_lift
     ecs0_src ecs0_tgt inv0
     inv
     (CONF: inject_conf conf_src conf_tgt)
-    (FUNTABLE: sim_funtable inv.(InvMem.Rel.gmax) conf_src.(FunTable) conf_tgt.(FunTable))
     (STACK: sim_local_stack conf_src conf_tgt ecs0_src ecs0_tgt inv0)
     (LOCAL: sim_local conf_src conf_tgt ecs0_src ecs0_tgt
                       inv idx st_src st_tgt)
+    (FUNTABLE: sim_funtable inv.(InvMem.Rel.gmax) conf_src.(FunTable) conf_tgt.(FunTable))
     (LE0: InvMem.Rel.le inv0 inv)
 .
 
@@ -607,7 +607,7 @@ Proof.
       esplits; eauto.
       * econs 1. econs; eauto.
       * right. apply CIH. econs; try reflexivity.
-        all:cycle 2.
+        { ss. }
         {
           econs 2; eauto.
           s. i.
@@ -620,7 +620,6 @@ Proof.
           ss. clarify.
           exact x4.
         }
-        { ss. }
         { ss. }
     + (* excall *)
       exploit FUN; eauto. i. des.
@@ -647,7 +646,7 @@ Proof.
     inv SIM; [|done].
     esplits; eauto. right.
     apply CIH.
-    econs; [|M|..]; Mskip eauto.
+    econs; [..|M|]; Mskip eauto.
     { ss. rpapply FUNTABLE. inv MEMLE. ss. }
     { etransitivity; eauto. }
 Admitted.
