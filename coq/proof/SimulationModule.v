@@ -150,9 +150,13 @@ Proof.
   exploit transl_products_lookupFdefViaIDFromProducts; eauto. i. des.
   destruct fdef_tgt. unfold LLVMinfra.is_true in *. simtac.
   destruct fheader5.
+  (* TODO: define all_with_term_once *)
+  (* Ltac expl_with H := expl lookupFdefViaIDFromProducts_ideq (idtac H; try exact H; eauto). *)
+  (* all_with_term expl_with lookupFdefViaIDFromProducts. *)
+  expl lookupFdefViaIDFromProducts_ideq (try exact COND3; eauto). clarify.
+  expl lookupFdefViaIDFromProducts_ideq (try exact TGT; eauto). clarify.
   inv FDEF.
   { inv NOP_FDEF.
-    exploit lookupFdefViaIDFromProducts_ideq; eauto. i.
     assert (NOP_BLOCKS_ENTRY:
               exists phi' cmds' term' b',
                 blocks5 = ((l0, stmts_intro phi' cmds' term')::b')).
@@ -166,6 +170,7 @@ Proof.
       subst.
       esplits; eauto.
     }
+    des.
 
 
 
@@ -177,7 +182,6 @@ Proof.
 
 
 
-    des.
     esplits.
     - unfold s_genInitState. ss. rewrite TGT.
       match goal with
@@ -189,9 +193,25 @@ Proof.
       rewrite COND2.
       eauto.
     - apply sim_local_lift_sim.
-      { unfold transl_products in TRANSL_PRODUCTS.
-        econs.
-        exact (SF_ADMIT "sim_conf"). }
+      {
+        econs; eauto.
+        ss.
+        econs; eauto; ss; cycle 1.
+        { i.
+          expl transl_products_lookupFdefViaIDFromProducts.
+          rewrite TGT0 in *. clarify. }
+        { i.
+          expl transl_products_lookupFdefViaIDFromProducts.
+          rewrite FDEF_TGT in TGT0. clarify.
+          inv FDEF.
+          - inv NOP_FDEF.
+            eapply nop_sim_fdef; eauto; try (econs; eauto).
+            { inv BLOCKS0; ss.
+              des_ifs. des. clarify. }
+          - eapply valid_sim_fdef; eauto.
+            { ss. }
+        }
+      }
       econs; ss.
       + econs.
       + apply nop_sim.
@@ -222,7 +242,25 @@ Proof.
       erewrite <- transl_products_genGlobalAndInitMem; eauto. rewrite COND1.
       rewrite COND2. eauto.
     - apply sim_local_lift_sim.
-      { exact (SF_ADMIT "sim_conf"). }
+      {
+        econs; eauto.
+        ss.
+        econs; eauto; ss; cycle 1.
+        { i.
+          expl transl_products_lookupFdefViaIDFromProducts.
+          rewrite TGT0 in *. clarify. }
+        { i.
+          expl transl_products_lookupFdefViaIDFromProducts.
+          rewrite FDEF_TGT in TGT0. clarify.
+          inv FDEF.
+          - inv NOP_FDEF.
+            eapply nop_sim_fdef; eauto; try (econs; eauto).
+            { inv BLOCKS; ss.
+              des_ifs. des. clarify. }
+          - eapply valid_sim_fdef; eauto.
+            { ss. }
+        }
+      }
       econs; ss.
       + econs.
       + generalize VALID_FDEF. i.
