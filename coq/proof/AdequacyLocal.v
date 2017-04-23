@@ -87,17 +87,8 @@ Inductive sim_local_stack
       (InvMem.Rel.lift mem_src mem_tgt uniqs_src uniqs_tgt privs_src privs_tgt inv)
 .
 
-Definition sim_funtable gmax (fs_src fs_tgt: GVMap) :=
-  (forall fptr fs_src fid_src
-          (SRC: lookupFdefViaGVFromFunTable fs_src fptr = Some fid_src)
-    ,
-      MemProps.valid_ptrs gmax fptr)
-  /\
-  (forall fptr fs_tgt fid_tgt
-          (TGT: lookupFdefViaGVFromFunTable fs_tgt fptr = Some fid_tgt)
-    ,
-      MemProps.valid_ptrs gmax fptr)
-.
+Definition sim_funtable meminj (fs_src fs_tgt: GVMap) :=
+  ftable_simulation meminj fs_src fs_tgt.
 
 Inductive sim_local_lift
           (conf_src conf_tgt:Config)
@@ -109,7 +100,7 @@ Inductive sim_local_lift
     (STACK: sim_local_stack conf_src conf_tgt ecs0_src ecs0_tgt inv0)
     (LOCAL: sim_local conf_src conf_tgt ecs0_src ecs0_tgt
                       inv idx st_src st_tgt)
-    (FUNTABLE: sim_funtable inv.(InvMem.Rel.gmax) conf_src.(FunTable) conf_tgt.(FunTable))
+    (FUNTABLE: sim_funtable inv0.(InvMem.Rel.inject) conf_src.(FunTable) conf_tgt.(FunTable))
     (LE0: InvMem.Rel.le inv0 inv)
 .
 
@@ -425,6 +416,13 @@ Ltac rpapply H :=
         erewrite f_equal4 | erewrite f_equal3 | erewrite f_equal2 | erewrite f_equal];
   [exact H|..]; try reflexivity.
 
+(* TODO: move to Vellvm or TODOProof *)
+Global Program Instance PreOrder_inject_incr: PreOrder inject_incr.
+Next Obligation.
+  ii.
+  expl H.
+Qed.
+
 Lemma sim_local_lift_sim conf_src conf_tgt
       (SIM_CONF: sim_conf conf_src conf_tgt):
   (sim_local_lift conf_src conf_tgt) <3= (sim conf_src conf_tgt).
@@ -491,8 +489,9 @@ Proof.
         }
         { right. apply CIH. econs; try exact SIM; eauto.
           - ss.
-          - ss. rpapply FUNTABLE.
-            inv MEMLE0. inv LE0. symmetry in GMAX. etransitivity; eauto.
+          - (* FunTable *) admit.
+            (* ss. eapply inject_incr__preserves__ftable_simulation; eauto. *)
+            (* inv MEMLE0. inv LE0. symmetry in GMAX. ss. etransitivity; eauto. *)
           - etransitivity; eauto.
         }
       *
@@ -514,8 +513,9 @@ Proof.
         }
         { right. apply CIH. econs; try exact SIM; eauto.
           - ss.
-          - ss. rpapply FUNTABLE.
-            inv MEMLE0. inv LE0. symmetry in GMAX. etransitivity; eauto.
+          - admit. (* FunTable *)
+            (* ss. rpapply FUNTABLE. *)
+            (* inv MEMLE0. inv LE0. symmetry in GMAX. etransitivity; eauto. *)
           - etransitivity; eauto.
         }
   - (* return_void *)
@@ -555,8 +555,10 @@ Proof.
       * right. apply CIH.
         econs; try apply SIM; try eassumption.
         { ss. }
-        { ss. rpapply FUNTABLE.
-          inv MEMLE. inv LE0. ss. symmetry in GMAX. etransitivity; eauto. }
+        { admit. (* FunTable *)
+          (* ss. rpapply FUNTABLE. *)
+          (* inv MEMLE. inv LE0. ss. symmetry in GMAX. etransitivity; eauto. *)
+        }
         { etransitivity; eauto. }
   - (* call *)
     eapply sop_star_sim; eauto.
@@ -620,7 +622,10 @@ Proof.
           ss. clarify.
           exact x4.
         }
-        { ss. }
+        { ss.
+          eapply inject_incr__preserves__ftable_simulation; eauto.
+          inv LE0; ss.
+        }
     + (* excall *)
       exploit FUN; eauto. i. des.
       exploit ARGS; eauto. i. des.
@@ -647,6 +652,6 @@ Proof.
     esplits; eauto. right.
     apply CIH.
     econs; [..|M|]; Mskip eauto.
-    { ss. rpapply FUNTABLE. inv MEMLE. ss. }
+    { ss. }
     { etransitivity; eauto. }
 Admitted.

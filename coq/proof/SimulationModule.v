@@ -227,11 +227,13 @@ Proof.
           { exact (SF_ADMIT "init mem"). }
           { ss. }
           { ss. }
-      + admit. (* sim_funtable *)
+      + unfold sim_funtable.
+        instantiate (1:= InvMem.Rel.mk _ _ _ _). ss. eauto.
       + reflexivity.
   }
   { ss. simtac.
     inv e0.
+    expl genGlobalAndInitMem__wf_globals_Mem.
     esplits.
     - unfold s_genInitState. ss. rewrite TGT.
       match goal with
@@ -284,12 +286,17 @@ Proof.
           { exists []. ss. }
           { eexists; eauto. }
         * ss. exact (SF_ADMIT "InvMem.Rel.sem init_mem").
-      + admit. (* sim_funtable *)
+      + unfold sim_funtable.
+        instantiate (1:= InvMem.Rel.mk _ _ _ _). ss. eauto.
       + reflexivity.
   }
 Unshelve.
 { apply empty_invmem. }
-{ apply 0%nat. }
 { apply empty_invmem. }
+{ by econs; eauto. }
+{ by econs; eauto. }
+{ apply empty_invmem. }
+{ apply empty_invmem. }
+{ by econs; eauto. }
 (* Qed. *)
 Admitted.
