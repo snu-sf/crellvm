@@ -166,6 +166,17 @@ Proof.
       subst.
       esplits; eauto.
     }
+
+
+
+    Require Import program_sim.
+    Import Vellvm.program_sim.
+    Print program_sim.program_sim.
+    Print Vellvm.program_sim.
+    expl genGlobalAndInitMem__wf_globals_Mem.
+
+
+
     des.
     esplits.
     - unfold s_genInitState. ss. rewrite TGT.
@@ -196,6 +207,7 @@ Proof.
           { exact (SF_ADMIT "init mem"). }
           { ss. }
           { ss. }
+      + admit. (* sim_funtable *)
       + reflexivity.
   }
   { ss. simtac.
@@ -234,6 +246,7 @@ Proof.
           { exists []. ss. }
           { eexists; eauto. }
         * ss. exact (SF_ADMIT "InvMem.Rel.sem init_mem").
+      + admit. (* sim_funtable *)
       + reflexivity.
   }
 Unshelve.
