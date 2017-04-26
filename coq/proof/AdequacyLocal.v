@@ -22,6 +22,7 @@ Require Import Simulation.
 Require Import SimulationLocal.
 Require Import TODOProof.
 Require Import memory_props.
+Require Import TODO.
 
 Set Implicit Arguments.
 
@@ -107,12 +108,6 @@ Definition sim_products
           (FDEF_SRC: lookupFdefViaIDFromProducts prod_src fid = Some fdef_src)
           (FDEF_TGT: lookupFdefViaIDFromProducts prod_tgt fid = Some fdef_tgt),
       sim_fdef conf_src conf_tgt fdef_src fdef_tgt)
-  /\
-  (forall fptr fid_src fid_tgt
-          (SRC: lookupFdefViaGVFromFunTable conf_src.(FunTable) fptr = Some fid_src)
-          (TGT: lookupFdefViaGVFromFunTable conf_tgt.(FunTable) fptr = Some fid_tgt)
-    ,
-      fid_src = fid_tgt)
 .
 
 Inductive sim_conf (conf_src conf_tgt:Config): Prop :=
@@ -419,6 +414,28 @@ Next Obligation.
   expl H.
 Qed.
 
+Lemma lookupFdefViaPtr_inject_eq
+      S TD Ps gl fs S0 TD0 Ps0 gl0 fs0 Mem1 inv_curr Mem0
+      (MEM: InvMem.Rel.sem
+              (mkCfg S TD Ps gl fs)
+              (mkCfg S0 TD0 Ps0 gl0 fs0)
+              Mem0 Mem1 inv_curr)
+      fid fptr rt la va lb fa
+      (LOOKUP0: lookupFdefViaPtr Ps fs fptr = ret fdef_intro (fheader_intro fa rt fid la va) lb)
+      fptr0 fid0 rt0 la0 va0 lb0 fa0
+      (LOOKUP1: lookupFdefViaPtr Ps0 fs0 fptr0 = ret fdef_intro (fheader_intro fa0 rt0 fid0 la0 va0) lb0)
+      (INJECT : genericvalues_inject.gv_inject (InvMem.Rel.inject inv_curr) fptr fptr0)
+  :
+    <<EQID: fid = fid0>>
+.
+Proof.
+  inv MEM. ss. unfold ftable_simulation in *.
+  expl FUNTABLE.
+  apply_all_once lookupFdefViaPtr_inversion. des.
+  rewrite LOOKUP0 in *. rewrite LOOKUP1 in *. clarify.
+  apply_all_once lookupFdefViaIDFromProducts_ideq. clarify.
+Qed.
+
 Lemma sim_local_lift_sim conf_src conf_tgt
       (SIM_CONF: sim_conf conf_src conf_tgt):
   (sim_local_lift conf_src conf_tgt) <3= (sim conf_src conf_tgt).
@@ -571,6 +588,7 @@ Proof.
       (* assert (SIM_FDEF: sim_fdef conf_src conf_tgt  *)
       assert (FID_SAME: fid0 = fid).
       {
+        clear - H23 H18 MEM INJECT. clear_tac.
         inv MEM. ss. unfold ftable_simulation in *.
         expl FUNTABLE.
         Require Import TODO.
@@ -612,7 +630,14 @@ Proof.
       apply _sim_step; ss.
       { admit. (* tgt not stuck *) }
       i. inv STEP0; ss.
-      { admit. (* call & excall mismatch *) }
+      { exfalso. clarify. clear - SIM_CONF MEM H18 H23 INJECT. rename funval1_tgt into fptr0. clear_tac.
+        unfold lookupFdefViaPtr in *. unfold lookupExFdecViaPtr in *. unfold mbind in *. des_ifs.
+        inv MEM. ss.
+        expl FUNTABLE.
+        rewrite Heq0 in *. rewrite Heq in *. clarify.
+        inv SIM_CONF. ss.
+        unfold sim_products in *. ss.
+        admit. (* call & excall mismatch *) }
       rewrite FUN_TGT in H22. inv H22.
       rewrite ARGS_TGT in H24. inv H24.
       hexploit RETURN; try reflexivity; eauto.

@@ -196,10 +196,7 @@ Proof.
       {
         econs; eauto.
         ss.
-        econs; eauto; ss; cycle 1.
-        { i.
-          expl transl_products_lookupFdefViaIDFromProducts.
-          rewrite TGT0 in *. clarify. }
+        unfold sim_products; eauto; ss; cycle 1.
         { i.
           expl transl_products_lookupFdefViaIDFromProducts.
           rewrite FDEF_TGT in TGT0. clarify.
@@ -245,10 +242,7 @@ Proof.
       {
         econs; eauto.
         ss.
-        econs; eauto; ss; cycle 1.
-        { i.
-          expl transl_products_lookupFdefViaIDFromProducts.
-          rewrite TGT0 in *. clarify. }
+        unfold sim_products; eauto; ss; cycle 1.
         { i.
           expl transl_products_lookupFdefViaIDFromProducts.
           rewrite FDEF_TGT in TGT0. clarify.
