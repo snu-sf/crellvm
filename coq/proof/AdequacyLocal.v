@@ -571,19 +571,12 @@ Proof.
       (* assert (SIM_FDEF: sim_fdef conf_src conf_tgt  *)
       assert (FID_SAME: fid0 = fid).
       {
-        assert(fun1_tgt = fun2_src) by admit.
-        clarify.
-        assert(exists f_cnst, fun2_src = value_const f_cnst) by admit.
-        des. clarify. cbn in *. des_ifs.
-        inv CONF. ss. clarify.
-        move H18 at bottom. move H23 at bottom.
+        inv MEM. ss. unfold ftable_simulation in *.
+        expl FUNTABLE.
         Require Import TODO.
+        move H18 at bottom. move H23 at bottom.
         apply_all_once lookupFdefViaPtr_inversion. des.
-        move SIM_CONF at bottom.
-        assert(fn = fn0).
-        { inv SIM_CONF. ss. inv SIM_PRODUCTS. ss.
-          expl H2. }
-        clarify.
+        rewrite H18 in *. rewrite H23 in *. clarify.
         apply_all_once lookupFdefViaIDFromProducts_ideq. clarify.
       }
       subst.
