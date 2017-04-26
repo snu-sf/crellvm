@@ -104,10 +104,11 @@ Inductive sim_local_lift
 Definition sim_products
            (conf_src conf_tgt:Config)
            (prod_src prod_tgt:products): Prop :=
-  (forall fid fdef_src fdef_tgt
-          (FDEF_SRC: lookupFdefViaIDFromProducts prod_src fid = Some fdef_src)
-          (FDEF_TGT: lookupFdefViaIDFromProducts prod_tgt fid = Some fdef_tgt),
-      sim_fdef conf_src conf_tgt fdef_src fdef_tgt)
+  (forall fid fdef_src
+          (FDEF_SRC: lookupFdefViaIDFromProducts prod_src fid = Some fdef_src),
+          exists fdef_tgt,
+          <<FDEF_TGT: lookupFdefViaIDFromProducts prod_tgt fid = Some fdef_tgt>> /\
+                      <<SIM: sim_fdef conf_src conf_tgt fdef_src fdef_tgt>>)
 .
 
 Inductive sim_conf (conf_src conf_tgt:Config): Prop :=
@@ -588,14 +589,7 @@ Proof.
       (* assert (SIM_FDEF: sim_fdef conf_src conf_tgt  *)
       assert (FID_SAME: fid0 = fid).
       {
-        clear - H23 H18 MEM INJECT. clear_tac.
-        inv MEM. ss. unfold ftable_simulation in *.
-        expl FUNTABLE.
-        Require Import TODO.
-        move H18 at bottom. move H23 at bottom.
-        apply_all_once lookupFdefViaPtr_inversion. des.
-        rewrite H18 in *. rewrite H23 in *. clarify.
-        apply_all_once lookupFdefViaIDFromProducts_ideq. clarify.
+        expl lookupFdefViaPtr_inject_eq.
       }
       subst.
       exploit lookupFdefViaPtr_inversion; try exact H18. i. des.
@@ -604,9 +598,12 @@ Proof.
       exploit lookupFdefViaIDFromProducts_ideq; try exact x3. i. subst.
 
       inv SIM_CONF. unfold sim_products in *. des. ss.
-      exploit SIM_PRODUCTS; try eapply invmem_lift; eauto.
-      { econs; eauto. }
+      exploit SIM_PRODUCTS; eauto.
       i. des.
+      unfold sim_fdef in SIM.
+      hexploit SIM; try apply invmem_lift; eauto.
+      { econs; eauto. }
+      i; des.
 
       esplits; eauto.
       * econs 1. econs; eauto.
@@ -615,14 +612,15 @@ Proof.
         {
           econs 2; eauto.
           s. i.
-          hexploit RETURN; eauto. i. des. inv SIM; ss.
+          hexploit RETURN; eauto. i. des. inv SIM0; ss.
           esplits; eauto.
         }
-        { inv x.
+        {
+          inv H.
           unfold getEntryBlock in *.
           des_ifs.
           ss. clarify.
-          exact x4.
+          exact H0.
         }
     + (* excall *)
       exploit FUN; eauto. i. des.

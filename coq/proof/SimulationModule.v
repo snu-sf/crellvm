@@ -140,6 +140,33 @@ Definition empty_invmem : InvMem.Rel.t.
   apply (xH, 0).
 Defined.
 
+Lemma transl_products_sim_conf
+      gl ft
+      md_src md_tgt prods_src prods_tgt
+      TD
+      (TRANSL_PRODUCTS: transl_products md_src md_tgt prods_src prods_tgt)
+      sys_src sys_tgt
+  :
+    <<SIM_CONF: sim_conf (mkCfg sys_src TD prods_src gl ft)
+                         (mkCfg sys_tgt TD prods_tgt gl ft)>>
+.
+Proof.
+  econs; eauto.
+  ss.
+  unfold sim_products; eauto; ss.
+  { i.
+    expl transl_products_lookupFdefViaIDFromProducts.
+    esplits; eauto.
+    inv FDEF.
+    - inv NOP_FDEF.
+      eapply nop_sim_fdef; eauto; try (econs; eauto).
+      { inv BLOCKS; ss.
+        des_ifs. des. clarify. }
+    - eapply valid_sim_fdef; eauto.
+      { ss. }
+  }
+Qed.
+
 Lemma transl_sim_module:
   transl_module <2= sim_module.
 Proof.
@@ -193,22 +220,7 @@ Proof.
       rewrite COND2.
       eauto.
     - apply sim_local_lift_sim.
-      {
-        econs; eauto.
-        ss.
-        unfold sim_products; eauto; ss; cycle 1.
-        { i.
-          expl transl_products_lookupFdefViaIDFromProducts.
-          rewrite FDEF_TGT in TGT0. clarify.
-          inv FDEF.
-          - inv NOP_FDEF.
-            eapply nop_sim_fdef; eauto; try (econs; eauto).
-            { inv BLOCKS0; ss.
-              des_ifs. des. clarify. }
-          - eapply valid_sim_fdef; eauto.
-            { ss. }
-        }
-      }
+      { eapply transl_products_sim_conf; eauto. }
       econs; ss.
       + econs.
       + apply nop_sim.
@@ -239,22 +251,7 @@ Proof.
       erewrite <- transl_products_genGlobalAndInitMem; eauto. rewrite COND1.
       rewrite COND2. eauto.
     - apply sim_local_lift_sim.
-      {
-        econs; eauto.
-        ss.
-        unfold sim_products; eauto; ss; cycle 1.
-        { i.
-          expl transl_products_lookupFdefViaIDFromProducts.
-          rewrite FDEF_TGT in TGT0. clarify.
-          inv FDEF.
-          - inv NOP_FDEF.
-            eapply nop_sim_fdef; eauto; try (econs; eauto).
-            { inv BLOCKS; ss.
-              des_ifs. des. clarify. }
-          - eapply valid_sim_fdef; eauto.
-            { ss. }
-        }
-      }
+      { eapply transl_products_sim_conf; eauto. }
       econs; ss.
       + econs.
       + generalize VALID_FDEF. i.
