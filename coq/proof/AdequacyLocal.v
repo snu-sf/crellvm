@@ -100,7 +100,7 @@ Inductive sim_local_lift
     (STACK: sim_local_stack conf_src conf_tgt ecs0_src ecs0_tgt inv0)
     (LOCAL: sim_local conf_src conf_tgt ecs0_src ecs0_tgt
                       inv idx st_src st_tgt)
-    (FUNTABLE: sim_funtable inv0.(InvMem.Rel.inject) conf_src.(FunTable) conf_tgt.(FunTable))
+    (FUNTABLE: sim_funtable inv.(InvMem.Rel.inject) conf_src.(FunTable) conf_tgt.(FunTable))
     (LE0: InvMem.Rel.le inv0 inv)
 .
 
@@ -429,14 +429,17 @@ Lemma sim_local_lift_sim conf_src conf_tgt
 Proof.
   s. pcofix CIH.
   intros idx st_src st_tgt SIM. inv SIM.
-  pfold. punfold LOCAL. inv LOCAL.
+  pfold. rename inv into inv_curr. rename inv0 into inv_stack.
+  punfold LOCAL. inv LOCAL.
   - (* error *)
     econs 1; eauto.
   - (* return *)
+    rename inv2 into inv_curr'.
     eapply sop_star_sim; eauto.
     destruct st2_src, st_tgt. ss.
     destruct EC0, EC1. ss. subst.
     eapply _sim_src_error. i.
+    Require Program.
     inv STACK.
     + (* final *)
       exploit nerror_stuck_final; eauto.
@@ -444,6 +447,8 @@ Proof.
       i. des. ss. exploit RET; eauto. i. des.
       eapply _sim_exit; eauto.
     + (* return *)
+      rename inv into inv_stack.
+      rename inv0 into inv_stack0.
       exploit nerror_nfinal_nstuck; eauto. i. des.
       inv x0. ss. rewrite returnUpdateLocals_spec in *. ss.
       simtac0. simtac0.
@@ -489,7 +494,8 @@ Proof.
         }
         { right. apply CIH. econs; try exact SIM; eauto.
           - ss.
-          - (* FunTable *) admit.
+          - ss.
+            (* FunTable *) admit.
             (* ss. eapply inject_incr__preserves__ftable_simulation; eauto. *)
             (* inv MEMLE0. inv LE0. symmetry in GMAX. ss. etransitivity; eauto. *)
           - etransitivity; eauto.
