@@ -1184,6 +1184,16 @@ Proof.
             i. congruence.
           + exploit mi_globals; eauto.
       }
+      { (* ftable *)
+        eapply inject_incr__preserves__ftable_simulation; eauto.
+        ii. rename H1 into INJ0.
+        des_ifs.
+        inv WF.
+        exploit Hmap1.
+        { ii. rewrite Pos.compare_refl in *. clarify. }
+        intro INJ1.
+        rewrite INJ1 in *. clarify.
+      }
     + (* le *)
       econs; try (econs; ss).
       { inv MEM. inv SRC. rewrite <- NEXTBLOCK. psimpl. }

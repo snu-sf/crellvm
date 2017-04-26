@@ -227,8 +227,6 @@ Proof.
           { exact (SF_ADMIT "init mem"). }
           { ss. }
           { ss. }
-      + unfold sim_funtable.
-        instantiate (1:= InvMem.Rel.mk _ _ _ _). ss. eauto.
       + reflexivity.
   }
   { ss. simtac.
@@ -286,17 +284,11 @@ Proof.
           { exists []. ss. }
           { eexists; eauto. }
         * ss. exact (SF_ADMIT "InvMem.Rel.sem init_mem").
-      + unfold sim_funtable.
-        instantiate (1:= InvMem.Rel.mk _ _ _ _). ss. eauto.
       + reflexivity.
   }
 Unshelve.
 { apply empty_invmem. }
-{ apply empty_invmem. }
-{ by econs; eauto. }
 { by econs; eauto. }
 { apply empty_invmem. }
-{ apply empty_invmem. }
-{ by econs; eauto. }
 (* Qed. *)
 Admitted.

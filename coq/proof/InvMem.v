@@ -122,6 +122,7 @@ Module Rel.
       (TGT: Unary.sem conf_tgt inv.(gmax) (public_tgt inv.(inject)) mem_tgt inv.(tgt))
       (INJECT: MoreMem.mem_inj inv.(inject) mem_src mem_tgt)
       (WF: genericvalues_inject.wf_sb_mi inv.(gmax) inv.(inject) mem_src mem_tgt)
+      (FUNTABLE: ftable_simulation inv.(inject) conf_src.(FunTable) conf_tgt.(FunTable))
   .
 
   (* TODO: not sure if inject_incr is enough.
