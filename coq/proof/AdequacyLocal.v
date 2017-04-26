@@ -689,12 +689,60 @@ Proof.
         clarify. }
       rewrite FUN_TGT in H22. inv H22.
       rewrite ARGS_TGT in H24. inv H24.
-      hexploit RETURN; try reflexivity; eauto.
+      hexploit RETURN; try reflexivity; eauto; swap 2 3.
       { clear CIH RETURN ARGS FUN ERROR_SRC STEP STACK SIM_CONF.
         inv CONF. ss. subst.
         econs; eauto; eapply invmem_lift; eauto. }
-      { s. admit. (* retvals are related *) }
       { rewrite exCallUpdateLocals_spec in *. eauto. }
+      { s.
+        assert(dck0 = dck).
+        { admit. (* same kind *) } clarify.
+        instantiate (1:= oresult0).
+        clear H26 H21.
+        destruct dck; ss.
+        - unfold add_empty_trace in *.
+          des_ifs.
+          expl callIntrinsics__extcall_properties (try exact Heq).
+          rename callIntrinsics__extcall_properties into EXTCALL_SEM_TGT.
+          expl callIntrinsics__extcall_properties (try exact Heq0).
+          rename callIntrinsics__extcall_properties into EXTCALL_SEM_SRC.
+          expl extcall_other_ok.
+          destruct extcall_other_ok.
+          clear ec_well_typed ec_arity ec_symbols_preserved ec_valid_block ec_bounds ec_mem_extends.
+          clear ec_trace_length ec_receptive ec_determ.
+          exploit ec_mem_inject; eauto.
+          { admit. (* preserves_globals *) }
+          { instantiate (1:= Mem1).
+            instantiate (1:= inv_curr.(InvMem.Rel.inject)).
+            move MEM at bottom.
+            inv MEM. ss.
+            inv INJECT1.
+            inv WF.
+            (* Vellvm's relational memory invariant is a bit different from compcert *)
+            (* but the Axiom uses Compcert's memory relation *)
+
+            (* WE HAVE *)
+            Print InvMem.Rel.sem.
+            Print memory_sim.MoreMem.mem_inj.
+            Print genericvalues_inject.wf_sb_mi.
+            (* NEEDED IN AXIOM *)
+            Print Mem.mem_inj.
+            Print Mem.inject'.
+
+            (* TODO: Add our axiom? or add Mem.inject' in InvMem? *)
+            (* for the latter one, are we sure we can maintain that invariant during step? *)
+            econs; eauto.
+            - admit.
+            - admit.
+            - admit.
+          }
+          { instantiate (1:= gvs0). admit. }
+          i; des.
+          { clear - x0.
+            (* don't instantiate oresult0 in top *)
+            admit. }
+        - admit.
+      }
       i. des. inv SIM; ss.
       esplits; eauto.
       * econs 1. econs; eauto.
