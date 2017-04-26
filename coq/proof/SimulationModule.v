@@ -153,18 +153,29 @@ Lemma transl_products_sim_conf
 Proof.
   econs; eauto.
   ss.
-  unfold sim_products; eauto; ss.
-  { i.
+  unfold sim_products.
+  splits.
+  - i.
     expl transl_products_lookupFdefViaIDFromProducts.
     esplits; eauto.
     inv FDEF.
-    - inv NOP_FDEF.
+    + inv NOP_FDEF.
       eapply nop_sim_fdef; eauto; try (econs; eauto).
       { inv BLOCKS; ss.
         des_ifs. des. clarify. }
-    - eapply valid_sim_fdef; eauto.
+    + eapply valid_sim_fdef; eauto.
       { ss. }
-  }
+  - clear_tac.
+    i.
+    ginduction prods_src; ii; inv TRANSL_PRODUCTS; ss.
+    rename H1 into TRANSL_PRODUCT.
+    des_ifsH FDEF_SRC.
+    expl IHprods_src.
+    inv TRANSL_PRODUCT; ss.
+    + des_ifs. exfalso. inv NOP_FDEF. ss.
+    + des_ifs. exfalso. unfold valid_fdef in *. des_ifs. ss.
+      clear - n Heq0.
+      compute in Heq0. des_ifs.
 Qed.
 
 Lemma transl_sim_module:

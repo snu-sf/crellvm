@@ -104,11 +104,14 @@ Inductive sim_local_lift
 Definition sim_products
            (conf_src conf_tgt:Config)
            (prod_src prod_tgt:products): Prop :=
-  (forall fid fdef_src
+  <<SIM_SOME: forall fid fdef_src
           (FDEF_SRC: lookupFdefViaIDFromProducts prod_src fid = Some fdef_src),
           exists fdef_tgt,
           <<FDEF_TGT: lookupFdefViaIDFromProducts prod_tgt fid = Some fdef_tgt>> /\
-                      <<SIM: sim_fdef conf_src conf_tgt fdef_src fdef_tgt>>)
+                      <<SIM: sim_fdef conf_src conf_tgt fdef_src fdef_tgt>> >> /\
+  <<SIM_NONE: forall fid
+          (FDEF_SRC: lookupFdefViaIDFromProducts prod_src fid = None),
+      <<FDEF_TGT: lookupFdefViaIDFromProducts prod_tgt fid = None>> >>
 .
 
 Inductive sim_conf (conf_src conf_tgt:Config): Prop :=
@@ -415,6 +418,7 @@ Next Obligation.
   expl H.
 Qed.
 
+(* fid_same *)
 Lemma lookupFdefViaPtr_inject_eq
       S TD Ps gl fs S0 TD0 Ps0 gl0 fs0 Mem1 inv_curr Mem0
       (MEM: InvMem.Rel.sem
@@ -435,6 +439,32 @@ Proof.
   apply_all_once lookupFdefViaPtr_inversion. des.
   rewrite LOOKUP0 in *. rewrite LOOKUP1 in *. clarify.
   apply_all_once lookupFdefViaIDFromProducts_ideq. clarify.
+Qed.
+
+(* call & excall mismatch *)
+Lemma lookupExFdecViaPtr_inject
+      conf_src conf_tgt Mem1 inv_curr Mem0
+      (SIM_CONF: sim_conf conf_src conf_tgt)
+      (MEM: InvMem.Rel.sem
+              conf_src conf_tgt
+              Mem0 Mem1 inv_curr)
+      fptr res0
+      (LOOKUP0: lookupExFdecViaPtr conf_src.(CurProducts) conf_src.(FunTable) fptr = ret res0)
+      fptr0 res1
+      (LOOKUP1: lookupFdefViaPtr conf_tgt.(CurProducts) conf_tgt.(FunTable) fptr0 = ret res1)
+      (INJECT : genericvalues_inject.gv_inject (InvMem.Rel.inject inv_curr) fptr fptr0)
+  :
+    False
+.
+Proof.
+  unfold lookupFdefViaPtr in *. unfold lookupExFdecViaPtr in *. unfold mbind in *. des_ifs.
+  inv MEM. clear SRC TGT INJECT0 WF. ss.
+  expl FUNTABLE.
+  rewrite Heq0 in *. rewrite Heq in *. clarify.
+  inv SIM_CONF. ss. unfold sim_products in *. des. (* destruct and inv does not respect name *)
+  (* TODO: define in inductive prop *)
+  expl SIM_NONE.
+  clarify.
 Qed.
 
 Lemma sim_local_lift_sim conf_src conf_tgt
@@ -582,7 +612,23 @@ Proof.
       apply _sim_step; ss.
       { admit. (* tgt not stuck *) }
       i. inv STEP0; ss; cycle 1.
-      { admit. (* call & excall mismatch *) }
+      { exfalso.
+        rewrite FUN_TGT in *. clarify.
+        clear - H18 H23 INJECT MEM SIM_CONF.
+        unfold lookupFdefViaPtr, lookupExFdecViaPtr in *. unfold mbind in *. des_ifs.
+        clear H23.
+
+        assert(i0 = i1).
+        { inv MEM. clear SRC TGT INJECT0 WF.
+          expl FUNTABLE. clear FUNTABLE. ss. rewrite Heq in *. rewrite Heq1 in *. clarify.
+        }
+        clarify.
+
+        inv SIM_CONF. ss.
+        unfold sim_products in *. des.
+        expl SIM_SOME. clear SIM.
+        rewrite FDEF_TGT in *. clarify.
+      }
       rewrite FUN_TGT in H22. inv H22.
       rewrite ARGS_TGT in H25. inv H25.
 
@@ -598,7 +644,7 @@ Proof.
       exploit lookupFdefViaIDFromProducts_ideq; try exact x3. i. subst.
 
       inv SIM_CONF. unfold sim_products in *. des. ss.
-      exploit SIM_PRODUCTS; eauto.
+      exploit SIM_SOME; eauto.
       i. des.
       unfold sim_fdef in SIM.
       hexploit SIM; try apply invmem_lift; eauto.
@@ -629,13 +675,18 @@ Proof.
       { admit. (* tgt not stuck *) }
       i. inv STEP0; ss.
       { exfalso. clarify. clear - SIM_CONF MEM H18 H23 INJECT. rename funval1_tgt into fptr0. clear_tac.
+        move H18 at bottom.
+        rename H18 into SRC_EXCALL.
+        rename H23 into TGT_CALL.
         unfold lookupFdefViaPtr in *. unfold lookupExFdecViaPtr in *. unfold mbind in *. des_ifs.
-        inv MEM. ss.
+        inv MEM. clear SRC TGT INJECT0 WF. ss.
         expl FUNTABLE.
-        rewrite Heq0 in *. rewrite Heq in *. clarify.
-        inv SIM_CONF. ss.
-        unfold sim_products in *. ss.
-        admit. (* call & excall mismatch *) }
+        rewrite Heq1 in *. rewrite Heq in *. clarify.
+        clear - TGT_CALL Heq0 SIM_CONF.
+        inv SIM_CONF. ss. unfold sim_products in *. des. (* destruct and inv does not respect name *)
+        (* TODO: define in inductive prop *)
+        expl SIM_NONE.
+        clarify. }
       rewrite FUN_TGT in H22. inv H22.
       rewrite ARGS_TGT in H24. inv H24.
       hexploit RETURN; try reflexivity; eauto.
