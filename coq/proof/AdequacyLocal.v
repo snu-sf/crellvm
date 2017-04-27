@@ -713,30 +713,32 @@ Proof.
       assert(event = e).
       { (* same event *) admit. } clarify.
 
-      assert(INVMEM_EXTERNAL: exists inv_after,
-                (InvMem.Rel.sem (mkCfg S TD Ps gl fs) (mkCfg S0 TD0 Ps0 gl0 fs0) mem_src mem_tgt inv_after)
-                /\ (InvMem.Rel.le (InvMem.Rel.lift Mem0 Mem1 uniqs_src uniqs_tgt privs_src privs_tgt inv_curr)
-                                  inv_after)).
-      { admit. (* AXIOM *) }
-      des.
+      (* assert(extcall_other_sem TD rt (args2Typs la) (globals2Genv TD gl) gvs Mem0 E0 oresult mem_src). *)
+      (* { destruct dck; ss; unfold add_empty_trace in *; ss; des_ifs. *)
+      (*   - eapply callIntrinsics__extcall_properties; eauto. *)
+      (*   - Fail eapply callMalloc__extcall_properties; eauto. *)
+      (*     admit. *)
+      (*   - admit. *)
+      (*   - admit. *)
+      (*   - admit. } *)
 
-      hexploit RETURN; try eassumption; eauto; swap 1 2.
-      { rewrite exCallUpdateLocals_spec in *. eauto. }
-      { s.
-        instantiate (1:= oresult0).
-        clear H26 H21.
-        destruct dck; ss.
-        - unfold add_empty_trace in *.
-          des_ifs.
-          expl callIntrinsics__extcall_properties (try exact Heq).
-          rename callIntrinsics__extcall_properties into EXTCALL_SEM_TGT.
-          expl callIntrinsics__extcall_properties (try exact Heq0).
-          rename callIntrinsics__extcall_properties into EXTCALL_SEM_SRC.
-          expl extcall_other_ok.
-          destruct extcall_other_ok.
+      rewrite exCallUpdateLocals_spec in *. ss.
+      (* Can't say oresult0 = exists oresult0 *)
+      assert(RETVALS_RELATED: exists mi_after oresult0,
+                (option_f2 (genericvalues_inject.gv_inject mi_after) oresult oresult0) /\
+                (inject_incr (InvMem.Rel.inject inv_curr) mi_after)
+                (* (inject_incr f' (InvMem.Rel.inject inv_after) *)
+            ).
+      {
+        destruct dck; ss; unfold add_empty_trace in *; ss; des_ifs.
+        - hexploit callIntrinsics__extcall_properties; try exact Heq0; eauto; []; intro EXTCALL_SEM_SRC; des.
+
+          hexploit extcall_other_ok; eauto; intro EXTCALL_OK; des.
+          destruct EXTCALL_OK.
           clear ec_well_typed ec_arity ec_symbols_preserved ec_valid_block ec_bounds ec_mem_extends.
           clear ec_trace_length ec_receptive ec_determ.
-          exploit ec_mem_inject; eauto; swap 1 3; swap 1 2.
+
+          hexploit ec_mem_inject; eauto; swap 1 3; swap 1 2.
           { instantiate (1:= Mem1).
             instantiate (1:= inv_curr.(InvMem.Rel.inject)).
             move MEM at bottom.
@@ -764,26 +766,108 @@ Proof.
           { eapply gv_inject_list_spec; eauto. }
           { admit. (* preserves_globals *) }
           i; des.
-          { clear - x0.
-            (* don't instantiate oresult0 in top *)
+          assert(oresult0 = vres').
+          {
+            hexploit callIntrinsics__extcall_properties; try exact Heq; eauto; []; intro EXTCALL_SEM_TGT; des.
+            inv EXTCALL_SEM_TGT.
+            inv H.
+            move H7 at bottom.
+            (* unfold option_f2t in *. *)
+            (* eventgv_list_match_determ_2 *)
+            admit.
+          }
+          esplits; eauto.
+        - hexploit callMalloc__extcall_properties; try exact Heq0; eauto; []; intro EXTCALL_SEM_SRC; des.
+
+
+          hexploit extcall_other_ok; eauto; intro EXTCALL_OK; des.
+          destruct EXTCALL_OK.
+          clear ec_well_typed ec_arity ec_symbols_preserved ec_valid_block ec_bounds ec_mem_extends.
+          clear ec_trace_length ec_receptive ec_determ.
+
+
+          hexploit ec_mem_inject; eauto; swap 1 3; swap 1 2.
+          { instantiate (1:= Mem1).
+            instantiate (1:= inv_curr.(InvMem.Rel.inject)).
             admit. }
-        - admit.
+          { eapply gv_inject_list_spec; eauto. }
+          { admit. (* preserves_globals *) }
+          i; des.
+          esplits; eauto.
+        - hexploit callFree__extcall_properties; try exact Heq0; eauto; []; intro EXTCALL_SEM_SRC; des.
+
+
+          hexploit extcall_other_ok; eauto; intro EXTCALL_OK; des.
+          destruct EXTCALL_OK.
+          clear ec_well_typed ec_arity ec_symbols_preserved ec_valid_block ec_bounds ec_mem_extends.
+          clear ec_trace_length ec_receptive ec_determ.
+
+
+          hexploit ec_mem_inject; eauto; swap 1 3; swap 1 2.
+          { instantiate (1:= Mem1).
+            instantiate (1:= inv_curr.(InvMem.Rel.inject)).
+            admit. }
+          { eapply gv_inject_list_spec; eauto. }
+          { admit. (* preserves_globals *) }
+          i; des.
+          esplits; eauto.
+        - hexploit callIOFunction__extcall_io_sem; try exact H20; eauto; []; intro EXTCALL_SEM_SRC; des.
+          inv EXTCALL_SEM_SRC.
+          admit. (* eventval_match // genericvalue_injet.gv_inject *)
+        - hexploit callExternalFunction__extcall_other_sem; try exact Heq0; eauto; []; intro EXTCALL_SEM_SRC; des.
+
+
+          hexploit extcall_other_ok; eauto; intro EXTCALL_OK; des.
+          destruct EXTCALL_OK.
+          clear ec_well_typed ec_arity ec_symbols_preserved ec_valid_block ec_bounds ec_mem_extends.
+          clear ec_trace_length ec_receptive ec_determ.
+
+
+          hexploit ec_mem_inject; eauto; swap 1 3; swap 1 2.
+          { instantiate (1:= Mem1).
+            instantiate (1:= inv_curr.(InvMem.Rel.inject)).
+            admit. }
+          { eapply gv_inject_list_spec; eauto. }
+          { admit. (* preserves_globals *) }
+          i; des.
+          esplits; eauto.
       }
-      i. des. inv SIM; ss. rename H into SIM.
-      rewrite <- exCallUpdateLocals_spec in *.
-      rewrite RETURN_TGT in *. clarify.
+      des.
+
+
+      assert(INVMEM_EXTERNAL: exists inv_after,
+                (InvMem.Rel.sem (mkCfg S TD Ps gl fs) (mkCfg S0 TD0 Ps0 gl0 fs0) mem_src mem_tgt inv_after)
+                /\ (InvMem.Rel.le (InvMem.Rel.lift Mem0 Mem1 uniqs_src uniqs_tgt privs_src privs_tgt inv_curr)
+                                  inv_after)
+                /\ (inv_after.(InvMem.Rel.inject) = mi_after)
+            ).
+      { admit. (* AXIOM *) }
+      des.
+      rewrite <- INVMEM_EXTERNAL1 in *. clear INVMEM_EXTERNAL1.
+
 
       inv CONF. ss. clarify.
+
+      hexploit RETURN; eauto.
+      { (* THIS DOES NOT HOLD *)
+        (* In normal call case, we only used RETURN when proving sim_local_stack, and sim_local_stack itself *)
+        (* provided this. *)
+        (* All we can get is RETVAL_RELATED, by the given Axiom, and this is the best we can do *)
+        (* We need to add more Axiom *)
+        instantiate (1:= oresult0).
+        assert(oresult1 = oresult0) by admit; clarify.
+        ginduction oresult; ii; ss; inv RETVALS_RELATED; ss.
+      }
+      i. des. inv SIM; ss.
+      rewrite RETURN_TGT in *. clarify. clear_tac.
 
 
       esplits; eauto.
       * econs 1. econs; eauto.
+        rewrite exCallUpdateLocals_spec. eauto.
       * right. apply CIH.
-        econs.
+        econs; eauto.
         { ss. }
-        all: swap 1 2.
-        { eauto. }
-        { eauto. }
         { etransitivity; eauto. }
         (* eapply sim_local_stack_cons. eauto. *)
         (*   eapply sim_local_stack_cons with (mem_src:= mem_src) (mem_tgt:= mem_tgt) *)
