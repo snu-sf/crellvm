@@ -199,8 +199,12 @@ Theorem callExternalOrIntrinsics_inject
       (<<TGT_CALL: callExternalOrIntrinsics TD Gs Mem1 fid rt (args2Typs la) dck args1
                    = ret (oresult1, e1, Mem1')>>)
       /\ (<<EV_INJECT: match_traces (globals2Genv TD Gs) e0 e1>>)
-      /\ (<<MEM: exists invmem1, InvMem.Rel.sem (mkCfg S0 TD Ps0 Gs Fs0) (mkCfg S1 TD Ps1 Gs Fs1)
-                                                Mem0 Mem1 invmem1 /\ InvMem.Rel.le invmem0 invmem1>>)
+      /\ (exists invmem1,
+             (<<MEM: InvMem.Rel.sem (mkCfg S0 TD Ps0 Gs Fs0) (mkCfg S1 TD Ps1 Gs Fs1) Mem0 Mem1 invmem1>>)
+             /\ (<<MEMLE: InvMem.Rel.le invmem0 invmem1>>)
+             /\ (<<VAL_INJECT: option_f2 (genericvalues_inject.gv_inject (InvMem.Rel.inject invmem1))
+                                 oresult0 oresult1>>))
+
 .
 Proof.
 Admitted.
@@ -449,6 +453,24 @@ Proof.
           expl lookupFdecViaIDFromProducts_ideq.
         } des; clarify.
 
+        expl callExternalOrIntrinsics_inject.
+
+        move H21 at bottom. rename H21 into SRC_LOCALS.
+        assert(exists Locals1', exCallUpdateLocals CurTargetData0 typ1_tgt noret1_tgt id1_tgt
+                                                   oresult1 Locals1 = ret Locals1').
+        { (* rewrite exCallUpdateLocals_spec in *. *)
+          destruct noret1_tgt; ss.
+          - esplits; eauto.
+          - inv VAL_INJECT.
+            + des_ifsH SRC_LOCALS.
+              exploit genericvalues_inject.simulation__fit_gv; eauto.
+              { apply MEM0. }
+              i; des.
+              rewrite x0.
+              esplits; eauto.
+            + des_ifs.
+        } des.
+
         esplits; eauto.
         eapply sExCall; eauto.
         - unfold lookupExFdecViaPtr.
@@ -457,14 +479,6 @@ Proof.
           rewrite <- FUNTABLE0. rewrite Heq.
           rewrite SIM_NONE0.
           rewrite SIM_SOME_FDEC0. ss.
-        - move H20 at bottom.
-          move INJECT0 at bottom.
-          move MEM at bottom.
-          admit. (* AXIOM *)
-        - move H21 at bottom.
-          rewrite exCallUpdateLocals_spec in *.
-          unfold return_locals in *.
-          admit. (* AXIOM *)
       }
       i. inv STEP0; ss.
       { exfalso. clarify. clear - SIM_CONF MEM H18 H23 INJECT. rename funval1_tgt into fptr0. clear_tac.
