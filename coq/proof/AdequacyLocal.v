@@ -101,17 +101,16 @@ Inductive sim_local_lift
     (LE0: InvMem.Rel.le inv0 inv)
 .
 
-Definition sim_products
-           (conf_src conf_tgt:Config)
-           (prod_src prod_tgt:products): Prop :=
-  <<SIM_SOME: forall fid fdef_src
-          (FDEF_SRC: lookupFdefViaIDFromProducts prod_src fid = Some fdef_src),
-          exists fdef_tgt,
+Inductive sim_products (conf_src conf_tgt:Config) (prod_src prod_tgt:products): Prop :=
+| sim_products_intro
+    (SIM_SOME: forall fid fdef_src
+                      (FDEF_SRC: lookupFdefViaIDFromProducts prod_src fid = Some fdef_src),
+        exists fdef_tgt,
           <<FDEF_TGT: lookupFdefViaIDFromProducts prod_tgt fid = Some fdef_tgt>> /\
-                      <<SIM: sim_fdef conf_src conf_tgt fdef_src fdef_tgt>> >> /\
-  <<SIM_NONE: forall fid
-          (FDEF_SRC: lookupFdefViaIDFromProducts prod_src fid = None),
-      <<FDEF_TGT: lookupFdefViaIDFromProducts prod_tgt fid = None>> >>
+                      <<SIM: sim_fdef conf_src conf_tgt fdef_src fdef_tgt>>)
+    (SIM_NONE: forall fid
+                      (FDEF_SRC: lookupFdefViaIDFromProducts prod_src fid = None),
+        <<FDEF_TGT: lookupFdefViaIDFromProducts prod_tgt fid = None>>)
 .
 
 Inductive sim_conf (conf_src conf_tgt:Config): Prop :=
@@ -461,8 +460,7 @@ Proof.
   inv MEM. clear SRC TGT INJECT0 WF. ss.
   expl FUNTABLE.
   rewrite Heq0 in *. rewrite Heq in *. clarify.
-  inv SIM_CONF. ss. unfold sim_products in *. des. (* destruct and inv does not respect name *)
-  (* TODO: define in inductive prop *)
+  inv SIM_CONF. inv SIM_PRODUCTS.
   expl SIM_NONE.
   clarify.
 Qed.
@@ -628,7 +626,7 @@ Proof.
         inv SIM_CONF. ss.
         destruct conf_tgt; ss.
         unfold lookupFdefViaPtr in *. unfold mbind in *. des_ifs.
-        unfold sim_products in *; ss; des.
+        inv SIM_PRODUCTS.
         expl SIM_SOME. ss.
         destruct fdef_tgt; ss. destruct fheader5; ss.
         exploit SIM; eauto.
@@ -657,8 +655,7 @@ Proof.
         }
         clarify.
 
-        inv SIM_CONF. ss.
-        unfold sim_products in *. des.
+        inv SIM_CONF. ss. inv SIM_PRODUCTS.
         expl SIM_SOME. clear SIM.
         rewrite FDEF_TGT in *. clarify.
       }
@@ -676,7 +673,7 @@ Proof.
       exploit lookupFdefViaPtr_inversion; try exact H23. i. des.
       exploit lookupFdefViaIDFromProducts_ideq; try exact x3. i. subst.
 
-      inv SIM_CONF. unfold sim_products in *. des. ss.
+      inv SIM_CONF. inv SIM_PRODUCTS.
       exploit SIM_SOME; eauto.
       i. des.
       unfold sim_fdef in SIM.
@@ -710,7 +707,7 @@ Proof.
         inv SIM_CONF. ss.
         destruct conf_tgt; ss.
         unfold lookupExFdecViaPtr in *. unfold mbind in *. des_ifs.
-        unfold sim_products in *; ss; des.
+        inv SIM_PRODUCTS.
         expl SIM_NONE.
         (* destruct fdef_tgt; ss. destruct fheader5; ss. *)
         (* exploit SIM; eauto. *)
@@ -742,8 +739,7 @@ Proof.
         expl FUNTABLE.
         rewrite Heq1 in *. rewrite Heq in *. clarify.
         clear - TGT_CALL Heq0 SIM_CONF.
-        inv SIM_CONF. ss. unfold sim_products in *. des. (* destruct and inv does not respect name *)
-        (* TODO: define in inductive prop *)
+        inv SIM_CONF. ss. inv SIM_PRODUCTS.
         expl SIM_NONE.
         clarify. }
       rewrite FUN_TGT in H22. inv H22.
