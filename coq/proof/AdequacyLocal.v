@@ -623,7 +623,27 @@ Proof.
       exploit FUN; eauto. i. des.
       exploit ARGS; eauto. i. des.
       apply _sim_step; ss.
-      { admit. (* tgt not stuck *) }
+      { ii. apply H. clear H.
+        inv CONF; ss; clarify.
+        inv SIM_CONF. ss.
+        destruct conf_tgt; ss.
+        unfold lookupFdefViaPtr in *. unfold mbind in *. des_ifs.
+        unfold sim_products in *; ss; des.
+        expl SIM_SOME. ss.
+        destruct fdef_tgt; ss. destruct fheader5; ss.
+        exploit SIM; eauto.
+        { econs; eauto. ss. }
+        intro SIM_TGT; des. clear SIM_TGT0.
+        inv SIM_TGT. ss. des_ifs.
+        esplits; eauto.
+        eapply sCall; eauto.
+        - unfold lookupFdefViaPtr.
+          unfold mbind.
+          inv MEM. ss. unfold ftable_simulation in FUNTABLE. expl FUNTABLE.
+          rewrite <- FUNTABLE0. rewrite Heq.
+          rewrite FDEF_TGT. ss.
+        - unfold getEntryBlock in *. ss.
+      }
       i. inv STEP0; ss; cycle 1.
       { exfalso.
         rewrite FUN_TGT in *. clarify.
@@ -685,7 +705,33 @@ Proof.
       exploit FUN; eauto. i. des.
       exploit ARGS; eauto. i. des.
       apply _sim_step; ss.
-      { admit. (* tgt not stuck *) }
+      { ii. apply H. clear H.
+        inv CONF; ss; clarify.
+        inv SIM_CONF. ss.
+        destruct conf_tgt; ss.
+        unfold lookupExFdecViaPtr in *. unfold mbind in *. des_ifs.
+        unfold sim_products in *; ss; des.
+        expl SIM_NONE.
+        (* destruct fdef_tgt; ss. destruct fheader5; ss. *)
+        (* exploit SIM; eauto. *)
+        (* { econs; eauto. ss. } *)
+        (* intro SIM_TGT; des. clear SIM_TGT0. *)
+        (* inv SIM_TGT. ss. des_ifs. *)
+        esplits; eauto.
+        eapply sExCall; eauto.
+        - unfold lookupExFdecViaPtr.
+          unfold mbind.
+          inv MEM. ss. unfold ftable_simulation in FUNTABLE. expl FUNTABLE.
+          rewrite <- FUNTABLE0. rewrite Heq.
+          rewrite SIM_NONE0.
+          admit.
+        - move H20 at bottom.
+          admit.
+        - move H21 at bottom.
+          rewrite exCallUpdateLocals_spec in *.
+          unfold return_locals in *.
+          admit.
+      }
       i. inv STEP0; ss.
       { exfalso. clarify. clear - SIM_CONF MEM H18 H23 INJECT. rename funval1_tgt into fptr0. clear_tac.
         move H18 at bottom.
