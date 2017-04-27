@@ -351,10 +351,13 @@ Module Invariant.
     List.fold_right
       (fun id inv =>
         match lookupTypViaGIDFromProducts ps id with
-        | Some ty =>
-            ExprPairSet.add (Expr.value (ValueT.const (const_undef ty)),
+        | Some (typ_pointer ty) =>
+            ExprPairSet.add (Expr.value (ValueT.const (const_undef (typ_pointer ty))),
                              Expr.value (ValueT.const (const_gid ty id))) inv
-        | None => inv
+        | Some (typ_function ty _ _) =>
+            ExprPairSet.add (Expr.value (ValueT.const (const_undef (typ_pointer ty))),
+                             Expr.value (ValueT.const (const_gid ty id))) inv
+        | _ => inv
         end
       )
       ExprPairSet.empty gvarIDs
@@ -363,7 +366,7 @@ Module Invariant.
     let argsIDs := getArgsIDs la in
     List.fold_right
       (fun id inv =>
-(*        let ty := lookupTypViaIDFromArgs la id in *)
+        let ty := lookupTypViaIDFromArgs la id in
         match lookupTypViaIDFromArgs la id with
         | Some ty =>
             ExprPairSet.add (Expr.value (ValueT.const (const_undef ty)),
@@ -470,7 +473,9 @@ Module Infrule.
   | inttoptr_load (ptr:ValueT.t) (intty:typ) (v1:ValueT.t) (ptrty:typ) (v2:ValueT.t) (a:align)
   | lessthan_undef (ty:typ) (v:ValueT.t)
   | lessthan_undef_tgt (ty:typ) (v:ValueT.t)
+  | lessthan_undef_const (c:const)
   | lessthan_undef_const_tgt (c:const)
+  | lessthan_undef_const_gep_or_cast (ty:typ) (ce:const)
   | mul_bool (z:IdT.t) (x:IdT.t) (y:IdT.t)
   | mul_mone (z:IdT.t) (x:ValueT.t) (sz:sz)
   | mul_neg (z:IdT.t) (mx:ValueT.t) (my:ValueT.t) (x:ValueT.t) (y:ValueT.t) (s:sz)  
