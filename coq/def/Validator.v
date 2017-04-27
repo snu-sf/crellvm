@@ -250,14 +250,7 @@ Definition valid_entry_stmts (src tgt:stmts) (hint:ValidationHint.stmts)
   then failwith_false "valid_entry_stmts: phinode of target not empty" nil
   else
   if negb (Invariant.implies (Invariant.function_entry_inv la_src la_tgt products_src products_tgt) hint.(ValidationHint.invariant_after_phinodes))
-  then failwith_false "valid_entry_stmts: implies fail" nil
-(*
-  if negb (Invariant.is_empty_unary hint.(ValidationHint.invariant_after_phinodes).(Invariant.src))
-  then failwith_false "valid_entry_stmts: invariant_after_phinodes of source not empty" nil
-  else
-  if negb (Invariant.is_empty_unary hint.(ValidationHint.invariant_after_phinodes).(Invariant.tgt))
-  then failwith_false "valid_entry_stmts: invariant_after_phinodes of target not empty" nil
-*)
+  then failwith_false "valid_entry_stmts: implies fail at function entry" nil
   else true
   .
 
