@@ -117,6 +117,63 @@ Ltac all TAC :=
 
 Ltac apply_all x := all (ltac:(apply_in) x).
 
+Lemma list_disjoint_cons_inv
+      X (hd: X) tl xs
+      (DISJOINT: list_disjoint (hd :: tl) xs)
+  :
+    <<DISJOINT: list_disjoint [hd] xs /\ list_disjoint tl xs>>
+.
+Proof.
+  splits.
+  - ii. clarify. ss. des; ss. clarify. expl DISJOINT. left. ss.
+  - eapply list_disjoint_cons_left; eauto.
+Qed.
+
+Lemma f_equal6 (A1 A2 A3 A4 A5 A6 B: Type) (f: A1 -> A2 -> A3 -> A4 -> A5 -> A6 -> B)
+      (x1 y1: A1) (EQ1: x1 = y1)
+      (x2 y2: A2) (EQ2: x2 = y2)
+      (x3 y3: A3) (EQ3: x3 = y3)
+      (x4 y4: A4) (EQ4: x4 = y4)
+      (x5 y5: A5) (EQ5: x5 = y5)
+      (x6 y6: A6) (EQ6: x6 = y6)
+  :
+    <<EQ: f x1 x2 x3 x4 x5 x6 = f y1 y2 y3 y4 y5 y6>>
+.
+Proof. subst. reflexivity. Qed.
+
+Lemma f_equal7 (A1 A2 A3 A4 A5 A6 A7 B: Type) (f: A1 -> A2 -> A3 -> A4 -> A5 -> A6 -> A7 -> B)
+      (x1 y1: A1) (EQ1: x1 = y1)
+      (x2 y2: A2) (EQ2: x2 = y2)
+      (x3 y3: A3) (EQ3: x3 = y3)
+      (x4 y4: A4) (EQ4: x4 = y4)
+      (x5 y5: A5) (EQ5: x5 = y5)
+      (x6 y6: A6) (EQ6: x6 = y6)
+      (x7 y7: A7) (EQ7: x7 = y7)
+  :
+    <<EQ: f x1 x2 x3 x4 x5 x6 x7 = f y1 y2 y3 y4 y5 y6 y7>>
+.
+Proof. subst. reflexivity. Qed.
+
+Lemma f_equal8 (A1 A2 A3 A4 A5 A6 A7 A8 B: Type) (f: A1 -> A2 -> A3 -> A4 -> A5 -> A6 -> A7 -> A8 -> B)
+      (x1 y1: A1) (EQ1: x1 = y1)
+      (x2 y2: A2) (EQ2: x2 = y2)
+      (x3 y3: A3) (EQ3: x3 = y3)
+      (x4 y4: A4) (EQ4: x4 = y4)
+      (x5 y5: A5) (EQ5: x5 = y5)
+      (x6 y6: A6) (EQ6: x6 = y6)
+      (x7 y7: A7) (EQ7: x7 = y7)
+      (x8 y8: A8) (EQ8: x8 = y8)
+  :
+    <<EQ: f x1 x2 x3 x4 x5 x6 x7 x8 = f y1 y2 y3 y4 y5 y6 y7 y8>>
+.
+Proof. subst. reflexivity. Qed.
+
+Ltac rpapply H :=
+  first[erewrite f_equal8 | erewrite f_equal7 | erewrite f_equal6 | erewrite f_equal5 |
+        erewrite f_equal4 | erewrite f_equal3 | erewrite f_equal2 | erewrite f_equal];
+  [exact H|..]; try reflexivity.
+
+
 (* Motivation: I want to distinguish excused ad-mits from normal ad-mits, *)
 (* and further, I do not want to "grep" excused ones, so I give them different name. *)
 (* @jeehoonkang adviced me to use semantic ad-mit instead of just comment. *)
