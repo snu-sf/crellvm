@@ -467,6 +467,19 @@ Proof.
   clarify.
 Qed.
 
+Lemma gv_inject_list_spec
+      mi gvs gvs0
+      (INJECT: list_forall2 (genericvalues_inject.gv_inject mi) gvs gvs0)
+  :
+  <<INJECT: genericvalues_inject.gv_list_inject mi gvs gvs0>>
+.
+Proof.
+  ginduction gvs; ii; ss; inv INJECT.
+  - econs; eauto.
+  - econs; eauto.
+    expl IHgvs.
+Qed.
+
 Lemma sim_local_lift_sim conf_src conf_tgt
       (SIM_CONF: sim_conf conf_src conf_tgt):
   (sim_local_lift conf_src conf_tgt) <3= (sim conf_src conf_tgt).
@@ -723,8 +736,7 @@ Proof.
           destruct extcall_other_ok.
           clear ec_well_typed ec_arity ec_symbols_preserved ec_valid_block ec_bounds ec_mem_extends.
           clear ec_trace_length ec_receptive ec_determ.
-          exploit ec_mem_inject; eauto.
-          { admit. (* preserves_globals *) }
+          exploit ec_mem_inject; eauto; swap 1 3; swap 1 2.
           { instantiate (1:= Mem1).
             instantiate (1:= inv_curr.(InvMem.Rel.inject)).
             move MEM at bottom.
@@ -749,7 +761,8 @@ Proof.
             - admit.
             - admit.
           }
-          { instantiate (1:= gvs0). admit. }
+          { eapply gv_inject_list_spec; eauto. }
+          { admit. (* preserves_globals *) }
           i; des.
           { clear - x0.
             (* don't instantiate oresult0 in top *)
