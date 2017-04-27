@@ -187,7 +187,6 @@ Proof.
       rename prods_src into src_tl.
       rename l' into tgt_tl.
       expl IHprods_src.
-      rewrite FDEC_TGT.
       destruct (lookupFdecViaIDFromProduct tgt_hd fid) eqn:T.
       * destruct f; ss.
         unfold lookupFdecViaIDFromProduct in *; des_ifs; inv TRANSL_PRODUCT.

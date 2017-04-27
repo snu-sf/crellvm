@@ -111,11 +111,11 @@ Inductive sim_products (conf_src conf_tgt:Config) (prod_src prod_tgt:products): 
     (SIM_NONE: forall fid
                       (FDEF_SRC: lookupFdefViaIDFromProducts prod_src fid = None),
         <<FDEF_TGT: lookupFdefViaIDFromProducts prod_tgt fid = None>>)
-    (SIM_SOME_FDEC: forall fid header_src deck
+    (SIM_SOME_FDEC: forall fid header deck
                       (FDEC_SRC: lookupFdecViaIDFromProducts prod_src fid
-                                 = Some (fdec_intro header_src deck)),
-        exists header_tgt,
-          <<FDEC_TGT: lookupFdecViaIDFromProducts prod_tgt fid = Some (fdec_intro header_tgt deck)>>)
+                                 = Some (fdec_intro header deck)),
+        (* exists header_tgt, *)
+          <<FDEC_TGT: lookupFdecViaIDFromProducts prod_tgt fid = Some (fdec_intro header deck)>>)
 .
 
 Inductive sim_conf (conf_src conf_tgt:Config): Prop :=
@@ -183,6 +183,27 @@ Proof.
   - econs; eauto.
     expl IHgvs.
 Qed.
+
+(* TODO: Move to more proper place *)
+Theorem callExternalOrIntrinsics_inject
+  TD Gs
+  S0 S1 Ps0 Ps1 Fs0 Fs1
+  Mem0 fid rt la dck oresult0 e0 Mem0' args0 args1
+  invmem0 Mem1
+  (SRC_CALL: callExternalOrIntrinsics TD Gs Mem0 fid rt (args2Typs la) dck args0
+             = ret (oresult0, e0, Mem0'))
+  (ARGS_INJECT: list_forall2 (genericvalues_inject.gv_inject (InvMem.Rel.inject invmem0)) args0 args1)
+  (MEM: InvMem.Rel.sem (mkCfg S0 TD Ps0 Gs Fs0) (mkCfg S1 TD Ps1 Gs Fs1) Mem0 Mem1 invmem0)
+  :
+    exists oresult1 e1 Mem1',
+      (<<TGT_CALL: callExternalOrIntrinsics TD Gs Mem1 fid rt (args2Typs la) dck args1
+                   = ret (oresult1, e1, Mem1')>>)
+      /\ (<<EV_INJECT: match_traces (globals2Genv TD Gs) e0 e1>>)
+      /\ (<<MEM: exists invmem1, InvMem.Rel.sem (mkCfg S0 TD Ps0 Gs Fs0) (mkCfg S1 TD Ps1 Gs Fs1)
+                                                Mem0 Mem1 invmem1 /\ InvMem.Rel.le invmem0 invmem1>>)
+.
+Proof.
+Admitted.
 
 Lemma sim_local_lift_sim conf_src conf_tgt
       (SIM_CONF: sim_conf conf_src conf_tgt):
@@ -415,12 +436,19 @@ Proof.
         unfold lookupExFdecViaPtr in *. unfold mbind in *. des_ifs.
         inv SIM_PRODUCTS.
         expl SIM_NONE.
-        expl SIM_SOME_FDEC. destruct header_tgt; ss.
+        expl SIM_SOME_FDEC.
         (* destruct fdef_tgt; ss. destruct fheader5; ss. *)
         (* exploit SIM; eauto. *)
         (* { econs; eauto. ss. } *)
         (* intro SIM_TGT; des. clear SIM_TGT0. *)
         (* inv SIM_TGT. ss. des_ifs. *)
+
+        rename H18 into FDEC_SRC. move FDEC_SRC at bottom.
+        assert(i0= fid).
+        {
+          expl lookupFdecViaIDFromProducts_ideq.
+        } des; clarify.
+
         esplits; eauto.
         eapply sExCall; eauto.
         - unfold lookupExFdecViaPtr.
@@ -428,8 +456,10 @@ Proof.
           inv MEM. ss. unfold ftable_simulation in FUNTABLE. expl FUNTABLE.
           rewrite <- FUNTABLE0. rewrite Heq.
           rewrite SIM_NONE0.
-          rewrite FDEC_TGT. ss.
+          rewrite SIM_SOME_FDEC0. ss.
         - move H20 at bottom.
+          move INJECT0 at bottom.
+          move MEM at bottom.
           admit. (* AXIOM *)
         - move H21 at bottom.
           rewrite exCallUpdateLocals_spec in *.
