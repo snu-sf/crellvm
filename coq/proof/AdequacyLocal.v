@@ -472,8 +472,8 @@ Lemma sim_local_lift_sim conf_src conf_tgt
   (sim_local_lift conf_src conf_tgt) <3= (sim conf_src conf_tgt).
 Proof.
   s. pcofix CIH.
-  intros idx st_src st_tgt SIM. inv SIM.
-  pfold. rename inv into inv_curr. rename inv0 into inv_stack.
+  intros idx st_src st_tgt SIM. pfold.
+  inv SIM. rename inv into inv_curr. rename inv0 into inv_stack.
   punfold LOCAL. inv LOCAL.
   - (* error *)
     econs 1; eauto.
@@ -689,14 +689,27 @@ Proof.
         clarify. }
       rewrite FUN_TGT in H22. inv H22.
       rewrite ARGS_TGT in H24. inv H24.
-      hexploit RETURN; try reflexivity; eauto; swap 2 3.
-      { clear CIH RETURN ARGS FUN ERROR_SRC STEP STACK SIM_CONF.
-        inv CONF. ss. subst.
-        econs; eauto; eapply invmem_lift; eauto. }
+
+      rename Mem' into mem_src.
+      rename Mem'0 into mem_tgt.
+
+
+      assert(dck0 = dck).
+      { admit. (* same kind *) } clarify.
+
+      assert(event = e).
+      { (* same event *) admit. } clarify.
+
+      assert(INVMEM_EXTERNAL: exists inv_after,
+                (InvMem.Rel.sem (mkCfg S TD Ps gl fs) (mkCfg S0 TD0 Ps0 gl0 fs0) mem_src mem_tgt inv_after)
+                /\ (InvMem.Rel.le (InvMem.Rel.lift Mem0 Mem1 uniqs_src uniqs_tgt privs_src privs_tgt inv_curr)
+                                  inv_after)).
+      { admit. (* AXIOM *) }
+      des.
+
+      hexploit RETURN; try eassumption; eauto; swap 1 2.
       { rewrite exCallUpdateLocals_spec in *. eauto. }
       { s.
-        assert(dck0 = dck).
-        { admit. (* same kind *) } clarify.
         instantiate (1:= oresult0).
         clear H26 H21.
         destruct dck; ss.
@@ -743,11 +756,39 @@ Proof.
             admit. }
         - admit.
       }
-      i. des. inv SIM; ss.
+      i. des. inv SIM; ss. rename H into SIM.
+      rewrite <- exCallUpdateLocals_spec in *.
+      rewrite RETURN_TGT in *. clarify.
+
+      inv CONF. ss. clarify.
+
+
       esplits; eauto.
       * econs 1. econs; eauto.
-        admit. (* callExternalOrIntrinsics *)
-      * admit. (* sim *)
+      * right. apply CIH.
+        econs.
+        { ss. }
+        all: swap 1 2.
+        { eauto. }
+        { eauto. }
+        { etransitivity; eauto. }
+        (* eapply sim_local_stack_cons. eauto. *)
+        (*   eapply sim_local_stack_cons with (mem_src:= mem_src) (mem_tgt:= mem_tgt) *)
+        (*                                    (uniqs_src:= uniqs_src) (uniqs_tgt:= uniqs_tgt) *)
+        (*                                    (privs_src:= privs_src) (privs_tgt:= privs_tgt); eauto. *)
+        (*   { s. admit. (* extcall preserves uniq *) } *)
+        (*   { s. admit. (* extcall preserves uniq *) } *)
+        (*   { s. admit. (* extcall preserves uniq *) } *)
+        (*   { s. admit. (* extcall preserves uniq *) } *)
+        (*   i. ss. *)
+        (*   hexploit RETURN; eauto. *)
+        (*   { ss. etransitivity; eauto. admit. } *)
+        (*   i; des. inv SIM; ss. *)
+        (*   esplits; eauto. *)
+        (* } *)
+        (* econs; try apply SIM; ss; eauto. *)
+        (* punfold H. econs; eauto. *)
+        (* admit. (* sim *) *)
   - (* step *)
     econs 3; ss. i. exploit STEP; eauto. i. des.
     inv SIM; [|done].
