@@ -111,6 +111,11 @@ Inductive sim_products (conf_src conf_tgt:Config) (prod_src prod_tgt:products): 
     (SIM_NONE: forall fid
                       (FDEF_SRC: lookupFdefViaIDFromProducts prod_src fid = None),
         <<FDEF_TGT: lookupFdefViaIDFromProducts prod_tgt fid = None>>)
+    (SIM_SOME_FDEC: forall fid header_src deck
+                      (FDEC_SRC: lookupFdecViaIDFromProducts prod_src fid
+                                 = Some (fdec_intro header_src deck)),
+        exists header_tgt,
+          <<FDEC_TGT: lookupFdecViaIDFromProducts prod_tgt fid = Some (fdec_intro header_tgt deck)>>)
 .
 
 Inductive sim_conf (conf_src conf_tgt:Config): Prop :=
@@ -410,6 +415,7 @@ Proof.
         unfold lookupExFdecViaPtr in *. unfold mbind in *. des_ifs.
         inv SIM_PRODUCTS.
         expl SIM_NONE.
+        expl SIM_SOME_FDEC. destruct header_tgt; ss.
         (* destruct fdef_tgt; ss. destruct fheader5; ss. *)
         (* exploit SIM; eauto. *)
         (* { econs; eauto. ss. } *)
@@ -422,13 +428,13 @@ Proof.
           inv MEM. ss. unfold ftable_simulation in FUNTABLE. expl FUNTABLE.
           rewrite <- FUNTABLE0. rewrite Heq.
           rewrite SIM_NONE0.
-          admit.
+          rewrite FDEC_TGT. ss.
         - move H20 at bottom.
-          admit.
+          admit. (* AXIOM *)
         - move H21 at bottom.
           rewrite exCallUpdateLocals_spec in *.
           unfold return_locals in *.
-          admit.
+          admit. (* AXIOM *)
       }
       i. inv STEP0; ss.
       { exfalso. clarify. clear - SIM_CONF MEM H18 H23 INJECT. rename funval1_tgt into fptr0. clear_tac.
@@ -450,11 +456,20 @@ Proof.
       rename Mem'0 into mem_tgt.
 
 
+      rename H18 into FDEC_SRC. rename H23 into FDEC_TGT.
       assert(dck0 = dck).
-      { admit. (* same kind *) } clarify.
+      { inv SIM_CONF. inv SIM_PRODUCTS. ss.
+        unfold lookupExFdecViaPtr in *. unfold mbind in *. des_ifs. ss.
+        expl SIM_SOME_FDEC.
+        assert(i0 = i1).
+        {
+          inv MEM. ss.
+          expl FUNTABLE. rewrite FUNTABLE0 in *. clarify.
+        } clarify.
+      } clarify.
 
       assert(event = e).
-      { (* same event *) admit. } clarify.
+      { (* AXIOM same event *) admit. } clarify.
 
       (* assert(extcall_other_sem TD rt (args2Typs la) (globals2Genv TD gl) gvs Mem0 E0 oresult mem_src). *)
       (* { destruct dck; ss; unfold add_empty_trace in *; ss; des_ifs. *)
