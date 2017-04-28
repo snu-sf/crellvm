@@ -34,8 +34,26 @@ Require Import SoundPostcondCall.
 Require Import SoundPostcondPhinodes.
 Require Import SoundInfrules.
 Require Import SoundReduceMaydiff.
+Require Import opsem_wf.
 
 Set Implicit Arguments.
+
+(* TODO: Move to definition point. Why error_state is defined in GenericValues? *)
+Lemma error_state_neg conf st
+      (NERROR_SRC: ~error_state conf st)
+  :
+    <<NERROR_SRC: ~(stuck_state conf st) \/ exists gv, s_isFinialState conf st = Some gv>>
+.
+Proof.
+  red. unfold not in NERROR_SRC.
+  apply imply_to_or.
+  i.
+  destruct (s_isFinialState conf st) eqn:T.
+  { esplits; eauto. }
+  exploit NERROR_SRC; eauto.
+  { econs; eauto. }
+  i; ss.
+Qed.
 
 Inductive valid_state_sim
           (conf_src conf_tgt:Config)
@@ -221,7 +239,19 @@ Proof.
     { rewrite InvState.Unary.sem_valueT_physical. eauto. }
     rewrite InvState.Unary.sem_valueT_physical. s. i. des.
     eapply _sim_local_step.
-    { exact (SF_ADMIT "tgt not stuck").
+    {
+      exploit OpsemPP.progress; eauto.
+      { admit. }
+      { admit. }
+      intro PROGRESS.
+      des; ss; cycle 1.
+      - ii. apply H. clear H.
+        esplits; eauto.
+      - unfold OpsemPP.undefined_state in *.
+        des_ifs; des; ss.
+        (* des_ifs_safe. des; ss. *)
+      - ss.
+
       (* clear STATE MEM CIH. *)
 
       (* unfold not. ii. unfold stuck_state in H. apply H. clear H. *)
@@ -381,7 +411,19 @@ Proof.
   + (* br_uncond *)
     exploit nerror_nfinal_nstuck; eauto. i. des. inv x0. simtac.
     eapply _sim_local_step.
-    { exact (SF_ADMIT "tgt not stuck"). }
+    {
+      exploit OpsemPP.progress; eauto.
+      { admit. }
+      { admit. }
+      intro PROGRESS.
+      des; ss; cycle 1.
+      - ii. apply H. clear H.
+        esplits; eauto.
+      - unfold OpsemPP.undefined_state in *.
+        des_ifs; des; ss.
+      (* des_ifs_safe. des; ss. *)
+      - ss.
+    }
     i. inv STEP. unfold valid_phinodes in *.
     rewrite add_terminator_cond_br_uncond in *.
     rewrite lookupBlockViaLabelFromFdef_spec in *.
@@ -411,7 +453,19 @@ Proof.
     rewrite InvState.Unary.sem_valueT_physical. s. i. des.
     exploit get_switch_branch_inject; eauto. i.
     eapply _sim_local_step.
-    { exact (SF_ADMIT "tgt not stuck"). }
+    {
+      exploit OpsemPP.progress; eauto.
+      { admit. }
+      { admit. }
+      intro PROGRESS.
+      des; ss; cycle 1.
+      - ii. apply H. clear H.
+        esplits; eauto.
+      - unfold OpsemPP.undefined_state in *.
+        des_ifs; des; ss.
+      (* des_ifs_safe. des; ss. *)
+      - ss.
+    }
     i. inv STEP.
     assert (CONF_EQ: TD0 = TD /\ gl0 = gl).
     { inv CONF.
@@ -478,6 +532,36 @@ Proof.
 (* apply 0%nat. *)
 (* Qed. *)
 Admitted.
+
+(* TODO: move to postcond.v *)
+Lemma postcond_cmd_implies_inject_event
+      c0 c1 inv t
+      (POSTCOND: Postcond.postcond_cmd c0 c1 inv = Some t)
+  :
+    <<INJECT_EVENT: Postcond.postcond_cmd_inject_event
+                      c0 c1
+                      (if Instruction.isCallInst c0
+                       then
+                         Postcond.ForgetStackCall.t (AtomSetImpl_from_list (Postcond.Cmd.get_def c0))
+                                                    (AtomSetImpl_from_list (Postcond.Cmd.get_def c1))
+                                                    (Postcond.ForgetMemoryCall.t inv)
+                       else
+                         Postcond.ForgetStack.t
+                           (AtomSetImpl_from_list (Postcond.Cmd.get_def c0))
+                           (AtomSetImpl_from_list (Postcond.Cmd.get_def c1))
+                           (AtomSetImpl_from_list (Postcond.Cmd.get_leaked_ids c0))
+                           (AtomSetImpl_from_list (Postcond.Cmd.get_leaked_ids c1))
+                           (Postcond.ForgetMemory.t (Postcond.Cmd.get_def_memory c0)
+                                                    (Postcond.Cmd.get_def_memory c1)
+                                                    (Postcond.Cmd.get_leaked_ids_to_memory c0)
+                                                    (Postcond.Cmd.get_leaked_ids_to_memory c1) inv))
+                    = true>>
+.
+Proof.
+  unfold Postcond.postcond_cmd in *.
+  unfold Postcond.postcond_cmd_check in *.
+  des_ifs; ss; des_bool; ss.
+Qed.
 
 Lemma valid_sim
       conf_src conf_tgt:
@@ -593,7 +677,89 @@ Proof.
         etransitivity; eauto.
     + (* non-call *)
       eapply _sim_local_step.
-      { exact (SF_ADMIT "tgt not stuck"). }
+      {
+        exploit OpsemPP.progress; eauto.
+        { admit. }
+        { admit. }
+        intro PROGRESS.
+        des; ss; cycle 1.
+        - ii. apply H. clear H.
+          esplits; eauto.
+        - move ERROR_SRC at bottom.
+          apply error_state_neg in ERROR_SRC. des; ss. apply NNPP in ERROR_SRC. des.
+          rename ERROR_SRC into SRC_STEP.
+          rename COND0 into POSTCOND.
+          move POSTCOND at bottom.
+          (* inv SRC_STEP. destruct c0; ss. admit. *)
+          (* exfalso. clear - COND0. unfold Postcond.postcond_cmd in COND0. des_ifs. *)
+          (* cbn in COND0. *)
+          destruct conf_src; ss.
+          inv CONF. inv INJECT. ss. clarify.
+          unfold OpsemPP.undefined_state in *.
+          des_ifs_safe. des; ss; des_ifs_safe; ss.
+          + des_ifs; ss.
+          + exfalso.
+            rename inv0 into invmem.
+            rename inv into inv0.
+            exploit postcond_cmd_implies_inject_event; eauto; []; intro POSTCOND_INJ; des.
+            destruct c; des_ifs. ss. des_bool; des. des_sumbool. clarify.
+            inv SRC_STEP.
+            assert(INJECT : genericvalues_inject.gv_inject (InvMem.Rel.inject invmem) mptr0 g).
+            {
+              eapply InvState.Subset.inject_value_Subset in POSTCOND_INJ0; cycle 1.
+              { instantiate (1:= inv0).
+                etransitivity; eauto.
+                { eapply SoundForgetStack.forget_stack_Subset; eauto. }
+                etransitivity; eauto.
+                { eapply SoundForgetMemory.forget_memory_Subset; eauto. }
+                reflexivity.
+              }
+              exploit InvState.Rel.inject_value_spec; try exact POSTCOND_INJ0; eauto.
+              { ss. }
+              { rewrite InvState.Unary.sem_valueT_physical. ss. rewrite <- H17. ss. }
+              i; des.
+              rewrite InvState.Unary.sem_valueT_physical in *. ss. rewrite Heq in *. clarify.
+            }
+            admit. (* free inject. easy *)
+          + admit.
+          + admit.
+          +
+            exfalso.
+            assert(SIM_PRODUCTS: AdequacyLocal.sim_products
+                                   (mkCfg CurSystem0 CurTargetData0 CurProducts0 Globals0 FunTable0)
+                                   (mkCfg CurSystem1 CurTargetData0 CurProducts1 Globals0 FunTable1)
+                                   CurProducts0 CurProducts1).
+            { admit. }
+            inv SIM_PRODUCTS.
+            move PROGRESS at bottom.
+            rename Heq0 into LOOKUP_TGT.
+            move LOOKUP_TGT at bottom.
+            (* exploit AdequacyLocal.lookupExFdecViaPtr_inject; eauto. *)
+            unfold lookupExFdecViaPtr, lookupFdefViaPtr in *. unfold monad.mbind in *. ss.
+            des_ifs.
+            admit.
+            admit.
+            admit.
+            admit.
+            (* des_ifsH LOOKUP_TGT. *)
+            (* * rewrite LOOKUP_TGT in *. *)
+            (*   { *)
+            (*     destruct(lookupFdecViaIDFromProducts CurProducts1 i0) eqn:LOOKUP_FDEC; cycle 1. *)
+            (*     { admit. (* both are None, src stuck *) } *)
+            (*     destruct f; ss. *)
+            (*     destruct fheader5; ss. *)
+            (*     destruct (params2GVs CurTargetData0 params5 Locals1 Globals0) eqn: PARAMS_TGT; cycle 1. *)
+            (*     { admit. (* Fdef none. Fdec is some, but params none *) } *)
+            (*     destruct (external_intrinsics.callExternalOrIntrinsics *)
+            (*                 CurTargetData0 Globals0 Mem1 id0 typ0 *)
+            (*                 (args2Typs args5) deckind5 l2) eqn:EXT; cycle 1. *)
+            (*     { admit. (* extcall *) } *)
+            (*     des_ifs. *)
+            (*     admit. (* locals *) *)
+            (*   } *)
+            (* * *)
+        - ss.
+      }
       i.
       exploit postcond_cmd_is_call; eauto. i. rewrite CALL in x0.
       exploit sInsn_non_call; eauto; try congruence. i. des. subst. ss.
