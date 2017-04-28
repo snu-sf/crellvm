@@ -454,7 +454,6 @@ Proof.
       exploit ARGS; eauto. i. des.
       inv CONF; ss; clarify.
       destruct conf_tgt; ss.
-      (* expl callExternalOrIntrinsics_inject (try apply invmem_lift; eauto). *)
       exploit callExternalOrIntrinsics_inject; try apply invmem_lift; eauto.
       { instantiate (1:= args1_tgt). ss. }
       i; des.
@@ -466,11 +465,6 @@ Proof.
         inv SIM_PRODUCTS.
         expl SIM_NONE.
         expl SIM_SOME_FDEC.
-        (* destruct fdef_tgt; ss. destruct fheader5; ss. *)
-        (* exploit SIM; eauto. *)
-        (* { econs; eauto. ss. } *)
-        (* intro SIM_TGT; des. clear SIM_TGT0. *)
-        (* inv SIM_TGT. ss. des_ifs. *)
 
         rename H18 into FDEC_SRC. move FDEC_SRC at bottom.
         assert(i0= fid).
@@ -569,13 +563,6 @@ Proof.
           {
             eapply sim_local_stack_invmem_le; eauto.
             etransitivity; eauto.
-            (* eapply sim_local_stack_cons with (privs_src:= privs_src) *)
-            (*                                  (uniqs_src:= uniqs_src); eauto. *)
-            (* s; i. *)
-            (* clear SIM MEMLE0 RETURN_TGT. *)
-            (* hexploit RETURN; eauto; []; i; des. *)
-            (* inv SIM; ss. *)
-            (* esplits; eauto. *)
           }
       }
   - (* step *)
