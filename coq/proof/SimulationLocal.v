@@ -18,6 +18,8 @@ Require Import SoundBase.
 Require InvMem.
 Require Import Simulation.
 Require Import Inject.
+Require Import program_sim.
+Import Vellvm.program_sim.
 
 Set Implicit Arguments.
 
@@ -256,3 +258,26 @@ Section SimLocalFdef.
                 (mkState ec0_src stack0_src mem0_src)
                 (mkState ec0_tgt stack0_tgt mem0_tgt).
 End SimLocalFdef.
+
+(* TODO: Can we define general wrapper? currying/uncurrying problem ... *)
+Inductive wf_ConfigI conf :=
+| wf_ConfigI_intro (WF_CONF: OpsemPP.wf_Config conf)
+.
+
+Lemma wf_ConfigI_spec
+      conf
+  :
+    <<EQ: wf_ConfigI conf <-> OpsemPP.wf_Config conf>>
+.
+Proof. split; ii; ss. inv H. ss. Qed.
+
+Inductive wf_StateI conf st :=
+| wf_stateP_intro (WF_ST: OpsemPP.wf_State conf st)
+.
+
+Lemma wf_StateI_spec
+      st conf
+  :
+    <<EQ: wf_StateI conf st <-> OpsemPP.wf_State conf st>>
+.
+Proof. split; ii; ss. inv H. ss. Qed.

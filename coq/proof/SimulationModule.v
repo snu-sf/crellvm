@@ -23,6 +23,10 @@ Require Import SimulationNop.
 Require Import AdequacyLocal.
 Require Import Simulation.
 Require Import TODOProof.
+Require Import program_sim.
+Import Vellvm.program_sim.
+(* Print program_sim.program_sim. *)
+(* Print Vellvm.program_sim. *)
 
 Inductive transl_product m_src m_tgt
   : forall (prod_src prod_tgt: product), Prop :=
@@ -60,6 +64,7 @@ Inductive transl_module : forall m_src m_tgt, Prop :=
     (TRANSL_PRODUCTS: transl_products (module_intro l_src ndts_src prods_src)
                      (module_intro l_tgt ndts_tgt prods_tgt)
                      prods_src prods_tgt)
+    (WF: wf_system [(module_intro l_src ndts_src prods_src)])
   : transl_module (module_intro l_src ndts_src prods_src)
                   (module_intro l_tgt ndts_tgt prods_tgt)
 .
@@ -199,7 +204,11 @@ Lemma transl_sim_module:
 Proof.
   s. intros module_src module_tgt MODULE.
   inv MODULE.
-  ii. unfold s_genInitState in SRC. simtac.
+  ii.
+  expl s_genInitState__opsem_wf.
+  apply_all_once wf_ConfigI_spec. apply_all_once wf_StateI_spec.
+  (* Without this, prop will be destructed into multiple parts, and readibility is marred. *)
+  unfold s_genInitState in SRC. simtac.
   clear COND e0. apply infrastructure_props.InProductsB_In in e.
   exploit transl_products_lookupFdefViaIDFromProducts; eauto. i. des.
   destruct fdef_tgt. unfold LLVMinfra.is_true in *. simtac.
@@ -228,10 +237,6 @@ Proof.
 
 
 
-    Require Import program_sim.
-    Import Vellvm.program_sim.
-    Print program_sim.program_sim.
-    Print Vellvm.program_sim.
     expl genGlobalAndInitMem__wf_globals_Mem.
 
 
