@@ -35,11 +35,11 @@ Inductive sim_local_stack
     sim_local_stack conf_src conf_tgt nil nil inv
 | sim_local_stack_cons
     ecs0_src ecs0_tgt inv0
-    inv
+    inv1
     func_src b_src id_src noret_src clattrs_src typ_src varg_src fun_src params_src cmds_src term_src locals_src allocas_src ecs_src mem_src uniqs_src privs_src
     func_tgt b_tgt id_tgt noret_tgt clattrs_tgt typ_tgt varg_tgt fun_tgt params_tgt cmds_tgt term_tgt locals_tgt allocas_tgt ecs_tgt mem_tgt uniqs_tgt privs_tgt
     (STACK: sim_local_stack conf_src conf_tgt ecs0_src ecs0_tgt inv0)
-    (LE0: InvMem.Rel.le inv0 inv)
+    (LE0: InvMem.Rel.le inv0 inv1)
     (NORET: noret_src = noret_tgt)
     (CLATTRS: clattrs_src = clattrs_tgt)
     (TYP: typ_src = typ_tgt)
@@ -47,16 +47,16 @@ Inductive sim_local_stack
     (UNIQS_SRC: forall mptr typ align val
                   (LOAD: mload conf_src.(CurTargetData) mem_src mptr typ align = Some val),
         InvMem.gv_diffblock_with_blocks conf_src val uniqs_src)
-    (UNIQS_GLOBALS_SRC: forall b, In b uniqs_src -> (inv.(InvMem.Rel.gmax) < b)%positive)
+    (UNIQS_GLOBALS_SRC: forall b, In b uniqs_src -> (inv1.(InvMem.Rel.gmax) < b)%positive)
     (UNIQS_TGT: forall mptr typ align val
                   (LOAD: mload conf_tgt.(CurTargetData) mem_tgt mptr typ align = Some val),
         InvMem.gv_diffblock_with_blocks conf_tgt val uniqs_tgt)
-    (UNIQS_GLOBALS_TGT: forall b, In b uniqs_tgt -> (inv.(InvMem.Rel.gmax) < b)%positive)
-    (PRIVS_SRC: forall b, In b privs_src -> InvMem.private_block mem_src (InvMem.Rel.public_src inv.(InvMem.Rel.inject)) b)
-    (PRIVS_TGT: forall b, In b privs_tgt -> InvMem.private_block mem_tgt (InvMem.Rel.public_tgt inv.(InvMem.Rel.inject)) b)
+    (UNIQS_GLOBALS_TGT: forall b, In b uniqs_tgt -> (inv1.(InvMem.Rel.gmax) < b)%positive)
+    (PRIVS_SRC: forall b, In b privs_src -> InvMem.private_block mem_src (InvMem.Rel.public_src inv1.(InvMem.Rel.inject)) b)
+    (PRIVS_TGT: forall b, In b privs_tgt -> InvMem.private_block mem_tgt (InvMem.Rel.public_tgt inv1.(InvMem.Rel.inject)) b)
     (LOCAL:
        forall inv' mem'_src mem'_tgt retval'_src retval'_tgt locals'_src
-         (INCR: InvMem.Rel.le (InvMem.Rel.lift mem_src mem_tgt uniqs_src uniqs_tgt privs_src privs_tgt inv) inv')
+         (INCR: InvMem.Rel.le (InvMem.Rel.lift mem_src mem_tgt uniqs_src uniqs_tgt privs_src privs_tgt inv1) inv')
          (MEM: InvMem.Rel.sem conf_src conf_tgt mem'_src mem'_tgt inv')
          (RETVAL: TODO.lift2_option (genericvalues_inject.gv_inject inv'.(InvMem.Rel.inject)) retval'_src retval'_tgt)
          (RETURN_SRC: return_locals
@@ -68,7 +68,7 @@ Inductive sim_local_stack
                          conf_tgt.(CurTargetData)
                          retval'_tgt id_tgt noret_tgt typ_tgt
                          locals_tgt = Some locals'_tgt>> /\
-         <<MEMLE: InvMem.Rel.le inv inv''>> /\
+         <<MEMLE: InvMem.Rel.le inv1 inv''>> /\
          <<SIM:
            sim_local
              conf_src conf_tgt ecs0_src ecs0_tgt
@@ -80,12 +80,15 @@ Inductive sim_local_stack
              (mkState
                 (mkEC func_tgt b_tgt cmds_tgt term_tgt locals'_tgt allocas_tgt)
                 ecs_tgt
-                mem'_tgt)>>):
+                mem'_tgt)>>)
+    inv2
+    (LE1: InvMem.Rel.le (InvMem.Rel.lift mem_src mem_tgt uniqs_src uniqs_tgt privs_src privs_tgt inv1) inv2)
+  :
     sim_local_stack
       conf_src conf_tgt
       ((mkEC func_src b_src ((insn_call id_src noret_src clattrs_src typ_src varg_src fun_src params_src)::cmds_src) term_src locals_src allocas_src) :: ecs_src)
       ((mkEC func_tgt b_tgt ((insn_call id_tgt noret_tgt clattrs_tgt typ_tgt varg_tgt fun_tgt params_tgt)::cmds_tgt) term_tgt locals_tgt allocas_tgt) :: ecs_tgt)
-      (InvMem.Rel.lift mem_src mem_tgt uniqs_src uniqs_tgt privs_src privs_tgt inv)
+      inv2
 .
 
 Inductive sim_local_lift
@@ -208,6 +211,22 @@ Theorem callExternalOrIntrinsics_inject
 Proof.
 Admitted.
 
+Lemma sim_local_stack_invmem_le
+      conf_src conf_tgt ecs0_src ecs0_tgt inv0
+      (STACK: sim_local_stack conf_src conf_tgt ecs0_src ecs0_tgt inv0)
+      inv1
+      (LE: InvMem.Rel.le inv0 inv1)
+  :
+    <<STACK: sim_local_stack conf_src conf_tgt ecs0_src ecs0_tgt inv1>>
+.
+Proof.
+  red.
+  inv STACK.
+  - econs; eauto.
+  - econs; eauto.
+    etransitivity; eauto.
+Qed.
+
 Lemma sim_local_lift_sim conf_src conf_tgt
       (SIM_CONF: sim_conf conf_src conf_tgt):
   (sim_local_lift conf_src conf_tgt) <3= (sim conf_src conf_tgt).
@@ -232,8 +251,9 @@ Proof.
       i. des. ss. exploit RET; eauto. i. des.
       eapply _sim_exit; eauto.
     + (* return *)
-      rename inv into inv_stack.
       rename inv0 into inv_stack0.
+      rename inv1 into inv_stack1.
+      rename inv_stack into inv_stack2.
       exploit nerror_nfinal_nstuck; eauto. i. des.
       inv x0. ss. rewrite returnUpdateLocals_spec in *. ss.
       simtac0. simtac0.
@@ -266,7 +286,7 @@ Proof.
         { eapply inject_allocas_mem_le in ALLOCAS; eauto. }
         intro MEMFREE; des.
         exploit LOCAL; try exact MEMFREE; eauto.
-        { etransitivity; eauto. }
+        { etransitivity; eauto. etransitivity; eauto. }
         { instantiate (2:= Some _).
           instantiate (1:= Some _).
           ss.
@@ -286,7 +306,7 @@ Proof.
         { eapply inject_allocas_mem_le in ALLOCAS; eauto. }
         intro MEMFREE; des.
         exploit LOCAL; try exact MEMFREE; eauto.
-        { etransitivity; eauto. }
+        { etransitivity; eauto. etransitivity; eauto. }
         { instantiate (2 := Some _).
           instantiate (1 := Some _).
           eauto.
@@ -329,7 +349,7 @@ Proof.
       intro MEMFREE; des.
 
       exploit LOCAL; try exact MEMFREE; [M|..]; Mskip eauto.
-      { ss. }
+      { etransitivity; eauto. }
       { instantiate (1 := None). instantiate (1 := None). ss. }
       { destruct noret_tgt; ss. }
       i. des.
@@ -420,6 +440,7 @@ Proof.
           s. i.
           hexploit RETURN; eauto. i. des. inv SIM0; ss.
           esplits; eauto.
+          reflexivity.
         }
         {
           inv H.
@@ -546,23 +567,6 @@ Proof.
             inv SIM; eauto; ss.
           }
           {
-            Lemma sim_local_stack_invmem_le
-                  conf_src conf_tgt ecs0_src ecs0_tgt inv0
-                  (STACK: sim_local_stack conf_src conf_tgt ecs0_src ecs0_tgt inv0)
-                  inv1
-                  (LE: InvMem.Rel.le inv0 inv1)
-            :
-              <<STACK: sim_local_stack conf_src conf_tgt ecs0_src ecs0_tgt inv1>>
-            .
-            Proof.
-              red.
-              inv STACK.
-              - econs; eauto.
-              - assert(inv1 = (InvMem.Rel.lift mem_src mem_tgt uniqs_src uniqs_tgt privs_src privs_tgt inv)).
-                { admit. }
-                clarify.
-                econs; eauto.
-            Admitted.
             eapply sim_local_stack_invmem_le; eauto.
             etransitivity; eauto.
             (* eapply sim_local_stack_cons with (privs_src:= privs_src) *)
@@ -581,4 +585,7 @@ Proof.
     apply CIH.
     econs; [..|M]; Mskip eauto.
     { etransitivity; eauto. }
-Admitted.
+Unshelve.
+{ by econs; eauto. }
+{ by econs; eauto. }
+Qed.
