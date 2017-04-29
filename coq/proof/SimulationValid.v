@@ -781,24 +781,25 @@ Proof.
           apply error_state_neg in ERROR_SRC. des; ss. apply NNPP in ERROR_SRC. des.
           rename ERROR_SRC into SRC_STEP.
           rename COND0 into POSTCOND.
+          rename inv0 into invmem.
+          rename inv into inv0.
           move POSTCOND at bottom.
           (* inv SRC_STEP. destruct c0; ss. admit. *)
           (* exfalso. clear - COND0. unfold Postcond.postcond_cmd in COND0. des_ifs. *)
           (* cbn in COND0. *)
           destruct conf_src; ss.
           inv CONF. inv INJECT. ss. clarify.
+          eapply postcond_cmd_implies_inject_event in POSTCOND; des. rewrite CALL in *.
+
           unfold OpsemPP.undefined_state in *.
           des_ifs_safe. des; ss; des_ifs_safe; ss.
           + des_ifs; ss.
           + exfalso.
-            rename inv0 into invmem.
-            rename inv into inv0.
-            exploit postcond_cmd_implies_inject_event; eauto; []; intro POSTCOND_INJ; des.
             destruct c; des_ifs. ss. des_bool; des. des_sumbool. clarify.
             inv SRC_STEP.
             assert(INJECT : genericvalues_inject.gv_inject (InvMem.Rel.inject invmem) mptr0 g).
             {
-              eapply InvState.Subset.inject_value_Subset in POSTCOND_INJ0; cycle 1.
+              eapply InvState.Subset.inject_value_Subset in POSTCOND0; cycle 1.
               { instantiate (1:= inv0).
                 etransitivity; eauto.
                 { eapply SoundForgetStack.forget_stack_Subset; eauto. }
@@ -806,14 +807,59 @@ Proof.
                 { eapply SoundForgetMemory.forget_memory_Subset; eauto. }
                 reflexivity.
               }
-              exploit InvState.Rel.inject_value_spec; try exact POSTCOND_INJ0; eauto.
+              exploit InvState.Rel.inject_value_spec; try exact POSTCOND0; eauto.
               { ss. }
               { rewrite InvState.Unary.sem_valueT_physical. ss. rewrite <- H17. ss. }
               i; des.
               rewrite InvState.Unary.sem_valueT_physical in *. ss. rewrite Heq in *. clarify.
             }
             admit. (* free inject. easy *)
-          + admit.
+          + exfalso.
+            destruct c; des_ifs; ss; repeat (des_bool; des; des_sumbool; clarify).
+            * (* nop case *)
+              rewrite SoundSnapshot.ExprPairSet_exists_filter in POSTCOND.
+              apply Exprs.ExprPairSetFacts.exists_iff in POSTCOND; [|solve_compat_bool].
+              unfold Exprs.ExprPairSet.Exists in *. des.
+              des_ifs. des_bool. des. unfold compose in *. des_bool.
+              apply Exprs.ExprPairSetFacts.mem_iff in POSTCOND.
+              {
+                des.
+                - des_sumbool; clarify.
+                  replace (Invariant.src inv0) with (Invariant.tgt inv0) in * by admit.
+                  exploit InvState.Rel.lessdef_expr_spec; eauto.
+                  { apply STATE. }
+                  { unfold InvState.Unary.sem_expr. ss.
+                    rewrite InvState.Unary.sem_valueT_physical. ss.
+                    rewrite Heq.
+                    admit.
+                  }
+                  i; des.
+                  admit.
+                -  des_sumbool; clarify.
+                   exploit InvState.Rel.lessdef_expr_spec; eauto.
+                   { apply STATE. }
+                   { unfold InvState.Unary.sem_expr. ss.
+                     admit. }
+                   admit.
+              }
+            * inv SRC_STEP.
+              assert(INJECT : genericvalues_inject.gv_inject (InvMem.Rel.inject invmem) mp g).
+              {
+                eapply InvState.Subset.inject_value_Subset in POSTCOND0; cycle 1.
+                { instantiate (1:= inv0).
+                  etransitivity; eauto.
+                  { eapply SoundForgetStack.forget_stack_Subset; eauto. }
+                  etransitivity; eauto.
+                  { eapply SoundForgetMemory.forget_memory_Subset; eauto. }
+                  reflexivity.
+                }
+                exploit InvState.Rel.inject_value_spec; try exact POSTCOND0; eauto.
+                { ss. }
+                { rewrite InvState.Unary.sem_valueT_physical. ss. rewrite <- H18. ss. }
+                i; des.
+                rewrite InvState.Unary.sem_valueT_physical in *. ss. rewrite Heq in *. clarify.
+              }
+              admit. (* load inject. easy *)
           + admit.
           +
             exfalso.
