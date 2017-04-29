@@ -485,6 +485,104 @@ Proof.
   des_ifs; ss; des_bool; ss.
 Qed.
 
+(* TODO: move to TODO.v *)
+(* Definition option_Forall A (P: A -> Prop) (a: option A): Prop := *)
+(*   match a with *)
+(*   | Some a => P a *)
+(*   | None => True *)
+(*   end. *)
+
+Lemma valid_progress
+      conf_src conf_tgt stack0_src stack0_tgt inv0 idx0 st_src st_tgt
+      (VALID: valid_state_sim conf_src conf_tgt stack0_src stack0_tgt inv0 idx0 st_src st_tgt)
+      (ERROR_SRC: ~ error_state conf_src st_src)
+      (* (NOTCALL: option_Forall (fun c => Instruction.isCallInst c = false ) (hd_error st_src.(EC).(CurCmds))) *)
+      c_src cs_src
+      (CMDSRC: st_src.(EC).(CurCmds) = c_src :: cs_src)
+      (NOTCALL: Instruction.isCallInst c_src = false)
+      c_tgt cs_tgt
+      (CMDTGT: st_tgt.(EC).(CurCmds) = c_tgt :: cs_tgt)
+      (NOTFINAL: s_isFinialState conf_tgt st_tgt = None)
+  :
+    <<PROGRESS: ~stuck_state conf_tgt st_tgt>>
+.
+Proof.
+  inv VALID.
+  des.
+  expl progress; ss. clear WF_TGT WF_TGT0.
+  destruct st_src, st_tgt; ss.
+  destruct EC0, EC1; ss.
+  destruct CurCmds0, CurCmds1; ss. clarify; clear_tac.
+  des_ifs_safe.
+  unfold OpsemPP.undefined_state in *.
+  des_ifs_safe.
+  des; ss.
+  - des_ifs; ss.
+  - des_ifsH IS_UNDEFINED; ss.
+    unfold Debug.debug_print_auto in *.
+    unfold Debug.failwith_None in *.
+    des_ifs_safe.
+  (* - des_ifs. *)
+  (* des_ifs. *)
+  (* - *)
+  (*   apply error_state_neg in ERROR_SRC. des; ss. apply NNPP in ERROR_SRC. des. *)
+  (*   rename ERROR_SRC into SRC_STEP. *)
+  (*   rename COND0 into POSTCOND. *)
+  (*   move POSTCOND at bottom. *)
+  (*   (* inv SRC_STEP. destruct c0; ss. admit. *) *)
+  (*   (* exfalso. clear - COND0. unfold Postcond.postcond_cmd in COND0. des_ifs. *) *)
+  (*   (* cbn in COND0. *) *)
+  (*   destruct conf_src; ss. *)
+  (*   inv CONF. inv INJECT. ss. clarify. *)
+  (*   unfold OpsemPP.undefined_state in *. *)
+  (*   des_ifs_safe. des; ss; des_ifs_safe; ss. *)
+  (*   + des_ifs; ss. *)
+  (*   + exfalso. *)
+  (*     rename inv0 into invmem. *)
+  (*     rename inv into inv0. *)
+  (*     exploit postcond_cmd_implies_inject_event; eauto; []; intro POSTCOND_INJ; des. *)
+  (*     destruct c; des_ifs. ss. des_bool; des. des_sumbool. clarify. *)
+  (*     inv SRC_STEP. *)
+  (*     assert(INJECT : genericvalues_inject.gv_inject (InvMem.Rel.inject invmem) mptr0 g). *)
+  (*     { *)
+  (*       eapply InvState.Subset.inject_value_Subset in POSTCOND_INJ0; cycle 1. *)
+  (*       { instantiate (1:= inv0). *)
+  (*         etransitivity; eauto. *)
+  (*         { eapply SoundForgetStack.forget_stack_Subset; eauto. } *)
+  (*         etransitivity; eauto. *)
+  (*         { eapply SoundForgetMemory.forget_memory_Subset; eauto. } *)
+  (*         reflexivity. *)
+  (*       } *)
+  (*       exploit InvState.Rel.inject_value_spec; try exact POSTCOND_INJ0; eauto. *)
+  (*       { ss. } *)
+  (*       { rewrite InvState.Unary.sem_valueT_physical. ss. rewrite <- H17. ss. } *)
+  (*       i; des. *)
+  (*       rewrite InvState.Unary.sem_valueT_physical in *. ss. rewrite Heq in *. clarify. *)
+  (*     } *)
+  (*     admit. (* free inject. easy *) *)
+  (*   + admit. *)
+  (*   + admit. *)
+  (*   + *)
+  (*     exfalso. *)
+  (*     assert(SIM_PRODUCTS: AdequacyLocal.sim_products *)
+  (*                            (mkCfg CurSystem0 CurTargetData0 CurProducts0 Globals0 FunTable0) *)
+  (*                            (mkCfg CurSystem1 CurTargetData0 CurProducts1 Globals0 FunTable1) *)
+  (*                            CurProducts0 CurProducts1). *)
+  (*     { admit. } *)
+  (*     inv SIM_PRODUCTS. *)
+  (*     move IS_UNDEFINED at bottom. *)
+  (*     rename Heq0 into LOOKUP_TGT. *)
+  (*     move LOOKUP_TGT at bottom. *)
+  (*     (* exploit AdequacyLocal.lookupExFdecViaPtr_inject; eauto. *) *)
+  (*     unfold lookupExFdecViaPtr, lookupFdefViaPtr in *. unfold monad.mbind in *. ss. *)
+  (*     des_ifs. *)
+  (*     admit. *)
+  (*     admit. *)
+  (*     admit. *)
+  (*     admit. *)
+Abort.
+
+
 Lemma valid_sim
       conf_src conf_tgt:
   (valid_state_sim conf_src conf_tgt) <6= (sim_local conf_src conf_tgt).
@@ -626,11 +724,6 @@ Proof.
 
           apply wf_StateI_spec.
           apply wf_StateI_spec in WF_TGT0.
-          (* Definition option_Forall A (P: A -> Prop) (a: option A): Prop := *)
-          (*   match a with *)
-          (*   | Some a => P a *)
-          (*   | None => True *)
-          (*   end. *)
           (* assert(WF_GV: option_Forall (fun v => OpsemPP.wf_GVs conf_tgt.(CurTargetData) v typ0) retval3_tgt). *)
           (* { admit. } *)
           unfold return_locals in RETURN_TGT.
