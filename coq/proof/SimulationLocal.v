@@ -19,10 +19,66 @@ Require InvMem.
 Require Import Simulation.
 Require Import Inject.
 Require Import program_sim.
+Require Import TODOProof.
 Import Vellvm.program_sim.
 
 Set Implicit Arguments.
 
+(* TODO: Can we define general wrapper? currying/uncurrying problem ... *)
+Inductive wf_ConfigI conf :=
+| wf_ConfigI_intro (WF_CONF: OpsemPP.wf_Config conf)
+.
+
+Lemma wf_ConfigI_spec
+      conf
+  :
+    <<EQ: wf_ConfigI conf <-> OpsemPP.wf_Config conf>>
+.
+Proof. split; ii; ss. inv H. ss. Qed.
+
+Inductive wf_StateI conf st :=
+| wf_stateP_intro (WF_ST: OpsemPP.wf_State conf st)
+.
+
+Lemma wf_StateI_spec
+      st conf
+  :
+    <<EQ: wf_StateI conf st <-> OpsemPP.wf_State conf st>>
+.
+Proof. split; ii; ss. inv H. ss. Qed.
+
+Lemma preservation
+      conf st0 st1 tr
+      (WF_CONF: wf_ConfigI conf)
+      (WF_ST: wf_StateI conf st0)
+      (STEP: sInsn conf st0 st1 tr)
+  :
+    <<WF_ST: wf_StateI conf st1>>
+.
+Proof.
+  apply wf_StateI_spec in WF_ST.
+  apply wf_ConfigI_spec in WF_CONF.
+  apply wf_StateI_spec.
+  eapply OpsemPP.preservation; eauto.
+Qed.
+
+Lemma progress
+      conf st0
+      (WF_CONF: wf_ConfigI conf)
+      (WF_ST: wf_StateI conf st0)
+  :
+    (<<IS_FINAL: s_isFinialState conf st0 <> merror>>) \/
+    (<<IS_UNDEFINED: OpsemPP.undefined_state conf st0>>) \/
+    (<<PROGRESS: ~stuck_state conf st0>>)
+.
+Proof.
+  apply wf_StateI_spec in WF_ST.
+  apply wf_ConfigI_spec in WF_CONF.
+  expl OpsemPP.progress.
+  - left. ss.
+  - right. right. ii. apply H. esplits; eauto.
+  - right. left. ss.
+Qed.
 
 Section SimLocal.
   Variable (conf_src conf_tgt:Config).
@@ -258,26 +314,3 @@ Section SimLocalFdef.
                 (mkState ec0_src stack0_src mem0_src)
                 (mkState ec0_tgt stack0_tgt mem0_tgt).
 End SimLocalFdef.
-
-(* TODO: Can we define general wrapper? currying/uncurrying problem ... *)
-Inductive wf_ConfigI conf :=
-| wf_ConfigI_intro (WF_CONF: OpsemPP.wf_Config conf)
-.
-
-Lemma wf_ConfigI_spec
-      conf
-  :
-    <<EQ: wf_ConfigI conf <-> OpsemPP.wf_Config conf>>
-.
-Proof. split; ii; ss. inv H. ss. Qed.
-
-Inductive wf_StateI conf st :=
-| wf_stateP_intro (WF_ST: OpsemPP.wf_State conf st)
-.
-
-Lemma wf_StateI_spec
-      st conf
-  :
-    <<EQ: wf_StateI conf st <-> OpsemPP.wf_State conf st>>
-.
-Proof. split; ii; ss. inv H. ss. Qed.
