@@ -85,88 +85,6 @@ Inductive valid_state_sim
     (MEM: InvMem.Rel.sem conf_src conf_tgt st_src.(Mem) st_tgt.(Mem) invmem)
 .
 
-Lemma valid_init
-      m_src m_tgt
-      conf_src conf_tgt
-      stack0_src stack0_tgt
-      fdef_src fdef_tgt
-      fdef_hint
-      args_src args_tgt
-      mem_src mem_tgt
-      inv idx
-      ec_src
-      (FDEF: valid_fdef m_src m_tgt fdef_src fdef_tgt fdef_hint)
-      (ARGS: list_forall2 (genericvalues_inject.gv_inject inv.(InvMem.Rel.inject)) args_src args_tgt)
-      (MEM: InvMem.Rel.sem conf_src conf_tgt mem_src mem_tgt inv)
-      (CONF: InvState.valid_conf m_src m_tgt conf_src conf_tgt)
-      (INIT_SRC: init_fdef conf_src fdef_src args_src ec_src):
-  exists ec_tgt,
-    <<INIT_TGT: init_fdef conf_tgt fdef_tgt args_tgt ec_tgt>> /\
-    <<SIM:
-      valid_state_sim
-        conf_src conf_tgt
-        stack0_src stack0_tgt
-        inv idx
-        (mkState ec_src stack0_src mem_src)
-        (mkState ec_tgt stack0_tgt mem_tgt)>>.
-Proof.
-  inv INIT_SRC. unfold valid_fdef in FDEF. simtac.
-  exploit locals_init; eauto; [by apply CONF|apply MEM|]. i. des.
-  generalize FDEF. i.
-  unfold forallb2AL in FDEF0. ss. apply andb_true_iff in FDEF0. des.
-  do 10 simtac0.
-  assert(VALID_TERM_INFRULES: exists infrules,
-            valid_terminator fdef_hint
-                  (Infrules.apply_infrules m_src m_tgt infrules t) m_src m_tgt
-                  ((l0, stmts_intro ps' cs' tmn') :: b0) ((l0, stmts_intro phinodes5 cmds5 terminator5) :: b1) l0 tmn'
-                  terminator5).
-  { simtac.
-    - exists nil. assumption.
-    - eexists; eassumption.
-  }
-  clear COND5. des.
-
-  hexploit InvState.Rel.sem_empty; eauto.
-  { instantiate (2 := mkEC _ _ _ _ _ _).
-    instantiate (1 := mkEC _ _ _ _ _ _).
-    s. eauto.
-  }
-  i. des.
-  esplits.
-  - econs; eauto. ss.
-  - econs; eauto.
-    { ss.
-      repeat
-        (try match goal with
-             | [|- is_true (if ?c then _ else _)] =>
-               let COND := fresh "COND" in
-               destruct c eqn:COND
-             end;
-         simtac).
-      { match goal with
-        | [H: proj_sumbool (fheader_dec ?a ?a) = false |- _] => destruct (fheader_dec a a); ss
-        end.
-      }
-      apply andb_true_iff. splits; [|by eauto].
-      repeat
-        (try match goal with
-             | [|- (if ?c then _ else _) = true] =>
-               let COND := fresh "COND" in
-               destruct c eqn:COND
-             end;
-         simtac).
-      { match goal with
-        | [H: proj_sumbool (id_dec ?a ?a) = false |- _] => destruct (id_dec a a); ss
-        end.
-      }
-      rewrite COND0, COND1, COND2, COND3, COND4. ss.
-    }
-    {
-      cbn in *.
-      econs; eauto.
-    }
-Qed.
-
 Lemma decide_nonzero_inject
       TD conds_src conds_tgt decision meminj
       (NONZERO: decide_nonzero TD conds_src decision)
@@ -775,6 +693,88 @@ Unshelve.
 (* apply 0%nat. *)
 (* Qed. *)
 Admitted.
+
+Lemma valid_init
+      m_src m_tgt
+      conf_src conf_tgt
+      stack0_src stack0_tgt
+      fdef_src fdef_tgt
+      fdef_hint
+      args_src args_tgt
+      mem_src mem_tgt
+      inv idx
+      ec_src
+      (FDEF: valid_fdef m_src m_tgt fdef_src fdef_tgt fdef_hint)
+      (ARGS: list_forall2 (genericvalues_inject.gv_inject inv.(InvMem.Rel.inject)) args_src args_tgt)
+      (MEM: InvMem.Rel.sem conf_src conf_tgt mem_src mem_tgt inv)
+      (CONF: InvState.valid_conf m_src m_tgt conf_src conf_tgt)
+      (INIT_SRC: init_fdef conf_src fdef_src args_src ec_src):
+  exists ec_tgt,
+    <<INIT_TGT: init_fdef conf_tgt fdef_tgt args_tgt ec_tgt>> /\
+    <<SIM:
+      valid_state_sim
+        conf_src conf_tgt
+        stack0_src stack0_tgt
+        inv idx
+        (mkState ec_src stack0_src mem_src)
+        (mkState ec_tgt stack0_tgt mem_tgt)>>.
+Proof.
+  inv INIT_SRC. unfold valid_fdef in FDEF. simtac.
+  exploit locals_init; eauto; [by apply CONF|apply MEM|]. i. des.
+  generalize FDEF. i.
+  unfold forallb2AL in FDEF0. ss. apply andb_true_iff in FDEF0. des.
+  do 10 simtac0.
+  assert(VALID_TERM_INFRULES: exists infrules,
+            valid_terminator fdef_hint
+                  (Infrules.apply_infrules m_src m_tgt infrules t) m_src m_tgt
+                  ((l0, stmts_intro ps' cs' tmn') :: b0) ((l0, stmts_intro phinodes5 cmds5 terminator5) :: b1) l0 tmn'
+                  terminator5).
+  { simtac.
+    - exists nil. assumption.
+    - eexists; eassumption.
+  }
+  clear COND5. des.
+
+  hexploit InvState.Rel.sem_empty; eauto.
+  { instantiate (2 := mkEC _ _ _ _ _ _).
+    instantiate (1 := mkEC _ _ _ _ _ _).
+    s. eauto.
+  }
+  i. des.
+  esplits.
+  - econs; eauto. ss.
+  - econs; eauto.
+    { ss.
+      repeat
+        (try match goal with
+             | [|- is_true (if ?c then _ else _)] =>
+               let COND := fresh "COND" in
+               destruct c eqn:COND
+             end;
+         simtac).
+      { match goal with
+        | [H: proj_sumbool (fheader_dec ?a ?a) = false |- _] => destruct (fheader_dec a a); ss
+        end.
+      }
+      apply andb_true_iff. splits; [|by eauto].
+      repeat
+        (try match goal with
+             | [|- (if ?c then _ else _) = true] =>
+               let COND := fresh "COND" in
+               destruct c eqn:COND
+             end;
+         simtac).
+      { match goal with
+        | [H: proj_sumbool (id_dec ?a ?a) = false |- _] => destruct (id_dec a a); ss
+        end.
+      }
+      rewrite COND0, COND1, COND2, COND3, COND4. ss.
+    }
+    {
+      cbn in *.
+      econs; eauto.
+    }
+Qed.
 
 Lemma valid_sim_fdef
       m_src m_tgt
