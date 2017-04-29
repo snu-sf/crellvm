@@ -83,6 +83,7 @@ Inductive valid_state_sim
                          (st_tgt.(EC).(Terminator)))
     (STATE: InvState.Rel.sem conf_src conf_tgt st_src st_tgt invst invmem inv)
     (MEM: InvMem.Rel.sem conf_src conf_tgt st_src.(Mem) st_tgt.(Mem) invmem)
+    (WF_TGT: wf_ConfigI conf_tgt /\ wf_StateI conf_tgt st_tgt)
 .
 
 Lemma decide_nonzero_inject
@@ -120,6 +121,9 @@ Lemma valid_sim_term
                                 (mkState (mkEC CurFunction0 CurBB0 [] Terminator0 Locals0 Allocas0) ECS0 Mem0)
                                 (mkState (mkEC CurFunction1 CurBB1 [] Terminator1 Locals1 Allocas1) ECS1 Mem1)
                                 invst inv0 inv_term)
+      (WF_TGT: wf_ConfigI conf_tgt /\
+               wf_StateI conf_tgt (mkState (mkEC CurFunction1 CurBB1 [] Terminator1 Locals1 Allocas1)
+                                           ECS1 Mem1))
   :
     <<SIM_TERM: _sim_local conf_src conf_tgt
                            (valid_state_sim conf_src conf_tgt)
@@ -158,17 +162,11 @@ Proof.
     rewrite InvState.Unary.sem_valueT_physical. s. i. des.
     eapply _sim_local_step.
     {
-      exploit OpsemPP.progress; eauto.
-      { admit. }
-      { admit. }
-      intro PROGRESS.
-      des; ss; cycle 1.
-      - ii. apply H. clear H.
-        esplits; eauto.
+      expl progress.
+      - ss.
       - unfold OpsemPP.undefined_state in *.
         des_ifs; des; ss.
-        (* des_ifs_safe. des; ss. *)
-      - ss.
+      - ii. ss.
 
       (* clear STATE MEM CIH. *)
 
@@ -274,7 +272,9 @@ Proof.
       (*     ad-mit. *)
       (*   } *)
     }
-    i. inv STEP. unfold valid_phinodes in *.
+    i.
+    expl preservation.
+    inv STEP. unfold valid_phinodes in *.
     do 12 simtac0. rewrite <- (ite_spec decision0 l0 l3) in *.
     {
       move COND1 at bottom.
@@ -330,19 +330,15 @@ Proof.
     exploit nerror_nfinal_nstuck; eauto. i. des. inv x0. simtac.
     eapply _sim_local_step.
     {
-      exploit OpsemPP.progress; eauto.
-      { admit. }
-      { admit. }
-      intro PROGRESS.
-      des; ss; cycle 1.
-      - ii. apply H. clear H.
-        esplits; eauto.
+      expl progress.
+      - ss.
       - unfold OpsemPP.undefined_state in *.
         des_ifs; des; ss.
-      (* des_ifs_safe. des; ss. *)
-      - ss.
+      - ii. ss.
     }
-    i. inv STEP. unfold valid_phinodes in *.
+    i.
+    expl preservation.
+    inv STEP. unfold valid_phinodes in *.
     rewrite add_terminator_cond_br_uncond in *.
     rewrite lookupBlockViaLabelFromFdef_spec in *.
     des_ifs_safe (clarify; ss).
@@ -372,19 +368,15 @@ Proof.
     exploit get_switch_branch_inject; eauto. i.
     eapply _sim_local_step.
     {
-      exploit OpsemPP.progress; eauto.
-      { admit. }
-      { admit. }
-      intro PROGRESS.
-      des; ss; cycle 1.
-      - ii. apply H. clear H.
-        esplits; eauto.
+      expl progress.
+      - ss.
       - unfold OpsemPP.undefined_state in *.
         des_ifs; des; ss.
-      (* des_ifs_safe. des; ss. *)
-      - ss.
+      - ii. ss.
     }
-    i. inv STEP.
+    i.
+    expl preservation.
+    inv STEP.
     assert (CONF_EQ: TD0 = TD /\ gl0 = gl).
     { inv CONF.
       match goal with
@@ -440,7 +432,19 @@ Proof.
     }
   + (* unreachable *)
     exploit nerror_nfinal_nstuck; eauto. i. des. inv x0.
-(* Unshelve. *)
+Unshelve.
+all: destruct CONF; subst; ss.
+{ clear - CMDS TERM.
+  admit. }
+{ admit. }
+{ admit. }
+{ admit. }
+{ admit. }
+{ admit. }
+{ admit. }
+{ admit. }
+{ admit. }
+{ admit. }
 (* apply 0%nat. *)
 (* apply 0%nat. *)
 (* apply 0%nat. *)
@@ -590,19 +594,77 @@ Proof.
       exists locals2_tgt, 0%nat, invmem1. splits; ss.
       * etransitivity; eauto.
       * right. apply CIH. econs; eauto.
-        ss.
-        eapply inject_allocas_inj_incr; eauto.
-        etransitivity; eauto.
+        { ss.
+          eapply inject_allocas_inj_incr; eauto.
+          etransitivity; eauto. }
+        { splits; ss.
+          move WF_TGT0 at bottom.
+          move RETURN_TGT at bottom.
+          SearchAbout OpsemPP.wf_State.
+          Lemma wf_state_mem
+                conf EC ECS mem
+                (WF: OpsemPP.wf_State conf (mkState EC ECS mem))
+                mem'
+            :
+              OpsemPP.wf_State conf (mkState EC ECS mem')
+          .
+          Proof.
+            i. ss.
+          Qed.
+          Lemma wf_stateI_mem
+                conf EC ECS mem
+                (WF: wf_StateI conf (mkState EC ECS mem))
+                mem'
+            :
+              wf_StateI conf (mkState EC ECS mem')
+          .
+          Proof.
+            apply wf_StateI_spec.
+            apply wf_StateI_spec in WF.
+            expl wf_state_mem.
+          Qed.
+
+          apply wf_StateI_spec.
+          apply wf_StateI_spec in WF_TGT0.
+          unfold return_locals in RETURN_TGT. des_ifs.
+          - destruct conf_tgt.
+            Fail eapply wf_state_mem with (mem' := Mem1). (* ERROR MESSAGE REALLY HARD TO READ *)
+            eapply wf_state_mem with (mem0 := Mem1).
+            (* eapply wf_stateI_mem with (mem0 := Mem1). *)
+            Fail eapply OpsemPP.preservation_cmd_non_updated_case.
+            (* ERROR MESSAGE REALLY HARD TO READ *)
+            destruct CurTargetData0.
+            eapply OpsemPP.preservation_cmd_non_updated_case; eauto.
+            { reflexivity. }
+            { apply wf_ConfigI_spec in WF_TGT. ss. }
+          - destruct conf_tgt. destruct CurTargetData0.
+            eapply OpsemPP.preservation_cmd_updated_case; [..|exact WF_TGT0]; eauto; try (by ss).
+            { clear WF_TGT0. ss. rename g0 into __g0__. rename g into __g__.
+              eapply OpsemPP.fit_gv_gv2gvs__wf_gvs_aux; eauto.
+              Print OpsemPP.wf_ExecutionContext.
+              Print OpsemPP.wf_defs.
+              (* assert(OpsemPP.wf_GVs (l2, n) __g__ *)
+              (* OpsemPP.lift_fit_gv__wf_gvs *)
+              (* OpsemPP.fit_gv_gv2gvs__wf_gvs_aux *)
+              admit. }
+            { apply wf_ConfigI_spec in WF_TGT. ss. }
+          - destruct conf_tgt.
+            Fail eapply wf_state_mem with (mem' := Mem1). (* ERROR MESSAGE REALLY HARD TO READ *)
+            eapply wf_state_mem with (mem0 := Mem1).
+            (* eapply wf_stateI_mem with (mem0 := Mem1). *)
+            Fail eapply OpsemPP.preservation_cmd_non_updated_case.
+            (* ERROR MESSAGE REALLY HARD TO READ *)
+            destruct CurTargetData0.
+            eapply OpsemPP.preservation_cmd_non_updated_case; eauto.
+            { reflexivity. }
+            { apply wf_ConfigI_spec in WF_TGT. ss. }
+        }
     + (* non-call *)
+      des.
       eapply _sim_local_step.
       {
-        exploit OpsemPP.progress; eauto.
-        { admit. }
-        { admit. }
-        intro PROGRESS.
-        des; ss; cycle 1.
-        - ii. apply H. clear H.
-          esplits; eauto.
+        expl progress.
+        - ss.
         - move ERROR_SRC at bottom.
           apply error_state_neg in ERROR_SRC. des; ss. apply NNPP in ERROR_SRC. des.
           rename ERROR_SRC into SRC_STEP.
@@ -649,7 +711,7 @@ Proof.
                                    CurProducts0 CurProducts1).
             { admit. }
             inv SIM_PRODUCTS.
-            move PROGRESS at bottom.
+            move IS_UNDEFINED at bottom.
             rename Heq0 into LOOKUP_TGT.
             move LOOKUP_TGT at bottom.
             (* exploit AdequacyLocal.lookupExFdecViaPtr_inject; eauto. *)
@@ -676,9 +738,10 @@ Proof.
             (*     admit. (* locals *) *)
             (*   } *)
             (* * *)
-        - ss.
+        - ii. ss.
       }
       i.
+      expl preservation.
       exploit postcond_cmd_is_call; eauto. i. rewrite CALL in x0.
       exploit sInsn_non_call; eauto; try congruence. i. des. subst. ss.
       exploit postcond_cmd_sound; eauto; ss; try congruence. i. des.
@@ -690,8 +753,8 @@ Proof.
       { econs 1. eauto. }
       right. apply CIH. econs; try exact x1; eauto.
 Unshelve.
-(* apply 0%nat. *)
-(* Qed. *)
+all: try ss.
+{ admit. (* move inject_allocas to invmem? *) }
 Admitted.
 
 Lemma valid_init
@@ -708,7 +771,9 @@ Lemma valid_init
       (ARGS: list_forall2 (genericvalues_inject.gv_inject inv.(InvMem.Rel.inject)) args_src args_tgt)
       (MEM: InvMem.Rel.sem conf_src conf_tgt mem_src mem_tgt inv)
       (CONF: InvState.valid_conf m_src m_tgt conf_src conf_tgt)
-      (INIT_SRC: init_fdef conf_src fdef_src args_src ec_src):
+      (INIT_SRC: init_fdef conf_src fdef_src args_src ec_src)
+      (WF_TGT: wf_ConfigI conf_tgt)
+  :
   exists ec_tgt,
     <<INIT_TGT: init_fdef conf_tgt fdef_tgt args_tgt ec_tgt>> /\
     <<SIM:
@@ -774,7 +839,11 @@ Proof.
       cbn in *.
       econs; eauto.
     }
-Qed.
+    {
+      splits; ss.
+      admit.
+    }
+Admitted.
 
 Lemma valid_sim_fdef
       m_src m_tgt
@@ -782,7 +851,9 @@ Lemma valid_sim_fdef
       fdef_src fdef_tgt
       fdef_hint
       (CONF: InvState.valid_conf m_src m_tgt conf_src conf_tgt)
-      (FDEF: valid_fdef m_src m_tgt fdef_src fdef_tgt fdef_hint):
+      (FDEF: valid_fdef m_src m_tgt fdef_src fdef_tgt fdef_hint)
+      (WF_TGT: wf_ConfigI conf_tgt)
+  :
   sim_fdef conf_src conf_tgt fdef_src fdef_tgt.
 Proof.
   ii.
