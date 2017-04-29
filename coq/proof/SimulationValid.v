@@ -823,25 +823,54 @@ Proof.
               des_ifs. des_bool. des. unfold compose in *. des_bool.
               apply Exprs.ExprPairSetFacts.mem_iff in POSTCOND.
               {
+                clear POSTCOND0.
+                assert(POSTCOND0:
+                          (Exprs.Expr.eq_dec
+                             t2
+                             (Exprs.Expr.load (Exprs.ValueT.lift Exprs.Tag.physical value1)
+                                              typ5 align5):bool) = true
+                          /\
+                          (Exprs.Expr.eq_dec
+                             t1
+                             (Exprs.Expr.value (Exprs.ValueT.const (const_undef (typ_int O))))
+                           :bool) = true
+                      ) by admit.
+                (* assert(Invariant.not_in_maydiff inv0 (Exprs.ValueT.lift Exprs.Tag.physical value1)) *)
+                (*   by admit. *)
+                (* replace (Invariant.src inv0) with (Invariant.tgt inv0) in * by admit. *)
+                des. des_sumbool; clarify.
+
+                assert(DEFINED: exists val, const2GV CurTargetData0 Globals0 (const_undef (typ_int O)) =
+                                            Some val).
+                { compute.
+                  destruct CurTargetData0. esplits; eauto. }
                 des.
-                - des_sumbool; clarify.
-                  replace (Invariant.src inv0) with (Invariant.tgt inv0) in * by admit.
-                  exploit InvState.Rel.lessdef_expr_spec; eauto.
-                  { apply STATE. }
-                  { unfold InvState.Unary.sem_expr. ss.
-                    rewrite InvState.Unary.sem_valueT_physical. ss.
-                    rewrite Heq.
-                    admit.
-                  }
-                  i; des.
-                  admit.
-                -  des_sumbool; clarify.
-                   exploit InvState.Rel.lessdef_expr_spec; eauto.
-                   { apply STATE. }
-                   { unfold InvState.Unary.sem_expr. ss.
-                     admit. }
-                   admit.
+                exploit InvState.Rel.lessdef_expr_spec; eauto.
+                { apply STATE. }
+                { unfold InvState.Unary.sem_expr. ss. eauto. }
+                i; des. ss. des_ifs.
+                admit. (* load inject *)
               }
+              (* { *)
+              (*   des. *)
+              (*   - des_sumbool; clarify. *)
+              (*     replace (Invariant.src inv0) with (Invariant.tgt inv0) in * by admit. *)
+              (*     exploit InvState.Rel.lessdef_expr_spec; eauto. *)
+              (*     { apply STATE. } *)
+              (*     { unfold InvState.Unary.sem_expr. ss. *)
+              (*       rewrite InvState.Unary.sem_valueT_physical. ss. *)
+              (*       rewrite Heq. *)
+              (*       admit. *)
+              (*     } *)
+              (*     i; des. *)
+              (*     admit. *)
+              (*   -  des_sumbool; clarify. *)
+              (*      exploit InvState.Rel.lessdef_expr_spec; eauto. *)
+              (*      { apply STATE. } *)
+              (*      { unfold InvState.Unary.sem_expr. ss. *)
+              (*        admit. } *)
+              (*      admit. *)
+              (* } *)
             * inv SRC_STEP.
               assert(INJECT : genericvalues_inject.gv_inject (InvMem.Rel.inject invmem) mp g).
               {
@@ -860,7 +889,42 @@ Proof.
                 rewrite InvState.Unary.sem_valueT_physical in *. ss. rewrite Heq in *. clarify.
               }
               admit. (* load inject. easy *)
-          + admit.
+          + exfalso.
+            destruct c; des_ifs; ss; repeat (des_bool; des; des_sumbool; clarify).
+            inv SRC_STEP.
+            assert(INJECT1 : genericvalues_inject.gv_inject (InvMem.Rel.inject invmem) gv1 g).
+            {
+              eapply InvState.Subset.inject_value_Subset in POSTCOND1; cycle 1.
+              { instantiate (1:= inv0).
+                etransitivity; eauto.
+                { eapply SoundForgetStack.forget_stack_Subset; eauto. }
+                etransitivity; eauto.
+                { eapply SoundForgetMemory.forget_memory_Subset; eauto. }
+                reflexivity.
+              }
+              exploit InvState.Rel.inject_value_spec; try exact POSTCOND1; eauto.
+              { ss. }
+              { rewrite InvState.Unary.sem_valueT_physical. ss. rewrite <- H19. ss. }
+              i; des.
+              rewrite InvState.Unary.sem_valueT_physical in *. ss. rewrite Heq in *. clarify.
+            }
+            assert(INJECT2 : genericvalues_inject.gv_inject (InvMem.Rel.inject invmem) mp2 g0).
+            {
+              eapply InvState.Subset.inject_value_Subset in POSTCOND0; cycle 1.
+              { instantiate (1:= inv0).
+                etransitivity; eauto.
+                { eapply SoundForgetStack.forget_stack_Subset; eauto. }
+                etransitivity; eauto.
+                { eapply SoundForgetMemory.forget_memory_Subset; eauto. }
+                reflexivity.
+              }
+              exploit InvState.Rel.inject_value_spec; try exact POSTCOND0; eauto.
+              { ss. }
+              { rewrite InvState.Unary.sem_valueT_physical. ss. rewrite <- H20. ss. }
+              i; des.
+              rewrite InvState.Unary.sem_valueT_physical in *. ss. rewrite Heq0 in *. clarify.
+            }
+            admit. (* store inject. easy *)
           +
             exfalso.
             assert(SIM_PRODUCTS: AdequacyLocal.sim_products
@@ -875,6 +939,9 @@ Proof.
             (* exploit AdequacyLocal.lookupExFdecViaPtr_inject; eauto. *)
             unfold lookupExFdecViaPtr, lookupFdefViaPtr in *. unfold monad.mbind in *. ss.
             des_ifs.
+            admit.
+            admit.
+            admit.
             admit.
             admit.
             admit.
@@ -896,7 +963,7 @@ Proof.
             (*     admit. (* locals *) *)
             (*   } *)
             (* * *)
-        - ii. ss.
+        - i; ss.
       }
       i.
       expl preservation.
