@@ -64,7 +64,8 @@ Inductive transl_module : forall m_src m_tgt, Prop :=
     (TRANSL_PRODUCTS: transl_products (module_intro l_src ndts_src prods_src)
                      (module_intro l_tgt ndts_tgt prods_tgt)
                      prods_src prods_tgt)
-    (WF: wf_system [(module_intro l_src ndts_src prods_src)])
+    (WF_SRC: wf_system [(module_intro l_src ndts_src prods_src)])
+    (WF_TGT: wf_system [(module_intro l_tgt ndts_tgt prods_tgt)])
   : transl_module (module_intro l_src ndts_src prods_src)
                   (module_intro l_tgt ndts_tgt prods_tgt)
 .
@@ -150,10 +151,13 @@ Lemma transl_products_sim_conf
       md_src md_tgt prods_src prods_tgt
       TD
       (TRANSL_PRODUCTS: transl_products md_src md_tgt prods_src prods_tgt)
-      sys_src sys_tgt
+      (WF_CONF: wf_ConfigI (mkCfg [md_tgt] TD prods_tgt gl ft))
+      (* (WF: wf_prods [md_tgt] md_tgt prods_tgt) *)
+      (* (WF_SYST: wf_system sys_tgt) *)
+      (* (WF_CONF: wf_ConfigI (mkCfg sys_tgt TD prods_tgt gl ft)) *)
   :
-    <<SIM_CONF: sim_conf (mkCfg sys_src TD prods_src gl ft)
-                         (mkCfg sys_tgt TD prods_tgt gl ft)>>
+    <<SIM_CONF: sim_conf (mkCfg [md_src] TD prods_src gl ft)
+                         (mkCfg [md_tgt] TD prods_tgt gl ft)>>
 .
 Proof.
   econs; eauto.
@@ -169,7 +173,7 @@ Proof.
         des_ifs. des. clarify. }
     + eapply valid_sim_fdef; eauto.
       { ss. }
-  - clear_tac.
+  - clear_tac. clear WF_CONF.
     i.
     ginduction prods_src; ii; inv TRANSL_PRODUCTS; ss.
     rename H1 into TRANSL_PRODUCT.
@@ -180,7 +184,7 @@ Proof.
     + des_ifs. exfalso. unfold valid_fdef in *. des_ifs. ss.
       clear - n Heq0.
       compute in Heq0. des_ifs.
-  - clear_tac.
+  - clear_tac. clear WF_CONF.
     i.
     ginduction prods_src; ii; inv TRANSL_PRODUCTS; ss.
     rename H1 into TRANSL_PRODUCT.
@@ -199,13 +203,27 @@ Proof.
       * esplits; eauto.
 Qed.
 
+(* TODO: move to proper position *)
+(* TODO: Is it replacable by some lemma in stdlib? or tactic? *)
+Lemma dependent_split
+      (A B: Prop)
+      (HYPA: A)
+      (HYPB: <<HYPA: A>> -> B)
+  :
+    <<GOAL: A /\ B>>
+.
+Proof.
+  split; ss.
+  apply HYPB; ss.
+Qed.
+
 Lemma transl_sim_module:
   transl_module <2= sim_module.
 Proof.
   s. intros module_src module_tgt MODULE.
   inv MODULE.
   ii.
-  expl s_genInitState__opsem_wf.
+  expl s_genInitState__opsem_wf (try exact WF_SRC; eauto).
   apply_all_once wf_ConfigI_spec. apply_all_once wf_StateI_spec.
   (* Without this, prop will be destructed into multiple parts, and readibility is marred. *)
   unfold s_genInitState in SRC. simtac.
@@ -239,9 +257,8 @@ Proof.
 
     expl genGlobalAndInitMem__wf_globals_Mem.
 
-
-
-    esplits.
+    do 3 eexists.
+    apply dependent_split.
     - unfold s_genInitState. ss. rewrite TGT.
       match goal with
       | [|- context [productInModuleB_dec ?a ?b]] => destruct (productInModuleB_dec a b)
@@ -251,7 +268,13 @@ Proof.
       erewrite <- transl_products_genGlobalAndInitMem; eauto. rewrite COND1.
       rewrite COND2.
       eauto.
-    - apply sim_local_lift_sim.
+    - i; des.
+
+      clear s_genInitState__opsem_wf.
+      hexploit s_genInitState__opsem_wf; eauto; []; intro WF_TGT2; destruct WF_TGT2 as [WF_CONF_TGT WF_ST_TGT].
+      apply wf_ConfigI_spec in WF_CONF_TGT. apply wf_StateI_spec in WF_ST_TGT.
+
+      apply sim_local_lift_sim.
       { eapply transl_products_sim_conf; eauto. }
       econs; ss.
       + econs.
@@ -273,7 +296,7 @@ Proof.
   { ss. simtac.
     inv e0.
     expl genGlobalAndInitMem__wf_globals_Mem.
-    esplits.
+    do 3 eexists. apply dependent_split.
     - unfold s_genInitState. ss. rewrite TGT.
       match goal with
       | [|- context [productInModuleB_dec ?a ?b]] => destruct (productInModuleB_dec a b)
@@ -282,7 +305,13 @@ Proof.
       unfold initTargetData in *.
       erewrite <- transl_products_genGlobalAndInitMem; eauto. rewrite COND1.
       rewrite COND2. eauto.
-    - apply sim_local_lift_sim.
+    - i; des.
+
+      clear s_genInitState__opsem_wf.
+      hexploit s_genInitState__opsem_wf; eauto; []; intro WF_TGT2; destruct WF_TGT2 as [WF_CONF_TGT WF_ST_TGT].
+      apply wf_ConfigI_spec in WF_CONF_TGT. apply wf_StateI_spec in WF_ST_TGT.
+
+      apply sim_local_lift_sim.
       { eapply transl_products_sim_conf; eauto. }
       econs; ss.
       + econs.
@@ -314,4 +343,4 @@ Unshelve.
 { by econs; eauto. }
 { apply empty_invmem. }
 (* Qed. *)
-Admitted.
+Qed.
