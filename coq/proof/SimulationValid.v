@@ -925,44 +925,7 @@ Proof.
               rewrite InvState.Unary.sem_valueT_physical in *. ss. rewrite Heq0 in *. clarify.
             }
             admit. (* store inject. easy *)
-          +
-            exfalso.
-            assert(SIM_PRODUCTS: AdequacyLocal.sim_products
-                                   (mkCfg CurSystem0 CurTargetData0 CurProducts0 Globals0 FunTable0)
-                                   (mkCfg CurSystem1 CurTargetData0 CurProducts1 Globals0 FunTable1)
-                                   CurProducts0 CurProducts1).
-            { admit. }
-            inv SIM_PRODUCTS.
-            move IS_UNDEFINED at bottom.
-            rename Heq0 into LOOKUP_TGT.
-            move LOOKUP_TGT at bottom.
-            (* exploit AdequacyLocal.lookupExFdecViaPtr_inject; eauto. *)
-            unfold lookupExFdecViaPtr, lookupFdefViaPtr in *. unfold monad.mbind in *. ss.
-            des_ifs.
-            admit.
-            admit.
-            admit.
-            admit.
-            admit.
-            admit.
-            admit.
-            (* des_ifsH LOOKUP_TGT. *)
-            (* * rewrite LOOKUP_TGT in *. *)
-            (*   { *)
-            (*     destruct(lookupFdecViaIDFromProducts CurProducts1 i0) eqn:LOOKUP_FDEC; cycle 1. *)
-            (*     { admit. (* both are None, src stuck *) } *)
-            (*     destruct f; ss. *)
-            (*     destruct fheader5; ss. *)
-            (*     destruct (params2GVs CurTargetData0 params5 Locals1 Globals0) eqn: PARAMS_TGT; cycle 1. *)
-            (*     { admit. (* Fdef none. Fdec is some, but params none *) } *)
-            (*     destruct (external_intrinsics.callExternalOrIntrinsics *)
-            (*                 CurTargetData0 Globals0 Mem1 id0 typ0 *)
-            (*                 (args2Typs args5) deckind5 l2) eqn:EXT; cycle 1. *)
-            (*     { admit. (* extcall *) } *)
-            (*     des_ifs. *)
-            (*     admit. (* locals *) *)
-            (*   } *)
-            (* * *)
+          + destruct c; ss.
         - i; ss.
       }
       i.
