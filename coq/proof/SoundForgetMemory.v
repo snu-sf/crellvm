@@ -25,6 +25,7 @@ Require InvMem.
 Require InvState.
 Require Import Inject.
 Require Import SoundBase.
+Require Import TODOProof.
 
 Set Implicit Arguments.
 
@@ -431,9 +432,9 @@ Proof.
       * des_ifs.
       * econs; eauto.
   - assert (BLOCK_IN_FDEF: blockInFdefB B F).
-    { admit. } (* wf_EC *)
+    { exact (SF_ADMIT "wf_EC"). }
     assert (INSN_IN_BLOCK: insnInBlockB (insn_cmd (insn_store id5 typ5 value1 value2 align5)) B).
-    { admit. } (* wf_EC *)
+    { exact (SF_ADMIT "wf_EC"). }
     split.
     + ii.
       exploit (mstore_never_produce_new_ptr' {| CurSystem := S;
@@ -475,7 +476,8 @@ Proof.
           eapply MemProps.valid_ptrs__trans; eauto.
           rewrite <- Pplus_one_succ_r.
           apply Pos.le_succ_l. eauto.
-Admitted.
+        }
+Qed.
 
 Ltac exploit_inject_value :=
   repeat (match goal with
@@ -831,9 +833,9 @@ Proof.
   econs; eauto. ss.
   i. hexploit mstore_never_produce_new_ptr; eauto.
   { i. rewrite vellvm_no_alias_is_diffblock. eauto. }
-  { admit. (* unique and const noailas *) }
+  { exact (SF_ADMIT "unique and const noailas"). }
   rewrite <- vellvm_no_alias_is_diffblock. eauto.
-Admitted.
+Qed.
 
 Lemma mstore_register_leak_no_unique
       conf st0 gmax u

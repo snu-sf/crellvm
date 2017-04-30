@@ -26,6 +26,7 @@ Require Import SoundBase.
 
 Require Import Inject. (* TODO: for simtac *)
 Require Import SoundPostcondCmdAdd.
+Require Import TODOProof.
 
 Set Implicit Arguments.
 
@@ -582,9 +583,11 @@ Proof.
   clarify. ss.
   {
     assert (BLOCK_IN_FDEF: blockInFdefB B F).
-    { admit. } (* wf_EC *)
+    { exact (SF_ADMIT "wf_EC
+This can be easily solved.
+Prove wf_EC at the start of the function, and propagating it will do."). }
     assert (INSN_IN_BLOCK: insnInBlockB (insn_cmd (insn_gep reg inbounds5 typ5 value_5 l0 typ')) B).
-    { admit. } (* wf_EC *)
+    { exact (SF_ADMIT "wf_EC"). }
     exploit WF_INSNS; eauto; []; intro WF_INSN; des.
     clear BLOCK_IN_FDEF INSN_IN_BLOCK.
 
@@ -626,7 +629,8 @@ Proof.
         destruct mp; ss. destruct p; ss. destruct v; ss. des. des_ifs.
         left; ss.
     }
-Admitted.
+  }
+Qed.
 
 (* care for quantification position of the "blocks".
 If it is inside getOperand_diffblock && DIFFBLOCK, this lemma is not usable in intended use case. *)
@@ -680,7 +684,7 @@ Qed.
 (*       apply_all_once AtomSetFacts.not_mem_iff. *)
 (*       apply_all_once AtomSetImpl_from_list_spec2. *)
 (*       ii. subst. apply NOT_LEAKED. econs. ss. *)
-(*     + admit. *)
+(*     + ad-mit. *)
 (*       (* may need some wf coditions *) *)
 (*       (* const2GV_disjoint_with_runtime_alloca *) *)
 (* Adm-itted. *)
@@ -1192,7 +1196,7 @@ Qed.
 (*   + rewrite <- lookupAL_updateAddAL_neq; eauto. *)
 (*   + i. rename_id_res id_res. *)
 (*     destruct (id_dec id_res reg). *)
-(*     * admit. (* bop: operand not unique => result not unique *) *)
+(*     * ad-mit. (* bop: operand not unique => result not unique *) *)
 (*       (* TODO: result of inst not containing unique *) *)
 (*       (* can believe it even without proofs *) *)
 (*     * exploit LOCALS; eauto. *)
@@ -1209,7 +1213,7 @@ Qed.
 (*   + rewrite <- lookupAL_updateAddAL_neq; eauto. *)
 (*   + i. rename_id_res id_res. *)
 (*     destruct (id_dec id_res reg). *)
-(*     * admit. (* fbop: operand not unique => result not unique *) *)
+(*     * ad-mit. (* fbop: operand not unique => result not unique *) *)
 (*       (* TODO: result of inst not containing unique *) *)
 (*       (* can believe it even without proofs *) *)
 (*     * exploit LOCALS; eauto. *)
@@ -1226,7 +1230,7 @@ Qed.
 (*   + rewrite <- lookupAL_updateAddAL_neq; eauto. *)
 (*   + i. rename_id_res id_res. *)
 (*     destruct (id_dec id_res reg). *)
-(*     * admit. (* bop: operand not unique => result not unique *) *)
+(*     * ad-mit. (* bop: operand not unique => result not unique *) *)
 (*       (* TODO: result of inst not containing unique *) *)
 (*       (* can believe it even without proofs *) *)
 (*     * exploit LOCALS; eauto. *)

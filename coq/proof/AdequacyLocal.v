@@ -143,7 +143,7 @@ Proof.
           + admit. (* free_allocas *)
           + rewrite returnUpdateLocals_spec, RET_TGT. ss.
         - exploit genericvalues_inject.simulation__fit_gv; eauto.
-          { admit. (* genericvalues_inject.wf_sb_mi *) }
+          { inv MEM. eauto. }
           i. des.
           esplits. econs; ss; eauto.
           + admit. (* free_allocas *)
@@ -269,7 +269,9 @@ Proof.
       rewrite FUN_TGT in H22. inv H22.
       rewrite ARGS_TGT in H24. inv H24.
       hexploit RETURN; try reflexivity; eauto.
-      { admit. (* InvMem.Rel.sem *) }
+      { clear CIH RETURN ARGS FUN ERROR_SRC STEP STACK SIM_CONF.
+        inv CONF. ss. subst.
+        econs; eauto; eapply invmem_lift; eauto. }
       { s. admit. (* retvals are related *) }
       { rewrite exCallUpdateLocals_spec in *. eauto. }
       i. des. inv SIM; ss.

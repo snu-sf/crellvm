@@ -1760,17 +1760,17 @@ Definition apply_infrule
           {{inv0 +++src (Expr.value (ValueT.const (const_int Size.One b'))) >= (Expr.icmp c' ty x y)}}
       in {{inv1 +++src (Expr.icmp c' ty x y) >= (Expr.value (ValueT.const (const_int Size.One b')))}}
     else apply_fail tt
-  | Infrule.icmp_swap_operands c ty x y z =>
-    if $$ inv0 |-src (Expr.value z) >= (Expr.icmp c ty x y) $$
+  | Infrule.icmp_swap_operands c ty x y e =>
+    if $$ inv0 |-src e >= (Expr.icmp c ty x y) $$
     then
       let c' := get_swapped_icmp_cond c in
-      {{inv0 +++src (Expr.value z) >= (Expr.icmp c' ty y x) }}
+      {{inv0 +++src e >= (Expr.icmp c' ty y x) }}
     else apply_fail tt
-  | Infrule.fcmp_swap_operands c fty x y z =>
-    if $$ inv0 |-src (Expr.value z) >= (Expr.fcmp c fty x y) $$
+  | Infrule.fcmp_swap_operands c fty x y e =>
+    if $$ inv0 |-src e >= (Expr.fcmp c fty x y) $$
     then
       let c' := get_swapped_fcmp_cond c in
-      {{inv0 +++src (Expr.value z) >= (Expr.fcmp c' fty y x) }}
+      {{inv0 +++src e >= (Expr.fcmp c' fty y x) }}
     else apply_fail tt
   | Infrule.implies_false c1 c2 =>
     if $$ inv0 |-src (Expr.value c1) >= (Expr.value c2) $$

@@ -40,12 +40,14 @@ Lemma valid_fdef_valid_stmts
       (SRC: lookupAL stmts (get_blocks fdef_src) l = Some (stmts_intro phinodes_src cmds_src terminator_src))
       (TGT: lookupAL stmts (get_blocks fdef_tgt) l = Some (stmts_intro phinodes_tgt cmds_tgt terminator_tgt))
       (HINT: lookupAL _ fdef_hint l = Some stmts_hint):
-  exists inv_term,
+  exists inv_term infrules,
     <<CMDS: valid_cmds m_src m_tgt cmds_src cmds_tgt
                        stmts_hint.(Hints.ValidationHint.cmds)
                        stmts_hint.(ValidationHint.invariant_after_phinodes) =
             Some inv_term>> /\
-    <<TERM: valid_terminator fdef_hint inv_term m_src m_tgt
+    <<TERM: valid_terminator fdef_hint
+                             (Infrules.apply_infrules m_src m_tgt infrules inv_term)
+                             m_src m_tgt
                              fdef_src.(get_blocks) fdef_tgt.(get_blocks)
                              l terminator_src terminator_tgt>>.
 Proof.
@@ -59,6 +61,9 @@ Proof.
   induction blocks1; i; ss.
   destruct blocks2; [by inv FDEF0|].
   unfold forallb2AL in FDEF0. simtac; eauto.
-  rewrite HINT in COND. inv COND.
-  esplits; eauto.
+  - rewrite HINT in COND. inv COND.
+    esplits; eauto.
+  - rewrite HINT in COND. inv COND.
+    esplits; eauto.
+    instantiate (1:= []). ss.
 Qed.
