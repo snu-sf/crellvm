@@ -100,6 +100,58 @@ Proof.
   eapply genericvalues_inject.simulation__eq__GV2int; eauto.
 Qed.
 
+(* TODO: move to SoundImpiles.v *)
+Lemma implies_reduce_maydiff
+      inv0
+  :
+    <<IMPLIES: Invariant.implies (Postcond.reduce_maydiff inv0) inv0>>
+.
+Proof.
+  red.
+  unfold Postcond.reduce_maydiff.
+  unfold Invariant.implies.
+  apply orb_true_iff. right.
+  do 2 try (apply andb_true_iff; split).
+  - ss. apply wrap_is_true_goal. reflexivity.
+  - ss. apply wrap_is_true_goal. reflexivity.
+  - ss.
+    (* TODO: THERE SHOULD BE LEMMA FOR THIS: subset -> filter *)
+    apply Exprs.IdTSetFacts.subset_iff.
+    ii.
+    apply Exprs.IdTSetFacts.filter_iff in H; cycle 1.
+    { solve_compat_bool. }
+    des.
+    apply Exprs.IdTSetFacts.filter_iff in H; cycle 1.
+    { solve_compat_bool. }
+    des.
+    ss.
+Qed.
+
+(* COPIED FROM https://www.cis.upenn.edu/~bcpierce/sf/current/LibTactics.html *)
+(* TODO: is it OK? *)
+(* TODO: move to proper position; I think sflib should be OK *)
+(* TODO: also import some other good things, e.g. gens *)
+Tactic Notation "clears" ident(X1) :=
+  let rec doit _ :=
+      match goal with
+      | H:context[X1] |- _ => clear H; try (doit tt)
+      | _ => clear X1
+      end in doit tt.
+Tactic Notation "clears" ident(X1) ident(X2) :=
+  clears X1; clears X2.
+Tactic Notation "clears" ident(X1) ident(X2) ident(X3) :=
+  clears X1; clears X2; clears X3.
+Tactic Notation "clears" ident(X1) ident(X2) ident(X3) ident(X4) :=
+  clears X1; clears X2; clears X3; clears X4.
+Tactic Notation "clears" ident(X1) ident(X2) ident(X3) ident(X4)
+       ident(X5) :=
+  clears X1; clears X2; clears X3; clears X4; clears X5.
+Tactic Notation "clears" ident(X1) ident(X2) ident(X3) ident(X4)
+       ident(X5) ident(X6) :=
+  clears X1; clears X2; clears X3; clears X4; clears X5; clears X6.
+(* TODO: This should fail when ident appears in the goal! *)
+(* It currently succeeds, only removing preemises *)
+
 Lemma valid_sim_term
       conf_src conf_tgt inv0 idx0
       CurFunction0 CurBB0 Terminator0 Locals0 Allocas0
@@ -155,6 +207,8 @@ Proof.
     { apply STATE. }
     { apply STATE. }
   + (* br *)
+    clears invst.
+    rename STATE0 into STATE1.
     exploit nerror_nfinal_nstuck; eauto. i. des. inv x0.
     rewrite <- (ite_spec decision l0 l3) in *. simtac.
     exploit InvState.Rel.inject_value_spec; eauto.
@@ -170,57 +224,153 @@ Proof.
     }
     i.
     expl preservation.
+    clear ERROR_SRC.
     inv STEP. unfold valid_phinodes in *.
     do 12 simtac0. rewrite <- (ite_spec decision0 l0 l3) in *.
     {
+      inv CONF. inv INJECT0. ss. clarify.
+      expl decide_nonzero_inject_aux. clarify.
+      expl valid_fdef_valid_stmts (try exact COND3; eauto).
+      expl valid_fdef_valid_stmts (try exact COND7; eauto).
       move COND1 at bottom.
       move COND2 at bottom.
       rename s0 into __s0__.
       rename s into __s__.
-      rewrite VAL_TGT in *. clarify.
-      exploit decide_nonzero_inject_aux; eauto.
-      { inv CONF. inv INJECT0. ss. subst. eauto. }
-      i. subst.
-      expl add_terminator_cond_br.
+
+      Ltac hide_goal := (* for readability *)
+        match goal with
+        | [ |- ?g: ?G ] => remember g as Goal eqn: HeqGoal; move HeqGoal at top
+        end.
+      hide_goal.
+      abstr (gen_infrules_next_inv
+                           (Postcond.reduce_maydiff
+                              (Infrules.apply_infrules m_src m_tgt
+                                 (lookup_phinodes_infrules __s0__ (fst CurBB0)) t0))
+                           (ValidationHint.invariant_after_phinodes __s0__)) infrulesA0.
+      abstr (gen_infrules_next_inv
+                           (Postcond.reduce_maydiff
+                              (Infrules.apply_infrules m_src m_tgt
+                                 (lookup_phinodes_infrules __s__ (fst CurBB0)) t))
+                           (ValidationHint.invariant_after_phinodes __s__)) infrulesB0.
+      unfold l in *.
+
+      abstr (lookup_phinodes_infrules __s0__ (@fst atom stmts CurBB0)) infrulesA2.
+      abstr (ValidationHint.invariant_after_phinodes __s0__) inv_afterA.
+      assert(exists infrulesA1,
+                (Invariant.implies
+                  (Postcond.reduce_maydiff
+                     (Infrules.apply_infrules m_src m_tgt infrulesA1
+                        (Postcond.reduce_maydiff
+                           (Infrules.apply_infrules m_src m_tgt infrulesA2 t0)))) inv_afterA)).
+      { des_ifsH COND1; des_bool.
+        - esplits; ss. eassumption.
+        - exists nil. ss. etransitivity; eauto.
+          eapply implies_reduce_maydiff; eauto. }
+      clear COND1.
+
+      abstr (lookup_phinodes_infrules __s__ (@fst atom stmts CurBB0)) infrulesB2.
+      abstr (ValidationHint.invariant_after_phinodes __s__) inv_afterB.
+      abstr (ValidationHint.cmds __s__) cmdsB.
+      assert(exists infrulesB1,
+                (Invariant.implies
+                  (Postcond.reduce_maydiff
+                     (Infrules.apply_infrules m_src m_tgt infrulesB1
+                        (Postcond.reduce_maydiff
+                           (Infrules.apply_infrules m_src m_tgt infrulesB2 t)))) inv_afterB)).
+      { des_ifsH COND2; des_bool.
+        - esplits; ss. eassumption.
+        - exists nil. ss. etransitivity; eauto.
+          eapply implies_reduce_maydiff; eauto. }
+      clear COND2.
+
+      des. clarify.
+      (* expl add_terminator_cond_br. *)
       rewrite lookupBlockViaLabelFromFdef_spec in *.
+      (* expl (lookupAL_ite fdef_hint decision0 l0 l3). *) (* TODO: Fix expl to pass thi *)
       exploit (lookupAL_ite fdef_hint decision0 l0 l3); eauto. clear COND7 COND3. i.
       exploit (lookupAL_ite CurFunction0.(get_blocks) decision0 l0 l3); eauto. clear COND8 COND4. i.
       exploit (lookupAL_ite CurFunction1.(get_blocks) decision0 l0 l3); eauto. clear COND9 COND5. i.
-      idtac.
-      unfold l in *.
+      (* TODO: apply & clear ? *)
       rewrite x1 in *. clarify.
       rewrite x2 in *. clarify.
-      destruct decision0; inv H0; inv H1; ss.
-      * exploit postcond_phinodes_sound;
-          (try instantiate (1 := (mkState (mkEC _ _ _ _ _ _) _ _))); s;
-            (try eexact x0; try eexact MEM0);
-            (try eexact H19; try eexact H15); ss; eauto; [].
-        i. des.
-        exploit apply_infrules_sound; try exact STATE0; eauto; ss; []. i. des.
-        exploit reduce_maydiff_sound; eauto; ss; []. i. des.
-        (* exploit implies_sound; try exact COND2; eauto; ss. i. des. *)
-        exploit valid_fdef_valid_stmts; eauto; []. i. des.
-        esplits; eauto.
 
 
-        { econs 1. econs; eauto. rewrite lookupBlockViaLabelFromFdef_spec. ss. }
-        { econs; ss; eauto.
-          - eapply inject_allocas_inj_incr; eauto.
-          - exploit implies_sound; eauto. }
-      * exploit postcond_phinodes_sound;
-          (try instantiate (1 := (mkState (mkEC _ _ _ _ _ _) _ _))); s;
-            (try eexact x0; try eexact MEM0);
-            (try eexact H19; try eexact H15); ss; eauto; [].
-        i. des.
-        exploit apply_infrules_sound; try exact STATE0; eauto; ss; []. i. des.
-        exploit reduce_maydiff_sound; eauto; ss; []. i. des.
-        (* exploit implies_sound; try exact COND11; eauto; ss. i. des. *)
-        exploit valid_fdef_valid_stmts; eauto; []. i. des.
+      expl add_terminator_cond_br.
+      destruct decision0; ss; clarify.
+      -
+        exploit postcond_phinodes_sound;
+          try exact add_terminator_cond_br; try exact COND10; try eassumption; eauto; ss; []; intro STATE2.
+        destruct STATE2 as [invst2 STATE2].
+        clears add_terminator_cond_br invst1.
+
+        exploit apply_infrules_sound; eauto; ss; []; intro STATE3.
+        destruct STATE3 as [invst3 [invmem3 [STATE3 [MEM3 MEMLE3]]]]; des.
+        clears invst2.
+
+        exploit reduce_maydiff_sound; eauto; ss; []; intro STATE4.
+        destruct STATE4 as [invst4 STATE4]; des.
+        clears invst3.
+
+        exploit apply_infrules_sound; eauto; ss; []; intro STATE5.
+        destruct STATE5 as [invst5 [invmem5 [STATE5 [MEM5 MEMLE5]]]]; des.
+        clears invst4.
+
+        exploit reduce_maydiff_sound; eauto; ss; []; intro STATE6.
+        destruct STATE6 as [invst6 STATE6]; des.
+        clears invst5.
+
+        assert(InvMem.Rel.le inv0 invmem5).
+        { etransitivity; eauto. etransitivity; eauto. }
         esplits; eauto.
         { econs 1. econs; eauto. rewrite lookupBlockViaLabelFromFdef_spec. ss. }
-        { econs; ss; eauto.
+        {
+          econs; eauto; ss.
           - eapply inject_allocas_inj_incr; eauto.
-          - exploit implies_sound; eauto. }
+          -
+            (* revert add_terminator_cond_br. hide_evars. *)
+            (* (* TODO: move hidden evars to top *) *)
+            (* (* TODO: revert all and hide *) *)
+            (* i. *)
+            eapply implies_sound; eauto.
+            { ss. }
+        }
+      -
+        exploit postcond_phinodes_sound;
+          try exact add_terminator_cond_br; try exact COND6; try eassumption; eauto; ss; []; intro STATE2.
+        destruct STATE2 as [invst2 STATE2].
+        clears add_terminator_cond_br invst1.
+
+        exploit apply_infrules_sound; eauto; ss; []; intro STATE3.
+        destruct STATE3 as [invst3 [invmem3 [STATE3 [MEM3 MEMLE3]]]]; des.
+        clears invst2.
+
+        exploit reduce_maydiff_sound; eauto; ss; []; intro STATE4.
+        destruct STATE4 as [invst4 STATE4]; des.
+        clears invst3.
+
+        exploit apply_infrules_sound; eauto; ss; []; intro STATE5.
+        destruct STATE5 as [invst5 [invmem5 [STATE5 [MEM5 MEMLE5]]]]; des.
+        clears invst4.
+
+        exploit reduce_maydiff_sound; eauto; ss; []; intro STATE6.
+        destruct STATE6 as [invst6 STATE6]; des.
+        clears invst5.
+
+        assert(InvMem.Rel.le inv0 invmem5).
+        { etransitivity; eauto. etransitivity; eauto. }
+        esplits; eauto.
+        { econs 1. econs; eauto. rewrite lookupBlockViaLabelFromFdef_spec. ss. }
+        {
+          econs; eauto; ss.
+          - eapply inject_allocas_inj_incr; eauto.
+          -
+            (* revert add_terminator_cond_br. hide_evars. *)
+            (* (* TODO: move hidden evars to top *) *)
+            (* (* TODO: revert all and hide *) *)
+            (* i. *)
+            eapply implies_sound; eauto.
+            { ss. }
+        }
     }
   + (* br_uncond *)
     exploit nerror_nfinal_nstuck; eauto. i. des. inv x0. simtac.
@@ -329,7 +479,7 @@ Proof.
   + (* unreachable *)
     exploit nerror_nfinal_nstuck; eauto. i. des. inv x0.
 Unshelve.
-all: destruct CONF; subst; ss.
+all: try destruct CONF; subst; ss.
 { clear - CMDS TERM.
   admit. }
 { admit. }
@@ -337,18 +487,6 @@ all: destruct CONF; subst; ss.
 { admit. }
 { admit. }
 { admit. }
-{ admit. }
-{ admit. }
-{ admit. }
-{ admit. }
-(* apply 0%nat. *)
-(* apply 0%nat. *)
-(* apply 0%nat. *)
-(* ss. *)
-(* apply value_id; ss. *)
-(* apply 0%nat. *)
-(* apply 0%nat. *)
-(* Qed. *)
 Admitted.
 
 (* TODO: move to postcond.v *)
