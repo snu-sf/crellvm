@@ -326,12 +326,7 @@ Proof.
         {
           econs; eauto; ss.
           - eapply inject_allocas_inj_incr; eauto.
-          -
-            (* revert add_terminator_cond_br. hide_evars. *)
-            (* (* TODO: move hidden evars to top *) *)
-            (* (* TODO: revert all and hide *) *)
-            (* i. *)
-            eapply implies_sound; eauto.
+          - eapply implies_sound; eauto.
             { ss. }
         }
       -
@@ -363,12 +358,7 @@ Proof.
         {
           econs; eauto; ss.
           - eapply inject_allocas_inj_incr; eauto.
-          -
-            (* revert add_terminator_cond_br. hide_evars. *)
-            (* (* TODO: move hidden evars to top *) *)
-            (* (* TODO: revert all and hide *) *)
-            (* i. *)
-            eapply implies_sound; eauto.
+          - eapply implies_sound; eauto.
             { ss. }
         }
     }
