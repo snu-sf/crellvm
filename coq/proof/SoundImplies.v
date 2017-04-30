@@ -15,6 +15,7 @@ Require Import paco.
 Import Opsem.
 
 Require Import TODO.
+Require Import TODOProof.
 Require Import Validator.
 Require Import Exprs.
 Require Import Hints.
@@ -320,3 +321,309 @@ Proof.
     apply IdTSetFacts.not_mem_iff in NOTIN. apply NOTIN.
     eapply IdTSetFacts.subset_iff; eauto.
 Qed.
+
+
+
+(* TODO: more idiomatic way to do this? by tactic? *)
+(* TODO: position *)
+Lemma dependent_apply
+      (A B G: Prop)
+      (LEMMA: A -> B)
+      (PREMISE: A)
+      (GOAL: A /\ B -> G)
+  :
+    <<GOAL: G>>
+.
+Proof.
+  apply GOAL.
+  split; ss.
+  apply LEMMA. ss.
+Qed.
+
+Global Program Instance PreOrder_implies_lessdef: PreOrder Invariant.implies_lessdef.
+Next Obligation.
+  ii.
+  unfold Invariant.implies_lessdef. unfold flip.
+  apply Exprs.ExprPairSetFacts.for_all_iff.
+  { solve_compat_bool. }
+  ii.
+  apply Exprs.ExprPairSetFacts.exists_iff.
+  { solve_compat_bool. }
+  unfold Exprs.ExprPairSet.Exists.
+  esplits; eauto.
+  (* TODO: enhance des_bool *)
+  apply andb_true_iff.
+  split.
+  - unfold proj_sumbool. des_ifs.
+  - unfold Invariant.syntactic_lessdef.
+    des_ifs; unfold proj_sumbool; des_ifs.
+Qed.
+Next Obligation.
+  ii.
+  rename x into inva.
+  rename y into invb.
+  rename z into invc.
+  unfold Invariant.implies_lessdef in *. unfold flip in *.
+  (* eapply dependent_apply; [apply Exprs.ExprPairSetFacts.for_all_iff|..]; cycle 1. *)
+  (* i; des. apply H2. clear H2 H3. *)
+  (* Focus 2. *)
+  (* { solve_compat_bool. } *)
+  (* Unfocus. *)
+  (* apply Exprs.ExprPairSetFacts.for_all_iff in H; eauto. *)
+  (* apply Exprs.ExprPairSetFacts.for_all_iff in H0; eauto; cycle 1. *)
+  (* { solve_compat_bool. } *)
+
+  apply Exprs.ExprPairSetFacts.for_all_iff.
+  { solve_compat_bool. }
+  apply Exprs.ExprPairSetFacts.for_all_iff in H; cycle 1.
+  (* TODO: why compat_bool appears late in this case? *)
+  { solve_compat_bool. }
+  apply Exprs.ExprPairSetFacts.for_all_iff in H0; cycle 1.
+  { solve_compat_bool. }
+  (* TODO: I want to write solve_compat_bool only once. *)
+  (* push subgoal as premise of original goal when "apply"ing? *)
+  unfold Exprs.ExprPairSet.For_all in *.
+  ii.
+
+  expl H0 (try eassumption).
+  apply Exprs.ExprPairSetFacts.exists_iff.
+  { solve_compat_bool. }
+  apply Exprs.ExprPairSetFacts.exists_iff in H2; cycle 1.
+  { solve_compat_bool. }
+  unfold Exprs.ExprPairSet.Exists in *. des.
+  des_bool; des.
+  des_sumbool.
+
+  expl H (try eassumption).
+  apply Exprs.ExprPairSetFacts.exists_iff in H5; cycle 1.
+  { solve_compat_bool. }
+  unfold Exprs.ExprPairSet.Exists in *. des.
+  des_bool; des.
+  des_sumbool.
+
+  destruct x, x0, x1; ss; clarify.
+  exists (t, t4).
+  splits; ss.
+  apply andb_true_iff.
+  splits; ss.
+  { unfold proj_sumbool. (* TODO: enhance des_sumbool *)
+    des_ifs. }
+  clear H H0.
+  rename H4 into LESSB.
+  rename H7 into LESSA.
+  unfold Invariant.syntactic_lessdef in LESSB. des_bool.
+  des.
+  - des_sumbool. clarify.
+  - unfold Invariant.syntactic_lessdef in LESSA. des_bool.
+    des.
+    + des_sumbool. clarify.
+      des_ifs.
+      unfold flip in *.
+      apply Exprs.ExprPairSetFacts.exists_iff in LESSB; cycle 1.
+      { solve_compat_bool. }
+      unfold Exprs.ExprPairSet.Exists in *.
+      des.
+      des_bool. des. des_sumbool. destruct x; ss; clarify.
+      des_ifs.
+      unfold Invariant.syntactic_lessdef.
+      apply orb_true_iff.
+      right. unfold flip.
+      apply Exprs.ExprPairSetFacts.exists_iff.
+      { solve_compat_bool. }
+      unfold Exprs.ExprPairSet.Exists in *.
+      esplits; eauto.
+      admit.
+    + admit.
+Admitted.
+
+Lemma wrap_is_true_goal
+      A
+  (*     (WRAPPED: is_true A) *)
+  (* : *)
+  (*   <<GOAL: A = true>> *)
+  :
+    is_true A -> A = true
+.
+Proof. ss. Qed.
+Lemma wrap_is_true_hyp
+      A
+  (*     (WRAPPED: is_true A) *)
+  (* : *)
+  (*   <<GOAL: A = true>> *)
+  :
+    A = true -> is_true A
+.
+Proof. ss. Qed.
+
+Lemma is_unique_value_Subset
+      inv0 inv1
+      (SUBSET: Invariant.unique inv0 [<=] Invariant.unique inv1)
+      v
+      (DIFFBLOCK: Invariant.is_unique_value inv0 v)
+  :
+    <<DIFFBLOCK: Invariant.is_unique_value inv1 v>>
+.
+Proof.
+  unfold Invariant.is_unique_value in *. des_ifs.
+  unfold is_true in *. (* TODO: enhance des_bool *)
+  des_bool. des.
+  des_sumbool. destruct x; ss; clarify.
+  apply andb_true_iff.
+  splits; ss.
+  exploit SUBSET; try eapply AtomSetFacts.mem_iff; eauto.
+Qed.
+
+Lemma diffblock_by_unique_Subset
+      inv0 inv1
+      (SUBSET: Invariant.unique inv0 [<=] Invariant.unique inv1)
+      v1 v2
+      (DIFFBLOCK: Invariant.diffblock_by_unique inv0 v1 v2)
+  :
+    <<DIFFBLOCK: Invariant.diffblock_by_unique inv1 v1 v2>>
+.
+Proof.
+  unfold Invariant.diffblock_by_unique in *.
+  unfold is_true in *.
+  red. apply andb_true_iff.
+  des_bool; des.
+  splits; ss.
+  apply orb_true_iff.
+  repeat (des_bool; des).
+  - left.
+    apply andb_true_iff.
+    splits; ss.
+    eapply is_unique_value_Subset; eauto.
+  - right.
+    apply andb_true_iff.
+    splits; ss.
+    eapply is_unique_value_Subset; eauto.
+Qed.
+
+Global Program Instance PreOrder_implies_unary: PreOrder Invariant.implies_unary.
+Next Obligation.
+  ii.
+  unfold Invariant.implies_unary.
+  repeat (apply andb_true_iff; split); try apply wrap_is_true_goal.
+  (* TODO: wrap_is_true. Can we do this without lemma? soley by tactic? *)
+  - reflexivity.
+  - unfold Invariant.implies_noalias.
+    unfold flip.
+    apply Exprs.PtrPairSetFacts.for_all_iff.
+    { solve_compat_bool. }
+    ii.
+    destruct x0; ss. destruct t, t0; ss.
+    apply orb_true_iff. right.
+    apply Exprs.PtrPairSetFacts.mem_iff. ss.
+  - unfold Invariant.implies_diffblock. unfold flip.
+    apply Exprs.ValueTPairSetFacts.for_all_iff.
+    { solve_compat_bool. }
+    ii.
+    apply orb_true_iff. right.
+    apply Exprs.ValueTPairSetFacts.mem_iff.
+    ss.
+  - apply AtomSetFacts.subset_iff. ss.
+  - apply Exprs.IdTSetFacts.subset_iff. ss.
+Qed.
+Next Obligation.
+  ii. rename H into HA. rename H0 into HB.
+  unfold Invariant.implies_unary in *.
+  unfold is_true in HA, HB.
+  repeat (des_bool; des).
+  unfold Invariant.implies_alias in *. des_bool; des.
+  apply_all_once wrap_is_true_hyp.
+  repeat (apply andb_true_iff; split); try apply wrap_is_true_goal.
+  - etransitivity; eauto.
+  - clear - HA2 HB2 HA1 HB1.
+    unfold Invariant.implies_noalias in *.
+    unfold flip in *.
+    apply Exprs.PtrPairSetFacts.for_all_iff.
+    { solve_compat_bool. }
+    apply Exprs.PtrPairSetFacts.for_all_iff in HA2; cycle 1.
+    { solve_compat_bool. }
+    apply Exprs.PtrPairSetFacts.for_all_iff in HB2; cycle 1.
+    { solve_compat_bool. }
+    ii.
+    expl HB2 (try eassumption).
+    apply orb_true_iff in HB0.
+    apply orb_true_iff.
+    destruct x0; ss. destruct t, t0; ss.
+    des.
+    + left.
+      eapply diffblock_by_unique_Subset; eauto.
+      apply AtomSetFacts.subset_iff. ss.
+    + apply Exprs.PtrPairSetFacts.mem_iff in HB0.
+      expl HA2. ss.
+      des_bool. des.
+      * left.
+        eapply diffblock_by_unique_Subset; eauto.
+        reflexivity.
+      * right.
+        apply Exprs.PtrPairSetFacts.mem_iff.
+        apply Exprs.PtrPairSetFacts.mem_iff in HA0.
+        eapply Exprs.PtrPairSetFacts.In_s_m; eauto.
+        reflexivity.
+  - clear - HA1 HB1 HA3 HB3.
+    unfold Invariant.implies_diffblock in *.
+    unfold flip in *.
+    apply Exprs.ValueTPairSetFacts.for_all_iff.
+    { solve_compat_bool. }
+    apply Exprs.ValueTPairSetFacts.for_all_iff in HA3; cycle 1.
+    { solve_compat_bool. }
+    apply Exprs.ValueTPairSetFacts.for_all_iff in HB3; cycle 1.
+    { solve_compat_bool. }
+    ii.
+    destruct x0; ss.
+    expl HB3 (try eassumption).
+    apply orb_true_iff in HB0.
+    des.
+    + apply orb_true_iff.
+      left.
+      eapply diffblock_by_unique_Subset; eauto.
+      apply AtomSetFacts.subset_iff; ss.
+    + apply Exprs.ValueTPairSetFacts.mem_iff in HB0.
+      expl HA3.
+  - apply AtomSetFacts.subset_iff; ss.
+    apply_all_once AtomSetFacts.subset_iff.
+    etransitivity; eauto.
+  - apply Exprs.IdTSetFacts.subset_iff.
+    apply_all_once Exprs.IdTSetFacts.subset_iff.
+    etransitivity; eauto.
+Qed.
+
+Global Program Instance PreOrder_implies: PreOrder Invariant.implies.
+Next Obligation.
+  ii.
+  unfold Invariant.implies.
+  des_bool. (* TODO enhance des_bool *)
+  apply orb_true_iff. right.
+  do 2 (try apply andb_true_iff; try split); (* TODO: Can we do better? I want to rewrite at once.. *)
+  (* Maybe hard to state in lemma at once. tactic is needed here? *)
+    apply wrap_is_true_goal.
+  - reflexivity.
+  - reflexivity.
+  - apply Exprs.IdTSetFacts.subset_iff. reflexivity.
+Qed.
+Next Obligation.
+  ii.
+  rename H into HA. rename H0 into HB.
+  unfold Invariant.implies in *.
+  unfold is_true in *. des_bool.
+  destruct HA.
+  { apply orb_true_iff. left. ss. }
+  destruct HB.
+  { apply orb_true_iff. left.
+    repeat (des_bool; des).
+    clear H2 H1.
+    (* lessdef should be subset *)
+    admit.
+  }
+  repeat (des_bool; des).
+  apply orb_true_iff. right.
+  do 2 (try apply andb_true_iff; try split); (* TODO: Can we do better? I want to rewrite at once.. *)
+    apply wrap_is_true_goal.
+  - etransitivity; eauto.
+  - etransitivity; eauto.
+  - apply Exprs.IdTSetFacts.subset_iff.
+    apply_all_once Exprs.IdTSetFacts.subset_iff.
+    etransitivity; eauto.
+Admitted.
