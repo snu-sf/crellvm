@@ -363,7 +363,9 @@ Proof.
         }
     }
   + (* br_uncond *)
-    exploit nerror_nfinal_nstuck; eauto. i. des. inv x0. simtac.
+    clears invst.
+    rename STATE0 into STATE1.
+    exploit nerror_nfinal_nstuck; eauto. i. des. inv x0.
     eapply _sim_local_step.
     {
       expl progress.
@@ -374,27 +376,71 @@ Proof.
     }
     i.
     expl preservation.
+    clear ERROR_SRC.
     inv STEP. unfold valid_phinodes in *.
-    rewrite add_terminator_cond_br_uncond in *.
-    rewrite lookupBlockViaLabelFromFdef_spec in *.
-    des_ifs_safe (clarify; ss).
-    (* do 6 des_outest_ifs COND0. *)
-    unfold Debug.debug_print in *. unfold l in *.
-    rewrite Heq0 in *. clarify.
-    rewrite Heq1 in *. clarify.
-    exploit postcond_phinodes_sound;
-      (try instantiate (1 := (mkState (mkEC _ _ _ _ _ _) _ _))); s;
-        (try eexact COND4; try eexact MEM0);
-        (try eexact H11; try eexact H13); ss; eauto; [] .
-    i. des.
-    exploit apply_infrules_sound; eauto; ss; []. i. des.
-    exploit reduce_maydiff_sound; eauto; ss; []. i. des.
-    exploit valid_fdef_valid_stmts; eauto; []. i. des.
-    esplits; eauto.
-    * econs 1. econs; eauto. rewrite lookupBlockViaLabelFromFdef_spec. ss.
-    * econs; ss; eauto; ss; eauto.
-      - eapply inject_allocas_inj_incr; eauto.
-      - exploit implies_sound; eauto.
+    {
+      inv CONF. inv INJECT. ss. clarify.
+      repeat (simtac0; []).
+      expl valid_fdef_valid_stmts.
+      hide_goal.
+      abstr (gen_infrules_next_inv
+                           (Postcond.reduce_maydiff
+                              (Infrules.apply_infrules m_src m_tgt (lookup_phinodes_infrules s (fst CurBB0))
+                                 t)) (ValidationHint.invariant_after_phinodes s)) infrulesA0.
+      unfold l in *.
+
+      abstr (lookup_phinodes_infrules s (@fst atom stmts CurBB0)) infrulesA2.
+      abstr (ValidationHint.invariant_after_phinodes s) inv_afterA.
+      assert(exists infrulesA1,
+                (Invariant.implies
+                  (Postcond.reduce_maydiff
+                     (Infrules.apply_infrules m_src m_tgt infrulesA1
+                        (Postcond.reduce_maydiff
+                           (Infrules.apply_infrules m_src m_tgt infrulesA2 t)))) inv_afterA)).
+      { des_ifsH COND0; des_bool.
+        - esplits; ss. eassumption.
+        - exists nil. ss. etransitivity; eauto.
+          eapply implies_reduce_maydiff; eauto. }
+      clear COND0.
+
+      des. clarify.
+      rewrite lookupBlockViaLabelFromFdef_spec in *.
+      rewrite COND2 in *. rewrite COND3 in *. clarify.
+      rewrite add_terminator_cond_br_uncond in *.
+
+      -
+        exploit postcond_phinodes_sound;
+          try eassumption; eauto; ss; []; intro STATE2.
+        destruct STATE2 as [invst2 STATE2].
+        clears invst1.
+
+        exploit apply_infrules_sound; eauto; ss; []; intro STATE3.
+        destruct STATE3 as [invst3 [invmem3 [STATE3 [MEM3 MEMLE3]]]]; des.
+        clears invst2.
+
+        exploit reduce_maydiff_sound; eauto; ss; []; intro STATE4.
+        destruct STATE4 as [invst4 STATE4]; des.
+        clears invst3.
+
+        exploit apply_infrules_sound; eauto; ss; []; intro STATE5.
+        destruct STATE5 as [invst5 [invmem5 [STATE5 [MEM5 MEMLE5]]]]; des.
+        clears invst4.
+
+        exploit reduce_maydiff_sound; eauto; ss; []; intro STATE6.
+        destruct STATE6 as [invst6 STATE6]; des.
+        clears invst5.
+
+        assert(InvMem.Rel.le inv0 invmem5).
+        { etransitivity; eauto. etransitivity; eauto. }
+        esplits; eauto.
+        { econs 1. econs; eauto. rewrite lookupBlockViaLabelFromFdef_spec. ss. }
+        {
+          econs; eauto; ss.
+          - eapply inject_allocas_inj_incr; eauto.
+          - eapply implies_sound; eauto.
+            { ss. }
+        }
+    }
   + (* switch *)
     destruct (list_const_l_dec l0 l1); ss. subst.
     exploit nerror_nfinal_nstuck; eauto. i. des. inv x0.
@@ -470,9 +516,6 @@ Proof.
     exploit nerror_nfinal_nstuck; eauto. i. des. inv x0.
 Unshelve.
 all: try destruct CONF; subst; ss.
-{ clear - CMDS TERM.
-  admit. }
-{ admit. }
 { admit. }
 { admit. }
 { admit. }
