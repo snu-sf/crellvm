@@ -30,6 +30,7 @@ module Auto = struct
       | Src -> Infrule.Coq_substitute (x, v, e)
       | Tgt -> Infrule.Coq_substitute_tgt (x, v, e)
 
+    (* TODO: remove*)
     let substitute_rev (scp:scope_t) x v e : Infrule.t =
       match scp with
       | Src -> Infrule.Coq_substitute_rev (x, v, e)
@@ -38,46 +39,42 @@ module Auto = struct
     let bop_commutative scp e op a b sz : Infrule.t =
       match scp with
       | Src -> Infrule.Coq_bop_commutative (e, op, a, b, sz)
-      | Tgt -> Infrule.Coq_bop_commutative (e, op, a, b, sz) (* TODO: define tgt *)
+      | Tgt -> Infrule.Coq_bop_commutative_tgt (e, op, a, b, sz)
 
     let bop_commutative_rev scp e op a b sz : Infrule.t =
       match scp with
       | Src -> Infrule.Coq_bop_commutative_rev (e, op, a, b, sz)
-      | Tgt -> Infrule.Coq_bop_commutative_rev (e, op, a, b, sz) (* TODO: define tgt *)
+      | Tgt -> Infrule.Coq_bop_commutative_rev_tgt (e, op, a, b, sz)
 
     let fbop_commutative scp e op a b fp : Infrule.t =
       match scp with
       | Src -> Infrule.Coq_fbop_commutative (e, op, a, b, fp)
-      | Tgt -> Infrule.Coq_fbop_commutative (e, op, a, b, fp) (* TODO: define tgt *)
+      | Tgt -> Infrule.Coq_fbop_commutative_tgt (e, op, a, b, fp)
 
-    let fbop_commutative_rev scp e op a b fp : Infrule.t = (* TODO: define this *)
-      Infrule.Coq_fbop_commutative (e, op, a, b, fp)
-      (* match scp with *)
-      (* | Src -> Infrule.Coq_fbop_commutative_rev (e, op, a, b, fp) *)
-      (* | Tgt -> Infrule.Coq_fbop_commutative_rev_tgt (e, op, a, b, fp) *)
+    let fbop_commutative_rev scp e op a b fp : Infrule.t =
+      match scp with
+      | Src -> Infrule.Coq_fbop_commutative_rev (e, op, a, b, fp)
+      | Tgt -> Infrule.Coq_fbop_commutative_rev_tgt (e, op, a, b, fp)
 
     let icmp_swap_operands scp c ty a b e : Infrule.t =
       match scp with
       | Src -> Infrule.Coq_icmp_swap_operands (c, ty, a, b, e)
-      | Tgt -> Infrule.Coq_icmp_swap_operands (c, ty, a, b, e) (* TODO: define tgt *)
+      | Tgt -> Infrule.Coq_icmp_swap_operands_tgt (c, ty, a, b, e)
 
-    let icmp_swap_operands_rev scp c ty a b e : Infrule.t = (* TODO: define *)
-      Infrule.Coq_icmp_swap_operands (c, ty, a, b, e)
-      (* match scp with *)
-      (* | Src -> Infrule.Coq_icmp_swap_operands (c, ty, a, b, e) *)
-      (* | Tgt -> Infrule.Coq_icmp_swap_operands (c, ty, a, b, e) (\* TODO: define tgt *\) *)
+    let icmp_swap_operands_rev scp c ty a b e : Infrule.t =
+      match scp with
+      | Src -> Infrule.Coq_icmp_swap_operands_rev (c, ty, a, b, e)
+      | Tgt -> Infrule.Coq_icmp_swap_operands_rev_tgt (c, ty, a, b, e)
 
     let fcmp_swap_operands scp c ty a b e : Infrule.t =
       match scp with
       | Src -> Infrule.Coq_fcmp_swap_operands (c, ty, a, b, e)
-      | Tgt -> Infrule.Coq_fcmp_swap_operands (c, ty, a, b, e) (* TODO: define tgt *)
+      | Tgt -> Infrule.Coq_fcmp_swap_operands_tgt (c, ty, a, b, e)
 
-    let fcmp_swap_operands_rev scp c ty a b e : Infrule.t = (* TODO: define *)
-      Infrule.Coq_fcmp_swap_operands (c, ty, a, b, e)
-      (* match scp with *)
-      (* | Src -> Infrule.Coq_fcmp_swap_operands (c, ty, a, b, e) *)
-      (* | Tgt -> Infrule.Coq_fcmp_swap_operands (c, ty, a, b, e) (\* TODO: define tgt *\) *)
-
+    let fcmp_swap_operands_rev scp c ty a b e : Infrule.t =
+      match scp with
+      | Src -> Infrule.Coq_fcmp_swap_operands_rev (c, ty, a, b, e)
+      | Tgt -> Infrule.Coq_fcmp_swap_operands_rev_tgt (c, ty, a, b, e)
 
     (* TODO: remove this *)
     let intro_ghost_unary (scp:scope_t) e x : Infrule.t =
@@ -191,7 +188,7 @@ module AutoTransHelper = struct
     module ExprSet = FSetExtra.Make(Expr)
 
     let string_of_exprlist (el:Expr.t list): string =
-      let sl = List.map (fun e -> Printer.ExprsToString.of_expr e) el in
+      let sl = List.map Printer.ExprsToString.of_expr el in
       List.fold_left (fun ss s -> ss^"-"^s) "" sl
 
     (* to_visit in reachables & graph *)
@@ -273,7 +270,7 @@ module AutoTransHelper = struct
   end
 
 module NewAutoSubstTransHelper = struct
-    let max_depth : int = 10
+    let max_depth : int = 3
 
     (* let mk_trans scp e1 e2 e0 (from:bool) : Infrule.t = *)
     (*   if from then Auto.transitivity scp e0 e1 e2 *)
@@ -292,8 +289,31 @@ module NewAutoSubstTransHelper = struct
       | Some infrs -> Some (h@infrs@t)
       | _ -> None
 
+    let rec do_subst scp e1 vpl acc_infrs : (Infrule.t list) option =
+      match vpl with
+      | [] -> Some acc_infrs
+      | (v1, v2)::vplt ->
+         if ValueT.eq_dec v1 v2 then do_subst scp e1 vplt acc_infrs
+         else match v1 with
+              | ValueT.Coq_id (x) ->
+                 let e_n = Expr.map_valueTs e1 (fun v0 ->
+                                                if ValueT.eq_dec v0 (ValueT.Coq_id (x))
+                                                then v2 else v0) in
+                 do_subst scp e_n vplt (Auto.substitute scp x v2 e1::acc_infrs)
+              | _ -> None
+
+    (* Make [(bdd e1 oe1) >= (bdd e2 oe2)]. *)
+    (* If e1 = e2 and oe1=oe2=None, do nothing. *)
     let rec run depth scp ld oel e1 e2 oer : (Infrule.t list) option =
-      if ExprPairSet.mem (e1, e2) ld
+      print_endline ("NewAutoSubstTransHelper: run start with depth: "^(string_of_int depth));
+      print_endline ("e1: "^(Printer.ExprsToString.of_expr e1));
+      print_endline ("e2: "^(Printer.ExprsToString.of_expr e2));
+      if depth > max_depth then None
+      else if (Expr.eq_dec e1 e2)
+      then match oel, oer with
+           | Some el, Some er -> Some [Auto.transitivity scp el e1 er]
+           | _ -> Some []
+      else if ExprPairSet.mem (e1, e2) ld
       then match oel, oer with
            | None, None -> Some []
            | Some el, None -> Some [Auto.transitivity scp el e1 e2]
@@ -301,25 +321,31 @@ module NewAutoSubstTransHelper = struct
            | Some el, Some er -> Some [Auto.transitivity scp el e1 e2;
                                        Auto.transitivity scp el e2 er]
       else match by_destruct depth scp ld oel e1 e2 oer with
-           | Some infrs -> Some infrs
-           | None -> (match by_trans_left depth scp ld oel e1 e2 oer with
-                      | Some infrs -> Some infrs
-                      | None -> by_trans_right depth scp ld oel e1 e2 oer)
+           | Some infrs -> print_endline "run - by_destruct SUCCEEDED"; Some infrs
+           | None ->
+              print_endline "run - do trans";
+              match by_trans_left depth scp ld oel e1 e2 oer with
+                     | Some infrs -> Some infrs
+                     | None -> by_trans_right depth scp ld oel e1 e2 oer
 
+    (* Generates (bdd oe1 e1) >= (bdd oer e2) *)
     and by_destruct depth scp ld oel e1 e2 oer : (Infrule.t list) option =
+      print_endline "by_destruct";
       let do_left h e1_new : (Infrule.t list) option =
+        print_endline "do_left";
         match oel with
         | Some el ->
-           attach_oinfrs
-             (h el) [] (by_dest_intl depth scp ld oel e1_new e2 oer)
+           print_endline "left SUCCEEDED";
+           attach_oinfrs (h el) [] (by_dest_intl depth scp ld oel e1_new e2 oer)
         | None -> None in
       let do_right h e2_new : (Infrule.t list) option =
+        print_endline "do_right";
         match oer with
         | Some er ->
-           attach_oinfrs
-             (h er) [] (by_dest_intl depth scp ld oel e1 e2_new oer)
+           print_endline "right SUCCEEDED";
+           attach_oinfrs (h er) [] (by_dest_intl depth scp ld oel e1 e2_new oer)
         | None -> None in
-
+      let res_fin = 
       match by_dest_intl depth scp ld oel e1 e2 oer with
       | Some infrs -> Some infrs
       | None ->
@@ -333,6 +359,7 @@ module NewAutoSubstTransHelper = struct
                (by_dest_intl depth scp ld (Some e1) (Expr.Coq_gep (false, tya, v, lsv, tyb)) e2 oer)
           | Expr.Coq_bop (op1, sz1, a1, b1), Expr.Coq_bop (op2, sz2, a2, b2)
                when LLVMinfra.bop_dec op1 op2 && is_commutative_bop op1 ->
+             print_endline "BOP";
              (match do_left (fun el -> [Auto.bop_commutative scp el op1 a1 b1 sz1])
                             (Expr.Coq_bop (op1, sz1, b1, a1)) with
               | Some infrs -> Some infrs
@@ -360,45 +387,71 @@ module NewAutoSubstTransHelper = struct
               | None -> do_right (fun er -> [Auto.fcmp_swap_operands_rev scp c2 ty2 a2 b2 er])
                                  (Expr.Coq_fcmp (c1, ty2, b2, a2)))
           | _, _ -> None)
+           in
+           match res_fin with
+           | Some _ -> print_endline "by_destruct SUCCEEDED"; res_fin
+           | None -> print_endline "by_destruct FAILED"; res_fin
 
+    (* Generates [(bdd oel e1) >= (bdd oer e2)] by substitution *)
     and by_dest_intl depth scp ld oel e1 e2 oer : (Infrule.t list) option =
       match e1, e2 with
       | Expr.Coq_value _, _
       | _, Expr.Coq_value _ -> None
       | _, _ ->
-         (match Auto.eq_exps_values e1 e2 with
-          | Some vpl ->
-             List.fold_left (fun a vp ->
-                             match a with
-                             | None -> None
-                             | Some acc_infrs ->
-                                let e1_n = Expr.Coq_value (fst vp) in
-                                let e2_n = Expr.Coq_value (snd vp) in
-                                (match run (depth+1) scp ld None e1_n e2_n None with
-                                 | Some infrs -> Some (acc_infrs@infrs)
-                                 | _ -> None))
-                            (Some []) vpl
-          | None -> None)
+         match Auto.eq_exps_values e1 e2 with
+         | None -> None
+         | Some vpl ->
+            match
+              List.fold_left
+                (fun a vp ->
+                 match a with
+                 | None -> None
+                 | Some acc_infrs ->
+                    let e1_n = Expr.Coq_value (fst vp) in
+                    let e2_n = Expr.Coq_value (snd vp) in
+                    attach_oinfrs acc_infrs [] (run (depth+1) scp ld None e1_n e2_n None))
+                (Some []) vpl
+            with
+            | None -> None
+            | Some acc_infrs ->
+               print_endline "by_dest_intl SUCCEEDED";
+               let infrs_tr =
+                 match oel, oer with
+                 | None, None -> []
+                 | Some el, None -> [Auto.transitivity scp el e1 e2]
+                 | None, Some er -> [Auto.transitivity scp e1 e2 er]
+                 | Some el, Some er -> [Auto.transitivity scp el e1 e2; Auto.transitivity scp el e2 er]
+               in
+               attach_oinfrs acc_infrs infrs_tr (do_subst scp e1 vpl [])
+
 
     and by_trans_left depth scp ld oel e1 e2 oer : (Infrule.t list) option =
+      print_endline "by trans left";
       match Auto.find_first_match (fun e1_r ->
                                    run (depth+1) scp ld (Some e1) e1_r e2 oer)
                                   (Auto.get_rhs_list ld e1) with
+      | None ->
+         print_endline "by trans left FAILED";
+         None
       | Some (_, infrs) ->
-         (match oel with
-          | Some el -> Some (infrs@[Auto.transitivity scp el e1 (bdd e2 oer)])
-          | _ -> Some infrs)
-      | _ -> None
+         print_endline "by trans left SUCCEEDED";
+         match oel with
+         | Some el -> Some (infrs@[Auto.transitivity scp el e1 (bdd e2 oer)])
+         | _ -> Some infrs
 
     and by_trans_right depth scp ld oel e1 e2 oer : (Infrule.t list) option =
+      print_endline "by trans right";
       match Auto.find_first_match (fun e2_l ->
                                    run (depth+1) scp ld oel e1 e2_l (Some e2))
                                   (Auto.get_lhs_list ld e2) with
+      | None ->
+         print_endline "by trans right FAILED";
+         None
       | Some (_, infrs) ->
-         (match oer with
-          | Some er -> Some (infrs@[Auto.transitivity scp (bdd e1 oel) e2 er])
-          | _ -> Some infrs)
-      | _ -> None
+         print_endline "by trans right SUCCEEDED";
+         match oer with
+         | Some er -> Some (infrs@[Auto.transitivity scp (bdd e1 oel) e2 er])
+         | _ -> Some infrs
 
   end
 
@@ -679,6 +732,7 @@ module AutoNewGVN = struct
     let exp_phys x = Expr.Coq_value (ValueT.Coq_id (Tag.Coq_physical, x))
 
     let resolve_one_ld_src ld acc_ghosts e1 e2 : (Infrule.t list * ghost_intd_t) option =
+      print_endline "AutoNewGVN: resolve_one_ld_src start";
       match e2 with
       | Expr.Coq_value (ValueT.Coq_id (Tag.Coq_ghost, g)) ->
          (match find_instance acc_ghosts g with
@@ -690,7 +744,8 @@ module AutoNewGVN = struct
               * 2. If not found, find [?e >= ?x] from ld s.t. [e1 >= ?e] can be inferred. *)
              (match Auto.get_lhs_list ld e2 with
               | e::_ ->
-                 (match NewAutoSubstTransHelper.run 0 Auto.Src ld None e1 e (Some e2) with
+                 (print_endline "resolve_one_ld_src run 1";
+                   match NewAutoSubstTransHelper.run 0 Auto.Src ld None e1 e (Some e2) with
                   | Some infrs -> Some (infrs, acc_ghosts)
                   | None -> None)
               | [] ->
@@ -719,7 +774,7 @@ module AutoNewGVN = struct
           | Some x ->
              let x_exp = Expr.Coq_value (ValueT.Coq_id (Tag.Coq_physical, x)) in
              (match NewAutoSubstTransHelper.run 0 Auto.Tgt ld (Some e1) x_exp e2 None with
-              | Some infrs -> Some (infrs@[Auto.transitivity Auto.Tgt e1 x_exp e2], acc_ghosts)
+              | Some infrs -> Some (infrs, acc_ghosts)
               | _ -> None)
           | None ->
              (* 1. Find g >= ?e from ld (should be unique)
@@ -743,11 +798,12 @@ module AutoNewGVN = struct
                     let x = snd ex in
                     let x_exp = Expr.Coq_value (ValueT.Coq_id (Tag.Coq_physical, x)) in
                     Some ([Infrule.Coq_intro_ghost (x_exp, g)]@infrs@
-                            [Auto.transitivity Auto.Src e1 x_exp e2], (g, x)::acc_ghosts)
+                            [Auto.transitivity Auto.Tgt e1 x_exp e2], (g, x)::acc_ghosts)
                  | _ -> None))
       | _ -> None
 
     let resolve_one_ld scp ld acc_ghosts e1 e2 : (Infrule.t list * ghost_intd_t) option =
+      print_endline "AutoNewGVN: resolve_one_ld start";
       if ExprPairSet.mem (e1, e2) ld then Some ([],[])
       else match scp with
            | Auto.Src -> resolve_one_ld_src ld acc_ghosts e1 e2
@@ -756,6 +812,7 @@ module AutoNewGVN = struct
     let rec run_intl (scp:Auto.scope_t) (ld:ExprPairSet.t) (ldl_g:ExprPair.t list)
                      (acc_ghosts:ghost_intd_t) (acc_infrs:Infrule.t list) (acc_ld:ExprPairSet.t)
       : ghost_intd_t * (Infrule.t list) * ExprPairSet.t =
+      print_endline "AutoNewGVN: run_intl start";
       match ldl_g with
       | (e1, e2)::ldl_g_t ->
          (match resolve_one_ld scp ld acc_ghosts e1 e2 with
@@ -779,18 +836,23 @@ module AutoNewGVN = struct
     (*   gather_ghost_ld [] ((ExprPairSet.elements inv.Invariant.src.Invariant.lessdef)@ *)
     (*                         (ExprPairSet.elements inv.Invariant.tgt.Invariant.lessdef)) *)
       
-    let gvn_auto1 : Auto.t1 =
+    let auto1 : Auto.t1 =
       fun inv inv_g ->
       (* let ghost_intd : ghost_intd_t = gather_ghost inv in *)
       let ghost_intd, infrs1, ld_src =
+        print_endline "auto1 - run_intl src";
         run_intl Auto.Src inv.Invariant.src.Invariant.lessdef
                  (ExprPairSet.elements inv_g.Invariant.src.Invariant.lessdef)
                  [] [] inv_g.Invariant.src.Invariant.lessdef
       in
+      print_endline ("len infrs1:"^(string_of_int (List.length infrs1)));
       let _, infrs2, ld_tgt =
+        print_endline "auto1 - run_intl tgt";
         run_intl Auto.Tgt inv.Invariant.tgt.Invariant.lessdef
                  (ExprPairSet.elements inv_g.Invariant.tgt.Invariant.lessdef)
                  ghost_intd  [] inv_g.Invariant.tgt.Invariant.lessdef in
+      print_endline ("len infrs2:"^(string_of_int (List.length infrs2)));
+      print_endline "auto1 almost done";
       (infrs1@infrs2,
        Invariant.update_src
          (Invariant.update_lessdef (fun _ -> ld_src))
@@ -1001,7 +1063,7 @@ let compose2 (a1:Auto.t2) (a2:Auto.t2) : Auto.t2 =
 
 (** candidates *)
 
-let autoGVN : Auto.t = (AutoUnaryLD_NewGVN.run, Auto_Default2.run)
+let autoGVN : Auto.t = (AutoNewGVN.auto1, Auto_Default2.run)
 let autoSROA : Auto.t = (AutoUnaryLD_Trans.run, AutoInjectValues_Trans.run)
 let autoDflt : Auto.t = (Auto_Default1.run, Auto_Default2.run)
 

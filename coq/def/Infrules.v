@@ -733,10 +733,35 @@ Definition apply_infrule
       (is_commutative_bop opcode)
     then {{ inv0 +++src (Expr.bop opcode s y x) >= e }}
     else apply_fail tt
+  | Infrule.bop_commutative_tgt e opcode x y s =>
+    if $$ inv0 |-tgt e >= (Expr.bop opcode s x y) $$ &&
+      (is_commutative_bop opcode)
+    then {{ inv0 +++tgt e >= (Expr.bop opcode s y x) }}
+    else apply_fail tt
+  | Infrule.bop_commutative_rev_tgt e opcode x y s =>
+    if $$ inv0 |-tgt (Expr.bop opcode s x y) >= e $$ &&
+      (is_commutative_bop opcode)
+    then {{ inv0 +++tgt (Expr.bop opcode s y x) >= e }}
+    else apply_fail tt
   | Infrule.fbop_commutative e opcode x y fty =>
     if $$ inv0 |-src e >= (Expr.fbop opcode fty x y) $$ &&
       (is_commutative_fbop opcode)
     then {{ inv0 +++src e >= (Expr.fbop opcode fty y x) }}
+    else apply_fail tt
+  | Infrule.fbop_commutative_rev e opcode x y fty =>
+    if $$ inv0 |-src (Expr.fbop opcode fty x y) >= e $$ &&
+      (is_commutative_fbop opcode)
+    then {{ inv0 +++src (Expr.fbop opcode fty y x) >= e }}
+    else apply_fail tt
+  | Infrule.fbop_commutative_tgt e opcode x y fty =>
+    if $$ inv0 |-tgt e >= (Expr.fbop opcode fty x y) $$ &&
+      (is_commutative_fbop opcode)
+    then {{ inv0 +++tgt e >= (Expr.fbop opcode fty y x) }}
+    else apply_fail tt
+  | Infrule.fbop_commutative_rev_tgt e opcode x y fty =>
+    if $$ inv0 |-tgt (Expr.fbop opcode fty x y) >= e $$ &&
+      (is_commutative_fbop opcode)
+    then {{ inv0 +++tgt (Expr.fbop opcode fty y x) >= e }}
     else apply_fail tt
   | Infrule.fadd_commutative_tgt z x y fty =>
     if $$ inv0 |-tgt (Expr.fbop fbop_fadd fty x y) >= (Expr.value (ValueT.id z)) $$
@@ -1766,11 +1791,47 @@ Definition apply_infrule
       let c' := get_swapped_icmp_cond c in
       {{inv0 +++src e >= (Expr.icmp c' ty y x) }}
     else apply_fail tt
+  | Infrule.icmp_swap_operands_rev c ty x y e =>
+    if $$ inv0 |-src (Expr.icmp c ty x y) >= e $$
+    then
+      let c' := get_swapped_icmp_cond c in
+      {{inv0 +++src (Expr.icmp c' ty y x) >= e }}
+    else apply_fail tt
+  | Infrule.icmp_swap_operands_tgt c ty x y e =>
+    if $$ inv0 |-tgt e >= (Expr.icmp c ty x y) $$
+    then
+      let c' := get_swapped_icmp_cond c in
+      {{inv0 +++tgt e >= (Expr.icmp c' ty y x) }}
+    else apply_fail tt
+  | Infrule.icmp_swap_operands_rev_tgt c ty x y e =>
+    if $$ inv0 |-tgt (Expr.icmp c ty x y) >= e $$
+    then
+      let c' := get_swapped_icmp_cond c in
+      {{inv0 +++tgt (Expr.icmp c' ty y x) >= e }}
+    else apply_fail tt
   | Infrule.fcmp_swap_operands c fty x y e =>
     if $$ inv0 |-src e >= (Expr.fcmp c fty x y) $$
     then
       let c' := get_swapped_fcmp_cond c in
       {{inv0 +++src e >= (Expr.fcmp c' fty y x) }}
+    else apply_fail tt
+  | Infrule.fcmp_swap_operands_rev c fty x y e =>
+    if $$ inv0 |-src (Expr.fcmp c fty x y) >= e $$
+    then
+      let c' := get_swapped_fcmp_cond c in
+      {{inv0 +++src (Expr.fcmp c' fty y x) >= e }}
+    else apply_fail tt
+  | Infrule.fcmp_swap_operands_tgt c fty x y e =>
+    if $$ inv0 |-tgt e >= (Expr.fcmp c fty x y) $$
+    then
+      let c' := get_swapped_fcmp_cond c in
+      {{inv0 +++tgt e >= (Expr.fcmp c' fty y x) }}
+    else apply_fail tt
+  | Infrule.fcmp_swap_operands_rev_tgt c fty x y e =>
+    if $$ inv0 |-tgt (Expr.fcmp c fty x y) >= e $$
+    then
+      let c' := get_swapped_fcmp_cond c in
+      {{inv0 +++tgt (Expr.fcmp c' fty y x) >= e }}
     else apply_fail tt
   | Infrule.implies_false c1 c2 =>
     if $$ inv0 |-src (Expr.value c1) >= (Expr.value c2) $$
