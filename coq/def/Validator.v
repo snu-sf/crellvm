@@ -241,7 +241,8 @@ Definition valid_stmts
     else true
   end.
 
-Definition valid_entry_stmts (src tgt:stmts) (hint:ValidationHint.stmts): bool :=
+Definition valid_entry_stmts (src tgt:stmts) (hint:ValidationHint.stmts)
+                             (la_src la_tgt:args) (products_src products_tgt:products): bool :=
   let '(stmts_intro phinodes_src _ _) := src in
   let '(stmts_intro phinodes_tgt _ _) := tgt in
   if negb (is_empty phinodes_src)
@@ -250,11 +251,8 @@ Definition valid_entry_stmts (src tgt:stmts) (hint:ValidationHint.stmts): bool :
   if negb (is_empty phinodes_tgt)
   then failwith_false "valid_entry_stmts: phinode of target not empty" nil
   else
-  if negb (Invariant.is_empty_unary hint.(ValidationHint.invariant_after_phinodes).(Invariant.src))
-  then failwith_false "valid_entry_stmts: invariant_after_phinodes of source not empty" nil
-  else
-  if negb (Invariant.is_empty_unary hint.(ValidationHint.invariant_after_phinodes).(Invariant.tgt))
-  then failwith_false "valid_entry_stmts: invariant_after_phinodes of target not empty" nil
+  if negb (Invariant.implies (Invariant.function_entry_inv la_src la_tgt products_src products_tgt) hint.(ValidationHint.invariant_after_phinodes))
+  then failwith_false "valid_entry_stmts: implies fail at function entry" nil
   else true
   .
 
@@ -264,6 +262,8 @@ Definition valid_fdef
            (hint:ValidationHint.fdef): bool :=
   let '(fdef_intro fheader_src blocks_src) := src in
   let '(fdef_intro fheader_tgt blocks_tgt) := tgt in
+  let '(module_intro layouts_src namedts_src products_src) := m_src in
+  let '(module_intro layouts_tgt namedts_tgt products_tgt) := m_tgt in
 
   let fid_src := getFheaderID fheader_src in
   let fid_tgt :=getFheaderID fheader_tgt in
@@ -278,7 +278,7 @@ Definition valid_fdef
     else
     match lookupAL _ hint bid_src with
     | Some hint_stmts =>
-      if negb (valid_entry_stmts block_src block_tgt hint_stmts)
+      if negb (valid_entry_stmts block_src block_tgt hint_stmts (getArgsOfFdef src) (getArgsOfFdef tgt) products_src products_tgt)
       then failwith_false "valid_fdef: valid_entry_stmts failed at" (fid_src::bid_src::nil)
       else true
 
