@@ -442,12 +442,9 @@ Proof.
         }
     }
   + (* switch *)
-    destruct (list_const_l_dec l0 l1); ss. subst.
+    clears invst.
+    rename STATE0 into STATE1.
     exploit nerror_nfinal_nstuck; eauto. i. des. inv x0.
-    exploit InvState.Rel.inject_value_spec; eauto.
-    { rewrite InvState.Unary.sem_valueT_physical. eauto. }
-    rewrite InvState.Unary.sem_valueT_physical. s. i. des.
-    exploit get_switch_branch_inject; eauto. i.
     eapply _sim_local_step.
     {
       expl progress.
@@ -458,69 +455,200 @@ Proof.
     }
     i.
     expl preservation.
-    inv STEP.
-    assert (CONF_EQ: TD0 = TD /\ gl0 = gl).
-    { inv CONF.
-      match goal with
-      | [INJ: inject_conf _ _ |- _] => inv INJ
-      end. ss. }
-    des. subst. ss. clarify.
-    unfold valid_phinodes in *.
-    unfold Debug.debug_print_validation_process in *. ss.
-    unfold Debug.failwith_false in *. ss.
-    unfold Debug.debug_print in *. ss.
-    des_ifs_safe.
-    exploit add_terminator_cond_switch; eauto. i. des.
-    rewrite lookupBlockViaLabelFromFdef_spec in *.
+    clear ERROR_SRC.
+    inv STEP. unfold valid_phinodes in *.
+    {
+      inv CONF. inv INJECT. ss. clarify.
+      des_sumbool. subst. (* list_const_l_dec *)
+      rename l_0 into dflt.
+      rename l1 into cases.
+      rename COND3 into COND_DFLT.
+      rename COND2 into COND_CASES.
+      repeat (simtac0; []).
+      rename COND4 into PCOND_DFLT.
+      hexploit InvState.Rel.inject_value_spec; try exact STATE1; ss; eauto.
+      { rewrite InvState.Unary.sem_valueT_physical. eauto. }
+      i; des.
+      rewrite InvState.Unary.sem_valueT_physical in *. ss. clarify.
+      expl get_switch_branch_inject. clarify.
+      hide_goal.
 
-    rewrite forallb_forall in COND2.
-    exploit get_switch_branch_in_successors; eauto.
-    i. unfold successors_terminator in *.
-    apply nodup_In in x1. ss. des.
-    { (* default *)
-      subst.
-      unfold l in *.
-      progress all_with_term rewrite_everywhere lookupAL. clarify.
-      exploit postcond_phinodes_sound; try exact x0; eauto.
-      { rewrite <- LABEL. eauto. }
-      i. des.
-      exploit apply_infrules_sound; eauto; ss. i. des.
-      exploit reduce_maydiff_sound; eauto; ss. i. des.
-      exploit valid_fdef_valid_stmts; eauto. i. des.
-      esplits; eauto.
-      * econs 1. econs; eauto. rewrite lookupBlockViaLabelFromFdef_spec. ss.
-      * econs; ss; eauto; ss; eauto.
-        - eapply inject_allocas_inj_incr; eauto.
-        - exploit implies_sound; eauto.
-    }
-    { (* case *)
-      apply list_prj2_inv in x1. des.
-      expl COND2. clear COND2.
-      des_ifs_safe ss. clear_tac. clarify.
-      unfold l in *. cbn in *.
-      clear dependent phinodes5.
-      clear dependent phinodes0.
-      exploit postcond_phinodes_sound; try exact x0; eauto.
-      { rewrite <- LABEL. eauto. }
-      i. des.
-      expl apply_infrules_sound.
-      expl reduce_maydiff_sound.
-      expl valid_fdef_valid_stmts.
-      esplits; eauto.
-      * econs 1. econs; eauto. rewrite lookupBlockViaLabelFromFdef_spec. ss.
-      * econs; ss; eauto; ss; eauto.
-        - eapply inject_allocas_inj_incr; eauto.
-        - exploit implies_sound; eauto.
+      expl add_terminator_cond_switch.
+
+      expl get_switch_branch_in_successors.
+      unfold successors_terminator in *.
+      apply nodup_In in get_switch_branch_in_successors0. ss. des.
+      { (* default *)
+        expl valid_fdef_valid_stmts.
+        clear COND_CASES.
+        subst dflt.
+        rewrite lookupBlockViaLabelFromFdef_spec in *.
+
+        move H19 at bottom.
+        move COND3 at bottom.
+        move get_switch_branch_inject at bottom.
+        Ltac exists_prop PROP :=
+          tryif
+            (repeat multimatch goal with
+                    | [H: PROP |- _ ] => idtac "Found!"; idtac H; fail 2
+                    end)
+          then fail
+          else idtac
+        .
+
+        Ltac trans_tac :=
+          repeat multimatch goal with
+                 | [H1: ?A = ?B, H2: ?B = ?C |- _ ] =>
+                   (* idtac "------------------------"; *)
+                   (* idtac H1; idtac H2; *)
+                   tryif (check_equal A C)
+                   then (* idtac "FAILREFL1"; *) fail
+                   else
+                     tryif (exists_prop (A = C))
+                     then (* idtac "FAILREFL2" *) idtac
+                     else
+                       let name := fresh "TRANS_TAC" in
+                       exploit eq_trans; [exact H1|exact H2|]; intro name
+                 end
+        .
+
+        repeat trans_tac. clarify.
+
+        abstr (gen_infrules_next_inv
+                 (Postcond.reduce_maydiff
+                    (Infrules.apply_infrules m_src m_tgt
+                                             (lookup_phinodes_infrules s (fst CurBB0)) t))
+                 (ValidationHint.invariant_after_phinodes s)) infrulesA0.
+        unfold l in *.
+
+
+        abstr (lookup_phinodes_infrules s (@fst atom stmts CurBB0)) infrulesA2.
+        abstr (ValidationHint.invariant_after_phinodes s) inv_afterA.
+        assert(exists infrulesA1,
+                  (Invariant.implies
+                     (Postcond.reduce_maydiff
+                        (Infrules.apply_infrules
+                           m_src m_tgt infrulesA1
+                           (Postcond.reduce_maydiff
+                              (Infrules.apply_infrules m_src m_tgt infrulesA2 t)))) inv_afterA)).
+        { des_ifsH COND_DFLT; des_bool.
+          - esplits; ss. eassumption.
+          - exists nil. ss. etransitivity; eauto.
+            eapply implies_reduce_maydiff; eauto. }
+        clear COND_DFLT.
+        des.
+
+
+
+        exploit postcond_phinodes_sound; try exact PCOND_DFLT; try exact add_terminator_cond_switch;
+          ss; eauto; []; intro STATE2. destruct STATE2 as [invst2 STATE2].
+        clears invst1.
+
+        exploit apply_infrules_sound; eauto; ss; []; intro STATE3.
+        destruct STATE3 as [invst3 [invmem3 [STATE3 [MEM3 MEMLE3]]]]; des.
+        clears invst2.
+
+        exploit reduce_maydiff_sound; eauto; ss; []; intro STATE4.
+        destruct STATE4 as [invst4 STATE4]; des.
+        clears invst3.
+
+        exploit apply_infrules_sound; eauto; ss; []; intro STATE5.
+        destruct STATE5 as [invst5 [invmem5 [STATE5 [MEM5 MEMLE5]]]]; des.
+        clears invst4.
+
+        exploit reduce_maydiff_sound; eauto; ss; []; intro STATE6.
+        destruct STATE6 as [invst6 STATE6]; des.
+        clears invst5.
+
+
+        assert(InvMem.Rel.le inv0 invmem5).
+        { etransitivity; eauto. etransitivity; eauto. }
+        esplits; eauto.
+        { econs 1. econs; eauto. rewrite lookupBlockViaLabelFromFdef_spec. ss. }
+        {
+          econs; eauto; ss.
+          - eapply inject_allocas_inj_incr; eauto.
+          - eapply implies_sound; eauto.
+            { ss. }
+        }
+      }
+      { (* cases *)
+        (* clears dflt. *)
+        clear COND_DFLT PCOND_DFLT COND1 COND2 COND3.
+        apply list_prj2_inv in get_switch_branch_in_successors0. des.
+        rewrite forallb_forall in COND_CASES.
+        specialize (COND_CASES (x, tgt0) get_switch_branch_in_successors0).
+        clear get_switch_branch_in_successors0.
+        des_bool. des_ifs_safe. des_bool.
+        clear_tac. rename Heq into COND_CASES. rename Heq3 into PCOND_CASES.
+        rewrite lookupBlockViaLabelFromFdef_spec in *.
+        trans_tac. clarify.
+        expl valid_fdef_valid_stmts. ss.
+
+        abstr (gen_infrules_next_inv
+                 (Postcond.reduce_maydiff
+                    (Infrules.apply_infrules m_src m_tgt
+                                             (lookup_phinodes_infrules s0 (fst CurBB0)) t0))
+                 (ValidationHint.invariant_after_phinodes s0)) infrulesA0.
+        unfold l in *.
+
+
+        abstr (lookup_phinodes_infrules s0 (@fst atom stmts CurBB0)) infrulesA2.
+        abstr (ValidationHint.invariant_after_phinodes s0) inv_afterA.
+        assert(exists infrulesA1,
+                  (Invariant.implies
+                     (Postcond.reduce_maydiff
+                        (Infrules.apply_infrules
+                           m_src m_tgt infrulesA1
+                           (Postcond.reduce_maydiff
+                              (Infrules.apply_infrules m_src m_tgt infrulesA2 t0)))) inv_afterA)).
+        { des_ifsH COND_CASES; des_bool.
+          - esplits; ss. eassumption.
+          - exists nil. ss. etransitivity; eauto.
+            eapply implies_reduce_maydiff; eauto. }
+        clear COND_CASES.
+        des.
+
+
+        exploit postcond_phinodes_sound; try exact PCOND_CASES; try exact add_terminator_cond_switch;
+          ss; eauto; []; intro STATE2. destruct STATE2 as [invst2 STATE2].
+        clears invst1.
+
+        exploit apply_infrules_sound; eauto; ss; []; intro STATE3.
+        destruct STATE3 as [invst3 [invmem3 [STATE3 [MEM3 MEMLE3]]]]; des.
+        clears invst2.
+
+        exploit reduce_maydiff_sound; eauto; ss; []; intro STATE4.
+        destruct STATE4 as [invst4 STATE4]; des.
+        clears invst3.
+
+        exploit apply_infrules_sound; eauto; ss; []; intro STATE5.
+        destruct STATE5 as [invst5 [invmem5 [STATE5 [MEM5 MEMLE5]]]]; des.
+        clears invst4.
+
+        exploit reduce_maydiff_sound; eauto; ss; []; intro STATE6.
+        destruct STATE6 as [invst6 STATE6]; des.
+        clears invst5.
+
+
+        assert(InvMem.Rel.le inv0 invmem5).
+        { etransitivity; eauto. etransitivity; eauto. }
+        esplits; eauto.
+        { econs 1. econs; eauto. rewrite lookupBlockViaLabelFromFdef_spec. ss. }
+        {
+          econs; eauto; ss.
+          - eapply inject_allocas_inj_incr; eauto.
+          - eapply implies_sound; eauto.
+            { ss. }
+        }
+      }
     }
   + (* unreachable *)
     exploit nerror_nfinal_nstuck; eauto. i. des. inv x0.
 Unshelve.
 all: try destruct CONF; subst; ss.
-{ admit. }
-{ admit. }
-{ admit. }
-{ admit. }
-Admitted.
+Qed.
+(* TODO: Pull out same pattern as lemma or tac *)
 
 (* TODO: move to postcond.v *)
 Lemma postcond_cmd_implies_inject_event
