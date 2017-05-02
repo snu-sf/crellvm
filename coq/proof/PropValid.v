@@ -22,7 +22,6 @@ Require Import GenericValues.
 Require Import PropOpsem.
 Require Import SimulationLocal.
 Require Import Simulation.
-Require Import AdequacyLocal.
 Require Import Inject.
 Require InvMem.
 Require InvState.
