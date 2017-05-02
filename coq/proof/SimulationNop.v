@@ -279,10 +279,10 @@ Proof.
     assert (PARAM_TGT: exists gvs_param_tgt, params2GVs (CurTargetData conf_tgt) args0 locals_tgt (Globals conf_tgt) = Some gvs_param_tgt).
     { inv PROGRESS_TGT; eauto. }
     des.
-    eapply _sim_local_call; try apply STEPS; try eexact x0; ss; try reflexivity; eauto.
+    eapply _sim_local_call with (uniqs_src:= nil) (uniqs_tgt:= nil) (privs_src:= nil) (privs_tgt:= nil);
+      try apply STEPS; try eexact x0; ss; try reflexivity; eauto; try (ii; des; contradiction).
     { s. i. eapply inject_locals_getOperandValue; eauto. }
     { s. i. eapply inject_locals_params2GVs; eauto. }
-    exists nil, nil, nil, nil. esplits; try (ii; des; contradiction).
     s. i.
     exploit return_locals_inject_locals; eauto.
     { assert (INJECT_LOCALS_LIFT: inject_locals (InvMem.Rel.lift mem_src mem_tgt [] [] [] [] inv0) locals_src locals_tgt).

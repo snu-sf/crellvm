@@ -743,17 +743,12 @@ Proof.
       hexploit postcond_call_sound; try exact COND; eauto;
         (try instantiate (2 := (mkState (mkEC _ _ _ _ _ _) _ _))); ss; eauto; ss.
       i. des. subst. do 24 simtac0. des.
-      eapply _sim_local_call; ss; eauto; ss.
-      eexists (memory_blocks_of conf_src Locals0
-                          (Invariant.unique (Invariant.src inv))),
-        (memory_blocks_of conf_tgt Locals1
-                          (Invariant.unique (Invariant.tgt inv))),
-        (memory_blocks_of_t conf_src _ _
-                          (Invariant.private (Invariant.src inv))),
-        (memory_blocks_of_t conf_tgt _ _
-                          (Invariant.private (Invariant.tgt inv)))
-      .
-      esplits.
+      eapply _sim_local_call with
+      (uniqs_src:= (memory_blocks_of conf_src Locals0 (Invariant.unique (Invariant.src inv))))
+        (uniqs_tgt:= (memory_blocks_of conf_tgt Locals1 (Invariant.unique (Invariant.tgt inv))))
+        (privs_src:= (memory_blocks_of_t conf_src _ _ (Invariant.private (Invariant.src inv))))
+        (privs_tgt:= (memory_blocks_of_t conf_tgt _ _ (Invariant.private (Invariant.tgt inv))));
+        ss; eauto; ss.
       { inv STATE. inv SRC.
         unfold memory_blocks_of. ii.
         des.
