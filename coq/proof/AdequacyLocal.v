@@ -436,11 +436,17 @@ Proof.
       * right. apply CIH. econs; try reflexivity.
         { ss. }
         {
-          econs 2; eauto.
+          econs 2; eauto; [|reflexivity].
           s. i.
-          hexploit RETURN; eauto. i. des. inv SIM0; ss.
-          esplits; eauto.
-          reflexivity.
+          hexploit RETURN; eauto. clear RETURN. intro RETURN. des.
+          exploit RETURN.
+          { eapply preservation; eauto.
+            - admit. (* WF_CONFIG *)
+            - admit. (* WF_STATE *)
+            - admit. (* SINSN *)
+          }
+          i; des.
+          inv SIM0; ss. esplits; eauto.
         }
         {
           inv H.
@@ -546,7 +552,10 @@ Proof.
         { instantiate (1:= oresult0).
           inv VAL_INJECT; ss.
         }
-        i. des.
+        clear RETURN. intro RETURN. des.
+        exploit RETURN; eauto.
+        { admit. (* WF_TGT *) }
+        i; des.
 
         rewrite exCallUpdateLocals_spec in *.
         rewrite RETURN_LOCALS in *. rewrite RETURN_TGT in *. clarify.
@@ -575,4 +584,6 @@ Proof.
 Unshelve.
 { by econs; eauto. }
 { by econs; eauto. }
-Qed.
+{ by econs; eauto. }
+{ by econs; eauto. }
+Admitted.

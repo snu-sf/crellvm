@@ -290,7 +290,7 @@ Proof.
       eapply inject_locals_inj_incr; eauto.
     }
     i. des.
-    esplits; eauto.
+    esplits. i. splits; eauto.
     + inv CONF. rewrite <- TARGETDATA. eauto.
     + eapply lift_unlift_le. eauto.
     + right. eapply CIH.

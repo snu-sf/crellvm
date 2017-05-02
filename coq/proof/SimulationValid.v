@@ -827,82 +827,82 @@ Proof.
         { ss.
           eapply inject_allocas_inj_incr; eauto.
           etransitivity; eauto. }
-        { splits; ss.
-          move WF_TGT0 at bottom.
-          move RETURN_TGT at bottom.
-          SearchAbout OpsemPP.wf_State.
-          Lemma wf_state_mem
-                conf EC ECS mem
-                (WF: OpsemPP.wf_State conf (mkState EC ECS mem))
-                mem'
-            :
-              OpsemPP.wf_State conf (mkState EC ECS mem')
-          .
-          Proof.
-            i. ss.
-          Qed.
-          Lemma wf_stateI_mem
-                conf EC ECS mem
-                (WF: wf_StateI conf (mkState EC ECS mem))
-                mem'
-            :
-              wf_StateI conf (mkState EC ECS mem')
-          .
-          Proof.
-            apply wf_StateI_spec.
-            apply wf_StateI_spec in WF.
-            expl wf_state_mem.
-          Qed.
+        (* { splits; ss. *)
+        (*   move WF_TGT0 at bottom. *)
+        (*   move RETURN_TGT at bottom. *)
+        (*   SearchAbout OpsemPP.wf_State. *)
+        (*   Lemma wf_state_mem *)
+        (*         conf EC ECS mem *)
+        (*         (WF: OpsemPP.wf_State conf (mkState EC ECS mem)) *)
+        (*         mem' *)
+        (*     : *)
+        (*       OpsemPP.wf_State conf (mkState EC ECS mem') *)
+        (*   . *)
+        (*   Proof. *)
+        (*     i. ss. *)
+        (*   Qed. *)
+        (*   Lemma wf_stateI_mem *)
+        (*         conf EC ECS mem *)
+        (*         (WF: wf_StateI conf (mkState EC ECS mem)) *)
+        (*         mem' *)
+        (*     : *)
+        (*       wf_StateI conf (mkState EC ECS mem') *)
+        (*   . *)
+        (*   Proof. *)
+        (*     apply wf_StateI_spec. *)
+        (*     apply wf_StateI_spec in WF. *)
+        (*     expl wf_state_mem. *)
+        (*   Qed. *)
 
-          apply wf_StateI_spec.
-          apply wf_StateI_spec in WF_TGT0.
-          (* assert(WF_GV: option_Forall (fun v => OpsemPP.wf_GVs conf_tgt.(CurTargetData) v typ0) retval3_tgt). *)
-          (* { admit. } *)
-          unfold return_locals in RETURN_TGT.
-          destruct noret0; ss.
-          -
-            assert(Locals1 = locals2_tgt) by des_ifs; clarify. clear RETURN_TGT.
-            destruct conf_tgt.
-            Fail eapply wf_state_mem with (mem' := Mem1). (* ERROR MESSAGE REALLY HARD TO READ *)
-            eapply wf_state_mem with (mem0 := Mem1).
-            (* eapply wf_stateI_mem with (mem0 := Mem1). *)
-            Fail eapply OpsemPP.preservation_cmd_non_updated_case.
-            (* ERROR MESSAGE REALLY HARD TO READ *)
-            destruct CurTargetData0.
-            eapply OpsemPP.preservation_cmd_non_updated_case; eauto.
-            { reflexivity. }
-            { apply wf_ConfigI_spec in WF_TGT. ss. }
-          - des_ifs.
-            destruct conf_tgt. destruct CurTargetData0.
-            eapply OpsemPP.preservation_cmd_updated_case; [..|exact WF_TGT0]; eauto; try (by ss).
-            {
-              (* 0. caller provides? *)
-              (* caller can only say about retval3_tgt, here, g *)
-              (* 1. wf_typ? *)
-              (* assert(wf_typ [m_tgt] (l2, n) typ0). *)
-              apply wf_StateI_spec in WF_TGT0.
-              ss. rename g0 into __g0__. rename g into __g__.
-              eapply OpsemPP.fit_gv_gv2gvs__wf_gvs_aux; eauto.
-              Print OpsemPP.wf_ExecutionContext.
-              Print OpsemPP.wf_defs.
-              instantiate (1:= [m_tgt]).
-              admit.
-              (* 2. from wf_State? *)
-              (* { ss. repeat (des_ifs_safe; des). *)
-              (*   move Heq0 at bottom. cbn in Heq0. *)
-              (*   move WF_TGT6 at bottom. *)
-              (* } *)
-              (* Cannot; parameter function between *)
+        (*   apply wf_StateI_spec. *)
+        (*   apply wf_StateI_spec in WF_TGT0. *)
+        (*   (* assert(WF_GV: option_Forall (fun v => OpsemPP.wf_GVs conf_tgt.(CurTargetData) v typ0) retval3_tgt). *) *)
+        (*   (* { admit. } *) *)
+        (*   unfold return_locals in RETURN_TGT. *)
+        (*   destruct noret0; ss. *)
+        (*   - *)
+        (*     assert(Locals1 = locals2_tgt) by des_ifs; clarify. clear RETURN_TGT. *)
+        (*     destruct conf_tgt. *)
+        (*     Fail eapply wf_state_mem with (mem' := Mem1). (* ERROR MESSAGE REALLY HARD TO READ *) *)
+        (*     eapply wf_state_mem with (mem0 := Mem1). *)
+        (*     (* eapply wf_stateI_mem with (mem0 := Mem1). *) *)
+        (*     Fail eapply OpsemPP.preservation_cmd_non_updated_case. *)
+        (*     (* ERROR MESSAGE REALLY HARD TO READ *) *)
+        (*     destruct CurTargetData0. *)
+        (*     eapply OpsemPP.preservation_cmd_non_updated_case; eauto. *)
+        (*     { reflexivity. } *)
+        (*     { apply wf_ConfigI_spec in WF_TGT. ss. } *)
+        (*   - des_ifs. *)
+        (*     destruct conf_tgt. destruct CurTargetData0. *)
+        (*     eapply OpsemPP.preservation_cmd_updated_case; [..|exact WF_TGT0]; eauto; try (by ss). *)
+        (*     { *)
+        (*       (* 0. caller provides? *) *)
+        (*       (* caller can only say about retval3_tgt, here, g *) *)
+        (*       (* 1. wf_typ? *) *)
+        (*       (* assert(wf_typ [m_tgt] (l2, n) typ0). *) *)
+        (*       apply wf_StateI_spec in WF_TGT0. *)
+        (*       ss. rename g0 into __g0__. rename g into __g__. *)
+        (*       eapply OpsemPP.fit_gv_gv2gvs__wf_gvs_aux; eauto. *)
+        (*       Print OpsemPP.wf_ExecutionContext. *)
+        (*       Print OpsemPP.wf_defs. *)
+        (*       instantiate (1:= [m_tgt]). *)
+        (*       admit. *)
+        (*       (* 2. from wf_State? *) *)
+        (*       (* { ss. repeat (des_ifs_safe; des). *) *)
+        (*       (*   move Heq0 at bottom. cbn in Heq0. *) *)
+        (*       (*   move WF_TGT6 at bottom. *) *)
+        (*       (* } *) *)
+        (*       (* Cannot; parameter function between *) *)
 
-              (* 3. from wf_system? (call's type = function type) *)
-              (* wf_fheader only says about its args. for typ_5, id may not be well typed *)
+        (*       (* 3. from wf_system? (call's type = function type) *) *)
+        (*       (* wf_fheader only says about its args. for typ_5, id may not be well typed *) *)
 
-              (* assert(OpsemPP.wf_GVs (l2, n) __g__ *)
-              (* OpsemPP.lift_fit_gv__wf_gvs *)
-              (* OpsemPP.fit_gv_gv2gvs__wf_gvs_aux *)
-            }
-            { apply wf_ConfigI_spec in WF_TGT. ss. }
-        }
+        (*       (* assert(OpsemPP.wf_GVs (l2, n) __g__ *) *)
+        (*       (* OpsemPP.lift_fit_gv__wf_gvs *) *)
+        (*       (* OpsemPP.fit_gv_gv2gvs__wf_gvs_aux *) *)
+        (*     } *)
+        (*     { apply wf_ConfigI_spec in WF_TGT. ss. } *)
+        (* } *)
     + (* non-call *)
       des.
       eapply _sim_local_step.

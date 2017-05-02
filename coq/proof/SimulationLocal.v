@@ -185,6 +185,8 @@ Section SimLocal.
                                 st2_src.(EC).(Locals)
                               = Some locals4_src),
                exists locals4_tgt idx4 inv4,
+                 (* TODO: Define update_locals function *)
+                 forall (WF_TGT: wf_StateI conf_tgt (mkState (mkEC st1_tgt.(EC).(CurFunction) st1_tgt.(EC).(CurBB) cmds1_tgt st1_tgt.(EC).(Terminator) locals4_tgt st1_tgt.(EC).(Allocas)) st1_tgt.(ECS) mem3_tgt)),
                  <<RETURN_TGT: return_locals
                                  conf_tgt.(CurTargetData)
                                  retval3_tgt id1_tgt noret1_tgt typ1_tgt
@@ -225,6 +227,8 @@ Section SimLocal.
     - econs 4; eauto.
       i. expl RETURN.
       esplits; eauto.
+      i. specialize (RETURN0 WF_TGT). des.
+      splits; eauto.
     - econs 5; eauto.
       i. exploit STEP; eauto. i. des.
       esplits; eauto.
