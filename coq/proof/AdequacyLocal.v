@@ -392,7 +392,7 @@ Proof.
           rewrite FDEF_TGT. ss.
         - unfold getEntryBlock in *. ss.
       }
-      i. inv STEP0; ss; cycle 1.
+      i. expl preservation. inv STEP0; ss; cycle 1.
       { exfalso.
         rewrite FUN_TGT in *. clarify.
         clear - H18 H23 INJECT MEM SIM_CONF.
@@ -440,11 +440,7 @@ Proof.
           s. i.
           hexploit RETURN; eauto. clear RETURN. intro RETURN. des.
           exploit RETURN.
-          { eapply preservation; eauto.
-            - admit. (* WF_CONFIG *)
-            - admit. (* WF_STATE *)
-            - admit. (* SINSN *)
-          }
+          { admit. (* wf_state *) }
           i; des.
           inv SIM0; ss. esplits; eauto.
         }
@@ -453,7 +449,8 @@ Proof.
           unfold getEntryBlock in *.
           des_ifs.
           ss. clarify.
-          exact H0.
+          eapply H0.
+          splits; ss.
         }
     + (* excall *)
       exploit FUN; eauto. i. des.
@@ -584,6 +581,6 @@ Proof.
 Unshelve.
 { by econs; eauto. }
 { by econs; eauto. }
-{ by econs; eauto. }
-{ by econs; eauto. }
+(* { by econs; eauto. } *)
+(* { by econs; eauto. } *)
 Admitted.

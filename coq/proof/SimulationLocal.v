@@ -91,6 +91,7 @@ Section SimLocal.
       st2_src
       (STEP: sop_star conf_src st1_src st2_src E0)
       (ERROR: error_state conf_src st2_src)
+      (WF_TGT: wf_ConfigI conf_tgt /\ wf_StateI conf_tgt st1_tgt)
 
   | _sim_local_return
       st2_src
@@ -118,6 +119,7 @@ Section SimLocal.
          exists retval1_tgt,
            <<RET_TGT: getOperandValue conf_tgt.(CurTargetData) ret1_tgt st1_tgt.(EC).(Locals) conf_tgt.(Globals) = Some retval1_tgt>> /\
            <<INJECT: genericvalues_inject.gv_inject inv2.(InvMem.Rel.inject) retval2_src retval1_tgt>>)
+      (WF_TGT: wf_ConfigI conf_tgt /\ wf_StateI conf_tgt st1_tgt)
 
   (* TODO: seems duplicate of _sim_local_return. Change semantics? *)
   | _sim_local_return_void
@@ -137,6 +139,7 @@ Section SimLocal.
                                            (InvMem.Unary.private_parent inv1.(InvMem.Rel.src)))
       (ALLOCAS_DISJOINT_TGT: list_disjoint st1_tgt.(EC).(Allocas)
                                            (InvMem.Unary.private_parent inv1.(InvMem.Rel.tgt)))
+      (WF_TGT: wf_ConfigI conf_tgt /\ wf_StateI conf_tgt st1_tgt)
 
   | _sim_local_call
       st2_src
@@ -204,6 +207,7 @@ Section SimLocal.
                         (mkEC st1_tgt.(EC).(CurFunction) st1_tgt.(EC).(CurBB) cmds1_tgt st1_tgt.(EC).(Terminator) locals4_tgt st1_tgt.(EC).(Allocas))
                         st1_tgt.(ECS)
                         mem3_tgt)>>)
+      (WF_TGT: wf_ConfigI conf_tgt /\ wf_StateI conf_tgt st1_tgt)
 
   | _sim_local_step
       (PROGRESS: ~ stuck_state conf_tgt st1_tgt)
@@ -215,8 +219,17 @@ Section SimLocal.
            <<EVT: sInsn_indexed conf_src st2_src st3_src idx1 idx3 event>> /\
            <<MEMLE: InvMem.Rel.le inv1 inv3>> /\
            <<SIM: sim_local stack0_src stack0_tgt inv3 idx3 st3_src st3_tgt>>)
+      (WF_TGT: wf_ConfigI conf_tgt /\ wf_StateI conf_tgt st1_tgt)
   .
   Hint Constructors _sim_local.
+
+  Lemma _sim_local_wf
+        sim_local stack0_src stack0_tgt inv1 idx1 st1_src st1_tgt
+        (SIM: _sim_local sim_local stack0_src stack0_tgt inv1 idx1 st1_src st1_tgt)
+    :
+      <<WF_TGT: wf_ConfigI conf_tgt /\ wf_StateI conf_tgt st1_tgt>>
+  .
+  Proof. inv SIM; assumption. Qed.
 
   Lemma _sim_local_mon: monotone6 _sim_local.
   Proof.
@@ -227,7 +240,7 @@ Section SimLocal.
     - econs 4; eauto.
       i. expl RETURN.
       esplits; eauto.
-      i. specialize (RETURN0 WF_TGT). des.
+      i. specialize (RETURN0 WF_TGT1). des.
       splits; eauto.
     - econs 5; eauto.
       i. exploit STEP; eauto. i. des.
@@ -277,7 +290,9 @@ Lemma _sim_local_src_error
       (SIM: forall (ERROR_SRC: ~ error_state conf_src st_src),
           _sim_local conf_src conf_tgt sim_local ecs_src ecs_tgt
                      inv index
-                     st_src st_tgt):
+                     st_src st_tgt)
+      (WF_TGT: wf_ConfigI conf_tgt /\ wf_StateI conf_tgt st_tgt)
+  :
   _sim_local conf_src conf_tgt sim_local ecs_src ecs_tgt
              inv index
              st_src st_tgt.
@@ -309,8 +324,9 @@ Section SimLocalFdef.
       (ARGS: list_forall2 (genericvalues_inject.gv_inject inv0.(InvMem.Rel.inject)) args_src args_tgt)
       (SRC: init_fdef conf_src fdef_src args_src ec0_src),
     exists ec0_tgt idx0,
-      init_fdef conf_tgt fdef_tgt args_tgt ec0_tgt /\
-      sim_local conf_src conf_tgt stack0_src stack0_tgt inv0 idx0
-                (mkState ec0_src stack0_src mem0_src)
-                (mkState ec0_tgt stack0_tgt mem0_tgt).
+      (init_fdef conf_tgt fdef_tgt args_tgt ec0_tgt) /\
+      (forall (WF_TGT: wf_ConfigI conf_tgt /\ wf_StateI conf_tgt (mkState ec0_tgt stack0_tgt mem0_tgt)),
+          sim_local conf_src conf_tgt stack0_src stack0_tgt inv0 idx0
+                    (mkState ec0_src stack0_src mem0_src)
+                    (mkState ec0_tgt stack0_tgt mem0_tgt)).
 End SimLocalFdef.

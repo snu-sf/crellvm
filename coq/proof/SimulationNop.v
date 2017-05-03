@@ -47,6 +47,10 @@ Inductive nop_state_sim
                                          (InvMem.Unary.private_parent inv.(InvMem.Rel.src)))
     (ALLOCAS_DISJOINT_TGT: list_disjoint allocas_tgt
                                          (InvMem.Unary.private_parent inv.(InvMem.Rel.tgt)))
+    (WF_TGT: wf_ConfigI conf_tgt /\
+             wf_StateI conf_tgt (mkState
+                                   (mkEC fdef_tgt (l, s_tgt) cmds_tgt term locals_tgt allocas_tgt)
+                                   stack0_tgt mem_tgt))
   :
     nop_state_sim
       conf_src conf_tgt
@@ -77,15 +81,17 @@ Lemma nop_init
       (ARGS: list_forall2 (genericvalues_inject.gv_inject inv.(InvMem.Rel.inject)) args_src args_tgt)
       (MEM: InvMem.Rel.sem conf_src conf_tgt mem_src mem_tgt inv)
       (CONF: inject_conf conf_src conf_tgt)
-      (INIT: init_fdef conf_src (fdef_intro header blocks_src) args_src ec_src):
+      (INIT: init_fdef conf_src (fdef_intro header blocks_src) args_src ec_src)
+  :
   exists ec_tgt idx,
-    init_fdef conf_tgt (fdef_intro header blocks_tgt) args_tgt ec_tgt /\
-    nop_state_sim
-      conf_src conf_tgt
-      stack0_src stack0_tgt
-      inv idx
-      (mkState ec_src stack0_src mem_src)
-      (mkState ec_tgt stack0_tgt mem_tgt).
+    (<<INIT_TGT: init_fdef conf_tgt (fdef_intro header blocks_tgt) args_tgt ec_tgt>>) /\
+    (forall (WF_TGT: wf_ConfigI conf_tgt /\ wf_StateI conf_tgt (mkState ec_tgt stack0_tgt mem_tgt)),
+        <<SIM: nop_state_sim
+          conf_src conf_tgt
+          stack0_src stack0_tgt
+          inv idx
+          (mkState ec_src stack0_src mem_src)
+          (mkState ec_tgt stack0_tgt mem_tgt)>>).
 Proof.
   inv INIT. inv NOP_FDEF. inv FDEF.
   destruct blocks_tgt, lb; inv NOP_FIRST_MATCHES; try inv ENTRY.
@@ -93,7 +99,7 @@ Proof.
   exploit locals_init; eauto.
   { apply MEM. }
   i. des.
-  esplits.
+  esplits. i. des. splits.
   - econs; eauto. ss.
   - unfold nop_blocks in BLOCKS. inv BLOCKS.
     des. subst.
@@ -298,6 +304,7 @@ Proof.
       { eapply inject_incr_inject_allocas; eauto.
         ss. inv INCR. ss. }
       { eapply invmem_unlift; eauto. }
+    + splits; ss.
   - (* return *)
     exploit get_status_return_inv; eauto. i. des.
     inv SIM. ss. subst.
@@ -385,7 +392,7 @@ Lemma nop_sim_fdef
   sim_fdef conf_src conf_tgt (fdef_intro header blocks_src) (fdef_intro header blocks_tgt).
 Proof.
   ii.
-  exploit nop_init; eauto. i. des.
-  esplits; eauto.
+  exploit nop_init; eauto. intro NOP_INIT. des.
+  esplits; eauto. i. specialize (NOP_INIT0 WF_TGT).
   apply nop_sim; eauto.
 Qed.
