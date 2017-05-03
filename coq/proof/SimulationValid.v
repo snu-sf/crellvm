@@ -490,32 +490,45 @@ Proof.
         move H19 at bottom.
         move COND3 at bottom.
         move get_switch_branch_inject at bottom.
+
         Ltac exists_prop PROP :=
           tryif
             (repeat multimatch goal with
-                    | [H: PROP |- _ ] => idtac "Found!"; idtac H; fail 2
+                    | [H: PROP |- _ ] => (* idtac "Found!"; idtac H; *) fail 2
                     end)
           then fail
           else idtac
         .
 
-        Ltac trans_tac :=
-          repeat multimatch goal with
-                 | [H1: ?A = ?B, H2: ?B = ?C |- _ ] =>
-                   (* idtac "------------------------"; *)
-                   (* idtac H1; idtac H2; *)
-                   tryif (check_equal A C)
-                   then (* idtac "FAILREFL1"; *) fail
-                   else
-                     tryif (exists_prop (A = C))
-                     then (* idtac "FAILREFL2" *) idtac
-                     else
-                       let name := fresh "TRANS_TAC" in
-                       exploit eq_trans; [exact H1|exact H2|]; intro name
-                 end
+        (* get equality's transitive closure *)
+        (* TODO: it checks equal to strictly; "(0, 1).fst != 0" here. *)
+        Ltac eq_closure_tac :=
+          repeat
+            (repeat multimatch goal with
+                    | [H1: ?A = ?B, H2: ?B = ?C |- _ ] =>
+                      (* idtac "------------------------"; *)
+                      (* idtac H1; idtac H2; *)
+                      tryif (check_equal A C)
+                      then (* idtac "FAILREFL1"; *) fail
+                      else
+                        tryif (exists_prop (A = C) + exists_prop (C = A))
+                        then (* idtac "FAILREFL2" *) idtac
+                        else
+                          let name := fresh "EQ_CLOSURE_TAC" in
+                          exploit eq_trans; [exact H1|exact H2|]; intro name
+                    | [H1: ?B = ?A, H2: ?B = ?C |- _ ] =>
+                      tryif (check_equal A C)
+                      then (* idtac "FAILREFL1"; *) fail
+                      else
+                        tryif (exists_prop (A = C) + exists_prop (C = A))
+                        then (* idtac "FAILREFL2" *) idtac
+                        else
+                          let name := fresh "EQ_CLOSURE_TAC" in
+                          exploit eq_trans; [exact (eq_sym H1)|exact H2|]; intro name
+                    end)
         .
 
-        repeat trans_tac. clarify.
+        eq_closure_tac. clarify.
 
         abstr (gen_infrules_next_inv
                  (Postcond.reduce_maydiff
@@ -585,7 +598,7 @@ Proof.
         des_bool. des_ifs_safe. des_bool.
         clear_tac. rename Heq into COND_CASES. rename Heq3 into PCOND_CASES.
         rewrite lookupBlockViaLabelFromFdef_spec in *.
-        trans_tac. clarify.
+        ss. eq_closure_tac. clarify.
         expl valid_fdef_valid_stmts. ss.
 
         abstr (gen_infrules_next_inv
@@ -869,10 +882,32 @@ Proof.
               i; des.
               rewrite InvState.Unary.sem_valueT_physical in *. ss. rewrite Heq in *. clarify.
             }
-            admit. (* free inject. easy *)
-          + exfalso.
+            {
+              (* free inject. easy *)
+              unfold free in *. des_ifs_safe.
+              unfold GV2ptr in *. des_ifs_safe.
+              repeat all_with_term ltac:(fun H => inv H) genericvalues_inject.gv_inject.
+              repeat all_with_term ltac:(fun H => inv H) memory_sim.MoreMem.val_inject.
+              exploit genericvalues_inject.mem_inj__free; eauto; try apply MEM; i; des.
+              assert(delta = 0).
+              { inv MEM. ss. inv WF. expl mi_bounds. }
+              clarify.
+              repeat rewrite Z.add_0_r in *.
+              rewrite <- int_add_0 in *. clarify.
+
+              des_ifs.
+              exploit genericvalues_inject.mi_bounds.
+              { apply MEM. }
+              { eauto. }
+              i; des.
+
+              eq_closure_tac.
+              clarify.
+            }
+          +
             destruct c; des_ifs; ss; repeat (des_bool; des; des_sumbool; clarify).
             * (* nop case *)
+              exfalso.
               rewrite SoundSnapshot.ExprPairSet_exists_filter in POSTCOND.
               apply Exprs.ExprPairSetFacts.exists_iff in POSTCOND; [|solve_compat_bool].
               unfold Exprs.ExprPairSet.Exists in *. des.
@@ -891,7 +926,11 @@ Proof.
                              (Exprs.Expr.value (Exprs.ValueT.const (const_undef (typ_int O))))
                            :bool) = true
                       ) by admit.
-                des. des_sumbool; clarify.
+                des. des_sumbool. clarify.
+                assert(NOT_IN_MD: Invariant.not_in_maydiff inv0
+                                                           (Exprs.ValueT.lift Exprs.Tag.physical value1)).
+                { admit. }
+
 
                 assert(DEFINED: exists val, const2GV CurTargetData0 Globals0 (const_undef (typ_int O)) =
                                             Some val).
@@ -901,10 +940,31 @@ Proof.
                 exploit InvState.Rel.lessdef_expr_spec; eauto.
                 { apply STATE. }
                 { unfold InvState.Unary.sem_expr. ss. eauto. }
-                i; des. ss. des_ifs.
-                admit. (* load inject *)
+                i; des. ss. rewrite InvState.Unary.sem_valueT_physical in *. ss. des_ifs.
+
+                exploit InvState.Rel.not_in_maydiff_value_spec; try apply STATE; eauto.
+                { ss.  }
+                { rewrite InvState.Unary.sem_valueT_physical. ss. eauto. }
+                i; des.
+                rewrite InvState.Unary.sem_valueT_physical in *. ss.
+
+                {
+                  (* load inject. easy *)
+                  unfold mload in *. des_ifs_safe.
+                  unfold GV2ptr in *. des_ifs_safe.
+                  rename g into __g__.
+                  repeat all_with_term ltac:(fun H => inv H) genericvalues_inject.gv_inject.
+                  repeat all_with_term ltac:(fun H => inv H) memory_sim.MoreMem.val_inject.
+                  exploit genericvalues_inject.simulation_mload_aux; eauto; try apply MEM; i; des.
+                  assert(delta = 0).
+                  { inv MEM. ss. inv WF. expl mi_bounds. }
+                  clarify.
+                  rewrite Z.add_0_r in *.
+                  rewrite <- int_add_0 in *. clarify.
+                }
               }
-            * inv SRC_STEP.
+            * exfalso.
+              inv SRC_STEP.
               assert(INJECT : genericvalues_inject.gv_inject (InvMem.Rel.inject invmem) mp g).
               {
                 eapply InvState.Subset.inject_value_Subset in POSTCOND0; cycle 1.
@@ -921,7 +981,19 @@ Proof.
                 i; des.
                 rewrite InvState.Unary.sem_valueT_physical in *. ss. rewrite Heq in *. clarify.
               }
-              admit. (* load inject. easy *)
+              {
+                (* load inject. easy *)
+                unfold mload in *. des_ifs_safe.
+                unfold GV2ptr in *. des_ifs_safe.
+                repeat all_with_term ltac:(fun H => inv H) genericvalues_inject.gv_inject.
+                repeat all_with_term ltac:(fun H => inv H) memory_sim.MoreMem.val_inject.
+                exploit genericvalues_inject.simulation_mload_aux; eauto; try apply MEM; i; des.
+                assert(delta = 0).
+                { inv MEM. ss. inv WF. expl mi_bounds. }
+                clarify.
+                rewrite Z.add_0_r in *.
+                rewrite <- int_add_0 in *. clarify.
+              }
           + exfalso.
             destruct c; des_ifs; ss; repeat (des_bool; des; des_sumbool; clarify).
             inv SRC_STEP.
@@ -957,7 +1029,19 @@ Proof.
               i; des.
               rewrite InvState.Unary.sem_valueT_physical in *. ss. rewrite Heq0 in *. clarify.
             }
-            admit. (* store inject. easy *)
+            {
+              (* mstore inject. easy *)
+              unfold mstore in *. des_ifs_safe.
+              unfold GV2ptr in *. des_ifs_safe.
+              inv INJECT2. inv H4.
+              repeat all_with_term ltac:(fun H => inv H) memory_sim.MoreMem.val_inject.
+              exploit genericvalues_inject.mem_inj_mstore_aux; eauto; try apply MEM; i; des.
+              assert(delta = 0).
+              { inv MEM. ss. inv WF. expl mi_bounds. }
+              clarify.
+              rewrite Z.add_0_r in *.
+              rewrite <- int_add_0 in *. clarify.
+            }
           + destruct c; ss.
         - i; ss.
       }
