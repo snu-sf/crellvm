@@ -69,6 +69,9 @@ Inductive sim_local_stack
                          retval'_tgt id_tgt noret_tgt typ_tgt
                          locals_tgt = Some locals'_tgt>> /\
          <<MEMLE: InvMem.Rel.le inv1 inv''>> /\
+         forall (WF_TGT: wf_StateI conf_tgt
+                                   (mkState (mkEC func_tgt b_tgt cmds_tgt term_tgt locals'_tgt allocas_tgt)
+                                            ecs_tgt mem'_tgt)),
          <<SIM:
            sim_local
              conf_src conf_tgt ecs0_src ecs0_tgt
@@ -278,7 +281,7 @@ Proof.
           + rewrite returnUpdateLocals_spec, RET_TGT. ss.
             rewrite x0. eauto.
       }
-      i. inv STEP0. ss. rewrite returnUpdateLocals_spec in *. ss.
+      i. expl preservation. inv STEP0. ss. rewrite returnUpdateLocals_spec in *. ss.
       inv CONF. ss. clarify.
       destruct noret_tgt; simtac.
       *
@@ -292,7 +295,8 @@ Proof.
           ss.
         }
         { ss. }
-        i. des. simtac.
+        clear LOCAL. intro LOCAL. des. simtac.
+        specialize (LOCAL1 preservation).
         esplits; eauto.
         { econs 1. econs; eauto.
           rewrite returnUpdateLocals_spec, COND. ss.
@@ -312,7 +316,8 @@ Proof.
           eauto.
         }
         { s. rewrite COND2. ss. }
-        i. des. simtac.
+        clear LOCAL. intro LOCAL. des. simtac.
+        specialize (LOCAL1 preservation).
         esplits; eauto.
         { econs 1. econs ;eauto.
           rewrite returnUpdateLocals_spec, COND. s.
@@ -343,7 +348,7 @@ Proof.
         esplits. econs; ss; eauto.
         - destruct noret_tgt; ss.
       }
-      i. inv STEP0. ss.
+      i. expl preservation. inv STEP0. ss.
       inv CONF. ss. clarify.
       exploit invmem_free_allocas_invmem_rel; eauto; [].
       intro MEMFREE; des.
@@ -352,7 +357,12 @@ Proof.
       { etransitivity; eauto. }
       { instantiate (1 := None). instantiate (1 := None). ss. }
       { destruct noret_tgt; ss. }
-      i. des.
+      clear LOCAL. intro LOCAL. des.
+      assert(locals_tgt = locals'_tgt).
+      { des_ifs.
+        unfold return_locals in *. des_ifs.
+      } clarify.
+      specialize (LOCAL1 preservation).
       des_ifs. cbn in *. clarify. (* local_tgt' = locals_tgt *)
       esplits; eauto.
       * econs 1. econs; eauto.
@@ -439,11 +449,10 @@ Proof.
           econs 2; eauto; [|reflexivity].
           s. i.
           hexploit RETURN; eauto. clear RETURN. intro RETURN. des.
-          exploit RETURN1. i; des.
-          hexploit RETURN1.
-          { admit. (* wf_state *) }
-          intro SIM0; des.
-          inv SIM0; ss. esplits; eauto.
+          esplits; eauto.
+          i. specialize (RETURN1 WF_TGT1).
+          inv RETURN1; ss.
+          eauto.
         }
         {
           inv H.
@@ -501,7 +510,7 @@ Proof.
           rewrite SIM_NONE0.
           rewrite SIM_SOME_FDEC0. ss.
       }
-      i. inv STEP0; ss.
+      i. expl preservation. inv STEP0; ss.
       { exfalso. (* call excall mismatch *)
         clarify.
         rename H18 into SRC_LOOKUP.
@@ -546,13 +555,23 @@ Proof.
           unfold return_locals in *.
           des_ifs; esplits; eauto.
         } des.
+
         hexploit RETURN; eauto.
         { instantiate (1:= oresult0).
           inv VAL_INJECT; ss.
         }
         clear RETURN. intro RETURN. des.
+
         hexploit RETURN1; eauto.
-        { admit. (* WF_TGT *) }
+        { move preservation at bottom.
+          assert(lc'0 = locals4_tgt).
+          {
+            move lc'0 at bottom.
+            move RETURN_TGT at bottom.
+            rewrite exCallUpdateLocals_spec in *. clarify.
+          }
+          clarify.
+        }
         intro SIM; des.
 
         rewrite exCallUpdateLocals_spec in *.
@@ -584,4 +603,4 @@ Unshelve.
 { by econs; eauto. }
 (* { by econs; eauto. } *)
 (* { by econs; eauto. } *)
-Admitted.
+Qed.
