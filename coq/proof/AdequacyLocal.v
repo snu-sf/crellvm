@@ -439,9 +439,10 @@ Proof.
           econs 2; eauto; [|reflexivity].
           s. i.
           hexploit RETURN; eauto. clear RETURN. intro RETURN. des.
-          exploit RETURN.
+          exploit RETURN1. i; des.
+          hexploit RETURN1.
           { admit. (* wf_state *) }
-          i; des.
+          intro SIM0; des.
           inv SIM0; ss. esplits; eauto.
         }
         {
@@ -550,9 +551,9 @@ Proof.
           inv VAL_INJECT; ss.
         }
         clear RETURN. intro RETURN. des.
-        exploit RETURN; eauto.
+        hexploit RETURN1; eauto.
         { admit. (* WF_TGT *) }
-        i; des.
+        intro SIM; des.
 
         rewrite exCallUpdateLocals_spec in *.
         rewrite RETURN_LOCALS in *. rewrite RETURN_TGT in *. clarify.

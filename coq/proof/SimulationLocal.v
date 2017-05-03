@@ -189,24 +189,22 @@ Section SimLocal.
                               = Some locals4_src),
                exists locals4_tgt idx4 inv4,
                  (* TODO: Define update_locals function *)
-                 forall (WF_TGT: wf_StateI conf_tgt (mkState (mkEC st1_tgt.(EC).(CurFunction) st1_tgt.(EC).(CurBB) cmds1_tgt st1_tgt.(EC).(Terminator) locals4_tgt st1_tgt.(EC).(Allocas)) st1_tgt.(ECS) mem3_tgt)),
                  <<RETURN_TGT: return_locals
                                  conf_tgt.(CurTargetData)
                                  retval3_tgt id1_tgt noret1_tgt typ1_tgt
                                  st1_tgt.(EC).(Locals)
                                = Some locals4_tgt>> /\
                  <<MEMLE: InvMem.Rel.le inv1 inv4>> /\
-                 <<SIM:
-                   sim_local
-                     stack0_src stack0_tgt inv4 idx4
-                     (mkState
-                        (mkEC st2_src.(EC).(CurFunction) st2_src.(EC).(CurBB) cmds2_src st2_src.(EC).(Terminator) locals4_src st2_src.(EC).(Allocas))
-                        st2_src.(ECS)
-                        mem3_src)
-                     (mkState
-                        (mkEC st1_tgt.(EC).(CurFunction) st1_tgt.(EC).(CurBB) cmds1_tgt st1_tgt.(EC).(Terminator) locals4_tgt st1_tgt.(EC).(Allocas))
-                        st1_tgt.(ECS)
-                        mem3_tgt)>>)
+                 forall (WF_TGT: wf_StateI conf_tgt (mkState (mkEC st1_tgt.(EC).(CurFunction) st1_tgt.(EC).(CurBB) cmds1_tgt st1_tgt.(EC).(Terminator) locals4_tgt st1_tgt.(EC).(Allocas)) st1_tgt.(ECS) mem3_tgt)),
+                   <<SIM:
+                     sim_local
+                       stack0_src stack0_tgt inv4 idx4
+                       (mkState (mkEC st2_src.(EC).(CurFunction) st2_src.(EC).(CurBB)
+                                      cmds2_src st2_src.(EC).(Terminator) locals4_src st2_src.(EC).(Allocas))
+                                st2_src.(ECS) mem3_src)
+                       (mkState (mkEC st1_tgt.(EC).(CurFunction) st1_tgt.(EC).(CurBB)
+                                      cmds1_tgt st1_tgt.(EC).(Terminator) locals4_tgt st1_tgt.(EC).(Allocas))
+                                st1_tgt.(ECS) mem3_tgt)>>)
       (WF_TGT: wf_ConfigI conf_tgt /\ wf_StateI conf_tgt st1_tgt)
 
   | _sim_local_step
