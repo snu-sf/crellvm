@@ -3,8 +3,78 @@ Require Import sflib.
 Require Import memory_props.
 Require Import TODO.
 Import Opsem.
+Require Import Classical.
 
 Set Implicit Arguments.
+
+Ltac reductio_ad_absurdum :=
+  match goal with
+  | [ |- ?G ] => destruct (classic G) as [tmp | REDUCTIO_AD_ABSURDUM];
+                 [assumption|exfalso]
+  end
+.
+
+Ltac exists_prop PROP :=
+  tryif
+    (repeat multimatch goal with
+            | [H: PROP |- _ ] => (* idtac "Found!"; idtac H; *) fail 2
+            end)
+  then fail
+  else idtac
+.
+
+(* get equality's transitive closure *)
+(* TODO: it checks equal to strictly; "(0, 1).fst != 0" here. *)
+Ltac eq_closure_tac :=
+  repeat
+    (repeat multimatch goal with
+            | [H1: ?A = ?B, H2: ?B = ?C |- _ ] =>
+              (* idtac "------------------------"; *)
+              (* idtac H1; idtac H2; *)
+              tryif (check_equal A C)
+              then (* idtac "FAILREFL1"; *) fail
+              else
+                tryif (exists_prop (A = C) + exists_prop (C = A))
+                then (* idtac "FAILREFL2" *) idtac
+                else
+                  let name := fresh "EQ_CLOSURE_TAC" in
+                  exploit eq_trans; [exact H1|exact H2|]; intro name
+            | [H1: ?B = ?A, H2: ?B = ?C |- _ ] =>
+              tryif (check_equal A C)
+              then (* idtac "FAILREFL1"; *) fail
+              else
+                tryif (exists_prop (A = C) + exists_prop (C = A))
+                then (* idtac "FAILREFL2" *) idtac
+                else
+                  let name := fresh "EQ_CLOSURE_TAC" in
+                  exploit eq_trans; [exact (eq_sym H1)|exact H2|]; intro name
+            end)
+.
+
+(* COPIED FROM https://www.cis.upenn.edu/~bcpierce/sf/current/LibTactics.html *)
+(* TODO: is it OK? *)
+(* TODO: move to proper position; I think sflib should be OK *)
+(* TODO: also import some other good things, e.g. gens *)
+Tactic Notation "clears" ident(X1) :=
+  let rec doit _ :=
+      match goal with
+      | H:context[X1] |- _ => clear H; try (doit tt)
+      | _ => clear X1
+      end in doit tt.
+Tactic Notation "clears" ident(X1) ident(X2) :=
+  clears X1; clears X2.
+Tactic Notation "clears" ident(X1) ident(X2) ident(X3) :=
+  clears X1; clears X2; clears X3.
+Tactic Notation "clears" ident(X1) ident(X2) ident(X3) ident(X4) :=
+  clears X1; clears X2; clears X3; clears X4.
+Tactic Notation "clears" ident(X1) ident(X2) ident(X3) ident(X4)
+       ident(X5) :=
+  clears X1; clears X2; clears X3; clears X4; clears X5.
+Tactic Notation "clears" ident(X1) ident(X2) ident(X3) ident(X4)
+       ident(X5) ident(X6) :=
+  clears X1; clears X2; clears X3; clears X4; clears X5; clears X6.
+(* TODO: This should fail when ident appears in the goal! *)
+(* It currently succeeds, only removing preemises *)
 
 Ltac rewrite_everywhere H := rewrite H in *.
 Ltac all_with_term TAC TERM :=
