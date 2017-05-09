@@ -265,68 +265,70 @@ Proof.
         rewrite mem_le_private_parent in *; clear mem_le_private_parent;
           rewrite mem_le_private_parent0 in *; clear mem_le_private_parent0.
       apply _sim_step.
-      { intro STUCK. apply STUCK. destruct conf_tgt. ss.
-        inv CONF. ss. clarify.
-        inv SIM_CONF. ss.
-        eapply inject_allocas_inj_incr in ALLOCAS; eauto.
-        exploit inject_allocas_free_allocas; eauto.
-        intro FREE_ALLOCAS; des.
-        destruct noret_tgt; simtac.
-        - esplits. econs; ss; eauto.
-          + rewrite returnUpdateLocals_spec, RET_TGT. ss.
-        - exploit genericvalues_inject.simulation__fit_gv; eauto.
-          { inv MEM. eauto. }
-          i. des.
-          esplits. econs; ss; eauto.
-          + rewrite returnUpdateLocals_spec, RET_TGT. ss.
-            rewrite x0. eauto.
-      }
+      { admit. (* tgt not stuck *) }
+      (* { intro STUCK. apply STUCK. destruct conf_tgt. ss. *)
+      (*   inv CONF. ss. clarify. *)
+      (*   inv SIM_CONF. ss. *)
+      (*   eapply inject_allocas_inj_incr in ALLOCAS; eauto. *)
+      (*   exploit inject_allocas_free_allocas; eauto. *)
+      (*   intro FREE_ALLOCAS; des. *)
+      (*   destruct noret_tgt; simtac. *)
+      (*   - esplits. econs; ss; eauto. *)
+      (*     + rewrite returnUpdateLocals_spec, RET_TGT. ss. *)
+      (*   - exploit genericvalues_inject.simulation__fit_gv; eauto. *)
+      (*     { inv MEM. eauto. } *)
+      (*     i. des. *)
+      (*     esplits. econs; ss; eauto. *)
+      (*     + rewrite returnUpdateLocals_spec, RET_TGT. ss. *)
+      (*       rewrite x0. eauto. *)
+      (* } *)
       i. expl preservation. inv STEP0. ss. rewrite returnUpdateLocals_spec in *. ss.
       inv CONF. ss. clarify.
-      destruct noret_tgt; simtac.
-      *
-        exploit invmem_free_allocas_invmem_rel; eauto.
-        { eapply inject_allocas_mem_le in ALLOCAS; eauto. }
-        intro MEMFREE; des.
-        exploit LOCAL; try exact MEMFREE; eauto.
-        { etransitivity; eauto. etransitivity; eauto. }
-        { instantiate (2:= Some _).
-          instantiate (1:= Some _).
-          ss.
-        }
-        { ss. }
-        clear LOCAL. intro LOCAL. des. simtac.
-        specialize (LOCAL1 preservation).
-        esplits; eauto.
-        { econs 1. econs; eauto.
-          rewrite returnUpdateLocals_spec, COND. ss.
-        }
-        { right. apply CIH. econs; try exact SIM; eauto.
-          - ss.
-          - etransitivity; eauto.
-        }
-      *
-        exploit invmem_free_allocas_invmem_rel; eauto.
-        { eapply inject_allocas_mem_le in ALLOCAS; eauto. }
-        intro MEMFREE; des.
-        exploit LOCAL; try exact MEMFREE; eauto.
-        { etransitivity; eauto. etransitivity; eauto. }
-        { instantiate (2 := Some _).
-          instantiate (1 := Some _).
-          eauto.
-        }
-        { s. rewrite COND2. ss. }
-        clear LOCAL. intro LOCAL. des. simtac.
-        specialize (LOCAL1 preservation).
-        esplits; eauto.
-        { econs 1. econs ;eauto.
-          rewrite returnUpdateLocals_spec, COND. s.
-          rewrite COND2. ss.
-        }
-        { right. apply CIH. econs; try exact SIM; eauto.
-          - ss.
-          - etransitivity; eauto.
-        }
+      admit. (* free-allocas *)
+      (* destruct noret_tgt; simtac. *)
+      (* * *)
+      (*   exploit invmem_free_allocas_invmem_rel; eauto. *)
+      (*   { eapply inject_allocas_mem_le in ALLOCAS; eauto. } *)
+      (*   intro MEMFREE; des. *)
+      (*   exploit LOCAL; try exact MEMFREE; eauto. *)
+      (*   { etransitivity; eauto. etransitivity; eauto. } *)
+      (*   { instantiate (2:= Some _). *)
+      (*     instantiate (1:= Some _). *)
+      (*     ss. *)
+      (*   } *)
+      (*   { ss. } *)
+      (*   clear LOCAL. intro LOCAL. des. simtac. *)
+      (*   specialize (LOCAL1 preservation). *)
+      (*   esplits; eauto. *)
+      (*   { econs 1. econs; eauto. *)
+      (*     rewrite returnUpdateLocals_spec, COND. ss. *)
+      (*   } *)
+      (*   { right. apply CIH. econs; try exact SIM; eauto. *)
+      (*     - ss. *)
+      (*     - etransitivity; eauto. *)
+      (*   } *)
+      (* * *)
+      (*   exploit invmem_free_allocas_invmem_rel; eauto. *)
+      (*   { eapply inject_allocas_mem_le in ALLOCAS; eauto. } *)
+      (*   intro MEMFREE; des. *)
+      (*   exploit LOCAL; try exact MEMFREE; eauto. *)
+      (*   { etransitivity; eauto. etransitivity; eauto. } *)
+      (*   { instantiate (2 := Some _). *)
+      (*     instantiate (1 := Some _). *)
+      (*     eauto. *)
+      (*   } *)
+      (*   { s. rewrite COND2. ss. } *)
+      (*   clear LOCAL. intro LOCAL. des. simtac. *)
+      (*   specialize (LOCAL1 preservation). *)
+      (*   esplits; eauto. *)
+      (*   { econs 1. econs ;eauto. *)
+      (*     rewrite returnUpdateLocals_spec, COND. s. *)
+      (*     rewrite COND2. ss. *)
+      (*   } *)
+      (*   { right. apply CIH. econs; try exact SIM; eauto. *)
+      (*     - ss. *)
+      (*     - etransitivity; eauto. *)
+      (*   } *)
   - (* return_void *)
     eapply sop_star_sim; eauto.
     destruct st2_src, st_tgt. ss.
@@ -342,34 +344,36 @@ Proof.
       exploit nerror_nfinal_nstuck; eauto. i. des.
       inv x0. ss.
       apply _sim_step.
-      { intro STUCK. apply STUCK. destruct conf_tgt. ss.
-        inv CONF. ss. clarify.
-        hexploit inject_allocas_free_allocas; eauto; []; intro FREE_ALLOCAS; des.
-        esplits. econs; ss; eauto.
-        - destruct noret_tgt; ss.
-      }
+      { (* tgt not stuck *) admit. }
+      (* { intro STUCK. apply STUCK. destruct conf_tgt. ss. *)
+      (*   inv CONF. ss. clarify. *)
+      (*   hexploit inject_allocas_free_allocas; eauto; []; intro FREE_ALLOCAS; des. *)
+      (*   esplits. econs; ss; eauto. *)
+      (*   - destruct noret_tgt; ss. *)
+      (* } *)
       i. expl preservation. inv STEP0. ss.
       inv CONF. ss. clarify.
-      exploit invmem_free_allocas_invmem_rel; eauto; [].
-      intro MEMFREE; des.
+      admit. (* free-allocas *)
+      (* exploit invmem_free_allocas_invmem_rel; eauto; []. *)
+      (* intro MEMFREE; des. *)
 
-      exploit LOCAL; try exact MEMFREE; [M|..]; Mskip eauto.
-      { etransitivity; eauto. }
-      { instantiate (1 := None). instantiate (1 := None). ss. }
-      { destruct noret_tgt; ss. }
-      clear LOCAL. intro LOCAL. des.
-      assert(locals_tgt = locals'_tgt).
-      { des_ifs.
-        unfold return_locals in *. des_ifs.
-      } clarify.
-      specialize (LOCAL1 preservation).
-      des_ifs. cbn in *. clarify. (* local_tgt' = locals_tgt *)
-      esplits; eauto.
-      * econs 1. econs; eauto.
-      * right. apply CIH.
-        econs; try apply SIM; try eassumption.
-        { ss. }
-        { etransitivity; eauto. }
+      (* exploit LOCAL; try exact MEMFREE; [M|..]; Mskip eauto. *)
+      (* { etransitivity; eauto. } *)
+      (* { instantiate (1 := None). instantiate (1 := None). ss. } *)
+      (* { destruct noret_tgt; ss. } *)
+      (* clear LOCAL. intro LOCAL. des. *)
+      (* assert(locals_tgt = locals'_tgt). *)
+      (* { des_ifs. *)
+      (*   unfold return_locals in *. des_ifs. *)
+      (* } clarify. *)
+      (* specialize (LOCAL1 preservation). *)
+      (* des_ifs. cbn in *. clarify. (* local_tgt' = locals_tgt *) *)
+      (* esplits; eauto. *)
+      (* * econs 1. econs; eauto. *)
+      (* * right. apply CIH. *)
+      (*   econs; try apply SIM; try eassumption. *)
+      (*   { ss. } *)
+      (*   { etransitivity; eauto. } *)
   - (* call *)
     eapply sop_star_sim; eauto.
     destruct st2_src, st_tgt. ss.
@@ -603,4 +607,4 @@ Unshelve.
 { by econs; eauto. }
 (* { by econs; eauto. } *)
 (* { by econs; eauto. } *)
-Qed.
+Admitted.

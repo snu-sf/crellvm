@@ -122,7 +122,8 @@ Lemma step_wf_lc
       (WF_LC: MemProps.wf_lc st0.(Mem) st0.(EC).(Locals))
       (STEP: sInsn conf st0 st1 evt)
       (CMDS: st0.(EC).(CurCmds) = cmd :: cmds)
-      (NONCALL_SRC: Instruction.isCallInst cmd = false)
+      (NONCALL: Instruction.isCallInst cmd = false)
+      (NONMALLOC: isMallocInst cmd = false)
       gmax public invmem0
       (MEM: InvMem.Unary.sem conf gmax public st0.(Mem) invmem0)
   : <<WF_LOCAL: MemProps.wf_lc st1.(Mem) st1.(EC).(Locals)>> /\
@@ -149,30 +150,19 @@ Proof.
     eapply MemProps.insertGenericValue_preserves_valid_ptrs; eauto.
     + eapply get_operand_valid_ptr; eauto.
     + eapply get_operand_valid_ptr; eauto.
-  -
-    split. (* malloc, same with alloca. *)
-    + exploit malloc_result; eauto. i. des.
-      ii. destruct (id_dec id0 id5).
-      * subst.
-        rewrite lookupAL_updateAddAL_eq in *. clarify. ss.
-        split; auto.
-        rewrite NEXT_BLOCK. apply Plt_succ.
-      * rewrite <- lookupAL_updateAddAL_neq in *; eauto.
-        eapply MemProps.malloc_preserves_wf_lc_in_tail; eauto.
-    + eapply MemProps.malloc_preserves_wf_Mem; eauto.
   - split. (* free *)
     + eapply MemProps.free_preserves_wf_lc; eauto.
     + eapply MemProps.free_preserves_wf_Mem; eauto.
   - split. (* alloca *)
-    + exploit malloc_result; eauto. i. des.
+    + exploit alloca_result; eauto. i. des.
       ii. destruct (id_dec id0 id5).
       * subst.
         rewrite lookupAL_updateAddAL_eq in *. clarify. ss.
         split; auto.
         rewrite NEXT_BLOCK. apply Plt_succ.
       * rewrite <- lookupAL_updateAddAL_neq in *; eauto.
-        eapply MemProps.malloc_preserves_wf_lc_in_tail; eauto.
-    + eapply MemProps.malloc_preserves_wf_Mem; eauto.
+        eapply MemProps.alloca_preserves_wf_lc_in_tail; eauto.
+    + eapply MemProps.alloca_preserves_wf_Mem; eauto.
   - unfold MemProps.wf_Mem in *. des.
     eapply WF; eauto.
   - (* store *)
@@ -247,16 +237,6 @@ Unshelve.
 ss.
 Qed.
 
-Lemma malloc_memory_next_block
-      TD Mem tsz gn align Mem' mb
-      (MALLOC: malloc TD Mem tsz gn align = Some (Mem', mb))
-  :
-    <<NEXTBLOCK: mb = Mem.(Memory.Mem.nextblock)>>
-.
-Proof.
-  unfold malloc in *. des_ifs.
-Qed.
-
 Lemma disjoint_allocas_private_parent
       conf_unary st0_unary cmd_unary cmds_unary unary unary0 gmax evt
       st1_unary unary1 gmax0 inv public_unary0 public_unary
@@ -282,7 +262,7 @@ Proof.
     { apply STATE_FORGET_MEMORY_UNARY. }
     apply list_disjoint_cons_l; eauto.
     {
-      ss. expl malloc_memory_next_block. clarify. ss.
+      ss. expl alloca_result. clarify. ss.
       intro MB_PRIVATE_PARENT0.
       assert(MB_PRIVATE_PARENT1: In (Memory.Mem.nextblock Mem0)
                                     (InvMem.Unary.private_parent unary0)).
@@ -320,6 +300,16 @@ Lemma postcond_cmd_sound
     <<MEM: InvMem.Rel.sem conf_src conf_tgt st1_src.(Mem) st1_tgt.(Mem) invmem1>> /\
     <<MEMLE: InvMem.Rel.le invmem0 invmem1>>.
 Proof.
+  assert(NONMALLOC_SRC: isMallocInst cmd_src = false).
+  { destruct cmd_src; ss.
+    unfold postcond_cmd in *. ss.
+    unfold postcond_cmd_check in *. ss.
+    des_ifs. }
+  assert(NONMALLOC_TGT: isMallocInst cmd_tgt = false).
+  { destruct cmd_tgt; ss.
+    unfold postcond_cmd in *. ss.
+    unfold postcond_cmd_check in *. ss.
+    unfold postcond_cmd_inject_event in *. des_ifs. }
   exploit postcond_cmd_is_call; eauto. i.
   unfold postcond_cmd in *. simtac.
   match goal with

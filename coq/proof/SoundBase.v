@@ -1014,54 +1014,6 @@ Next Obligation.
 Qed.
 
 
-Lemma inject_allocas_free_allocas
-      inv Allocas0 Allocas1
-      (ALLOCAS: inject_allocas inv Allocas0 Allocas1)
-      TD Mem0 Mem0'
-      (FREE_ALLOCAS: free_allocas TD Mem0 Allocas0 = Some Mem0')
-      Mem1 conf_src conf_tgt
-      (MEM: InvMem.Rel.sem conf_src conf_tgt Mem0 Mem1 inv)
-      (ALLOCAS_PARENT_SRC: list_disjoint Allocas0
-                                         inv.(InvMem.Rel.src).(InvMem.Unary.private_parent))
-      (ALLOCAS_PARENT_TGT: list_disjoint Allocas1
-                                         inv.(InvMem.Rel.tgt).(InvMem.Unary.private_parent))
-  :
-    <<FREE_ALLOCAS: exists Mem1', free_allocas TD Mem1 Allocas1 = Some Mem1'>>
-.
-Proof.
-  revert_until Allocas1.
-  revert Allocas1.
-  induction Allocas0; ii; ss; clarify; inv ALLOCAS.
-  - esplits; eauto. unfold free_allocas. eauto.
-  - des_ifs.
-    unfold InvMem.Rel.inject in *. des_ifs.
-    assert(FREE_SRC:= Heq).
-    cbn in Heq. des_ifs.
-    dup MEM. inv MEM. simpl in *. (* cbn causes FREE to shatter *)
-    expl genericvalues_inject.mi_bounds.
-    rewrite Heq0 in *.
-    {
-      des_ifsG; [|]; rename Heq1 into FREE_TGT; cycle 1.
-      {
-        exfalso.
-        expl genericvalues_inject.mem_inj__free.
-        repeat rewrite <- Zplus_0_r_reverse in *.
-        unfold free in FREE_TGT. unfold GV2ptr in FREE_TGT. cbn in FREE_TGT. des_ifs.
-      }
-      exploit IHAllocas0; try exact FREE_ALLOCAS; eauto.
-      {
-        clear_tac.
-        instantiate (1:= conf_tgt).
-        instantiate (1:= conf_src).
-        eapply invmem_free_invmem_rel; eauto.
-        { expl list_disjoint_cons_inv (try exact ALLOCAS_PARENT_SRC; eauto). ss. }
-        { expl list_disjoint_cons_inv (try exact ALLOCAS_PARENT_TGT; eauto). ss. }
-      }
-      { expl list_disjoint_cons_inv (try exact ALLOCAS_PARENT_SRC; eauto). ss. }
-      { expl list_disjoint_cons_inv (try exact ALLOCAS_PARENT_TGT; eauto). ss. }
-    }
-Qed.
-
 Lemma inject_allocas_cons_inv
       a0 a1 Allocas0 Allocas1 inv
       (ALLOCAS: inject_allocas inv (a0 :: Allocas0) (a1 :: Allocas1))
@@ -1086,58 +1038,58 @@ Proof.
   eapply list_forall2_imply; eauto.
 Qed.
 
-Lemma invmem_free_allocas_invmem_rel
-  S Ps fs S0 TD0 Ps0 gl0 fs0 Allocas1 m_tgt0 Allocas0 m_src0 inv m_src1 m_tgt1
-  (ALLOCAS_DISJOINT_SRC: list_disjoint Allocas0 (InvMem.Unary.private_parent (InvMem.Rel.src inv)))
-  (ALLOCAS_DISJOINT_TGT: list_disjoint Allocas1 (InvMem.Unary.private_parent (InvMem.Rel.tgt inv)))
-  (ALLOC_SRC: free_allocas TD0 m_src0 Allocas0 = Some m_src1)
-  (ALLOC_TGT: free_allocas TD0 m_tgt0 Allocas1 = Some m_tgt1)
-  (MEM: InvMem.Rel.sem
-          (mkCfg S TD0 Ps gl0 fs)
-          (mkCfg S0 TD0 Ps0 gl0 fs0)
-          m_src0 m_tgt0 inv)
-  (ALLOCAS: inject_allocas inv Allocas0 Allocas1)
-  :
-    <<INVMEM: InvMem.Rel.sem (mkCfg S TD0 Ps gl0 fs) (mkCfg S0 TD0 Ps0 gl0 fs0) m_src1 m_tgt1 inv>>
-.
-Proof.
-  {
-    ginduction Allocas0; ii; ss.
-    - clarify. ss.
-      inv ALLOCAS. ss. clarify.
-    - destruct Allocas1; ss.
-      { inv ALLOCAS. }
-      apply inject_allocas_cons_inv in ALLOCAS. des.
-      apply list_disjoint_cons_inv in ALLOCAS_DISJOINT_SRC.
-      apply list_disjoint_cons_inv in ALLOCAS_DISJOINT_TGT. des.
-      des_ifs. ss.
-      exploit IHAllocas0; try exact H; eauto. clear IHAllocas0.
-      rename Heq0 into FREE0.
-      rename Heq into FREE1.
-      dup FREE0. dup FREE1.
-      unfold free in FREE0, FREE1. des_ifs.
-      simpl in *. clarify. clear_tac.
-      exploit genericvalues_inject.mem_inj__free.
-      1: apply MEM.
-      1-5: try eassumption.
-      1: apply MEM.
-      ss.
-      i; des.
+(* Lemma invmem_free_allocas_invmem_rel *)
+(*   S Ps fs S0 TD0 Ps0 gl0 fs0 Allocas1 m_tgt0 Allocas0 m_src0 inv m_src1 m_tgt1 *)
+(*   (ALLOCAS_DISJOINT_SRC: list_disjoint Allocas0 (InvMem.Unary.private_parent (InvMem.Rel.src inv))) *)
+(*   (ALLOCAS_DISJOINT_TGT: list_disjoint Allocas1 (InvMem.Unary.private_parent (InvMem.Rel.tgt inv))) *)
+(*   (ALLOC_SRC: free_allocas TD0 m_src0 Allocas0 = Some m_src1) *)
+(*   (ALLOC_TGT: free_allocas TD0 m_tgt0 Allocas1 = Some m_tgt1) *)
+(*   (MEM: InvMem.Rel.sem *)
+(*           (mkCfg S TD0 Ps gl0 fs) *)
+(*           (mkCfg S0 TD0 Ps0 gl0 fs0) *)
+(*           m_src0 m_tgt0 inv) *)
+(*   (ALLOCAS: inject_allocas inv Allocas0 Allocas1) *)
+(*   : *)
+(*     <<INVMEM: InvMem.Rel.sem (mkCfg S TD0 Ps gl0 fs) (mkCfg S0 TD0 Ps0 gl0 fs0) m_src1 m_tgt1 inv>> *)
+(* . *)
+(* Proof. *)
+(*   { *)
+(*     ginduction Allocas0; ii; ss. *)
+(*     - clarify. ss. *)
+(*       inv ALLOCAS. ss. clarify. *)
+(*     - destruct Allocas1; ss. *)
+(*       { inv ALLOCAS. } *)
+(*       apply inject_allocas_cons_inv in ALLOCAS. des. *)
+(*       apply list_disjoint_cons_inv in ALLOCAS_DISJOINT_SRC. *)
+(*       apply list_disjoint_cons_inv in ALLOCAS_DISJOINT_TGT. des. *)
+(*       des_ifs. ss. *)
+(*       exploit IHAllocas0; try exact H; eauto. clear IHAllocas0. *)
+(*       rename Heq0 into FREE0. *)
+(*       rename Heq into FREE1. *)
+(*       dup FREE0. dup FREE1. *)
+(*       unfold free in FREE0, FREE1. des_ifs. *)
+(*       simpl in *. clarify. clear_tac. *)
+(*       exploit genericvalues_inject.mem_inj__free. *)
+(*       1: apply MEM. *)
+(*       1-5: try eassumption. *)
+(*       1: apply MEM. *)
+(*       ss. *)
+(*       i; des. *)
 
-      exploit genericvalues_inject.mi_bounds.
-      { apply MEM. }
-      { eauto. }
-      i. rewrite Heq2 in *. rewrite Heq0 in *. clarify.
+(*       exploit genericvalues_inject.mi_bounds. *)
+(*       { apply MEM. } *)
+(*       { eauto. } *)
+(*       i. rewrite Heq2 in *. rewrite Heq0 in *. clarify. *)
 
-      exploit invmem_free_invmem_rel.
-      2: exact Heq2.
-      2: exact Heq0.
-      all: ss; try eassumption.
-      (* { apply MEMLE. eauto. } *)
-      i; des.
-      ss.
-  }
-Qed.
+(*       exploit invmem_free_invmem_rel. *)
+(*       2: exact Heq2. *)
+(*       2: exact Heq0. *)
+(*       all: ss; try eassumption. *)
+(*       (* { apply MEMLE. eauto. } *) *)
+(*       i; des. *)
+(*       ss. *)
+(*   } *)
+(* Qed. *)
 
 Lemma mem_le_private_parent
       inv0 inv1

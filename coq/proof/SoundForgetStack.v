@@ -752,6 +752,7 @@ Lemma step_unique_preserved_except_current
       (WF_LC_BEFORE: wf_lc st0.(Mem) st0.(EC).(Locals))
       (MEM: InvMem.Unary.sem conf gmax public st1.(Mem) invmem)
       (NONCALL: Instruction.isCallInst cmd = false)
+      (NONMALLOC: isMallocInst cmd = false)
       (CMDS : CurCmds st0.(EC) = cmd :: cmds)
       (STEP : sInsn conf st0 st1 evt)
   : << UNIQUE_CURRENT:
@@ -897,19 +898,10 @@ Proof.
         expl GV2blocks_lift.
         expl H6.
     }
-  - (* malloc *)
-    inv UNIQUE_BEF; narrow_down_unique.
-    assert(TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT: True) by reflexivity.
-    move val at bottom.
-    move mb at bottom.
-    hexploit locals_malloc_diffblock; eauto; []; ii; des.
-    unfold InvState.Unary.sem_diffblock in H2.
-    unfold list_disjoint in H2.
-    eapply H2; eauto.
   - (* alloca *)
     inv UNIQUE_BEF; narrow_down_unique.
     ii.
-    exploit locals_malloc_diffblock; eauto.
+    exploit locals_alloca_diffblock; eauto.
     apply {|
         CurSystem := S;
         CurTargetData := TD;
@@ -1005,7 +997,6 @@ Unshelve.
 apply {| CurSystem := S; CurTargetData := TD; CurProducts := Ps; Globals := gl; FunTable := fs |}.
 apply {| CurSystem := S; CurTargetData := TD; CurProducts := Ps; Globals := gl; FunTable := fs |}.
 apply {| CurSystem := S; CurTargetData := TD; CurProducts := Ps; Globals := gl; FunTable := fs |}.
-apply {| CurSystem := S; CurTargetData := TD; CurProducts := Ps; Globals := gl; FunTable := fs |}.
 Qed.
 
 Lemma step_unique_preserved_except_parent
@@ -1019,6 +1010,7 @@ Lemma step_unique_preserved_except_parent
          forall b (IN: In b invmem.(InvMem.Unary.private_parent)),
            (b < Memory.Mem.nextblock st0.(Mem))%positive)
       (NONCALL: Instruction.isCallInst cmd = false)
+      (NONMALLOC: isMallocInst cmd = false)
       (CMDS : CurCmds st0.(EC) = cmd :: cmds)
       (STEP : sInsn conf st0 st1 evt)
   : <<UNIQUE_PARENT:
@@ -1066,16 +1058,6 @@ Proof.
     hexploit getOperandValue_diffblock; ss; try exact H1; eauto; try apply MEM; intro DIFFBLOCK2.
     eapply incl_diffblock_with_blocks; eauto.
     eapply app_diffblock_with_blocks; eauto.
-  - des_lookupAL_updateAddAL; [|eapply UNIQUE_PARENT_LOCAL; eauto].
-    ii.
-    clear H0 H1 NONCALL UNIQUE_PARENT_LOCAL.
-    cbn in *. des; ss. clarify.
-    exploit PRIVATE_PARENT_BEFORE; eauto.
-    { eapply sublist_In; eauto. apply MEM. }
-    intro VALID_PTR.
-    clear - H2 VALID_PTR.
-    eapply malloc_result in H2. subst.
-    apply Pos.lt_irrefl in VALID_PTR. ss.
   - (* free *) eapply UNIQUE_PARENT_LOCAL; eauto.
   - des_lookupAL_updateAddAL; [|eapply UNIQUE_PARENT_LOCAL; eauto].
     ii.
@@ -1085,7 +1067,7 @@ Proof.
     { eapply sublist_In; eauto. apply MEM. }
     intro VALID_PTR.
     clear - H2 VALID_PTR.
-    eapply malloc_result in H2. subst.
+    eapply alloca_result in H2. subst.
     apply Pos.lt_irrefl in VALID_PTR. ss.
   - des_lookupAL_updateAddAL; [|eapply UNIQUE_PARENT_LOCAL; eauto].
     eapply MEM; eauto.
@@ -1145,6 +1127,7 @@ Lemma step_unique_preserved_except
            (b < Memory.Mem.nextblock st0.(Mem))%positive)
       (MEM: InvMem.Unary.sem conf gmax public st1.(Mem) invmem)
       (NONCALL: Instruction.isCallInst cmd = false)
+      (NONMALLOC: isMallocInst cmd = false)
       (CMDS : CurCmds st0.(EC) = cmd :: cmds)
       (STEP : sInsn conf st0 st1 evt)
   : unique_preserved_except conf inv0 invmem.(InvMem.Unary.unique_parent) st1 gmax

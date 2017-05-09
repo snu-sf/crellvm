@@ -190,18 +190,18 @@ Proof.
     des_bool; des; ss.
 Qed.
 
-Lemma valid_ptr_malloc_diffblock
+Lemma valid_ptr_alloca_diffblock
       SRC_MEM val'
       (VALID_PTR: MemProps.valid_ptrs (Memory.Mem.nextblock SRC_MEM) val')
       TD align0 tsz gn SRC_MEM_STEP mb
-      (MALLOC: malloc TD SRC_MEM tsz gn align0 = Some (SRC_MEM_STEP, mb))
+      (ALLOCA: alloca TD SRC_MEM tsz gn align0 = Some (SRC_MEM_STEP, mb))
       conf_src
   :
     <<DIFFBLOCK: InvState.Unary.sem_diffblock conf_src (blk2GV TD mb) val'>>
 .
 Proof.
-  exploit MemProps.nextblock_malloc; try apply MALLOC; []; ii; des.
-  exploit MemProps.malloc_result; try apply MALLOC; []; ii; des.
+  exploit MemProps.nextblock_alloca; try apply ALLOCA; []; ii; des.
+  exploit MemProps.alloca_result; try apply ALLOCA; []; ii; des.
   subst.
 
   induction val'; ss.
@@ -213,11 +213,11 @@ Proof.
   - eapply IHval'; ss.
 Qed.
 
-Lemma locals_malloc_diffblock
+Lemma locals_alloca_diffblock
       conf_src mem locals
       TD tsz gn align0 SRC_MEM_STEP mb
       reg val
-      (MALLOC: malloc TD mem tsz gn align0 = Some (SRC_MEM_STEP, mb))
+      (ALLOCA: alloca TD mem tsz gn align0 = Some (SRC_MEM_STEP, mb))
       (VAL: lookupAL GenericValue locals reg = Some val)
       (WF_LOCAL: MemProps.wf_lc mem locals)
   :
@@ -225,26 +225,26 @@ Lemma locals_malloc_diffblock
 .
 Proof.
   exploit WF_LOCAL; eauto; []; intro WF; des.
-  eapply valid_ptr_malloc_diffblock; eauto.
+  eapply valid_ptr_alloca_diffblock; eauto.
 Qed.
 
-Lemma globals_malloc_diffblock
+Lemma globals_alloca_diffblock
       align0 TD gn SRC_MEM SRC_MEM_STEP
       tsz conf_src mb
       gmax
       (WF_GLOBALS: genericvalues_inject.wf_globals gmax (Globals conf_src))
-      (MALLOC: malloc TD SRC_MEM tsz gn align0 = Some (SRC_MEM_STEP, mb))
+      (ALLOCA: alloca TD SRC_MEM tsz gn align0 = Some (SRC_MEM_STEP, mb))
       (WF_MEM: MemProps.wf_Mem gmax (CurTargetData conf_src) SRC_MEM)
   : (gmax < mb)%positive.
 Proof.
   unfold MemProps.wf_Mem in *. des.
-  exploit MemProps.nextblock_malloc; try apply MALLOC; []; ii; des.
-  exploit MemProps.malloc_result; try apply MALLOC; []; ii; des. clarify.
+  exploit MemProps.nextblock_alloca; try apply ALLOCA; []; ii; des.
+  exploit MemProps.alloca_result; try apply ALLOCA; []; ii; des. clarify.
 Qed.
 
-Lemma mload_malloc_diffblock
+Lemma mload_alloca_diffblock
   align0 TD gn tsz conf_src SRC_MEM SRC_MEM_STEP mb
-  (MALLOC: malloc TD SRC_MEM tsz gn align0 = Some (SRC_MEM_STEP, mb))
+  (ALLOCA: alloca TD SRC_MEM tsz gn align0 = Some (SRC_MEM_STEP, mb))
   mptr0 typ0 align1 val'
   (LOAD: mload (CurTargetData conf_src) SRC_MEM_STEP mptr0 typ0 align1 = Some val')
   gmax
@@ -261,10 +261,10 @@ val': read from SRC_MEM_STEP.
 if read from SRC_MEM -> use WF.
 if read from SRC_MEM_STEP - SRC_MEM -> undef
    *)
-  exploit MemProps.malloc_preserves_mload_inv; try apply LOAD; eauto; []; i.
+  exploit MemProps.alloca_preserves_mload_inv; try apply LOAD; eauto; []; i.
   des.
   - exploit WF_A; try apply LOAD; eauto; []; clear WF_A; intros WF_A; des.
-    eapply valid_ptr_malloc_diffblock; eauto.
+    eapply valid_ptr_alloca_diffblock; eauto.
   - eapply InvState.Unary.diffblock_comm.
     eapply InvState.Unary.undef_diffblock; eauto.
 Unshelve.
@@ -272,9 +272,9 @@ eauto.
 eauto.
 Qed.
 
-Lemma add_unique_malloc
+Lemma add_unique_alloca
   cmds_src id0 align0 inv_unary TD F B lc gn ECS0 tmn SRC_MEM als SRC_MEM_STEP tsz mb conf_src gmax
-  (MALLOC: malloc TD SRC_MEM tsz gn align0 = Some (SRC_MEM_STEP, mb))
+  (ALLOCA: alloca TD SRC_MEM tsz gn align0 = Some (SRC_MEM_STEP, mb))
   (UNIQUE: AtomSetImpl.For_all
              (InvState.Unary.sem_unique conf_src
                 {|
@@ -314,13 +314,13 @@ Proof.
   + (* LOCALS *)
     ii.
     des_lookupAL_updateAddAL.
-    eapply locals_malloc_diffblock; ss; eauto.
+    eapply locals_alloca_diffblock; ss; eauto.
   + (* MEM *)
-    ii. eapply mload_malloc_diffblock; eauto.
+    ii. eapply mload_alloca_diffblock; eauto.
   + (* GLOBALS *)
     ii. ss. clarify.
     des; ss. clarify.
-    eapply globals_malloc_diffblock; eauto.
+    eapply globals_alloca_diffblock; eauto.
 Qed.
 
 Lemma postcond_cmd_add_inject_sound
@@ -403,7 +403,7 @@ Proof.
       eapply AtomSetFacts.add_iff in IN.
       des; [|eauto]; [].
       subst.
-      eapply add_unique_malloc; eauto; try apply MEM; try apply STATE;
+      eapply add_unique_alloca; eauto; try apply MEM; try apply STATE;
         rewrite <- MEM_GMAX; try apply MEM; try apply STATE.
     + clear UNIQUE.
       clear MEM SRC STATE.
@@ -453,7 +453,7 @@ Proof.
       eapply AtomSetFacts.add_iff in IN.
       des; [|eauto]; [].
       subst.
-      eapply add_unique_malloc; eauto; try apply MEM; try apply STATE;
+      eapply add_unique_alloca; eauto; try apply MEM; try apply STATE;
         rewrite <- MEM_GMAX; try apply MEM; try apply STATE.
     + clear UNIQUE.
       clear MEM TGT STATE.
@@ -539,12 +539,12 @@ Proof.
       - (* SRC *)
         inv SRC. inv MEM. inv STATE.
         econs; eauto; []. ss.
-        eapply add_unique_malloc; eauto; try apply SRC; try apply SRC0;
+        eapply add_unique_alloca; eauto; try apply SRC; try apply SRC0;
           rewrite <- MEM_GMAX; try apply SRC; try apply SRC0.
       - (* TGT *)
         inv TGT. inv MEM. inv STATE.
         econs; eauto; []. ss.
-        eapply add_unique_malloc; eauto; try apply TGT; try apply TGT0;
+        eapply add_unique_alloca; eauto; try apply TGT; try apply TGT0;
           rewrite <- MEM_GMAX; try apply TGT; try apply TGT0.
       - (* MAYDIFF *)
         inv SRC. inv TGT.
@@ -578,9 +578,9 @@ Proof.
 
         (* exploit MemProps.nextblock_malloc; try apply H3; []; ii; des. *)
         (* exploit MemProps.nextblock_malloc; try apply H7; []; ii; des. *)
-        exploit MemProps.malloc_result; try apply H3; []; intro MALLOC_RES1; des.
-        exploit MemProps.malloc_result; try apply H7; []; intro MALLOC_RES2; des.
-        rewrite MALLOC_RES1. rewrite MALLOC_RES2. (* subst, clarify ruin ordering of premisses *)
+        exploit MemProps.alloca_result; try apply H3; []; intro ALLOCA_RES1; des.
+        exploit MemProps.alloca_result; try apply H7; []; intro ALLOCA_RES2; des.
+        rewrite ALLOCA_RES1. rewrite ALLOCA_RES2. (* subst, clarify ruin ordering of premisses *)
 
         move ALLOC_INJECT at bottom.
         unfold alloc_inject in ALLOC_INJECT.
@@ -648,6 +648,21 @@ this ad-mit whilst keeping working hint generation.
  (*      des_ifs. *)
  (*      exact (SF_AD-MIT "Ditto"). *)
 Qed.
+(* -------------------- ALLOCA CASE IS PROVABLE ----------------------- *)
+(* expl alloca_result. *)
+(* u_alloca. *)
+(* ss. *)
+(* clear Heq Heq0 NEXT_BLOCK. *)
+(* destruct __g__; ss. *)
+(* + exfalso. *)
+(*   unfold flatten_typ in *. *)
+(*   des_ifs. *)
+(* + destruct p; ss. *)
+(*   inv UNDEF0. *)
+(*   match goal with *)
+(*   | [ H: flatten_typ _ _ = Some _ |- _ ] => compute in H; des_ifs *)
+(*   end. *)
+(*   destruct __g__; ss. *)
 
 Lemma lessdef_add_definedness
       conf st0 st1 evt
@@ -783,14 +798,14 @@ Proof.
     {
       ss. u. ss.
       rewrite STATE1. des_lookupAL_updateAddAL.
-      exploit memory_props.MemProps.nextblock_malloc; eauto; []; ii; des.
-      exploit memory_props.MemProps.malloc_result; eauto; []; ii; des.
+      exploit memory_props.MemProps.nextblock_alloca; eauto; []; ii; des.
+      exploit memory_props.MemProps.alloca_result; eauto; []; ii; des.
       subst. ss.
       unfold const2GV. unfold _const2GV.
       unfold gundef.
       unfold mload.
       destruct (flatten_typ (CurTargetData conf) typ1) eqn:T2; ss.
-      erewrite MemProps.malloc_mload_aux_undef; eauto.
+      erewrite MemProps.alloca_mload_aux_undef; eauto.
       unfold const2GV. unfold _const2GV. unfold gundef. rewrite T2. ss.
     }
   -
@@ -800,28 +815,28 @@ Proof.
       {
         ss. u. ss.
         rewrite STATE1. des_lookupAL_updateAddAL.
-        exploit memory_props.MemProps.nextblock_malloc; eauto; []; ii; des.
-        exploit memory_props.MemProps.malloc_result; eauto; []; ii; des.
+        exploit memory_props.MemProps.nextblock_alloca; eauto; []; ii; des.
+        exploit memory_props.MemProps.alloca_result; eauto; []; ii; des.
         subst. ss.
         unfold const2GV. unfold _const2GV.
         unfold gundef.
         unfold mload.
         destruct (flatten_typ (CurTargetData conf) typ1) eqn:T2; ss.
-        erewrite MemProps.malloc_mload_aux_undef; eauto.
+        erewrite MemProps.alloca_mload_aux_undef; eauto.
         unfold const2GV. unfold _const2GV. unfold gundef. rewrite T2. ss.
       }
     +
       {
         ss. u. ss.
         rewrite STATE1. des_lookupAL_updateAddAL.
-        exploit memory_props.MemProps.nextblock_malloc; eauto; []; ii; des.
-        exploit memory_props.MemProps.malloc_result; eauto; []; ii; des.
+        exploit memory_props.MemProps.nextblock_alloca; eauto; []; ii; des.
+        exploit memory_props.MemProps.alloca_result; eauto; []; ii; des.
         subst. ss.
         unfold const2GV. unfold _const2GV.
         unfold gundef.
         unfold mload.
         destruct (flatten_typ (CurTargetData conf) typ1) eqn:T2; ss.
-        erewrite MemProps.malloc_mload_aux_undef; eauto.
+        erewrite MemProps.alloca_mload_aux_undef; eauto.
         unfold const2GV. unfold _const2GV. unfold gundef. rewrite T2. ss.
       }
 Unshelve.
@@ -997,7 +1012,7 @@ Proof.
            repeat match goal with
                   | [ v: value |- _ ] => destruct v
                   end; u; ss; simpl_list; des_lookupAL_updateAddAL; des_ifs; fail).
-  - (* malloc *)
+  - (* alloca *)
     clarify.
     econs; eauto; [].
     unfold postcond_cmd_add_lessdef. ss.
