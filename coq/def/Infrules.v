@@ -849,32 +849,13 @@ Definition apply_infrule
     {{ inv0 +++src (Expr.value (ValueT.const (const_undef ty))) >= (Expr.value v) }}
   | Infrule.lessthan_undef_tgt ty v => 
     {{ inv0 +++tgt (Expr.value (ValueT.const (const_undef ty))) >= (Expr.value v) }}
-  | Infrule.lessthan_undef_const c =>
-    match (ValueT.const c) with
-    | const_int s v =>
-      {{ inv0 +++src (Expr.value (ValueT.const (const_undef (typ_int s)))) >= (Expr.value (const_int s v)) }}
-    | const_floatpoint fptyp fp =>
-      {{ inv0 +++src (Expr.value (ValueT.const (const_undef (typ_floatpoint fptyp)))) >= (Expr.value (const_floatpoint fptyp fp)) }}
-    | const_null typ =>
-      {{ inv0 +++src (Expr.value (ValueT.const (const_undef (typ_pointer typ)))) >= (Expr.value (const_null typ)) }}
-    | _ => apply_fail tt
-    end
   | Infrule.lessthan_undef_const_tgt c =>
-    match (ValueT.const c) with
+    let vc := ValueT.const c in
+    match vc with
     | const_int s v =>
       {{ inv0 +++tgt (Expr.value (ValueT.const (const_undef (typ_int s)))) >= (Expr.value (const_int s v)) }}
     | const_floatpoint fptyp fp =>
       {{ inv0 +++tgt (Expr.value (ValueT.const (const_undef (typ_floatpoint fptyp)))) >= (Expr.value (const_floatpoint fptyp fp)) }}
-    | const_null typ =>
-      {{ inv0 +++tgt (Expr.value (ValueT.const (const_undef typ))) >= (Expr.value (const_null typ)) }}
-    | _ => apply_fail tt
-    end
-  | Infrule.lessthan_undef_const_gep_or_cast typ ce =>
-    match (typ, ce) with
-    | (typ_pointer t, const_gep inb c lc) =>
-      {{ inv0 +++src (Expr.value (ValueT.const (const_undef typ))) >= (Expr.value ce) }}
-    | (typ_pointer t, const_castop op c ty) =>
-      {{ inv0 +++src (Expr.value (ValueT.const (const_undef typ))) >= (Expr.value ce) }}
     | _ => apply_fail tt
     end
   | Infrule.sdiv_sub_srem z b a x y s =>
