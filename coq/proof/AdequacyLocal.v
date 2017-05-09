@@ -265,23 +265,21 @@ Proof.
         rewrite mem_le_private_parent in *; clear mem_le_private_parent;
           rewrite mem_le_private_parent0 in *; clear mem_le_private_parent0.
       apply _sim_step.
-      { admit. (* tgt not stuck *) }
-      (* { intro STUCK. apply STUCK. destruct conf_tgt. ss. *)
-      (*   inv CONF. ss. clarify. *)
-      (*   inv SIM_CONF. ss. *)
-      (*   eapply inject_allocas_inj_incr in ALLOCAS; eauto. *)
-      (*   exploit inject_allocas_free_allocas; eauto. *)
-      (*   intro FREE_ALLOCAS; des. *)
-      (*   destruct noret_tgt; simtac. *)
-      (*   - esplits. econs; ss; eauto. *)
-      (*     + rewrite returnUpdateLocals_spec, RET_TGT. ss. *)
-      (*   - exploit genericvalues_inject.simulation__fit_gv; eauto. *)
-      (*     { inv MEM. eauto. } *)
-      (*     i. des. *)
-      (*     esplits. econs; ss; eauto. *)
-      (*     + rewrite returnUpdateLocals_spec, RET_TGT. ss. *)
-      (*       rewrite x0. eauto. *)
-      (* } *)
+      { intro STUCK. apply STUCK. destruct conf_tgt. ss.
+        inv CONF. ss. clarify.
+        inv SIM_CONF. ss.
+        exploit OpsemPP.free_allocas_not_stuck; []; intro FREE_ALLOCAS. des.
+        destruct noret_tgt; simtac.
+        - esplits.
+          econs; ss; eauto.
+          rewrite returnUpdateLocals_spec, RET_TGT. ss.
+        - exploit genericvalues_inject.simulation__fit_gv; eauto.
+          { inv MEM. eauto. }
+          i. des.
+          esplits. econs; ss; eauto.
+          rewrite returnUpdateLocals_spec, RET_TGT. ss.
+          rewrite x0. eauto.
+      }
       i. expl preservation. inv STEP0. ss. rewrite returnUpdateLocals_spec in *. ss.
       inv CONF. ss. clarify.
       admit. (* free-allocas *)
@@ -344,13 +342,11 @@ Proof.
       exploit nerror_nfinal_nstuck; eauto. i. des.
       inv x0. ss.
       apply _sim_step.
-      { (* tgt not stuck *) admit. }
-      (* { intro STUCK. apply STUCK. destruct conf_tgt. ss. *)
-      (*   inv CONF. ss. clarify. *)
-      (*   hexploit inject_allocas_free_allocas; eauto; []; intro FREE_ALLOCAS; des. *)
-      (*   esplits. econs; ss; eauto. *)
-      (*   - destruct noret_tgt; ss. *)
-      (* } *)
+      { intro STUCK. apply STUCK. destruct conf_tgt. ss.
+        inv CONF. ss. clarify.
+        exploit OpsemPP.free_allocas_not_stuck; []; intro FREE_ALLOCAS. des.
+        esplits. econs; ss; eauto. des_ifs.
+      }
       i. expl preservation. inv STEP0. ss.
       inv CONF. ss. clarify.
       admit. (* free-allocas *)
