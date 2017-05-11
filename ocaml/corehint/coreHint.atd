@@ -1014,16 +1014,7 @@ type lessthan_undef_tgt = {
   v : value;
 }
 
-type lessthan_undef_const = {
-  c : constant;
-}
-
 type lessthan_undef_const_tgt = {
-  c : constant;
-}
-
-type lessthan_undef_const_gep_or_cast = {
-  ty : value_type;
   c : constant;
 }
 
@@ -2111,9 +2102,7 @@ type infrule = [
   | InttoptrZext of inttoptr_zext
   | LessthanUndef of lessthan_undef
   | LessthanUndefTgt of lessthan_undef_tgt
-  | LessthanUndefConst of lessthan_undef_const
   | LessthanUndefConstTgt of lessthan_undef_const_tgt
-  | LessthanUndefConstGEPorCast of lessthan_undef_const_gep_or_cast
   | MulAddDistributive of mul_add_distributive
   | NegVal of neg_val
   | OrAnd of or_and
