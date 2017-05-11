@@ -41,7 +41,7 @@ Inductive nop_state_sim
     (FDEF: nop_fdef fdef_src fdef_tgt)
     (CMDS: nop_cmds cmds_src cmds_tgt)
     (LOCALS: inject_locals inv locals_src locals_tgt)
-    (ALLOCAS: inject_allocas inv allocas_src allocas_tgt)
+    (ALLOCAS: fully_inject_allocas inv allocas_src allocas_tgt)
     (MEM: InvMem.Rel.sem conf_src conf_tgt mem_src mem_tgt inv)
     (ALLOCAS_DISJOINT_SRC: list_disjoint allocas_src
                                          (InvMem.Unary.private_parent inv.(InvMem.Rel.src)))
@@ -303,7 +303,7 @@ Proof.
       { apply MEM. }
     + right. eapply CIH.
       econs; ss; eauto.
-      { eapply inject_incr_inject_allocas; eauto.
+      { eapply inject_incr_fully_inject_allocas; eauto.
         ss. inv INCR. ss. }
       { eapply invmem_unlift; eauto. }
     + splits; ss.

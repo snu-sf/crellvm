@@ -146,14 +146,14 @@ Proof.
   inv x. inv x0. inv H4. inv H2. inv H0. inv H.
 Qed.
 
-Lemma inject_incr_inject_allocas
+Lemma inject_incr_fully_inject_allocas
       (inv0 inv1 : InvMem.Rel.t)
       (allocas_src allocas_tgt : list mblock)
-      (ALLOCAS: inject_allocas inv0 allocas_src allocas_tgt)
+      (ALLOCAS: fully_inject_allocas inv0 allocas_src allocas_tgt)
       (MEMINJ: memory_sim.MoreMem.inject_incr inv0.(InvMem.Rel.inject) inv1.(InvMem.Rel.inject))
-  : inject_allocas inv1 allocas_src allocas_tgt.
+  : fully_inject_allocas inv1 allocas_src allocas_tgt.
 Proof.
-  unfold inject_allocas in *.
+  unfold fully_inject_allocas in *.
   eapply list_forall2_imply; eauto.
 Qed.
 
@@ -1068,11 +1068,11 @@ Next Obligation.
 Qed.
 
 
-Lemma inject_allocas_cons_inv
+Lemma fully_inject_allocas_cons_inv
       a0 a1 Allocas0 Allocas1 inv
-      (ALLOCAS: inject_allocas inv (a0 :: Allocas0) (a1 :: Allocas1))
+      (ALLOCAS: fully_inject_allocas inv (a0 :: Allocas0) (a1 :: Allocas1))
   :
-    <<ALLOCAS: inject_allocas inv Allocas0 Allocas1 /\
+    <<ALLOCAS: fully_inject_allocas inv Allocas0 Allocas1 /\
                InvMem.Rel.inject inv a0 = Some (a1, 0)>>
 .
 Proof.
@@ -1080,12 +1080,12 @@ Proof.
   splits; ss.
 Qed.
 
-Lemma inject_allocas_mem_le
+Lemma fully_inject_allocas_mem_le
       Allocas0 Allocas1 inv inv'
       (MEMLE: InvMem.Rel.le inv inv')
-      (ALLOCAS: inject_allocas inv Allocas0 Allocas1)
+      (ALLOCAS: fully_inject_allocas inv Allocas0 Allocas1)
   :
-    <<ALLOCAS: inject_allocas inv' Allocas0 Allocas1>>
+    <<ALLOCAS: fully_inject_allocas inv' Allocas0 Allocas1>>
 .
 Proof.
   inv MEMLE.

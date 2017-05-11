@@ -71,7 +71,7 @@ Inductive valid_state_sim
     (ECS_TGT: st_tgt.(ECS) = stack0_tgt)
     (FDEF: valid_fdef m_src m_tgt st_src.(EC).(CurFunction) st_tgt.(EC).(CurFunction) fdef_hint)
     (LABEL: st_src.(EC).(CurBB).(fst) = st_tgt.(EC).(CurBB).(fst))
-    (ALLOCAS: inject_allocas invmem st_src.(EC).(Allocas) st_tgt.(EC).(Allocas))
+    (* (ALLOCAS: inject_allocas invmem st_src.(EC).(Allocas) st_tgt.(EC).(Allocas)) *)
     inv_term
     (CMDS: valid_cmds m_src m_tgt st_src.(EC).(CurCmds) st_tgt.(EC).(CurCmds) cmds_hint inv = Some inv_term)
     (TERM: exists infrules,
@@ -138,7 +138,7 @@ Lemma valid_sim_term
       (CONF : InvState.valid_conf m_src m_tgt conf_src conf_tgt)
       (FDEF : valid_fdef m_src m_tgt CurFunction0 CurFunction1 fdef_hint)
       (LABEL : fst CurBB0 = fst CurBB1)
-      (ALLOCAS: inject_allocas inv0 Allocas0 Allocas1)
+      (* (ALLOCAS: inject_allocas inv0 Allocas0 Allocas1) *)
       (TERM: exists infrules,
           valid_terminator fdef_hint (Infrules.apply_infrules m_src m_tgt infrules inv_term)
                            m_src m_tgt (get_blocks CurFunction0)
@@ -301,7 +301,7 @@ Proof.
         { econs 1. econs; eauto. rewrite lookupBlockViaLabelFromFdef_spec. ss. }
         {
           econs; eauto; ss.
-          - eapply inject_allocas_inj_incr; eauto.
+          (* - eapply inject_allocas_inj_incr; eauto. *)
           - eapply implies_sound; eauto.
             { ss. }
         }
@@ -333,7 +333,7 @@ Proof.
         { econs 1. econs; eauto. rewrite lookupBlockViaLabelFromFdef_spec. ss. }
         {
           econs; eauto; ss.
-          - eapply inject_allocas_inj_incr; eauto.
+          (* - eapply inject_allocas_inj_incr; eauto. *)
           - eapply implies_sound; eauto.
             { ss. }
         }
@@ -413,7 +413,7 @@ Proof.
         { econs 1. econs; eauto. rewrite lookupBlockViaLabelFromFdef_spec. ss. }
         {
           econs; eauto; ss.
-          - eapply inject_allocas_inj_incr; eauto.
+          (* - eapply inject_allocas_inj_incr; eauto. *)
           - eapply implies_sound; eauto.
             { ss. }
         }
@@ -521,7 +521,7 @@ Proof.
         { econs 1. econs; eauto. rewrite lookupBlockViaLabelFromFdef_spec. ss. }
         {
           econs; eauto; ss.
-          - eapply inject_allocas_inj_incr; eauto.
+          (* - eapply inject_allocas_inj_incr; eauto. *)
           - eapply implies_sound; eauto.
             { ss. }
         }
@@ -591,7 +591,7 @@ Proof.
         { econs 1. econs; eauto. rewrite lookupBlockViaLabelFromFdef_spec. ss. }
         {
           econs; eauto; ss.
-          - eapply inject_allocas_inj_incr; eauto.
+          (* - eapply inject_allocas_inj_incr; eauto. *)
           - eapply implies_sound; eauto.
             { ss. }
         }
@@ -778,9 +778,9 @@ Proof.
       exists locals2_tgt, 0%nat, invmem1. splits; ss.
       * etransitivity; eauto.
       * right. apply CIH. econs; eauto.
-        { ss.
-          eapply inject_allocas_inj_incr; eauto.
-          etransitivity; eauto. }
+        (* { ss. *)
+        (*   eapply inject_allocas_inj_incr; eauto. *)
+        (*   etransitivity; eauto. } *)
     + (* non-call *)
       des.
       eapply _sim_local_step.
@@ -997,7 +997,7 @@ Proof.
       right. apply CIH. econs; try exact x1; eauto.
 Unshelve.
 all: try ss.
-{ admit. (* move inject_allocas to invmem? *) }
+(* { admit. (* move inject_allocas to invmem? *) } *)
 Admitted.
 
 Lemma valid_init
@@ -1078,10 +1078,11 @@ Proof.
       }
       rewrite COND0, COND1, COND2, COND3, COND4. ss.
     }
-    {
-      cbn in *.
-      econs; eauto.
-    }
+    (* injet_allocas *)
+    (* { *)
+    (*   cbn in *. *)
+    (*   econs; eauto. *)
+    (* } *)
 Qed.
 
 Lemma valid_sim_fdef
