@@ -327,6 +327,15 @@ Proof.
         esplits; eauto.
         apply in_app. right. ss.
       }
+    - ss.
+      clear - MEM_LE NEXTBLOCK0 NEXTBLOCK NEXTBLOCK_PARENT.
+      {
+        inv MEM_LE. ss. clear MEM_PARENT_EQ PRIVATE_PARENT_EQ UNIQUE_PARENT_EQ MEM_PARENT.
+        rewrite NEXTBLOCK0.
+        etransitivity; eauto.
+        etransitivity; try apply NEXTBLOCK_LE; eauto.
+        rewrite NEXTBLOCK. reflexivity.
+      }
   }
 Qed.
 
@@ -392,6 +401,10 @@ Lemma forget_memory_call_sound
       <<MEM: InvMem.Rel.sem conf_src conf_tgt mem1_src mem1_tgt invmem2>> /\
       <<MEM_INJ: invmem2.(InvMem.Rel.inject) = invmem1.(InvMem.Rel.inject)>>.
 Proof.
+  hexploit SoundBase.lift_unlift_le; eauto.
+  { apply MEM_BEFORE_CALL. }
+  { apply MEM_BEFORE_CALL. }
+  intro NEW_LE; des.
   exists (InvMem.Rel.unlift invmem0 invmem1).
   unfold InvMem.Rel.unlift in *.
   assert (INCR_CPY:=INCR).
@@ -408,11 +421,6 @@ Proof.
   i. des.
 
   esplits; eauto.
-  - econs; ss.
-    + econs; eauto.
-      inv LE_SRC. ss.
-    + econs; eauto.
-      inv LE_TGT. ss.
   - econs; ss.
     ii. exploit MAYDIFF; eauto. i.
     erewrite sem_idT_eq_locals.

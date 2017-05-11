@@ -25,6 +25,7 @@ Require InvMem.
 Require InvState.
 Require Import Hints.
 Require Import memory_props.
+Import Memory.
 
 Set Implicit Arguments.
 
@@ -500,17 +501,58 @@ Definition unique_is_private_unary inv : Prop :=
   forall x (UNIQUE: AtomSetImpl.mem x inv.(Hints.Invariant.unique) = true),
     IdTSet.mem (Tag.physical, x) inv.(Hints.Invariant.private) = true.
 
+Lemma lift_unlift_le_unary
+      inv0 inv1 mem
+      uniqs privs
+      (LE: InvMem.Unary.le (InvMem.Unary.lift mem uniqs privs inv0) inv1)
+  :
+    InvMem.Unary.le inv0 (InvMem.Unary.unlift inv0 inv1)
+.
+Proof.
+  inv LE.
+  econs; eauto.
+Qed.
+
+Lemma frozen_shortened
+      f_old f_new
+      m_src0 m_tgt0
+      (FROZEN: InvMem.Rel.frozen f_old f_new m_src0 m_tgt0)
+      m_src1 m_tgt1
+      (SHORT_SRC: (m_src1.(Mem.nextblock) <= m_src0.(Mem.nextblock))%positive)
+      (SHORT_TGT: (m_tgt1.(Mem.nextblock) <= m_tgt0.(Mem.nextblock))%positive)
+  :
+    <<FROZEN: InvMem.Rel.frozen f_old f_new m_src1 m_tgt1>>
+.
+Proof.
+  inv FROZEN.
+  econs; eauto.
+  ii. des.
+  hexploit NEW_IMPLIES_OUTSIDE; eauto; []; i; des. clear NEW_IMPLIES_OUTSIDE.
+  split; ss.
+  - ii. apply OUTSIDE_SRC.
+    eapply Pos.lt_le_trans; eauto.
+  - ii. apply OUTSIDE_TGT.
+    eapply Pos.lt_le_trans; eauto.
+Qed.
+
+(* "InvMem.Rel" is repeated a lot; how about moving this into InvMem? *)
 Lemma lift_unlift_le
       inv0 inv1
       mem_src uniqs_src privs_src
       mem_tgt uniqs_tgt privs_tgt
-      (LE : InvMem.Rel.le (InvMem.Rel.lift mem_src mem_tgt uniqs_src uniqs_tgt privs_src privs_tgt inv0) inv1)
+      (NB_LE_SRC: (Mem.nextblock (InvMem.Unary.mem_parent inv0.(InvMem.Rel.src)) <=
+                   Mem.nextblock mem_src)%positive)
+      (NB_LE_TGT: (Mem.nextblock (InvMem.Unary.mem_parent inv0.(InvMem.Rel.tgt)) <=
+                   Mem.nextblock mem_tgt)%positive)
+      (* above two can be achieved from InvMem.Unary.sem NEXTBLOCK_PARENT *)
+      (LE: InvMem.Rel.le (InvMem.Rel.lift mem_src mem_tgt uniqs_src uniqs_tgt privs_src privs_tgt inv0) inv1)
   : InvMem.Rel.le inv0 (InvMem.Rel.unlift inv0 inv1).
 Proof.
   inv LE. ss.
   econs; eauto.
-  - inv SRC. econs; eauto.
-  - inv TGT. econs; eauto.
+  - eapply lift_unlift_le_unary; eauto.
+  - eapply lift_unlift_le_unary; eauto.
+  - eapply frozen_shortened; eauto.
 Qed.
 
 Ltac des_matchH H :=
@@ -561,6 +603,13 @@ Proof.
       inv LE_SRC; ss.
       rewrite <- UNIQUE_PARENT_EQ.
       apply in_app. right. eauto.
+    + etransitivity.
+      { instantiate (1:= mem_src.(Mem.nextblock)). eauto. }
+      inv LE_SRC. ss. clarify. Undo 1.
+      {
+        subst mem_src.
+        rewrite NEXTBLOCK_PARENT. reflexivity.
+      }
   - (* tgt *)
     inv CALLEE_TGT. inv CALLER_TGT.
     econs; eauto; ss.
@@ -584,6 +633,9 @@ Proof.
       inv LE_TGT; ss.
       rewrite <- UNIQUE_PARENT_EQ.
       apply in_app. right. eauto.
+    + etransitivity.
+      { instantiate (1:= mem_tgt.(Mem.nextblock)). eauto. }
+      inv LE_TGT. ss. clarify.
   - inv CALLEE_WF.
     econs; eauto.
     rewrite GMAX.
@@ -633,6 +685,7 @@ Proof.
       * exploit UNIQUE_PARENT_GLOBALS; eauto.
     + apply sublist_app; eauto.
       apply filter_sublist.
+    + reflexivity.
   - inv TGT.
     econs; eauto; ss.
     +  i. apply in_app in IN. des.
@@ -656,6 +709,7 @@ Proof.
       * exploit UNIQUE_PARENT_GLOBALS; eauto.
     + apply sublist_app; eauto.
       apply filter_sublist.
+    + reflexivity.
 Qed.
 
 Lemma positive_lt_plus_one
@@ -910,7 +964,6 @@ Proof.
   }
 Qed.
 
-Import Memory.
 Lemma invmem_free_invmem_unary
       conf_src inv m x lo hi m' TD inv_unary
       (BOUNDS: Mem.bounds m x = (lo, hi))
@@ -969,6 +1022,7 @@ Proof.
     eapply memory_props.MemProps.free_preserves_mload_inv; eauto.
   + rewrite NEXTBLOCK in *.
     rewrite NEXTBLOCK_EQ in *. ss.
+  + rewrite NEXTBLOCK_EQ in *. ss.
 Qed.
 
 Lemma invmem_free_invmem_rel

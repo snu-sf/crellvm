@@ -298,7 +298,9 @@ Proof.
     i. des.
     esplits. i. splits; eauto.
     + inv CONF. rewrite <- TARGETDATA. eauto.
-    + eapply lift_unlift_le. eauto.
+    + eapply lift_unlift_le; eauto.
+      { apply MEM. }
+      { apply MEM. }
     + right. eapply CIH.
       econs; ss; eauto.
       { eapply inject_incr_inject_allocas; eauto.

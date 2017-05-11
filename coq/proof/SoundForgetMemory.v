@@ -991,6 +991,7 @@ Proof.
       ii. exploit external_intrinsics.GV2ptr_inv; eauto. i. des.
       subst. ss. clarify.
       eapply InvState.Unary.undef_diffblock; eauto.
+  - ss. rewrite NEXT_BLOCK. etransitivity; [|eapply Ple_succ]. eauto.
 Qed.
 
 Ltac solve_alloc_inject :=
@@ -1119,6 +1120,7 @@ Proof.
           exploit PRIVATE_PARENT; eauto. i.
           unfold InvMem.private_block in *. des.
           eapply alloca_preserves_mload_aux_other_eq; eauto.
+        - ss. rewrite NEXT_BLOCK. etransitivity; [|apply Ple_succ]; eauto.
       }
       { (* TGT *)
         inv TGT.
@@ -1152,6 +1154,7 @@ Proof.
           exploit PRIVATE_PARENT; eauto. i.
           unfold InvMem.private_block in *. des.
           eapply alloca_preserves_mload_aux_other_eq; eauto.
+        - ss. rewrite NEXT_BLOCK0. etransitivity; [|apply Ple_succ]; eauto.
       }
       { (* inject *)
         inv INJECT.
@@ -1308,14 +1311,23 @@ Proof.
       econs; try (econs; ss).
       { inv MEM. inv SRC. rewrite <- NEXTBLOCK. psimpl. }
       { inv MEM. inv TGT. rewrite <- NEXTBLOCK. psimpl. }
-      (* incr *)
-      ii. ss.
-      destruct (Values.eq_block _ _); eauto.
-      subst.
-      inv MEM. inv WF.
-      exploit Hmap1.
-      { psimpl. }
-      i. congruence.
+      {
+        (* incr *)
+        ii. ss.
+        destruct (Values.eq_block _ _); eauto.
+        subst.
+        inv MEM. inv WF.
+        exploit Hmap1.
+        { psimpl. }
+        i. congruence.
+      }
+      {
+        ii. des. des_ifsH NEW0.
+        unfold Memory.Mem.valid_block.
+        split; ss.
+        - ii. eapply Plt_irrefl. eapply Pos.le_lt_trans; eauto. apply MEM.
+        - ii. eapply Plt_irrefl. eapply Pos.le_lt_trans; eauto. apply MEM.
+      }
     + ss.
       inv STATE. inv SRC. ss.
       ii. exploit PRIVATE; eauto. i. des.
@@ -1451,6 +1463,9 @@ Proof.
         inv MEM. inv TGT.
         rewrite <- NEXTBLOCK.
         psimpl.
+      * clarify. ss.
+        econs; eauto.
+        ii. des; ss. clarify.
     + inv STATE. inv SRC. eauto.
     + inv STATE. inv TGT. eauto.
   - (* none - alloc *)
@@ -1551,6 +1566,9 @@ Proof.
         inv MEM. inv SRC. rewrite <- NEXTBLOCK. psimpl.
       * econs; eauto. ss.
         inv MEM. inv TGT. rewrite <- NEXTBLOCK. psimpl.
+      * ss. econs; eauto.
+        ii.
+        des; ss. clarify.
     + inv STATE. inv SRC. eauto.
     + inv STATE. inv TGT. eauto.
   - (* store - store *)
@@ -1615,6 +1633,8 @@ Proof.
         unfold InvMem.private_block in *. des. eauto.
       * rewrite <- NEXTBLOCK. symmetry.
         eapply MemProps.nextblock_mstore_aux; eauto.
+      * rpapply NEXTBLOCK_PARENT.
+        symmetry. eapply MemProps.nextblock_mstore_aux; eauto.
     + inv TGT.
       econs; eauto.
       * eapply mstore_aux_valid_ptrs_preserves_wf_Mem; eauto.
@@ -1631,6 +1651,8 @@ Proof.
         unfold InvMem.private_block in *. des. eauto.
       * rewrite <- NEXTBLOCK. symmetry.
         eapply MemProps.nextblock_mstore_aux; eauto.
+      * rpapply NEXTBLOCK_PARENT.
+        symmetry. eapply MemProps.nextblock_mstore_aux; eauto.
     + inv STATE. inv SRC. eauto.
     + inv STATE. inv TGT. eauto.
   - (* store - none *)
@@ -1663,6 +1685,8 @@ Proof.
         ii; des.
         eauto.
       * erewrite <- MemProps.nextblock_mstore_aux; eauto.
+      * rpapply NEXTBLOCK_PARENT.
+        symmetry. eapply MemProps.nextblock_mstore_aux; eauto.
     + (* inject *)
       inv INJECT.
       econs.
@@ -1755,6 +1779,8 @@ Proof.
         unfold InvMem.private_block in *. des.
         ii. subst. eauto.
       * erewrite Memory.Mem.nextblock_free; eauto.
+      * rpapply NEXTBLOCK_PARENT.
+        eapply Memory.Mem.nextblock_free; eauto.
     + inv TGT.
       econs; eauto.
       * (* PRIVATE_PARENT *)
@@ -1769,6 +1795,8 @@ Proof.
         unfold InvMem.private_block in *. des.
         ii. subst. eauto.
       * erewrite Memory.Mem.nextblock_free; eauto.
+      * rpapply NEXTBLOCK_PARENT.
+        eapply Memory.Mem.nextblock_free; eauto.
     + inv STATE. inv SRC. eauto.
     + inv STATE. inv TGT. eauto.
   - (* none - none *)

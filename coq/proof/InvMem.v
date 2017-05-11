@@ -63,6 +63,8 @@ Module Unary.
 
       (UNIQUE_PRIVATE_PARENT: sublist inv.(unique_parent) inv.(private_parent))
       (NEXTBLOCK: m.(Mem.nextblock) = inv.(nextblock))
+      (NEXTBLOCK_PARENT: (inv.(mem_parent).(Mem.nextblock) <= m.(Mem.nextblock))%positive)
+      (* above is added for lift_unlift_le *)
   .
 
   Inductive le (lhs rhs:t): Prop :=
@@ -125,6 +127,15 @@ Module Rel.
       (FUNTABLE: ftable_simulation inv.(inject) conf_src.(FunTable) conf_tgt.(FunTable))
   .
 
+  (* Inspired from Compcert's inject_separated *)
+  Inductive frozen (f_old f_new: MoreMem.meminj) (m_src m_tgt: mem): Prop :=
+    | frozen_intro
+        (NEW_IMPLIES_OUTSIDE:
+           forall b_src b_tgt delta
+           (NEW: f_old b_src = None /\ f_new b_src = Some(b_tgt, delta)),
+             <<OUTSIDE_SRC: ~Mem.valid_block m_src b_src>> /\ <<OUTSIDE_TGT: ~Mem.valid_block m_tgt b_tgt>>)
+  .
+
   (* TODO: not sure if inject_incr is enough.
    * cf. https://github.com/snu-sf/llvmberry/blob/before_refact/coq/hint/hint_sem.v#L284
    *)
@@ -134,16 +145,33 @@ Module Rel.
       (TGT: Unary.le lhs.(tgt) rhs.(tgt))
       (GMAX: lhs.(gmax) = rhs.(gmax))
       (INJECT: inject_incr lhs.(inject) rhs.(inject))
+      (FROZEN: frozen lhs.(inject) rhs.(inject) lhs.(src).(Unary.mem_parent) lhs.(tgt).(Unary.mem_parent))
   .
 
   Global Program Instance PreOrder_le: PreOrder le.
-  Next Obligation. econs; ss; reflexivity. Qed.
+  Next Obligation.
+    econs; ss; try reflexivity.
+    econs; eauto. ii. des. clarify.
+  Qed.
   Next Obligation.
     ii. inv H. inv H0. econs.
     - etransitivity; eauto.
     - etransitivity; eauto.
     - etransitivity; eauto.
     - eapply inject_incr_trans; eauto.
+    -
+      econs; eauto.
+      ii. des.
+      destruct (inject y b_src) eqn:T.
+      + destruct p.
+        inv FROZEN.
+        hexploit NEW_IMPLIES_OUTSIDE; eauto; []; i; des.
+        split; ss.
+        exploit INJECT0; eauto; []; i; des. clarify.
+      + inv FROZEN0.
+        hexploit NEW_IMPLIES_OUTSIDE; eauto; []; i; des.
+        inv SRC. inv TGT. rewrite MEM_PARENT_EQ. rewrite MEM_PARENT_EQ0.
+        split; ss.
   Qed.
 
   Definition lift
@@ -162,4 +190,5 @@ Module Rel.
         (Unary.unlift inv0.(src) inv1.(src))
         (Unary.unlift inv0.(tgt) inv1.(tgt))
         inv0.(gmax) inv1.(inject).
+
 End Rel.
