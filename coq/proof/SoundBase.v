@@ -536,7 +536,7 @@ Proof.
   econs; eauto.
   - eapply lift_unlift_le_unary; eauto.
   - eapply lift_unlift_le_unary; eauto.
-  - eapply frozen_shortened; eauto.
+  - eapply InvMem.Rel.frozen_shortened; eauto.
 Qed.
 
 Ltac des_matchH H :=

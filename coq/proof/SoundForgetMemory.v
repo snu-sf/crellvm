@@ -1008,6 +1008,39 @@ Ltac solve_alloc_inject :=
     rewrite ALLOCA in MC_SOME; ss; des_ifs
   end.
 
+(* TODO: better name? *)
+(* TODO: better position? *)
+Lemma inject_allocas_enhance
+      f0 als_src als_tgt
+      (INJ: InvState.Rel.inject_allocas f0 als_src als_tgt)
+      P Q
+      (PROP_SRC: Forall P als_src)
+      (PROP_TGT: Forall Q als_tgt)
+      f1
+      (EQ_UNDER_PROP_SRC: forall b, P b -> f0 b = f1 b)
+      (EQ_UNDER_PROP_TGT: forall b b_tgt delta (H: f1 b = Some (b_tgt, delta)), Q b_tgt -> f0 b = f1 b)
+  :
+    <<INJ: InvState.Rel.inject_allocas f1 als_src als_tgt>>
+.
+Proof.
+  ginduction INJ; ii; ss.
+  - econs; eauto.
+  - inv PROP_SRC.
+    econs; eauto.
+    { rewrite <- PRIVATE. symmetry. eauto. }
+    eapply IHINJ; eauto.
+  - inv PROP_TGT.
+    econs; eauto.
+    { ii. exploit EQ_UNDER_PROP_TGT; eauto. i.
+      eapply PRIVATE; eauto.
+      rewrite x. eauto.
+    }
+    eapply IHINJ; eauto.
+  - inv PROP_SRC. inv PROP_TGT. econs 4; eauto.
+    { rewrite <- EQ_UNDER_PROP_SRC; eauto. }
+    eapply IHINJ; eauto.
+Qed.
+
 Lemma inject_invmem
       m_src conf_src st0_src st1_src cmd_src cmds_src evt_src
       m_tgt conf_tgt st0_tgt st1_tgt cmd_tgt cmds_tgt evt_tgt
@@ -1022,6 +1055,7 @@ Lemma inject_invmem
       (STEP_SRC : sInsn conf_src st0_src st1_src evt_src)
       (STEP_TGT : sInsn conf_tgt st0_tgt st1_tgt evt_tgt)
       (INJECT_EVENT : postcond_cmd_inject_event cmd_src cmd_tgt inv0)
+
   : exists invmem1,
     <<ALLOC_INJECT: alloc_inject conf_src conf_tgt st0_src st0_tgt
                                  st1_src st1_tgt cmd_src cmd_tgt invmem1>> /\
@@ -1039,7 +1073,16 @@ Lemma inject_invmem
                                   conf_tgt st0_tgt (InvState.Rel.tgt invst0)
                                   (InvMem.Unary.private_parent (InvMem.Rel.tgt invmem1))
                                   (InvMem.Rel.public_tgt (InvMem.Rel.inject invmem1)))
-                               (Invariant.private (Invariant.tgt inv0))>>.
+                               (Invariant.private (Invariant.tgt inv0))>> /\
+    (* INJECT_ALLOCAS is needed for "inv_state_sem_monotone_wrt_invmem" *)
+    (* I am not sure this design is good; as INJECT_ALLOCAS belongs to InvState *)
+    (* INJECT_ALLOCAS is needed here. && also in SimLocal *)
+    (* If we put this inside InvMem (may need to strengthen "frozen" until "nextblock" *)
+    (* This will not be the case *)
+    <<INJECT_ALLOCAS:
+      InvState.Rel.inject_allocas (InvMem.Rel.inject invmem1)
+                                  (InvState.get_all_allocas st1_src) (InvState.get_all_allocas st1_tgt)>>
+.
 Proof.
   exploit postcond_cmd_inject_event_non_malloc; eauto; []; ii; des.
   hexploit step_mem_change; try (inv STATE; exact SRC); eauto.
@@ -1325,8 +1368,8 @@ Proof.
         ii. des. des_ifsH NEW0.
         unfold Memory.Mem.valid_block.
         split; ss.
-        - ii. eapply Plt_irrefl. eapply Pos.le_lt_trans; eauto. apply MEM.
-        - ii. eapply Plt_irrefl. eapply Pos.le_lt_trans; eauto. apply MEM.
+        - apply MEM.
+        - apply MEM.
       }
     + ss.
       inv STATE. inv SRC. ss.
@@ -1350,6 +1393,36 @@ Proof.
         { clarify. psimpl. }
         apply PRIVATE_BLOCK. esplits; eauto.
       * eauto.
+    + ss.
+      inv STATE. clear MAYDIFF.
+      unfold InvState.get_all_allocas in *. ss. (* otherwise, econs will bestially destruct it *)
+      econs 4. eauto.
+      { des_ifs. }
+      inv SRC. clear LESSDEF NOALIAS UNIQUE PRIVATE ALLOCAS_PARENT
+                     WF_LOCAL WF_PREVIOUS WF_GHOST UNIQUE_PARENT_LOCAL WF_INSNS.
+      inv TGT. clear LESSDEF NOALIAS UNIQUE PRIVATE ALLOCAS_PARENT
+                     WF_LOCAL WF_PREVIOUS WF_GHOST UNIQUE_PARENT_LOCAL WF_INSNS.
+      ss.
+      unfold InvState.get_all_allocas in *. ss.
+      clear - ALLOCAS ALLOCAS_VALID ALLOCAS_VALID0.
+
+      eapply inject_allocas_enhance; eauto.
+      { i. des_ifs. exfalso. eapply Plt_irrefl. eauto. }
+      { i. des_ifs. exfalso. eapply Plt_irrefl. eauto. }
+      (* ginduction ALLOCAS; ii; ss. *)
+      (* * econs; eauto. *)
+      (* * inv ALLOCAS_VALID. *)
+      (*   econs; eauto. des_ifs. *)
+      (*   exfalso. eapply Plt_irrefl. eauto. *)
+      (* * inv ALLOCAS_VALID0. *)
+      (*   econs; eauto. *)
+      (*   i. des_ifs. *)
+      (*   { ii. clarify. eapply Plt_irrefl. eauto. } *)
+      (*   eapply PRIVATE. *)
+      (* * inv ALLOCAS_VALID. inv ALLOCAS_VALID0. *)
+      (*   econs 4; eauto. *)
+      (*   des_ifs. *)
+      (*   exfalso. eapply Plt_irrefl. eauto. *)
   - (* alloc - none *)
     inv STATE_EQUIV_TGT. rewrite <- MEM_EQ in *.
 
@@ -1368,7 +1441,11 @@ Proof.
             mem1_src.(Memory.Mem.nextblock))
          invmem0.(InvMem.Rel.tgt)
          invmem0.(InvMem.Rel.gmax)
-                   invmem0.(InvMem.Rel.inject)).
+         (* mem0_src should be private. *)
+         (* we can just copy invmem0's, because wf_sb_mi guarantees mem0_src is priviate *)
+         (* Without wf_sb_mi, we need to put a function with if-then-else *)
+         invmem0.(InvMem.Rel.inject)
+           ).
     esplits; ss; eauto.
     + (* alloc_inject *)
       solve_alloc_inject.
@@ -1468,6 +1545,16 @@ Proof.
         ii. des; ss. clarify.
     + inv STATE. inv SRC. eauto.
     + inv STATE. inv TGT. eauto.
+    + inv STATE.
+      unfold InvState.get_all_allocas in *. ss.
+      assert(EQ_ALLOC: Allocas (EC st1_tgt) = Allocas (EC st0_tgt) /\ ECS st1_tgt = ECS st0_tgt).
+      { inv STEP_TGT; ss; des_ifs.
+        - inv MC_SOME_TGT. des_ifs. }
+      des. rewrite EQ_ALLOC. rewrite EQ_ALLOC0.
+      econs; eauto.
+      inv MEM.
+      inv WF.
+      apply Hmap1. psimpl.
   - (* none - alloc *)
     inv STATE_EQUIV_SRC.
     rewrite <- MEM_EQ in *.
@@ -1571,6 +1658,17 @@ Proof.
         des; ss. clarify.
     + inv STATE. inv SRC. eauto.
     + inv STATE. inv TGT. eauto.
+    + inv STATE.
+      unfold InvState.get_all_allocas in *. ss.
+      assert(EQ_ALLOC: Allocas (EC st1_src) = Allocas (EC st0_src) /\ ECS st1_src = ECS st0_src).
+      { inv STEP_SRC; ss; des_ifs.
+        - inv MC_SOME_SRC. des_ifs. }
+      des. rewrite EQ_ALLOC. rewrite EQ_ALLOC0.
+      econs; eauto.
+      inv MEM.
+      inv WF.
+      ii.
+      expl Hmap2. psimpl.
   - (* store - store *)
     esplits; eauto; try reflexivity; try solve_alloc_inject.
     { unfold alloc_private, alloc_private_unary. split.
@@ -1655,6 +1753,18 @@ Proof.
         symmetry. eapply MemProps.nextblock_mstore_aux; eauto.
     + inv STATE. inv SRC. eauto.
     + inv STATE. inv TGT. eauto.
+    + inv STATE. ss.
+      assert(EQ_ALLOC_SRC: Allocas (EC st1_src) = Allocas (EC st0_src) /\ ECS st1_src = ECS st0_src).
+      { inv STEP_SRC; ss; des_ifs.
+        - inv MC_SOME_SRC. des_ifs. }
+      assert(EQ_ALLOC_TGT: Allocas (EC st1_tgt) = Allocas (EC st0_tgt) /\ ECS st1_tgt = ECS st0_tgt).
+      { inv STEP_TGT; ss; des_ifs.
+        - inv MC_SOME_TGT. des_ifs. }
+      unfold InvState.get_all_allocas in *.
+      des.
+      rewrite EQ_ALLOC_SRC. rewrite EQ_ALLOC_SRC0.
+      rewrite EQ_ALLOC_TGT. rewrite EQ_ALLOC_TGT0.
+      ss.
   - (* store - none *)
     esplits; eauto; try reflexivity; try solve_alloc_inject.
     { unfold alloc_private, alloc_private_unary. split.
@@ -1723,6 +1833,18 @@ Proof.
         eauto.
     + inv STATE. inv SRC. eauto.
     + inv STATE. inv TGT. eauto.
+    + inv STATE. ss.
+      assert(EQ_ALLOC_SRC: Allocas (EC st1_src) = Allocas (EC st0_src) /\ ECS st1_src = ECS st0_src).
+      { inv STEP_SRC; ss; des_ifs.
+        - inv MC_SOME_SRC. des_ifs. }
+      assert(EQ_ALLOC_TGT: Allocas (EC st1_tgt) = Allocas (EC st0_tgt) /\ ECS st1_tgt = ECS st0_tgt).
+      { inv STEP_TGT; ss; des_ifs.
+        - inv MC_SOME_TGT. des_ifs. }
+      unfold InvState.get_all_allocas in *.
+      des.
+      rewrite EQ_ALLOC_SRC. rewrite EQ_ALLOC_SRC0.
+      rewrite EQ_ALLOC_TGT. rewrite EQ_ALLOC_TGT0.
+      ss.
   - (* free - free *)
     esplits; eauto; try reflexivity; try solve_alloc_inject.
     { unfold alloc_private, alloc_private_unary. split.
@@ -1799,6 +1921,18 @@ Proof.
         eapply Memory.Mem.nextblock_free; eauto.
     + inv STATE. inv SRC. eauto.
     + inv STATE. inv TGT. eauto.
+    + inv STATE. ss.
+      assert(EQ_ALLOC_SRC: Allocas (EC st1_src) = Allocas (EC st0_src) /\ ECS st1_src = ECS st0_src).
+      { inv STEP_SRC; ss; des_ifs.
+        - inv MC_SOME_SRC. des_ifs. }
+      assert(EQ_ALLOC_TGT: Allocas (EC st1_tgt) = Allocas (EC st0_tgt) /\ ECS st1_tgt = ECS st0_tgt).
+      { inv STEP_TGT; ss; des_ifs.
+        - inv MC_SOME_TGT. des_ifs. }
+      unfold InvState.get_all_allocas in *.
+      des.
+      rewrite EQ_ALLOC_SRC. rewrite EQ_ALLOC_SRC0.
+      rewrite EQ_ALLOC_TGT. rewrite EQ_ALLOC_TGT0.
+      ss.
   - (* none - none *)
     inv STATE_EQUIV_SRC. rewrite <- MEM_EQ. clear MEM_EQ.
     inv STATE_EQUIV_TGT. rewrite <- MEM_EQ. clear MEM_EQ.
@@ -1808,6 +1942,18 @@ Proof.
       * i. subst. ss. des_matchH MC_SOME_TGT; clarify.
     + inv STATE. inv SRC. eauto.
     + inv STATE. inv TGT. eauto.
+    + inv STATE. ss.
+      assert(EQ_ALLOC_SRC: Allocas (EC st1_src) = Allocas (EC st0_src) /\ ECS st1_src = ECS st0_src).
+      { inv STEP_SRC; ss; des_ifs.
+        - inv MC_SOME_SRC. des_ifs. }
+      assert(EQ_ALLOC_TGT: Allocas (EC st1_tgt) = Allocas (EC st0_tgt) /\ ECS st1_tgt = ECS st0_tgt).
+      { inv STEP_TGT; ss; des_ifs.
+        - inv MC_SOME_TGT. des_ifs. }
+      unfold InvState.get_all_allocas in *.
+      des.
+      rewrite EQ_ALLOC_SRC. rewrite EQ_ALLOC_SRC0.
+      rewrite EQ_ALLOC_TGT. rewrite EQ_ALLOC_TGT0.
+      ss.
 Unshelve.
 { by econs. }
 Qed.
@@ -2173,6 +2319,13 @@ Proof.
       split; eauto.
       exploit alloca_result; eauto. i. des.
       psimpl.
+    + ss. eapply Forall_harder; eauto. i.
+      exploit alloca_result; eauto; []; i; des.
+      clarify.
+      unfold Memory.Mem.valid_block in *.
+      rewrite NEXT_BLOCK.
+      etransitivity; eauto.
+      eapply Plt_succ.
     + ss. eapply MemProps.alloca_preserves_wf_lc_in_tail; eauto.
     + ss. eapply MemProps.alloca_preserves_wf_lc_in_tail; eauto.
     + ss. eapply MemProps.alloca_preserves_wf_lc_in_tail; eauto.
@@ -2208,6 +2361,10 @@ Proof.
         intro NEXTBLOCK_EQ. rewrite <- NEXTBLOCK_EQ.
         psimpl.
       + ss.
+      + ss. eapply Forall_harder; eauto.
+        i. exploit MemProps.nextblock_mstore; eauto; []; intro EQ; des.
+        unfold Memory.Mem.valid_block in *.
+        rewrite <- EQ. ss.
       + ss. eapply MemProps.mstore_preserves_wf_lc; eauto.
       + ss. eapply MemProps.mstore_preserves_wf_lc; eauto.
       + ss. eapply MemProps.mstore_preserves_wf_lc; eauto.
@@ -2242,6 +2399,10 @@ Proof.
         intro NEXTBLOCK_EQ. rewrite <- NEXTBLOCK_EQ.
         psimpl.
       + ss.
+      + ss. eapply Forall_harder; eauto.
+        i. exploit MemProps.nextblock_mstore; eauto; []; intro EQ; des.
+        unfold Memory.Mem.valid_block in *.
+        rewrite <- EQ. ss.
       + ss. eapply MemProps.mstore_preserves_wf_lc; eauto.
       + ss. eapply MemProps.mstore_preserves_wf_lc; eauto.
       + ss. eapply MemProps.mstore_preserves_wf_lc; eauto.
@@ -2276,6 +2437,10 @@ Proof.
       exploit MemProps.nextblock_free; eauto.
       intro NEXTBLOCK_EQ. rewrite <- NEXTBLOCK_EQ.
       psimpl.
+    + ss. eapply Forall_harder; eauto.
+      i. exploit MemProps.nextblock_free; eauto; []; intro EQ; des.
+      unfold Memory.Mem.valid_block in *.
+      rewrite <- EQ. ss.
     + ss. eapply MemProps.free_preserves_wf_lc; eauto.
     + ss. eapply MemProps.free_preserves_wf_lc; eauto.
     + ss. eapply MemProps.free_preserves_wf_lc; eauto.
@@ -2310,6 +2475,7 @@ Proof.
   - eapply forget_memory_sem_unary; try exact SRC; eauto.
   - eapply forget_memory_sem_unary; try exact TGT; eauto.
   - eapply forget_memory_maydiff_preserved; eauto.
+  - ss.
 Qed.
 
 Lemma inv_state_sem_monotone_wrt_invmem
@@ -2330,6 +2496,10 @@ Lemma inv_state_sem_monotone_wrt_invmem
                                    (InvMem.Rel.public_tgt (InvMem.Rel.inject invmem1)))
                                 (Invariant.private (Invariant.tgt inv1)))
       (STATE:InvState.Rel.sem conf_src conf_tgt st_src st_tgt invst0 invmem0 inv1)
+      (INJECT_ALLOCAS_NEW:
+           InvState.Rel.inject_allocas (InvMem.Rel.inject invmem1)
+                                       (InvState.get_all_allocas st_src)
+                                       (InvState.get_all_allocas st_tgt))
   : InvState.Rel.sem conf_src conf_tgt st_src st_tgt invst0 invmem1 inv1.
 Proof.
   destruct STATE as [STATE_SRC STATE_TGT STATE_MAYDIFF].
@@ -2352,6 +2522,7 @@ Proof.
     ii. exploit SEM_INJECT; eauto. i. des.
     esplits; eauto.
     eapply genericvalues_inject.gv_inject_incr; eauto.
+  - ss.
 Qed.
 
 Lemma forget_memory_sound
@@ -2400,6 +2571,7 @@ Proof.
   eapply forget_memory_sem; eauto.
 
   eapply inv_state_sem_monotone_wrt_invmem; eauto.
+  { }
   { apply MEM0. }
   { apply MEM0. }
   { inv MEMLE. rewrite <- GMAX. apply MEM. }

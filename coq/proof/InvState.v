@@ -468,22 +468,16 @@ Module Rel.
   .
 
   Lemma inject_allocas_preserved_aux
-        conf_src conf_tgt m_src0 m_tgt0 invmem0
-        (MEM0: InvMem.Rel.sem conf_src conf_tgt m_src0 m_tgt0 invmem0)
+        invmem0
         als_src als_tgt
         (INJECT: inject_allocas invmem0.(InvMem.Rel.inject) als_src als_tgt)
         invmem1
         (INJECT_INCR: inject_incr invmem0.(InvMem.Rel.inject) invmem1.(InvMem.Rel.inject))
+        bd_src bd_tgt
         (FROZEN: InvMem.Rel.frozen invmem0.(InvMem.Rel.inject) invmem1.(InvMem.Rel.inject)
-                                             invmem0.(InvMem.Rel.src).(InvMem.Unary.mem_parent)
-                                             invmem0.(InvMem.Rel.tgt).(InvMem.Unary.mem_parent))
-        m_src1 m_tgt1
-        (MEM1: InvMem.Rel.sem conf_src conf_tgt m_src1 m_tgt1 invmem1)
-        (VALID_SRC: List.Forall
-                      (Mem.valid_block invmem0.(InvMem.Rel.src).(InvMem.Unary.mem_parent)) als_src)
-        (VALID_TGT: List.Forall
-                      (Mem.valid_block invmem0.(InvMem.Rel.tgt).(InvMem.Unary.mem_parent)) als_tgt)
-
+                                             bd_src bd_tgt)
+        (VALID_SRC: List.Forall (fun x => (x < bd_src)%positive) als_src)
+        (VALID_TGT: List.Forall (fun x => (x < bd_tgt)%positive) als_tgt)
     :
         <<INJECT: inject_allocas invmem1.(InvMem.Rel.inject) als_src als_tgt>>
   .
@@ -506,14 +500,11 @@ Module Rel.
   Qed.
 
   Lemma inject_allocas_preserved_le
-        conf_src conf_tgt m_src0 m_tgt0 invmem0
-        (MEM0: InvMem.Rel.sem conf_src conf_tgt m_src0 m_tgt0 invmem0)
+        invmem0
         als_src als_tgt
         (INJECT: inject_allocas invmem0.(InvMem.Rel.inject) als_src als_tgt)
         invmem1
         (LE: InvMem.Rel.le invmem0 invmem1)
-        m_src1 m_tgt1
-        (MEM1: InvMem.Rel.sem conf_src conf_tgt m_src1 m_tgt1 invmem1)
         (VALID_SRC: List.Forall
                       (Mem.valid_block invmem0.(InvMem.Rel.src).(InvMem.Unary.mem_parent)) als_src)
         (VALID_TGT: List.Forall
@@ -528,19 +519,14 @@ Module Rel.
   Qed.
 
   Lemma inject_allocas_preserved_le_lift
-        conf_src conf_tgt m_src0 m_tgt0 invmem0
-        (MEM0: InvMem.Rel.sem conf_src conf_tgt m_src0 m_tgt0 invmem0)
+        m_src0 m_tgt0 invmem0
         als_src als_tgt
         (INJECT: inject_allocas invmem0.(InvMem.Rel.inject) als_src als_tgt)
         invmem1
-        arg0 arg1 arg2 arg3 arg4 arg5
-        (LE: InvMem.Rel.le (InvMem.Rel.lift arg0 arg1 arg2 arg3 arg4 arg5 invmem0) invmem1)
-        m_src1 m_tgt1
-        (MEM1: InvMem.Rel.sem conf_src conf_tgt m_src1 m_tgt1 invmem1)
-        (VALID_SRC: List.Forall
-                      (Mem.valid_block invmem0.(InvMem.Rel.src).(InvMem.Unary.mem_parent)) als_src)
-        (VALID_TGT: List.Forall
-                      (Mem.valid_block invmem0.(InvMem.Rel.tgt).(InvMem.Unary.mem_parent)) als_tgt)
+        arg0 arg1 arg2 arg3
+        (LE: InvMem.Rel.le (InvMem.Rel.lift m_src0 m_tgt0 arg0 arg1 arg2 arg3 invmem0) invmem1)
+        (VALID_SRC: List.Forall (Mem.valid_block m_src0) als_src)
+        (VALID_TGT: List.Forall (Mem.valid_block m_tgt0) als_tgt)
         (PARENT_LE_SRC: ((Mem.nextblock (InvMem.Unary.mem_parent (InvMem.Rel.src invmem0)) <=
                           Mem.nextblock (InvMem.Unary.mem_parent (InvMem.Rel.src invmem1))))%positive)
         (PARENT_LE_TGT: ((Mem.nextblock (InvMem.Unary.mem_parent (InvMem.Rel.tgt invmem0)) <=
@@ -551,11 +537,7 @@ Module Rel.
   Proof.
     eapply inject_allocas_preserved_aux; try exact INJECT; try eassumption.
     { apply LE. }
-    { inv LE; ss.
-      eapply InvMem.Rel.frozen_shortened; eauto.
-      - inv SRC. ss. clarify.
-      - inv TGT. ss. clarify.
-    }
+    { inv LE; ss. }
   Qed.
 
   Lemma sem_empty

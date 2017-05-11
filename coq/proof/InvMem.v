@@ -129,12 +129,12 @@ Module Rel.
 
   (* Inspired from Compcert's inject_separated *)
   (* maybe just get block number? not entire memory? *)
-  Inductive frozen (f_old f_new: MoreMem.meminj) (m_src m_tgt: mem): Prop :=
+  Inductive frozen (f_old f_new: MoreMem.meminj) (bound_src bound_tgt: mblock): Prop :=
     | frozen_intro
         (NEW_IMPLIES_OUTSIDE:
            forall b_src b_tgt delta
            (NEW: f_old b_src = None /\ f_new b_src = Some(b_tgt, delta)),
-             <<OUTSIDE_SRC: ~Mem.valid_block m_src b_src>> /\ <<OUTSIDE_TGT: ~Mem.valid_block m_tgt b_tgt>>)
+             <<OUTSIDE_SRC: (bound_src <= b_src)%positive>> /\ <<OUTSIDE_TGT: (bound_tgt <= b_tgt)%positive>>)
   .
 
   (* TODO: not sure if inject_incr is enough.
@@ -146,7 +146,9 @@ Module Rel.
       (TGT: Unary.le lhs.(tgt) rhs.(tgt))
       (GMAX: lhs.(gmax) = rhs.(gmax))
       (INJECT: inject_incr lhs.(inject) rhs.(inject))
-      (FROZEN: frozen lhs.(inject) rhs.(inject) lhs.(src).(Unary.mem_parent) lhs.(tgt).(Unary.mem_parent))
+      (FROZEN: frozen lhs.(inject) rhs.(inject)
+                            lhs.(src).(Unary.mem_parent).(Mem.nextblock)
+                            lhs.(tgt).(Unary.mem_parent).(Mem.nextblock))
   .
 
   Global Program Instance PreOrder_le: PreOrder le.
@@ -175,16 +177,27 @@ Module Rel.
         split; ss.
   Qed.
 
+  (* Move to TODOProof *)
+  Lemma Pos_lt_le_irrefl
+        a b
+        (LE: (a <= b)%positive)
+        (LT: (b < a)%positive)
+    :
+      False
+  .
+  Proof. eapply Pos.lt_irrefl. eapply Pos.lt_le_trans; eauto. Qed.
+
   Lemma frozen_preserves_src
         inv0 inv1
         (INJECT: inject_incr inv0.(inject) inv1.(inject))
-        (FROZEN: frozen inv0.(inject) inv1.(inject) inv0.(src).(Unary.mem_parent) inv0.(tgt).(Unary.mem_parent))
+        bound_src bound_tgt
+        (FROZEN: frozen inv0.(inject) inv1.(inject) bound_src bound_tgt)
         (* Above two can be driven from both "le inv0 inv1" && "le inv0 (unlift inv0 inv1)" *)
         (* in actual proof, the latter one is given as premise *)
         (* IDK if this is also true for former one *)
         (* Anyhow, I intentionally choose smaller premise that can serve for both cases *)
         b_src
-        (INSIDE: Mem.valid_block inv0.(src).(Unary.mem_parent) b_src)
+        (INSIDE: (b_src < bound_src)%positive)
     :
       <<PRESERVED: inv0.(inject) b_src = inv1.(inject) b_src>>
   .
@@ -201,15 +214,16 @@ Module Rel.
     - destruct p; ss.
       exploit NEW_IMPLIES_OUTSIDE; eauto; []; i; des.
       exfalso.
-      apply OUTSIDE_SRC. eauto.
+      eapply Pos_lt_le_irrefl; revgoals; eauto.
   Qed.
 
   Lemma frozen_preserves_tgt
         inv0 inv1
         (INJECT: inject_incr inv0.(inject) inv1.(inject))
-        (FROZEN: frozen inv0.(inject) inv1.(inject) inv0.(src).(Unary.mem_parent) inv0.(tgt).(Unary.mem_parent))
+        bound_src bound_tgt
+        (FROZEN: frozen inv0.(inject) inv1.(inject) bound_src bound_tgt)
         b_tgt
-        (INSIDE: Mem.valid_block inv0.(tgt).(Unary.mem_parent) b_tgt)
+        (INSIDE: (b_tgt < bound_tgt)%positive)
     :
       <<PRESERVED: forall b_src delta (NOW: inv1.(inject) b_src = Some (b_tgt, delta)),
         <<OLD: inv0.(inject) b_src = Some (b_tgt, delta)>> >>
@@ -223,18 +237,18 @@ Module Rel.
       clarify.
     - exfalso.
       exploit NEW_IMPLIES_OUTSIDE; eauto; []; i; des.
-      apply OUTSIDE_TGT. eauto.
+      eapply Pos_lt_le_irrefl; revgoals; eauto.
   Qed.
 
   Lemma frozen_shortened
         f_old f_new
-        m_src0 m_tgt0
-        (FROZEN: frozen f_old f_new m_src0 m_tgt0)
-        m_src1 m_tgt1
-        (SHORT_SRC: (m_src1.(Mem.nextblock) <= m_src0.(Mem.nextblock))%positive)
-        (SHORT_TGT: (m_tgt1.(Mem.nextblock) <= m_tgt0.(Mem.nextblock))%positive)
+        bd_src0 bd_tgt0
+        (FROZEN: frozen f_old f_new bd_src0 bd_tgt0)
+        bd_src1 bd_tgt1
+        (SHORT_SRC: (bd_src1 <= bd_src0)%positive)
+        (SHORT_TGT: (bd_tgt1 <= bd_tgt0)%positive)
     :
-      <<FROZEN: frozen f_old f_new m_src1 m_tgt1>>
+      <<FROZEN: frozen f_old f_new bd_src1 bd_tgt1>>
   .
   Proof.
     inv FROZEN.
@@ -242,10 +256,8 @@ Module Rel.
     ii. des.
     hexploit NEW_IMPLIES_OUTSIDE; eauto; []; i; des. clear NEW_IMPLIES_OUTSIDE.
     split; ss.
-    - ii. apply OUTSIDE_SRC.
-      eapply Pos.lt_le_trans; eauto.
-    - ii. apply OUTSIDE_TGT.
-      eapply Pos.lt_le_trans; eauto.
+    - red. etransitivity; eauto.
+    - red. etransitivity; eauto.
   Qed.
 
   Definition lift
