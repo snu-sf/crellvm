@@ -212,11 +212,12 @@ Lemma Subset_sem
 Proof.
   inv STATE. inv SUBSET.
   econs; try (eapply Subset_unary_sem; eauto).
-  i. apply MAYDIFF.
-  destruct (IdTSet.mem id0 (Hints.Invariant.maydiff inv1)) eqn:MEM1; ss.
-  rewrite <- IdTSetFacts.not_mem_iff in *.
-  rewrite <- IdTSetFacts.mem_iff in *.
-  exploit SUBSET_MAYDIFF; eauto. i. congruence.
+  - i. apply MAYDIFF.
+    destruct (IdTSet.mem id0 (Hints.Invariant.maydiff inv1)) eqn:MEM1; ss.
+    rewrite <- IdTSetFacts.not_mem_iff in *.
+    rewrite <- IdTSetFacts.mem_iff in *.
+    exploit SUBSET_MAYDIFF; eauto. i. congruence.
+  - eauto.
 Qed.
 
 Lemma postcond_cmd_inject_event_Subset cmd_src cmd_tgt inv0 inv1
@@ -455,6 +456,7 @@ Lemma unary_sem_eq_locals_mem
       (STATE: InvState.Unary.sem conf st0 invst0 invmem0 gmax public inv0)
       (EQ_FUNC: st0.(EC).(CurFunction) = st1.(EC).(CurFunction))
       (EQ_ALLOCAS: st0.(EC).(Allocas) = st1.(EC).(Allocas))
+      (EQ_ECS: st0.(ECS) = st1.(ECS))
   : InvState.Unary.sem conf st1 invst0 invmem0 gmax public inv0.
 Proof.
   inv STATE.
@@ -474,6 +476,10 @@ Proof.
     { erewrite sem_idT_eq_locals; eauto. }
     rewrite <- MEM_EQ. eauto.
   - rewrite <- EQ_ALLOCAS. ss.
+  - unfold InvState.get_all_allocas in *.
+    rpapply ALLOCAS_VALID.
+    + rewrite MEM_EQ. eauto.
+    + rewrite EQ_ECS. rewrite EQ_ALLOCAS. eauto.
   - rewrite <- LOCALS_EQ. rewrite <- MEM_EQ. eauto.
   - rewrite <- MEM_EQ. eauto.
   - rewrite <- MEM_EQ. eauto.
@@ -511,28 +517,6 @@ Lemma lift_unlift_le_unary
 Proof.
   inv LE.
   econs; eauto.
-Qed.
-
-Lemma frozen_shortened
-      f_old f_new
-      m_src0 m_tgt0
-      (FROZEN: InvMem.Rel.frozen f_old f_new m_src0 m_tgt0)
-      m_src1 m_tgt1
-      (SHORT_SRC: (m_src1.(Mem.nextblock) <= m_src0.(Mem.nextblock))%positive)
-      (SHORT_TGT: (m_tgt1.(Mem.nextblock) <= m_tgt0.(Mem.nextblock))%positive)
-  :
-    <<FROZEN: InvMem.Rel.frozen f_old f_new m_src1 m_tgt1>>
-.
-Proof.
-  inv FROZEN.
-  econs; eauto.
-  ii. des.
-  hexploit NEW_IMPLIES_OUTSIDE; eauto; []; i; des. clear NEW_IMPLIES_OUTSIDE.
-  split; ss.
-  - ii. apply OUTSIDE_SRC.
-    eapply Pos.lt_le_trans; eauto.
-  - ii. apply OUTSIDE_TGT.
-    eapply Pos.lt_le_trans; eauto.
 Qed.
 
 (* "InvMem.Rel" is repeated a lot; how about moving this into InvMem? *)

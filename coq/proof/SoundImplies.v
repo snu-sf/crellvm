@@ -320,6 +320,7 @@ Proof.
     apply IdTSetFacts.not_mem_iff. ii.
     apply IdTSetFacts.not_mem_iff in NOTIN. apply NOTIN.
     eapply IdTSetFacts.subset_iff; eauto.
+  - ss.
 Qed.
 
 

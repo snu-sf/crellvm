@@ -285,6 +285,13 @@ Proof.
       rewrite <- PRIVATE_PARENT_EQ. ss.
       apply in_app. left. eauto.
     - ss.
+    - eapply Forall_harder.
+      { rpapply ALLOCAS_VALID. }
+      ss. i.
+      eapply Pos.lt_le_trans; eauto.
+      inv MEM_LE. ss.
+      rewrite MEM_PARENT_EQ in *.
+      apply MEM_AFTER_CALL.
     - ss.
       ii. exploit WF_LOCAL; eauto. i.
       eapply memory_props.MemProps.valid_ptrs__trans; eauto.
@@ -401,6 +408,64 @@ Lemma forget_memory_call_sound
       <<MEM: InvMem.Rel.sem conf_src conf_tgt mem1_src mem1_tgt invmem2>> /\
       <<MEM_INJ: invmem2.(InvMem.Rel.inject) = invmem1.(InvMem.Rel.inject)>>.
 Proof.
+  {
+    exists (InvMem.Rel.unlift invmem0 invmem1).
+    esplits.
+    - admit.
+    - econs; eauto; ss.
+      + admit.
+      + admit.
+      + admit.
+      + abstr (memory_blocks_of conf_src (Locals (EC st0_src)) (Invariant.unique (Invariant.src inv0))) arg0.
+        abstr (memory_blocks_of conf_tgt (Locals (EC st0_tgt)) (Invariant.unique (Invariant.tgt inv0))) arg1.
+        abstr (memory_blocks_of_t conf_src st0_src (InvState.Rel.src invst0)
+                 (Invariant.private (Invariant.src inv0))) arg2.
+        abstr (memory_blocks_of_t conf_tgt st0_tgt (InvState.Rel.tgt invst0)
+                 (Invariant.private (Invariant.tgt inv0))) arg3.
+        clear FUN ARGS.
+        eapply InvState.Rel.inject_allocas_preserved_le_lift; [apply MEM_BEFORE_CALL|..]; eauto.
+        { apply STATE. }
+        { tttttttttttttttttttttttttttttttttttttttttttttttttttt
+  }
+  (* assert(PARENT_LE_SRC: *)
+  (*          ((InvMem.Unary.mem_parent (InvMem.Rel.src invmem0)).(Memory.Mem.nextblock) <= *)
+  (*           (InvMem.Unary.mem_parent (InvMem.Rel.src invmem1)).(Memory.Mem.nextblock))%positive). *)
+  (* { inv MEM_BEFORE_CALL. inv SRC. etransitivity; eauto. *)
+  (*   inv INCR. ss. inv SRC. ss. rewrite MEM_PARENT_EQ. reflexivity. } *)
+  (* assert(PARENT_LE_TGT: *)
+  (*          ((InvMem.Unary.mem_parent (InvMem.Rel.tgt invmem0)).(Memory.Mem.nextblock) <= *)
+  (*           (InvMem.Unary.mem_parent (InvMem.Rel.tgt invmem1)).(Memory.Mem.nextblock))%positive). *)
+  (* { inv MEM_BEFORE_CALL. inv TGT. etransitivity; eauto. *)
+  (*   inv INCR. ss. inv TGT. ss. rewrite MEM_PARENT_EQ. reflexivity. } *)
+  (* hexploit InvState.Rel.inject_allocas_preserved_le_lift; *)
+  (*   try exact PARENT_LE_SRC; try exact PARENT_LE_TGT; try eassumption; try apply STATE. *)
+  (* { eapply Forall_harder; [apply STATE|]. *)
+  (*   i. *)
+  (*   eapply Pos.lt_le_trans; eauto. *)
+  (*   inv INCR. ss. inv SRC. ss. clarify. *)
+  (*   rewrite MEM_PARENT_EQ in *. *)
+  (*   symmetry. apply INCR. *)
+  (*   inv INCR. ss. *)
+  (* } *)
+  (* assert(((InvMem.Unary.mem_parent (InvMem.Rel.src invmem0)).(Memory.Mem.nextblock) <= *)
+  (*         (InvMem.Unary.mem_parent (InvMem.Rel.src invmem1)).(Memory.Mem.nextblock))%positive). *)
+  (* { inv MEM_BEFORE_CALL. inv SRC. etransitivity; eauto. *)
+  (*   inv INCR. ss. inv SRC. ss. rewrite MEM_PARENT_EQ. reflexivity. *)
+  (*   ttttttttttttttttttttttttttt *)
+  (*   inv MEM_AFTER_CALL. inv SRC. *)
+  (* } *)
+  (* inv STATE. *)
+  (* assert((InvMem.Unary.mem_parent (InvMem.Rel.src invmem0)) = (Mem st0_src)). *)
+  (* { inv INCR. ss. inv SRC0. ss. symmetry. rewrite MEM_PARENT_EQ. *)
+  (* } *)
+  (* hexploit InvState.Rel.inject_allocas_preserved_unlift_le; try apply STATE; eauto. *)
+  (* tttttttttttttttttttttt *)
+  (* { exploit lift_unlift_le; eauto. *)
+  (*   { apply MEM_BEFORE_CALL. } *)
+  (*   { apply MEM_BEFORE_CALL. } *)
+  (*   tttttttttttttttttttttt *)
+  (*   inv INCR. ss. econs; eauto. *)
+  (*   -  *)
   hexploit SoundBase.lift_unlift_le; eauto.
   { apply MEM_BEFORE_CALL. }
   { apply MEM_BEFORE_CALL. }
@@ -422,10 +487,15 @@ Proof.
 
   esplits; eauto.
   - econs; ss.
-    ii. exploit MAYDIFF; eauto. i.
-    erewrite sem_idT_eq_locals.
-    { des. esplits; eauto.
-      eapply genericvalues_inject.gv_inject_incr; eauto. }
-    ss.
+    + ii. exploit MAYDIFF; eauto. i.
+      erewrite sem_idT_eq_locals.
+      { des. esplits; eauto.
+        eapply genericvalues_inject.gv_inject_incr; eauto. }
+      ss.
+    + eapply InvState.Rel.inject_allocas_preserved_aux; eauto; ss.
+      ttttttttttt
+      eapply InvState.Rel.inject_allocas_preserved_le_lift; eauto.
+      * econs; eauto.
+      ss.
   - econs; ss.
 Qed.

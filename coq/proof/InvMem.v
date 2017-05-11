@@ -128,6 +128,7 @@ Module Rel.
   .
 
   (* Inspired from Compcert's inject_separated *)
+  (* maybe just get block number? not entire memory? *)
   Inductive frozen (f_old f_new: MoreMem.meminj) (m_src m_tgt: mem): Prop :=
     | frozen_intro
         (NEW_IMPLIES_OUTSIDE:
@@ -172,6 +173,79 @@ Module Rel.
         hexploit NEW_IMPLIES_OUTSIDE; eauto; []; i; des.
         inv SRC. inv TGT. rewrite MEM_PARENT_EQ. rewrite MEM_PARENT_EQ0.
         split; ss.
+  Qed.
+
+  Lemma frozen_preserves_src
+        inv0 inv1
+        (INJECT: inject_incr inv0.(inject) inv1.(inject))
+        (FROZEN: frozen inv0.(inject) inv1.(inject) inv0.(src).(Unary.mem_parent) inv0.(tgt).(Unary.mem_parent))
+        (* Above two can be driven from both "le inv0 inv1" && "le inv0 (unlift inv0 inv1)" *)
+        (* in actual proof, the latter one is given as premise *)
+        (* IDK if this is also true for former one *)
+        (* Anyhow, I intentionally choose smaller premise that can serve for both cases *)
+        b_src
+        (INSIDE: Mem.valid_block inv0.(src).(Unary.mem_parent) b_src)
+    :
+      <<PRESERVED: inv0.(inject) b_src = inv1.(inject) b_src>>
+  .
+  Proof.
+    inv FROZEN.
+    destruct (inject inv0 b_src) eqn:T0; ss;
+      destruct (inject inv1 b_src) eqn:T1; ss.
+    - destruct p, p0; ss.
+      exploit INJECT; eauto; []; i; des.
+      clarify.
+    - destruct p; ss.
+      exploit INJECT; eauto; []; i; des.
+      clarify.
+    - destruct p; ss.
+      exploit NEW_IMPLIES_OUTSIDE; eauto; []; i; des.
+      exfalso.
+      apply OUTSIDE_SRC. eauto.
+  Qed.
+
+  Lemma frozen_preserves_tgt
+        inv0 inv1
+        (INJECT: inject_incr inv0.(inject) inv1.(inject))
+        (FROZEN: frozen inv0.(inject) inv1.(inject) inv0.(src).(Unary.mem_parent) inv0.(tgt).(Unary.mem_parent))
+        b_tgt
+        (INSIDE: Mem.valid_block inv0.(tgt).(Unary.mem_parent) b_tgt)
+    :
+      <<PRESERVED: forall b_src delta (NOW: inv1.(inject) b_src = Some (b_tgt, delta)),
+        <<OLD: inv0.(inject) b_src = Some (b_tgt, delta)>> >>
+  .
+  Proof.
+    inv FROZEN.
+    ii.
+    destruct (inject inv0 b_src) eqn:T; ss.
+    - destruct p; ss.
+      exploit INJECT; eauto; []; i; des.
+      clarify.
+    - exfalso.
+      exploit NEW_IMPLIES_OUTSIDE; eauto; []; i; des.
+      apply OUTSIDE_TGT. eauto.
+  Qed.
+
+  Lemma frozen_shortened
+        f_old f_new
+        m_src0 m_tgt0
+        (FROZEN: frozen f_old f_new m_src0 m_tgt0)
+        m_src1 m_tgt1
+        (SHORT_SRC: (m_src1.(Mem.nextblock) <= m_src0.(Mem.nextblock))%positive)
+        (SHORT_TGT: (m_tgt1.(Mem.nextblock) <= m_tgt0.(Mem.nextblock))%positive)
+    :
+      <<FROZEN: frozen f_old f_new m_src1 m_tgt1>>
+  .
+  Proof.
+    inv FROZEN.
+    econs; eauto.
+    ii. des.
+    hexploit NEW_IMPLIES_OUTSIDE; eauto; []; i; des. clear NEW_IMPLIES_OUTSIDE.
+    split; ss.
+    - ii. apply OUTSIDE_SRC.
+      eapply Pos.lt_le_trans; eauto.
+    - ii. apply OUTSIDE_TGT.
+      eapply Pos.lt_le_trans; eauto.
   Qed.
 
   Definition lift

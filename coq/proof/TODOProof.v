@@ -7,6 +7,21 @@ Require Import Classical.
 
 Set Implicit Arguments.
 
+Lemma Forall_harder
+      A
+      (P Q: A -> Prop)
+      l
+      (FORALL: List.Forall P l)
+      (HARDER: forall a, P a -> Q a)
+  :
+    <<FORALL: List.Forall Q l>>
+.
+Proof.
+  ginduction l; ii; ss.
+  inv FORALL. econs; eauto.
+  eapply IHl; eauto.
+Qed.
+
 Ltac reductio_ad_absurdum :=
   match goal with
   | [ |- ?G ] => destruct (classic G) as [tmp | REDUCTIO_AD_ABSURDUM];
