@@ -371,6 +371,9 @@ Proof.
     hexploit disjoint_allocas_private_parent; try apply CMDS_TGT;
       try (all apply_goal); eauto.
   }
+  { ss. }
+  { ss. }
+  { ss. }
   i. des.
 
   hexploit postcond_cmd_add_sound; try apply CONF; try eapply STEP_SRC; try eapply MEMLE;

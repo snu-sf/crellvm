@@ -219,8 +219,9 @@ Proof.
           rewrite lookupAL_updateAddAL_eq in VAL_SRC.
           clarify.
       }
+      * ss.
     + inv STATE.
-      econs; [ | | by eauto];
+      econs; [ | | by eauto|];
         ss; try by (eapply updateAddAL_lessdef_undef; eauto);
         (eapply fit_gv_chunks_aux; eauto).
   - rewrite postcond_cmd_add_noret_call.

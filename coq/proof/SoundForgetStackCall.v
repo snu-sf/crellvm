@@ -51,6 +51,8 @@ Lemma invst_sem_eq_locals_mem
       (EQ_FUNC_TGT: st0_tgt.(EC).(CurFunction) = st1_tgt.(EC).(CurFunction))
       (EQ_ALLOCAS_SRC: st0_src.(EC).(Allocas) = st1_src.(EC).(Allocas))
       (EQ_ALLOCAS_TGT: st0_tgt.(EC).(Allocas) = st1_tgt.(EC).(Allocas))
+      (EQ_ECS_SRC: st0_src.(ECS) = st1_src.(ECS))
+      (EQ_ECS_TGT: st0_tgt.(ECS) = st1_tgt.(ECS))
   : InvState.Rel.sem conf_src conf_tgt st1_src st1_tgt invst invmem inv.
 Proof.
   inv STATE.
@@ -61,6 +63,12 @@ Proof.
     ii. exploit H.
     { erewrite sem_idT_eq_locals; eauto. }
     i. erewrite sem_idT_eq_locals; eauto.
+  - unfold InvState.get_all_allocas.
+    rewrite <- EQ_ALLOCAS_SRC.
+    rewrite <- EQ_ALLOCAS_TGT.
+    rewrite <- EQ_ECS_SRC.
+    rewrite <- EQ_ECS_TGT.
+    ss.
 Qed.
 
 Lemma genericvalues_inject_simulation__GV2ptr_tgt:
@@ -357,6 +365,9 @@ Proof.
         inv MEM.
         exploit genericvalues_inject_wf_valid_ptrs_tgt; eauto.
       }
+      { apply STATE. }
+      { apply STATE. }
+      { apply STATE. }
       { apply STATE. }
       { apply STATE. }
     - hexploit genericvalues_inject.simulation__fit_gv; eauto.
