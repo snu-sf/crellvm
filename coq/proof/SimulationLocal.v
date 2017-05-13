@@ -102,22 +102,22 @@ Section SimLocal.
       (CMDS_TGT: st1_tgt.(EC).(CurCmds) = nil)
       (TERM_SRC: st2_src.(EC).(Terminator) = insn_return id2_src typ2_src ret2_src)
       (TERM_TGT: st1_tgt.(EC).(Terminator) = insn_return id1_tgt typ1_tgt ret1_tgt)
-      (INJECT_ALLOCAS: InvState.Rel.inject_allocas inv1.(InvMem.Rel.inject)
-                                            st2_src.(EC).(Allocas) st1_tgt.(EC).(Allocas))
-      (VALID_ALLOCAS_SRC:
-         Forall (fun x => (x < inv1.(InvMem.Rel.src).(InvMem.Unary.nextblock))%positive)
-                st2_src.(EC).(Allocas))
-      (VALID_ALLOCAS_TGT:
-         Forall (fun x => (x < inv1.(InvMem.Rel.tgt).(InvMem.Unary.nextblock))%positive)
-                st1_tgt.(EC).(Allocas))
       (TYP: typ2_src = typ1_tgt)
       (STACK_SRC: st2_src.(ECS) = stack0_src)
       (STACK_TGT: st1_tgt.(ECS) = stack0_tgt)
-      (ALLOCAS_DISJOINT_SRC: list_disjoint st2_src.(EC).(Allocas)
-                                           (InvMem.Unary.private_parent inv1.(InvMem.Rel.src)))
-      (ALLOCAS_DISJOINT_TGT: list_disjoint st1_tgt.(EC).(Allocas)
-                                           (InvMem.Unary.private_parent inv1.(InvMem.Rel.tgt)))
       inv2
+      (INJECT_ALLOCAS: InvState.Rel.inject_allocas inv2.(InvMem.Rel.inject)
+                                            st2_src.(EC).(Allocas) st1_tgt.(EC).(Allocas))
+      (VALID_ALLOCAS_SRC:
+         Forall (fun x => (x < inv2.(InvMem.Rel.src).(InvMem.Unary.nextblock))%positive)
+                st2_src.(EC).(Allocas))
+      (VALID_ALLOCAS_TGT:
+         Forall (fun x => (x < inv2.(InvMem.Rel.tgt).(InvMem.Unary.nextblock))%positive)
+                st1_tgt.(EC).(Allocas))
+      (ALLOCAS_DISJOINT_SRC: list_disjoint st2_src.(EC).(Allocas)
+                                           (InvMem.Unary.private_parent inv2.(InvMem.Rel.src)))
+      (ALLOCAS_DISJOINT_TGT: list_disjoint st1_tgt.(EC).(Allocas)
+                                           (InvMem.Unary.private_parent inv2.(InvMem.Rel.tgt)))
       (MEMLE: InvMem.Rel.le inv1 inv2)
       (MEM: InvMem.Rel.sem conf_src conf_tgt st2_src.(Mem) st1_tgt.(Mem) inv2)
       (RET:

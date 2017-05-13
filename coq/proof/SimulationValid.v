@@ -170,15 +170,15 @@ Proof.
     move inv0 at bottom.
     move invmem1 at bottom.
     eapply _sim_local_return; eauto; ss.
-    { apply STATE. }
-    { eapply Forall_harder; [apply STATE|].
+    { apply STATE0. }
+    { eapply Forall_harder; [apply STATE0|].
       s. i.
-      rpapply H. symmetry. apply MEM. }
-    { eapply Forall_harder; [apply STATE|].
+      rpapply H. symmetry. apply MEM0. }
+    { eapply Forall_harder; [apply STATE0|].
       s. i.
-      rpapply H. symmetry. apply MEM. }
-    { apply STATE. }
-    { apply STATE. }
+      rpapply H. symmetry. apply MEM0. }
+    { apply STATE0. }
+    { apply STATE0. }
     i.
     exploit InvState.Rel.inject_value_spec; try exact COND0; eauto.
     { rewrite InvState.Unary.sem_valueT_physical. eauto. }
