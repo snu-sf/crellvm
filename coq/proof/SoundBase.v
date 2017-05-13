@@ -26,6 +26,9 @@ Require InvState.
 Require Import Hints.
 Require Import memory_props.
 Import Memory.
+Require Import opsem_wf.
+Require Import genericvalues_inject.
+Require Import memory_sim.
 
 Set Implicit Arguments.
 
@@ -1076,58 +1079,211 @@ Proof.
   eapply list_forall2_imply; eauto.
 Qed.
 
-(* Lemma invmem_free_allocas_invmem_rel *)
-(*   S Ps fs S0 TD0 Ps0 gl0 fs0 Allocas1 m_tgt0 Allocas0 m_src0 inv m_src1 m_tgt1 *)
-(*   (ALLOCAS_DISJOINT_SRC: list_disjoint Allocas0 (InvMem.Unary.private_parent (InvMem.Rel.src inv))) *)
-(*   (ALLOCAS_DISJOINT_TGT: list_disjoint Allocas1 (InvMem.Unary.private_parent (InvMem.Rel.tgt inv))) *)
-(*   (ALLOC_SRC: free_allocas TD0 m_src0 Allocas0 = Some m_src1) *)
-(*   (ALLOC_TGT: free_allocas TD0 m_tgt0 Allocas1 = Some m_tgt1) *)
-(*   (MEM: InvMem.Rel.sem *)
-(*           (mkCfg S TD0 Ps gl0 fs) *)
-(*           (mkCfg S0 TD0 Ps0 gl0 fs0) *)
-(*           m_src0 m_tgt0 inv) *)
-(*   (ALLOCAS: inject_allocas inv Allocas0 Allocas1) *)
-(*   : *)
-(*     <<INVMEM: InvMem.Rel.sem (mkCfg S TD0 Ps gl0 fs) (mkCfg S0 TD0 Ps0 gl0 fs0) m_src1 m_tgt1 inv>> *)
-(* . *)
-(* Proof. *)
-(*   { *)
-(*     ginduction Allocas0; ii; ss. *)
-(*     - clarify. ss. *)
-(*       inv ALLOCAS. ss. clarify. *)
-(*     - destruct Allocas1; ss. *)
-(*       { inv ALLOCAS. } *)
-(*       apply inject_allocas_cons_inv in ALLOCAS. des. *)
-(*       apply list_disjoint_cons_inv in ALLOCAS_DISJOINT_SRC. *)
-(*       apply list_disjoint_cons_inv in ALLOCAS_DISJOINT_TGT. des. *)
-(*       des_ifs. ss. *)
-(*       exploit IHAllocas0; try exact H; eauto. clear IHAllocas0. *)
-(*       rename Heq0 into FREE0. *)
-(*       rename Heq into FREE1. *)
-(*       dup FREE0. dup FREE1. *)
-(*       unfold free in FREE0, FREE1. des_ifs. *)
-(*       simpl in *. clarify. clear_tac. *)
-(*       exploit genericvalues_inject.mem_inj__free. *)
-(*       1: apply MEM. *)
-(*       1-5: try eassumption. *)
-(*       1: apply MEM. *)
-(*       ss. *)
-(*       i; des. *)
+(* Mem.nextblock_free *)
+Lemma unchecked_free_nextblock
+      m0 b lo hi m1
+      (FREE: Mem.unchecked_free m0 b lo hi = m1)
+  :
+    <<NB: Mem.nextblock m1 = Mem.nextblock m0>>
+.
+Proof.
+  unfold Mem.unchecked_free in *.
+  destruct m0; ss. clarify.
+Qed.
 
-(*       exploit genericvalues_inject.mi_bounds. *)
-(*       { apply MEM. } *)
-(*       { eauto. } *)
-(*       i. rewrite Heq2 in *. rewrite Heq0 in *. clarify. *)
+(* Mem.load_free_2 *)
+Lemma load_unchecked_free2
+      m0 bf lo hi m1
+      (FREE: Mem.unchecked_free m0 bf lo hi = m1)
+      mc b ofs v
+      (LOAD: Mem.load mc m1 b ofs = Some v)
+  :
+    <<LOAD: Mem.load mc m0 b ofs = Some v>>
+.
+Proof.
+Admitted.
 
-(*       exploit invmem_free_invmem_rel. *)
-(*       2: exact Heq2. *)
-(*       2: exact Heq0. *)
-(*       all: ss; try eassumption. *)
-(*       (* { apply MEMLE. eauto. } *) *)
-(*       i; des. *)
-(*       ss. *)
-(*   } *)
-(* Qed. *)
+(* MemProps.free_preserves_mload_aux_inv *)
+Lemma unchecked_free_preserves_mload_aux_inv
+      m0 bf lo hi m1
+      (FREE: Mem.unchecked_free m0 bf lo hi = m1)
+      mc b ofs v
+      (LOAD: mload_aux m1 mc b ofs = Some v)
+  :
+    <<LOAD: mload_aux m0 mc b ofs = Some v>>
+.
+Proof.
+Admitted.
+
+(* MemProps.free_preserves_mload_inv: *)
+Lemma unchecked_free_preserves_mload_inv
+      m0 b lo hi m1
+      (FREE: Mem.unchecked_free m0 b lo hi = m1)
+      TD gptr ty al v
+      (LOAD: mload TD m1 gptr ty al = Some v)
+  :
+    <<LOAD: mload TD m0 gptr ty al = Some v>>
+.
+Proof.
+  unfold mload in *. des_ifs. clear_tac.
+  unfold GV2ptr in *. des_ifs.
+  eapply unchecked_free_preserves_mload_aux_inv; eauto.
+Qed.
+
+(* MemProps.free_preserves_mload_aux *)
+Lemma unchecked_free_preserves_mload_aux
+      m0 bf lo hi m1
+      (FREE: Mem.unchecked_free m0 bf lo hi = m1)
+      b
+      (DIFFBLOCK: bf <> b)
+      mc ofs gv
+      (LOAD: mload_aux m0 mc b ofs = Some gv)
+  :
+    <<LOAD: mload_aux m1 mc b ofs = Some gv>>
+.
+Proof.
+Admitted.
+
+(* MemProps.free_preserves_mload *)
+Lemma unchecked_free_preserves_mload
+      m0 b lo hi m1
+      (FREE: Mem.unchecked_free m0 b lo hi = m1)
+      TD gptr ty al v
+      (LOAD: mload TD m0 gptr ty al = Some v)
+      (NOALIAS: MemProps.no_alias_with_blk gptr b)
+  :
+    <<LOAD: mload TD m1 gptr ty al = Some v>>
+.
+Proof.
+  unfold mload in *. des_ifs.
+  eapply unchecked_free_preserves_mload_aux; eauto.
+  ii. clarify.
+  unfold GV2ptr in *. des_ifs. ss. des; ss.
+Qed.
+
+(* MemProps.free_preserves_wf_Mem *)
+Lemma unchecked_free_preserves_wf_Mem
+      m0 maxb TD
+      (WF: MemProps.wf_Mem maxb TD m0)
+      b lo hi m1
+      (FREE: Mem.unchecked_free m0 b lo hi = m1)
+  :
+    <<WF: MemProps.wf_Mem maxb TD m1>>
+.
+Proof.
+  unfold MemProps.wf_Mem in *. des.
+  expl unchecked_free_nextblock.
+  splits; ss; cycle 1.
+  { rewrite unchecked_free_nextblock0. ss. }
+  i.
+  exploit WF; eauto.
+  { erewrite unchecked_free_preserves_mload_inv; eauto. }
+  i; ss.
+  unfold MemProps.valid_ptrs in *. des_ifs.
+Qed.
+
+(* mem_inj__pfree *)
+Lemma mem_inj__psrc_unchecked_free
+      mi m_src0 m_tgt0 m_src1 mgb
+      (WASABI: wf_sb_mi mgb mi m_src0 m_tgt0)
+      (MOREINJ: MoreMem.mem_inj mi m_src0 m_tgt0)
+      b lo hi
+      (FREE: Mem.unchecked_free m_src0 b lo hi = m_src1)
+      (BOUNDS: (lo, hi) = Mem.bounds m_src0 b)
+      (PRIV_SRC: mi b = None)
+  :
+    <<WASABI: wf_sb_mi mgb mi m_src1 m_tgt0>> /\ <<MOREINJ: MoreMem.mem_inj mi m_src1 m_tgt0>>
+.
+Proof.
+Admitted.
+
+(* no matching here *)
+Lemma mem_inj__ptgt_unchecked_free
+      mi m_src0 m_tgt0 m_tgt1 mgb
+      (WASABI: wf_sb_mi mgb mi m_src0 m_tgt0)
+      (MOREINJ: MoreMem.mem_inj mi m_src0 m_tgt0)
+      b lo hi
+      (FREE: Mem.unchecked_free m_tgt0 b lo hi = m_tgt1)
+      (BOUNDS: (lo, hi) = Mem.bounds m_tgt0 b)
+      (PRIV_TGT: forall b_src delta, mi b_src <> Some (b, delta))
+  :
+    <<WASABI: wf_sb_mi mgb mi m_src0 m_tgt1>> /\ <<MOREINJ: MoreMem.mem_inj mi m_src0 m_tgt1>>
+.
+Proof.
+Admitted.
+
+Lemma unchecked_free_preserves_sem_unary
+      conf_src gmax inv0 m0 pub
+      (SEM: InvMem.Unary.sem conf_src gmax pub m0 inv0)
+      b lo hi m1
+      (FREE: Mem.unchecked_free m0 b lo hi = m1)
+      (DISJOINT: list_disjoint [b] (InvMem.Unary.private_parent inv0))
+  :
+    <<SEM: InvMem.Unary.sem conf_src gmax pub m1 inv0>>
+.
+Proof.
+  econs; ss; eauto; try apply SEM.
+  - eapply unchecked_free_preserves_wf_Mem; eauto. apply SEM.
+  - inv SEM. clear - PRIVATE_PARENT. i.
+    expl PRIVATE_PARENT.
+  - inv SEM. clear - MEM_PARENT DISJOINT. i.
+    destruct (peq b b0); ss.
+    { clarify. exfalso. eapply DISJOINT; eauto. ss. left; ss. }
+    expl MEM_PARENT. rewrite MEM_PARENT0. symmetry.
+    clear MEM_PARENT0.
+    destruct (mload_aux m0 mc b0 o) eqn:T; ss.
+    + eapply unchecked_free_preserves_mload_aux; eauto.
+    + destruct (mload_aux (Mem.unchecked_free m0 b lo hi) mc b0 o) eqn:T2; ss.
+      exfalso.
+      expl unchecked_free_preserves_mload_aux_inv. clarify.
+  - inv SEM. clear - UNIQUE_PARENT_MEM DISJOINT. i.
+    hexploit UNIQUE_PARENT_MEM; eauto.
+    eapply unchecked_free_preserves_mload_inv; eauto.
+  - inv SEM. clear - NEXTBLOCK.
+    clarify.
+  - inv SEM. clear - NEXTBLOCK_PARENT.
+    clarify.
+Qed.
+
+Lemma invmem_free_allocas_invmem_rel
+  TD Allocas1 m_tgt0 Allocas0 m_src0 inv m_src1 m_tgt1
+  (ALLOCAS_DISJOINT_SRC: list_disjoint Allocas0 (InvMem.Unary.private_parent (InvMem.Rel.src inv)))
+  (ALLOCAS_DISJOINT_TGT: list_disjoint Allocas1 (InvMem.Unary.private_parent (InvMem.Rel.tgt inv)))
+  (ALLOC_SRC: free_allocas TD m_src0 Allocas0 = Some m_src1)
+  (ALLOC_TGT: free_allocas TD m_tgt0 Allocas1 = Some m_tgt1)
+  conf_src conf_tgt
+  (MEM: InvMem.Rel.sem conf_src conf_tgt m_src0 m_tgt0 inv)
+  (INJECT_ALLOCAS: InvState.Rel.inject_allocas inv.(InvMem.Rel.inject) Allocas0 Allocas1)
+  :
+    <<INVMEM: InvMem.Rel.sem conf_src conf_tgt m_src1 m_tgt1 inv>>
+.
+(* Note that TD is not used at all *)
+(* It can even be different from conf_src/conf_tgt's CurTargetData *)
+Proof.
+  ginduction INJECT_ALLOCAS; ii; ss.
+  - clarify.
+  - des_ifs. apply list_disjoint_cons_inv in ALLOCAS_DISJOINT_SRC. des.
+    exploit mem_inj__psrc_unchecked_free; eauto; try apply MEM; []; i; des.
+    exploit IHINJECT_ALLOCAS; eauto.
+    econs; eauto; try apply MEM.
+    + eapply unchecked_free_preserves_sem_unary; eauto. apply MEM.
+  - des_ifs. apply list_disjoint_cons_inv in ALLOCAS_DISJOINT_TGT. des.
+    exploit mem_inj__ptgt_unchecked_free; eauto; try apply MEM; []; i; des.
+    exploit IHINJECT_ALLOCAS; eauto.
+    econs; eauto; try apply MEM.
+    + eapply unchecked_free_preserves_sem_unary; eauto. apply MEM.
+  - des_ifs.
+    apply list_disjoint_cons_inv in ALLOCAS_DISJOINT_SRC. des.
+    apply list_disjoint_cons_inv in ALLOCAS_DISJOINT_TGT. des.
+    exploit mem_inj__unchecked_free; [apply MEM|apply MEM|..]; eauto; []; i; des.
+    do 2 rewrite Z.add_0_r in *. clarify.
+    assert(z = z1 /\ z0 = z2).
+    { inv x1. expl mi_bounds. ss. rewrite Heq in *. rewrite Heq0 in *. clarify. } des; clarify.
+    exploit IHINJECT_ALLOCAS; eauto.
+    econs; eauto; try apply MEM.
+    + eapply unchecked_free_preserves_sem_unary; eauto. apply MEM.
+    + eapply unchecked_free_preserves_sem_unary; eauto. apply MEM.
+Qed.
 
 Lemma mem_le_private_parent
       inv0 inv1
@@ -1140,4 +1296,25 @@ Lemma mem_le_private_parent
 .
 Proof.
   splits; apply MEMLE.
+Qed.
+
+Lemma fully_inject_allocas_inject_allocas
+      inv0 als_src als_tgt
+      (FULLY_INJECT: fully_inject_allocas inv0 als_src als_tgt)
+  :
+    <<INJECT: InvState.Rel.inject_allocas inv0.(InvMem.Rel.inject) als_src als_tgt>>
+.
+Proof.
+  ginduction FULLY_INJECT; ii; ss.
+  - econs; eauto.
+  - econs 4; eauto.
+Qed.
+
+Lemma inject_allocas_app_inv
+      inj als_src als_src_stack als_tgt als_tgt_stack
+      (INJECT: InvState.Rel.inject_allocas inj (als_src ++ als_src_stack) (als_tgt ++ als_tgt_stack))
+  :
+    <<INJECT: InvState.Rel.inject_allocas inj (als_src) (als_tgt)>>
+.
+Proof.
 Qed.

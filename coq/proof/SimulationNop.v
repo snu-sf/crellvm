@@ -264,9 +264,11 @@ Proof.
       eapply sop_star_sim_local; [by apply nops_sop_star|].
       destruct Terminator0; inv FINAL_TGT.
       + econs 2; try reflexivity; ss.
+        { ss. eapply SoundBase.fully_inject_allocas_inject_allocas; eauto. }
         s. i.
         eapply inject_locals_getOperandValue; eauto.
       + econs 3; ss.
+        { ss. eapply SoundBase.fully_inject_allocas_inject_allocas; eauto. }
   }
   apply NNPP in STUCK_TGT. destruct STUCK_TGT as (st'_tgt & tr_tgt & PROGRESS_TGT).
   destruct st_src as [ec_src ecs_src mem_src].
@@ -314,6 +316,7 @@ Proof.
     rewrite (app_nil_end cmds_src).
     eapply sop_star_sim_local; [by apply nops_sop_star|].
     eapply _sim_local_return; eauto; ss.
+    { ss. eapply SoundBase.fully_inject_allocas_inject_allocas; eauto. }
     { reflexivity. }
     i. eapply inject_locals_getOperandValue; eauto.
   - (* return void *)
@@ -323,6 +326,7 @@ Proof.
     rewrite (app_nil_end cmds_src).
     eapply sop_star_sim_local; [by apply nops_sop_star|].
     eapply _sim_local_return_void; ss.
+    { ss. eapply SoundBase.fully_inject_allocas_inject_allocas; eauto. }
   - (* step *)
     admit.
     (* exploit get_status_step_inv; eauto. i. des. *)
