@@ -15,6 +15,7 @@ Require Import paco.
 Import Opsem.
 
 Require Import TODO.
+Require Import TODOProof.
 Require Import GenericValues.
 Require Import Nop.
 Require Import Simulation.
@@ -30,8 +31,7 @@ Set Implicit Arguments.
 Inductive nop_state_sim
           (conf_src conf_tgt:Config)
           (stack0_src stack0_tgt:ECStack)
-          (inv:InvMem.Rel.t):
-  forall (idx:nat) (st_src st_tgt:State), Prop :=
+          (inv:InvMem.Rel.t): nat -> State -> State -> Prop :=
 | nop_state_sim_intro
     fdef_src fdef_tgt
     l s_src s_tgt
@@ -47,6 +47,12 @@ Inductive nop_state_sim
                                          (InvMem.Unary.private_parent inv.(InvMem.Rel.src)))
     (ALLOCAS_DISJOINT_TGT: list_disjoint allocas_tgt
                                          (InvMem.Unary.private_parent inv.(InvMem.Rel.tgt)))
+    (VALID_ALLOCAS_SRC:
+       Forall (fun x => (x < inv.(InvMem.Rel.src).(InvMem.Unary.nextblock))%positive)
+              allocas_src)
+    (VALID_ALLOCAS_TGT:
+       Forall (fun x => (x < inv.(InvMem.Rel.tgt).(InvMem.Unary.nextblock))%positive)
+              allocas_tgt)
     (WF_TGT: wf_ConfigI conf_tgt /\
              wf_StateI conf_tgt (mkState
                                    (mkEC fdef_tgt (l, s_tgt) cmds_tgt term locals_tgt allocas_tgt)
@@ -99,7 +105,7 @@ Proof.
   exploit locals_init; eauto.
   { apply MEM. }
   i. des.
-  esplits. i. des. splits.
+  esplits.
   - econs; eauto. ss.
   - unfold nop_blocks in BLOCKS. inv BLOCKS.
     des. subst.
@@ -308,6 +314,16 @@ Proof.
       { eapply inject_incr_fully_inject_allocas; eauto.
         ss. inv INCR. ss. }
       { eapply invmem_unlift; eauto. }
+      { eapply Forall_harder; [apply VALID_ALLOCAS_SRC|].
+        i. ss.
+        eapply Pos.lt_le_trans; eauto.
+        apply INCR.
+      }
+      { eapply Forall_harder; [apply VALID_ALLOCAS_TGT|].
+        i. ss.
+        eapply Pos.lt_le_trans; eauto.
+        apply INCR.
+      }
     + splits; ss.
   - (* return *)
     exploit get_status_return_inv; eauto. i. des.

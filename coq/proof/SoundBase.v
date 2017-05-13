@@ -459,7 +459,6 @@ Lemma unary_sem_eq_locals_mem
       (STATE: InvState.Unary.sem conf st0 invst0 invmem0 gmax public inv0)
       (EQ_FUNC: st0.(EC).(CurFunction) = st1.(EC).(CurFunction))
       (EQ_ALLOCAS: st0.(EC).(Allocas) = st1.(EC).(Allocas))
-      (EQ_ECS: st0.(ECS) = st1.(ECS))
   : InvState.Unary.sem conf st1 invst0 invmem0 gmax public inv0.
 Proof.
   inv STATE.
@@ -479,10 +478,9 @@ Proof.
     { erewrite sem_idT_eq_locals; eauto. }
     rewrite <- MEM_EQ. eauto.
   - rewrite <- EQ_ALLOCAS. ss.
-  - unfold InvState.get_all_allocas in *.
-    rpapply ALLOCAS_VALID.
+  - rpapply ALLOCAS_VALID.
     + rewrite MEM_EQ. eauto.
-    + rewrite EQ_ECS. rewrite EQ_ALLOCAS. eauto.
+    + rewrite EQ_ALLOCAS. eauto.
   - rewrite <- LOCALS_EQ. rewrite <- MEM_EQ. eauto.
   - rewrite <- MEM_EQ. eauto.
   - rewrite <- MEM_EQ. eauto.
@@ -1308,13 +1306,4 @@ Proof.
   ginduction FULLY_INJECT; ii; ss.
   - econs; eauto.
   - econs 4; eauto.
-Qed.
-
-Lemma inject_allocas_app_inv
-      inj als_src als_src_stack als_tgt als_tgt_stack
-      (INJECT: InvState.Rel.inject_allocas inj (als_src ++ als_src_stack) (als_tgt ++ als_tgt_stack))
-  :
-    <<INJECT: InvState.Rel.inject_allocas inj (als_src) (als_tgt)>>
-.
-Proof.
 Qed.

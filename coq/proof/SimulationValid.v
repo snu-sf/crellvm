@@ -171,6 +171,13 @@ Proof.
     move invmem1 at bottom.
     eapply _sim_local_return; eauto; ss.
     { apply STATE. }
+    { eapply Forall_harder; [apply STATE|].
+      s. i.
+      rpapply H. symmetry. apply MEM. }
+    { eapply Forall_harder; [apply STATE|].
+      s. i.
+      rpapply H. symmetry. apply MEM. }
+    { apply STATE. }
     { apply STATE. }
     i.
     exploit InvState.Rel.inject_value_spec; try exact COND0; eauto.
@@ -179,6 +186,13 @@ Proof.
     esplits; eauto.
   + (* return_void *)
     eapply _sim_local_return_void; eauto; ss.
+    { apply STATE. }
+    { eapply Forall_harder; [apply STATE|].
+      s. i.
+      rpapply H. symmetry. apply MEM. }
+    { eapply Forall_harder; [apply STATE|].
+      s. i.
+      rpapply H. symmetry. apply MEM. }
     { apply STATE. }
     { apply STATE. }
   + (* br *)

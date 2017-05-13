@@ -80,11 +80,6 @@ Proof.
   des_ifs.
 Qed.
 
-(* TODO: Better position? *)
-Definition get_all_allocas (st: State) :=
-  st.(EC).(Allocas) ++ (List.flat_map Allocas st.(ECS))
-.
-
 Module Unary.
   Structure t := mk {
     previous: GVsMap;
@@ -331,7 +326,7 @@ Module Unary.
       (UNIQUE: AtomSetImpl.For_all (sem_unique conf st gmax) inv.(Invariant.unique))
       (PRIVATE: IdTSet.For_all (sem_private conf st invst invmem.(InvMem.Unary.private_parent) public) inv.(Invariant.private))
       (ALLOCAS_PARENT: list_disjoint st.(EC).(Allocas) invmem.(InvMem.Unary.private_parent))
-      (ALLOCAS_VALID: List.Forall (Mem.valid_block st.(Mem)) (get_all_allocas st))
+      (ALLOCAS_VALID: List.Forall (Mem.valid_block st.(Mem)) st.(EC).(Allocas))
       (WF_LOCAL: MemProps.wf_lc st.(Mem) st.(EC).(Locals))
       (WF_PREVIOUS: MemProps.wf_lc st.(Mem) invst.(previous))
       (WF_GHOST: MemProps.wf_lc st.(Mem) invst.(ghost))
@@ -464,7 +459,7 @@ Module Rel.
          forall id (NOTIN: (IdTSet.mem id inv.(Invariant.maydiff)) = false),
            sem_inject st_src st_tgt invst invmem.(InvMem.Rel.inject) id)
       (ALLOCAS:
-         inject_allocas invmem.(InvMem.Rel.inject) (get_all_allocas st_src) (get_all_allocas st_tgt))
+         inject_allocas invmem.(InvMem.Rel.inject) st_src.(EC).(Allocas) st_tgt.(EC).(Allocas))
   .
 
   Lemma inject_allocas_preserved_aux

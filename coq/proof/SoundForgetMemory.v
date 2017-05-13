@@ -1082,12 +1082,12 @@ Lemma inject_invmem
     (* This will not be the case *)
     <<INJECT_ALLOCAS:
       InvState.Rel.inject_allocas (InvMem.Rel.inject invmem1)
-                                  (InvState.get_all_allocas st0_src) (InvState.get_all_allocas st0_tgt)>> /\
+                                  st0_src.(EC).(Allocas) st0_tgt.(EC).(Allocas)>> /\
    <<INJECT_ALLOCAS:
       InvState.Rel.inject_allocas (InvMem.Rel.inject invmem1)
-                                  (InvState.get_all_allocas st1_src) (InvState.get_all_allocas st1_tgt)>> /\
-    <<VALID_ALLOCAS_SRC: Forall (Mem.valid_block (Mem st1_src)) (InvState.get_all_allocas st1_src)>> /\
-    <<VALID_ALLOCAS_TGT: Forall (Mem.valid_block (Mem st1_tgt)) (InvState.get_all_allocas st1_tgt)>>
+                                  st1_src.(EC).(Allocas) st1_tgt.(EC).(Allocas)>> /\
+    <<VALID_ALLOCAS_SRC: Forall (Mem.valid_block (Mem st1_src)) st1_src.(EC).(Allocas)>> /\
+    <<VALID_ALLOCAS_TGT: Forall (Mem.valid_block (Mem st1_tgt)) st1_tgt.(EC).(Allocas)>>
 .
 Proof.
   exploit postcond_cmd_inject_event_non_malloc; eauto; []; ii; des.
@@ -1401,13 +1401,11 @@ Proof.
       * eauto.
     + ss.
       inv STATE. clear MAYDIFF.
-      unfold InvState.get_all_allocas in *. ss. (* otherwise, econs will bestially destruct it *)
       inv SRC. clear LESSDEF NOALIAS UNIQUE PRIVATE ALLOCAS_PARENT
                      WF_LOCAL WF_PREVIOUS WF_GHOST UNIQUE_PARENT_LOCAL WF_INSNS.
       inv TGT. clear LESSDEF NOALIAS UNIQUE PRIVATE ALLOCAS_PARENT
                      WF_LOCAL WF_PREVIOUS WF_GHOST UNIQUE_PARENT_LOCAL WF_INSNS.
       ss.
-      unfold InvState.get_all_allocas in *. ss.
       eapply inject_allocas_enhance; eauto.
       { i. des_ifsG. exfalso. eapply Plt_irrefl. eauto. }
       { i. des_ifsG. exfalso. eapply Plt_irrefl. eauto. }
@@ -1427,13 +1425,11 @@ Proof.
       (*   exfalso. eapply Plt_irrefl. eauto. *)
     + ss.
       inv STATE. clear MAYDIFF.
-      unfold InvState.get_all_allocas in *. ss. (* otherwise, econs will bestially destruct it *)
       inv SRC. clear LESSDEF NOALIAS UNIQUE PRIVATE ALLOCAS_PARENT
                      WF_LOCAL WF_PREVIOUS WF_GHOST UNIQUE_PARENT_LOCAL WF_INSNS.
       inv TGT. clear LESSDEF NOALIAS UNIQUE PRIVATE ALLOCAS_PARENT
                      WF_LOCAL WF_PREVIOUS WF_GHOST UNIQUE_PARENT_LOCAL WF_INSNS.
       ss.
-      unfold InvState.get_all_allocas in *. ss.
       econs 4; eauto.
       * des_ifsG.
       * eapply inject_allocas_enhance; eauto.
@@ -1442,7 +1438,6 @@ Proof.
     + inv STATE. inv SRC.
       clear - NEXT_BLOCK ALLOCAS_VALID.
       ss.
-      unfold InvState.get_all_allocas in *. ss.
       econs; eauto.
       * unfold Mem.valid_block. rewrite NEXT_BLOCK. eapply Plt_succ.
       * eapply Forall_harder; eauto.
@@ -1452,7 +1447,6 @@ Proof.
     + inv STATE. inv TGT.
       clear - NEXT_BLOCK0 ALLOCAS_VALID.
       ss.
-      unfold InvState.get_all_allocas in *. ss.
       econs; eauto.
       * unfold Mem.valid_block. rewrite NEXT_BLOCK0. eapply Plt_succ.
       * eapply Forall_harder; eauto.
@@ -1581,21 +1575,18 @@ Proof.
         ii. des; ss. clarify.
     + inv STATE. inv SRC. eauto.
     + inv STATE. inv TGT. eauto.
-    + inv STATE.
-      unfold InvState.get_all_allocas in *. ss.
-    + inv STATE.
-      unfold InvState.get_all_allocas in *. ss.
-      assert(EQ_ALLOC: Allocas (EC st1_tgt) = Allocas (EC st0_tgt) /\ ECS st1_tgt = ECS st0_tgt).
+    + inv STATE. ss.
+    + inv STATE. ss.
+      assert(EQ_ALLOC: Allocas (EC st1_tgt) = Allocas (EC st0_tgt)).
       { inv STEP_TGT; ss; des_ifs.
         - inv MC_SOME_TGT. des_ifs. }
-      des. rewrite EQ_ALLOC. rewrite EQ_ALLOC0.
+      des. rewrite EQ_ALLOC.
       econs; eauto.
       inv MEM.
       inv WF.
       apply Hmap1. psimpl.
     + inv STATE. inv SRC. ss.
       clear - ALLOCAS_VALID ALLOCA_NEXT_SRC.
-      unfold InvState.get_all_allocas in *. ss.
       econs; eauto.
       * unfold Mem.valid_block. rewrite ALLOCA_NEXT_SRC. eapply Plt_succ.
       * eapply Forall_harder; eauto.
@@ -1607,8 +1598,7 @@ Proof.
       { inv STEP_TGT; ss; des_ifs.
         - inv MC_SOME_TGT. des_ifs. } des.
       inv STATE. inv TGT. ss.
-      unfold InvState.get_all_allocas in *. ss.
-      rewrite EQ_ALLOC.  rewrite EQ_ALLOC0. ss.
+      rewrite EQ_ALLOC. ss.
   - (* none - alloc *)
     inv STATE_EQUIV_SRC.
     rewrite <- MEM_EQ in *.
@@ -1712,14 +1702,12 @@ Proof.
         des; ss. clarify.
     + inv STATE. inv SRC. eauto.
     + inv STATE. inv TGT. eauto.
-    + inv STATE.
-      unfold InvState.get_all_allocas in *. ss.
-    + inv STATE.
-      unfold InvState.get_all_allocas in *. ss.
-      assert(EQ_ALLOC: Allocas (EC st1_src) = Allocas (EC st0_src) /\ ECS st1_src = ECS st0_src).
+    + inv STATE. ss.
+    + inv STATE. ss.
+      assert(EQ_ALLOC: Allocas (EC st1_src) = Allocas (EC st0_src)).
       { inv STEP_SRC; ss; des_ifs.
         - inv MC_SOME_SRC. des_ifs. }
-      des. rewrite EQ_ALLOC. rewrite EQ_ALLOC0.
+      des. rewrite EQ_ALLOC.
       econs; eauto.
       inv MEM.
       inv WF.
@@ -1729,11 +1717,9 @@ Proof.
       { inv STEP_SRC; ss; des_ifs.
         - inv MC_SOME_SRC. des_ifs. } des.
       inv STATE. inv SRC. ss.
-      unfold InvState.get_all_allocas in *. ss.
-      rewrite EQ_ALLOC.  rewrite EQ_ALLOC0. ss.
+      rewrite EQ_ALLOC. ss.
     + inv STATE. inv TGT. ss.
       clear - ALLOCAS_VALID ALLOCA_NEXT_TGT.
-      unfold InvState.get_all_allocas in *. ss.
       econs; eauto.
       * unfold Mem.valid_block. rewrite ALLOCA_NEXT_TGT. eapply Plt_succ.
       * eapply Forall_harder; eauto.
@@ -1829,32 +1815,27 @@ Proof.
     + inv STATE. inv SRC. eauto.
     + inv STATE. inv TGT. eauto.
     + inv STATE. ss.
-    + unfold InvState.get_all_allocas in *.
-      assert(EQ_ALLOC_SRC: Allocas (EC st1_src) = Allocas (EC st0_src) /\ ECS st1_src = ECS st0_src).
+    + assert(EQ_ALLOC_SRC: Allocas (EC st1_src) = Allocas (EC st0_src)).
       { inv STEP_SRC; ss; des_ifs.
         - inv MC_SOME_SRC. des_ifs. } des.
       rewrite EQ_ALLOC_SRC.
-      rewrite EQ_ALLOC_SRC0.
-      assert(EQ_ALLOC_TGT: Allocas (EC st1_tgt) = Allocas (EC st0_tgt) /\ ECS st1_tgt = ECS st0_tgt).
+      assert(EQ_ALLOC_TGT: Allocas (EC st1_tgt) = Allocas (EC st0_tgt)).
       { inv STEP_TGT; ss; des_ifs.
         - inv MC_SOME_TGT. des_ifs. } des.
       rewrite EQ_ALLOC_TGT.
-      rewrite EQ_ALLOC_TGT0.
       apply STATE.
-    + unfold InvState.get_all_allocas in *.
-      assert(EQ_ALLOC_SRC: Allocas (EC st1_src) = Allocas (EC st0_src) /\ ECS st1_src = ECS st0_src).
+    + assert(EQ_ALLOC_SRC: Allocas (EC st1_src) = Allocas (EC st0_src)).
       { inv STEP_SRC; ss; des_ifs.
         - inv MC_SOME_SRC. des_ifs. } des.
-      rewrite EQ_ALLOC_SRC. rewrite EQ_ALLOC_SRC0.
+      rewrite EQ_ALLOC_SRC.
       unfold Mem.valid_block.
       expl MemProps.nextblock_mstore_aux (try exact STORE_SRC).
       rewrite <- nextblock_mstore_aux.
       apply STATE.
-    + unfold InvState.get_all_allocas in *.
-      assert(EQ_ALLOC_TGT: Allocas (EC st1_tgt) = Allocas (EC st0_tgt) /\ ECS st1_tgt = ECS st0_tgt).
+    + assert(EQ_ALLOC_TGT: Allocas (EC st1_tgt) = Allocas (EC st0_tgt)).
       { inv STEP_TGT; ss; des_ifs.
         - inv MC_SOME_TGT. des_ifs. } des.
-      rewrite EQ_ALLOC_TGT. rewrite EQ_ALLOC_TGT0.
+      rewrite EQ_ALLOC_TGT.
       unfold Mem.valid_block.
       expl MemProps.nextblock_mstore_aux (try exact STORE_TGT).
       rewrite <- nextblock_mstore_aux.
@@ -1931,32 +1912,27 @@ Proof.
     + inv STATE. inv SRC. eauto.
     + inv STATE. inv TGT. eauto.
     + inv STATE. ss.
-    + unfold InvState.get_all_allocas in *.
-      assert(EQ_ALLOC_SRC: Allocas (EC st1_src) = Allocas (EC st0_src) /\ ECS st1_src = ECS st0_src).
+    + assert(EQ_ALLOC_SRC: Allocas (EC st1_src) = Allocas (EC st0_src)).
       { inv STEP_SRC; ss; des_ifs.
         - inv MC_SOME_SRC. des_ifs. } des.
       rewrite EQ_ALLOC_SRC.
-      rewrite EQ_ALLOC_SRC0.
-      assert(EQ_ALLOC_TGT: Allocas (EC st1_tgt) = Allocas (EC st0_tgt) /\ ECS st1_tgt = ECS st0_tgt).
+      assert(EQ_ALLOC_TGT: Allocas (EC st1_tgt) = Allocas (EC st0_tgt)).
       { inv STEP_TGT; ss; des_ifs.
         - inv MC_SOME_TGT. des_ifs. } des.
       rewrite EQ_ALLOC_TGT.
-      rewrite EQ_ALLOC_TGT0.
       apply STATE.
-    + unfold InvState.get_all_allocas in *.
-      assert(EQ_ALLOC_SRC: Allocas (EC st1_src) = Allocas (EC st0_src) /\ ECS st1_src = ECS st0_src).
+    + assert(EQ_ALLOC_SRC: Allocas (EC st1_src) = Allocas (EC st0_src)).
       { inv STEP_SRC; ss; des_ifs.
         - inv MC_SOME_SRC. des_ifs. } des.
-      rewrite EQ_ALLOC_SRC. rewrite EQ_ALLOC_SRC0.
+      rewrite EQ_ALLOC_SRC.
       unfold Mem.valid_block.
       expl MemProps.nextblock_mstore_aux (try exact STORE).
       rewrite <- nextblock_mstore_aux.
       apply STATE.
-    + unfold InvState.get_all_allocas in *.
-      assert(EQ_ALLOC_TGT: Allocas (EC st1_tgt) = Allocas (EC st0_tgt) /\ ECS st1_tgt = ECS st0_tgt).
+    + assert(EQ_ALLOC_TGT: Allocas (EC st1_tgt) = Allocas (EC st0_tgt)).
       { inv STEP_TGT; ss; des_ifs.
         - inv MC_SOME_TGT. des_ifs. } des.
-      rewrite EQ_ALLOC_TGT. rewrite EQ_ALLOC_TGT0.
+      rewrite EQ_ALLOC_TGT.
       apply STATE.
   - (* free - free *)
     rename ptr0 into ptr_src. rename ptr1 into ptr_tgt.
@@ -2039,32 +2015,27 @@ Proof.
     + inv STATE. inv SRC. eauto.
     + inv STATE. inv TGT. eauto.
     + inv STATE. ss.
-    + unfold InvState.get_all_allocas in *.
-      assert(EQ_ALLOC_SRC: Allocas (EC st1_src) = Allocas (EC st0_src) /\ ECS st1_src = ECS st0_src).
+    + assert(EQ_ALLOC_SRC: Allocas (EC st1_src) = Allocas (EC st0_src)).
       { inv STEP_SRC; ss; des_ifs.
         - inv MC_SOME_SRC. des_ifs. } des.
       rewrite EQ_ALLOC_SRC.
-      rewrite EQ_ALLOC_SRC0.
-      assert(EQ_ALLOC_TGT: Allocas (EC st1_tgt) = Allocas (EC st0_tgt) /\ ECS st1_tgt = ECS st0_tgt).
+      assert(EQ_ALLOC_TGT: Allocas (EC st1_tgt) = Allocas (EC st0_tgt)).
       { inv STEP_TGT; ss; des_ifs.
         - inv MC_SOME_TGT. des_ifs. } des.
       rewrite EQ_ALLOC_TGT.
-      rewrite EQ_ALLOC_TGT0.
       apply STATE.
-    + unfold InvState.get_all_allocas in *.
-      assert(EQ_ALLOC_SRC: Allocas (EC st1_src) = Allocas (EC st0_src) /\ ECS st1_src = ECS st0_src).
+    + assert(EQ_ALLOC_SRC: Allocas (EC st1_src) = Allocas (EC st0_src)).
       { inv STEP_SRC; ss; des_ifs.
         - inv MC_SOME_SRC. des_ifs. } des.
-      rewrite EQ_ALLOC_SRC. rewrite EQ_ALLOC_SRC0.
+      rewrite EQ_ALLOC_SRC.
       unfold Mem.valid_block.
       expl Mem.nextblock_free (try exact FREE_SRC).
       rewrite nextblock_free.
       apply STATE.
-    + unfold InvState.get_all_allocas in *.
-      assert(EQ_ALLOC_TGT: Allocas (EC st1_tgt) = Allocas (EC st0_tgt) /\ ECS st1_tgt = ECS st0_tgt).
+    + assert(EQ_ALLOC_TGT: Allocas (EC st1_tgt) = Allocas (EC st0_tgt)).
       { inv STEP_TGT; ss; des_ifs.
         - inv MC_SOME_TGT. des_ifs. } des.
-      rewrite EQ_ALLOC_TGT. rewrite EQ_ALLOC_TGT0.
+      rewrite EQ_ALLOC_TGT.
       unfold Mem.valid_block.
       expl Mem.nextblock_free (try exact FREE_TGT).
       rewrite nextblock_free.
@@ -2079,29 +2050,24 @@ Proof.
     + inv STATE. inv SRC. eauto.
     + inv STATE. inv TGT. eauto.
     + inv STATE. ss.
-    + unfold InvState.get_all_allocas in *.
-      assert(EQ_ALLOC_SRC: Allocas (EC st1_src) = Allocas (EC st0_src) /\ ECS st1_src = ECS st0_src).
+    + assert(EQ_ALLOC_SRC: Allocas (EC st1_src) = Allocas (EC st0_src)).
       { inv STEP_SRC; ss; des_ifs.
         - inv MC_SOME_SRC. des_ifs. } des.
       rewrite EQ_ALLOC_SRC.
-      rewrite EQ_ALLOC_SRC0.
-      assert(EQ_ALLOC_TGT: Allocas (EC st1_tgt) = Allocas (EC st0_tgt) /\ ECS st1_tgt = ECS st0_tgt).
+      assert(EQ_ALLOC_TGT: Allocas (EC st1_tgt) = Allocas (EC st0_tgt)).
       { inv STEP_TGT; ss; des_ifs.
         - inv MC_SOME_TGT. des_ifs. } des.
       rewrite EQ_ALLOC_TGT.
-      rewrite EQ_ALLOC_TGT0.
       apply STATE.
-    + unfold InvState.get_all_allocas in *.
-      assert(EQ_ALLOC_SRC: Allocas (EC st1_src) = Allocas (EC st0_src) /\ ECS st1_src = ECS st0_src).
+    + assert(EQ_ALLOC_SRC: Allocas (EC st1_src) = Allocas (EC st0_src)).
       { inv STEP_SRC; ss; des_ifs.
         - inv MC_SOME_SRC. des_ifs. } des.
-      rewrite EQ_ALLOC_SRC. rewrite EQ_ALLOC_SRC0.
+      rewrite EQ_ALLOC_SRC.
       apply STATE.
-    + unfold InvState.get_all_allocas in *.
-      assert(EQ_ALLOC_TGT: Allocas (EC st1_tgt) = Allocas (EC st0_tgt) /\ ECS st1_tgt = ECS st0_tgt).
+    + assert(EQ_ALLOC_TGT: Allocas (EC st1_tgt) = Allocas (EC st0_tgt)).
       { inv STEP_TGT; ss; des_ifs.
         - inv MC_SOME_TGT. des_ifs. } des.
-      rewrite EQ_ALLOC_TGT. rewrite EQ_ALLOC_TGT0.
+      rewrite EQ_ALLOC_TGT.
       apply STATE.
 Unshelve.
 { by econs. }
@@ -2647,8 +2613,7 @@ Lemma inv_state_sem_monotone_wrt_invmem
       (STATE:InvState.Rel.sem conf_src conf_tgt st_src st_tgt invst0 invmem0 inv1)
       (INJECT_ALLOCAS_NEW:
            InvState.Rel.inject_allocas (InvMem.Rel.inject invmem1)
-                                       (InvState.get_all_allocas st_src)
-                                       (InvState.get_all_allocas st_tgt))
+                                       st_src.(EC).(Allocas) st_tgt.(EC).(Allocas))
   : InvState.Rel.sem conf_src conf_tgt st_src st_tgt invst0 invmem1 inv1.
 Proof.
   destruct STATE as [STATE_SRC STATE_TGT STATE_MAYDIFF].
@@ -2705,9 +2670,9 @@ Lemma forget_memory_sound
       <<MEM: InvMem.Rel.sem conf_src conf_tgt st1_src.(Mem) st1_tgt.(Mem) invmem1>> /\
       <<MEMLE: InvMem.Rel.le invmem0 invmem1>> /\
       <<INJECT_ALLOCAS: InvState.Rel.inject_allocas (InvMem.Rel.inject invmem1)
-                         (InvState.get_all_allocas st1_src) (InvState.get_all_allocas st1_tgt)>> /\
-      <<VALID_ALLOCAS_SRC: Forall (Mem.valid_block (Mem st1_src)) (InvState.get_all_allocas st1_src)>> /\
-      <<VALID_ALLOCAS_TGT: Forall (Mem.valid_block (Mem st1_tgt)) (InvState.get_all_allocas st1_tgt)>>
+                         st1_src.(EC).(Allocas) st1_tgt.(EC).(Allocas)>> /\
+      <<VALID_ALLOCAS_SRC: Forall (Mem.valid_block (Mem st1_src)) st1_src.(EC).(Allocas)>> /\
+      <<VALID_ALLOCAS_TGT: Forall (Mem.valid_block (Mem st1_tgt)) st1_tgt.(EC).(Allocas)>>
 .
 Proof.
   assert (STATE2:= STATE).

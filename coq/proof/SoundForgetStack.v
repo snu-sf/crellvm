@@ -1231,7 +1231,7 @@ Lemma forget_stack_unary_sound
       (WF_LC: memory_props.MemProps.wf_lc st1.(Mem) st1.(EC).(Locals))
       (EQ_FUNC: st0.(EC).(CurFunction) = st1.(EC).(CurFunction))
       (ALLOCAS_PARENT: list_disjoint (Allocas (EC st1)) (InvMem.Unary.private_parent invmem))
-      (ALLOCAS_VALID: Forall (Memory.Mem.valid_block (Mem st1)) (InvState.get_all_allocas st1))
+      (ALLOCAS_VALID: Forall (Memory.Mem.valid_block (Mem st1)) st1.(EC).(Allocas))
   : InvState.Unary.sem conf st1 invst invmem gmax public (ForgetStack.unary defs leaks inv).
 Proof.
   inv STATE.
@@ -1314,10 +1314,10 @@ Lemma forget_stack_sound
                                          (InvMem.Unary.private_parent (InvMem.Rel.src invmem)))
       (ALLOCAS_PARENT_TGT: list_disjoint (Allocas (EC st1_tgt))
                                          (InvMem.Unary.private_parent (InvMem.Rel.tgt invmem)))
-      (ALLOCAS_VALID_SRC: Forall (Memory.Mem.valid_block (Mem st1_src)) (InvState.get_all_allocas st1_src))
-      (ALLOCAS_VALID_TGT: Forall (Memory.Mem.valid_block (Mem st1_tgt)) (InvState.get_all_allocas st1_tgt))
+      (ALLOCAS_VALID_SRC: Forall (Memory.Mem.valid_block (Mem st1_src)) st1_src.(EC).(Allocas))
+      (ALLOCAS_VALID_TGT: Forall (Memory.Mem.valid_block (Mem st1_tgt)) st1_tgt.(EC).(Allocas))
       (INJECT_ALLOCAS: InvState.Rel.inject_allocas (InvMem.Rel.inject invmem)
-                                   (InvState.get_all_allocas st1_src) (InvState.get_all_allocas st1_tgt))
+                                   st1_src.(EC).(Allocas) st1_tgt.(EC).(Allocas))
   : <<STATE_FORGET: InvState.Rel.sem conf_src conf_tgt st1_src st1_tgt
                                      invst invmem (ForgetStack.t defs_src defs_tgt leaks_src leaks_tgt inv0)>>.
 Proof.

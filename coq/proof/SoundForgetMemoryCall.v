@@ -410,8 +410,8 @@ Lemma forget_memory_call_sound
 Proof.
   assert(INJECT_ALLOCAS_NEW:
            InvState.Rel.inject_allocas (InvMem.Rel.inject invmem1)
-                                       (InvState.get_all_allocas st0_src)
-                                       (InvState.get_all_allocas st0_tgt)).
+                                       st0_src.(EC).(Allocas)
+                                       st0_tgt.(EC).(Allocas)).
   { eapply InvState.Rel.inject_allocas_preserved_le_lift; try exact INCR; eauto; try apply STATE.
     - inv MEM_BEFORE_CALL. inv SRC. etransitivity; eauto.
       inv INCR. ss. inv SRC. ss. rewrite MEM_PARENT_EQ. reflexivity.
