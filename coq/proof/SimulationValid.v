@@ -1022,11 +1022,10 @@ Definition init_invst: InvState.Rel.t :=
 
 Lemma function_entry_inv_sound
       conf_src conf_tgt
-      mem_src mem_tgt
       (CONF: inject_conf conf_src conf_tgt)
       invmem
-      (MEM: InvMem.Rel.sem conf_src conf_tgt mem_src mem_tgt invmem)
       st_src st_tgt
+      (MEM: InvMem.Rel.sem conf_src conf_tgt st_src.(Mem) st_tgt.(Mem) invmem)
       (INITST: st_src.(EC).(Allocas) = [] /\ st_tgt.(EC).(Allocas) = [])
       args args_src args_tgt
       (INJECT_ARGS: list_forall2 (genericvalues_inject.gv_inject
@@ -1061,8 +1060,46 @@ Proof.
         eapply Exprs.PtrPairSetFacts.mem_iff; eauto.
     + ii. exfalso. eapply AtomSetFacts.empty_iff; eauto.
     + ii. exfalso. eapply Exprs.IdTSetFacts.empty_iff; eauto.
-    + (* wf_lc *) admit.
-    + (* diffblock unique parent *) admit.
+    + (* wf_lc *)
+      inv MEM.
+      clear SRC TGT INJECT FUNTABLE.
+      inv WF.
+      clear Hno_overlap Hmap1 Hmap2
+            (* mi_freeblocks *)
+            mi_mappedblocks mi_range_block mi_bounds mi_globals.
+      clear_tac. unfold initLocals in *.
+      {
+        ii.
+        expl INJECT_LOCALS.
+        clear - INJECT mi_freeblocks.
+        ginduction gvs; ii; ss.
+        - inv INJECT.
+          expl IHgvs.
+          des_ifs; eauto.
+          split; ss.
+          inv H1.
+          reductio_ad_absurdum.
+          expl mi_freeblocks.
+          clarify.
+      }
+    + (* diffblock unique parent *)
+      inv MEM. clear TGT INJECT FUNTABLE.
+      inv SRC.
+      clear MEM_PARENT UNIQUE_PARENT_MEM UNIQUE_PARENT_GLOBALS NEXTBLOCK NEXTBLOCK_PARENT.
+      ii.
+      eapply sublist_In in UNIQUE_PRIVATE_PARENT; eauto.
+      expl PRIVATE_PARENT.
+      expl INJECT_LOCALS.
+      unfold InvMem.private_block in *. des.
+      clear - PRIVATE_PARENT0 ING INJECT.
+      ginduction INJECT; ii; ss.
+      rewrite GV2blocks_cons in ING.
+      apply in_app in ING. des.
+      { destruct v1; ss. des; ss. clarify.
+        apply PRIVATE_PARENT0; eauto.
+        ii. inv H; clarify.
+      }
+      eapply IHINJECT; eauto.
     + ii. (* wf_insn *) admit.
       (* OpsemPP.wf_State__inv *)
       (* TODO: See above lemma. Replace wf_insns with wf_state /\ wf_config *)
