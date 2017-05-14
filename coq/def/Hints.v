@@ -151,34 +151,10 @@ Module Invariant.
     implies_noalias inv0 (alias0.(noalias)) (alias.(noalias)) &&
     implies_diffblock inv0 (alias0.(diffblock)) (alias.(diffblock)).
 
-  (* TODO: name? (trivial, ..) *)
-  Definition syntactic_lessdef (e1 e2:Expr.t) (inv0:ExprPairSet.t): bool :=
-    (Expr.eq_dec e1 e2) ||
-      (match e1, e2 with
-       | Expr.value (ValueT.const (const_undef ty1)),
-         Expr.value v =>
-         flip ExprPairSet.exists_ inv0
-              (fun p =>
-                 (Expr.eq_dec p.(snd) v) &&
-                  match p.(fst) with
-                  | Expr.value (ValueT.const c) =>
-                    match c with
-                    | const_undef ty2 => typ_dec ty1 ty2
-                    | _ => false
-                    end
-                  | _ => false
-                  end
-              )
-       | _, _ => false
-       end).
-
   Definition implies_lessdef (inv0 inv:ExprPairSet.t): bool :=
     flip ExprPairSet.for_all inv
-         (fun q =>
-            flip ExprPairSet.exists_ inv0
-                 (fun p =>
-                    (Expr.eq_dec p.(fst) q.(fst)) &&
-                      (syntactic_lessdef p.(snd) q.(snd) inv0))).
+         (fun p => flip ExprPairSet.exists_ inv0 (ExprPair.eq_dec p))
+  .
 
   Definition implies_unary (inv0 inv:unary): bool :=
     implies_lessdef inv0.(lessdef) inv.(lessdef) &&

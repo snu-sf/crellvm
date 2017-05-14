@@ -86,33 +86,6 @@ Next Obligation.
   - etransitivity; eauto.
 Qed.
 
-Lemma syntactic_lessdef_spec
-      conf st invst e1 e2 ld
-      (LESSDEF: ExprPairSet.For_all (InvState.Unary.sem_lessdef conf st invst) ld)
-      (SYNTACTIC_LESSDEF:Invariant.syntactic_lessdef e1 e2 ld):
-  <<LESSDEF: InvState.Unary.sem_lessdef conf st invst (e1, e2)>>.
-Proof.
-  unfold Invariant.syntactic_lessdef in *. solve_bool_true; ss.
-  - subst. ii. esplits; eauto. reflexivity.
-  - solve_match_bool; cycle 1.
-    (* { subst. ii. ss. *)
-    (*   esplits. *)
-    (*   ad-mit. (* does every const2GV succeeds? or do we change it into undef? *) *)
-    (* } *)
-    subst. red.
-    unfold InvState.Unary.sem_lessdef. ss. ii.
-    unfold flip in SYNTACTIC_LESSDEF.
-    rewrite <- ExprPairSetFacts.exists_iff in SYNTACTIC_LESSDEF; try by solve_compat_bool.
-    inv SYNTACTIC_LESSDEF. des.
-    destruct x. ss. destruct t; try by solve_des_bool; ss.
-    destruct v; solve_des_bool; ss.
-    destruct c; ss.
-    destruct (Expr.eq_dec t0 v0); ss. subst.
-    exploit LESSDEF; eauto. ss.
-    unfold proj_sumbool in *.
-    destruct (typ_dec typ5 typ0); subst; ss.
-Qed.
-
 Lemma implies_lessdef_sound
       ld0 ld1 invst conf st
       (IMPLIES_LESSDEF: Invariant.implies_lessdef ld0 ld1)
@@ -125,11 +98,7 @@ Proof.
   apply ExprPairSet.exists_2 in IMPLIES_LESSDEF; eauto; cycle 1.
   { ii. subst. ss. }
   inv IMPLIES_LESSDEF. des. solve_bool_true.
-  destruct x0, x; ss. subst.
-  generalize (LESSDEF _ H0 _ VAL1). ss. i. des.
-  hexploit syntactic_lessdef_spec; eauto. intro LD_SYNT. des.
-  specialize (LD_SYNT _ VAL2). des. ss.
-  esplits; eauto. etransitivity; eauto.
+  expl LESSDEF.
 Qed.
 
 Lemma implies_diffblock_sound
@@ -353,11 +322,8 @@ Next Obligation.
   unfold Exprs.ExprPairSet.Exists.
   esplits; eauto.
   (* TODO: enhance des_bool *)
-  apply andb_true_iff.
-  split.
-  - unfold proj_sumbool. des_ifs.
-  - unfold Invariant.syntactic_lessdef.
-    des_ifs; unfold proj_sumbool; des_ifs.
+  (* TODO: enhance des_sumbool *)
+  unfold proj_sumbool in *. des_ifs.
 Qed.
 Next Obligation.
   ii.
@@ -365,15 +331,6 @@ Next Obligation.
   rename y into invb.
   rename z into invc.
   unfold Invariant.implies_lessdef in *. unfold flip in *.
-  (* eapply dependent_apply; [apply Exprs.ExprPairSetFacts.for_all_iff|..]; cycle 1. *)
-  (* i; des. apply H2. clear H2 H3. *)
-  (* Focus 2. *)
-  (* { solve_compat_bool. } *)
-  (* Unfocus. *)
-  (* apply Exprs.ExprPairSetFacts.for_all_iff in H; eauto. *)
-  (* apply Exprs.ExprPairSetFacts.for_all_iff in H0; eauto; cycle 1. *)
-  (* { solve_compat_bool. } *)
-
   apply Exprs.ExprPairSetFacts.for_all_iff.
   { solve_compat_bool. }
   apply Exprs.ExprPairSetFacts.for_all_iff in H; cycle 1.
@@ -383,59 +340,14 @@ Next Obligation.
   { solve_compat_bool. }
   (* TODO: I want to write solve_compat_bool only once. *)
   (* push subgoal as premise of original goal when "apply"ing? *)
-  unfold Exprs.ExprPairSet.For_all in *.
   ii.
-
-  expl H0 (try eassumption).
-  apply Exprs.ExprPairSetFacts.exists_iff.
+  expl H0.
+  erewrite <- ExprPairSetFacts.exists_iff in H2; cycle 1.
   { solve_compat_bool. }
-  apply Exprs.ExprPairSetFacts.exists_iff in H2; cycle 1.
-  { solve_compat_bool. }
-  unfold Exprs.ExprPairSet.Exists in *. des.
-  des_bool; des.
-  des_sumbool.
-
-  expl H (try eassumption).
-  apply Exprs.ExprPairSetFacts.exists_iff in H5; cycle 1.
-  { solve_compat_bool. }
-  unfold Exprs.ExprPairSet.Exists in *. des.
-  des_bool; des.
-  des_sumbool.
-
-  destruct x, x0, x1; ss; clarify.
-  exists (t, t4).
-  splits; ss.
-  apply andb_true_iff.
-  splits; ss.
-  { unfold proj_sumbool. (* TODO: enhance des_sumbool *)
-    des_ifs. }
-  clear H H0.
-  rename H4 into LESSB.
-  rename H7 into LESSA.
-  unfold Invariant.syntactic_lessdef in LESSB. des_bool.
-  des.
-  - des_sumbool. clarify.
-  - unfold Invariant.syntactic_lessdef in LESSA. des_bool.
-    des.
-    + des_sumbool. clarify.
-      des_ifs.
-      unfold flip in *.
-      apply Exprs.ExprPairSetFacts.exists_iff in LESSB; cycle 1.
-      { solve_compat_bool. }
-      unfold Exprs.ExprPairSet.Exists in *.
-      des.
-      des_bool. des. des_sumbool. destruct x; ss; clarify.
-      des_ifs.
-      unfold Invariant.syntactic_lessdef.
-      apply orb_true_iff.
-      right. unfold flip.
-      apply Exprs.ExprPairSetFacts.exists_iff.
-      { solve_compat_bool. }
-      unfold Exprs.ExprPairSet.Exists in *.
-      esplits; eauto.
-      admit.
-    + admit.
-Admitted.
+  unfold ExprPairSet.Exists in *.
+  des. des_sumbool. clarify.
+  expl H.
+Qed.
 
 Lemma wrap_is_true_goal
       A
@@ -615,8 +527,18 @@ Next Obligation.
   { apply orb_true_iff. left.
     repeat (des_bool; des).
     clear H2 H1.
-    (* lessdef should be subset *)
-    admit.
+    unfold Invariant.implies_unary in *.
+    repeat (des_bool; des).
+    unfold Invariant.has_false in *.
+    rewrite <- ExprPairSetFacts.mem_iff in *.
+    unfold Invariant.implies_lessdef in *. unfold flip in *.
+    rewrite <- ExprPairSetFacts.for_all_iff in *; cycle 1.
+    { solve_compat_bool. }
+    expl H.
+    rewrite <- ExprPairSetFacts.exists_iff in *; cycle 1.
+    { solve_compat_bool. }
+    unfold ExprPairSet.Exists in *. des.
+    des_sumbool. clarify.
   }
   repeat (des_bool; des).
   apply orb_true_iff. right.
@@ -627,4 +549,4 @@ Next Obligation.
   - apply Exprs.IdTSetFacts.subset_iff.
     apply_all_once Exprs.IdTSetFacts.subset_iff.
     etransitivity; eauto.
-Admitted.
+Qed.
