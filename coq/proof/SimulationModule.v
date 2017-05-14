@@ -101,8 +101,8 @@ Proof.
     + unfold lookupFdefViaIDFromProduct in *. des_ifs.
       esplits; eauto.
       eapply transl_product_fdef_valid; eauto.
-    + unfold valid_fdef in *. simtac.
-    + unfold valid_fdef in *. simtac.
+    + unfold valid_fdef in *. simtac. clarify.
+    + unfold valid_fdef in *. simtac. clarify.
     + apply IHproducts_src; eauto.
 Qed.
 

@@ -1046,20 +1046,27 @@ Proof.
   generalize FDEF. i.
   unfold forallb2AL in FDEF0. ss. apply andb_true_iff in FDEF0. des.
   do 10 simtac0.
+  unfold proj_sumbool in *. des_ifs_safe ss. clarify.
   assert(VALID_TERM_INFRULES: exists infrules,
             valid_terminator fdef_hint
-                  (Infrules.apply_infrules m_src m_tgt infrules t) m_src m_tgt
-                  ((l0, stmts_intro ps' cs' tmn') :: b0) ((l0, stmts_intro phinodes5 cmds5 terminator5) :: b1) l0 tmn'
-                  terminator5).
+                             (Infrules.apply_infrules
+                                (module_intro layouts5 namedts5 products5)
+                                (module_intro layouts0 namedts0 products0)
+                                infrules t)
+                             (module_intro layouts5 namedts5 products5)
+                             (module_intro layouts0 namedts0 products0)
+                             ((l0, stmts_intro ps' cs' tmn') :: b0)
+                             ((l0, stmts_intro phinodes5 cmds5 terminator5) :: b1)
+                             l0 tmn' terminator5).
   { simtac.
     - exists nil. assumption.
     - eexists; eassumption.
   }
-  clear COND5. des.
+  clear COND4. des.
 
   i. des.
-  esplits. i; des. splits.
-  - econs; eauto. ss.
+  esplits.
+  - econs; eauto; ss.
   - econs; eauto.
     { ss.
       repeat
@@ -1085,9 +1092,10 @@ Proof.
         | [H: proj_sumbool (id_dec ?a ?a) = false |- _] => destruct (id_dec a a); ss
         end.
       }
-      rewrite COND0, COND1, COND2, COND3, COND4. ss.
+      des_ifs_safe ss. clarify.
     }
     {
+      eapply implies_sound; eauto.
       admit. (* function entry *)
     }
 Admitted.

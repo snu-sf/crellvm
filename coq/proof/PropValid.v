@@ -51,7 +51,7 @@ Lemma valid_fdef_valid_stmts
                              l terminator_src terminator_tgt>>.
 Proof.
   unfold valid_fdef in FDEF.
-  do 2 simtac0.
+  do 4 simtac0.
   destruct (negb (fheader_dec fheader5 fheader0)) eqn:X; ss.
   apply andb_true_iff in FDEF. des. clear FDEF. simtac.
   revert SRC TGT FDEF0.
