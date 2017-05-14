@@ -1011,7 +1011,6 @@ Proof.
       right. apply CIH. econs; try exact x1; eauto.
 Unshelve.
 all: try ss.
-(* { admit. (* move inject_allocas to invmem? *) } *)
 Admitted.
 
 
