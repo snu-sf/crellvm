@@ -1014,6 +1014,68 @@ all: try ss.
 (* { admit. (* move inject_allocas to invmem? *) } *)
 Admitted.
 
+
+(* TODO: move to better position? with init_invvmem in SimModule *)
+(* I think the laziest point (here) may make sense in this case .. *)
+Definition init_invst: InvState.Rel.t :=
+  (InvState.Rel.mk (InvState.Unary.mk [] []) (InvState.Unary.mk [] [])).
+
+Lemma function_entry_inv_sound
+      conf_src conf_tgt
+      mem_src mem_tgt
+      (CONF: inject_conf conf_src conf_tgt)
+      invmem
+      (MEM: InvMem.Rel.sem conf_src conf_tgt mem_src mem_tgt invmem)
+      st_src st_tgt
+      (INITST: st_src.(EC).(Allocas) = [] /\ st_tgt.(EC).(Allocas) = [])
+      args args_src args_tgt
+      (INJECT_ARGS: list_forall2 (genericvalues_inject.gv_inject
+                                    (InvMem.Rel.inject invmem)) args_src args_tgt)
+      (INITLOCALS_SRC: initLocals (CurTargetData conf_src) args args_src =
+                       Some st_src.(EC).(Locals))
+      (INITLOCALS_TGT: initLocals (CurTargetData conf_tgt) args args_tgt =
+                       Some st_tgt.(EC).(Locals))
+      (INJECT_LOCALS: inject_locals invmem st_src.(EC).(Locals) st_tgt.(EC).(Locals))
+      prods_src prods_tgt
+  :
+    (* TODO: prods_src/prods_tgt are not bound. is it ok? *)
+  <<SEM: InvState.Rel.sem conf_src conf_tgt
+                          st_src st_tgt init_invst invmem
+                          (Invariant.function_entry_inv args args prods_src prods_tgt)>>
+.
+Proof.
+  (* inject_locals is reduced from below *)
+  (* LLVMBerry.proof.Inject.locals_init *)
+  destruct st_src, st_tgt; ss.
+  destruct EC0, EC1; ss.
+  des; clarify.
+  econs; ss; eauto.
+  - econs; ss; eauto.
+    + admit. (* function_entry_inv *)
+    + econs; ss; eauto.
+      * ii. clarify.
+        eapply Exprs.ValueTPairSetFacts.empty_iff; eauto.
+        eapply Exprs.ValueTPairSetFacts.mem_iff; eauto.
+      * ii. clarify.
+        eapply Exprs.PtrPairSetFacts.empty_iff; eauto.
+        eapply Exprs.PtrPairSetFacts.mem_iff; eauto.
+    + ii. exfalso. eapply AtomSetFacts.empty_iff; eauto.
+    + ii. exfalso. eapply Exprs.IdTSetFacts.empty_iff; eauto.
+    + (* wf_lc *) admit.
+    + (* diffblock unique parent *) admit.
+    + ii. (* wf_insn *) admit.
+      (* OpsemPP.wf_State__inv *)
+      (* TODO: See above lemma. Replace wf_insns with wf_state /\ wf_config *)
+      (* we may also remove wf_lc && wf_global (in InvMem) with this *)
+  - (* tgt. same with src *) admit.
+  - ii. clear NOTIN.
+    destruct id0; ss.
+    destruct t; ss.
+    unfold InvState.Unary.sem_idT in *. ss.
+    eapply INJECT_LOCALS; eauto.
+  - econs; eauto.
+Admitted.
+
 Lemma valid_init
       m_src m_tgt
       conf_src conf_tgt
@@ -1096,9 +1158,13 @@ Proof.
     }
     {
       eapply implies_sound; eauto.
-      admit. (* function entry *)
+      clear FDEF FDEF1. clear_tac.
+      clear COND VALID_TERM_INFRULES. clear_tac.
+      inv CONF. unfold is_empty in *. des_ifs.
+      clear COND0 COND3. clear_tac.
+      eapply function_entry_inv_sound; eauto.
     }
-Admitted.
+Qed.
 
 Lemma valid_sim_fdef
       m_src m_tgt
