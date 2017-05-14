@@ -1057,11 +1057,6 @@ Proof.
   }
   clear COND5. des.
 
-  hexploit InvState.Rel.sem_empty; eauto.
-  { instantiate (2 := mkEC _ _ _ _ _ _).
-    instantiate (1 := mkEC _ _ _ _ _ _).
-    s. eauto.
-  }
   i. des.
   esplits. i; des. splits.
   - econs; eauto. ss.
@@ -1092,12 +1087,10 @@ Proof.
       }
       rewrite COND0, COND1, COND2, COND3, COND4. ss.
     }
-    (* injet_allocas *)
-    (* { *)
-    (*   cbn in *. *)
-    (*   econs; eauto. *)
-    (* } *)
-Qed.
+    {
+      admit. (* function entry *)
+    }
+Admitted.
 
 Lemma valid_sim_fdef
       m_src m_tgt

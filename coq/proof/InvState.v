@@ -346,50 +346,6 @@ Module Unary.
                               insn>>)
   .
 
-  Lemma sem_empty
-        conf st invst invmem gmax public inv
-        (EMPTY: Invariant.is_empty_unary inv):
-    sem conf st invst invmem gmax public inv.
-  Proof.
-    unfold Invariant.is_empty_unary in EMPTY.
-    solve_bool_true.
-    econs.
-    - ii. apply ExprPairSet.is_empty_2 in EMPTY.
-      exfalso. eapply EMPTY; eauto.
-    - unfold Invariant.is_empty_alias in EMPTY2. des_bool. des.
-      econs.
-      + ii. apply ValueTPairSet.is_empty_2 in EMPTY3.
-        exfalso. eapply EMPTY3. apply ValueTPairSetFacts.mem_iff. eauto.
-      + ii. apply PtrPairSet.is_empty_2 in EMPTY2.
-        exfalso. eapply EMPTY2. apply PtrPairSetFacts.mem_iff. eauto.
-    - ii. apply AtomSetImpl.is_empty_2 in EMPTY1.
-      exfalso. eapply EMPTY1; eauto.
-    - ii. apply IdTSet.is_empty_2 in EMPTY0.
-      exfalso. eapply EMPTY0; eauto.
-    - admit. (* This should be erased. Care at the start of the function *)
-    - admit. (* this lemma will be removed *)
-    - exact (SF_ADMIT "wf_lc locals. This is unprovable for now,
-but it is provable if we pull the calling point of this lemma
-into the start of the function. At the start of the function,
-locals is empty, and proving this becomes trivial, so skip it for now.").
-    - exact (SF_ADMIT "wf_lc previous. ditto").
-    - exact (SF_ADMIT "wf_lc ghost. ditto").
-    - exact (SF_ADMIT "unique_parent. ditto").
-    - exact (SF_ADMIT "wf_INSNS. This is unprovable for now.
-I think Vellvm introduced/used it in proving optimizations (later paper).
-However, current repository is ""sanitized"" version, and ""wf_insn""'s
-introduction/usage does not exist. It is just defined and that is all.
-If we find old Vellvm code that introduced/used ""wf_insn"",
-we may simply port it. (maybe some extracted validator have existed before)
-I insist that this is not a serious problem, because
-- ""wf_insn"" predicate is for type. dominance, existance check,
-  which our validator already checks using LLVM's type checker.
-  Passing LLVM's type checker will mostly imply ""wf_insn"" property.
-  Actually, we use wf_insn in 2-3 cases, and all of them
-  exploited simple checkings mentioned above, and not more.
-").
-  Admitted.
-
   Lemma sem_valueT_physical
         conf st inv val:
     sem_valueT conf st inv (Exprs.ValueT.lift Exprs.Tag.physical val) =
@@ -534,29 +490,6 @@ Module Rel.
     { apply LE. }
     { inv LE; ss. }
   Qed.
-
-  Lemma sem_empty
-        conf_src ec_src ecs_src mem_src
-        conf_tgt ec_tgt ecs_tgt mem_tgt
-        invmem inv
-        (SRC: Invariant.is_empty_unary inv.(Invariant.src))
-        (TGT: Invariant.is_empty_unary inv.(Invariant.tgt))
-        (LOCALS: inject_locals invmem ec_src.(Locals) ec_tgt.(Locals)):
-    exists invst,
-      sem conf_src conf_tgt
-          (mkState ec_src ecs_src mem_src)
-          (mkState ec_tgt ecs_tgt mem_tgt)
-          invst invmem inv.
-  Proof.
-    exists (mk (Unary.mk [] []) (Unary.mk [] [])).
-    econs.
-    - apply Unary.sem_empty. ss.
-    - apply Unary.sem_empty. ss.
-    - ii. unfold Unary.sem_idT, Unary.sem_tag in *.
-      destruct id0. destruct t0; ss.
-      exploit LOCALS; eauto.
-    - admit. (* this lemma will be removed *)
-  Admitted.
 
   Lemma const2GV_gv_inject_refl
         TD globals cnst gv meminj
