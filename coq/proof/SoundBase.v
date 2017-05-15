@@ -236,12 +236,22 @@ Proof.
       (unfold is_true in *; repeat (des_bool; des);
        inject_clarify; try rewrite andb_true_r; try (rewrite andb_true_iff; split);
        eapply InvState.Subset.inject_value_Subset; eauto).
-  - apply Exprs.ExprPairSet.exists_2 in INJECT_EVENT; try by solve_compat_bool.
-    inv INJECT_EVENT. des.
-    exploit Exprs.ExprPairSet.exists_1; try by solve_compat_bool.
-    inv SUBSET. inv SUBSET_SRC.
-    exploit SUBSET_LESSDEF; eauto. i.
-    econs; eauto.
+  - unfold is_true in *. des_bool; des.
+    apply andb_true_iff.
+    split; ss.
+    + apply Exprs.ExprPairSet.exists_2 in INJECT_EVENT; try by solve_compat_bool.
+      inv INJECT_EVENT. des.
+      exploit Exprs.ExprPairSet.exists_1; try by solve_compat_bool.
+      inv SUBSET. inv SUBSET_SRC.
+      exploit SUBSET_LESSDEF; eauto. i.
+      econs; eauto.
+    + destruct value1; ss. des_bool. apply negb_true_iff.
+      apply IdTSetFacts.not_mem_iff.
+      apply IdTSetFacts.not_mem_iff in INJECT_EVENT0.
+      ii.
+      apply INJECT_EVENT0.
+      inv SUBSET.
+      expl SUBSET_MAYDIFF.
   - unfold Hints.Invariant.is_private in *. des_ifs.
     inv SUBSET. inv SUBSET_SRC.
     unfold is_true in *.

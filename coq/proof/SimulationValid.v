@@ -866,28 +866,18 @@ Proof.
               des_ifs. des_bool. des. unfold compose in *. des_bool.
               apply Exprs.ExprPairSetFacts.mem_iff in POSTCOND.
               {
-                clear POSTCOND0.
-                assert(POSTCOND0:
-                          (Exprs.Expr.eq_dec
-                             t2
-                             (Exprs.Expr.load (Exprs.ValueT.lift Exprs.Tag.physical value1)
-                                              typ5 align5):bool) = true
-                          /\
-                          (Exprs.Expr.eq_dec
-                             t1
-                             (Exprs.Expr.value (Exprs.ValueT.const (const_undef (typ_int O))))
-                           :bool) = true
-                      ) by admit.
                 des. des_sumbool. clarify.
                 assert(NOT_IN_MD: Invariant.not_in_maydiff inv0
-                                                           (Exprs.ValueT.lift Exprs.Tag.physical value1)).
-                { admit. }
+                                            (Exprs.ValueT.lift Exprs.Tag.physical value1)).
+                {
+                  expl SoundForgetStack.forget_stack_Subset.
+                  eapply InvState.Subset.not_in_maydiff_Subset; eauto.
+                } clear POSTCOND0.
 
 
-                assert(DEFINED: exists val, const2GV CurTargetData0 Globals0 (const_undef (typ_int O)) =
+                assert(DEFINED: exists val, const2GV CurTargetData0 Globals0 (const_undef typ5) =
                                             Some val).
-                { compute.
-                  destruct CurTargetData0. esplits; eauto. }
+                { admit. }
                 des.
                 exploit InvState.Rel.lessdef_expr_spec; eauto.
                 { apply STATE. }
