@@ -1582,7 +1582,7 @@ Definition apply_infrule
       {{inv0 +++src (Expr.map_valueTs e x_to_y) >= e}}
     else apply_fail tt
   | Infrule.substitute_tgt x y e =>
-    if $$ inv0 |-tgt (Expr.value y) >= (Expr.value x) $$
+    if $$ inv0 |-tgt (Expr.value x) >= (Expr.value y) $$
     then
       let x_to_y := (fun v =>
                        match v with

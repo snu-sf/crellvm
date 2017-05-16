@@ -182,6 +182,9 @@ module Auto = struct
         | ValueT.Coq_id y -> if IdT.eq_dec x y then v else w
         | ValueT.Coq_const _ -> w
       in (Expr.map_valueTs e x_to_v)
+
+    let repl_value e v1 v2 : Expr.t =
+      Expr.map_valueTs e (fun v -> if ValueT.eq_dec v1 v then v2 else v)
   end
 
 module AutoTransHelper = struct
@@ -190,6 +193,12 @@ module AutoTransHelper = struct
     let string_of_exprlist (el:Expr.t list): string =
       let sl = List.map Printer.ExprsToString.of_expr el in
       List.fold_left (fun ss s -> ss^"-"^s) "" sl
+
+    let rec make_trans_rev scp (el:Expr.t list): Infrule.t list =
+      match el with
+      | e3::e2::e1::tl ->
+         (Auto.transitivity scp e1 e2 e3)::(make_trans_rev scp (e3::e1::tl))
+      | _ -> []
 
     (* to_visit in reachables & graph *)
     let rec get_reachable
@@ -405,24 +414,34 @@ module NewAutoSubstTransHelper = struct
               List.fold_left
                 (fun a vp ->
                  match a with
-                 | None -> None
-                 | Some acc_infrs ->
-                    let e1_n = Expr.Coq_value (fst vp) in
-                    let e2_n = Expr.Coq_value (snd vp) in
-                    attach_oinfrs acc_infrs [] (run (depth+1) scp ld None e1_n e2_n None))
-                (Some []) vpl
+                 | (None, _) -> a
+                 | (Some acc_infrs, e_stk) ->
+                    let (v1, v2) = vp in
+                    if (ValueT.eq_dec v1 v2) then a else
+                    let e_m = match e_stk with h::_ -> h | [] -> e1 in
+                    let e_m_n = Auto.repl_value e_m v1 v2 in
+                    (* let tr_infr = if Expr.eq_dec e1 e_m then [] *)
+                    (*               else [Auto.transitivity scp e1 e_m e_m_n] in *)
+                    (attach_oinfrs acc_infrs [] (run (depth+1) scp ld None (Expr.Coq_value v1) (Expr.Coq_value v2) None), e_m_n::e_stk))
+                (Some [], [e1]) vpl
             with
-            | None -> None
-            | Some acc_infrs ->
+            | None, _ -> None
+            | Some acc_infrs, e_stk ->
                print_endline "by_dest_intl SUCCEEDED";
-               let infrs_tr =
-                 match oel, oer with
-                 | None, None -> []
-                 | Some el, None -> [Auto.transitivity scp el e1 e2]
-                 | None, Some er -> [Auto.transitivity scp e1 e2 er]
-                 | Some el, Some er -> [Auto.transitivity scp el e1 e2; Auto.transitivity scp el e2 er]
-               in
-               attach_oinfrs acc_infrs infrs_tr (do_subst scp e1 vpl [])
+               let e_stk = match oel with Some e_l -> e_stk@[e_l] | _ -> e_stk in
+               let e_stk = match oer with Some e_r -> e_r::e_stk | _ -> e_stk in
+               attach_oinfrs acc_infrs (AutoTransHelper.make_trans_rev scp e_stk)
+                             (do_subst scp e1 vpl [])
+               (*  infrs_tr =  *)
+
+               (* let infrs_tr = *)
+               (*   match oel, oer with *)
+               (*   | None, None -> [] *)
+               (*   | Some e_l, None -> [Auto.transitivity scp e_l e1 e2] *)
+               (*   | None, Some e_r -> [Auto.transitivity scp e1 e2 e_r] *)
+               (*   | Some e_l, Some e_r -> [Auto.transitivity scp e_l e1 e2; Auto.transitivity scp e_l e2 e_r] *)
+               (* in *)
+               (* attach_oinfrs acc_infrs infrs_tr (do_subst scp e1 vpl []) *)
 
 
     and by_trans_left depth scp ld oel e1 e2 oer : (Infrule.t list) option =
@@ -533,7 +552,7 @@ module AutoSubstTransHelper = struct
     (* generate e_ll >= e_r if possible *)
     (* when e_l = e_r, return (Some []) *)
     and try_subst (scp:Auto.scope_t) (inv_u:Invariant.unary) (e_ll:Expr.t)
-                      (e_l:Expr.t) (e_r:Expr.t)
+                  (e_l:Expr.t) (e_r:Expr.t)
         : (Infrule.t list) option =
       match e_l, e_r with
       | Expr.Coq_value _, _
@@ -722,92 +741,166 @@ module AutoNewGVN = struct
           | _, _ -> None)
     (* new from here *)
 
-    type ghost_intd_t = (id * id) list
+    type ghost_intd_t = (id * Expr.t) list
 
-    let find_instance (l:ghost_intd_t) (x:id) : id option =
+    let find_ghost_pair scp ld (l:ghost_intd_t) (x:id) : Expr.t option =
       match List.filter (fun (a, b) -> AtomImpl.eq_atom_dec a x) l with
       | (_, b)::_ -> Some b
-      | _ -> None
+      | _ ->
+         let get_list = match scp with Auto.Src -> Auto.get_lhs_list | _ -> Auto.get_rhs_list in
+         match get_list ld (Expr.Coq_value (ValueT.Coq_id (Tag.Coq_ghost, x))) with
+         | e::_ -> Some e
+         | _ -> None
 
     let exp_phys x = Expr.Coq_value (ValueT.Coq_id (Tag.Coq_physical, x))
 
-    let resolve_one_ld_src ld acc_ghosts e1 e2 : (Infrule.t list * ghost_intd_t) option =
-      print_endline "AutoNewGVN: resolve_one_ld_src start";
-      match e2 with
-      | Expr.Coq_value (ValueT.Coq_id (Tag.Coq_ghost, g)) ->
-         (match find_instance acc_ghosts g with
-          | Some x ->
-             (* unexpected case, since there should be only one use of each ghost var on right sides of ld *)
-             None
-          | None ->
-             (* 1. Find ?e >= g from ld (should be unique)
-              * 2. If not found, find [?e >= ?x] from ld s.t. [e1 >= ?e] can be inferred. *)
-             (match Auto.get_lhs_list ld e2 with
-              | e::_ ->
-                 (print_endline "resolve_one_ld_src run 1";
-                   match NewAutoSubstTransHelper.run 0 Auto.Src ld None e1 e (Some e2) with
-                  | Some infrs -> Some (infrs, acc_ghosts)
-                  | None -> None)
-              | [] ->
-                 let cand:(Expr.t * id) list =
-                   TODOCAML.filter_map
-                     (fun (el, er) ->
-                      match er with
-                      | Expr.Coq_value (ValueT.Coq_id (Tag.Coq_physical, x)) -> Some (el, x)
-                      | _ -> None) (ExprPairSet.elements ld) in
-                 match Auto.find_first_match
-                         (fun ex -> NewAutoSubstTransHelper.run 0 Auto.Src ld None e1 (fst ex)
-                                                          (Some (exp_phys (snd ex)))) cand with
-                 | Some (ex, infrs) ->
-                    let x = snd ex in
-                    let x_exp = Expr.Coq_value (ValueT.Coq_id (Tag.Coq_physical, x)) in
-                    Some ([Infrule.Coq_intro_ghost (x_exp, g)]@infrs@
-                            [Auto.transitivity Auto.Src e1 x_exp e2], (g, x)::acc_ghosts)
-                 | _ -> None))
+    let extract_ghostid e =
+      match e with
+      | Expr.Coq_value (ValueT.Coq_id (Tag.Coq_ghost, g)) -> Some g
       | _ -> None
 
+    let check_matched e ep : Expr.t option =
+      let check_matched_one e1 e2 =
+        Expr.same_modulo_value e1 e2 ||
+        match e1, e2 with
+        | Expr.Coq_gep _, Expr.Coq_gep _ -> true
+        | _, _ -> false in
+      let (e1, e2) = ep in
+      if check_matched_one e e1 then Some e1
+      else if check_matched_one e e2 then Some e2 else None
+
+    let resolve_one_ld scp ld acc_ghosts e1 e2 : (Infrule.t list * ghost_intd_t) option =
+      print_endline "AutoNewGVN: resolve_one_ld start";
+      let get_list = match scp with Auto.Src -> Auto.get_rhs_list | _ -> Auto.get_lhs_list in
+      let (e_g, e_other) = match scp with Auto.Src -> (e2, e1) | _ -> (e1, e2) in
+      match extract_ghostid e_g with
+      | None -> None
+      | Some g ->
+         let resolve_ghost_result =
+           match find_ghost_pair scp ld acc_ghosts g with
+           | Some e -> Some (e, [], acc_ghosts)
+           | None ->
+              let e_cand_opt =
+                match e_other with
+                | Expr.Coq_value v ->
+                   (match v with
+                    | ValueT.Coq_id (Tag.Coq_physical, x) ->
+                       (match Auto.find_first_match
+                                (fun e -> match e with Expr.Coq_value _ -> None | _ -> Some e)
+                                (get_list ld e_other)
+                        with
+                        | Some (_, e) -> Some e
+                        | _ -> None)
+                    | _ -> None)
+                | _ ->
+                   match Auto.find_first_match
+                           (check_matched e_other)
+                           (ExprPairSet.elements ld)
+                   with
+                   | Some (_, e) -> Some e
+                   | _ -> Some e_other
+              in
+              match e_cand_opt with
+              | None -> None
+              | Some e_cand ->
+                 let e_cand_g = (* for each value of e_cand_g, replace it with ghost *)
+                   List.fold_left (fun e_acc v_op ->
+                                   match v_op with
+                                   | ValueT.Coq_id (Tag.Coq_physical, x) ->
+                                      (match Auto.find_first_match
+                                               extract_ghostid (get_list ld (exp_phys x)) with
+                                       | Some (_, g_op) ->
+                                          let v_op_g = ValueT.Coq_id (Tag.Coq_ghost, g_op) in
+                                          Expr.map_valueTs e_acc (fun v -> if ValueT.eq_dec v_op v
+                                                                           then v_op_g else v)
+                                       | None -> e_acc)
+                                   | _ -> e_acc) e_cand (Expr.get_valueTs e_cand)
+                 in Some (e_cand_g, [Infrule.Coq_intro_ghost (e_cand_g, g)], (g, e_cand_g)::acc_ghosts)
+         in
+         match resolve_ghost_result with
+         | None -> None
+         | Some (e_intr, infrs1, acc_ghosts2) ->
+            let (oell, el, er, oerr) =
+              match scp with
+              | Auto.Src -> (None, e_other, e_intr, Some e_g)
+              | Auto.Tgt -> (Some e_g, e_intr, e_other, None)
+            in
+            match NewAutoSubstTransHelper.run 0 scp ld oell el er oerr with
+            | None -> None
+            | Some infrs2 -> Some (infrs1@infrs2, acc_ghosts2)
+
+      
+
+             (* remove *)
+             
+             (* (\* 1. Find ?e >= g from ld (should be unique) *)
+             (*  * 2. If not found, find [?e >= ?x] from ld s.t. [e1 >= ?e] can be inferred. *\) *)
+             (* (match Auto.get_lhs_list ld e2 with *)
+             (*  | e::_ -> *)
+             (*     (print_endline "resolve_one_ld_src run 1"; *)
+             (*       match NewAutoSubstTransHelper.run 0 Auto.Src ld None e1 e (Some e2) with *)
+             (*      | Some infrs -> Some (infrs, acc_ghosts) *)
+             (*      | None -> None) *)
+             (*  | [] -> *)
+             (*     let cand:(Expr.t * id) list = *)
+             (*       TODOCAML.filter_map *)
+             (*         (fun (el, er) -> *)
+             (*          match er with *)
+             (*          | Expr.Coq_value (ValueT.Coq_id (Tag.Coq_physical, x)) -> Some (el, x) *)
+             (*          | _ -> None) (ExprPairSet.elements ld) in *)
+             (*     match Auto.find_first_match *)
+             (*             (fun ex -> NewAutoSubstTransHelper.run 0 Auto.Src ld None e1 (fst ex) *)
+             (*                                              (Some (exp_phys (snd ex)))) cand with *)
+             (*     | Some (ex, infrs) -> *)
+             (*        let x = snd ex in *)
+             (*        let x_exp = Expr.Coq_value (ValueT.Coq_id (Tag.Coq_physical, x)) in *)
+             (*        Some ([Infrule.Coq_intro_ghost (x_exp, g)]@infrs@ *)
+             (*                [Auto.transitivity Auto.Src e1 x_exp e2], (g, x)::acc_ghosts) *)
+             (*     | _ -> None)) *)
+      (* | _ -> None *)
+
     (* TODO: merge this with src *)
-    let resolve_one_ld_tgt ld acc_ghosts e1 e2 : (Infrule.t list * ghost_intd_t) option =
-      match e1 with
-      | Expr.Coq_value (ValueT.Coq_id (Tag.Coq_ghost, g)) ->
-         (match find_instance acc_ghosts g with
-          | Some x ->
-             let x_exp = Expr.Coq_value (ValueT.Coq_id (Tag.Coq_physical, x)) in
-             (match NewAutoSubstTransHelper.run 0 Auto.Tgt ld (Some e1) x_exp e2 None with
-              | Some infrs -> Some (infrs, acc_ghosts)
-              | _ -> None)
-          | None ->
-             (* 1. Find g >= ?e from ld (should be unique)
-              * 2. If not found, find [?x >= ?e] from ld s.t. [?e >= e2] can be inferred. *)
-             (match Auto.get_rhs_list ld e1 with
-              | e::_ ->
-                 (match NewAutoSubstTransHelper.run 0 Auto.Tgt ld (Some e1) e e2 None with
-                  | Some infrs -> Some (infrs, acc_ghosts)
-                  | None -> None)
-              | [] ->
-                 let cand:(Expr.t * id) list =
-                   TODOCAML.filter_map
-                     (fun (el, er) ->
-                      match el with
-                      | Expr.Coq_value (ValueT.Coq_id (Tag.Coq_physical, x)) -> Some (er, x)
-                      | _ -> None) (ExprPairSet.elements ld) in
-                 match Auto.find_first_match
-                         (fun ex -> NewAutoSubstTransHelper.run 0
-                                      Auto.Tgt ld (Some (exp_phys (snd ex))) (fst ex) e2 None) cand with
-                 | Some (ex, infrs) ->
-                    let x = snd ex in
-                    let x_exp = Expr.Coq_value (ValueT.Coq_id (Tag.Coq_physical, x)) in
-                    Some ([Infrule.Coq_intro_ghost (x_exp, g)]@infrs@
-                            [Auto.transitivity Auto.Tgt e1 x_exp e2], (g, x)::acc_ghosts)
-                 | _ -> None))
-      | _ -> None
+    (* let resolve_one_ld_tgt scp ld acc_ghosts e1 e2 : (Infrule.t list * ghost_intd_t) option = *)
+    (*   match e1 with *)
+    (*   | Expr.Coq_value (ValueT.Coq_id (Tag.Coq_ghost, g)) -> *)
+    (*      (match find_instance acc_ghosts g with *)
+    (*       | Some x -> *)
+    (*          let x_exp = Expr.Coq_value (ValueT.Coq_id (Tag.Coq_physical, x)) in *)
+    (*          (match NewAutoSubstTransHelper.run 0 Auto.Tgt ld (Some e1) x_exp e2 None with *)
+    (*           | Some infrs -> Some (infrs, acc_ghosts) *)
+    (*           | _ -> None) *)
+    (*       | None -> *)
+    (*          (\* 1. Find g >= ?e from ld (should be unique) *)
+    (*           * 2. If not found, find [?x >= ?e] from ld s.t. [?e >= e2] can be inferred. *\) *)
+    (*          (match Auto.get_rhs_list ld e1 with *)
+    (*           | e::_ -> *)
+    (*              (match NewAutoSubstTransHelper.run 0 Auto.Tgt ld (Some e1) e e2 None with *)
+    (*               | Some infrs -> Some (infrs, acc_ghosts) *)
+    (*               | None -> None) *)
+    (*           | [] -> *)
+    (*              let cand:(Expr.t * id) list = *)
+    (*                TODOCAML.filter_map *)
+    (*                  (fun (el, er) -> *)
+    (*                   match el with *)
+    (*                   | Expr.Coq_value (ValueT.Coq_id (Tag.Coq_physical, x)) -> Some (er, x) *)
+    (*                   | _ -> None) (ExprPairSet.elements ld) in *)
+    (*              match Auto.find_first_match *)
+    (*                      (fun ex -> NewAutoSubstTransHelper.run 0 *)
+    (*                                   Auto.Tgt ld (Some (exp_phys (snd ex))) (fst ex) e2 None) cand with *)
+    (*              | Some (ex, infrs) -> *)
+    (*                 let x = snd ex in *)
+    (*                 let x_exp = Expr.Coq_value (ValueT.Coq_id (Tag.Coq_physical, x)) in *)
+    (*                 Some ([Infrule.Coq_intro_ghost (x_exp, g)]@infrs@ *)
+    (*                         [Auto.transitivity Auto.Tgt e1 x_exp e2], (g, x)::acc_ghosts) *)
+    (*              | _ -> None)) *)
+    (*   | _ -> None *)
 
     let resolve_one_ld scp ld acc_ghosts e1 e2 : (Infrule.t list * ghost_intd_t) option =
       print_endline "AutoNewGVN: resolve_one_ld start";
       if ExprPairSet.mem (e1, e2) ld then Some ([],[])
       else match scp with
-           | Auto.Src -> resolve_one_ld_src ld acc_ghosts e1 e2
-           | Auto.Tgt -> resolve_one_ld_tgt ld acc_ghosts e1 e2
+           | Auto.Src -> resolve_one_ld Auto.Src ld acc_ghosts e1 e2
+           | Auto.Tgt -> resolve_one_ld Auto.Tgt ld acc_ghosts e1 e2
 
     let rec run_intl (scp:Auto.scope_t) (ld:ExprPairSet.t) (ldl_g:ExprPair.t list)
                      (acc_ghosts:ghost_intd_t) (acc_infrs:Infrule.t list) (acc_ld:ExprPairSet.t)

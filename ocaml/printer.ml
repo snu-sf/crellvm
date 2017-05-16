@@ -276,6 +276,11 @@ module PrintHints = struct
          ^ ExprsToString.of_expr e ^ " ≥ ([ "
          ^ ExprsToString.of_IdT x ^ " := " ^ ExprsToString.of_ValueT y ^ " ] "
          ^ ExprsToString.of_expr e ^ ")"
+      | Infrule.Coq_substitute_tgt (x, y, e) ->
+         "substitute_tgt : "
+         ^ ExprsToString.of_expr e ^ " ≥ ([ "
+         ^ ExprsToString.of_IdT x ^ " := " ^ ExprsToString.of_ValueT y ^ " ] "
+         ^ ExprsToString.of_expr e ^ ")"
       | Infrule.Coq_substitute_rev (x, y, e) ->
          "substitute_rev : "
          ^ "([ " ^ ExprsToString.of_IdT x ^ " := " ^ ExprsToString.of_ValueT y ^ " ] "
