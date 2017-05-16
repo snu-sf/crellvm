@@ -245,6 +245,20 @@ let propagate_global
     (fun hint_stmts -> PropagateStmts.global invariant hint_stmts)
     hint_fdef
 
+(* return: fst is Global, snd is remaining *)
+let filter_global
+      (lfdef:LLVMsyntax.fdef) (rfdef:LLVMsyntax.fdef)
+      (hints: (CoreHint_t.hint_command * CoreHint_t.cpp_debug_info) list)
+    : InvariantObject.t list *
+        (CoreHint_t.hint_command * CoreHint_t.cpp_debug_info) list =
+  let f = (fun s i ->
+           match (fst i) with
+           | CoreHint_t.Propagate { propagate = prop ; propagate_range = CoreHint_t.Global } ->
+              let inv_obj = InvariantObject.convert prop lfdef rfdef in
+              (inv_obj :: fst s, snd s)
+           | _ -> (fst s, i :: snd s)) in
+  List.fold_left f ([], []) hints
+
 let propagate_hint
       (lfdef:LLVMsyntax.fdef)
       (dtree_lfdef:atom coq_DTree)
