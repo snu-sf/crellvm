@@ -11,7 +11,108 @@ Require Import TODO.
 
 Set Implicit Arguments.
 
-Module Tag <: UsualDecidableType.
+
+Module MSetAVLExtra (E: Orders.OrderedType).
+  (* Require Import MSets.MSetRBT. *)
+  (* MSetRBT.Make. *)
+  Include MSetAVL.Make E.
+  Definition notin x L := ~ In x L.
+
+End MSetAVLExtra.
+
+Module MSetFactsExtra (E: Orders.OrderedType) (M: MSetInterface.S with Module E := E).
+(* Module MSetFactsExtra (E: Orders.OrderedType) (M: (MSetInterface.SetsOn E)). *)
+
+  Include MSetFacts.Facts M.
+
+  Definition map f s := M.fold (compose M.add f) s M.empty.
+
+  Lemma exists_false_iff
+        s f
+        (COMPAT: compat_bool E.eq f):
+    ~ M.Exists (fun x : M.elt => f x = true) s <->
+    M.exists_ f s = false.
+  Proof.
+    econs; ii.
+    - destruct (M.exists_ f s) eqn:X; ss.
+      contradict H. apply exists_iff; ss.
+    - apply exists_iff in H0; ss. clarify.
+  Qed.
+
+  Lemma exists_filter
+        pred1 pred2 ids
+        (PRED1: compat_bool E.eq pred1)
+        (PRED2: compat_bool E.eq pred2)
+    : M.exists_ pred1 (M.filter pred2 ids) =
+      M.exists_ (fun x => andb (pred1 x) (pred2 x)) ids.
+  Proof.
+    destruct (M.exists_ pred1 (M.filter pred2 ids)) eqn:X1.
+    - apply exists_iff in X1; [|solve_compat_bool].
+      inv X1. des. apply filter_iff in H; [|solve_compat_bool]. des.
+      symmetry. apply exists_iff; ss.
+      { ii. f_equal; eauto. }
+      econs. esplits; eauto. apply andb_true_iff. ss.
+    - symmetry. apply exists_false_iff.
+      { ii. f_equal; eauto. }
+      apply exists_false_iff in X1; ss. contradict X1.
+      inv X1. des. apply andb_true_iff in H0. des.
+      econs. splits; eauto. apply filter_iff; ss.
+  Qed.
+
+  Lemma map_spec f s ty
+        (F: Proper (E.eq ==> E.eq) f):
+    M.mem ty (map f s) =
+    M.exists_ (eqb ty <*> f) s.
+  Proof.
+    unfold map. rewrite M.fold_spec, <- fold_left_rev_right.
+    rewrite exists_b; cycle 1.
+    { ii. unfold eqb, compose.
+      destruct (eq_dec ty (f x)), (eq_dec ty (f y)); ss.
+      - contradict n. etransitivity; eauto.
+      - contradict n. etransitivity; eauto. eapply F; eauto. symmetry. ss.
+    }
+    rewrite existsb_rev.
+    induction (rev (M.elements s)); ss.
+    - destruct (M.mem ty M.empty) eqn:X; ss.
+      apply M.mem_spec in X. exfalso. eapply M.empty_spec. eauto.
+    - unfold compose, flip in *. rewrite add_b, IHl0.
+      f_equal. unfold eqb. destruct (eq_dec (f a) ty), (eq_dec ty (f a)); ss.
+      + contradict n. symmetry. ss.
+      + contradict n. symmetry. ss.
+  Qed.
+
+  Definition from_list
+             (ids:list E.t): M.t :=
+    fold_left (flip M.add) ids M.empty.
+
+  Lemma from_list_spec ids:
+    forall id, M.mem id (from_list ids) <-> InA E.eq id ids.
+  Proof.
+    unfold from_list. rewrite <- fold_left_rev_right.
+    intros. rewrite <- InA_rev.
+    unfold M.elt.
+    match goal with
+    | [|- context[@rev ?T ?ids]] => induction (@rev T ids)
+    end; simpl.
+    - rewrite empty_b. intuition. inv H.
+    - unfold flip in *. rewrite add_b.
+      unfold eqb. constructor; intros.
+      + apply orb_true_iff in H. destruct H.
+        * left. destruct (eq_dec a id0); intuition.
+        * right. apply IHl0. auto.
+      + apply orb_true_intro. inv H.
+        * destruct (eq_dec a id0); auto.
+          contradict n. symmetry. ss.
+        * right. apply IHl0. auto.
+  Qed.
+
+End MSetFactsExtra.
+
+
+(* Default OrderedType is Structures.OrderedType *)
+(* https://coq.inria.fr/library/ *)
+(* ... OrderedType* are there only for compatibility. *)
+Module Tag <: Orders.OrderedType.
   Inductive t_: Set :=
   | physical
   | previous
@@ -25,13 +126,49 @@ Module Tag <: UsualDecidableType.
   Definition eq_dec (x y:t): {x = y} + {x <> y}.
     decide equality.
   Defined.
+  Global Program Instance eq_equiv : Equivalence eq.
 
   Definition is_previous x := match x with Tag.previous => true | _ => false end.
   Definition is_ghost x := match x with Tag.ghost => true | _ => false end.
+
+  (* physical < previous < ghost *)
+  Definition ltb (x y: t): bool :=
+    match x, y with
+    | physical, previous => true
+    | physical, ghost => true
+    | previous, ghost => true
+    | _, _ => false
+    end.
+
+  Definition lt: t -> t -> Prop := ltb.
+
+  Definition compare (x y: t): comparison :=
+    if(eq_dec x y) then Eq else
+      (if (ltb x y) then Lt else Gt)
+  .
+  
+  Lemma compare_spec : forall x y : t, CompareSpec (eq x y) (lt x y) (lt y x) (compare x y).
+  Proof.
+    ii. destruct x, y; ss; by econs.
+  Qed.
+
+  Global Program Instance lt_strorder : StrictOrder lt.
+  Next Obligation.
+    ii. unfold lt in *. unfold ltb in *. des_ifs.
+  Qed.
+
+  Global Program Instance lt_compat : Proper (eq ==> eq ==> iff) lt.
+  Next Obligation.
+    ii. unfold eq in *. clarify.
+  Qed.
+  Next Obligation.
+    ii. unfold lt in *. unfold ltb in *. des_ifs.
+  Qed.
+
 End Tag.
 Hint Resolve Tag.eq_dec: EqDecDb.
 
-Module IdT <: UsualDecidableType.
+Module IdT <: Orders.OrderedType.
   Definition t : Set := (Tag.t * id)%type.
   Definition eq := @eq t.
   Definition eq_refl := @refl_equal t.
@@ -43,12 +180,86 @@ Module IdT <: UsualDecidableType.
     apply Tag.eq_dec.
   Qed.
 
+  (* Definition ltb (x y: t): bool := *)
+  (*   (Tag.ltb x.(fst) y.(fst)) || (Tag.eq_dec x.(fst) y.(fst) && ltb x.(snd) y.(snd)) *)
+  (* . *)
+
+  Global Program Instance eq_equiv : Equivalence eq.
+
+  Definition lt (x y: t): Prop :=
+    (Tag.lt x.(fst) y.(fst)) \/ (Tag.eq x.(fst) y.(fst) /\ AtomImpl.lt x.(snd) y.(snd))
+  .
+
+  Definition compare (x y: t): comparison :=
+    match Tag.compare x.(fst) y.(fst) with
+    | Eq => compare x.(snd) y.(snd)
+    | Lt => Lt
+    | Gt => Gt
+    end.
+  
+  Lemma compare_spec : forall x y : t, CompareSpec (eq x y) (lt x y) (lt y x) (compare x y).
+  Proof.
+    ii.
+    destruct x, y; ss.
+    unfold eq, lt. ss.
+    unfold compare. ss.
+    des_ifs; ss.
+    - unfold Tag.compare in *. des_ifs.
+      destruct (AtomImpl.compare i0 i1) eqn:T;
+        (hexploit compare_spec; eauto; []; rewrite T; intro SPEC; des); inv SPEC.
+      + econs; ss.
+      + econs. right. split; ss.
+      + econs. right. split; ss.
+    - (hexploit Tag.compare_spec; eauto; []; rewrite Heq; intro SPEC; des); inv SPEC.
+      (* TODO: tactic for compare_spec? like transitivity? *)
+      econs; eauto.
+    - (hexploit Tag.compare_spec; eauto; []; rewrite Heq; intro SPEC; des); inv SPEC.
+      econs; eauto.
+  Qed.
+
+  Global Program Instance lt_strorder : StrictOrder lt.
+  Next Obligation.
+    ii.
+    unfold lt in *.
+    des.
+    - generalize Tag.lt_strorder; intro ORDER. inv ORDER.
+      eapply StrictOrder_Irreflexive; eauto.
+    - generalize AtomImpl.lt_strorder; intro ORDER. inv ORDER.
+      eapply StrictOrder_Irreflexive; eauto.
+  Qed.
+
+  Global Program Instance lt_compat : Proper (eq ==> eq ==> iff) lt.
+  Next Obligation.
+    ii. unfold eq in *. clarify.
+  Qed.
+  Next Obligation.
+    ii. unfold lt in *.
+    destruct x, y, z; ss.
+    destruct H.
+    - destruct H0.
+      + left. etransitivity; eauto.
+      + des. unfold Tag.eq in *. clarify.
+        left. ss.
+    - unfold Tag.eq in *. des; subst.
+      + left. ss.
+      +  right. split; ss.
+         etransitivity; eauto.
+  Qed.
+
   Definition lift (tag:Tag.t) (i:id): t := (tag, i).
 End IdT.
+
 Hint Resolve IdT.eq_dec: EqDecDb.
 
-Module IdTSet : FSetExtra.WSfun IdT := FSetExtra.Make IdT.
-Module IdTSetFacts := WFacts_fun2 IdT IdTSet.
+
+(* Module IdTSet : FSetExtra.WSfun IdT := FSetExtra.Make IdT. *)
+(* Module IdTSetFacts := WFacts_fun2 IdT IdTSet. *)
+
+Print MSetInterface.
+Print MSetInterface.S.
+Module IdTSet := MSetAVLExtra IdT. (* TODO: I want to specify type here *)
+(* "MSetInterface.S with Module E := IdT" dosen't work *)
+Module IdTSetFacts := MSetFactsExtra IdT IdTSet.
 
 Lemma IdTSet_from_list_spec ids:
   forall id, IdTSet.mem id (IdTSetFacts.from_list ids) <-> In id ids.
