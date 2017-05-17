@@ -245,7 +245,6 @@ Proof.
     destruct st2_src, st_tgt. ss.
     destruct EC0, EC1. ss. subst.
     eapply _sim_src_error. i.
-    Require Program.
     inv STACK.
     + (* final *)
       exploit nerror_stuck_final; eauto.
