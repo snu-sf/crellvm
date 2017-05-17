@@ -151,31 +151,6 @@ Proof.
   apply_all_once lookupFdefViaIDFromProducts_ideq. clarify.
 Qed.
 
-(* call & excall mismatch *)
-Lemma lookupExFdecViaPtr_inject
-      conf_src conf_tgt Mem1 inv_curr Mem0
-      (SIM_CONF: sim_conf conf_src conf_tgt)
-      (MEM: InvMem.Rel.sem
-              conf_src conf_tgt
-              Mem0 Mem1 inv_curr)
-      fptr res0
-      (LOOKUP0: lookupExFdecViaPtr conf_src.(CurProducts) conf_src.(FunTable) fptr = ret res0)
-      fptr0 res1
-      (LOOKUP1: lookupFdefViaPtr conf_tgt.(CurProducts) conf_tgt.(FunTable) fptr0 = ret res1)
-      (INJECT : genericvalues_inject.gv_inject (InvMem.Rel.inject inv_curr) fptr fptr0)
-  :
-    False
-.
-Proof.
-  unfold lookupFdefViaPtr in *. unfold lookupExFdecViaPtr in *. unfold mbind in *. des_ifs.
-  inv MEM. clear SRC TGT INJECT0 WF. ss.
-  expl FUNTABLE.
-  rewrite Heq0 in *. rewrite Heq in *. clarify.
-  inv SIM_CONF. inv SIM_PRODUCTS.
-  expl SIM_NONE.
-  clarify.
-Qed.
-
 Lemma gv_inject_list_spec
       mi gvs gvs0
       (INJECT: list_forall2 (genericvalues_inject.gv_inject mi) gvs gvs0)
