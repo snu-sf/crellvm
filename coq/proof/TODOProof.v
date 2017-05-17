@@ -7,6 +7,12 @@ Require Import Classical.
 
 Set Implicit Arguments.
 
+Ltac hide_goal :=
+  match goal with
+  | [ |- ?G ] => let name := fresh "HIDDEN_GOAL" in
+                 set (name := G); replace G with name by reflexivity; move name at top
+  end.
+
 (* TODO: Is it replacable by some lemma in stdlib? or tactic? *)
 Lemma dependent_split
       (A B: Prop)
