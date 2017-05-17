@@ -128,7 +128,6 @@ Module Rel.
   .
 
   (* Inspired from Compcert's inject_separated *)
-  (* maybe just get block number? not entire memory? *)
   Inductive frozen (f_old f_new: MoreMem.meminj) (bound_src bound_tgt: mblock): Prop :=
     | frozen_intro
         (NEW_IMPLIES_OUTSIDE:
