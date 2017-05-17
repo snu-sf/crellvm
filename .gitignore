@@ -35,5 +35,4 @@ Makefile.coq
 /results-opt
 
 lib/*
-simplberry-tests
 llvmberry-tests
