@@ -568,6 +568,20 @@ Definition apply_infrule
                +++src (Expr.value y) >= true_expr
          }}
     else apply_fail tt
+  | Infrule.and_true_bool_tgt x y =>
+    let true_expr := Expr.value (ValueT.const (const_int Size.One (INTEGER.of_Z (Size.to_Z Size.One) (-1)%Z true))) in
+    if $$ inv0 |-tgt true_expr >= (Expr.bop bop_and Size.One x y) $$
+    then {{
+             {{
+                 {{
+                     {{inv0 +++tgt true_expr >= (Expr.value x)}}
+                       +++tgt (Expr.value x) >= true_expr
+                 }}
+                   +++tgt true_expr >= (Expr.value y)
+             }}
+               +++tgt (Expr.value y) >= true_expr
+         }}
+    else apply_fail tt
   | Infrule.and_undef z x s =>
     if $$ inv0 |-src (Expr.value z) >= (Expr.bop bop_and s x (ValueT.const (const_undef (typ_int s)))) $$
     then {{ inv0 +++src (Expr.value z) >= (Expr.value
@@ -1008,6 +1022,20 @@ Definition apply_infrule
                    +++src false_expr >= (Expr.value y)
              }}
                +++src (Expr.value y) >= false_expr
+         }}
+    else apply_fail tt
+  | Infrule.or_false_tgt x y sz =>
+    let false_expr := Expr.value (ValueT.const (const_int sz (INTEGER.of_Z (Size.to_Z sz) 0%Z true))) in
+    if $$ inv0 |-tgt false_expr >= (Expr.bop bop_or sz x y) $$
+    then {{
+             {{
+                 {{
+                     {{inv0 +++tgt false_expr >= (Expr.value x)}}
+                       +++tgt (Expr.value x) >= false_expr
+                 }}
+                   +++tgt false_expr >= (Expr.value y)
+             }}
+               +++tgt (Expr.value y) >= false_expr
          }}
     else apply_fail tt
   | Infrule.or_undef z a s =>
@@ -1785,6 +1813,22 @@ Definition apply_infrule
           {{inv0 +++src (Expr.value (ValueT.const (const_int Size.One b'))) >= (Expr.icmp c' ty x y)}}
       in {{inv1 +++src (Expr.icmp c' ty x y) >= (Expr.value (ValueT.const (const_int Size.One b')))}}
     else apply_fail tt
+  | Infrule.icmp_inverse_tgt c ty x y b =>
+    if $$ inv0 |-tgt (Expr.icmp c ty x y) >= (Expr.value (ValueT.const (const_int Size.One b))) $$
+    then
+      let c' := get_inverse_icmp_cond c in
+      let b' := get_inverse_boolean_Int b in
+      {{inv0 +++tgt (Expr.icmp c' ty x y) >= (Expr.value (ValueT.const (const_int Size.One b')))}}
+    else apply_fail tt
+  | Infrule.icmp_inverse_rhs_tgt c ty x y b =>
+    if $$ inv0 |-tgt (Expr.value (ValueT.const (const_int Size.One b))) >= (Expr.icmp c ty x y) $$
+    then
+      let c' := get_inverse_icmp_cond c in
+      let b' := get_inverse_boolean_Int b in
+      let inv1 :=
+          {{inv0 +++tgt (Expr.value (ValueT.const (const_int Size.One b'))) >= (Expr.icmp c' ty x y)}}
+      in {{inv1 +++tgt (Expr.icmp c' ty x y) >= (Expr.value (ValueT.const (const_int Size.One b')))}}
+    else apply_fail tt
   | Infrule.icmp_swap_operands c ty x y e =>
     if $$ inv0 |-src e >= (Expr.icmp c ty x y) $$
     then
@@ -1851,6 +1895,14 @@ Definition apply_infrule
     then {{
              {{inv0 +++src (Expr.value x) >= (Expr.value y)}}
                +++src (Expr.value y) >= (Expr.value x)
+         }}
+    else apply_fail tt
+  | Infrule.icmp_eq_same_tgt ty x y =>
+    let Int_one := INTEGER.of_Z 1 1 true in
+    if $$ inv0 |-tgt (Expr.value (ValueT.const (const_int Size.One Int_one))) >= (Expr.icmp cond_eq ty x y) $$
+    then {{
+             {{inv0 +++tgt (Expr.value x) >= (Expr.value y)}}
+               +++tgt (Expr.value y) >= (Expr.value x)
          }}
     else apply_fail tt
   | Infrule.icmp_eq_srem z w x y s =>
@@ -1926,6 +1978,14 @@ Definition apply_infrule
     then {{
              {{inv0 +++src (Expr.value x) >= (Expr.value y)}}
                +++src (Expr.value y) >= (Expr.value x)
+         }}
+    else apply_fail tt
+  | Infrule.icmp_neq_same_tgt ty x y =>
+    let Int_zero := INTEGER.of_Z 1 0 true in
+    if $$ inv0 |-tgt (Expr.value (ValueT.const (const_int Size.One Int_zero))) >= (Expr.icmp cond_ne ty x y) $$
+    then {{
+             {{inv0 +++tgt (Expr.value x) >= (Expr.value y)}}
+               +++tgt (Expr.value y) >= (Expr.value x)
          }}
     else apply_fail tt
   | Infrule.icmp_sge_or_not z z' a b s =>
