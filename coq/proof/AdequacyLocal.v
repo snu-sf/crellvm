@@ -165,7 +165,7 @@ Proof.
 Qed.
 
 (* TODO: Move to more proper place *)
-Theorem callExternalOrIntrinsics_inject
+Axiom callExternalOrIntrinsics_inject: forall
   TD Gs
   S0 S1 Ps0 Ps1 Fs0 Fs1
   Mem0 fid rt la dck oresult0 tr Mem0' args0 args1
@@ -174,7 +174,7 @@ Theorem callExternalOrIntrinsics_inject
              = ret (oresult0, tr, Mem0'))
   (ARGS_INJECT: list_forall2 (genericvalues_inject.gv_inject (InvMem.Rel.inject invmem0)) args0 args1)
   (MEM: InvMem.Rel.sem (mkCfg S0 TD Ps0 Gs Fs0) (mkCfg S1 TD Ps1 Gs Fs1) Mem0 Mem1 invmem0)
-  :
+  ,
     exists oresult1 Mem1',
       (<<TGT_CALL: callExternalOrIntrinsics TD Gs Mem1 fid rt (args2Typs la) dck args1
                    = ret (oresult1, tr, Mem1')>>)
@@ -185,8 +185,6 @@ Theorem callExternalOrIntrinsics_inject
                                  oresult0 oresult1>>))
 
 .
-Proof.
-Admitted.
 
 Lemma sim_local_stack_invmem_le
       conf_src conf_tgt ecs0_src ecs0_tgt inv0
