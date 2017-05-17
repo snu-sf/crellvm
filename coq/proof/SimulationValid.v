@@ -38,23 +38,6 @@ Require Import opsem_wf.
 
 Set Implicit Arguments.
 
-(* TODO: Move to definition point. Why error_state is defined in GenericValues? *)
-Lemma error_state_neg conf st
-      (NERROR_SRC: ~error_state conf st)
-  :
-    <<NERROR_SRC: ~(stuck_state conf st) \/ exists gv, s_isFinialState conf st = Some gv>>
-.
-Proof.
-  red. unfold not in NERROR_SRC.
-  apply imply_to_or.
-  i.
-  destruct (s_isFinialState conf st) eqn:T.
-  { esplits; eauto. }
-  exploit NERROR_SRC; eauto.
-  { econs; eauto. }
-  i; ss.
-Qed.
-
 Inductive valid_state_sim
           (conf_src conf_tgt:Config)
           (stack0_src stack0_tgt:ECStack)
@@ -71,7 +54,6 @@ Inductive valid_state_sim
     (ECS_TGT: st_tgt.(ECS) = stack0_tgt)
     (FDEF: valid_fdef m_src m_tgt st_src.(EC).(CurFunction) st_tgt.(EC).(CurFunction) fdef_hint)
     (LABEL: st_src.(EC).(CurBB).(fst) = st_tgt.(EC).(CurBB).(fst))
-    (* (ALLOCAS: inject_allocas invmem st_src.(EC).(Allocas) st_tgt.(EC).(Allocas)) *)
     inv_term
     (CMDS: valid_cmds m_src m_tgt st_src.(EC).(CurCmds) st_tgt.(EC).(CurCmds) cmds_hint inv = Some inv_term)
     (TERM: exists infrules,
@@ -98,33 +80,6 @@ Proof.
   red. econs; eauto. rewrite <- INT.
   symmetry.
   eapply genericvalues_inject.simulation__eq__GV2int; eauto.
-Qed.
-
-(* TODO: move to SoundImpiles.v *)
-Lemma implies_reduce_maydiff
-      inv0
-  :
-    <<IMPLIES: Invariant.implies (Postcond.reduce_maydiff inv0) inv0>>
-.
-Proof.
-  red.
-  unfold Postcond.reduce_maydiff.
-  unfold Invariant.implies.
-  apply orb_true_iff. right.
-  do 2 try (apply andb_true_iff; split).
-  - ss. apply wrap_is_true_goal. reflexivity.
-  - ss. apply wrap_is_true_goal. reflexivity.
-  - ss.
-    (* TODO: THERE SHOULD BE LEMMA FOR THIS: subset -> filter *)
-    apply Exprs.IdTSetFacts.subset_iff.
-    ii.
-    apply Exprs.IdTSetFacts.filter_iff in H; cycle 1.
-    { solve_compat_bool. }
-    des.
-    apply Exprs.IdTSetFacts.filter_iff in H; cycle 1.
-    { solve_compat_bool. }
-    des.
-    ss.
 Qed.
 
 Lemma valid_sim_term
@@ -618,7 +573,7 @@ all: try destruct CONF; subst; ss.
 Qed.
 (* TODO: Pull out same pattern as lemma or tac *)
 
-(* TODO: move to postcond.v *)
+(* TODO: move to postcond.v? SoundBase? Maybe this is proper position.. *)
 Lemma postcond_cmd_implies_inject_event
       c0 c1 inv t
       (POSTCOND: Postcond.postcond_cmd c0 c1 inv = Some t)
@@ -647,13 +602,6 @@ Proof.
   unfold Postcond.postcond_cmd_check in *.
   des_ifs; ss; des_bool; ss.
 Qed.
-
-(* TODO: move to TODO.v *)
-(* Definition option_Forall A (P: A -> Prop) (a: option A): Prop := *)
-(*   match a with *)
-(*   | Some a => P a *)
-(*   | None => True *)
-(*   end. *)
 
 Lemma valid_progress
       conf_src conf_tgt stack0_src stack0_tgt inv0 idx0 st_src st_tgt

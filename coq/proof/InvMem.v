@@ -64,7 +64,7 @@ Module Unary.
       (UNIQUE_PRIVATE_PARENT: sublist inv.(unique_parent) inv.(private_parent))
       (NEXTBLOCK: m.(Mem.nextblock) = inv.(nextblock))
       (NEXTBLOCK_PARENT: (inv.(mem_parent).(Mem.nextblock) <= m.(Mem.nextblock))%positive)
-      (* above is added for lift_unlift_le *)
+      (* NB_PARENT is added for lift_unlift_le *)
   .
 
   Inductive le (lhs rhs:t): Prop :=

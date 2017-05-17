@@ -7,6 +7,19 @@ Require Import Classical.
 
 Set Implicit Arguments.
 
+(* TODO: Is it replacable by some lemma in stdlib? or tactic? *)
+Lemma dependent_split
+      (A B: Prop)
+      (HYPA: A)
+      (HYPB: <<HYPA: A>> -> B)
+  :
+    <<GOAL: A /\ B>>
+.
+Proof.
+  split; ss.
+  apply HYPB; ss.
+Qed.
+
 Lemma Pos_lt_le_irrefl
       a b
       (LE: (a <= b)%positive)

@@ -203,20 +203,6 @@ Proof.
       * esplits; eauto.
 Qed.
 
-(* TODO: move to proper position *)
-(* TODO: Is it replacable by some lemma in stdlib? or tactic? *)
-Lemma dependent_split
-      (A B: Prop)
-      (HYPA: A)
-      (HYPB: <<HYPA: A>> -> B)
-  :
-    <<GOAL: A /\ B>>
-.
-Proof.
-  split; ss.
-  apply HYPB; ss.
-Qed.
-
 Lemma transl_products_init
       l ndts prods_src prods_tgt
       (TRANSL_PRODUCTS:
@@ -266,8 +252,6 @@ Definition init_invmem (m0: mem): InvMem.Rel.t :=
 
 Lemma init_mem_sem
       (* Do we need prods_src/prods_tgt both? not sure, but this form is sufficient *)
-      (* l ndts prods gl fs m0 *)
-      (* (INIT: genGlobalAndInitMem (l, ndts) prods [] [] Mem.empty = ret (gl, fs, m0)) *)
       l ndts prods_src prods_tgt gl fs m0
       (INIT_SRC: genGlobalAndInitMem (l, ndts) prods_src [] [] Mem.empty = ret (gl, fs, m0))
       (INIT_TGT: genGlobalAndInitMem (l, ndts) prods_tgt [] [] Mem.empty = ret (gl, fs, m0))

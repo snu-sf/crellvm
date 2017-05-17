@@ -550,3 +550,30 @@ Next Obligation.
     apply_all_once Exprs.IdTSetFacts.subset_iff.
     etransitivity; eauto.
 Qed.
+
+(* TODO: move to SoundImpiles.v *)
+Lemma implies_reduce_maydiff
+      inv0
+  :
+    <<IMPLIES: Invariant.implies (Postcond.reduce_maydiff inv0) inv0>>
+.
+Proof.
+  red.
+  unfold Postcond.reduce_maydiff.
+  unfold Invariant.implies.
+  apply orb_true_iff. right.
+  do 2 try (apply andb_true_iff; split).
+  - ss. apply wrap_is_true_goal. reflexivity.
+  - ss. apply wrap_is_true_goal. reflexivity.
+  - ss.
+    (* TODO: THERE SHOULD BE LEMMA FOR THIS: subset -> filter *)
+    apply Exprs.IdTSetFacts.subset_iff.
+    ii.
+    apply Exprs.IdTSetFacts.filter_iff in H; cycle 1.
+    { solve_compat_bool. }
+    des.
+    apply Exprs.IdTSetFacts.filter_iff in H; cycle 1.
+    { solve_compat_bool. }
+    des.
+    ss.
+Qed.
