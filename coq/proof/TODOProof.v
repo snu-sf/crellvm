@@ -7,6 +7,15 @@ Require Import Classical.
 
 Set Implicit Arguments.
 
+Lemma Pos_lt_le_irrefl
+      a b
+      (LE: (a <= b)%positive)
+      (LT: (b < a)%positive)
+  :
+    False
+.
+Proof. eapply Pos.lt_irrefl. eapply Pos.lt_le_trans; eauto. Qed.
+
 Lemma Forall_harder
       A
       (P Q: A -> Prop)

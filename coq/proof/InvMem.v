@@ -177,16 +177,6 @@ Module Rel.
         split; ss.
   Qed.
 
-  (* Move to TODOProof *)
-  Lemma Pos_lt_le_irrefl
-        a b
-        (LE: (a <= b)%positive)
-        (LT: (b < a)%positive)
-    :
-      False
-  .
-  Proof. eapply Pos.lt_irrefl. eapply Pos.lt_le_trans; eauto. Qed.
-
   Lemma frozen_preserves_src
         inv0 inv1
         (INJECT: inject_incr inv0.(inject) inv1.(inject))
@@ -214,7 +204,7 @@ Module Rel.
     - destruct p; ss.
       exploit NEW_IMPLIES_OUTSIDE; eauto; []; i; des.
       exfalso.
-      eapply Pos_lt_le_irrefl; revgoals; eauto.
+      eapply TODOProof.Pos_lt_le_irrefl; revgoals; eauto.
   Qed.
 
   Lemma frozen_preserves_tgt
@@ -237,7 +227,7 @@ Module Rel.
       clarify.
     - exfalso.
       exploit NEW_IMPLIES_OUTSIDE; eauto; []; i; des.
-      eapply Pos_lt_le_irrefl; revgoals; eauto.
+      eapply TODOProof.Pos_lt_le_irrefl; revgoals; eauto.
   Qed.
 
   Lemma frozen_shortened
