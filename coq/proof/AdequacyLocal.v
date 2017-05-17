@@ -120,7 +120,6 @@ Inductive sim_products (conf_src conf_tgt:Config) (prod_src prod_tgt:products): 
     (SIM_SOME_FDEC: forall fid header deck
                       (FDEC_SRC: lookupFdecViaIDFromProducts prod_src fid
                                  = Some (fdec_intro header deck)),
-        (* exists header_tgt, *)
           <<FDEC_TGT: lookupFdecViaIDFromProducts prod_tgt fid = Some (fdec_intro header deck)>>)
 .
 
