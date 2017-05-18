@@ -40,7 +40,9 @@ Inductive nop_state_sim
     (* (CONF: nop_conf conf_src conf_tgt) *)
     (FDEF: nop_fdef fdef_src fdef_tgt)
     (CMDS: nop_cmds cmds_src cmds_tgt)
-    (LOCALS: inject_locals inv locals_src locals_tgt)
+    (LOCALS: fully_inject_locals inv.(InvMem.Rel.inject) locals_src locals_tgt)
+    (* TODO: define fully_inject_allocas with meminj alone, not whole InvMem *)
+    (* TODO: We may totally remove fully_inject_allocas later, so postpone this *)
     (ALLOCAS: fully_inject_allocas inv allocas_src allocas_tgt)
     (MEM: InvMem.Rel.sem conf_src conf_tgt mem_src mem_tgt inv)
     (ALLOCAS_DISJOINT_SRC: list_disjoint allocas_src
@@ -332,6 +334,7 @@ Proof.
         { ss. eapply SoundBase.fully_inject_allocas_inject_allocas; eauto. }
         s. i.
         eapply inject_locals_getOperandValue; eauto.
+        eapply fully_inject_locals_inject_locals; eauto.
       + econs 3; ss.
         { ss. eapply SoundBase.fully_inject_allocas_inject_allocas; eauto. }
   }
@@ -344,7 +347,7 @@ Proof.
     inv SIM. ss. subst.
     exploit nop_cmds_tgt_non_nop; eauto; ss. i. des. subst.
     eapply sop_star_sim_local; [by apply nops_sop_star|].
-    apply _sim_local_src_error. i.
+    apply _sim_local_src_error; [|split; ss]. i.
     exploit nerror_nfinal_nstuck; eauto. i.
     destruct x0 as (st'_src & tr_src & PROGRESS_SRC).
     assert (FUNC_TGT: exists func_tgt, getOperandValue (CurTargetData conf_tgt) f locals_tgt (Globals conf_tgt) = Some func_tgt).
@@ -354,14 +357,13 @@ Proof.
     des.
     eapply _sim_local_call with (uniqs_src:= nil) (uniqs_tgt:= nil) (privs_src:= nil) (privs_tgt:= nil);
       try apply STEPS; try eexact x0; ss; try reflexivity; eauto; try (ii; des; contradiction).
-    { s. i. eapply inject_locals_getOperandValue; eauto. }
-    { s. i. eapply inject_locals_params2GVs; eauto. }
+    { s. i. eapply inject_locals_getOperandValue; eauto.
+      eapply fully_inject_locals_inject_locals; eauto. }
+    { s. i. eapply inject_locals_params2GVs; eauto.
+      eapply fully_inject_locals_inject_locals; eauto. }
     s. i.
-    exploit return_locals_inject_locals; eauto.
-    { assert (INJECT_LOCALS_LIFT: inject_locals (InvMem.Rel.lift mem_src mem_tgt [] [] [] [] inv0) locals_src locals_tgt).
-      { eapply meminj_eq_inject_locals; eauto. }
-      eapply inject_locals_inj_incr; eauto.
-    }
+    exploit return_locals_fully_inject_locals; eauto.
+    { eapply fully_inject_locals_inj_incr; eauto. apply INCR. }
     i. des.
     esplits. i. splits; eauto.
     + inv CONF. rewrite <- TARGETDATA. eauto.
@@ -383,7 +385,6 @@ Proof.
         eapply Pos.lt_le_trans; eauto.
         apply INCR.
       }
-    + splits; ss.
   - (* return *)
     exploit get_status_return_inv; eauto. i. des.
     inv SIM. ss. subst.
@@ -394,6 +395,7 @@ Proof.
     { ss. eapply SoundBase.fully_inject_allocas_inject_allocas; eauto. }
     { reflexivity. }
     i. eapply inject_locals_getOperandValue; eauto.
+    eapply fully_inject_locals_inject_locals; eauto.
   - (* return void *)
     exploit get_status_return_void_inv; eauto. i. des.
     inv SIM. ss. subst.
@@ -402,19 +404,82 @@ Proof.
     eapply sop_star_sim_local; [by apply nops_sop_star|].
     eapply _sim_local_return_void; ss.
     { ss. eapply SoundBase.fully_inject_allocas_inject_allocas; eauto. }
-  - inv SIM; ss. move CMDS at bottom.
+  - clear PROGRESS_TGT.
+    inv SIM; ss. move CMDS at bottom.
     unfold get_status in *; ss.
     destruct conf_src; ss.
     inv CONF. ss. clarify.
     des_ifs; ss.
     + eapply nop_cmds_tgt_nil in CMDS.
       hide_goal. econs 5; eauto.
-      i. inv STEP. ss.
+      { ii. admit. (* remove "clear PROGRESS_TGT" above *) }
+      i.
+      des. expl preservation.
+      inv STEP. ss.
+      destruct value5; ss; cycle 1.
+      {
+        esplits.
+        - rpapply nops_sop_star; eauto. rewrite app_nil_r. eauto.
+        - econs; eauto.
+          eapply sBranch; eauto.
+          + instantiate (1:= tmn').
+            instantiate (2:= ps').
+            admit. (* nop_fdef spec *)
+          + admit. (* *)
+        - reflexivity.
+        - right. apply CIH.
+          econs; eauto.
+          + admit.
+          + admit.
+      }
+      {
+        hide_goal. 
+        hexploit fully_inject_locals_spec; eauto. rewrite H12. intro INJ.
+        unfold lift2_option in *. des_ifsH INJ.
+        inv INJ.
+        { subst HIDDEN_GOAL0.
+          esplits.
+          - rpapply nops_sop_star; eauto. rewrite app_nil_r. eauto.
+          - econs; eauto.
+            eapply sBranch; eauto.
+            + instantiate (1:= tmn').
+              instantiate (2:= ps').
+              admit. (* nop_fdef spec *)
+            + admit. (* *)
+          - reflexivity.
+          - right. apply CIH.
+            econs; eauto.
+            + admit.
+            + admit.
+        }
+        { subst HIDDEN_GOAL0.
+          esplits.
+          - rpapply nops_sop_star; eauto. rewrite app_nil_r. eauto.
+          - econs; eauto.
+            eapply sBranch; eauto.
+            ttttttttttttttttttttt
+            + instantiate (1:= tmn').
+              instantiate (2:= ps').
+              admit. (* nop_fdef spec *)
+            + admit. (* *)
+          - reflexivity.
+          - right. apply CIH.
+            econs; eauto.
+            + admit.
+            + admit.
+        }
+      }
+      {
+      }
       esplits.
       * rpapply nops_sop_star; eauto. rewrite app_nil_r. eauto.
       * econs; eauto.
-        rpapply sBranch; eauto.
         { destruct value5; ss.
+          unfold lift2_option in *. des_ifsH INJ.
+          inv INJ; ss.
+          destruct conds; ss.
+          des_ifs.
+          destruct value5; ss.
           tttttttttt
           exploit LOCALS; eauto.
           tttttttttttttttttttt
