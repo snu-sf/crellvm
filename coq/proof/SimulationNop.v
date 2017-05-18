@@ -61,7 +61,7 @@ Inductive nop_state_sim
     nop_state_sim
       conf_src conf_tgt
       stack0_src stack0_tgt inv
-      (length cmds_tgt)
+      (length cmds_src)
       (mkState
          (mkEC fdef_src (l, s_src) cmds_src term locals_src allocas_src)
          stack0_src
@@ -120,6 +120,7 @@ Inductive status :=
 | status_call
 | status_return
 | status_return_void
+| status_terminator
 | status_step
 .
 
@@ -135,7 +136,7 @@ Definition get_status (ec:ExecutionContext): status :=
     match ec.(Terminator) with
     | insn_return _ _ _ => status_return
     | insn_return_void _ => status_return_void
-    | _ => status_step
+    | _ => status_terminator
     end
   end.
 
@@ -250,6 +251,64 @@ Proof.
   - destruct a; inv NOPS. destruct conf. econs.
 Qed.
 
+Ltac is_applied_function TARGET :=
+  match TARGET with
+  | ?f ?x =>
+    (* idtac f; idtac "is applied"; *)
+    (* idtac g; idtac a; *)
+    idtac
+  | _ => fail
+  end
+.
+Ltac has_inside_strict A B :=
+  match A with
+  | context[B] => tryif (check_equal A B) then fail else idtac
+  | _ => fail
+  end
+.
+Ltac is_inside_others_body TARGET :=
+  tryif (repeat multimatch goal with
+                | [ |- context[?f ?x] ] =>
+                  (* idtac f; idtac x; *)
+                  tryif (has_inside_strict x TARGET)
+                  then fail 2
+                  else fail
+                end)
+  then fail
+  else idtac
+.
+Ltac on_leftest_function TAC :=
+  (* repeat *)
+  multimatch goal with
+  | [ |- context[?f ?x] ] =>
+    (* idtac f; idtac x; idtac "--------------------"; *)
+    tryif (is_applied_function f)
+    then fail
+    else
+      tryif (is_inside_others_body f)
+      then fail
+      else TAC f
+  (* else TAC constr:(f) *)
+  (* TODO: What is the difference? *)
+  end
+.
+(* TODO: more cannonical way to get leftest function? *)
+(* I tried match reverse but it was not good *)
+(* TODO: I want to define "get_leftest_function" *)
+(* TODO: try tactic notation ? *)
+
+Ltac rpapply H :=
+  on_leftest_function ltac:(fun f =>
+     (idtac f; first
+                 [ erewrite (f_equal8 f)
+                 | erewrite (f_equal7 f)
+                 | erewrite (f_equal6 f)
+                 | erewrite (f_equal5 f)
+                 | erewrite (f_equal4 f)
+                 | erewrite (f_equal3 f)
+                 | erewrite (f_equal2 f)
+                 | erewrite (f_equal  f) | fail]); [ eapply H | .. ]; try reflexivity).
+
 Lemma nop_sim
       conf_src conf_tgt
       (CONF: inject_conf conf_src conf_tgt):
@@ -343,7 +402,64 @@ Proof.
     eapply sop_star_sim_local; [by apply nops_sop_star|].
     eapply _sim_local_return_void; ss.
     { ss. eapply SoundBase.fully_inject_allocas_inject_allocas; eauto. }
+  - inv SIM; ss. move CMDS at bottom.
+    unfold get_status in *; ss.
+    destruct conf_src; ss.
+    inv CONF. ss. clarify.
+    des_ifs; ss.
+    + eapply nop_cmds_tgt_nil in CMDS.
+      hide_goal. econs 5; eauto.
+      i. inv STEP. ss.
+      esplits.
+      * rpapply nops_sop_star; eauto. rewrite app_nil_r. eauto.
+      * econs; eauto.
+        rpapply sBranch; eauto.
+        { destruct value5; ss.
+          tttttttttt
+          exploit LOCALS; eauto.
+          tttttttttttttttttttt
+      *
+        econs; eauto.
+
   - (* step *)
+    eapply _sim_local_step; swap 2 3.
+    { ii. apply H. esplits; eauto. }
+    { inv SIM. des. split; ss. }
+    i.
+    inv SIM. des. ss.
+    move CMDS at bottom.
+    destruct cmds_tgt; ss.
+    { apply nop_cmds_tgt_nil in CMDS.
+      destruct conf_src; ss.
+      esplits.
+      - instantiate (1:= {| EC := {|
+                                   CurFunction := fdef_src;
+                                   CurBB := (l0, s_src);
+                                   CurCmds := [];
+                                   Terminator := term;
+                                   Locals := locals_src;
+                                   Allocas := allocas_src |};
+                            ECS := ecs_src;
+                            Mem := mem_src |}).
+        clear - CMDS.
+        ginduction cmds_src; ii; ss.
+        unfold is_true in *. des_bool. (* TODO: enhance des_bool *)
+        des. destruct a; ss. clear_tac.
+
+        on_leftest_function ltac:(fun x => idtac x).
+        on_leftest_function ltac:(fun f => idtac f; generalize f). Undo 1.
+        on_leftest_function ltac:(fun f => erewrite (f_equal f)). Undo 1.
+        Fail on_leftest_function ltac:(fun f => erewrite f_equal with (f:= constr:(f))).
+        Fail on_leftest_function ltac:(fun f => erewrite f_equal with (f:= f)).
+        (* TODO: IDK why this fails *)
+        rpapply sop_star_cons.
+        + rpapply sNop.
+        + eapply IHcmds_src; eauto.
+        + ss.
+      - econs; eauto.
+        econs; eauto.
+      -
+    }
     admit.
     (* exploit get_status_step_inv; eauto. i. des. *)
 Admitted.
