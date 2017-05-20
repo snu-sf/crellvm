@@ -212,7 +212,6 @@ Proof.
   punfold LOCAL. inv LOCAL.
   - (* error *)
     econs 1; eauto.
-    eapply error_future_error. eauto.
   - (* return *)
     rename inv2 into inv_curr'.
     eapply sop_star_sim; eauto.
@@ -221,7 +220,7 @@ Proof.
     eapply _sim_src_error. i.
     inv STACK.
     + (* final *)
-      exploit nferror_stuck_final; eauto.
+      exploit nerror_stuck_final; eauto.
       { ii. des. inv H. }
       i. des. ss. exploit RET; eauto. i. des.
       eapply _sim_exit; eauto.
@@ -229,7 +228,7 @@ Proof.
       rename inv0 into inv_stack0.
       rename inv1 into inv_stack1.
       rename inv_stack into inv_stack2.
-      exploit nferror_nfinal_nstuck; eauto. i. des.
+      exploit nerror_nfinal_nstuck; eauto. i. des.
       inv x0. ss. rewrite returnUpdateLocals_spec in *. ss.
       simtac0. simtac0.
       exploit RET; eauto. i. des.
@@ -294,12 +293,12 @@ Proof.
     eapply _sim_src_error. i.
     inv STACK.
     + (* final *)
-      exploit nferror_stuck_final; eauto.
+      exploit nerror_stuck_final; eauto.
       { ii. des. inv H. }
       i. des. ss.
       eapply _sim_exit; eauto.
     + (* return *)
-      exploit nferror_nfinal_nstuck; eauto. i. des.
+      exploit nerror_nfinal_nstuck; eauto. i. des.
       inv x0. ss.
       apply _sim_step.
       { intro STUCK. apply STUCK. destruct conf_tgt. ss.
@@ -331,7 +330,7 @@ Proof.
     destruct st2_src, st_tgt. ss.
     destruct EC0, EC1. ss. subst.
     eapply _sim_src_error. i.
-    exploit nferror_nfinal_nstuck; eauto. i. des.
+    exploit nerror_nfinal_nstuck; eauto. i. des.
     inv x0; ss.
     + (* call *)
       exploit FUN; eauto. i. des.

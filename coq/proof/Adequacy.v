@@ -32,7 +32,7 @@ Proof.
   dependent induction TAU; cycle 1.
   { i. destruct tr1, tr2; ss.
     punfold SIM. inv SIM.
-    - pfold. inv ERROR. econs; eauto.
+    - pfold. econs; eauto.
     - exfalso. eapply final_stuck; eauto.
     - exploit STEP; eauto. i. des. inv H2; [|done].
       exploit IHTAU; eauto. i.
@@ -44,7 +44,7 @@ Proof.
   intros idx. revert state.
   induction idx using strong_induction. i.
   punfold SIM. inv SIM.
-  - pfold. inv ERROR. econs; eauto.
+  - pfold. econs; eauto.
   - inv MAT.
     + inv ERROR. congruence.
     + pfold. econs; eauto. econs 2. congruence.
