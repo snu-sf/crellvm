@@ -27,152 +27,106 @@ Require InvState.
 
 Set Implicit Arguments.
 
-
-Inductive nop_state_sim
-          (conf_src conf_tgt:Config)
-          (stack0_src stack0_tgt:ECStack)
-          (inv:InvMem.Rel.t): nat -> State -> State -> Prop :=
-| nop_state_sim_intro
-    fdef_src fdef_tgt
-    l s_src s_tgt
-    cmds_src cmds_tgt term locals_src locals_tgt allocas_src allocas_tgt
-    mem_src mem_tgt
-    (* (CONF: nop_conf conf_src conf_tgt) *)
-    (FDEF: nop_fdef fdef_src fdef_tgt)
+Inductive nop_state_sim_EC: ExecutionContext -> ExecutionContext -> Prop :=
+| nop_state_sim_EC_intro
+    f_src f_tgt
+    (FDEF: nop_fdef f_src f_tgt)
+    bb_src bb_tgt
+    (BB: nop_blocks [bb_src] [bb_tgt])
+    cmds_src cmds_tgt
     (CMDS: nop_cmds cmds_src cmds_tgt)
-    (LOCALS: fully_inject_locals inv.(InvMem.Rel.inject) locals_src locals_tgt)
-    (* TODO: define fully_inject_allocas with meminj alone, not whole InvMem *)
-    (* TODO: We may totally remove fully_inject_allocas later, so postpone this *)
-    (ALLOCAS: fully_inject_allocas inv allocas_src allocas_tgt)
-    (MEM: InvMem.Rel.sem conf_src conf_tgt mem_src mem_tgt inv)
-    (ALLOCAS_DISJOINT_SRC: list_disjoint allocas_src
-                                         (InvMem.Unary.private_parent inv.(InvMem.Rel.src)))
-    (ALLOCAS_DISJOINT_TGT: list_disjoint allocas_tgt
-                                         (InvMem.Unary.private_parent inv.(InvMem.Rel.tgt)))
-    (VALID_ALLOCAS_SRC:
-       Forall (fun x => (x < inv.(InvMem.Rel.src).(InvMem.Unary.nextblock))%positive)
-              allocas_src)
-    (VALID_ALLOCAS_TGT:
-       Forall (fun x => (x < inv.(InvMem.Rel.tgt).(InvMem.Unary.nextblock))%positive)
-              allocas_tgt)
-    (WF_TGT: wf_ConfigI conf_tgt /\
-             wf_StateI conf_tgt (mkState
-                                   (mkEC fdef_tgt (l, s_tgt) cmds_tgt term locals_tgt allocas_tgt)
-                                   stack0_tgt mem_tgt))
-  :
-    nop_state_sim
-      conf_src conf_tgt
-      stack0_src stack0_tgt inv
-      (length cmds_src)
-      (mkState
-         (mkEC fdef_src (l, s_src) cmds_src term locals_src allocas_src)
-         stack0_src
-         mem_src)
-      (mkState
-         (mkEC fdef_tgt (l, s_tgt) cmds_tgt term locals_tgt allocas_tgt)
-         stack0_tgt
-         mem_tgt)
+    term lc als
+  : nop_state_sim_EC (mkEC f_src bb_src cmds_src term lc als)
+                     (mkEC f_tgt bb_tgt cmds_tgt term lc als)
 .
 
-Lemma nop_init
-      conf_src conf_tgt
-      stack0_src stack0_tgt
-      header
-      blocks_src blocks_tgt
-      args_src args_tgt
-      mem_src mem_tgt
-      inv
-      ec_src
-      (NOP_FDEF: nop_fdef (fdef_intro header blocks_src)
-                          (fdef_intro header blocks_tgt))
-      (NOP_FIRST_MATCHES: option_map fst (hd_error blocks_src) = option_map fst (hd_error blocks_tgt))
-      (ARGS: list_forall2 (genericvalues_inject.gv_inject inv.(InvMem.Rel.inject)) args_src args_tgt)
-      (MEM: InvMem.Rel.sem conf_src conf_tgt mem_src mem_tgt inv)
-      (CONF: inject_conf conf_src conf_tgt)
-      (INIT: init_fdef conf_src (fdef_intro header blocks_src) args_src ec_src)
-  :
-  exists ec_tgt idx,
-    (<<INIT_TGT: init_fdef conf_tgt (fdef_intro header blocks_tgt) args_tgt ec_tgt>>) /\
-    (forall (WF_TGT: wf_ConfigI conf_tgt /\ wf_StateI conf_tgt (mkState ec_tgt stack0_tgt mem_tgt)),
-        <<SIM: nop_state_sim
-          conf_src conf_tgt
-          stack0_src stack0_tgt
-          inv idx
-          (mkState ec_src stack0_src mem_src)
-          (mkState ec_tgt stack0_tgt mem_tgt)>>).
-Proof.
-  inv INIT. inv NOP_FDEF. inv FDEF.
-  destruct blocks_tgt, lb; inv NOP_FIRST_MATCHES; try inv ENTRY.
-  destruct b. ss. subst. destruct s.
-  exploit locals_init; eauto.
-  { apply MEM. }
-  i. des.
-  esplits.
-  - econs; eauto. ss.
-  - unfold nop_blocks in BLOCKS. inv BLOCKS.
-    des. subst.
-    econs; eauto.
-    + econs. econs; eauto.
-    + econs.
-    + ss.
-    + ss.
-Qed.
+(*           (ec_src ec_tgt:ExecutionContext): Prop := *)
+(* | nop_state_sim_EC_intro *)
+(*     (FDEF: nop_fdef ec_src.(CurFunction) ec_tgt.(CurFunction)) *)
+(*     (BB: nop_blocks [ec_src.(CurBB)] [ec_tgt.(CurBB)]) *)
+(*     (TERM: ec_src.(Terminator) = ec_tgt.(Terminator)) *)
+(*     (LOCALS: ec_src.(Locals) = ec_tgt.(Locals)) *)
+(*     (ALLOCAS: ec_src.(Allocas) = ec_tgt.(Allocas)) *)
+(* . *)
 
-Inductive status :=
-| status_call
-| status_return
-| status_return_void
-| status_terminator
-| status_step
+Inductive nop_state_sim: nat -> State -> State -> Prop :=
+| nop_state_sim_intro
+  ec_src ec_tgt
+  (EC: nop_state_sim_EC ec_src ec_tgt)
+  ecs_src ecs_tgt
+  (ECS: list_forall2 nop_state_sim_EC ecs_src ecs_tgt)
+  idx
+  (IDX: (idx > List.length ec_tgt.(CurCmds))%nat)
+  mem
+  : nop_state_sim idx
+                  (mkState ec_src ecs_src mem)
+                  (mkState ec_tgt ecs_tgt mem)
 .
 
-(* TODO *)
-Definition get_status (ec:ExecutionContext): status :=
-  match ec.(CurCmds) with
-  | c::_ =>
-    match c with
-    | insn_call _ _ _ _ _ _ _ => status_call
-    | _ => status_step
-    end
-  | nil =>
-    match ec.(Terminator) with
-    | insn_return _ _ _ => status_return
-    | insn_return_void _ => status_return_void
-    | _ => status_terminator
-    end
-  end.
+Inductive transl_product: product -> product -> Prop :=
+| transl_product_gvar g
+  : transl_product
+      (product_gvar g) (product_gvar g)
+| transl_product_fdec f
+  : transl_product
+      (product_fdec f) (product_fdec f)
+| transl_product_fdef
+    f_src f_tgt
+    (NOP_FDEF: nop_fdef f_src f_tgt)
+  : transl_product
+      (product_fdef f_src) (product_fdef f_tgt)
+.
 
-Lemma get_status_call_inv ec
-      (CALL: get_status ec = status_call):
-  exists id noret attrs ty varg f args cmds,
-    ec.(CurCmds) = (insn_call id noret attrs ty varg f args)::cmds.
+Definition transl_products prods_src prods_tgt : Prop :=
+  List.Forall2 transl_product prods_src prods_tgt
+.
+
+Lemma transl_products_lookupFdefViaIDFromProducts
+      products_src products_tgt
+      f fdef_src
+      (PRODUCTS: transl_products products_src products_tgt)
+      (SRC: lookupFdefViaIDFromProducts products_src f = Some fdef_src):
+  exists fdef_tgt,
+    <<TGT: lookupFdefViaIDFromProducts products_tgt f = Some fdef_tgt>> /\
+    <<FDEF: transl_product (product_fdef fdef_src) (product_fdef fdef_tgt)>>
+.
 Proof.
-  unfold get_status in *. destruct ec. ss.
-  destruct CurCmds0; ss.
-  - destruct Terminator0; ss.
-  - destruct c; ss.
-    esplits; eauto.
+  ginduction products_src; ii; ss.
+  inv PRODUCTS.
+  inv H1; ss.
+  - hexploit IHproducts_src; eauto.
+  - hexploit IHproducts_src; eauto.
+  - inv NOP_FDEF. ss. des_ifs.
+    + esplits; eauto.
+      econs; eauto. econs; eauto.
+    + hexploit IHproducts_src; eauto.
 Qed.
 
-Lemma get_status_return_inv ec
-      (CALL: get_status ec = status_return):
-    ec.(CurCmds) = [] /\
-    exists id typ value, ec.(Terminator) = insn_return id typ value.
+Lemma transl_products_genGlobalAndInitMem
+      layouts namedts prods_src prods_tgt
+      globals locals mem
+      (PRODUCTS: transl_products prods_src prods_tgt):
+  genGlobalAndInitMem (layouts, namedts) prods_src globals locals mem =
+  genGlobalAndInitMem (layouts, namedts) prods_tgt globals locals mem
+.
 Proof.
-  unfold get_status in *. destruct ec. ss. destruct CurCmds0.
-  - destruct Terminator0; ss. esplits; ss.
-  - destruct c; ss.
+  ginduction prods_src; ii; ss.
+  - inv PRODUCTS. ss.
+  - inv PRODUCTS. ss.
+    inv H1.
+    + des_ifs; eauto.
+    + des_ifs; eauto.
+    + inv NOP_FDEF. des_ifs; ss.
+      eapply IHprods_src; eauto.
 Qed.
 
-Lemma get_status_return_void_inv ec
-      (CALL: get_status ec = status_return_void):
-    ec.(CurCmds) = [] /\
-    exists id, ec.(Terminator) = insn_return_void id.
-Proof.
-  unfold get_status in *. destruct ec. ss. destruct CurCmds0.
-  - destruct Terminator0; ss. esplits; ss.
-  - destruct c; ss.
-Qed.
+Inductive transl_module : forall m_src m_tgt, Prop :=
+| transl_module_intro
+    los ndts prods_src prods_tgt
+    (TRANSL_PRODUCTS: transl_products prods_src prods_tgt)
+  : transl_module (module_intro los ndts prods_src)
+                  (module_intro los ndts prods_tgt)
+.
 
 Lemma nop_cmds_pop_both x src tgt
       (NOPCMDS: nop_cmds (x :: src) (x :: tgt)):
@@ -310,6 +264,224 @@ Ltac rpapply H :=
                  | erewrite (f_equal3 f)
                  | erewrite (f_equal2 f)
                  | erewrite (f_equal  f) | fail]); [ eapply H | .. ]; try reflexivity).
+
+(* Lemma similar_state_same_stuck *)
+(*       conf_src conf_tgt st_src st_tgt *)
+(*       (CONF: inject_conf conf_src conf_tgt) *)
+(*       (STUCK : stuck_state conf_tgt st_tgt) *)
+(*       (CMDS: st_src.(EC).(CurCmds) = st_tgt.(EC).(CurCmds)) *)
+(*       (TERM: st_src.(EC).(Terminator) = st_tgt.(EC).(Terminator)) *)
+(*       (LOCALS: st_src.(EC).(Locals) = st_tgt.(EC).(Locals)) *)
+(*       (ALLOCAS: st_src.(EC).(Allocas) = st_tgt.(EC).(Allocas)) *)
+(*       (MEM: st_src.(Mem) = st_tgt.(Mem)) *)
+(*   : *)
+(*   <<STUCK: stuck_state conf_src st_src>> *)
+(* . *)
+(* Proof. *)
+(*  inv CONF. *)
+(*  destruct conf_src, conf_tgt; ss. clarify. *)
+(*  destruct st_src, st_tgt; ss. clarify. *)
+(*  destruct EC0, EC1; ss. clarify. *)
+(*  ii. des. apply STUCK. *)
+(*  destruct ECS0, ECS1; ss. *)
+(*  inv H; ss.  *)
+(*  esplits; eauto. eapply sReturn. econs; eauto. *)
+(* Qed. *)
+
+Lemma nop_sim
+      conf_src conf_tgt
+      (CONF: inject_conf conf_src conf_tgt):
+  (nop_state_sim) <3= (sim conf_src conf_tgt)
+.
+Proof.
+  s.
+  pcofix CIH. intros idx0 st_src st_tgt SIM. pfold.
+  (* destruct (s_isFinialState conf_tgt st_tgt) eqn:FINAL_TGT. *)
+  (* { hide_goal. *)
+  (*   inv SIM. inv EC0. ss. inv BB. des_ifs_safe ss. des. clarify. *)
+  (*   des_ifs_safe ss. clarify. *)
+  (*   assert(ecs_tgt = []). *)
+  (*   { des_ifs; ss. } clarify. *)
+  (*   inv ECS0. inv H4. clear_tac. *)
+  (*   destruct conf_src, conf_tgt; ss. clarify. *)
+
+  (*   eapply nop_cmds_tgt_nil in CMDS. *)
+  (*   des_ifs. *)
+  (*   - eapply _sim_exit; try exact FINAL_TGT. *)
+  (*     + rpapply nops_sop_star; eauto. *)
+  (*       rewrite app_nil_r. eauto. *)
+  (*     + ss. eauto. *)
+  (*   - eapply _sim_exit; try exact FINAL_TGT. *)
+  (*     + rpapply nops_sop_star; eauto. *)
+  (*       rewrite app_nil_r. eauto. *)
+  (*     + ss. *)
+  (* } *)
+  destruct (classic (stuck_state conf_tgt st_tgt)).
+  { rename H into STUCK.
+    (* src should also be stuck *)
+    inv SIM. inv EC0. ss.
+    destruct cmds_tgt; ss.
+    - eapply nop_cmds_tgt_nil in CMDS.
+      eapply _sim_error.
+      + rpapply nops_sop_star; eauto.
+        rewrite app_nil_r. eauto.
+      + apply error_future_error.
+        econs.
+        * unfold stuck_state. ii. apply STUCK.
+          des.
+          admit.
+        * i.
+              
+              des_ifs.
+          inv H.
+          esplits; eauto. econs; eauto.
+          reductio_ad_absurdum.
+        reductio_ad_absurdum. unfold error_state in *.
+        econs; eauto.
+      
+    nop_cmds_tgt_non_nop
+  }
+  inv SIM. inv EC0. ss.
+  destruct cmds_tgt.
+  { eapply nop_cmds_tgt_nil in CMDS.
+    eapply _sim_step.
+    - ii. apply H. econs; eauto.
+  }
+  inv CMDS.
+Qed.
+
+Lemma transl_sim_module:
+  transl_module <2= sim_module.
+Proof.
+  s. intros module_src module_tgt MODULE.
+  inv MODULE. ii.
+  unfold s_genInitState in SRC. ss. des_ifs.
+  expl transl_products_lookupFdefViaIDFromProducts.
+  unfold s_genInitState. ss.
+  rewrite TGT.
+  match goal with
+  | [|- context [productInModuleB_dec ?a ?b]] => destruct (productInModuleB_dec a b)
+  end; cycle 1.
+  { expl infrastructure_props.lookupFdefViaIDFromProducts_inv. ss. clarify. }
+
+  unfold proj_sumbool.
+  unfold initTargetData in *.
+  expl transl_products_genGlobalAndInitMem.
+  rewrite <- transl_products_genGlobalAndInitMem0. rewrite Heq1.
+  inv FDEF; ss. inv NOP_FDEF; ss. inv BLOCKS; ss.
+  des_ifs_safe ss. des. clarify.
+  esplits; eauto.
+  eapply nop_sim; ss; eauto.
+  { econs; ss; eauto.
+    - econs; ss; eauto.
+      + econs; ss; eauto.
+        econs; ss; eauto.
+      + econs; ss; eauto.
+    - econs; ss; eauto.
+  }
+Qed.
+
+
+
+Lemma nop_init
+      conf_src conf_tgt
+      stack0_src stack0_tgt
+      header
+      blocks_src blocks_tgt
+      args_src args_tgt
+      mem_src mem_tgt
+      inv
+      ec_src
+      (NOP_FDEF: nop_fdef (fdef_intro header blocks_src)
+                          (fdef_intro header blocks_tgt))
+      (NOP_FIRST_MATCHES: option_map fst (hd_error blocks_src) = option_map fst (hd_error blocks_tgt))
+      (ARGS: list_forall2 (genericvalues_inject.gv_inject inv.(InvMem.Rel.inject)) args_src args_tgt)
+      (MEM: InvMem.Rel.sem conf_src conf_tgt mem_src mem_tgt inv)
+      (CONF: inject_conf conf_src conf_tgt)
+      (INIT: init_fdef conf_src (fdef_intro header blocks_src) args_src ec_src)
+  :
+  exists ec_tgt idx,
+    (<<INIT_TGT: init_fdef conf_tgt (fdef_intro header blocks_tgt) args_tgt ec_tgt>>) /\
+    (forall (WF_TGT: wf_ConfigI conf_tgt /\ wf_StateI conf_tgt (mkState ec_tgt stack0_tgt mem_tgt)),
+        <<SIM: nop_state_sim
+          conf_src conf_tgt
+          stack0_src stack0_tgt
+          inv idx
+          (mkState ec_src stack0_src mem_src)
+          (mkState ec_tgt stack0_tgt mem_tgt)>>).
+Proof.
+  inv INIT. inv NOP_FDEF. inv FDEF.
+  destruct blocks_tgt, lb; inv NOP_FIRST_MATCHES; try inv ENTRY.
+  destruct b. ss. subst. destruct s.
+  exploit locals_init; eauto.
+  { apply MEM. }
+  i. des.
+  esplits.
+  - econs; eauto. ss.
+  - unfold nop_blocks in BLOCKS. inv BLOCKS.
+    des. subst.
+    econs; eauto.
+    + econs. econs; eauto.
+    + econs.
+    + ss.
+    + ss.
+Qed.
+
+Inductive status :=
+| status_call
+| status_return
+| status_return_void
+| status_terminator
+| status_step
+.
+
+(* TODO *)
+Definition get_status (ec:ExecutionContext): status :=
+  match ec.(CurCmds) with
+  | c::_ =>
+    match c with
+    | insn_call _ _ _ _ _ _ _ => status_call
+    | _ => status_step
+    end
+  | nil =>
+    match ec.(Terminator) with
+    | insn_return _ _ _ => status_return
+    | insn_return_void _ => status_return_void
+    | _ => status_terminator
+    end
+  end.
+
+Lemma get_status_call_inv ec
+      (CALL: get_status ec = status_call):
+  exists id noret attrs ty varg f args cmds,
+    ec.(CurCmds) = (insn_call id noret attrs ty varg f args)::cmds.
+Proof.
+  unfold get_status in *. destruct ec. ss.
+  destruct CurCmds0; ss.
+  - destruct Terminator0; ss.
+  - destruct c; ss.
+    esplits; eauto.
+Qed.
+
+Lemma get_status_return_inv ec
+      (CALL: get_status ec = status_return):
+    ec.(CurCmds) = [] /\
+    exists id typ value, ec.(Terminator) = insn_return id typ value.
+Proof.
+  unfold get_status in *. destruct ec. ss. destruct CurCmds0.
+  - destruct Terminator0; ss. esplits; ss.
+  - destruct c; ss.
+Qed.
+
+Lemma get_status_return_void_inv ec
+      (CALL: get_status ec = status_return_void):
+    ec.(CurCmds) = [] /\
+    exists id, ec.(Terminator) = insn_return_void id.
+Proof.
+  unfold get_status in *. destruct ec. ss. destruct CurCmds0.
+  - destruct Terminator0; ss. esplits; ss.
+  - destruct c; ss.
+Qed.
 
 Lemma nop_sim
       conf_src conf_tgt
