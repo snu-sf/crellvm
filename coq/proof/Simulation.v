@@ -11,6 +11,7 @@ Import Opsem.
 
 Require Import sflib.
 Require Import paco.
+Require Import Classical.
 
 Require Import GenericValues.
 
@@ -29,6 +30,54 @@ Inductive sInsn_indexed (conf:Config):
     sInsn_indexed conf st st idx1 idx2 E0
 .
 
+Inductive future_error_state (conf: Config) (st0: State): Prop :=
+| future_error_state_intro
+    (STUCK: forall st1 (TAU: sop_star conf st0 st1 E0), error_state conf st1)
+.
+
+Lemma error_future_error
+      conf st
+      (ERROR: error_state conf st)
+  :
+    <<FUTURE: future_error_state conf st>>
+.
+Proof.
+  econs; eauto. i.
+  inv TAU; ss.
+  inv ERROR. unfold stuck_state in *. exfalso.
+  apply STUCK. esplits; eauto.
+Qed.
+
+Lemma error_future_error_contrapos
+      conf st
+      (FUTURE: ~future_error_state conf st)
+  :
+    <<ERROR: ~error_state conf st>>
+.
+Proof. ii. apply error_future_error in H. ss. Qed.
+(* TODO: Lemma on this? I can only find Decidable.contrapositive.. *)
+
+Lemma nferror_stuck_final
+      conf st
+      (NFERROR: ~ future_error_state conf st)
+      (STUCK: stuck_state conf st):
+  exists retval, s_isFinialState conf st = Some retval.
+Proof.
+  apply error_future_error_contrapos in NFERROR.
+  eapply nerror_stuck_final; eauto.
+Qed.
+
+Lemma nferror_nfinal_nstuck
+      conf st1
+      (NFERROR: ~ future_error_state conf st1)
+      (NFINAL: s_isFinialState conf st1 = None):
+  exists st2 e, sInsn conf st1 st2 e.
+Proof.
+  apply error_future_error_contrapos in NFERROR.
+  eapply nerror_nfinal_nstuck; eauto.
+Qed.
+
+
 Section Sim.
   Variable (conf_src conf_tgt:Config).
 
@@ -38,7 +87,7 @@ Section Sim.
   | _sim_error
       st2_src
       (STEP: sop_star conf_src st1_src st2_src E0)
-      (ERROR: error_state conf_src st2_src)
+      (ERROR: future_error_state conf_src st2_src)
 
   | _sim_exit
       st2_src
@@ -101,13 +150,13 @@ Qed.
 Lemma _sim_src_error
       conf_src conf_tgt sim idx
       st_src st_tgt
-      (SIM: forall (ERROR_SRC: ~ error_state conf_src st_src),
+      (SIM: forall (ERROR_SRC: ~ future_error_state conf_src st_src),
           _sim conf_src conf_tgt sim idx
                st_src st_tgt):
   _sim conf_src conf_tgt sim idx
        st_src st_tgt.
 Proof.
-  destruct (classic (error_state conf_src st_src)); eauto.
+  destruct (classic (future_error_state conf_src st_src)); eauto.
 Qed.
 
 
