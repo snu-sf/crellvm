@@ -257,7 +257,8 @@ let filter_global
               let inv_obj = InvariantObject.convert prop lfdef rfdef in
               (inv_obj :: fst s, snd s)
            | _ -> (fst s, i :: snd s)) in
-  List.fold_left f ([], []) hints
+  let (globals, others) = List.fold_left f ([], []) hints in
+  (globals, List.rev others) (* to preserve order of "others" *)
 
 let propagate_hint
       (lfdef:LLVMsyntax.fdef)
