@@ -114,6 +114,43 @@ Inductive nop_state_sim: nat -> State -> State -> Prop :=
                   (mkState ec_tgt ecs_tgt mem)
 .
 
+Inductive transl_product: product -> product -> Prop :=
+| transl_product_gvar g
+  : transl_product
+      (product_gvar g) (product_gvar g)
+| transl_product_fdec f
+  : transl_product
+      (product_fdec f) (product_fdec f)
+| transl_product_fdef
+    f_src f_tgt
+    (NOP_FDEF: nop_fdef f_src f_tgt)
+  : transl_product
+      (product_fdef f_src) (product_fdef f_tgt)
+.
+
+Definition transl_products prods_src prods_tgt : Prop :=
+  List.Forall2 transl_product prods_src prods_tgt
+.
+
+Inductive nop_conf_sim (conf_src conf_tgt: Config) :=
+| nop_conf_sim_intro
+    (CONF: inject_conf conf_src conf_tgt)
+    (FUNTABLE: conf_src.(FunTable) = conf_tgt.(FunTable))
+    (PRODUCTS: transl_products conf_src.(CurProducts) conf_tgt.(CurProducts))
+.
+
+Coercion inject_conf_of_nop_conf_sim (conf_src conf_tgt: Config):
+  nop_conf_sim conf_src conf_tgt -> inject_conf conf_src conf_tgt
+.
+  i. destruct H. assumption.
+  (* using inversion yields complex program *)
+Defined.
+
+(* Axiom x: Config. *)
+(* Axiom b: (nop_conf_sim x x). *)
+(* Check b:(nop_conf_sim x x). *)
+(* Check b:(inject_conf x x). *)
+
 Lemma nop_blocks_commutes
       b_src b_tgt
       (BLOCKS: nop_blocks b_src b_tgt)
@@ -150,6 +187,45 @@ Lemma inject_conf_commutes
 .
 Proof. inv CONF. ss. Qed.
 
+Lemma transl_product_commutes
+      p_src p_tgt
+      (PROD: transl_product p_src p_tgt)
+  :
+    <<PROD: transl_product p_tgt p_src>>
+.
+Proof.
+  ginduction PROD; ii; ss.
+  - econs; eauto.
+  - econs; eauto.
+  - econs; eauto.
+    apply nop_fdef_commutes; ss.
+Qed.
+
+Lemma transl_products_commutes
+      ps_src ps_tgt
+      (PRODS: transl_products ps_src ps_tgt)
+  :
+    <<PRODS: transl_products ps_tgt ps_src>>
+.
+Proof.
+  ginduction PRODS; ii; ss.
+  econs; eauto.
+  apply transl_product_commutes; ss.
+Qed.
+
+Lemma nop_conf_sim_commutes
+      conf_src conf_tgt
+      (CONF: nop_conf_sim conf_src conf_tgt)
+  :
+    <<CONF: nop_conf_sim conf_tgt conf_src>>
+.
+Proof.
+  inv CONF.
+  econs; eauto.
+  - apply inject_conf_commutes; ss.
+  - apply transl_products_commutes; ss.
+Qed.
+
 Lemma nop_state_sim_EC_commutes
       st_src st_tgt
       (SIM: nop_state_sim_EC st_src st_tgt)
@@ -180,24 +256,6 @@ Proof.
       apply nop_state_sim_EC_commutes; ss.
   - omega.
 Qed.
-
-Inductive transl_product: product -> product -> Prop :=
-| transl_product_gvar g
-  : transl_product
-      (product_gvar g) (product_gvar g)
-| transl_product_fdec f
-  : transl_product
-      (product_fdec f) (product_fdec f)
-| transl_product_fdef
-    f_src f_tgt
-    (NOP_FDEF: nop_fdef f_src f_tgt)
-  : transl_product
-      (product_fdef f_src) (product_fdef f_tgt)
-.
-
-Definition transl_products prods_src prods_tgt : Prop :=
-  List.Forall2 transl_product prods_src prods_tgt
-.
 
 Lemma transl_products_lookupFdefViaIDFromProducts
       products_src products_tgt
@@ -494,7 +552,7 @@ Qed.
 
 Lemma nop_state_sim_step_nops
       conf_src conf_tgt
-      (CONF: inject_conf conf_src conf_tgt)
+      (CONF: nop_conf_sim conf_src conf_tgt)
       idx0 st_src0 st_tgt0
       (SIM: nop_state_sim idx0 st_src0 st_tgt0)
       st_tgt1 tr
@@ -510,7 +568,7 @@ Lemma nop_state_sim_step_nops
 .
 Proof.
   inv SIM. inv EC0. ss. clarify.
-  destruct conf_src, conf_tgt; ss. inv CONF. ss. clarify.
+  destruct conf_src, conf_tgt; ss. inv CONF. ss. inv CONF0. ss. clarify.
   apply nop_cmds_pop_both in CMDS.
   inv STEP_TGT; ss;
     try (by (esplits; eauto; econs; ss; eauto)).
@@ -526,7 +584,7 @@ Admitted.
 
 Lemma nop_state_sim_stuck
       conf_src conf_tgt
-      (CONF: inject_conf conf_src conf_tgt)
+      (CONF: nop_conf_sim conf_src conf_tgt)
       idx0 st_src0 st_tgt0
       (SIM: nop_state_sim idx0 st_src0 st_tgt0)
       (* (HEAD_SRC: head_not_nop st_src0.(EC).(CurCmds)) *)
@@ -541,7 +599,7 @@ Lemma nop_state_sim_stuck
 .
 Proof.
   ii. des. exploit nop_state_sim_step_nops; try apply H; eauto.
-  { apply inject_conf_commutes; eauto. }
+  { apply nop_conf_sim_commutes. eauto. }
   { eapply nop_state_sim_commutes. eauto. }
   i; des.
   apply STUCK_TGT. esplits; eauto.
@@ -804,7 +862,7 @@ Abort.
 
 Lemma nop_sim
       conf_src conf_tgt
-      (CONF: inject_conf conf_src conf_tgt)
+      (CONF: nop_conf_sim conf_src conf_tgt)
   :
   (nop_state_sim) <3= (sim conf_src conf_tgt)
 .
@@ -813,7 +871,7 @@ Proof.
   pcofix CIH. intros idx0 st_src0 st_tgt0 SIM. pfold.
 
   destruct (s_isFinialState conf_tgt st_tgt0) eqn:FINAL_TGT.
-  { expl nop_state_sim_final.
+  { expl nop_state_sim_final (try apply CONF; eauto).
     eapply _sim_exit; eauto.
   }
   (* assert(FINAL_SRC: s_isFinialState conf_src st_src0 = None). *)
@@ -848,9 +906,10 @@ Proof.
           rewrite app_nil_r. ss.
         - econs; eauto.
           + eapply nop_state_sim_term_stuck; try apply STUCK; eauto.
+            { apply CONF. }
             { econs; ss; eauto. }
           + ss.
-            destruct conf_src, conf_tgt; ss. inv CONF. ss. clarify.
+            destruct conf_src, conf_tgt; ss. inv CONF. ss. inv CONF0. ss. clarify.
             des_ifs.
             { inv ECS0. }
             { inv ECS0. }
@@ -859,7 +918,7 @@ Proof.
         eapply _sim_step; eauto.
         i.
         hexploit nop_state_sim_term_step_nops; try apply STEP.
-        { instantiate (1:= conf_src). ss. }
+        { apply CONF. }
         { instantiate (1:= (mkState
                               (mkEC f_src bb_src [] term lc als)
                               ecs_src mem0)).
@@ -920,53 +979,6 @@ Proof.
     }
   }
 Qed.
-
-  (* destruct (classic (stuck_state conf_tgt st_tgt)). *)
-  (* { admit. } *)
-
-
-  destruct (classic (error_state conf_tgt st_tgt)).
-  { rename H into ERROR.
-    (* src should also be error *)
-    inv SIM. inv EC0. ss.
-    destruct cmds_tgt; ss.
-    - apply nop_cmds_tgt_nil in CMDS.
-      eapply _sim_error.
-      + rpapply nops_sop_star; eauto.
-        rewrite app_nil_r. eauto.
-      + admit.
-    - apply nop_cmds_tgt_non_nop in CMDS. des. clarify.
-      eapply _sim_error.
-      + rpapply nops_sop_star; eauto.
-      + admit.
-      + destruct c; ss. inv ERROR.
-        unfold stuck_state in *. contradict STUCK. esplits; eauto.
-        rpapply sNop; eauto. Undo 1.
-        destruct conf_tgt; ss.
-  }
-
-
-  (* expl nerror_nfinal_nstuck. *)
-
-
-  eapply _sim_step; eauto.
-  { ii. apply H. econs; eauto. }
-  i.
-  (* tgt step -> src step *)
-  inv SIM. inv EC0. ss.
-  destruct cmds_tgt.
-  { eapply nop_cmds_tgt_nil in CMDS.
-    esplits.
-    - rpapply nops_sop_star; eauto.
-      rewrite app_nil_r. eauto.
-    - econs; eauto.
-      admit.
-    - right. apply CIH.
-      admit.
-  }
-  { admit. }
-Qed.
-Admitted.
 
 Lemma transl_sim_module:
   transl_module <2= sim_module.
