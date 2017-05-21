@@ -292,6 +292,11 @@ Lemma f_equal8 (A1 A2 A3 A4 A5 A6 A7 A8 B: Type) (f: A1 -> A2 -> A3 -> A4 -> A5 
 .
 Proof. subst. reflexivity. Qed.
 
+Ltac rpapply_raw H :=
+  first[erewrite f_equal8 | erewrite f_equal7 | erewrite f_equal6 | erewrite f_equal5 |
+        erewrite f_equal4 | erewrite f_equal3 | erewrite f_equal2 | erewrite f_equal];
+  [eapply H|..]; try reflexivity.
+
 Ltac is_applied_function TARGET :=
   match TARGET with
   | ?f ?x =>
@@ -299,12 +304,14 @@ Ltac is_applied_function TARGET :=
   | _ => fail
   end
 .
+
 Ltac has_inside_strict A B :=
   match A with
   | context[B] => tryif (check_equal A B) then fail else idtac
   | _ => fail
   end
 .
+
 Ltac is_inside_others_body TARGET :=
   tryif (repeat multimatch goal with
                 | [ |- context[?f ?x] ] =>
@@ -316,11 +323,11 @@ Ltac is_inside_others_body TARGET :=
   then fail
   else idtac
 .
+
 Ltac on_leftest_function TAC :=
   (* repeat *)
   multimatch goal with
   | [ |- context[?f ?x] ] =>
-    (* idtac f; idtac x; idtac "--------------------"; *)
     tryif (is_applied_function f)
     then fail
     else
@@ -336,7 +343,7 @@ Ltac on_leftest_function TAC :=
 (* TODO: I want to define "get_leftest_function" *)
 (* TODO: try tactic notation ? *)
 
-Ltac rpapply H :=
+Ltac leftest_rpapply H :=
   on_leftest_function ltac:(fun f =>
      (idtac f; first
                  (* TODO: why rewrite "with" doesn't work? *)
@@ -350,6 +357,108 @@ Ltac rpapply H :=
                  | erewrite (f_equal  f) | fail]); [ eapply H | .. ]; try reflexivity)
 .
 
+
+
+
+
+Ltac is_type x :=
+     match type of x with
+     | Type => idtac
+     | Set => idtac
+     | Prop => idtac (* TODO: needed? *)
+     | _ => fail
+     end.
+
+Ltac is_term_applied_function TARGET :=
+  match TARGET with
+  | ?f ?x =>
+    tryif (is_type x) then fail else idtac
+  | _ => fail
+  end
+.
+
+Ltac on_leftest_function_with_type TAC :=
+  (* repeat *)
+  multimatch goal with
+  | [ |- context[?f ?x] ] =>
+    tryif (is_term_applied_function f)
+    then fail
+    else
+      tryif (is_inside_others_body f)
+      then fail
+      else TAC f
+  end
+.
+
+Ltac rpapply H :=
+  on_leftest_function_with_type ltac:(fun f =>
+     (idtac f; first
+                 (* TODO: why rewrite "with" doesn't work? *)
+                 [ erewrite (f_equal8 f)
+                 | erewrite (f_equal7 f)
+                 | erewrite (f_equal6 f)
+                 | erewrite (f_equal5 f)
+                 | erewrite (f_equal4 f)
+                 | erewrite (f_equal3 f)
+                 | erewrite (f_equal2 f)
+                 | erewrite (f_equal  f) | fail]); [ eapply H | .. ]; try reflexivity)
+.
+
+
+
+Goal forall a b,
+    let weird_func1 x y z w := (x + y + z + w) in
+    let weird_func2 x y := (x * y) > 0 in
+    (weird_func2 (weird_func1 1 1 1 1) (b+a)) ->
+    (weird_func2 (weird_func1 1 1 1 1) (a+b))
+.
+Proof.
+  i. subst weird_func1. subst weird_func2.
+  abstr (fun x y : Z => x * y > 0) weird_func1.
+  Fail rpapply_raw H.
+  erewrite f_equal4. Undo 1. (* rpapply_raw tries in decreasing order. *)
+  (* f_equal4 and then f_equal3 *)
+  erewrite f_equal3. Undo 1. (* Anyhow, that doesn't matter now . . . *)
+  on_leftest_function ltac:(fun x => idtac x).
+  leftest_rpapply H. Undo 1.
+  rpapply H. Undo 1.
+  Undo 3.
+  Fail erewrite (f_equal2 (fun x y : Z => x * y > 0)).
+  Fail erewrite f_equal2 with (f:= (fun x y : Z => x * y > 0)).
+  (* TODO: without "abstr", below two also fails... *)
+  (* It seems some kind of Coqs default reduction mechanism is always on, even in rewriting *)
+  (* It may make sense to assume, our proof status has already undergone that reduction. *)
+  (* For example, simpl in * will do reduction here, more than needed *)
+  simpl in *. Undo 1.
+  (* If this becomes problem in actual proof, we may add "remember" & "subst" in rpapply *)
+Abort.
+
+Goal (Forall (fun x => x > 0)%nat [1 ; 2]%nat) ->
+        (Forall (fun x => x+1 > 1)%nat [1+0 ; 0+2]%nat)
+.
+Proof.
+  i.
+  Fail leftest_rpapply.
+  on_leftest_function ltac:(fun x => idtac x).
+  Fail erewrite (f_equal3 Forall). (* dependent type *)
+  rpapply_raw H. Undo 1.
+  on_leftest_function_with_type ltac:(fun x => idtac x).
+  rpapply H.
+Abort.
+
+Goal (Forall2 (fun x y => x+y > 0)%nat [1 ; 2]%nat [3 ; 4]%nat) ->
+        (Forall2 (fun x y => x+y+1 > 1)%nat [1+0 ; 0+2]%nat [3 ; 4]%nat)
+.
+Proof.
+  i.
+  Fail leftest_rpapply.
+  on_leftest_function ltac:(fun x => idtac x).
+  Fail erewrite (f_equal3 Forall). (* dependent type *)
+  rpapply_raw H. Undo 1.
+  on_leftest_function_with_type ltac:(fun x => idtac x).
+  (* not "Forall2" or "Forall2 (A:=nat)". it is fed with types at maximum *)
+  rpapply H.
+Abort.
 
 (* Motivation: I want to distinguish excused ad-mits from normal ad-mits, *)
 (* and further, I do not want to "grep" excused ones, so I give them different name. *)
