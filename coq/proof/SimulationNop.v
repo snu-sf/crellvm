@@ -400,64 +400,6 @@ Inductive transl_module : forall m_src m_tgt, Prop :=
                   (module_intro los ndts prods_tgt)
 .
 
-Ltac is_applied_function TARGET :=
-  match TARGET with
-  | ?f ?x =>
-    (* idtac f; idtac "is applied"; *)
-    (* idtac g; idtac a; *)
-    idtac
-  | _ => fail
-  end
-.
-Ltac has_inside_strict A B :=
-  match A with
-  | context[B] => tryif (check_equal A B) then fail else idtac
-  | _ => fail
-  end
-.
-Ltac is_inside_others_body TARGET :=
-  tryif (repeat multimatch goal with
-                | [ |- context[?f ?x] ] =>
-                  (* idtac f; idtac x; *)
-                  tryif (has_inside_strict x TARGET)
-                  then fail 2
-                  else fail
-                end)
-  then fail
-  else idtac
-.
-Ltac on_leftest_function TAC :=
-  (* repeat *)
-  multimatch goal with
-  | [ |- context[?f ?x] ] =>
-    (* idtac f; idtac x; idtac "--------------------"; *)
-    tryif (is_applied_function f)
-    then fail
-    else
-      tryif (is_inside_others_body f)
-      then fail
-      else TAC f
-  (* else TAC constr:(f) *)
-  (* TODO: What is the difference? *)
-  end
-.
-(* TODO: more cannonical way to get leftest function? *)
-(* I tried match reverse but it was not good *)
-(* TODO: I want to define "get_leftest_function" *)
-(* TODO: try tactic notation ? *)
-
-Ltac rpapply H :=
-  on_leftest_function ltac:(fun f =>
-     (idtac f; first
-                 [ erewrite (f_equal8 f)
-                 | erewrite (f_equal7 f)
-                 | erewrite (f_equal6 f)
-                 | erewrite (f_equal5 f)
-                 | erewrite (f_equal4 f)
-                 | erewrite (f_equal3 f)
-                 | erewrite (f_equal2 f)
-                 | erewrite (f_equal  f) | fail]); [ eapply H | .. ]; try reflexivity).
-
 Lemma nop_state_sim_final
       conf_src conf_tgt
       (CONF: inject_conf conf_src conf_tgt)
@@ -528,17 +470,6 @@ Proof.
     + inv NOP_FDEF. ss. des_ifs.
       esplits; eauto.
 Qed.
-
-(* TODO: move to TODOProof. *)
-Ltac des_outest_ifsG :=
-  match goal with
-  | |- context[ match ?x with _ => _ end ] =>
-    match (type of x) with
-    | { _ } + { _ } => destruct x; clarify
-    | _ => let Heq := fresh "Heq" in destruct x as [] eqn: Heq; clarify
-    end
-  end
-.
 
 Lemma nop_conf_sim_lookup_ex_id
       ps_src ps_tgt

@@ -7,6 +7,17 @@ Require Import Classical.
 
 Set Implicit Arguments.
 
+
+Ltac des_outest_ifsG :=
+  match goal with
+  | |- context[ match ?x with _ => _ end ] =>
+    match (type of x) with
+    | { _ } + { _ } => destruct x; clarify
+    | _ => let Heq := fresh "Heq" in destruct x as [] eqn: Heq; clarify
+    end
+  end
+.
+
 Ltac hide_goal :=
   match goal with
   | [ |- ?G ] => let name := fresh "HIDDEN_GOAL" in
@@ -281,10 +292,63 @@ Lemma f_equal8 (A1 A2 A3 A4 A5 A6 A7 A8 B: Type) (f: A1 -> A2 -> A3 -> A4 -> A5 
 .
 Proof. subst. reflexivity. Qed.
 
+Ltac is_applied_function TARGET :=
+  match TARGET with
+  | ?f ?x =>
+    idtac
+  | _ => fail
+  end
+.
+Ltac has_inside_strict A B :=
+  match A with
+  | context[B] => tryif (check_equal A B) then fail else idtac
+  | _ => fail
+  end
+.
+Ltac is_inside_others_body TARGET :=
+  tryif (repeat multimatch goal with
+                | [ |- context[?f ?x] ] =>
+                  (* idtac f; idtac x; *)
+                  tryif (has_inside_strict x TARGET)
+                  then fail 2
+                  else fail
+                end)
+  then fail
+  else idtac
+.
+Ltac on_leftest_function TAC :=
+  (* repeat *)
+  multimatch goal with
+  | [ |- context[?f ?x] ] =>
+    (* idtac f; idtac x; idtac "--------------------"; *)
+    tryif (is_applied_function f)
+    then fail
+    else
+      tryif (is_inside_others_body f)
+      then fail
+      else TAC f
+  (* else TAC constr:(f) *)
+  (* TODO: What is the difference? *)
+  end
+.
+(* TODO: more cannonical way to get leftest function? *)
+(* I tried match reverse but it was not good *)
+(* TODO: I want to define "get_leftest_function" *)
+(* TODO: try tactic notation ? *)
+
 Ltac rpapply H :=
-  first[erewrite f_equal8 | erewrite f_equal7 | erewrite f_equal6 | erewrite f_equal5 |
-        erewrite f_equal4 | erewrite f_equal3 | erewrite f_equal2 | erewrite f_equal];
-  [exact H|..]; try reflexivity.
+  on_leftest_function ltac:(fun f =>
+     (idtac f; first
+                 (* TODO: why rewrite "with" doesn't work? *)
+                 [ erewrite (f_equal8 f)
+                 | erewrite (f_equal7 f)
+                 | erewrite (f_equal6 f)
+                 | erewrite (f_equal5 f)
+                 | erewrite (f_equal4 f)
+                 | erewrite (f_equal3 f)
+                 | erewrite (f_equal2 f)
+                 | erewrite (f_equal  f) | fail]); [ eapply H | .. ]; try reflexivity)
+.
 
 
 (* Motivation: I want to distinguish excused ad-mits from normal ad-mits, *)
