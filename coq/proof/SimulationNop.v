@@ -28,6 +28,38 @@ Require InvState.
 Set Implicit Arguments.
 
 
+Section TRANSL.
+
+  Inductive transl_product: product -> product -> Prop :=
+  | transl_product_gvar g
+    : transl_product
+        (product_gvar g) (product_gvar g)
+  | transl_product_fdec f
+    : transl_product
+        (product_fdec f) (product_fdec f)
+  | transl_product_fdef
+      f_src f_tgt
+      (NOP_FDEF: nop_fdef f_src f_tgt)
+    : transl_product
+        (product_fdef f_src) (product_fdef f_tgt)
+  .
+
+  Definition transl_products prods_src prods_tgt : Prop :=
+    List.Forall2 transl_product prods_src prods_tgt
+  .
+
+  Inductive transl_module : forall m_src m_tgt, Prop :=
+  | transl_module_intro
+      los ndts prods_src prods_tgt
+      (TRANSL_PRODUCTS: transl_products prods_src prods_tgt)
+    : transl_module (module_intro los ndts prods_src)
+                    (module_intro los ndts prods_tgt)
+  .
+
+End TRANSL.
+
+
+
 Section SIMDEF.
 
   Inductive nop_state_sim_EC: ExecutionContext -> ExecutionContext -> Prop :=
@@ -69,24 +101,6 @@ Section SIMDEF.
     : nop_state_sim idx
                     (mkState ec_src ecs_src mem)
                     (mkState ec_tgt ecs_tgt mem)
-  .
-
-  Inductive transl_product: product -> product -> Prop :=
-  | transl_product_gvar g
-    : transl_product
-        (product_gvar g) (product_gvar g)
-  | transl_product_fdec f
-    : transl_product
-        (product_fdec f) (product_fdec f)
-  | transl_product_fdef
-      f_src f_tgt
-      (NOP_FDEF: nop_fdef f_src f_tgt)
-    : transl_product
-        (product_fdef f_src) (product_fdef f_tgt)
-  .
-
-  Definition transl_products prods_src prods_tgt : Prop :=
-    List.Forall2 transl_product prods_src prods_tgt
   .
 
   Inductive nop_conf_sim (conf_src conf_tgt: Config) :=
@@ -391,14 +405,6 @@ Proof.
     + inv NOP_FDEF. des_ifs; ss.
       eapply IHprods_src; eauto.
 Qed.
-
-Inductive transl_module : forall m_src m_tgt, Prop :=
-| transl_module_intro
-    los ndts prods_src prods_tgt
-    (TRANSL_PRODUCTS: transl_products prods_src prods_tgt)
-  : transl_module (module_intro los ndts prods_src)
-                  (module_intro los ndts prods_tgt)
-.
 
 Lemma nop_state_sim_final
       conf_src conf_tgt
