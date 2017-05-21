@@ -802,17 +802,6 @@ Proof.
   apply STUCK_TGT. esplits; eauto.
 Qed.
 
-Inductive eq_except_cmds (st0 st1: State) :=
-| eq_except_cmds_intro
-    (FUNC: st0.(EC).(CurFunction) = st1.(EC).(CurFunction))
-    (BB: st0.(EC).(CurBB) = st1.(EC).(CurBB))
-    (TERM: st0.(EC).(Terminator) = st1.(EC).(Terminator))
-    (LOCALS: st0.(EC).(Locals) = st1.(EC).(Locals))
-    (ALLOCAS: st0.(EC).(Allocas) = st1.(EC).(Allocas))
-    (ECS: st0.(ECS) = st1.(ECS))
-    (MEM: st0.(Mem) = st1.(Mem))
-.
-
 Lemma nop_sim
       conf_src conf_tgt
       (CONF: nop_conf_sim conf_src conf_tgt)
