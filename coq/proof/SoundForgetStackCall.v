@@ -15,6 +15,7 @@ Require Import paco.
 Import Opsem.
 
 Require Import TODO.
+Require Import TODOProof.
 Require Import Hints.
 Require Import Postcond.
 Require Import Validator.
@@ -48,6 +49,8 @@ Lemma invst_sem_eq_locals_mem
       (EQ_BB_TGT: st0_tgt.(EC).(CurBB) = st1_tgt.(EC).(CurBB))
       (EQ_FUNC_SRC: st0_src.(EC).(CurFunction) = st1_src.(EC).(CurFunction))
       (EQ_FUNC_TGT: st0_tgt.(EC).(CurFunction) = st1_tgt.(EC).(CurFunction))
+      (EQ_ALLOCAS_SRC: st0_src.(EC).(Allocas) = st1_src.(EC).(Allocas))
+      (EQ_ALLOCAS_TGT: st0_tgt.(EC).(Allocas) = st1_tgt.(EC).(Allocas))
   : InvState.Rel.sem conf_src conf_tgt st1_src st1_tgt invst invmem inv.
 Proof.
   inv STATE.
@@ -58,6 +61,9 @@ Proof.
     ii. exploit H.
     { erewrite sem_idT_eq_locals; eauto. }
     i. erewrite sem_idT_eq_locals; eauto.
+  - rewrite <- EQ_ALLOCAS_SRC.
+    rewrite <- EQ_ALLOCAS_TGT.
+    ss.
 Qed.
 
 Lemma genericvalues_inject_simulation__GV2ptr_tgt:
@@ -180,8 +186,8 @@ Proof.
       eapply PRIVATE; eauto.
       eapply Exprs.IdTSetFacts.mem_iff; eauto.
       unfold InvMem.private_block in *. des.
-      hexploit gv_inject_public_src; eauto; []; ii; des.
-      clear - H PRIVATE_BLOCK. ss.
+      hexploit gv_inject_public_src; eauto; []; intro PUB; des.
+      clear - PUB PRIVATE_BLOCK. ss.
     }
   - clear STATE_SRC.
     inv STATE_TGT.
@@ -195,8 +201,8 @@ Proof.
       eapply PRIVATE; eauto.
       eapply Exprs.IdTSetFacts.mem_iff; eauto.
       unfold InvMem.private_block in *. des.
-      hexploit gv_inject_public_tgt; eauto; []; ii; des.
-      clear - H PRIVATE_BLOCK. ss.
+      hexploit gv_inject_public_tgt; eauto; []; intro PUB; des.
+      clear - PUB PRIVATE_BLOCK. ss.
     }
 Qed.
 
@@ -354,6 +360,11 @@ Proof.
         inv MEM.
         exploit genericvalues_inject_wf_valid_ptrs_tgt; eauto.
       }
+      { apply STATE. }
+      { apply STATE. }
+      { apply STATE. }
+      { apply STATE. }
+      { apply STATE. }
     - hexploit genericvalues_inject.simulation__fit_gv; eauto.
       { inv MEM. eauto. }
       i. des.

@@ -77,8 +77,7 @@ Lemma sim_module_init
   exists conf_tgt st_tgt idx,
     <<TGT: s_genInitState [module_tgt] main args Mem.empty = ret (conf_tgt, st_tgt)>> /\
     <<SIM: sim conf_src conf_tgt idx st_src st_tgt>>.
-Proof.
-Admitted.
+Proof. exploit SIM; eauto. Qed.
 
 Lemma adequacy_module
       module_src module_tgt

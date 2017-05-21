@@ -253,7 +253,7 @@ Module Unary.
   Proof.
     induction gv2; ii; des; ss.
     cut(GV2blocks gv1 = []).
-    { ii. rewrite H in INL. inv INL. }
+    { clarify. ii. rewrite H1 in *. ss. }
     clear - UNDEF.
     induction gv1; ii; ss.
     destruct a; ss.
@@ -325,6 +325,8 @@ Module Unary.
       (NOALIAS: sem_alias conf st invst inv.(Invariant.alias))
       (UNIQUE: AtomSetImpl.For_all (sem_unique conf st gmax) inv.(Invariant.unique))
       (PRIVATE: IdTSet.For_all (sem_private conf st invst invmem.(InvMem.Unary.private_parent) public) inv.(Invariant.private))
+      (ALLOCAS_PARENT: list_disjoint st.(EC).(Allocas) invmem.(InvMem.Unary.private_parent))
+      (ALLOCAS_VALID: List.Forall (Mem.valid_block st.(Mem)) st.(EC).(Allocas))
       (WF_LOCAL: MemProps.wf_lc st.(Mem) st.(EC).(Locals))
       (WF_PREVIOUS: MemProps.wf_lc st.(Mem) invst.(previous))
       (WF_GHOST: MemProps.wf_lc st.(Mem) invst.(ghost))
@@ -343,48 +345,6 @@ Module Unary.
                               b
                               insn>>)
   .
-
-  Lemma sem_empty
-        conf st invst invmem gmax public inv
-        (EMPTY: Invariant.is_empty_unary inv):
-    sem conf st invst invmem gmax public inv.
-  Proof.
-    unfold Invariant.is_empty_unary in EMPTY.
-    solve_bool_true.
-    econs.
-    - ii. apply ExprPairSet.is_empty_2 in EMPTY.
-      exfalso. eapply EMPTY; eauto.
-    - unfold Invariant.is_empty_alias in EMPTY2. des_bool. des.
-      econs.
-      + ii. apply ValueTPairSet.is_empty_2 in EMPTY3.
-        exfalso. eapply EMPTY3. apply ValueTPairSetFacts.mem_iff. eauto.
-      + ii. apply PtrPairSet.is_empty_2 in EMPTY2.
-        exfalso. eapply EMPTY2. apply PtrPairSetFacts.mem_iff. eauto.
-    - ii. apply AtomSetImpl.is_empty_2 in EMPTY1.
-      exfalso. eapply EMPTY1; eauto.
-    - ii. apply IdTSet.is_empty_2 in EMPTY0.
-      exfalso. eapply EMPTY0; eauto.
-    - exact (SF_ADMIT "wf_lc locals. This is unprovable for now,
-but it is provable if we pull the calling point of this lemma
-into the start of the function. At the start of the function,
-locals is empty, and proving this becomes trivial, so skip it for now.").
-    - exact (SF_ADMIT "wf_lc previous. ditto").
-    - exact (SF_ADMIT "wf_lc ghost. ditto").
-    - exact (SF_ADMIT "unique_parent. ditto").
-    - exact (SF_ADMIT "wf_INSNS. This is unprovable for now.
-I think Vellvm introduced/used it in proving optimizations (later paper).
-However, current repository is ""sanitized"" version, and ""wf_insn""'s
-introduction/usage does not exist. It is just defined and that is all.
-If we find old Vellvm code that introduced/used ""wf_insn"",
-we may simply port it. (maybe some extracted validator have existed before)
-I insist that this is not a serious problem, because
-- ""wf_insn"" predicate is for type. dominance, existance check,
-  which our validator already checks using LLVM's type checker.
-  Passing LLVM's type checker will mostly imply ""wf_insn"" property.
-  Actually, we use wf_insn in 2-3 cases, and all of them
-  exploited simple checkings mentioned above, and not more.
-").
-  Qed.
 
   Lemma sem_valueT_physical
         conf st inv val:
@@ -412,7 +372,33 @@ Module Rel.
     forall val_src (VAL_SRC: Unary.sem_idT st_src invst.(src) id = Some val_src),
     exists val_tgt,
       <<VAL_TGT: Unary.sem_idT st_tgt invst.(tgt) id = Some val_tgt>> /\
-      <<VAL: genericvalues_inject.gv_inject inject val_src val_tgt>>.
+      <<VAL: genericvalues_inject.gv_inject inject val_src val_tgt>>
+  .
+
+  Inductive inject_allocas (f: meminj): list mblock -> list mblock -> Prop :=
+  | inject_allocas_nil: inject_allocas f [] []
+  | inject_allocas_alloca_nop
+      al
+      (PRIVATE: f al = None)
+      als_src als_tgt
+      (INJECT: inject_allocas f als_src als_tgt)
+    :
+      inject_allocas f (al :: als_src) als_tgt
+  | inject_allocas_nop_alloca
+      al
+      (PRIVATE: forall b ofs, f b <> Some (al, ofs))
+      als_src als_tgt
+      (INJECT: inject_allocas f als_src als_tgt)
+    :
+      inject_allocas f als_src (al :: als_tgt)
+  | inject_allocas_alloca_alloca
+      al_src al_tgt
+      (PUBLIC: f al_src = Some (al_tgt, 0))
+      als_src als_tgt
+      (INJECT: inject_allocas f als_src als_tgt)
+    :
+      inject_allocas f (al_src :: als_src) (al_tgt :: als_tgt)
+  .
 
   Definition sem_inject_expr (conf_src conf_tgt: Config)
              (st_src st_tgt:State) (invst:t) (inject:meminj) (expr:Expr.t): Prop :=
@@ -428,28 +414,81 @@ Module Rel.
       (MAYDIFF:
          forall id (NOTIN: (IdTSet.mem id inv.(Invariant.maydiff)) = false),
            sem_inject st_src st_tgt invst invmem.(InvMem.Rel.inject) id)
+      (ALLOCAS:
+         inject_allocas invmem.(InvMem.Rel.inject) st_src.(EC).(Allocas) st_tgt.(EC).(Allocas))
   .
 
-  Lemma sem_empty
-        conf_src ec_src ecs_src mem_src
-        conf_tgt ec_tgt ecs_tgt mem_tgt
-        invmem inv
-        (SRC: Invariant.is_empty_unary inv.(Invariant.src))
-        (TGT: Invariant.is_empty_unary inv.(Invariant.tgt))
-        (LOCALS: inject_locals invmem ec_src.(Locals) ec_tgt.(Locals)):
-    exists invst,
-      sem conf_src conf_tgt
-          (mkState ec_src ecs_src mem_src)
-          (mkState ec_tgt ecs_tgt mem_tgt)
-          invst invmem inv.
+  Lemma inject_allocas_preserved_aux
+        invmem0
+        als_src als_tgt
+        (INJECT: inject_allocas invmem0.(InvMem.Rel.inject) als_src als_tgt)
+        invmem1
+        (INJECT_INCR: inject_incr invmem0.(InvMem.Rel.inject) invmem1.(InvMem.Rel.inject))
+        bd_src bd_tgt
+        (FROZEN: InvMem.Rel.frozen invmem0.(InvMem.Rel.inject) invmem1.(InvMem.Rel.inject)
+                                             bd_src bd_tgt)
+        (VALID_SRC: List.Forall (fun x => (x < bd_src)%positive) als_src)
+        (VALID_TGT: List.Forall (fun x => (x < bd_tgt)%positive) als_tgt)
+    :
+        <<INJECT: inject_allocas invmem1.(InvMem.Rel.inject) als_src als_tgt>>
+  .
   Proof.
-    exists (mk (Unary.mk [] []) (Unary.mk [] [])).
-    econs.
-    - apply Unary.sem_empty. ss.
-    - apply Unary.sem_empty. ss.
-    - ii. unfold Unary.sem_idT, Unary.sem_tag in *.
-      destruct id0. destruct t0; ss.
-      exploit LOCALS; eauto.
+    ginduction INJECT; ii; ss.
+    - econs; eauto.
+    - inv VALID_SRC.
+      econs; eauto.
+      + erewrite <- InvMem.Rel.frozen_preserves_src; eauto.
+      + eapply IHINJECT; eauto.
+    - inv VALID_TGT.
+      econs; eauto.
+      + ii.
+        exploit InvMem.Rel.frozen_preserves_tgt; eauto; []; i; des.
+        exploit PRIVATE; eauto.
+      + eapply IHINJECT; eauto.
+    - inv VALID_SRC. inv VALID_TGT.
+      econs 4; eauto.
+      + eapply IHINJECT; eauto.
+  Qed.
+
+  Lemma inject_allocas_preserved_le
+        invmem0
+        als_src als_tgt
+        (INJECT: inject_allocas invmem0.(InvMem.Rel.inject) als_src als_tgt)
+        invmem1
+        (LE: InvMem.Rel.le invmem0 invmem1)
+        (VALID_SRC: List.Forall
+                      (Mem.valid_block invmem0.(InvMem.Rel.src).(InvMem.Unary.mem_parent)) als_src)
+        (VALID_TGT: List.Forall
+                      (Mem.valid_block invmem0.(InvMem.Rel.tgt).(InvMem.Unary.mem_parent)) als_tgt)
+    :
+        <<INJECT: inject_allocas invmem1.(InvMem.Rel.inject) als_src als_tgt>>
+  .
+  Proof.
+    eapply inject_allocas_preserved_aux; try exact INJECT; try eassumption.
+    { apply LE. }
+    { apply LE. }
+  Qed.
+
+  Lemma inject_allocas_preserved_le_lift
+        m_src0 m_tgt0 invmem0
+        als_src als_tgt
+        (INJECT: inject_allocas invmem0.(InvMem.Rel.inject) als_src als_tgt)
+        invmem1
+        arg0 arg1 arg2 arg3
+        (LE: InvMem.Rel.le (InvMem.Rel.lift m_src0 m_tgt0 arg0 arg1 arg2 arg3 invmem0) invmem1)
+        (VALID_SRC: List.Forall (Mem.valid_block m_src0) als_src)
+        (VALID_TGT: List.Forall (Mem.valid_block m_tgt0) als_tgt)
+        (PARENT_LE_SRC: ((Mem.nextblock (InvMem.Unary.mem_parent (InvMem.Rel.src invmem0)) <=
+                          Mem.nextblock (InvMem.Unary.mem_parent (InvMem.Rel.src invmem1))))%positive)
+        (PARENT_LE_TGT: ((Mem.nextblock (InvMem.Unary.mem_parent (InvMem.Rel.tgt invmem0)) <=
+                          Mem.nextblock (InvMem.Unary.mem_parent (InvMem.Rel.tgt invmem1))))%positive)
+    :
+        <<INJECT: inject_allocas invmem1.(InvMem.Rel.inject) als_src als_tgt>>
+  .
+  Proof.
+    eapply inject_allocas_preserved_aux; try exact INJECT; try eassumption.
+    { apply LE. }
+    { inv LE; ss. }
   Qed.
 
   Lemma const2GV_gv_inject_refl

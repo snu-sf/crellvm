@@ -1,5 +1,6 @@
 # vim related
 *.swp
+*.swo
 
 # coq related
 *.vo
@@ -34,4 +35,4 @@ Makefile.coq
 /results-opt
 
 lib/*
-simplberry-tests
+llvmberry-tests

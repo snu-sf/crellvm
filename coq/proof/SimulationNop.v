@@ -15,6 +15,7 @@ Require Import paco.
 Import Opsem.
 
 Require Import TODO.
+Require Import TODOProof.
 Require Import GenericValues.
 Require Import Nop.
 Require Import Simulation.
@@ -30,8 +31,7 @@ Set Implicit Arguments.
 Inductive nop_state_sim
           (conf_src conf_tgt:Config)
           (stack0_src stack0_tgt:ECStack)
-          (inv:InvMem.Rel.t):
-  forall (idx:nat) (st_src st_tgt:State), Prop :=
+          (inv:InvMem.Rel.t): nat -> State -> State -> Prop :=
 | nop_state_sim_intro
     fdef_src fdef_tgt
     l s_src s_tgt
@@ -41,8 +41,23 @@ Inductive nop_state_sim
     (FDEF: nop_fdef fdef_src fdef_tgt)
     (CMDS: nop_cmds cmds_src cmds_tgt)
     (LOCALS: inject_locals inv locals_src locals_tgt)
-    (ALLOCAS: inject_allocas inv allocas_src allocas_tgt)
-    (MEM: InvMem.Rel.sem conf_src conf_tgt mem_src mem_tgt inv):
+    (ALLOCAS: fully_inject_allocas inv allocas_src allocas_tgt)
+    (MEM: InvMem.Rel.sem conf_src conf_tgt mem_src mem_tgt inv)
+    (ALLOCAS_DISJOINT_SRC: list_disjoint allocas_src
+                                         (InvMem.Unary.private_parent inv.(InvMem.Rel.src)))
+    (ALLOCAS_DISJOINT_TGT: list_disjoint allocas_tgt
+                                         (InvMem.Unary.private_parent inv.(InvMem.Rel.tgt)))
+    (VALID_ALLOCAS_SRC:
+       Forall (fun x => (x < inv.(InvMem.Rel.src).(InvMem.Unary.nextblock))%positive)
+              allocas_src)
+    (VALID_ALLOCAS_TGT:
+       Forall (fun x => (x < inv.(InvMem.Rel.tgt).(InvMem.Unary.nextblock))%positive)
+              allocas_tgt)
+    (WF_TGT: wf_ConfigI conf_tgt /\
+             wf_StateI conf_tgt (mkState
+                                   (mkEC fdef_tgt (l, s_tgt) cmds_tgt term locals_tgt allocas_tgt)
+                                   stack0_tgt mem_tgt))
+  :
     nop_state_sim
       conf_src conf_tgt
       stack0_src stack0_tgt inv
@@ -72,15 +87,17 @@ Lemma nop_init
       (ARGS: list_forall2 (genericvalues_inject.gv_inject inv.(InvMem.Rel.inject)) args_src args_tgt)
       (MEM: InvMem.Rel.sem conf_src conf_tgt mem_src mem_tgt inv)
       (CONF: inject_conf conf_src conf_tgt)
-      (INIT: init_fdef conf_src (fdef_intro header blocks_src) args_src ec_src):
+      (INIT: init_fdef conf_src (fdef_intro header blocks_src) args_src ec_src)
+  :
   exists ec_tgt idx,
-    init_fdef conf_tgt (fdef_intro header blocks_tgt) args_tgt ec_tgt /\
-    nop_state_sim
-      conf_src conf_tgt
-      stack0_src stack0_tgt
-      inv idx
-      (mkState ec_src stack0_src mem_src)
-      (mkState ec_tgt stack0_tgt mem_tgt).
+    (<<INIT_TGT: init_fdef conf_tgt (fdef_intro header blocks_tgt) args_tgt ec_tgt>>) /\
+    (forall (WF_TGT: wf_ConfigI conf_tgt /\ wf_StateI conf_tgt (mkState ec_tgt stack0_tgt mem_tgt)),
+        <<SIM: nop_state_sim
+          conf_src conf_tgt
+          stack0_src stack0_tgt
+          inv idx
+          (mkState ec_src stack0_src mem_src)
+          (mkState ec_tgt stack0_tgt mem_tgt)>>).
 Proof.
   inv INIT. inv NOP_FDEF. inv FDEF.
   destruct blocks_tgt, lb; inv NOP_FIRST_MATCHES; try inv ENTRY.
@@ -95,6 +112,8 @@ Proof.
     econs; eauto.
     + econs. econs; eauto.
     + econs.
+    + ss.
+    + ss.
 Qed.
 
 Inductive status :=
@@ -250,9 +269,12 @@ Proof.
       rewrite (app_nil_end cmds_src).
       eapply sop_star_sim_local; [by apply nops_sop_star|].
       destruct Terminator0; inv FINAL_TGT.
-      + econs 2; ss. s. i.
+      + econs 2; try reflexivity; ss.
+        { ss. eapply SoundBase.fully_inject_allocas_inject_allocas; eauto. }
+        s. i.
         eapply inject_locals_getOperandValue; eauto.
       + econs 3; ss.
+        { ss. eapply SoundBase.fully_inject_allocas_inject_allocas; eauto. }
   }
   apply NNPP in STUCK_TGT. destruct STUCK_TGT as (st'_tgt & tr_tgt & PROGRESS_TGT).
   destruct st_src as [ec_src ecs_src mem_src].
@@ -271,10 +293,10 @@ Proof.
     assert (PARAM_TGT: exists gvs_param_tgt, params2GVs (CurTargetData conf_tgt) args0 locals_tgt (Globals conf_tgt) = Some gvs_param_tgt).
     { inv PROGRESS_TGT; eauto. }
     des.
-    eapply _sim_local_call; try apply STEPS; try eexact x0; ss; try reflexivity; eauto.
+    eapply _sim_local_call with (uniqs_src:= nil) (uniqs_tgt:= nil) (privs_src:= nil) (privs_tgt:= nil);
+      try apply STEPS; try eexact x0; ss; try reflexivity; eauto; try (ii; des; contradiction).
     { s. i. eapply inject_locals_getOperandValue; eauto. }
     { s. i. eapply inject_locals_params2GVs; eauto. }
-    exists nil, nil, nil, nil. esplits; try (ii; des; contradiction).
     s. i.
     exploit return_locals_inject_locals; eauto.
     { assert (INJECT_LOCALS_LIFT: inject_locals (InvMem.Rel.lift mem_src mem_tgt [] [] [] [] inv0) locals_src locals_tgt).
@@ -282,14 +304,27 @@ Proof.
       eapply inject_locals_inj_incr; eauto.
     }
     i. des.
-    esplits; eauto.
+    esplits. i. splits; eauto.
     + inv CONF. rewrite <- TARGETDATA. eauto.
-    + eapply lift_unlift_le. eauto.
+    + eapply lift_unlift_le; eauto.
+      { apply MEM. }
+      { apply MEM. }
     + right. eapply CIH.
       econs; ss; eauto.
-      { eapply inject_incr_inject_allocas; eauto.
+      { eapply inject_incr_fully_inject_allocas; eauto.
         ss. inv INCR. ss. }
       { eapply invmem_unlift; eauto. }
+      { eapply Forall_harder; [apply VALID_ALLOCAS_SRC|].
+        i. ss.
+        eapply Pos.lt_le_trans; eauto.
+        apply INCR.
+      }
+      { eapply Forall_harder; [apply VALID_ALLOCAS_TGT|].
+        i. ss.
+        eapply Pos.lt_le_trans; eauto.
+        apply INCR.
+      }
+    + splits; ss.
   - (* return *)
     exploit get_status_return_inv; eauto. i. des.
     inv SIM. ss. subst.
@@ -297,6 +332,8 @@ Proof.
     rewrite (app_nil_end cmds_src).
     eapply sop_star_sim_local; [by apply nops_sop_star|].
     eapply _sim_local_return; eauto; ss.
+    { ss. eapply SoundBase.fully_inject_allocas_inject_allocas; eauto. }
+    { reflexivity. }
     i. eapply inject_locals_getOperandValue; eauto.
   - (* return void *)
     exploit get_status_return_void_inv; eauto. i. des.
@@ -305,6 +342,7 @@ Proof.
     rewrite (app_nil_end cmds_src).
     eapply sop_star_sim_local; [by apply nops_sop_star|].
     eapply _sim_local_return_void; ss.
+    { ss. eapply SoundBase.fully_inject_allocas_inject_allocas; eauto. }
   - (* step *)
     admit.
     (* exploit get_status_step_inv; eauto. i. des. *)
@@ -376,7 +414,7 @@ Lemma nop_sim_fdef
   sim_fdef conf_src conf_tgt (fdef_intro header blocks_src) (fdef_intro header blocks_tgt).
 Proof.
   ii.
-  exploit nop_init; eauto. i. des.
-  esplits; eauto.
+  exploit nop_init; eauto. intro NOP_INIT. des.
+  esplits; eauto. i. specialize (NOP_INIT0 WF_TGT).
   apply nop_sim; eauto.
 Qed.

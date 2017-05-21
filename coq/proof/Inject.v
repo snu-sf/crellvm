@@ -342,7 +342,7 @@ Inductive inject_conf (conf_src conf_tgt:Config): Prop :=
     (GLOBALS: conf_src.(Globals) = conf_tgt.(Globals))
 .
 
-Definition inject_allocas
+Definition fully_inject_allocas
            (inv:InvMem.Rel.t)
            (alc_src alc_tgt:list mblock): Prop :=
   list_forall2
@@ -560,12 +560,12 @@ Proof.
   eapply genericvalues_inject.gv_inject_incr; try apply INCR; eauto.
 Qed.
 
-Lemma inject_allocas_inj_incr
+Lemma fully_inject_allocas_inj_incr
       inv0 inv1
       allocas_src allocas_tgt
-      (ALLOCAS: inject_allocas inv0 allocas_src allocas_tgt)
+      (ALLOCAS: fully_inject_allocas inv0 allocas_src allocas_tgt)
       (INCR: InvMem.Rel.le inv0 inv1):
-  inject_allocas inv1 allocas_src allocas_tgt.
+  fully_inject_allocas inv1 allocas_src allocas_tgt.
 Proof.
   eapply list_forall2_imply; eauto. s. i.
   apply INCR. auto.

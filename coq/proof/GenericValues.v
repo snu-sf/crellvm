@@ -269,3 +269,21 @@ Proof.
     + right.
       eapply TODOProof.filter_map_spec; eauto.
 Qed.
+
+(* TODO: Why error_state is defined in GenericValues? *)
+(* -> It is used in SoundPostcondCmdAdd. Is it essential? *)
+Lemma error_state_neg conf st
+      (NERROR_SRC: ~error_state conf st)
+  :
+    <<NERROR_SRC: ~(stuck_state conf st) \/ exists gv, s_isFinialState conf st = Some gv>>
+.
+Proof.
+  red. unfold not in NERROR_SRC.
+  apply imply_to_or.
+  i.
+  destruct (s_isFinialState conf st) eqn:T.
+  { esplits; eauto. }
+  exploit NERROR_SRC; eauto.
+  { econs; eauto. }
+  i; ss.
+Qed.

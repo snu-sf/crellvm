@@ -3,8 +3,283 @@ Require Import sflib.
 Require Import memory_props.
 Require Import TODO.
 Import Opsem.
+Require Import Classical.
 
 Set Implicit Arguments.
+
+(* TODO: Is it replacable by some lemma in stdlib? or tactic? *)
+Lemma dependent_split
+      (A B: Prop)
+      (HYPA: A)
+      (HYPB: <<HYPA: A>> -> B)
+  :
+    <<GOAL: A /\ B>>
+.
+Proof.
+  split; ss.
+  apply HYPB; ss.
+Qed.
+
+Lemma Pos_lt_le_irrefl
+      a b
+      (LE: (a <= b)%positive)
+      (LT: (b < a)%positive)
+  :
+    False
+.
+Proof. eapply Pos.lt_irrefl. eapply Pos.lt_le_trans; eauto. Qed.
+
+Lemma Forall_harder
+      A
+      (P Q: A -> Prop)
+      l
+      (FORALL: List.Forall P l)
+      (HARDER: forall a, P a -> Q a)
+  :
+    <<FORALL: List.Forall Q l>>
+.
+Proof.
+  ginduction l; ii; ss.
+  inv FORALL. econs; eauto.
+  eapply IHl; eauto.
+Qed.
+
+Ltac reductio_ad_absurdum :=
+  match goal with
+  | [ |- ?G ] => destruct (classic G) as [tmp | REDUCTIO_AD_ABSURDUM];
+                 [assumption|exfalso]
+  end
+.
+
+Ltac exists_prop PROP :=
+  tryif
+    (repeat multimatch goal with
+            | [H: PROP |- _ ] => (* idtac "Found!"; idtac H; *) fail 2
+            end)
+  then fail
+  else idtac
+.
+
+(* get equality's transitive closure *)
+(* TODO: it checks equal to strictly; "(0, 1).fst != 0" here. *)
+Ltac eq_closure_tac :=
+  repeat
+    (repeat multimatch goal with
+            | [H1: ?A = ?B, H2: ?B = ?C |- _ ] =>
+              (* idtac "------------------------"; *)
+              (* idtac H1; idtac H2; *)
+              tryif (check_equal A C)
+              then (* idtac "FAILREFL1"; *) fail
+              else
+                tryif (exists_prop (A = C) + exists_prop (C = A))
+                then (* idtac "FAILREFL2" *) idtac
+                else
+                  let name := fresh "EQ_CLOSURE_TAC" in
+                  exploit eq_trans; [exact H1|exact H2|]; intro name
+            | [H1: ?B = ?A, H2: ?B = ?C |- _ ] =>
+              tryif (check_equal A C)
+              then (* idtac "FAILREFL1"; *) fail
+              else
+                tryif (exists_prop (A = C) + exists_prop (C = A))
+                then (* idtac "FAILREFL2" *) idtac
+                else
+                  let name := fresh "EQ_CLOSURE_TAC" in
+                  exploit eq_trans; [exact (eq_sym H1)|exact H2|]; intro name
+            end)
+.
+
+(* COPIED FROM https://www.cis.upenn.edu/~bcpierce/sf/current/LibTactics.html *)
+(* TODO: is it OK? *)
+(* TODO: move to proper position; I think sflib should be OK *)
+(* TODO: also import some other good things, e.g. gens *)
+Tactic Notation "clears" ident(X1) :=
+  let rec doit _ :=
+      match goal with
+      | H:context[X1] |- _ => clear H; try (doit tt)
+      | _ => clear X1
+      end in doit tt.
+Tactic Notation "clears" ident(X1) ident(X2) :=
+  clears X1; clears X2.
+Tactic Notation "clears" ident(X1) ident(X2) ident(X3) :=
+  clears X1; clears X2; clears X3.
+Tactic Notation "clears" ident(X1) ident(X2) ident(X3) ident(X4) :=
+  clears X1; clears X2; clears X3; clears X4.
+Tactic Notation "clears" ident(X1) ident(X2) ident(X3) ident(X4)
+       ident(X5) :=
+  clears X1; clears X2; clears X3; clears X4; clears X5.
+Tactic Notation "clears" ident(X1) ident(X2) ident(X3) ident(X4)
+       ident(X5) ident(X6) :=
+  clears X1; clears X2; clears X3; clears X4; clears X5; clears X6.
+(* TODO: This should fail when ident appears in the goal! *)
+(* It currently succeeds, only removing preemises *)
+
+Ltac rewrite_everywhere H := rewrite H in *.
+Ltac all_with_term TAC TERM :=
+  repeat multimatch goal with
+         | H: context[TERM] |- _ => TAC H
+         end
+.
+
+Ltac clear_unused :=
+  repeat multimatch goal with
+         | [H: ?T |- _] =>
+           match (type of T) with
+           | Prop => idtac
+           | _ => try clear H
+           end
+         end
+.
+Ltac clear_tautology :=
+  repeat match goal with
+         | [H: ?A = ?B, H2: ?B = ?A |- _] => clear H2
+         | [H: True |- _] => clear H
+         | [H: ?X, H2: ?X |- _] => clear H2
+         | [H: ?A = ?A |- _] => clear H
+         end
+.
+Ltac clear_tac := repeat (clear_unused; clear_tautology).
+
+Ltac des_outest_ifs H :=
+  match goal with
+  | H': context[ match ?x with _ => _ end ] |- _ =>
+    check_equal H' H;
+    match (type of x) with
+    | { _ } + { _ } => destruct x; clarify
+    | _ => let Heq := fresh "Heq" in destruct x as [] eqn: Heq; clarify
+    end
+  end.
+
+Ltac des_ifs_safe_aux TAC :=
+  TAC;
+  repeat
+    multimatch goal with
+    | |- context[match ?x with _ => _ end] =>
+      match (type of x) with
+      | { _ } + { _ } => destruct x; TAC; []
+      | _ => let Heq := fresh "Heq" in destruct x as [] eqn: Heq; TAC; []
+      end
+    | H: context[ match ?x with _ => _ end ] |- _ =>
+      match (type of x) with
+      | { _ } + { _ } => destruct x; TAC; []
+      | _ => let Heq := fresh "Heq" in destruct x as [] eqn: Heq; TAC; []
+      end
+    end.
+Tactic Notation "des_ifs_safe" := des_ifs_safe_aux clarify.
+Tactic Notation "des_ifs_safe" tactic(TAC) := des_ifs_safe_aux TAC.
+
+Ltac abstr_aux x var_name :=
+  let hyp_name := fresh "abstr_hyp_name" in
+  remember x as var_name eqn:hyp_name; clear hyp_name
+.
+
+Tactic Notation "abstr" constr(H) := let var_name := fresh "abstr_var_name" in abstr_aux H var_name.
+Tactic Notation "abstr" constr(H) ident(var_name) := abstr_aux H var_name.
+
+Example abstr_demo: (1 + 2 = 3) -> False.
+  i.
+  abstr_aux (1 + 2) my_name. Undo 1.
+  abstr (1 + 2).
+Abort.
+
+Ltac des_ifsH H :=
+  clarify;
+  repeat
+    match goal with
+    | H': context[ match ?x with _ => _ end ] |- _ =>
+      check_equal H' H;
+      match (type of x) with
+      | { _ } + { _ } => destruct x; clarify
+      | _ => let Heq := fresh "Heq" in destruct x as [] eqn: Heq; clarify
+      end
+    end.
+
+Ltac des_ifsG :=
+  clarify;
+  repeat
+    match goal with
+    | |- context[match ?x with _ => _ end] =>
+      match (type of x) with
+      | { _ } + { _ } => destruct x; clarify
+      | _ => let Heq := fresh "Heq" in destruct x as [] eqn: Heq; clarify
+      end
+    end.
+
+Ltac expl_aux H TAC :=
+  let n := fresh H in
+  (* one goal or zero goal *)
+  first[exploit H; TAC; []; repeat intro n; des|
+        exploit H; TAC; fail]
+.
+
+Tactic Notation "expl" constr(H) := expl_aux H eauto.
+
+Tactic Notation "expl" constr(H) tactic(TAC) := expl_aux H TAC.
+
+(* multimatch is needed for "solve [all inv]" *)
+Ltac all TAC :=
+  repeat multimatch goal with
+         | H: _ |- _ => TAC H
+         end
+.
+
+Ltac apply_all x := all (ltac:(apply_in) x).
+
+Lemma list_disjoint_cons_inv
+      X (hd: X) tl xs
+      (DISJOINT: list_disjoint (hd :: tl) xs)
+  :
+    <<DISJOINT: list_disjoint [hd] xs /\ list_disjoint tl xs>>
+.
+Proof.
+  splits.
+  - ii. clarify. ss. des; ss. clarify. expl DISJOINT. left. ss.
+  - eapply list_disjoint_cons_left; eauto.
+Qed.
+
+Lemma f_equal6 (A1 A2 A3 A4 A5 A6 B: Type) (f: A1 -> A2 -> A3 -> A4 -> A5 -> A6 -> B)
+      (x1 y1: A1) (EQ1: x1 = y1)
+      (x2 y2: A2) (EQ2: x2 = y2)
+      (x3 y3: A3) (EQ3: x3 = y3)
+      (x4 y4: A4) (EQ4: x4 = y4)
+      (x5 y5: A5) (EQ5: x5 = y5)
+      (x6 y6: A6) (EQ6: x6 = y6)
+  :
+    <<EQ: f x1 x2 x3 x4 x5 x6 = f y1 y2 y3 y4 y5 y6>>
+.
+Proof. subst. reflexivity. Qed.
+
+Lemma f_equal7 (A1 A2 A3 A4 A5 A6 A7 B: Type) (f: A1 -> A2 -> A3 -> A4 -> A5 -> A6 -> A7 -> B)
+      (x1 y1: A1) (EQ1: x1 = y1)
+      (x2 y2: A2) (EQ2: x2 = y2)
+      (x3 y3: A3) (EQ3: x3 = y3)
+      (x4 y4: A4) (EQ4: x4 = y4)
+      (x5 y5: A5) (EQ5: x5 = y5)
+      (x6 y6: A6) (EQ6: x6 = y6)
+      (x7 y7: A7) (EQ7: x7 = y7)
+  :
+    <<EQ: f x1 x2 x3 x4 x5 x6 x7 = f y1 y2 y3 y4 y5 y6 y7>>
+.
+Proof. subst. reflexivity. Qed.
+
+Lemma f_equal8 (A1 A2 A3 A4 A5 A6 A7 A8 B: Type) (f: A1 -> A2 -> A3 -> A4 -> A5 -> A6 -> A7 -> A8 -> B)
+      (x1 y1: A1) (EQ1: x1 = y1)
+      (x2 y2: A2) (EQ2: x2 = y2)
+      (x3 y3: A3) (EQ3: x3 = y3)
+      (x4 y4: A4) (EQ4: x4 = y4)
+      (x5 y5: A5) (EQ5: x5 = y5)
+      (x6 y6: A6) (EQ6: x6 = y6)
+      (x7 y7: A7) (EQ7: x7 = y7)
+      (x8 y8: A8) (EQ8: x8 = y8)
+  :
+    <<EQ: f x1 x2 x3 x4 x5 x6 x7 x8 = f y1 y2 y3 y4 y5 y6 y7 y8>>
+.
+Proof. subst. reflexivity. Qed.
+
+Ltac rpapply H :=
+  first[erewrite f_equal8 | erewrite f_equal7 | erewrite f_equal6 | erewrite f_equal5 |
+        erewrite f_equal4 | erewrite f_equal3 | erewrite f_equal2 | erewrite f_equal];
+  [exact H|..]; try reflexivity.
+
 
 (* Motivation: I want to distinguish excused ad-mits from normal ad-mits, *)
 (* and further, I do not want to "grep" excused ones, so I give them different name. *)

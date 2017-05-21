@@ -15,6 +15,7 @@ Require Import paco.
 Import Opsem.
 
 Require Import TODO.
+Require Import TODOProof.
 Require Import Decs.
 Require Import Exprs.
 Require Import Validator.
@@ -23,6 +24,11 @@ Require Import Inject.
 Require InvMem.
 Require InvState.
 Require Import Hints.
+Require Import memory_props.
+Import Memory.
+Require Import opsem_wf.
+Require Import genericvalues_inject.
+Require Import memory_sim.
 
 Set Implicit Arguments.
 
@@ -143,14 +149,14 @@ Proof.
   inv x. inv x0. inv H4. inv H2. inv H0. inv H.
 Qed.
 
-Lemma inject_incr_inject_allocas
+Lemma inject_incr_fully_inject_allocas
       (inv0 inv1 : InvMem.Rel.t)
       (allocas_src allocas_tgt : list mblock)
-      (ALLOCAS: inject_allocas inv0 allocas_src allocas_tgt)
+      (ALLOCAS: fully_inject_allocas inv0 allocas_src allocas_tgt)
       (MEMINJ: memory_sim.MoreMem.inject_incr inv0.(InvMem.Rel.inject) inv1.(InvMem.Rel.inject))
-  : inject_allocas inv1 allocas_src allocas_tgt.
+  : fully_inject_allocas inv1 allocas_src allocas_tgt.
 Proof.
-  unfold inject_allocas in *.
+  unfold fully_inject_allocas in *.
   eapply list_forall2_imply; eauto.
 Qed.
 
@@ -209,11 +215,12 @@ Lemma Subset_sem
 Proof.
   inv STATE. inv SUBSET.
   econs; try (eapply Subset_unary_sem; eauto).
-  i. apply MAYDIFF.
-  destruct (IdTSet.mem id0 (Hints.Invariant.maydiff inv1)) eqn:MEM1; ss.
-  rewrite <- IdTSetFacts.not_mem_iff in *.
-  rewrite <- IdTSetFacts.mem_iff in *.
-  exploit SUBSET_MAYDIFF; eauto. i. congruence.
+  - i. apply MAYDIFF.
+    destruct (IdTSet.mem id0 (Hints.Invariant.maydiff inv1)) eqn:MEM1; ss.
+    rewrite <- IdTSetFacts.not_mem_iff in *.
+    rewrite <- IdTSetFacts.mem_iff in *.
+    exploit SUBSET_MAYDIFF; eauto. i. congruence.
+  - eauto.
 Qed.
 
 Lemma postcond_cmd_inject_event_Subset cmd_src cmd_tgt inv0 inv1
@@ -229,12 +236,22 @@ Proof.
       (unfold is_true in *; repeat (des_bool; des);
        inject_clarify; try rewrite andb_true_r; try (rewrite andb_true_iff; split);
        eapply InvState.Subset.inject_value_Subset; eauto).
-  - apply Exprs.ExprPairSet.exists_2 in INJECT_EVENT; try by solve_compat_bool.
-    inv INJECT_EVENT. des.
-    exploit Exprs.ExprPairSet.exists_1; try by solve_compat_bool.
-    inv SUBSET. inv SUBSET_SRC.
-    exploit SUBSET_LESSDEF; eauto. i.
-    econs; eauto.
+  - unfold is_true in *. des_bool; des.
+    apply andb_true_iff.
+    split; ss.
+    + apply Exprs.ExprPairSet.exists_2 in INJECT_EVENT; try by solve_compat_bool.
+      inv INJECT_EVENT. des.
+      exploit Exprs.ExprPairSet.exists_1; try by solve_compat_bool.
+      inv SUBSET. inv SUBSET_SRC.
+      exploit SUBSET_LESSDEF; eauto. i.
+      econs; eauto.
+    + destruct value1; ss. des_bool. apply negb_true_iff.
+      apply IdTSetFacts.not_mem_iff.
+      apply IdTSetFacts.not_mem_iff in INJECT_EVENT0.
+      ii.
+      apply INJECT_EVENT0.
+      inv SUBSET.
+      expl SUBSET_MAYDIFF.
   - unfold Hints.Invariant.is_private in *. des_ifs.
     inv SUBSET. inv SUBSET_SRC.
     unfold is_true in *.
@@ -451,6 +468,7 @@ Lemma unary_sem_eq_locals_mem
       (MEM_EQ : Mem st0 = Mem st1)
       (STATE: InvState.Unary.sem conf st0 invst0 invmem0 gmax public inv0)
       (EQ_FUNC: st0.(EC).(CurFunction) = st1.(EC).(CurFunction))
+      (EQ_ALLOCAS: st0.(EC).(Allocas) = st1.(EC).(Allocas))
   : InvState.Unary.sem conf st1 invst0 invmem0 gmax public inv0.
 Proof.
   inv STATE.
@@ -469,6 +487,10 @@ Proof.
   - ii. exploit PRIVATE; eauto.
     { erewrite sem_idT_eq_locals; eauto. }
     rewrite <- MEM_EQ. eauto.
+  - rewrite <- EQ_ALLOCAS. ss.
+  - rpapply ALLOCAS_VALID.
+    + rewrite MEM_EQ. eauto.
+    + rewrite EQ_ALLOCAS. eauto.
   - rewrite <- LOCALS_EQ. rewrite <- MEM_EQ. eauto.
   - rewrite <- MEM_EQ. eauto.
   - rewrite <- MEM_EQ. eauto.
@@ -496,17 +518,36 @@ Definition unique_is_private_unary inv : Prop :=
   forall x (UNIQUE: AtomSetImpl.mem x inv.(Hints.Invariant.unique) = true),
     IdTSet.mem (Tag.physical, x) inv.(Hints.Invariant.private) = true.
 
+Lemma lift_unlift_le_unary
+      inv0 inv1 mem
+      uniqs privs
+      (LE: InvMem.Unary.le (InvMem.Unary.lift mem uniqs privs inv0) inv1)
+  :
+    InvMem.Unary.le inv0 (InvMem.Unary.unlift inv0 inv1)
+.
+Proof.
+  inv LE.
+  econs; eauto.
+Qed.
+
+(* "InvMem.Rel" is repeated a lot; how about moving this into InvMem? *)
 Lemma lift_unlift_le
       inv0 inv1
       mem_src uniqs_src privs_src
       mem_tgt uniqs_tgt privs_tgt
-      (LE : InvMem.Rel.le (InvMem.Rel.lift mem_src mem_tgt uniqs_src uniqs_tgt privs_src privs_tgt inv0) inv1)
+      (NB_LE_SRC: (Mem.nextblock (InvMem.Unary.mem_parent inv0.(InvMem.Rel.src)) <=
+                   Mem.nextblock mem_src)%positive)
+      (NB_LE_TGT: (Mem.nextblock (InvMem.Unary.mem_parent inv0.(InvMem.Rel.tgt)) <=
+                   Mem.nextblock mem_tgt)%positive)
+      (* above two can be achieved from InvMem.Unary.sem NEXTBLOCK_PARENT *)
+      (LE: InvMem.Rel.le (InvMem.Rel.lift mem_src mem_tgt uniqs_src uniqs_tgt privs_src privs_tgt inv0) inv1)
   : InvMem.Rel.le inv0 (InvMem.Rel.unlift inv0 inv1).
 Proof.
   inv LE. ss.
   econs; eauto.
-  - inv SRC. econs; eauto.
-  - inv TGT. econs; eauto.
+  - eapply lift_unlift_le_unary; eauto.
+  - eapply lift_unlift_le_unary; eauto.
+  - eapply InvMem.Rel.frozen_shortened; eauto.
 Qed.
 
 Ltac des_matchH H :=
@@ -557,6 +598,13 @@ Proof.
       inv LE_SRC; ss.
       rewrite <- UNIQUE_PARENT_EQ.
       apply in_app. right. eauto.
+    + etransitivity.
+      { instantiate (1:= mem_src.(Mem.nextblock)). eauto. }
+      inv LE_SRC. ss. clarify. Undo 1.
+      {
+        subst mem_src.
+        rewrite NEXTBLOCK_PARENT. reflexivity.
+      }
   - (* tgt *)
     inv CALLEE_TGT. inv CALLER_TGT.
     econs; eauto; ss.
@@ -580,6 +628,9 @@ Proof.
       inv LE_TGT; ss.
       rewrite <- UNIQUE_PARENT_EQ.
       apply in_app. right. eauto.
+    + etransitivity.
+      { instantiate (1:= mem_tgt.(Mem.nextblock)). eauto. }
+      inv LE_TGT. ss. clarify.
   - inv CALLEE_WF.
     econs; eauto.
     rewrite GMAX.
@@ -629,6 +680,7 @@ Proof.
       * exploit UNIQUE_PARENT_GLOBALS; eauto.
     + apply sublist_app; eauto.
       apply filter_sublist.
+    + reflexivity.
   - inv TGT.
     econs; eauto; ss.
     +  i. apply in_app in IN. des.
@@ -652,6 +704,25 @@ Proof.
       * exploit UNIQUE_PARENT_GLOBALS; eauto.
     + apply sublist_app; eauto.
       apply filter_sublist.
+    + reflexivity.
+Qed.
+
+Lemma positive_lt_plus_one
+      y gmax
+      (POS1: (y < gmax + 1)%positive)
+      (POS2: (gmax < y)%positive)
+  :
+    False.
+Proof.
+  replace (gmax + 1)%positive with (Pos.succ gmax)%positive in *; cycle 1.
+  { rewrite Pos.add_comm. ss. destruct gmax; ss. }
+  rewrite Pos.lt_succ_r in POS1.
+  apply Pos.le_lteq in POS1; eauto.
+  des.
+  + exploit Pos.lt_trans; eauto. ii.
+    apply Pos.lt_irrefl in x0; ss.
+  + clarify.
+    apply Pos.lt_irrefl in POS2; ss.
 Qed.
 
 Lemma unique_const_diffblock
@@ -669,23 +740,20 @@ Proof.
 
   inv UNIQUE. clear LOCALS MEM. clarify.
 
-  ii. eapply GLOBALS0 in INL. clear GLOBALS0 VAL gval1.
-  induction gval2; i; ss.
-  des_ifs; try (eapply IHgval2; eauto; fail).
-  des. cbn in *.
-  des.
-  - clarify.
-    clear - INL VAL2.
-    replace (gmax + 1)%positive with (Pos.succ gmax)%positive in *; cycle 1.
-    { rewrite Pos.add_comm. ss. destruct gmax; ss. }
-    rewrite Pos.lt_succ_r in VAL2.
-    apply Pos.le_lteq in VAL2; eauto.
+  {
+    generalize dependent gval1.
+    induction gval2; i; ss.
+    hexploit IHgval2; eauto.
+    { des_ifs; ss. des; ss. }
+    i.
+    des_ifs.
+    ii. clarify.
+    cbn in H1.
     des.
-    + exploit Pos.lt_trans; eauto. ii.
-      apply Pos.lt_irrefl in x0; ss.
-    + clarify.
-      apply Pos.lt_irrefl in INL; ss.
-  - eapply IHgval2; eauto.
+    - clarify. exploit GLOBALS0; eauto; []; ii; des.
+      eapply positive_lt_plus_one; eauto.
+    - exploit H; eauto.
+  }
 Qed.
 
 Lemma valid_ptr_globals_diffblock
@@ -698,20 +766,17 @@ Lemma valid_ptr_globals_diffblock
 Proof.
   ii.
   exploit GLOBALS; eauto; []; intro GMAX; des.
-  clear - VALID_PTR INR GMAX.
-  induction val'; ss.
-  cbn in *. destruct a; ss. cbn in *.
-  unfold compose in *. ss.
-  destruct v; ss; try (eapply IHval'; eauto; fail).
-  des; clarify.
-  + rewrite <- Pplus_one_succ_r in VALID_PTR.
-    apply Plt_succ_inv in VALID_PTR.
+  {
+    clarify.
+    induction val'; ss.
+    exploit IHval'; eauto.
+    { des_ifs. des. ss. }
+    des_ifs.
     des.
-    * exploit Plt_trans; eauto. ii.
-      exploit dom_libs.PositiveSet.MSet.Raw.L.MO.lt_irrefl; eauto.
-    * clarify.
-      exploit dom_libs.PositiveSet.MSet.Raw.L.MO.lt_irrefl; eauto.
-  + eapply IHval'; eauto.
+    cbn in *. des.
+    - clarify. exfalso. eapply positive_lt_plus_one; eauto.
+    - ss.
+  }
 Qed.
 
 Lemma valid_ptr_globals_diffblock2
@@ -724,20 +789,14 @@ Lemma valid_ptr_globals_diffblock2
 Proof.
   ii.
   exploit GLOBALS; eauto; []; intro GMAX; des.
-  clear - VALID_PTR INR GMAX.
-  induction val'; ss.
-  cbn in *. destruct a; ss. cbn in *.
-  unfold compose in *. ss.
-  destruct v; ss; try (eapply IHval'; eauto; fail).
-  des; clarify.
-  + rewrite <- Pplus_one_succ_r in VALID_PTR.
-    apply Plt_succ_inv in VALID_PTR.
+  {
+    clarify.
+    induction val'; ss.
+    destruct a; ss. destruct v; ss; try (by exploit IHval'; eauto).
     des.
-    * exploit Plt_trans; eauto. ii.
-      exploit dom_libs.PositiveSet.MSet.Raw.L.MO.lt_irrefl; eauto.
-    * clarify.
-      exploit dom_libs.PositiveSet.MSet.Raw.L.MO.lt_irrefl; eauto.
-  + eapply IHval'; eauto.
+    - clarify. eapply positive_lt_plus_one; eauto.
+    - ss. exploit IHval'; eauto.
+  }
 Qed.
 
 Lemma valid_ptr_globals_diffblock_with_blocks
@@ -841,4 +900,420 @@ Proof.
   unfold vm_matches_typ in *. des. subst. ss.
   exploit IHg2; eauto.
   i. congruence.
+Qed.
+
+Lemma vellvm_no_alias_is_diffblock
+      conf gv1 gv2
+  : MemProps.no_alias gv1 gv2 <->
+    InvState.Unary.sem_diffblock conf gv1 gv2.
+Proof.
+  assert (NOALIAS_BLK_AUX:
+            forall gv b,
+              MemProps.no_alias_with_blk gv b <->
+              ~ In b (GV2blocks gv)).
+  { clear.
+    induction gv; ss.
+    destruct a. i.
+    destruct v; ss.
+    split.
+    - ii. des; eauto.
+      rewrite IHgv in *. eauto.
+    - i. split.
+      + ii. subst. eauto.
+      + rewrite IHgv. eauto.
+  }
+  split; i.
+  { unfold InvState.Unary.sem_diffblock.
+    revert dependent gv1.
+    induction gv2; i; ss.
+    destruct a. unfold GV2blocks in *.
+    destruct v; eauto.
+    ss.
+    cut (~ In b (filter_map (val2block <*> fst) gv1) /\
+         list_disjoint (filter_map (val2block <*> fst) gv1)
+                       (filter_map (val2block <*> fst) gv2)).
+    { i. des.
+      unfold list_disjoint in *.
+      i. ss.
+      des; subst; eauto.
+      ii. clarify.
+    }
+    des.
+    split; eauto.
+    apply NOALIAS_BLK_AUX. eauto.
+  }
+  { unfold InvState.Unary.sem_diffblock in *.
+    revert dependent gv1.
+    induction gv2; i; ss.
+    destruct a.
+    destruct v; eauto.
+    split.
+    - apply NOALIAS_BLK_AUX.
+      ii. unfold list_disjoint in *.
+      exploit H; eauto. ss. eauto.
+    - apply IHgv2.
+      unfold list_disjoint in *.
+      i.
+      ii; clarify.
+      exploit H; eauto. ss. right. eauto.
+  }
+Qed.
+
+Lemma invmem_free_invmem_unary
+      conf_src inv m x lo hi m' TD inv_unary
+      (BOUNDS: Mem.bounds m x = (lo, hi))
+      (FREE: free TD m (blk2GV TD x) = Some m')
+      (PARENT: list_disjoint [x] inv_unary.(InvMem.Unary.private_parent))
+      (pub_unary: mblock -> Prop)
+      (UNARY: InvMem.Unary.sem conf_src (InvMem.Rel.gmax inv) pub_unary m inv_unary)
+  :
+    <<INVMEM: InvMem.Unary.sem conf_src (InvMem.Rel.gmax inv) pub_unary m' inv_unary>>
+.
+Proof.
+  inv UNARY.
+  assert(NEXTBLOCK_EQ: Mem.nextblock m' = Mem.nextblock m).
+  {
+    unfold free in *. des_ifs.
+    expl Mem.nextblock_free.
+  }
+  econs; eauto.
+  + eapply memory_props.MemProps.free_preserves_wf_Mem; eauto.
+  + ii.
+    expl PRIVATE_PARENT.
+    inv PRIVATE_PARENT0.
+    econs; eauto.
+    rewrite NEXTBLOCK_EQ in *. ss.
+  + ii.
+    expl MEM_PARENT.
+    rewrite MEM_PARENT0.
+    rename b into __b__.
+    clear - FREE IN PARENT.
+    abstr (InvMem.Unary.private_parent inv_unary) private_parent.
+    move mc at top.
+    revert_until mc.
+    induction mc; ii; ss.
+    {
+      expl IHmc.
+      rewrite IHmc0. clear IHmc0 IHmc.
+      assert(Mem.load a m __b__ o = Mem.load a m' __b__ o).
+      {
+        cbn in *. des_ifs.
+        symmetry.
+        eapply Mem.load_free; eauto.
+        left. ii. clarify.
+        exploit PARENT; eauto. left. ss.
+      }
+      des_ifs.
+    }
+  + ii.
+    expl UNIQUE_PARENT_MEM.
+    exploit memory_props.MemProps.free_preserves_mload_inv; eauto.
+    Show Existentials. (* It can give some info whether there is Unshelved goals or not *)
+    Unshelve. Undo 2.
+    (* Just using hexploit/exploit && eauto gives Unshelved goals. *)
+    (* It seems when lemma's goal is exactly same with current goal, exploit; eauto approach *)
+    (* does not care on premises, just putting all the premises in the unshelved goal. *)
+    (* In this case, by using eapply, this problem can be avoided. *)
+    eapply memory_props.MemProps.free_preserves_mload_inv; eauto.
+  + rewrite NEXTBLOCK in *.
+    rewrite NEXTBLOCK_EQ in *. ss.
+  + rewrite NEXTBLOCK_EQ in *. ss.
+Qed.
+
+Lemma invmem_free_invmem_rel
+      conf_src conf_tgt inv
+      m0 m1
+      (MEM: InvMem.Rel.sem conf_src conf_tgt m0 m1 inv)
+      x0 x1 lo hi
+      (BOUNDS0: Mem.bounds m0 x0 = (lo, hi))
+      (BOUNDS1: Mem.bounds m1 x1 = (lo, hi))
+      m0' m1'
+      TD
+      (FREE0 : free TD m0 (blk2GV TD x0) = Some m0')
+      (INJECT: inv.(InvMem.Rel.inject) x0 = Some (x1, 0))
+      (FREE1 : free TD m1 (blk2GV TD x1) = Some m1')
+      (PARENT_SRC: list_disjoint [x0] inv.(InvMem.Rel.src).(InvMem.Unary.private_parent))
+      (PARENT_TGT: list_disjoint [x1] inv.(InvMem.Rel.tgt).(InvMem.Unary.private_parent))
+  :
+    <<MEM: InvMem.Rel.sem conf_src conf_tgt m0' m1' inv>>
+.
+Proof.
+  inv MEM.
+  econs; eauto.
+  - clear INJECT INJECT0 WF TGT PARENT_TGT BOUNDS1 FREE1. clear_tac.
+    abstr (InvMem.Rel.src inv) inv_unary.
+    abstr (InvMem.Rel.public_src (InvMem.Rel.inject inv)) pub_unary.
+    eapply invmem_free_invmem_unary; try eassumption.
+  - clear INJECT INJECT0 WF SRC PARENT_SRC BOUNDS0 FREE0. clear_tac.
+    abstr (InvMem.Rel.tgt inv) inv_unary.
+    abstr (InvMem.Rel.public_tgt (InvMem.Rel.inject inv)) pub_unary.
+    eapply invmem_free_invmem_unary; try eassumption.
+  - cbn in *. des_ifs.
+    expl genericvalues_inject.mem_inj__free.
+    repeat rewrite Z.add_0_r in *. clarify.
+  - cbn in *. des_ifs.
+    expl genericvalues_inject.mem_inj__free.
+    repeat rewrite Z.add_0_r in *. clarify.
+Qed.
+
+Global Program Instance PreOrder_inject_incr: PreOrder memory_sim.MoreMem.inject_incr.
+Next Obligation.
+  ii.
+  expl H.
+Qed.
+
+
+Lemma fully_inject_allocas_cons_inv
+      a0 a1 Allocas0 Allocas1 inv
+      (ALLOCAS: fully_inject_allocas inv (a0 :: Allocas0) (a1 :: Allocas1))
+  :
+    <<ALLOCAS: fully_inject_allocas inv Allocas0 Allocas1 /\
+               InvMem.Rel.inject inv a0 = Some (a1, 0)>>
+.
+Proof.
+  inv ALLOCAS.
+  splits; ss.
+Qed.
+
+Lemma fully_inject_allocas_mem_le
+      Allocas0 Allocas1 inv inv'
+      (MEMLE: InvMem.Rel.le inv inv')
+      (ALLOCAS: fully_inject_allocas inv Allocas0 Allocas1)
+  :
+    <<ALLOCAS: fully_inject_allocas inv' Allocas0 Allocas1>>
+.
+Proof.
+  inv MEMLE.
+  eapply list_forall2_imply; eauto.
+Qed.
+
+(* Mem.nextblock_free *)
+Lemma unchecked_free_nextblock
+      m0 b lo hi m1
+      (FREE: Mem.unchecked_free m0 b lo hi = m1)
+  :
+    <<NB: Mem.nextblock m1 = Mem.nextblock m0>>
+.
+Proof.
+  unfold Mem.unchecked_free in *.
+  destruct m0; ss. clarify.
+Qed.
+
+(* Mem.load_free_2 *)
+Lemma load_unchecked_free2
+      m0 bf lo hi m1
+      (FREE: Mem.unchecked_free m0 bf lo hi = m1)
+      mc b ofs v
+      (LOAD: Mem.load mc m1 b ofs = Some v)
+  :
+    <<LOAD: Mem.load mc m0 b ofs = Some v>>
+.
+Proof.
+Admitted.
+
+(* MemProps.free_preserves_mload_aux_inv *)
+Lemma unchecked_free_preserves_mload_aux_inv
+      m0 bf lo hi m1
+      (FREE: Mem.unchecked_free m0 bf lo hi = m1)
+      mc b ofs v
+      (LOAD: mload_aux m1 mc b ofs = Some v)
+  :
+    <<LOAD: mload_aux m0 mc b ofs = Some v>>
+.
+Proof.
+Admitted.
+
+(* MemProps.free_preserves_mload_inv: *)
+Lemma unchecked_free_preserves_mload_inv
+      m0 b lo hi m1
+      (FREE: Mem.unchecked_free m0 b lo hi = m1)
+      TD gptr ty al v
+      (LOAD: mload TD m1 gptr ty al = Some v)
+  :
+    <<LOAD: mload TD m0 gptr ty al = Some v>>
+.
+Proof.
+  unfold mload in *. des_ifs. clear_tac.
+  unfold GV2ptr in *. des_ifs.
+  eapply unchecked_free_preserves_mload_aux_inv; eauto.
+Qed.
+
+(* MemProps.free_preserves_mload_aux *)
+Lemma unchecked_free_preserves_mload_aux
+      m0 bf lo hi m1
+      (FREE: Mem.unchecked_free m0 bf lo hi = m1)
+      b
+      (DIFFBLOCK: bf <> b)
+      mc ofs gv
+      (LOAD: mload_aux m0 mc b ofs = Some gv)
+  :
+    <<LOAD: mload_aux m1 mc b ofs = Some gv>>
+.
+Proof.
+Admitted.
+
+(* MemProps.free_preserves_mload *)
+Lemma unchecked_free_preserves_mload
+      m0 b lo hi m1
+      (FREE: Mem.unchecked_free m0 b lo hi = m1)
+      TD gptr ty al v
+      (LOAD: mload TD m0 gptr ty al = Some v)
+      (NOALIAS: MemProps.no_alias_with_blk gptr b)
+  :
+    <<LOAD: mload TD m1 gptr ty al = Some v>>
+.
+Proof.
+  unfold mload in *. des_ifs.
+  eapply unchecked_free_preserves_mload_aux; eauto.
+  ii. clarify.
+  unfold GV2ptr in *. des_ifs. ss. des; ss.
+Qed.
+
+(* MemProps.free_preserves_wf_Mem *)
+Lemma unchecked_free_preserves_wf_Mem
+      m0 maxb TD
+      (WF: MemProps.wf_Mem maxb TD m0)
+      b lo hi m1
+      (FREE: Mem.unchecked_free m0 b lo hi = m1)
+  :
+    <<WF: MemProps.wf_Mem maxb TD m1>>
+.
+Proof.
+  unfold MemProps.wf_Mem in *. des.
+  expl unchecked_free_nextblock.
+  splits; ss; cycle 1.
+  { rewrite unchecked_free_nextblock0. ss. }
+  i.
+  exploit WF; eauto.
+  { erewrite unchecked_free_preserves_mload_inv; eauto. }
+  i; ss.
+  unfold MemProps.valid_ptrs in *. des_ifs.
+Qed.
+
+(* mem_inj__pfree *)
+Lemma mem_inj__psrc_unchecked_free
+      mi m_src0 m_tgt0 m_src1 mgb
+      (WASABI: wf_sb_mi mgb mi m_src0 m_tgt0)
+      (MOREINJ: MoreMem.mem_inj mi m_src0 m_tgt0)
+      b lo hi
+      (FREE: Mem.unchecked_free m_src0 b lo hi = m_src1)
+      (BOUNDS: (lo, hi) = Mem.bounds m_src0 b)
+      (PRIV_SRC: mi b = None)
+  :
+    <<WASABI: wf_sb_mi mgb mi m_src1 m_tgt0>> /\ <<MOREINJ: MoreMem.mem_inj mi m_src1 m_tgt0>>
+.
+Proof.
+Admitted.
+
+(* no matching here *)
+Lemma mem_inj__ptgt_unchecked_free
+      mi m_src0 m_tgt0 m_tgt1 mgb
+      (WASABI: wf_sb_mi mgb mi m_src0 m_tgt0)
+      (MOREINJ: MoreMem.mem_inj mi m_src0 m_tgt0)
+      b lo hi
+      (FREE: Mem.unchecked_free m_tgt0 b lo hi = m_tgt1)
+      (BOUNDS: (lo, hi) = Mem.bounds m_tgt0 b)
+      (PRIV_TGT: forall b_src delta, mi b_src <> Some (b, delta))
+  :
+    <<WASABI: wf_sb_mi mgb mi m_src0 m_tgt1>> /\ <<MOREINJ: MoreMem.mem_inj mi m_src0 m_tgt1>>
+.
+Proof.
+Admitted.
+
+Lemma unchecked_free_preserves_sem_unary
+      conf_src gmax inv0 m0 pub
+      (SEM: InvMem.Unary.sem conf_src gmax pub m0 inv0)
+      b lo hi m1
+      (FREE: Mem.unchecked_free m0 b lo hi = m1)
+      (DISJOINT: list_disjoint [b] (InvMem.Unary.private_parent inv0))
+  :
+    <<SEM: InvMem.Unary.sem conf_src gmax pub m1 inv0>>
+.
+Proof.
+  econs; ss; eauto; try apply SEM.
+  - eapply unchecked_free_preserves_wf_Mem; eauto. apply SEM.
+  - inv SEM. clear - PRIVATE_PARENT. i.
+    expl PRIVATE_PARENT.
+  - inv SEM. clear - MEM_PARENT DISJOINT. i.
+    destruct (peq b b0); ss.
+    { clarify. exfalso. eapply DISJOINT; eauto. ss. left; ss. }
+    expl MEM_PARENT. rewrite MEM_PARENT0. symmetry.
+    clear MEM_PARENT0.
+    destruct (mload_aux m0 mc b0 o) eqn:T; ss.
+    + eapply unchecked_free_preserves_mload_aux; eauto.
+    + destruct (mload_aux (Mem.unchecked_free m0 b lo hi) mc b0 o) eqn:T2; ss.
+      exfalso.
+      expl unchecked_free_preserves_mload_aux_inv. clarify.
+  - inv SEM. clear - UNIQUE_PARENT_MEM DISJOINT. i.
+    hexploit UNIQUE_PARENT_MEM; eauto.
+    eapply unchecked_free_preserves_mload_inv; eauto.
+  - inv SEM. clear - NEXTBLOCK.
+    clarify.
+  - inv SEM. clear - NEXTBLOCK_PARENT.
+    clarify.
+Qed.
+
+Lemma invmem_free_allocas_invmem_rel
+  TD Allocas1 m_tgt0 Allocas0 m_src0 inv m_src1 m_tgt1
+  (ALLOCAS_DISJOINT_SRC: list_disjoint Allocas0 (InvMem.Unary.private_parent (InvMem.Rel.src inv)))
+  (ALLOCAS_DISJOINT_TGT: list_disjoint Allocas1 (InvMem.Unary.private_parent (InvMem.Rel.tgt inv)))
+  (ALLOC_SRC: free_allocas TD m_src0 Allocas0 = Some m_src1)
+  (ALLOC_TGT: free_allocas TD m_tgt0 Allocas1 = Some m_tgt1)
+  conf_src conf_tgt
+  (MEM: InvMem.Rel.sem conf_src conf_tgt m_src0 m_tgt0 inv)
+  (INJECT_ALLOCAS: InvState.Rel.inject_allocas inv.(InvMem.Rel.inject) Allocas0 Allocas1)
+  :
+    <<INVMEM: InvMem.Rel.sem conf_src conf_tgt m_src1 m_tgt1 inv>>
+.
+(* Note that TD is not used at all *)
+(* It can even be different from conf_src/conf_tgt's CurTargetData *)
+Proof.
+  ginduction INJECT_ALLOCAS; ii; ss.
+  - clarify.
+  - des_ifs. apply list_disjoint_cons_inv in ALLOCAS_DISJOINT_SRC. des.
+    exploit mem_inj__psrc_unchecked_free; eauto; try apply MEM; []; i; des.
+    exploit IHINJECT_ALLOCAS; eauto.
+    econs; eauto; try apply MEM.
+    + eapply unchecked_free_preserves_sem_unary; eauto. apply MEM.
+  - des_ifs. apply list_disjoint_cons_inv in ALLOCAS_DISJOINT_TGT. des.
+    exploit mem_inj__ptgt_unchecked_free; eauto; try apply MEM; []; i; des.
+    exploit IHINJECT_ALLOCAS; eauto.
+    econs; eauto; try apply MEM.
+    + eapply unchecked_free_preserves_sem_unary; eauto. apply MEM.
+  - des_ifs.
+    apply list_disjoint_cons_inv in ALLOCAS_DISJOINT_SRC. des.
+    apply list_disjoint_cons_inv in ALLOCAS_DISJOINT_TGT. des.
+    exploit mem_inj__unchecked_free; [apply MEM|apply MEM|..]; eauto; []; i; des.
+    do 2 rewrite Z.add_0_r in *. clarify.
+    assert(z = z1 /\ z0 = z2).
+    { inv x1. expl mi_bounds. ss. rewrite Heq in *. rewrite Heq0 in *. clarify. } des; clarify.
+    exploit IHINJECT_ALLOCAS; eauto.
+    econs; eauto; try apply MEM.
+    + eapply unchecked_free_preserves_sem_unary; eauto. apply MEM.
+    + eapply unchecked_free_preserves_sem_unary; eauto. apply MEM.
+Qed.
+
+Lemma mem_le_private_parent
+      inv0 inv1
+      (MEMLE: InvMem.Rel.le inv0 inv1)
+  :
+    <<PRIVATE_PARENT_EQ:
+    InvMem.Unary.private_parent (InvMem.Rel.src inv0) = InvMem.Unary.private_parent (InvMem.Rel.src inv1)
+    /\
+    InvMem.Unary.private_parent (InvMem.Rel.tgt inv0) = InvMem.Unary.private_parent (InvMem.Rel.tgt inv1)>>
+.
+Proof.
+  splits; apply MEMLE.
+Qed.
+
+Lemma fully_inject_allocas_inject_allocas
+      inv0 als_src als_tgt
+      (FULLY_INJECT: fully_inject_allocas inv0 als_src als_tgt)
+  :
+    <<INJECT: InvState.Rel.inject_allocas inv0.(InvMem.Rel.inject) als_src als_tgt>>
+.
+Proof.
+  ginduction FULLY_INJECT; ii; ss.
+  - econs; eauto.
+  - econs 4; eauto.
 Qed.
