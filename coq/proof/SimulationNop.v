@@ -107,12 +107,79 @@ Inductive nop_state_sim: nat -> State -> State -> Prop :=
   ecs_src ecs_tgt
   (ECS: list_forall2 nop_state_sim_EC ecs_src ecs_tgt)
   idx
-  (IDX: (idx > List.length ec_tgt.(CurCmds))%nat)
+  (IDX: (idx > List.length ec_src.(CurCmds) + List.length ec_tgt.(CurCmds))%nat)
   mem
   : nop_state_sim idx
                   (mkState ec_src ecs_src mem)
                   (mkState ec_tgt ecs_tgt mem)
 .
+
+Lemma nop_blocks_commutes
+      b_src b_tgt
+      (BLOCKS: nop_blocks b_src b_tgt)
+  :
+    <<BLOCKS: nop_blocks b_tgt b_src>>
+.
+Proof.
+  ginduction b_src; ii; ss.
+  - inv BLOCKS. ss.
+  - inv BLOCKS. ss. des_ifs. des. clarify.
+    econs; eauto.
+    + esplits; eauto.
+      eapply nop_cmds_commutes; eauto.
+    + eapply IHb_src; eauto.
+Qed.
+
+Lemma nop_fdef_commutes
+      f_src f_tgt
+      (FDEF: nop_fdef f_src f_tgt)
+  :
+    <<FDEF: nop_fdef f_tgt f_src>>
+.
+Proof.
+  inv FDEF.
+  econs; eauto.
+  eapply nop_blocks_commutes; eauto.
+Qed.
+
+Lemma inject_conf_commutes
+      conf_src conf_tgt
+      (CONF: inject_conf conf_src conf_tgt)
+  :
+    <<CONF: inject_conf conf_tgt conf_src>>
+.
+Proof. inv CONF. ss. Qed.
+
+Lemma nop_state_sim_EC_commutes
+      st_src st_tgt
+      (SIM: nop_state_sim_EC st_src st_tgt)
+  :
+    <<SIM: nop_state_sim_EC st_tgt st_src>>
+.
+Proof.
+  inv SIM.
+  econs; ss; eauto.
+  - apply nop_fdef_commutes; ss.
+  - apply nop_blocks_commutes; ss.
+Qed.
+
+Lemma nop_state_sim_commutes
+      idx st_src st_tgt
+      (SIM: nop_state_sim idx st_src st_tgt)
+  :
+    <<SIM: nop_state_sim idx st_tgt st_src>>
+.
+Proof.
+  inv SIM.
+  econs; ss; eauto.
+  - apply nop_state_sim_EC_commutes; ss.
+  - clear - ECS0.
+    ginduction ecs_src; ii; ss.
+    + inv ECS0. econs; ss.
+    + inv ECS0. econs; eauto.
+      apply nop_state_sim_EC_commutes; ss.
+  - omega.
+Qed.
 
 Inductive transl_product: product -> product -> Prop :=
 | transl_product_gvar g
@@ -457,40 +524,6 @@ Proof.
     admit.
 Admitted.
 
-Lemma inject_conf_commutes
-      conf_src conf_tgt
-      (CONF: inject_conf conf_src conf_tgt)
-  :
-    <<CONF: inject_conf conf_tgt conf_src>>
-.
-Proof. inv CONF. ss. Qed.
-
-Lemma nop_state_sim_EC_commutes
-      st_src st_tgt
-      (SIM: nop_state_sim_EC st_src st_tgt)
-  :
-    <<SIM: nop_state_sim_EC st_tgt st_src>>
-.
-Proof.
-  inv SIM.
-  econs; ss; eauto.
-  admit. admit.
-Admitted.
-
-Lemma nop_state_sim_commutes
-      idx st_src st_tgt
-      (SIM: nop_state_sim idx st_src st_tgt)
-  :
-    <<SIM: nop_state_sim idx st_tgt st_src>>
-.
-Proof.
-  inv SIM.
-  econs; ss; eauto.
-  admit.
-  admit.
-  admit. (* change to sum of both cmds *)
-Admitted.
-
 Lemma nop_state_sim_stuck
       conf_src conf_tgt
       (CONF: inject_conf conf_src conf_tgt)
@@ -778,6 +811,7 @@ Proof.
       - eapply sInsn_stutter. eauto.
       - right. apply CIH.
         econs; ss; eauto.
+        omega.
         (* econs; ss; eauto. *)
         (* econs; ss; eauto. *)
     }
