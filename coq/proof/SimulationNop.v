@@ -550,6 +550,126 @@ Proof.
     + ss.
 Qed.
 
+Lemma nop_conf_sim_lookup
+      conf_src conf_tgt
+      (CONF: nop_conf_sim conf_src conf_tgt)
+      src_fdef fptr
+      (SRC: lookupFdefViaPtr conf_src.(CurProducts) conf_src.(FunTable) fptr =
+            Some src_fdef)
+  :
+    exists tgt_fdef,
+      <<TGT: lookupFdefViaPtr conf_tgt.(CurProducts) conf_tgt.(FunTable) fptr =
+             Some tgt_fdef>> /\
+             <<FDEF: nop_fdef src_fdef tgt_fdef>>
+.
+Proof.
+  inv CONF.
+  destruct conf_src, conf_tgt; ss.
+  inv CONF0; ss.
+  clarify.
+  unfold lookupFdefViaPtr in *.
+  unfold monad.mbind in *. des_ifs_safe ss.
+  clear Heq.
+  clear_tac.
+  ginduction CurProducts0; ii; ss.
+  inv PRODUCTS.
+  des_ifs.
+  - ss. unfold lookupFdefViaIDFromProduct in *.
+    des_ifsH Heq. inv H1.
+    inv NOP_FDEF. ss.
+    des_ifs_safe.
+    esplits; eauto.
+    econs; eauto.
+  - expl IHCurProducts0.
+    ss.
+    inv H1; ss.
+    + esplits; eauto.
+    + esplits; eauto.
+    + inv NOP_FDEF. ss. des_ifs.
+      esplits; eauto.
+Qed.
+
+(* TODO: move to TODOProof. *)
+Ltac des_outest_ifsG :=
+  match goal with
+  | |- context[ match ?x with _ => _ end ] =>
+    match (type of x) with
+    | { _ } + { _ } => destruct x; clarify
+    | _ => let Heq := fresh "Heq" in destruct x as [] eqn: Heq; clarify
+    end
+  end
+.
+
+Lemma nop_conf_sim_lookup_ex_id
+      ps_src ps_tgt
+      (PRODUCTS: transl_products ps_src ps_tgt)
+      i0
+  :
+    <<EQ: lookupFdecViaIDFromProducts ps_src i0 =
+          lookupFdecViaIDFromProducts ps_tgt i0>>
+.
+Proof.
+  ginduction PRODUCTS; ii; ss.
+  expl IHPRODUCTS. rewrite IHPRODUCTS0.
+  inv H; ss.
+Qed.
+
+Lemma nop_conf_sim_lookup_ex
+      conf_src conf_tgt
+      (CONF: nop_conf_sim conf_src conf_tgt)
+      fptr
+  :
+    <<EQ: lookupExFdecViaPtr conf_tgt.(CurProducts) conf_tgt.(FunTable) fptr =
+          lookupExFdecViaPtr conf_src.(CurProducts) conf_src.(FunTable) fptr>>
+.
+Proof.
+  inv CONF.
+  destruct conf_src, conf_tgt; ss.
+  inv CONF0; ss.
+  clarify.
+  unfold lookupExFdecViaPtr in *.
+  unfold monad.mbind in *. des_ifs_safe ss.
+  des_outest_ifsG.
+  { hexploit nop_conf_sim_lookup; eauto; revgoals.
+    { instantiate (3:= mkCfg _ _ _ _ _). ss.
+      i; des.
+      unfold lookupFdefViaPtr in *.
+      unfold monad.mbind in *.
+      rewrite Heq in *.
+      rewrite TGT.
+      ss. }
+    { instantiate (2:= mkCfg _ _ _ _ _). ss.
+      unfold lookupFdefViaPtr in *.
+      unfold monad.mbind in *.
+      rewrite Heq. eauto. }
+    { econs; ss; eauto.
+      apply transl_products_commutes; ss.
+    }
+  }
+  des_outest_ifsG.
+  { exfalso.
+    generalize Heq0.
+    hexploit nop_conf_sim_lookup; eauto; revgoals.
+    { instantiate (3:= mkCfg _ _ _ _ _). ss.
+      i; des.
+      unfold lookupFdefViaPtr in *.
+      unfold monad.mbind in *.
+      rewrite Heq in *.
+      rewrite TGT in *.
+      ss.
+    }
+    { instantiate (2:= mkCfg _ _ _ _ _). ss.
+      unfold lookupFdefViaPtr in *.
+      unfold monad.mbind in *.
+      rewrite Heq. eauto. }
+    { econs; ss; eauto. }
+  }
+  erewrite nop_conf_sim_lookup_ex_id; eauto.
+  apply transl_products_commutes; ss.
+Unshelve.
+all: try (by ss).
+Qed.
+
 Lemma nop_state_sim_step_nops
       conf_src conf_tgt
       (CONF: nop_conf_sim conf_src conf_tgt)
@@ -572,15 +692,51 @@ Proof.
   apply nop_cmds_pop_both in CMDS.
   inv STEP_TGT; ss;
     try (by (esplits; eauto; econs; ss; eauto)).
-  - esplits; eauto.
-    eapply sCall; eauto.
-    admit.
-    admit.
-  - esplits; eauto.
+  - hexploit nop_conf_sim_lookup; eauto; swap 1 2.
+    { instantiate (3:= mkCfg _ _ _ _ _). ss. eauto. }
+    { instantiate (1:= mkCfg _ _ _ _ _).
+      instantiate (3:= CurProducts0).
+      econs; ss; eauto.
+      apply transl_products_commutes; ss.
+    }
+    i; des. ss.
+    inv FDEF0.
+    des_ifs. inv BLOCKS.
+    match goal with | [ H: Forall2 _ _ _ |- _ ] => move H at top end.
+    des_ifs. des. clarify.
+    esplits; eauto.
+    + eapply sCall; eauto.
+      { ss. }
+    + econs; ss; eauto.
+      { econs; ss; eauto.
+        - econs; ss; eauto.
+          econs; ss; eauto.
+          apply nop_blocks_commutes; ss.
+        - econs; ss; eauto.
+      }
+      {
+        econs; ss; eauto.
+        econs; ss; eauto.
+        apply nop_cmds_push_both; ss.
+      }
+  -
+    (* hexploit nop_conf_sim_lookup_ex; try apply H16; eauto. *)
+    (* { *)
+    esplits; eauto.
     eapply sExCall; eauto.
-    admit.
-    admit.
-Admitted.
+    + Fail erewrite nop_conf_sim_lookup_ex; eauto.
+      (* hard to use in erewrite... Can we do more smart? *)
+      rewrite <- H16.
+      hexploit nop_conf_sim_lookup_ex; revgoals.
+      { instantiate (5:= mkCfg _ _ _ _ _). ss.
+        instantiate (3:= mkCfg _ _ _ _ _). ss.
+        i. eauto. }
+      { econs; ss; eauto.
+        apply transl_products_commutes; ss. }
+    + econs; ss; eauto.
+Unshelve.
+all: try (by ss).
+Qed.
 
 Lemma nop_state_sim_stuck
       conf_src conf_tgt
@@ -648,17 +804,6 @@ Lemma nop_blocks_get_value
     <<EQ: getValueViaBlockFromValuels l1 bb_src = getValueViaBlockFromValuels l1 bb_tgt>>
 .
 Proof. inv BLOCKS. des_ifs. des. clarify. Qed.
-
-(* TODO: move to TODOProof. *)
-Ltac des_outest_ifsG :=
-  match goal with
-  | |- context[ match ?x with _ => _ end ] =>
-    match (type of x) with
-    | { _ } + { _ } => destruct x; clarify
-    | _ => let Heq := fresh "Heq" in destruct x as [] eqn: Heq; clarify
-    end
-  end.
-
 
 Lemma nop_blocks_get_incoming_values
       bb_src bb_tgt
