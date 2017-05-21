@@ -760,6 +760,17 @@ Inductive stepN (conf: Config): nat -> State -> State -> events.trace -> Prop :=
 (*     inv H. *)
 (* Qed. *)
 
+Inductive eq_except_cmds (st0 st1: State) :=
+| eq_except_cmds_intro
+    (FUNC: st0.(EC).(CurFunction) = st1.(EC).(CurFunction))
+    (BB: st0.(EC).(CurBB) = st1.(EC).(CurBB))
+    (TERM: st0.(EC).(Terminator) = st1.(EC).(Terminator))
+    (LOCALS: st0.(EC).(Locals) = st1.(EC).(Locals))
+    (ALLOCAS: st0.(EC).(Allocas) = st1.(EC).(Allocas))
+    (ECS: st0.(ECS) = st1.(ECS))
+    (MEM: st0.(Mem) = st1.(Mem))
+.
+
 Lemma nop_state_sim_not_final_nops
       conf_src conf_tgt
       (CONF: inject_conf conf_src conf_tgt)
@@ -769,19 +780,27 @@ Lemma nop_state_sim_not_final_nops
       nops others
       (CMDS: st_src0.(EC).(CurCmds) = nops ++ others)
       (NOPS: List.forallb is_nop nops)
+      (NOTNIL: st_tgt0.(EC).(CurCmds) <> [] -> st_src0.(EC).(CurCmds) <> [])
   :
   forall st_src1
-         (* (CMDS: st_src1.(EC).(CurCmds) = others) *)
-         (NOPSTEPS: stepN conf_src (length nops) st_src0 st_src1 [])
+         (EQ: eq_except_cmds st_src0 st_src1)
+         (CMDS: st_src1.(EC).(CurCmds) = others)
   ,
     <<NFINAL_SRC: s_isFinialState conf_src st_src1 = None>>
 .
 Proof.
   inv SIM. inv EC0. ss. des_ifs_safe ss. des. clarify.
-  i.
-  destruct st_src1; ss.
-  destruct EC0; ss. clarify.
+  i. inv EQ. ss. destruct st_src1; ss. destruct EC0; ss. clarify.
+  destruct conf_src, conf_tgt; ss. inv CONF. ss. clarify.
+  (* assert(nop_cmds CurCmds0 cmds_tgt). *)
+  (* { admit. } *)
+  destruct cmds_tgt.
+  - des_ifs; ss.
+    + inv ECS0.
+    + inv ECS0.
+  - hexploit NOTNIL; ss; []; i; des.
 Abort.
+
 
 Lemma nop_sim
       conf_src conf_tgt
@@ -797,8 +816,8 @@ Proof.
   { expl nop_state_sim_final.
     eapply _sim_exit; eauto.
   }
-  assert(FINAL_SRC: s_isFinialState conf_src st_src0).
-  { admit. }
+  (* assert(FINAL_SRC: s_isFinialState conf_src st_src0 = None). *)
+  (* { admit. } *)
 
   {
     inv SIM. inv EC0. ss.
@@ -831,7 +850,10 @@ Proof.
           + eapply nop_state_sim_term_stuck; try apply STUCK; eauto.
             { econs; ss; eauto. }
           + ss.
-            admit. (* enhance final_src to consider nop step *)
+            destruct conf_src, conf_tgt; ss. inv CONF. ss. clarify.
+            des_ifs.
+            { inv ECS0. }
+            { inv ECS0. }
       }
       {
         eapply _sim_step; eauto.
@@ -897,7 +919,7 @@ Proof.
       }
     }
   }
-Admitted.
+Qed.
 
   (* destruct (classic (stuck_state conf_tgt st_tgt)). *)
   (* { admit. } *)
