@@ -27,6 +27,56 @@ Require InvState.
 
 Set Implicit Arguments.
 
+Definition head_not_nop (cmds: list cmd): Prop :=
+  option_map is_nop (head cmds) = Some false
+.
+
+Lemma nop_cases
+      cmds
+  :
+    (<<ALLNOP: List.forallb is_nop cmds>>) \/
+    exists nops remains,
+      <<NOTNOP: cmds = nops ++ remains /\
+                List.forallb is_nop nops /\
+                head_not_nop remains>>
+.
+Proof.
+(*   ginduction cmds; ii; ss. *)
+(*   - left; ss. *)
+(*   - des. *)
+(*     + destruct (is_nop a) eqn:NOP; ss. *)
+(*       * left; ss. *)
+(*       * right. *)
+(*         exists [], (a :: cmds0). rewrite app_nil_l. *)
+(*         esplits; ss; eauto. *)
+(*     + clarify. right. *)
+(*       destruct (is_nop a) eqn:NOP; ss. *)
+(*       * exists (a :: nops), remains. *)
+(*         esplits; ss; eauto. *)
+(*         rewrite NOP. ss. *)
+(*       * exists [], (a :: nops ++ remains). *)
+(*         esplits; ss; eauto. *)
+(* Qed. *)
+Abort.
+
+Lemma nop_cmds_all_nop
+      xs ys
+      (CMDS: nop_cmds xs ys)
+      (ALLNOP: List.forallb is_nop xs)
+  :
+    <<ALLNOP: List.forallb is_nop ys>>
+.
+Proof.
+  ginduction xs; ii; ss.
+  - inv CMDS. clear ALLNOP. (* TODO: enhance clear_tac. *)
+    ginduction ys; ii; ss. des_ifs.
+    unfold compose in *. des_bool. expl IHys.
+    apply andb_true_iff. (* TODO: enhance des_bool *) split; ss.
+  - inv CMDS. des_ifs.
+    + exfalso. unfold compose in *. des_bool. rewrite Heq in *. ss.
+    + unfold is_true in *. des_bool. des. expl IHxs.
+Qed.
+
 Inductive nop_state_sim_EC: ExecutionContext -> ExecutionContext -> Prop :=
 | nop_state_sim_EC_intro
     f_src f_tgt
@@ -35,6 +85,7 @@ Inductive nop_state_sim_EC: ExecutionContext -> ExecutionContext -> Prop :=
     (BB: nop_blocks [bb_src] [bb_tgt])
     cmds_src cmds_tgt
     (CMDS: nop_cmds cmds_src cmds_tgt)
+    (* (HD_SRC: head_not_nop cmds_src) *)
     term lc als
   : nop_state_sim_EC (mkEC f_src bb_src cmds_src term lc als)
                      (mkEC f_tgt bb_tgt cmds_tgt term lc als)
@@ -137,6 +188,17 @@ Proof.
   destruct (negb (is_nop x)) eqn:T; ss.
   inv H0. auto.
 Qed.
+
+Lemma nop_cmds_push_both x src tgt
+      (NOPCMDS: nop_cmds src tgt):
+  nop_cmds (x :: src) (x :: tgt).
+Proof.
+  unfold nop_cmds. ss.
+  des_ifs.
+  f_equal.
+  inv NOPCMDS. ss.
+Qed.
+
 
 Lemma nop_cmds_pop_src_nop nop src tgt
       (ISNOP: is_nop nop = true)
@@ -288,67 +350,383 @@ Ltac rpapply H :=
 (*  esplits; eauto. eapply sReturn. econs; eauto. *)
 (* Qed. *)
 
+(* Lemma nop_error_error *)
+(*       idx0 st_src st_tgt *)
+(*       (SIM: nop_state_sim idx0 st_src st_tgt) *)
+(*       conf_src conf_tgt *)
+(*       (CONF: inject_conf conf_src conf_tgt) *)
+(*       (ERROR: error_state conf_tgt st_tgt) *)
+(*   : *)
+(*     <<ERROR: error_state conf_src st_src>> *)
+(* . *)
+(* Proof. *)
+(*   inv SIM. inv EC0. ss. inv BB. des_ifs_safe ss. des. clarify. *)
+(*   inv CONF. destruct conf_src, conf_tgt; ss. clarify. *)
+(*   inv H4. clear_tac. *)
+(*   econs; eauto. *)
+(*   - inv ERROR. clear NFINAL. *)
+(*     ii. des. apply STUCK. *)
+(*     admit. *)
+(*   - inv ERROR. clear STUCK. *)
+(*     ss. des_ifs. *)
+(* Abort. *)
+
+(* Lemma nop_ferror_ferror *)
+(*       idx0 st_src st_tgt *)
+(*       (SIM: nop_state_sim idx0 st_src st_tgt) *)
+(*       conf_src conf_tgt *)
+(*       (CONF: inject_conf conf_src conf_tgt) *)
+(*       (ERROR: future_error_state conf_tgt st_tgt) *)
+(*   : *)
+(*     <<ERROR: future_error_state conf_src st_src>> *)
+(* . *)
+(* Proof. *)
+(*   inv SIM. inv EC0. ss. inv BB. des_ifs_safe ss. des. clarify. *)
+(*   inv CONF. destruct conf_src, conf_tgt; ss. clarify. *)
+(*   inv H4. clear_tac. *)
+(*   econs; eauto. *)
+(*   - inv ERROR. clear NFINAL. *)
+(*     ii. des. apply STUCK. *)
+(*     admit. *)
+(*   - inv ERROR. clear STUCK. *)
+(*     ss. des_ifs. *)
+
+(* Qed. *)
+
+Lemma nop_state_sim_final
+      conf_src conf_tgt
+      (CONF: inject_conf conf_src conf_tgt)
+      idx0 st_src0 st_tgt0
+      (SIM: nop_state_sim idx0 st_src0 st_tgt0)
+      g
+      (FINAL_TGT: s_isFinialState conf_tgt st_tgt0 = Some g)
+  :
+    (* TODO: we may state exists -> forall? *)
+  exists st_src1,
+    <<FINAL_SRC: sop_star conf_src st_src0 st_src1 [] /\
+                 s_isFinialState conf_src st_src1 = Some g>>
+.
+Proof.
+  inv SIM. inv EC0. ss. des_ifs_safe ss. des. clarify.
+  assert(ecs_tgt = []).
+  { des_ifs; ss. } clarify.
+  inv ECS0. clear_tac.
+  inv CONF. destruct conf_src, conf_tgt; ss. clarify.
+
+  eapply nop_cmds_tgt_nil in CMDS.
+  des_ifsH FINAL_TGT.
+  - esplits.
+    + rpapply nops_sop_star; eauto.
+      rewrite app_nil_r. eauto.
+    + ss.
+  - esplits.
+    + rpapply nops_sop_star; eauto.
+      rewrite app_nil_r. eauto.
+    + ss.
+Qed.
+
+Lemma nop_state_sim_step_nops
+      conf_src conf_tgt
+      (CONF: inject_conf conf_src conf_tgt)
+      idx0 st_src0 st_tgt0
+      (SIM: nop_state_sim idx0 st_src0 st_tgt0)
+      st_tgt1 tr
+      (STEP_TGT: sInsn conf_tgt st_tgt0 st_tgt1 tr)
+      c cmds_src cmds_tgt
+      (HEAD_SRC: st_src0.(EC).(CurCmds) = c :: cmds_src)
+      (HEAD_TGT: st_tgt0.(EC).(CurCmds) = c :: cmds_tgt)
+      (NOTNOP: is_nop c = false)
+  :
+    exists st_src1 idx1,
+      (<<STEP_SRC: sInsn conf_src st_src0 st_src1 tr>>) /\
+      <<SIM: nop_state_sim idx1 st_src1 st_tgt1>>
+.
+Proof.
+  inv SIM. inv EC0. ss. clarify.
+  destruct conf_src, conf_tgt; ss. inv CONF. ss. clarify.
+  apply nop_cmds_pop_both in CMDS.
+  inv STEP_TGT; ss;
+    try (by (esplits; eauto; econs; ss; eauto)).
+  - esplits; eauto.
+    eapply sCall; eauto.
+    admit.
+    admit.
+  - esplits; eauto.
+    eapply sExCall; eauto.
+    admit.
+    admit.
+Admitted.
+
+Lemma nop_state_sim_stuck
+      conf_src conf_tgt
+      (CONF: inject_conf conf_src conf_tgt)
+      idx0 st_src0 st_tgt0
+      (SIM: nop_state_sim idx0 st_src0 st_tgt0)
+      (* (HEAD_SRC: head_not_nop st_src0.(EC).(CurCmds)) *)
+      (* (HEAD_TGT: head_not_nop st_tgt0.(EC).(CurCmds)) *)
+      c cmds_src cmds_tgt
+      (HEAD_SRC: st_src0.(EC).(CurCmds) = c :: cmds_src)
+      (HEAD_TGT: st_tgt0.(EC).(CurCmds) = c :: cmds_tgt)
+      (NOTNOP: is_nop c = false)
+      (STUCK_TGT: stuck_state conf_tgt st_tgt0)
+  :
+    <<STUCK_SRC: stuck_state conf_src st_src0>>
+.
+Proof.
+  inv SIM. inv EC0. ss. des_ifs_safe ss. des. clarify. ss.
+  ii. des. apply STUCK_TGT.
+  destruct conf_src, conf_tgt; ss. inv CONF. ss. clarify.
+  inv H; ss;
+    try (by esplits; eauto; econs; eauto).
+  - esplits; eauto.
+    eapply sCall; eauto.
+    admit.
+  - esplits; eauto.
+    eapply sExCall; eauto.
+    admit.
+Admitted.
+
+Lemma nop_state_sim_nil_stuck
+      conf_src conf_tgt
+      (CONF: inject_conf conf_src conf_tgt)
+      idx0 st_src0 st_tgt0
+      (SIM: nop_state_sim idx0 st_src0 st_tgt0)
+      (* (HEAD_SRC: head_not_nop st_src0.(EC).(CurCmds)) *)
+      (* (HEAD_TGT: head_not_nop st_tgt0.(EC).(CurCmds)) *)
+      (HEAD_SRC: st_src0.(EC).(CurCmds) = [])
+      (HEAD_TGT: st_tgt0.(EC).(CurCmds) = [])
+      (STUCK_TGT: stuck_state conf_tgt st_tgt0)
+  :
+    <<STUCK_SRC: stuck_state conf_src st_src0>>
+.
+Proof.
+  inv SIM. inv EC0. ss. clarify. ss.
+  ii. des. apply STUCK_TGT.
+  destruct conf_src, conf_tgt; ss. inv CONF. ss. clarify.
+  inv H; ss;
+    try (by esplits; eauto; econs; eauto).
+  - inv ECS0. inv H1.
+    esplits; eauto.
+    rpapply sReturn; eauto.
+    admit.
+  - inv ECS0. inv H1.
+    esplits; eauto.
+    rpapply sReturnVoid; eauto.
+    admit.
+  - esplits; eauto.
+    rpapply sBranch; eauto.
+    admit.
+    admit.
+  - esplits; eauto.
+    rpapply sSwitch; eauto.
+    admit.
+    admit.
+  - esplits; eauto.
+    rpapply sBranch_uncond; eauto.
+    admit.
+    admit.
+Unshelve.
+all: try (by ss).
+Admitted.
+
+Inductive stepN (conf: Config): nat -> State -> State -> events.trace -> Prop :=
+| stepN_nil st0: stepN conf 0%nat st0 st0 []
+| stepN_cons st0 st1 tr0
+             (STEP: sInsn conf st0 st1 tr0)
+             n st2 tr1
+             (STEPN: stepN conf n st1 st2 tr1)
+  :
+    stepN conf (S n) st0 st2 (tr0 ++ tr1)
+.
+
+(* Lemma nop_steps_inv *)
+(*       conf st0 st1 tr *)
+(*       (NOPSTEPS : sop_star conf st0 st1 tr) *)
+(*       nops others *)
+(*       (ST0_CMDS: st0.(EC).(CurCmds) = nops ++ others) *)
+(*       (NOPS: List.forallb is_nop nops) *)
+(*       (ST1_CMDS: st1.(EC).(CurCmds) = others) *)
+(*   : *)
+(*     <<EQ: st0.(Mem) = st1.(Mem) /\ st0.(ECS) = st1.(ECS) /\ *)
+(*           st0.(EC).(CurFunction) = st1.(EC).(CurFunction) /\ *)
+(*           st0.(EC).(CurBB) = st1.(EC).(CurBB) /\ *)
+(*           st0.(EC).(Terminator) = st1.(EC).(Terminator) /\ *)
+(*           st0.(EC).(Locals) = st1.(EC).(Locals) /\ *)
+(*           st0.(EC).(Allocas) = st1.(EC).(Allocas)>> *)
+(* . *)
+(* Proof. *)
+(*   ginduction nops; ii; ss. *)
+(*   - inv NOPSTEPS; ss. *)
+(*     { esplits; ss. } *)
+(*     exfalso. *)
+(*     inv H. *)
+(* Qed. *)
+
+Lemma nop_state_sim_not_final_nops
+      conf_src conf_tgt
+      (CONF: inject_conf conf_src conf_tgt)
+      idx0 st_src0 st_tgt0
+      (SIM: nop_state_sim idx0 st_src0 st_tgt0)
+      (NFINAL_TGT: s_isFinialState conf_tgt st_tgt0 = None)
+      nops others
+      (CMDS: st_src0.(EC).(CurCmds) = nops ++ others)
+      (NOPS: List.forallb is_nop nops)
+  :
+  forall st_src1
+         (* (CMDS: st_src1.(EC).(CurCmds) = others) *)
+         (NOPSTEPS: stepN conf_src (length nops) st_src0 st_src1 [])
+  ,
+    <<NFINAL_SRC: s_isFinialState conf_src st_src1 = None>>
+.
+Proof.
+  inv SIM. inv EC0. ss. des_ifs_safe ss. des. clarify.
+  i.
+  destruct st_src1; ss.
+  destruct EC0; ss. clarify.
+Abort.
+
 Lemma nop_sim
       conf_src conf_tgt
-      (CONF: inject_conf conf_src conf_tgt):
+      (CONF: inject_conf conf_src conf_tgt)
+  :
   (nop_state_sim) <3= (sim conf_src conf_tgt)
 .
 Proof.
   s.
-  pcofix CIH. intros idx0 st_src st_tgt SIM. pfold.
-  (* destruct (s_isFinialState conf_tgt st_tgt) eqn:FINAL_TGT. *)
-  (* { hide_goal. *)
-  (*   inv SIM. inv EC0. ss. inv BB. des_ifs_safe ss. des. clarify. *)
-  (*   des_ifs_safe ss. clarify. *)
-  (*   assert(ecs_tgt = []). *)
-  (*   { des_ifs; ss. } clarify. *)
-  (*   inv ECS0. inv H4. clear_tac. *)
-  (*   destruct conf_src, conf_tgt; ss. clarify. *)
+  pcofix CIH. intros idx0 st_src0 st_tgt0 SIM. pfold.
 
-  (*   eapply nop_cmds_tgt_nil in CMDS. *)
-  (*   des_ifs. *)
-  (*   - eapply _sim_exit; try exact FINAL_TGT. *)
-  (*     + rpapply nops_sop_star; eauto. *)
-  (*       rewrite app_nil_r. eauto. *)
-  (*     + ss. eauto. *)
-  (*   - eapply _sim_exit; try exact FINAL_TGT. *)
-  (*     + rpapply nops_sop_star; eauto. *)
-  (*       rewrite app_nil_r. eauto. *)
-  (*     + ss. *)
-  (* } *)
-  destruct (classic (stuck_state conf_tgt st_tgt)).
-  { rename H into STUCK.
-    (* src should also be stuck *)
+  destruct (s_isFinialState conf_tgt st_tgt0) eqn:FINAL_TGT.
+  { expl nop_state_sim_final.
+    eapply _sim_exit; eauto.
+  }
+
+  {
+    inv SIM. inv EC0. ss.
+    (* inv SIM. inv EC0. ss. inv BB. des_ifs_safe ss. des. clarify. clear H4. *)
+    destruct (classic (option_map (is_nop) (head cmds_tgt) = Some true)).
+    { destruct cmds_tgt; ss. clarify. destruct c; ss. clear_tac.
+      eapply _sim_step; eauto.
+      { ii. apply H. esplits; eauto. destruct conf_tgt. econs; eauto. }
+      i. inv STEP. esplits; eauto.
+      - eapply sInsn_stutter. eauto.
+      - right. apply CIH.
+        econs; ss; eauto.
+        (* econs; ss; eauto. *)
+        (* econs; ss; eauto. *)
+    }
+    destruct cmds_tgt; ss.
+    { clear H. (* enhance clear_tac *)
+      apply nop_cmds_tgt_nil in CMDS.
+      destruct (classic (stuck_state
+                           conf_tgt (mkState
+                                       (mkEC f_tgt bb_tgt [] term lc als)
+                                       ecs_tgt mem0))).
+      {
+        match goal with | [ H: context[stuck_state] |- _] => rename H into STUCK end.
+        eapply _sim_error.
+        - rpapply nops_sop_star; eauto.
+          rewrite app_nil_r. ss.
+        - econs; eauto.
+          + eapply nop_state_sim_stuck; try apply STUCK; ss; eauto.
+            { econs; ss; eauto. }
+              econs; ss; eauto.
+              eapply nop_cmds_push_both; eauto.
+            }
+            { destruct c; ss. }
+      }
+
+      admit.
+    }
+    {
+      hexploit nop_cmds_tgt_non_nop; eauto.
+      { destruct c; ss. }
+      i; des. clarify.
+      destruct (classic (stuck_state
+                           conf_tgt (mkState
+                                       (mkEC f_tgt bb_tgt (c :: cmds_tgt) term lc als)
+                                       ecs_tgt mem0))).
+      {
+        match goal with | [ H: context[stuck_state] |- _] => rename H into STUCK end.
+        eapply _sim_error.
+        - rpapply nops_sop_star; eauto.
+        - econs; eauto.
+          eapply nop_state_sim_stuck; try apply STUCK; ss; eauto.
+          { econs; ss; eauto.
+            econs; ss; eauto.
+            eapply nop_cmds_push_both; eauto.
+          }
+          { destruct c; ss. }
+      }
+      {
+        eapply _sim_step; eauto.
+        i.
+        hexploit nop_state_sim_step_nops; try apply STEP.
+        { instantiate (1:= conf_src). ss. }
+        { instantiate (1:= (mkState
+                              (mkEC f_src bb_src (c :: src_tail) term lc als)
+                              ecs_src mem0)).
+          econs; ss; eauto. econs; ss; eauto.
+          eapply nop_cmds_push_both; eauto.
+        }
+        { ss. }
+        { ss. }
+        { destruct c; ss. }
+        i; des.
+        esplits.
+        - rpapply nops_sop_star; eauto.
+        - econs; eauto.
+        - right. apply CIH.
+          eauto.
+      }
+    }
+  }
+
+  (* destruct (classic (stuck_state conf_tgt st_tgt)). *)
+  (* { admit. } *)
+
+
+  destruct (classic (error_state conf_tgt st_tgt)).
+  { rename H into ERROR.
+    (* src should also be error *)
     inv SIM. inv EC0. ss.
     destruct cmds_tgt; ss.
-    - eapply nop_cmds_tgt_nil in CMDS.
+    - apply nop_cmds_tgt_nil in CMDS.
       eapply _sim_error.
       + rpapply nops_sop_star; eauto.
         rewrite app_nil_r. eauto.
-      + apply error_future_error.
-        econs.
-        * unfold stuck_state. ii. apply STUCK.
-          des.
-          admit.
-        * i.
-              
-              des_ifs.
-          inv H.
-          esplits; eauto. econs; eauto.
-          reductio_ad_absurdum.
-        reductio_ad_absurdum. unfold error_state in *.
-        econs; eauto.
-      
-    nop_cmds_tgt_non_nop
+      + admit.
+    - apply nop_cmds_tgt_non_nop in CMDS. des. clarify.
+      eapply _sim_error.
+      + rpapply nops_sop_star; eauto.
+      + admit.
+      + destruct c; ss. inv ERROR.
+        unfold stuck_state in *. contradict STUCK. esplits; eauto.
+        rpapply sNop; eauto. Undo 1.
+        destruct conf_tgt; ss.
   }
+
+
+  (* expl nerror_nfinal_nstuck. *)
+
+
+  eapply _sim_step; eauto.
+  { ii. apply H. econs; eauto. }
+  i.
+  (* tgt step -> src step *)
   inv SIM. inv EC0. ss.
   destruct cmds_tgt.
   { eapply nop_cmds_tgt_nil in CMDS.
-    eapply _sim_step.
-    - ii. apply H. econs; eauto.
+    esplits.
+    - rpapply nops_sop_star; eauto.
+      rewrite app_nil_r. eauto.
+    - econs; eauto.
+      admit.
+    - right. apply CIH.
+      admit.
   }
-  inv CMDS.
+  { admit. }
 Qed.
+Admitted.
 
 Lemma transl_sim_module:
   transl_module <2= sim_module.
@@ -379,6 +757,19 @@ Proof.
       + econs; ss; eauto.
     - econs; ss; eauto.
   }
+  (* assert(NOP_CASES:= nop_cases cmds5). des. *)
+  (* { hexploit nop_cmds_all_nop; eauto; []. intro ALLNOP_TGT. des. *)
+  (*   ttttttttttttttttt *)
+  (*     nop_state_sim => src tgt all nop \/ both head_not_nop *)
+  (* eapply nop_sim; ss; eauto. *)
+  (* { econs; ss; eauto. *)
+  (*   - econs; ss; eauto. *)
+  (*     + econs; ss; eauto. *)
+  (*       econs; ss; eauto. *)
+  (*     + econs; ss; eauto. *)
+  (*     + admit. *)
+  (*   - econs; ss; eauto. *)
+  (* } *)
 Qed.
 
 
