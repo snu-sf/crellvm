@@ -38,12 +38,6 @@ Inductive transl_product m_src m_tgt
   : transl_product
       m_src m_tgt
       (product_fdec f) (product_fdec f)
-| transl_product_fdef_nop
-    f_src f_tgt
-    (NOP_FDEF: nop_fdef f_src f_tgt)
-  : transl_product
-      m_src m_tgt
-      (product_fdef f_src) (product_fdef f_tgt)
 | transl_product_fdef_valid
     f_src f_tgt hint
     (VALID_FDEF: valid_fdef m_src m_tgt f_src f_tgt hint)
@@ -93,13 +87,6 @@ Proof.
   - des_ifs.
     + unfold lookupFdefViaIDFromProduct in *. des_ifs.
       esplits; eauto.
-      eapply transl_product_fdef_nop; eauto.
-    + inv NOP_FDEF. simtac.
-    + inv NOP_FDEF. simtac.
-    + apply IHproducts_src; eauto.
-  - des_ifs.
-    + unfold lookupFdefViaIDFromProduct in *. des_ifs.
-      esplits; eauto.
       eapply transl_product_fdef_valid; eauto.
     + unfold valid_fdef in *. simtac. clarify.
     + unfold valid_fdef in *. simtac. clarify.
@@ -125,8 +112,6 @@ Proof.
   - inv H2. des_ifs; eauto.
   - inv H2. des_ifs; eauto.
   - inv H2.
-    + destruct fdef5, fdef0.
-      inv NOP_FDEF. des_ifs. eauto.
     + destruct fdef5, fdef0; ss.
       destruct fheader5, fheader0; ss.
       des_ifs; simtac; clarify.
@@ -167,10 +152,6 @@ Proof.
     expl transl_products_lookupFdefViaIDFromProducts.
     esplits; eauto.
     inv FDEF.
-    + inv NOP_FDEF.
-      eapply nop_sim_fdef; eauto; try (econs; eauto).
-      { inv BLOCKS; ss.
-        des_ifs. des. clarify. }
     + eapply valid_sim_fdef; eauto.
       { ss. }
   - clear_tac. clear WF_CONF.
@@ -180,7 +161,6 @@ Proof.
     des_ifsH FDEF_SRC.
     expl IHprods_src.
     inv TRANSL_PRODUCT; ss.
-    + des_ifs. exfalso. inv NOP_FDEF. ss.
     + des_ifs. exfalso. unfold valid_fdef in *. des_ifs. ss.
       clear - n Heq0.
       compute in Heq0. des_ifs.
@@ -235,8 +215,6 @@ Proof.
   rename Heq3 into INIT_LOCALS.
   clear - FDEF INIT_LOCALS.
   inv FDEF.
-  - inv NOP_FDEF. ss. inv BLOCKS. des_ifs_safe ss. des. clarify.
-    esplits; eauto.
   - inv VALID_FDEF. des_ifs_safe ss.
     des_bool. des_sumbool. clarify.
     rewrite INIT_LOCALS.
@@ -312,93 +290,6 @@ Proof.
     rename Heq10 into INIT_LOCALS.
     (* clear - FDEF INIT_LOCALS. *)
     inv FDEF.
-
-
-
-    - (* fheader_intro is different here *)
-      (* actually, it is same and this fact is needed for nop_sim_fdef. *)
-      (* this fact can only be achieved by *)
-      (* inv NOP_FDEF. so I save nop_fdef here, and then inv *)
-      (* TODO: generalize nop_sim_fdef, header -> header_src/header_tgt. anyhow they are same *)
-      (* by nop_fdef in premise *)
-      inversion NOP_FDEF; subst.
-      ss. inv BLOCKS. des_ifs_safe ss. des. clarify.
-      hexploit nop_sim_fdef; try exact NOP_FDEF.
-      { instantiate (1:= {|
-                          CurSystem := [module_intro l_tgt ndts_tgt prods_tgt];
-                          CurTargetData := (l_tgt, ndts_tgt);
-                          CurProducts := prods_tgt;
-                          Globals := g;
-                          FunTable := g0 |}).
-        instantiate (1:= {|
-                          CurSystem := [module_intro l_tgt ndts_tgt prods_src];
-                          CurTargetData := (l_tgt, ndts_tgt);
-                          CurProducts := prods_src;
-                          Globals := g;
-                          FunTable := g0 |}).
-        ss.
-      }
-      { ss. }
-      intro SIM; des.
-
-
-
-
-
-
-
-      hexploit genGlobalAndInitMem__wf_globals_Mem; eauto; []; intro WF; des.
-      unfold sim_fdef in *.
-      hexploit SIM.
-      { eapply init_mem_sem; eauto.
-        erewrite <- transl_products_genGlobalAndInitMem; eauto.
-      }
-      { instantiate (1:= args0).
-        instantiate (1:= args0).
-        ss.
-        rename Heq1 into INIT_LOCALS.
-        (* OpsemPP.wf_ExecutionContext__at_beginning_of_function *)
-        clear - WF4 WF INIT_LOCALS.
-        (* OpsemPP.initLocals_spec' *)
-        (* opsem_props.OpsemProps.initLocals_spec *)
-        admit.
-      }
-      {
-        (* instantiate *)
-        (*   (1:= *)
-        (*      {| *)
-        (*        CurFunction := fdef_intro *)
-        (*                         (fheader_intro fnattrs0 typ0 id0 args1 varg0) *)
-        (*                         ((l1, stmts_intro phinodes0 cmds5 terminator0) :: b1); *)
-        (*        CurBB := (l1, stmts_intro phinodes0 cmds5 terminator0); *)
-        (*        CurCmds := cmds5; *)
-        (*        Terminator := terminator0; *)
-        (*        Locals := g1; *)
-        (*        Allocas := [] |}). *)
-        econs; ss; eauto.
-      }
-      clear SIM. intro SIM_LOCAL; des.
-      inv SIM_LOCAL. ss. clarify.
-
-
-
-
-      esplits; eauto.
-      + eapply sim_local_lift_sim; eauto.
-        { eapply transl_products_sim_conf; eauto.
-          subst TGT_INIT1.
-          expl s_genInitState__opsem_wf.
-          eapply wf_ConfigI_spec; eauto.
-        }
-        econs; ss; eauto.
-        * econs; eauto.
-        * eapply SIM_LOCAL0.
-          { (* wf *)
-            subst TGT_INIT1.
-            expl s_genInitState__opsem_wf.
-            split; ss.
-          }
-        * reflexivity.
 
 
 
