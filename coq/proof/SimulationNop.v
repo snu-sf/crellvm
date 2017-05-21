@@ -457,6 +457,40 @@ Proof.
     admit.
 Admitted.
 
+Lemma inject_conf_commutes
+      conf_src conf_tgt
+      (CONF: inject_conf conf_src conf_tgt)
+  :
+    <<CONF: inject_conf conf_tgt conf_src>>
+.
+Proof. inv CONF. ss. Qed.
+
+Lemma nop_state_sim_EC_commutes
+      st_src st_tgt
+      (SIM: nop_state_sim_EC st_src st_tgt)
+  :
+    <<SIM: nop_state_sim_EC st_tgt st_src>>
+.
+Proof.
+  inv SIM.
+  econs; ss; eauto.
+  admit. admit.
+Admitted.
+
+Lemma nop_state_sim_commutes
+      idx st_src st_tgt
+      (SIM: nop_state_sim idx st_src st_tgt)
+  :
+    <<SIM: nop_state_sim idx st_tgt st_src>>
+.
+Proof.
+  inv SIM.
+  econs; ss; eauto.
+  admit.
+  admit.
+  admit. (* change to sum of both cmds *)
+Admitted.
+
 Lemma nop_state_sim_stuck
       conf_src conf_tgt
       (CONF: inject_conf conf_src conf_tgt)
@@ -473,20 +507,173 @@ Lemma nop_state_sim_stuck
     <<STUCK_SRC: stuck_state conf_src st_src0>>
 .
 Proof.
-  inv SIM. inv EC0. ss. des_ifs_safe ss. des. clarify. ss.
-  ii. des. apply STUCK_TGT.
+  ii. des. exploit nop_state_sim_step_nops; try apply H; eauto.
+  { apply inject_conf_commutes; eauto. }
+  { eapply nop_state_sim_commutes. eauto. }
+  i; des.
+  apply STUCK_TGT. esplits; eauto.
+(*   inv SIM. inv EC0. ss. des_ifs_safe ss. des. clarify. ss. *)
+(*   ii. des. apply STUCK_TGT. *)
+(*   destruct conf_src, conf_tgt; ss. inv CONF. ss. clarify. *)
+(*   inv H; ss; *)
+(*     try (by esplits; eauto; econs; eauto). *)
+(*   - esplits; eauto. *)
+(*     eapply sCall; eauto. *)
+(*     admit. *)
+(*   - esplits; eauto. *)
+(*     eapply sExCall; eauto. *)
+(*     admit. *)
+(* Admitted. *)
+Qed.
+
+Lemma nop_fdef_lookup
+      f_src lbl ps cs_src tmn f_tgt
+      (FDEF: nop_fdef f_src f_tgt)
+      (SRC_LOOKUP: lookupBlockViaLabelFromFdef f_src lbl = Some (stmts_intro ps cs_src tmn))
+  :
+    exists cs_tgt,
+      (<<TGT_LOOKUP: lookupBlockViaLabelFromFdef f_tgt lbl = Some (stmts_intro ps cs_tgt tmn)>>)
+      /\
+      <<CMDS: nop_cmds cs_src cs_tgt>>
+.
+Proof.
+  inv FDEF. ss. clear_tac.
+  ginduction blocks_src; ii; ss.
+  des_ifs.
+  - clear IHblocks_src. inv BLOCKS.
+    des_ifs. des. clarify.
+    ss. des_ifs.
+    esplits; eauto.
+  - inv BLOCKS.
+    des_ifs. des. clarify.
+    ss. des_ifs.
+    hexploit IHblocks_src; eauto.
+Qed.
+
+Lemma nop_blocks_get_value
+      l1 bb_src bb_tgt
+      (BLOCKS: nop_blocks [bb_src] [bb_tgt])
+  :
+    <<EQ: getValueViaBlockFromValuels l1 bb_src = getValueViaBlockFromValuels l1 bb_tgt>>
+.
+Proof. inv BLOCKS. des_ifs. des. clarify. Qed.
+
+(* TODO: move to TODOProof. *)
+Ltac des_outest_ifsG :=
+  match goal with
+  | |- context[ match ?x with _ => _ end ] =>
+    match (type of x) with
+    | { _ } + { _ } => destruct x; clarify
+    | _ => let Heq := fresh "Heq" in destruct x as [] eqn: Heq; clarify
+    end
+  end.
+
+
+Lemma nop_blocks_get_incoming_values
+      bb_src bb_tgt
+      (BLOCKS: nop_blocks [bb_src] [bb_tgt])
+  :
+    (* TODO: putting forall in premise makes existentials on exploit *)
+    (* Can we do exploit more smart to prevent this? *)
+    <<EQ: forall TD gs ps lc,
+      getIncomingValuesForBlockFromPHINodes TD ps bb_src gs lc =
+      getIncomingValuesForBlockFromPHINodes TD ps bb_tgt gs lc>>
+.
+Proof.
+  ii.
+  inv BLOCKS. des_ifs. des. clarify.
+  match goal with | [ H: Forall2 _ [] [] |- _ ] => clear H end.
+  ginduction ps; ii; ss.
+  des_ifs_safe. clear_tac.
+  assert(EQ: getValueViaBlockFromValuels l0 (l1, stmts_intro phinodes0 cmds5 terminator0)
+         = getValueViaBlockFromValuels l0 (l1, stmts_intro phinodes0 cmds0 terminator0)).
+  { erewrite <- nop_blocks_get_value; eauto.
+    econs; eauto. splits; ss. }
+  rewrite EQ.
+  expl IHps. rewrite IHps0. des_ifs.
+Qed.
+
+Lemma nop_blocks_switch
+      cs_src cs_tgt
+      (CMDS: nop_cmds cs_src cs_tgt)
+      bb_src bb_tgt
+      (BLOCKS: nop_blocks [bb_src] [bb_tgt])
+      TD lbl ps tmn
+      gs lc lc'
+      (SWITCH_SRC: switchToNewBasicBlock TD (lbl, stmts_intro ps cs_src tmn) bb_src gs lc =
+                   Some lc')
+  :
+    <<SWITCH_TGT: switchToNewBasicBlock TD (lbl, stmts_intro ps cs_tgt tmn) bb_tgt gs lc =
+                   Some lc'>>
+.
+Proof.
+  unfold switchToNewBasicBlock in *.
+  ss.
+  des_ifs_safe ss. clarify. clear_tac.
+  ginduction ps; ii; ss.
+  - clarify.
+  - des_ifs_safe ss. clarify.
+    hexploit nop_blocks_get_incoming_values; eauto; []; intro INCOMING; des.
+    inv BLOCKS. des_ifs_safe ss. des. clarify.
+    match goal with | [ H: Forall2 _ [] [] |- _ ] => clear H end.
+    unfold getValueViaBlockFromValuels in *. ss.
+    des_ifs_safe. clear_tac.
+    erewrite <- INCOMING.
+    rewrite Heq3. (* TODO: rewriter tactic *)
+    ss.
+Qed.
+
+Lemma nop_state_sim_term_step_nops
+      conf_src conf_tgt
+      (CONF: inject_conf conf_src conf_tgt)
+      idx0 st_src0 st_tgt0
+      (SIM: nop_state_sim idx0 st_src0 st_tgt0)
+      st_tgt1 tr
+      (STEP_TGT: sInsn conf_tgt st_tgt0 st_tgt1 tr)
+      (HEAD_SRC: st_src0.(EC).(CurCmds) = [])
+      (HEAD_TGT: st_tgt0.(EC).(CurCmds) = [])
+  :
+    exists st_src1 idx1,
+      (<<STEP_SRC: sInsn conf_src st_src0 st_src1 tr>>) /\
+      <<SIM: nop_state_sim idx1 st_src1 st_tgt1>>
+.
+Proof.
+  apply nop_state_sim_commutes in SIM. des.
+  (* TODO: I want to change src/tgt of nop_state_sim in goal too. *)
+  (* Smarter way to do this? *)
+  assert(exists (st_src1 : State) (idx1 : nat),
+            sInsn conf_src st_src0 st_src1 tr  /\ nop_state_sim idx1 st_tgt1 st_src1); cycle 1.
+  { des. esplits; eauto. eapply nop_state_sim_commutes; eauto. }
+  inv SIM. inv EC0. ss. clarify.
   destruct conf_src, conf_tgt; ss. inv CONF. ss. clarify.
-  inv H; ss;
-    try (by esplits; eauto; econs; eauto).
+  clear CMDS. clear_tac.
+  inv STEP_TGT; ss.
   - esplits; eauto.
-    eapply sCall; eauto.
+    rpapply sReturn; eauto.
+    admit.
     admit.
   - esplits; eauto.
-    eapply sExCall; eauto.
+    rpapply sReturnVoid; eauto.
     admit.
+    admit.
+  - expl nop_fdef_lookup.
+    expl nop_blocks_switch.
+    esplits; eauto.
+    rpapply sBranch; eauto.
+    do 3 (econs; ss; eauto).
+  - expl nop_fdef_lookup.
+    expl nop_blocks_switch.
+    esplits; eauto.
+    rpapply sSwitch; eauto.
+    do 3 (econs; ss; eauto).
+  - expl nop_fdef_lookup.
+    expl nop_blocks_switch.
+    esplits; eauto.
+    rpapply sBranch_uncond; eauto.
+    do 3 (econs; ss; eauto).
 Admitted.
 
-Lemma nop_state_sim_nil_stuck
+Lemma nop_state_sim_term_stuck
       conf_src conf_tgt
       (CONF: inject_conf conf_src conf_tgt)
       idx0 st_src0 st_tgt0
@@ -500,34 +687,12 @@ Lemma nop_state_sim_nil_stuck
     <<STUCK_SRC: stuck_state conf_src st_src0>>
 .
 Proof.
-  inv SIM. inv EC0. ss. clarify. ss.
-  ii. des. apply STUCK_TGT.
-  destruct conf_src, conf_tgt; ss. inv CONF. ss. clarify.
-  inv H; ss;
-    try (by esplits; eauto; econs; eauto).
-  - inv ECS0. inv H1.
-    esplits; eauto.
-    rpapply sReturn; eauto.
-    admit.
-  - inv ECS0. inv H1.
-    esplits; eauto.
-    rpapply sReturnVoid; eauto.
-    admit.
-  - esplits; eauto.
-    rpapply sBranch; eauto.
-    admit.
-    admit.
-  - esplits; eauto.
-    rpapply sSwitch; eauto.
-    admit.
-    admit.
-  - esplits; eauto.
-    rpapply sBranch_uncond; eauto.
-    admit.
-    admit.
-Unshelve.
-all: try (by ss).
-Admitted.
+  ii. des. exploit nop_state_sim_term_step_nops; try apply H; eauto.
+  { apply inject_conf_commutes; eauto. }
+  { eapply nop_state_sim_commutes. eauto. }
+  i; des.
+  apply STUCK_TGT. esplits; eauto.
+Qed.
 
 Inductive stepN (conf: Config): nat -> State -> State -> events.trace -> Prop :=
 | stepN_nil st0: stepN conf 0%nat st0 st0 []
@@ -599,6 +764,8 @@ Proof.
   { expl nop_state_sim_final.
     eapply _sim_exit; eauto.
   }
+  assert(FINAL_SRC: s_isFinialState conf_src st_src0).
+  { admit. }
 
   {
     inv SIM. inv EC0. ss.
@@ -627,15 +794,31 @@ Proof.
         - rpapply nops_sop_star; eauto.
           rewrite app_nil_r. ss.
         - econs; eauto.
-          + eapply nop_state_sim_stuck; try apply STUCK; ss; eauto.
+          + eapply nop_state_sim_term_stuck; try apply STUCK; eauto.
             { econs; ss; eauto. }
-              econs; ss; eauto.
-              eapply nop_cmds_push_both; eauto.
-            }
-            { destruct c; ss. }
+          + ss.
+            admit. (* enhance final_src to consider nop step *)
       }
-
-      admit.
+      {
+        eapply _sim_step; eauto.
+        i.
+        hexploit nop_state_sim_term_step_nops; try apply STEP.
+        { instantiate (1:= conf_src). ss. }
+        { instantiate (1:= (mkState
+                              (mkEC f_src bb_src [] term lc als)
+                              ecs_src mem0)).
+          econs; ss; eauto.
+        }
+        { ss. }
+        { ss. }
+        i; des.
+        esplits.
+        - rpapply nops_sop_star; eauto.
+          rewrite app_nil_r. ss.
+        - econs; eauto.
+        - right. apply CIH.
+          eauto.
+      }
     }
     {
       hexploit nop_cmds_tgt_non_nop; eauto.
@@ -680,6 +863,7 @@ Proof.
       }
     }
   }
+Admitted.
 
   (* destruct (classic (stuck_state conf_tgt st_tgt)). *)
   (* { admit. } *)
