@@ -20,13 +20,13 @@ Require Import Hints.
 Require Import Validator.
 Require Import GenericValues.
 Require Import TODOProof.
-Require Import PropOpsem.
+Require Import OpsemAux.
 Require Import SimulationLocal.
 Require Import Simulation.
 Require Import Inject.
 Require InvMem.
 Require InvState.
-Require Import PropValid.
+Require Import ValidAux.
 Require Import SoundBase.
 Require Import SoundImplies.
 Require Import SoundPostcondCmd.
