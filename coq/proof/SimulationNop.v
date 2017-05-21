@@ -100,6 +100,27 @@ Inductive nop_state_sim_EC: ExecutionContext -> ExecutionContext -> Prop :=
 (*     (ALLOCAS: ec_src.(Allocas) = ec_tgt.(Allocas)) *)
 (* . *)
 
+(* Inductive valid_caller (ec: ExecutionContext): Prop := *)
+(* | valid_caller_intro *)
+(*     c cmds *)
+(*     (CMDS: ec.(CurCmds) = c :: cmds) *)
+(*     (ISCALL: Instruction.isCallInst c = true) *)
+(*     (RETID: getCallerReturnID c = None) *)
+(* . *)
+
+Inductive nop_caller_sim (ec_src ec_tgt: ExecutionContext): Prop :=
+| nop_caller_sim_intro
+    c_src cmds_src
+    (CMDS_SRC: ec_src.(CurCmds) = c_src :: cmds_src)
+    (ISCALL_SRC: Instruction.isCallInst c_src = true)
+    c_tgt cmds_tgt
+    (CMDS_TGT: ec_tgt.(CurCmds) = c_tgt :: cmds_tgt)
+    (ISCALL_TGT: Instruction.isCallInst c_tgt = true)
+    (* We may pull out unary reasoning, but there will not be much gain *)
+    (* Migrating WF, neither *)
+    (RETID: getCallerReturnID c_src = getCallerReturnID c_tgt)
+.
+
 Inductive nop_state_sim: nat -> State -> State -> Prop :=
 | nop_state_sim_intro
   ec_src ec_tgt
@@ -108,6 +129,9 @@ Inductive nop_state_sim: nat -> State -> State -> Prop :=
   (ECS: list_forall2 nop_state_sim_EC ecs_src ecs_tgt)
   idx
   (IDX: (idx > List.length ec_src.(CurCmds) + List.length ec_tgt.(CurCmds))%nat)
+  (CALLER: list_forall2 nop_caller_sim ecs_src ecs_tgt)
+  (* (VALID_CALLER_SRC: List.Forall valid_caller ecs_src) *)
+  (* (VALID_CALLER_TGT: List.Forall valid_caller ecs_tgt) *)
   mem
   : nop_state_sim idx
                   (mkState ec_src ecs_src mem)
@@ -151,6 +175,31 @@ Defined.
 (* Check b:(nop_conf_sim x x). *)
 (* Check b:(inject_conf x x). *)
 
+Lemma list_forall2_commutes
+      A
+      (xs ys: list A)
+      P
+      (FORALL: list_forall2 P xs ys)
+      (COMMUTE: forall x y, P x y -> P y x)
+  :
+    <<FORALL: list_forall2 P ys xs>>
+.
+Proof.
+  ginduction FORALL; ii; ss.
+  - econs; eauto.
+  - econs; eauto. apply IHFORALL; eauto.
+Qed.
+
+(* TODO: totally remove list_forall2 *)
+Lemma forall2_eq
+      A
+      (xs ys: list A)
+      P
+  :
+    <<EQ: list_forall2 P xs ys <-> Forall2 P xs ys>>
+.
+Proof. split; i; ginduction H; ii; ss; econs; eauto. Qed.
+     
 Lemma nop_blocks_commutes
       b_src b_tgt
       (BLOCKS: nop_blocks b_src b_tgt)
@@ -158,13 +207,10 @@ Lemma nop_blocks_commutes
     <<BLOCKS: nop_blocks b_tgt b_src>>
 .
 Proof.
-  ginduction b_src; ii; ss.
-  - inv BLOCKS. ss.
-  - inv BLOCKS. ss. des_ifs. des. clarify.
-    econs; eauto.
-    + esplits; eauto.
-      eapply nop_cmds_commutes; eauto.
-    + eapply IHb_src; eauto.
+  apply forall2_eq.
+  apply forall2_eq in BLOCKS.
+  apply list_forall2_commutes; eauto.
+  i. des_ifs. des; clarify.
 Qed.
 
 Lemma nop_fdef_commutes
@@ -208,9 +254,9 @@ Lemma transl_products_commutes
     <<PRODS: transl_products ps_tgt ps_src>>
 .
 Proof.
-  ginduction PRODS; ii; ss.
-  econs; eauto.
-  apply transl_product_commutes; ss.
+  apply forall2_eq. apply forall2_eq in PRODS.
+  apply list_forall2_commutes; eauto.
+  i. apply transl_product_commutes; ss.
 Qed.
 
 Lemma nop_conf_sim_commutes
@@ -239,6 +285,14 @@ Proof.
   - apply nop_blocks_commutes; ss.
 Qed.
 
+Lemma nop_caller_sim_commutes
+      ec_src ec_tgt
+      (SIM: nop_caller_sim ec_src ec_tgt)
+  :
+    <<SIM: nop_caller_sim ec_tgt ec_src>>
+.
+Proof. inv SIM. econs; try eassumption. ss. Qed.
+
 Lemma nop_state_sim_commutes
       idx st_src st_tgt
       (SIM: nop_state_sim idx st_src st_tgt)
@@ -255,6 +309,8 @@ Proof.
     + inv ECS0. econs; eauto.
       apply nop_state_sim_EC_commutes; ss.
   - omega.
+  - apply list_forall2_commutes; eauto.
+    apply nop_caller_sim_commutes.
 Qed.
 
 Lemma transl_products_lookupFdefViaIDFromProducts
@@ -719,6 +775,7 @@ Proof.
         econs; ss; eauto.
         apply nop_cmds_push_both; ss.
       }
+      { econs; eauto. econs; ss; eauto. }
   -
     (* hexploit nop_conf_sim_lookup_ex; try apply H16; eauto. *)
     (* { *)
@@ -884,14 +941,30 @@ Proof.
   destruct conf_src, conf_tgt; ss. inv CONF. ss. clarify.
   clear CMDS. clear_tac.
   inv STEP_TGT; ss.
-  - esplits; eauto.
+  - inv CALLER. inv H1. ss. clarify. destruct b1; ss. clarify.
+    inv ECS0. inv H2.
+    assert(c_src = c_tgt).
+    { unfold nop_cmds in *. ss.
+      destruct c_src; ss.
+      destruct c_tgt; ss.
+      clarify. } clarify.
+    esplits.
     rpapply sReturn; eauto.
-    admit.
-    admit.
-  - esplits; eauto.
+    econs; ss; eauto.
+    econs; ss; eauto.
+    eapply nop_cmds_pop_both; eauto.
+  - inv CALLER. inv H1. ss. clarify. destruct b1; ss. clarify.
+    inv ECS0. inv H2.
+    assert(c_src = c_tgt).
+    { unfold nop_cmds in *. ss.
+      destruct c_src; ss.
+      destruct c_tgt; ss.
+      clarify. } clarify.
+    esplits.
     rpapply sReturnVoid; eauto.
-    admit.
-    admit.
+    econs; ss; eauto.
+    econs; ss; eauto.
+    eapply nop_cmds_pop_both; eauto.
   - expl nop_fdef_lookup.
     expl nop_blocks_switch.
     esplits; eauto.
@@ -907,7 +980,7 @@ Proof.
     esplits; eauto.
     rpapply sBranch_uncond; eauto.
     do 3 (econs; ss; eauto).
-Admitted.
+Qed.
 
 Lemma nop_state_sim_term_stuck
       conf_src conf_tgt
@@ -1153,6 +1226,7 @@ Proof.
         econs; ss; eauto.
       + econs; ss; eauto.
     - econs; ss; eauto.
+    - econs; eauto.
   }
   (* assert(NOP_CASES:= nop_cases cmds5). des. *)
   (* { hexploit nop_cmds_all_nop; eauto; []. intro ALLNOP_TGT. des. *)
