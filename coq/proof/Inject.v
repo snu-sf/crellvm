@@ -17,7 +17,6 @@ Require Import paco.
 Import Opsem.
 
 Require Import TODO.
-Require Import TODOProof.
 Require Import Debug.
 Require Import Decs.
 Require Import GenericValues.
@@ -404,58 +403,27 @@ Qed.
 (* ex: Inductive -> sem_unique *)
 (* @jeehoonkang noted that # of premises can matter, it may be concatenated with "/\" when using "Definition" *)
 (* Also he mentioned econs/exploit's behavior may differ *)
-(* Inductive GVsMap_inject meminj gvs0 gvs1: Prop := *)
-(* | GVsMap_inject_intro *)
-(*     (INJECT: *)
-(*        forall id gv0 *)
-(*        (LOOKUP: lookupAL GenericValue gvs0 id = ret gv0), *)
-(*          exists gv1, lookupAL GenericValue gvs1 id = ret gv1 /\ gv_inject meminj gv0 gv1) *)
+Inductive GVsMap_inject meminj gvs0 gvs1: Prop :=
+| GVsMap_inject_intro
+    (INJECT:
+       forall id gv0
+       (LOOKUP: lookupAL GenericValue gvs0 id = ret gv0),
+         exists gv1, lookupAL GenericValue gvs1 id = ret gv1 /\ gv_inject meminj gv0 gv1)
+.
+
+(* Definition GVsMap_inject *)
+(*            meminj gvs0 gvs1 *)
+(*   := *)
+(*     forall id gv0 (LOOKUP: lookupAL GenericValue gvs0 id = ret gv0), *)
+(*     <<LOOKUP: exists gv1, lookupAL GenericValue gvs1 id = ret gv1 /\ gv_inject meminj gv0 gv1>> *)
 (* . *)
 
-Definition fully_inject_locals (meminj: Values.meminj) (lc_src lc_tgt : GVsMap) :=
-  list_forall2
-    (fun l_src l_tgt =>
-       l_src.(fst) = l_tgt.(fst) /\
-       genericvalues_inject.gv_inject meminj l_src.(snd) l_tgt.(snd))
-    lc_src lc_tgt
-.
-
-Theorem fully_inject_locals_spec
-        meminj lc_src lc_tgt
-        (FULLY: fully_inject_locals meminj lc_src lc_tgt)
-        i
-  :
-    (lift2_option (genericvalues_inject.gv_inject meminj))
-      (lookupAL GenericValue lc_src i)
-      (lookupAL GenericValue lc_tgt i)
-.
-Proof.
-  ginduction lc_src; ii; ss.
-  - inv FULLY. des_ifs.
-  - inv FULLY. destruct a, b1; ss. des; clarify.
-    des_ifs.
-    eapply IHlc_src; eauto.
-Qed.
-        
-Lemma fully_inject_locals_update
-      meminj lc_src lc_tgt
-      (FULLY: fully_inject_locals meminj lc_src lc_tgt)
-      i g_src g_tgt
-      (INJECT: gv_inject meminj g_src g_tgt)
-  :
-    <<FULLY: fully_inject_locals meminj
-                                 (updateAddAL GenericValue lc_src i g_src)
-                                 (updateAddAL GenericValue lc_tgt i g_tgt)>>
-.
-Proof.
-  ginduction lc_src; ii; ss.
-  - inv FULLY. econs; eauto. econs; eauto.
-  - inv FULLY. des. destruct a, b1; ss. clarify.
-    des_ifs.
-    + econs; eauto.
-    + econs; eauto.
-      eapply IHlc_src; eauto.
-Qed.
+(* Definition GVsMap_inject *)
+(*            meminj gvs0 gvs1 id gv0 *)
+(*            (LOOKUP: lookupAL GenericValue gvs0 id = ret gv0) *)
+(*   := *)
+(*     <<LOOKUP: exists gv1, lookupAL GenericValue gvs1 id = ret gv1 /\ gv_inject meminj gv0 gv1>> *)
+(* . *)
 
 Ltac des_lookupAL_updateAddAL :=
   repeat match goal with
@@ -478,7 +446,7 @@ Lemma gv_inject_initialize_frames
   :
     <<FRAMES: exists g',
       (_initializeFrameValues TD la bl [] = ret g')
-        /\ fully_inject_locals meminj g g'>>
+        /\ GVsMap_inject meminj g g'>>
 .
 (* use meminj instead inv? just conservatively (inv have more info) *)
 Proof.
@@ -491,14 +459,16 @@ Proof.
     esplits; eauto.
     generalize dependent g.
     induction la; ii; ss; des; clarify; ss.
-    { econs; eauto. }
     des_ifs.
     exploit IHla; eauto; []; ii; des.
-    eapply fully_inject_locals_update; eauto.
-    eapply gv_inject_gundef; eauto.
+    inv x.
+    econs; eauto. ii.
+    des_lookupAL_updateAddAL.
+    + esplits; eauto. eapply gv_inject_gundef; eauto.
+    + exploit INJECT; eauto.
   -
     destruct la.
-    { ss. clarify. esplits; eauto. econs; eauto. }
+    { ss. clarify. esplits; eauto. econs; eauto. ii; des. inv LOOKUP. }
     cbn in FRAMES. des_ifs.
     exploit IHINJECT; eauto; []; ii; des.
     cbn.
@@ -506,26 +476,11 @@ Proof.
     ii; des.
     des_ifs.
     esplits; eauto.
-    eapply fully_inject_locals_update; eauto.
-Qed.
-
-Lemma fully_inject_locals_inject_locals
-      inv lc_src lc_tgt
-      (FULLY: fully_inject_locals inv.(InvMem.Rel.inject) lc_src lc_tgt)
-  :
-    <<INJECT: inject_locals inv lc_src lc_tgt>>
-.
-Proof.
-  ginduction lc_src; ii; ss.
-  des_ifs.
-  - inv FULLY. ss. des. clarify.
-    esplits; eauto.
-    des_ifs.
-  - inv FULLY. ss. des. clarify.
-    hexploit IHlc_src; eauto; []; intro INJECT.
-    destruct b1; ss.
-    des_ifs.
-    exploit INJECT; eauto.
+    econs; eauto.
+    ii.
+    des_lookupAL_updateAddAL.
+    + esplits; eauto.
+    + inv x0. eapply INJECT0; eauto.
 Qed.
 
 Lemma locals_init
@@ -540,31 +495,41 @@ Lemma locals_init
   :
   exists gvs_tgt,
     << LOCALS_TGT : initLocals (CurTargetData conf_tgt) la args_tgt = Some gvs_tgt >> /\
-                    << LOCALS: fully_inject_locals inv.(InvMem.Rel.inject) gvs_src gvs_tgt >>.
+                    << LOCALS: inject_locals inv gvs_src gvs_tgt >>.
 Proof.
   unfold initLocals in *.
-  ginduction ARGS; ii; ss.
-  - ginduction la; ii; ss.
-    + clarify. esplits; eauto. econs; eauto.
-    + des_ifs_safe ss. clarify.
-      expl IHla.
-      inv CONF. destruct conf_src, conf_tgt; ss. clarify.
-      rewrite LOCALS_TGT.
-      rewrite Heq2.
-      esplits; eauto.
-      eapply fully_inject_locals_update; eauto.
-      eapply gv_inject_gundef; eauto.
+  revert gvs_src LOCALS_SRC. induction ARGS; ss.
   -
-    destruct la; ss; clarify.
-    { ss. esplits; eauto. econs; eauto. }
-    des_ifs_safe ss. clarify.
-    inv CONF. destruct conf_src, conf_tgt; ss. clarify.
-    expl gv_inject_initialize_frames.
-    rewrite gv_inject_initialize_frames0.
-    expl simulation__fit_gv.
-    rewrite simulation__fit_gv.
+    induction la.
+    + ii. cbn in *. clarify.
+      esplits; eauto.
+      ii. inv LU_SRC.
+    +
+      ii.
+      cbn in LOCALS_SRC. des_ifs.
+      exploit IHla; eauto; []; ii; des.
+      cbn in *. rewrite LOCALS_TGT. inv CONF. rewrite <- TARGETDATA. rewrite Heq0.
+      esplits; eauto.
+      ii.
+      des_lookupAL_updateAddAL.
+      * esplits; eauto.
+        eapply gv_inject_gundef; eauto.
+      * exploit LOCALS; eauto.
+  -
+    ii.
+    destruct la; clarify.
+    { ss. inv LOCALS_SRC. esplits; eauto. ii. inv LU_SRC. }
+    cbn in LOCALS_SRC. des_ifs.
+    cbn. inv CONF. rewrite <- TARGETDATA. clear TARGETDATA.
+    exploit gv_inject_initialize_frames; eauto; []; ii; des. inv x1.
+    exploit simulation__fit_gv; eauto.
+    ii; des.
+    des_ifs.
     esplits; eauto.
-    eapply fully_inject_locals_update; eauto.
+    ii.
+    des_lookupAL_updateAddAL; clear IHARGS.
+    + esplits; eauto.
+    + exploit INJECT; eauto.
 Qed.
 
 Lemma updateAddAL_inject_locals
@@ -593,24 +558,6 @@ Proof.
   ii. exploit LOCALS; eauto. i. des.
   esplits; eauto.
   eapply genericvalues_inject.gv_inject_incr; try apply INCR; eauto.
-Qed.
-
-Lemma fully_inject_locals_inj_incr
-      mi0 mi1
-      locals_src locals_tgt
-      (FULLY: fully_inject_locals mi0 locals_src locals_tgt)
-      (INCR: inject_incr mi0 mi1)
-  :
-  <<FULLY: fully_inject_locals mi1 locals_src locals_tgt>>
-.
-Proof.
-  ginduction locals_src; ii; ss.
-  - inv FULLY. econs; eauto.
-  - inv FULLY. des. destruct a, b1; ss. clarify.
-    econs; eauto.
-    + split; ss.
-      eapply genericvalues_inject.gv_inject_incr; eauto.
-    + eapply IHlocals_src; eauto.
 Qed.
 
 Lemma fully_inject_allocas_inj_incr
