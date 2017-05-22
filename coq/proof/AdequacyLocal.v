@@ -62,7 +62,13 @@ Inductive sim_local_stack
          (RETURN_SRC: return_locals
                         conf_src.(CurTargetData)
                         retval'_src id_src noret_src typ_src
-                        locals_src = Some locals'_src),
+                        locals_src = Some locals'_src)
+         (WF_SRC: wf_StateI conf_src
+                            (mkState
+                               (mkEC func_src b_src cmds_src term_src locals'_src allocas_src)
+                               ecs_src
+                               mem'_src))
+       ,
        exists inv'' idx' locals'_tgt,
          <<RETURN_TGT: return_locals
                          conf_tgt.(CurTargetData)
@@ -202,6 +208,21 @@ Proof.
     etransitivity; eauto.
 Qed.
 
+(* TODO move to definition point *)
+Lemma sop_star_preservation
+      conf st0 st1 tr
+      (WF_CONF: wf_ConfigI conf)
+      (WF_ST: wf_StateI conf st0)
+      (SOP_STAR: sop_star conf st0 st1 tr)
+  :
+    <<WF_ST: wf_StateI conf st1>>
+.
+Proof.
+  ginduction SOP_STAR; ii; ss.
+  eapply IHSOP_STAR; eauto.
+  eapply preservation; eauto.
+Qed.
+
 Lemma sim_local_lift_sim conf_src conf_tgt
       (SIM_CONF: sim_conf conf_src conf_tgt):
   (sim_local_lift conf_src conf_tgt) <3= (sim conf_src conf_tgt).
@@ -248,7 +269,8 @@ Proof.
           rewrite returnUpdateLocals_spec, RET_TGT. ss.
           rewrite x0. eauto.
       }
-      i. expl preservation. inv STEP0. ss. rewrite returnUpdateLocals_spec in *. ss.
+      i. expl preservation. rename preservation into WF_TGT_NEXT.
+      inv STEP0. ss. rewrite returnUpdateLocals_spec in *. ss.
       inv CONF. ss. clarify.
       expl invmem_free_allocas_invmem_rel. rename invmem_free_allocas_invmem_rel into MEMFREE.
       des_ifs.
@@ -259,6 +281,8 @@ Proof.
           eassumption.
         }
         { ss. }
+        { ttttttttttttttttttttt
+        }
         clear LOCAL. intro LOCAL. des. simtac.
         specialize (LOCAL1 preservation).
         esplits; eauto.
@@ -306,7 +330,8 @@ Proof.
         exploit OpsemPP.free_allocas_not_stuck; []; intro FREE_ALLOCAS. des.
         esplits. econs; ss; eauto. des_ifs.
       }
-      i. expl preservation. inv STEP0. ss.
+      i. expl preservation. rename preservation into WF_TGT_NEXT.
+      inv STEP0. ss.
       inv CONF. ss. clarify.
       expl invmem_free_allocas_invmem_rel. rename invmem_free_allocas_invmem_rel into MEMFREE.
       des_ifs.
@@ -357,7 +382,8 @@ Proof.
           rewrite FDEF_TGT. ss.
         - unfold getEntryBlock in *. ss.
       }
-      i. expl preservation. inv STEP0; ss; cycle 1.
+      i. expl preservation. rename preservation into WF_TGT_NEXT.
+      inv STEP0; ss; cycle 1.
       { exfalso.
         rewrite FUN_TGT in *. clarify.
         clear - H18 H23 INJECT MEM SIM_CONF.
@@ -465,7 +491,8 @@ Proof.
           rewrite SIM_NONE0.
           rewrite SIM_SOME_FDEC0. ss.
       }
-      i. expl preservation. inv STEP0; ss.
+      i. expl preservation. rename preservation into WF_TGT_NEXT.
+      inv STEP0; ss.
       { exfalso. (* call excall mismatch *)
         clarify.
         rename H18 into SRC_LOOKUP.

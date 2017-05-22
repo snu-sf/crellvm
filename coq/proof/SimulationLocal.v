@@ -91,6 +91,7 @@ Section SimLocal.
       st2_src
       (STEP: sop_star conf_src st1_src st2_src E0)
       (ERROR: error_state conf_src st2_src)
+      (WF_SRC: wf_ConfigI conf_src /\ wf_StateI conf_src st1_src)
       (WF_TGT: wf_ConfigI conf_tgt /\ wf_StateI conf_tgt st1_tgt)
 
   | _sim_local_return
@@ -126,6 +127,7 @@ Section SimLocal.
          exists retval1_tgt,
            <<RET_TGT: getOperandValue conf_tgt.(CurTargetData) ret1_tgt st1_tgt.(EC).(Locals) conf_tgt.(Globals) = Some retval1_tgt>> /\
            <<INJECT: genericvalues_inject.gv_inject inv2.(InvMem.Rel.inject) retval2_src retval1_tgt>>)
+      (WF_SRC: wf_ConfigI conf_src /\ wf_StateI conf_src st1_src)
       (WF_TGT: wf_ConfigI conf_tgt /\ wf_StateI conf_tgt st1_tgt)
 
   (* TODO: seems duplicate of _sim_local_return. Change semantics? *)
@@ -153,6 +155,7 @@ Section SimLocal.
                                            (InvMem.Unary.private_parent inv1.(InvMem.Rel.src)))
       (ALLOCAS_DISJOINT_TGT: list_disjoint st1_tgt.(EC).(Allocas)
                                            (InvMem.Unary.private_parent inv1.(InvMem.Rel.tgt)))
+      (WF_SRC: wf_ConfigI conf_src /\ wf_StateI conf_src st1_src)
       (WF_TGT: wf_ConfigI conf_tgt /\ wf_StateI conf_tgt st1_tgt)
 
   | _sim_local_call
@@ -200,7 +203,11 @@ Section SimLocal.
                                 conf_src.(CurTargetData)
                                 retval3_src id2_src noret2_src typ2_src
                                 st2_src.(EC).(Locals)
-                              = Some locals4_src),
+                              = Some locals4_src)
+                 (WF_SRC: wf_StateI conf_src (mkState (mkEC st2_src.(EC).(CurFunction) st2_src.(EC).(CurBB)
+                                      cmds2_src st2_src.(EC).(Terminator) locals4_src st2_src.(EC).(Allocas))
+                                st2_src.(ECS) mem3_src))
+        ,
                exists locals4_tgt idx4 inv4,
                  (* TODO: Define update_locals function *)
                  <<RETURN_TGT: return_locals
@@ -219,6 +226,7 @@ Section SimLocal.
                        (mkState (mkEC st1_tgt.(EC).(CurFunction) st1_tgt.(EC).(CurBB)
                                       cmds1_tgt st1_tgt.(EC).(Terminator) locals4_tgt st1_tgt.(EC).(Allocas))
                                 st1_tgt.(ECS) mem3_tgt)>>)
+      (WF_SRC: wf_ConfigI conf_src /\ wf_StateI conf_src st1_src)
       (WF_TGT: wf_ConfigI conf_tgt /\ wf_StateI conf_tgt st1_tgt)
 
   | _sim_local_step
@@ -231,6 +239,7 @@ Section SimLocal.
            <<EVT: sInsn_indexed conf_src st2_src st3_src idx1 idx3 event>> /\
            <<MEMLE: InvMem.Rel.le inv1 inv3>> /\
            <<SIM: sim_local stack0_src stack0_tgt inv3 idx3 st3_src st3_tgt>>)
+      (WF_SRC: wf_ConfigI conf_src /\ wf_StateI conf_src st1_src)
       (WF_TGT: wf_ConfigI conf_tgt /\ wf_StateI conf_tgt st1_tgt)
   .
   Hint Constructors _sim_local.
@@ -266,34 +275,36 @@ End SimLocal.
 Hint Constructors _sim_local.
 Hint Resolve _sim_local_mon: paco.
 
-Lemma sop_star_sim_local
-      conf_src conf_tgt sim_local ecs0_src ecs0_tgt
-      inv idx
-      st1_src st2_src
-      st1_tgt
-      (TAU: sop_star conf_src st1_src st2_src events.E0)
-      (SIM: _sim_local conf_src conf_tgt sim_local ecs0_src ecs0_tgt inv idx st2_src st1_tgt):
-  _sim_local conf_src conf_tgt sim_local ecs0_src ecs0_tgt inv idx st1_src st1_tgt.
-Proof.
-  inv SIM.
-  - econs 1; try exact ERROR; eauto.
-    rewrite <- events.E0_left.
-    eapply opsem_props.OpsemProps.sop_star_trans; eauto.
-  - econs 2; try exact MEM; eauto. 
-    rewrite <- events.E0_left.
-    eapply opsem_props.OpsemProps.sop_star_trans; eauto.
-  - econs 3; try exact MEM; eauto.
-    rewrite <- events.E0_left.
-    eapply opsem_props.OpsemProps.sop_star_trans; eauto.
-  - econs 4; try exact MEM; eauto.
-    rewrite <- events.E0_left.
-    eapply opsem_props.OpsemProps.sop_star_trans; eauto.
-  - econs 5; eauto.
-    i. exploit STEP; eauto. i. des.
-    esplits; cycle 1; eauto.
-    rewrite <- events.E0_left.
-    eapply opsem_props.OpsemProps.sop_star_trans; eauto.
-Qed.
+(* alxest: This lemma's proof is broken while adding WF_SRC *)
+(* However, this lemma is not used at all; so I comment this *)
+(* Lemma sop_star_sim_local *)
+(*       conf_src conf_tgt sim_local ecs0_src ecs0_tgt *)
+(*       inv idx *)
+(*       st1_src st2_src *)
+(*       st1_tgt *)
+(*       (TAU: sop_star conf_src st1_src st2_src events.E0) *)
+(*       (SIM: _sim_local conf_src conf_tgt sim_local ecs0_src ecs0_tgt inv idx st2_src st1_tgt): *)
+(*   _sim_local conf_src conf_tgt sim_local ecs0_src ecs0_tgt inv idx st1_src st1_tgt. *)
+(* Proof. *)
+(*   inv SIM. *)
+(*   - econs 1; try exact ERROR; eauto. *)
+(*     rewrite <- events.E0_left. *)
+(*     eapply opsem_props.OpsemProps.sop_star_trans; eauto. *)
+(*   - econs 2; try exact MEM; eauto.  *)
+(*     rewrite <- events.E0_left. *)
+(*     eapply opsem_props.OpsemProps.sop_star_trans; eauto. *)
+(*   - econs 3; try exact MEM; eauto. *)
+(*     rewrite <- events.E0_left. *)
+(*     eapply opsem_props.OpsemProps.sop_star_trans; eauto. *)
+(*   - econs 4; try exact MEM; eauto. *)
+(*     rewrite <- events.E0_left. *)
+(*     eapply opsem_props.OpsemProps.sop_star_trans; eauto. *)
+(*   - econs 5; eauto. *)
+(*     i. exploit STEP; eauto. i. des. *)
+(*     esplits; cycle 1; eauto. *)
+(*     rewrite <- events.E0_left. *)
+(*     eapply opsem_props.OpsemProps.sop_star_trans; eauto. *)
+(* Qed. *)
 
 Lemma _sim_local_src_error
       conf_src conf_tgt sim_local ecs_src ecs_tgt
@@ -303,6 +314,7 @@ Lemma _sim_local_src_error
           _sim_local conf_src conf_tgt sim_local ecs_src ecs_tgt
                      inv index
                      st_src st_tgt)
+      (WF_SRC: wf_ConfigI conf_src /\ wf_StateI conf_src st_src)
       (WF_TGT: wf_ConfigI conf_tgt /\ wf_StateI conf_tgt st_tgt)
   :
   _sim_local conf_src conf_tgt sim_local ecs_src ecs_tgt
@@ -334,7 +346,9 @@ Section SimLocalFdef.
       ec0_src
       (MEM: InvMem.Rel.sem conf_src conf_tgt mem0_src mem0_tgt inv0)
       (ARGS: list_forall2 (genericvalues_inject.gv_inject inv0.(InvMem.Rel.inject)) args_src args_tgt)
-      (SRC: init_fdef conf_src fdef_src args_src ec0_src),
+      (SRC: init_fdef conf_src fdef_src args_src ec0_src)
+      (WF_SRC: wf_ConfigI conf_src /\ wf_StateI conf_src (mkState ec0_src stack0_src mem0_src))
+    ,
     exists ec0_tgt idx0,
       (init_fdef conf_tgt fdef_tgt args_tgt ec0_tgt) /\
       (forall (WF_TGT: wf_ConfigI conf_tgt /\ wf_StateI conf_tgt (mkState ec0_tgt stack0_tgt mem0_tgt)),

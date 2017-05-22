@@ -65,6 +65,7 @@ Inductive valid_state_sim
                          (st_tgt.(EC).(Terminator)))
     (STATE: InvState.Rel.sem conf_src conf_tgt st_src st_tgt invst invmem inv)
     (MEM: InvMem.Rel.sem conf_src conf_tgt st_src.(Mem) st_tgt.(Mem) invmem)
+    (WF_SRC: wf_ConfigI conf_src /\ wf_StateI conf_src st_src)
     (WF_TGT: wf_ConfigI conf_tgt /\ wf_StateI conf_tgt st_tgt)
 .
 
@@ -103,6 +104,9 @@ Lemma valid_sim_term
                                 (mkState (mkEC CurFunction0 CurBB0 [] Terminator0 Locals0 Allocas0) ECS0 Mem0)
                                 (mkState (mkEC CurFunction1 CurBB1 [] Terminator1 Locals1 Allocas1) ECS1 Mem1)
                                 invst inv0 inv_term)
+      (WF_SRC: wf_ConfigI conf_src /\
+               wf_StateI conf_src (mkState (mkEC CurFunction0 CurBB0 [] Terminator0 Locals0 Allocas0)
+                                           ECS0 Mem0))
       (WF_TGT: wf_ConfigI conf_tgt /\
                wf_StateI conf_tgt (mkState (mkEC CurFunction1 CurBB1 [] Terminator1 Locals1 Allocas1)
                                            ECS1 Mem1))
@@ -158,7 +162,7 @@ Proof.
     exploit InvState.Rel.inject_value_spec; eauto.
     { rewrite InvState.Unary.sem_valueT_physical. eauto. }
     rewrite InvState.Unary.sem_valueT_physical. s. i. des.
-    eapply _sim_local_step; swap 2 3.
+    eapply _sim_local_step; swap 2 4. (* move 2 to the end *)
     {
       expl progress.
       - ss.
@@ -167,8 +171,9 @@ Proof.
       - ii. ss.
     }
     { splits; ss. }
+    { splits; ss. }
     i.
-    expl preservation.
+    expl preservation (try exact WF_TGT0; eauto). rename preservation into WF_TGT_NEXT.
     clear ERROR_SRC.
     inv STEP. unfold valid_phinodes in *.
     do 12 simtac0. rewrite <- (ite_spec decision0 l0 l3) in *.
@@ -266,13 +271,20 @@ Proof.
 
         assert(InvMem.Rel.le inv0 invmem5).
         { etransitivity; eauto. etransitivity; eauto. }
+
+
         esplits; eauto.
         { econs 1. econs; eauto. rewrite lookupBlockViaLabelFromFdef_spec. ss. }
         {
           econs; eauto; ss.
-          (* - eapply inject_allocas_inj_incr; eauto. *)
           - eapply implies_sound; eauto.
             { ss. }
+          - split; ss.
+            eapply preservation; eauto.
+            rpapply sBranch; eauto. ss.
+            rewrite lookupBlockViaLabelFromFdef_spec. ss.
+            (* Are we lucky? Will there be no siuation that forces us to get wf_src before esplits? *)
+            (* Will we always be able to (easy to) re-construct sInsn like this? *)
         }
       -
         exploit postcond_phinodes_sound;
@@ -305,13 +317,17 @@ Proof.
           (* - eapply inject_allocas_inj_incr; eauto. *)
           - eapply implies_sound; eauto.
             { ss. }
+          - split; ss.
+            eapply preservation; eauto.
+            rpapply sBranch; eauto. ss.
+            rewrite lookupBlockViaLabelFromFdef_spec. ss.
         }
     }
   + (* br_uncond *)
     clears invst.
     rename STATE0 into STATE1.
     exploit nerror_nfinal_nstuck; eauto. i. des. inv x0.
-    eapply _sim_local_step; swap 2 3.
+    eapply _sim_local_step; swap 2 4. (* move 2 to the end *)
     {
       expl progress.
       - ss.
@@ -320,8 +336,9 @@ Proof.
       - ii. ss.
     }
     { split; ss. }
+    { split; ss. }
     i.
-    expl preservation.
+    expl preservation. rename preservation into WF_TGT_NEXT.
     clear ERROR_SRC.
     inv STEP. unfold valid_phinodes in *.
     {
@@ -385,13 +402,17 @@ Proof.
           (* - eapply inject_allocas_inj_incr; eauto. *)
           - eapply implies_sound; eauto.
             { ss. }
+          - split; ss.
+            eapply preservation; eauto.
+            econs; eauto.
+            rewrite lookupBlockViaLabelFromFdef_spec. ss.
         }
     }
   + (* switch *)
     clears invst.
     rename STATE0 into STATE1.
     exploit nerror_nfinal_nstuck; eauto. i. des. inv x0.
-    eapply _sim_local_step; swap 2 3.
+    eapply _sim_local_step; swap 2 4. (* move 2 to the end *)
     {
       expl progress.
       - ss.
@@ -400,8 +421,9 @@ Proof.
       - ii. ss.
     }
     { split; ss. }
+    { split; ss. }
     i.
-    expl preservation.
+    expl preservation. rename preservation into WF_TGT_NEXT.
     clear ERROR_SRC.
     inv STEP. unfold valid_phinodes in *.
     {
@@ -493,6 +515,10 @@ Proof.
           (* - eapply inject_allocas_inj_incr; eauto. *)
           - eapply implies_sound; eauto.
             { ss. }
+          - split; ss.
+            eapply preservation; eauto.
+            econs; eauto.
+            rewrite lookupBlockViaLabelFromFdef_spec. ss.
         }
       }
       { (* cases *)
@@ -563,6 +589,10 @@ Proof.
           (* - eapply inject_allocas_inj_incr; eauto. *)
           - eapply implies_sound; eauto.
             { ss. }
+          - split; ss.
+            eapply preservation; eauto.
+            econs; eauto.
+            rewrite lookupBlockViaLabelFromFdef_spec. ss.
         }
       }
     }
@@ -745,7 +775,7 @@ Proof.
         (*   etransitivity; eauto. } *)
     + (* non-call *)
       des.
-      eapply _sim_local_step.
+      eapply _sim_local_step; swap 2 4. (* move 2 to the end *)
       {
         expl progress.
         - ss.
@@ -935,8 +965,10 @@ Proof.
           + destruct c; ss.
         - i; ss.
       }
+      { split; ss. }
+      { split; ss. }
       i.
-      expl preservation.
+      expl preservation. rename preservation into WF_TGT_NEXT.
       exploit postcond_cmd_is_call; eauto. i. rewrite CALL in x0.
       exploit sInsn_non_call; eauto; try congruence. i. des. subst. ss.
       exploit postcond_cmd_sound; eauto; ss; try congruence. i. des.
@@ -1037,10 +1069,8 @@ Proof.
         ii. inv H; clarify.
       }
       eapply IHINJECT; eauto.
-    + ii. (* wf_insn *) admit.
-      (* OpsemPP.wf_State__inv *)
-      (* TODO: See above lemma. Replace wf_insns with wf_state /\ wf_config *)
-      (* we may also remove wf_lc && wf_global (in InvMem) with this *)
+    + admit. (* wf_fdef *)
+    + admit. (* wf_EC *)
   - (* tgt. same with src *) admit.
   - ii. clear NOTIN.
     destruct id0; ss.
@@ -1065,6 +1095,7 @@ Lemma valid_init
       (MEM: InvMem.Rel.sem conf_src conf_tgt mem_src mem_tgt inv)
       (CONF: InvState.valid_conf m_src m_tgt conf_src conf_tgt)
       (INIT_SRC: init_fdef conf_src fdef_src args_src ec_src)
+      (WF_SRC: wf_ConfigI conf_src /\ wf_StateI conf_src (mkState ec_src stack0_src mem_src))
   :
   exists ec_tgt,
     (<<INIT_TGT: init_fdef conf_tgt fdef_tgt args_tgt ec_tgt>>) /\
@@ -1147,12 +1178,14 @@ Lemma valid_sim_fdef
       fdef_hint
       (CONF: InvState.valid_conf m_src m_tgt conf_src conf_tgt)
       (FDEF: valid_fdef m_src m_tgt fdef_src fdef_tgt fdef_hint)
+      (WF_SRC: wf_ConfigI conf_src)
       (WF_TGT: wf_ConfigI conf_tgt)
   :
   sim_fdef conf_src conf_tgt fdef_src fdef_tgt.
 Proof.
   ii.
-  exploit valid_init; eauto. intro VALID_INIT. des.
+  exploit valid_init; eauto.
+  intro VALID_INIT. des.
   esplits; eauto. i. specialize (VALID_INIT0 WF_TGT0). des.
   apply valid_sim; eauto.
 Grab Existential Variables.
