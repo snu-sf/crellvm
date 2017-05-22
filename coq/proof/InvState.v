@@ -18,6 +18,7 @@ Require InvMem.
 Require Import TODO.
 Require Import paco.
 Require Import TODOProof.
+Require Import OpsemAux.
 
 Set Implicit Arguments.
 
@@ -312,7 +313,8 @@ Module Unary.
            (VAL: sem_idT st invst a = Some val)
            (IN: In b (GV2blocks val)),
       <<PRIVATE_BLOCK: InvMem.private_block st.(Mem) public b>> /\
-                       <<PARENT_DISJOINT: ~ In b private_parent>>.
+                       <<PARENT_DISJOINT: ~ In b private_parent>>
+  .
       (* In b private. *)
       (* match GV2ptr conf.(CurTargetData) (getPointerSize conf.(CurTargetData)) val with *)
       (* | ret Vptr b _ => In b private *)
@@ -334,16 +336,8 @@ Module Unary.
          forall x ptr
            (PTR:lookupAL _ st.(EC).(Locals) x = Some ptr),
            InvMem.gv_diffblock_with_blocks conf ptr invmem.(InvMem.Unary.unique_parent))
-      (WF_INSNS:
-         forall insn b
-                (IN: insnInBlockB insn b /\ blockInFdefB b (st.(EC).(CurFunction))),
-           <<WF_INSN: wf_insn (conf.(CurSystem))
-                              (module_intro (conf.(CurTargetData).(fst))
-                                            (conf.(CurTargetData).(snd))
-                                            (conf.(CurProducts)))
-                              (st.(EC).(CurFunction))
-                              b
-                              insn>>)
+      (WF_FDEF: wf_fdef conf.(CurSystem) conf st.(EC).(CurFunction))
+      (WF_EC: wf_EC st.(EC))
   .
 
   Lemma sem_valueT_physical

@@ -462,42 +462,6 @@ Proof.
   destruct e; ss; try rewrite <- MEM_EQ; sem_value_st; eauto.
 Qed.
 
-Lemma unary_sem_eq_locals_mem
-      conf st0 st1 invst0 invmem0 inv0 gmax public
-      (LOCALS_EQ: Locals (EC st0) = Locals (EC st1))
-      (MEM_EQ : Mem st0 = Mem st1)
-      (STATE: InvState.Unary.sem conf st0 invst0 invmem0 gmax public inv0)
-      (EQ_FUNC: st0.(EC).(CurFunction) = st1.(EC).(CurFunction))
-      (EQ_ALLOCAS: st0.(EC).(Allocas) = st1.(EC).(Allocas))
-  : InvState.Unary.sem conf st1 invst0 invmem0 gmax public inv0.
-Proof.
-  inv STATE.
-  econs.
-  - ii.
-    exploit LESSDEF; eauto.
-    { erewrite sem_expr_eq_locals_mem; eauto. }
-    i. des.
-    esplits; eauto.
-    erewrite sem_expr_eq_locals_mem; eauto.
-  - inv NOALIAS.
-    econs; i; [eapply DIFFBLOCK | eapply NOALIAS0];
-      try erewrite sem_valueT_eq_locals; eauto.
-  - ii. exploit UNIQUE; eauto. intro UNIQ_X. inv UNIQ_X.
-    econs; try rewrite <- LOCALS_EQ; try rewrite <- MEM_EQ; eauto.
-  - ii. exploit PRIVATE; eauto.
-    { erewrite sem_idT_eq_locals; eauto. }
-    rewrite <- MEM_EQ. eauto.
-  - rewrite <- EQ_ALLOCAS. ss.
-  - rpapply ALLOCAS_VALID.
-    + rewrite MEM_EQ. eauto.
-    + rewrite EQ_ALLOCAS. eauto.
-  - rewrite <- LOCALS_EQ. rewrite <- MEM_EQ. eauto.
-  - rewrite <- MEM_EQ. eauto.
-  - rewrite <- MEM_EQ. eauto.
-  - rewrite <- LOCALS_EQ. eauto.
-  - rewrite <- EQ_FUNC. ss.
-Qed.
-
 Definition memory_blocks_of (conf: Config) lc ids : list mblock :=
   List.flat_map (fun x =>
                    match lookupAL _ lc x with

@@ -588,13 +588,10 @@ Lemma wf_const_valid_ptr
   (WF_SUBSET : Forall
                 (fun phi : phinode =>
                  exists b : block, phinodeInBlockB phi b /\ blockInFdefB b (CurFunction (EC st0))) phinodes)
-  (WF_INSNS : forall (insn : insn) (b : block),
-             insnInBlockB insn b /\ blockInFdefB b (CurFunction (EC st0)) ->
-             <<WF_INSN:
-             wf_insn (CurSystem conf)
-               (module_intro (fst (CurTargetData conf)) (snd (CurTargetData conf)) (CurProducts conf))
-               (CurFunction (EC st0)) b insn >>)
   reg val' t1 vls1 const5
+  (WF_INSN: wf_insn (CurSystem conf)
+               (module_intro (fst (CurTargetData conf)) (snd (CurTargetData conf)) (CurProducts conf))
+               (CurFunction (EC st0)) st0.(EC).(CurBB) (insn_phinode (insn_phi reg t1 vls1)))
   (INCOMING_IN : In (insn_phi reg t1 vls1) phinodes)
   (INCOMING_VALUES : getValueViaLabelFromValuels vls1 (getBlockLabel (CurBB (EC st0))) = Some (value_const const5))
   (INCOMING_GET : const2GV (CurTargetData conf) (Globals conf) const5 = Some val')
@@ -605,12 +602,6 @@ Proof.
   move WF_SUBSET at bottom.
   rewrite List.Forall_forall in WF_SUBSET.
   specialize (WF_SUBSET (insn_phi reg t1 vls1) INCOMING_IN). des.
-  exploit WF_INSNS; eauto.
-  { esplits; eauto.
-    instantiate (1:= (insn_phinode (insn_phi reg t1 vls1))).
-    ss.
-  }
-  intros WF_INSN; des.
 
   inv WF_INSN. clear H7 H8.
   exploit H6.
@@ -650,13 +641,10 @@ Lemma wf_const_diffblock
   (WF_SUBSET : Forall
                 (fun phi : phinode =>
                  exists b : block, phinodeInBlockB phi b /\ blockInFdefB b (CurFunction (EC st0))) phinodes)
-  (WF_INSNS : forall (insn : insn) (b : block),
-             insnInBlockB insn b /\ blockInFdefB b (CurFunction (EC st0)) ->
-             <<WF_INSN:
-             wf_insn (CurSystem conf)
-               (module_intro (fst (CurTargetData conf)) (snd (CurTargetData conf)) (CurProducts conf))
-               (CurFunction (EC st0)) b insn >>)
   val reg val' t1 vls1 const5
+  (WF_INSN: wf_insn (CurSystem conf)
+                    (module_intro (fst (CurTargetData conf)) (snd (CurTargetData conf)) (CurProducts conf))
+                    (CurFunction (EC st0)) st0.(EC).(CurBB) (insn_phinode (insn_phi reg t1 vls1)))
   (GLOBALS : forall b : Values.block, In b (GV2blocks val) -> (gmax < b)%positive)
   (INCOMING_IN : In (insn_phi reg t1 vls1) phinodes)
   (INCOMING_VALUES : getValueViaLabelFromValuels vls1 (getBlockLabel (CurBB (EC st0))) = Some (value_const const5))
@@ -670,6 +658,23 @@ Proof.
   eapply valid_ptr_globals_diffblock; eauto.
 Qed.
 
+Lemma wf_phinodes_wf_insn
+      reg t1 vls1 phinodes5
+      (INCOMING_IN: In (insn_phi reg t1 vls1) phinodes5)
+      CurFunction0 CurSystem0 stmts md
+      (WF: wf_phinodes CurSystem0 md CurFunction0
+                       stmts phinodes5)
+  :
+    <<WF: wf_insn CurSystem0 md CurFunction0 stmts (insn_phinode (insn_phi reg t1 vls1))>>
+.
+Proof.
+  ginduction phinodes5; ii; ss.
+  inv WF.
+  des.
+  - clarify.
+  - eapply IHphinodes5; eauto.
+Qed.
+
 Lemma phinodes_unique_preserved_except
       conf st0 inv0 invmem invst
       l_to phinodes cmds terminator locals l0
@@ -680,6 +685,7 @@ Lemma phinodes_unique_preserved_except
       (UNIQUE_ID : unique id_dec (List.map Phinode.get_def l0) = true)
       (STEP : switchToNewBasicBlock (CurTargetData conf) (l_to, stmts_intro phinodes cmds terminator)
                                     (CurBB (EC st0)) (Globals conf) (Locals (EC st0)) = Some locals)
+      (PHIS: phinodes = let (phis, _, _) := st0.(EC).(CurBB).(snd) in phis)
       (WF_SUBSET: List.Forall (fun phi =>
                           exists b,
                             insnInBlockB (insn_phinode phi) b
@@ -731,6 +737,12 @@ Proof.
           apply NOT_IN_USE. clarify.
           eapply filter_map_spec; eauto.
         - eapply wf_const_diffblock; eauto.
+          destruct st0; ss. destruct EC0; ss. destruct conf; ss. destruct CurTargetData0; ss.
+          destruct CurBB0; ss. destruct s; ss. clarify.
+          clear - WF_EC WF_FDEF INCOMING_IN.
+          inv WF_EC; ss.
+          hexploit typings_props.wf_fdef__wf_phinodes; eauto; i.
+          eapply wf_phinodes_wf_insn; eauto.
       }
       { rewrite <- AtomSetFacts.not_mem_iff in REG_MEM.
         rewrite opsem_props.OpsemProps.updateValuesForNewBlock_spec7' in VAL'; eauto.
@@ -752,8 +764,15 @@ Proof.
       clarify.
       destruct v as [y|]; ss.
       - eapply UNIQUE_PARENT_LOCAL; eauto.
-      -
-        hexploit wf_const_valid_ptr; eauto; []; intro VALID_PTR; des.
+      - hexploit wf_const_valid_ptr; eauto.
+        { destruct st0; ss. destruct EC0; ss. destruct conf; ss. destruct CurTargetData0; ss.
+          destruct CurBB0; ss. destruct s; ss. clarify.
+          clear - WF_EC WF_FDEF x1. (* INCOMING_IN *)
+          inv WF_EC; ss.
+          hexploit typings_props.wf_fdef__wf_phinodes; eauto; i.
+          eapply wf_phinodes_wf_insn; eauto.
+        }
+        intro VALID_PTR; des.
         inv MEM.
         eapply valid_ptr_globals_diffblock_with_blocks; eauto.
     }
@@ -840,6 +859,44 @@ Proof.
     ss.
 Qed.
 
+Lemma wf_ec_lookup_wf_ec
+      st0
+      l_to
+      conf
+      phinodes5 cmds_src terminator_src
+      (LOOKUP: lookupAL stmts (get_blocks (CurFunction (EC st0))) l_to =
+               Some (stmts_intro phinodes5 cmds_src terminator_src))
+      (WF_FDEF: wf_fdef (CurSystem conf) (OpsemAux.module_of_conf conf) (CurFunction (EC st0)))
+      (WF_EC: OpsemAux.wf_EC (EC st0))
+      locals_src
+  :
+    <<WF: OpsemAux.wf_EC
+            {|
+              CurFunction := CurFunction (EC st0);
+              CurBB := (l_to, stmts_intro phinodes5 cmds_src terminator_src);
+              CurCmds := cmds_src;
+              Terminator := terminator_src;
+              Locals := locals_src;
+              Allocas := Allocas (EC st0) |}>>
+.
+Proof.
+  inv WF_EC.
+  econs; ss; eauto.
+  - unfold get_blocks in *. des_ifs.
+    destruct st0; ss. destruct EC0; ss. clarify.
+    clear - LOOKUP.
+    (* TODO: pull out lemma? Use Set Printing All and then pull out, otherwise type checking fails *)
+    ginduction blocks5; ii; ss.
+    apply orb_true_iff.
+    des_ifs.
+    + left. unfold blockEqB. unfold sumbool2bool. des_ifs.
+    + right. eapply IHblocks5; eauto.
+  - Local Hint Unfold OpsemAux.get_cmds_from_block. (* TODO: move to definition point *)
+    autounfold. ss.
+    apply sublist_refl.
+  - unfold terminatorEqB. unfold sumbool2bool. des_ifs.
+Qed.
+
 Lemma postcond_phinodes_sound
       m_src conf_src st0_src phinodes_src cmds_src terminator_src locals_src
       m_tgt conf_tgt st0_tgt phinodes_tgt cmds_tgt terminator_tgt locals_tgt
@@ -854,6 +911,8 @@ Lemma postcond_phinodes_sound
                  Some (stmts_intro phinodes_src cmds_src terminator_src))
       (STMT_TGT: lookupAL stmts st0_tgt.(EC).(CurFunction).(get_blocks) l_to =
                  Some (stmts_intro phinodes_tgt cmds_tgt terminator_tgt))
+      (PHIS_SRC: phinodes_src = let (phis, _, _) := st0_src.(EC).(CurBB).(snd) in phis)
+      (PHIS_TGT: phinodes_tgt = let (phis, _, _) := st0_tgt.(EC).(CurBB).(snd) in phis)
       (POSTCOND: Postcond.postcond_phinodes l_from phinodes_src phinodes_tgt inv0 = Some inv1)
       (STATE: InvState.Rel.sem conf_src conf_tgt st0_src st0_tgt invst0 invmem inv0)
       (MEM: InvMem.Rel.sem conf_src conf_tgt st0_src.(Mem) st0_tgt.(Mem) invmem)
@@ -898,7 +957,11 @@ Lemma postcond_phinodes_sound
 Proof.
   unfold Postcond.postcond_phinodes in *.
   unfold Postcond.postcond_phinodes_assigns in *.
-  simtac.
+  clarify.
+  des_ifs_safe ss. clarify.
+  des_bool. des.
+  (* simtac. *) (* TODO: simtac LOSES INFORMATION on PHIS_SRC/PHIS_TGT *)
+  (* TODO: REMOVE ALL SIMTAC *)
   exploit snapshot_sound; eauto. i. des.
 
   exploit forget_stack_sound; [eauto|eauto|eauto|eauto|eauto|eauto|eauto|..].
@@ -910,12 +973,14 @@ Proof.
     rewrite L_TGT. eauto.
   }
   { inv STATE_SNAPSHOT. inv MEM.
-    eapply phinodes_unique_preserved_except; eauto.
+    eapply phinodes_unique_preserved_except with (phinodes0 := phinodes5); eauto.
+    { des_ifs. }
     eapply lookup_implies_wf_subset; eauto.
   }
   { inv STATE_SNAPSHOT. inv MEM.
-    eapply phinodes_unique_preserved_except; eauto.
-    rewrite L_TGT. eauto.
+    eapply phinodes_unique_preserved_except with (phinodes0 := phinodes0); eauto.
+    { rewrite L_TGT. eauto. }
+    { des_ifs. }
     eapply lookup_implies_wf_subset; eauto.
   }
   { eapply switchToNewBasicBlock_wf; try exact STEP_SRC; eauto. apply STATE. apply MEM. }
@@ -927,6 +992,8 @@ Proof.
   { apply STATE. }
   { apply STATE. }
   { apply STATE. }
+  { eapply wf_ec_lookup_wf_ec; eauto; try apply STATE. }
+  { eapply wf_ec_lookup_wf_ec; eauto; try apply STATE. }
   intros STATE_FORGET. des.
   inv STATE_FORGET.
   exploit phinodes_add_lessdef_sound; try exact SRC; eauto; i.

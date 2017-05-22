@@ -393,11 +393,7 @@ Proof.
     + esplits; ss.
       * des_ifs.
       * econs; eauto.
-  - assert (BLOCK_IN_FDEF: blockInFdefB B F).
-    { exact (SF_ADMIT "wf_EC"). }
-    assert (INSN_IN_BLOCK: insnInBlockB (insn_cmd (insn_store id5 typ5 value1 value2 align5)) B).
-    { exact (SF_ADMIT "wf_EC"). }
-    split.
+  - split.
     + ii.
       exploit (mstore_never_produce_new_ptr' {| CurSystem := S;
                                                 CurTargetData := TD;
@@ -409,12 +405,17 @@ Proof.
       { eauto. }
       { eauto. }
       { inv STATE. ss.
-        exploit WF_INSNS; eauto.
-        { split; eauto.
-          instantiate (1:= insn_cmd _). eauto. }
-        intro WF_INSN. des.
-        inv WF_INSN.
-        apply H10.
+        destruct B. destruct s.
+        hexploit typings_props.wf_fdef__wf_cmd; try apply WF_FDEF.
+        { apply WF_EC. }
+        {
+          instantiate (1:= insn_store id5 typ5 value1 value2 align5).
+          inv WF_EC. ss.
+          unfold OpsemAux.get_cmds_from_block in *. ss.
+          eapply sublist_In; eauto.
+          ss. left. eauto.
+        }
+        intro WF_INSN. inv WF_INSN. destruct TD. ss. clarify. eauto.
       }
       { instantiate (1 := gv1). eauto. }
       ss. clarify.
@@ -423,21 +424,27 @@ Proof.
       * des_ifs.
       * econs; eauto.
         inv STATE. ss.
-        exploit WF_INSNS.
-        { split; eauto.
-          instantiate (1:= insn_cmd _). eauto. }
-        intros WF_INSN. des. inv WF_INSN.
-        destruct value1 as [x | c]; ss.
-        { exploit WF_LOCAL; eauto. }
-        { inv H10.
-          exploit MemProps.const2GV_valid_ptrs; eauto.
-          { eapply TODOProof.wf_globals_eq; eauto. }
-          { rewrite <- surjective_pairing. eauto. }
-          i. inv MEM. ss.
-          inv WF0.
-          eapply MemProps.valid_ptrs__trans; eauto.
-          rewrite <- Pplus_one_succ_r.
-          apply Pos.le_succ_l. eauto.
+        { destruct B. destruct s.
+          hexploit typings_props.wf_fdef__wf_cmd; try apply WF_FDEF.
+          { apply WF_EC. }
+          {
+            instantiate (1:= insn_store id5 typ5 value1 value2 align5).
+            inv WF_EC. ss.
+            unfold OpsemAux.get_cmds_from_block in *. ss.
+            eapply sublist_In; eauto.
+            ss. left. eauto.
+          }
+          intro WF_INSN. inv WF_INSN. destruct TD. ss. clarify.
+          destruct value1; ss.
+          - eapply WF_LOCAL; eauto.
+          - inv H10.
+            exploit MemProps.const2GV_valid_ptrs; eauto.
+            { eapply TODOProof.wf_globals_eq; eauto. }
+            i. inv MEM. ss.
+            inv WF0.
+            eapply MemProps.valid_ptrs__trans; eauto.
+            rewrite <- Pplus_one_succ_r.
+            apply Pos.le_succ_l. eauto.
         }
 Qed.
 
@@ -1402,9 +1409,9 @@ Proof.
     + ss.
       inv STATE. clear MAYDIFF.
       inv SRC. clear LESSDEF NOALIAS UNIQUE PRIVATE ALLOCAS_PARENT
-                     WF_LOCAL WF_PREVIOUS WF_GHOST UNIQUE_PARENT_LOCAL WF_INSNS.
+                     WF_LOCAL WF_PREVIOUS WF_GHOST UNIQUE_PARENT_LOCAL WF_FDEF WF_EC.
       inv TGT. clear LESSDEF NOALIAS UNIQUE PRIVATE ALLOCAS_PARENT
-                     WF_LOCAL WF_PREVIOUS WF_GHOST UNIQUE_PARENT_LOCAL WF_INSNS.
+                     WF_LOCAL WF_PREVIOUS WF_GHOST UNIQUE_PARENT_LOCAL WF_FDEF WF_EC.
       ss.
       eapply inject_allocas_enhance; eauto.
       { i. des_ifsG. exfalso. eapply Plt_irrefl. eauto. }
@@ -1426,9 +1433,9 @@ Proof.
     + ss.
       inv STATE. clear MAYDIFF.
       inv SRC. clear LESSDEF NOALIAS UNIQUE PRIVATE ALLOCAS_PARENT
-                     WF_LOCAL WF_PREVIOUS WF_GHOST UNIQUE_PARENT_LOCAL WF_INSNS.
+                     WF_LOCAL WF_PREVIOUS WF_GHOST UNIQUE_PARENT_LOCAL WF_FDEF WF_EC.
       inv TGT. clear LESSDEF NOALIAS UNIQUE PRIVATE ALLOCAS_PARENT
-                     WF_LOCAL WF_PREVIOUS WF_GHOST UNIQUE_PARENT_LOCAL WF_INSNS.
+                     WF_LOCAL WF_PREVIOUS WF_GHOST UNIQUE_PARENT_LOCAL WF_FDEF WF_EC.
       ss.
       econs 4; eauto.
       * des_ifsG.
@@ -2484,7 +2491,8 @@ Proof.
       + ss. eapply MemProps.mstore_preserves_wf_lc; eauto.
       + ss. eapply MemProps.mstore_preserves_wf_lc; eauto.
       + eauto.
-      + ii. exploit WF_INSNS; eauto.
+      + ss.
+      + ss.
     }
     { destruct value1; ss.
       rename value2 into v_sptr.
@@ -2522,7 +2530,8 @@ Proof.
       + ss. eapply MemProps.mstore_preserves_wf_lc; eauto.
       + ss. eapply MemProps.mstore_preserves_wf_lc; eauto.
       + eauto.
-      + ii. exploit WF_INSNS; eauto.
+      + ss.
+      + ss.
     }
   - destruct cmd; ss; des_ifs.
     inv STATE_MC.

@@ -540,9 +540,8 @@ Lemma GEP_diffblock
                       (Cmd.get_leaked_ids (insn_gep reg inbounds5 typ5 value_5 l0 typ'))) =
                  false)
   (H1 : GEP TD typ5 mp vidxs inbounds5 typ' = Some val')
-  (WF_INSNS: forall (insn : insn) (b : block),
-             insnInBlockB insn b /\ blockInFdefB b F ->
-             <<WF_INSN: wf_insn S (module_intro (fst TD) (snd TD) Ps) F b insn >>)
+  (WF_INSN: wf_insn S (module_intro (fst TD) (snd TD) Ps) F B
+                    (insn_cmd (insn_gep reg inbounds5 typ5 value_5 l0 typ')))
   :
   <<DIFFBLOCK: InvState.Unary.sem_diffblock
     {| CurSystem := S; CurTargetData := TD; CurProducts := Ps; Globals := gl; FunTable := fs |}
@@ -562,15 +561,6 @@ Proof.
   { eapply undef_implies_diffblock; eauto. }
   clarify. ss.
   {
-    assert (BLOCK_IN_FDEF: blockInFdefB B F).
-    { exact (SF_ADMIT "wf_EC
-This can be easily solved.
-Prove wf_EC at the start of the function, and propagating it will do."). }
-    assert (INSN_IN_BLOCK: insnInBlockB (insn_cmd (insn_gep reg inbounds5 typ5 value_5 l0 typ')) B).
-    { exact (SF_ADMIT "wf_EC"). }
-    exploit WF_INSNS; eauto; []; intro WF_INSN; des.
-    clear BLOCK_IN_FDEF INSN_IN_BLOCK.
-
     ii.
     destruct v0; ss; des; ss.
     clarify.
@@ -913,7 +903,12 @@ Proof.
     eapply MEM; eauto.
   - (* GEP *)
     inv UNIQUE_BEF; narrow_down_unique.
+    destruct TD; ss. destruct B; ss. destruct s; ss.
     eapply GEP_diffblock; eauto.
+    { inv WF_EC. ss.
+      eapply typings_props.wf_fdef__wf_cmd; try eassumption.
+      - eapply sublist_In; eauto. ss. left. ss.
+    }
   - inv UNIQUE_BEF; narrow_down_unique.
     eapply TRUNC_diffblock; eauto.
   - inv UNIQUE_BEF; narrow_down_unique.
@@ -994,9 +989,7 @@ Proof.
       }
     }
 Unshelve.
-apply {| CurSystem := S; CurTargetData := TD; CurProducts := Ps; Globals := gl; FunTable := fs |}.
-apply {| CurSystem := S; CurTargetData := TD; CurProducts := Ps; Globals := gl; FunTable := fs |}.
-apply {| CurSystem := S; CurTargetData := TD; CurProducts := Ps; Globals := gl; FunTable := fs |}.
+all: ss.
 Qed.
 
 Lemma step_unique_preserved_except_parent
@@ -1019,7 +1012,7 @@ Lemma step_unique_preserved_except_parent
       InvMem.gv_diffblock_with_blocks conf ptr (InvMem.Unary.unique_parent invmem)>>.
 Proof.
   red; i.
-  inv STATE. clear LESSDEF NOALIAS UNIQUE PRIVATE WF_LOCAL WF_PREVIOUS WF_GHOST WF_INSNS.
+  inv STATE. clear LESSDEF NOALIAS UNIQUE PRIVATE WF_LOCAL WF_PREVIOUS WF_GHOST WF_FDEF WF_EC.
   inv STEP; ss; clarify.
   - (* nop *) eapply UNIQUE_PARENT_LOCAL; eauto.
   - des_lookupAL_updateAddAL; [|eapply UNIQUE_PARENT_LOCAL; eauto].
@@ -1232,6 +1225,7 @@ Lemma forget_stack_unary_sound
       (EQ_FUNC: st0.(EC).(CurFunction) = st1.(EC).(CurFunction))
       (ALLOCAS_PARENT: list_disjoint (Allocas (EC st1)) (InvMem.Unary.private_parent invmem))
       (ALLOCAS_VALID: Forall (Memory.Mem.valid_block (Mem st1)) st1.(EC).(Allocas))
+      (WF_EC: OpsemAux.wf_EC st1.(EC))
   : InvState.Unary.sem conf st1 invst invmem gmax public (ForgetStack.unary defs leaks inv).
 Proof.
   inv STATE.
@@ -1281,9 +1275,7 @@ Proof.
   - inv EQUIV. rewrite <- MEM. eauto.
   - inv EQUIV. rewrite <- MEM. eauto.
   - inv UNIQUE_PRESERVED. eauto.
-  - rewrite <- EQ_FUNC.
-    ii.
-    exploit WF_INSNS; eauto.
+  - rewrite <- EQ_FUNC. ss.
 Qed.
 
 Lemma forget_stack_sound
@@ -1318,6 +1310,8 @@ Lemma forget_stack_sound
       (ALLOCAS_VALID_TGT: Forall (Memory.Mem.valid_block (Mem st1_tgt)) st1_tgt.(EC).(Allocas))
       (INJECT_ALLOCAS: InvState.Rel.inject_allocas (InvMem.Rel.inject invmem)
                                    st1_src.(EC).(Allocas) st1_tgt.(EC).(Allocas))
+      (WF_EC_SRC: OpsemAux.wf_EC st1_src.(EC))
+      (WF_EC_TGT: OpsemAux.wf_EC st1_tgt.(EC))
   : <<STATE_FORGET: InvState.Rel.sem conf_src conf_tgt st1_src st1_tgt
                                      invst invmem (ForgetStack.t defs_src defs_tgt leaks_src leaks_tgt inv0)>>.
 Proof.

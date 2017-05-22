@@ -54,3 +54,25 @@ Proof.
   simtac. inv INJECT. inv H1.
   apply inj_pair2 in H2. apply inj_pair2 in H4. subst. ss.
 Qed.
+
+Coercion module_of_conf (conf: Config): module.
+Proof.
+  destruct conf.
+  destruct CurTargetData0.
+  econs; eauto.
+Defined.
+
+Coercion get_cmds_from_stmts (s: stmts): cmds :=
+  let '(stmts_intro _ cs _) := s in cs
+.
+
+Coercion get_cmds_from_block (b: block): cmds := b.(snd).
+
+Inductive wf_EC (ec: ExecutionContext): Prop :=
+| wf_EC_intro
+    (BLOCK: blockInFdefB ec.(CurBB) ec.(CurFunction))
+    (* (CMDS: forall c (IN: In c ec.(CurCmds)), insnInBlockB (insn_cmd c) ec.(CurBB)) *)
+    (* wf_fdef lemmas, such as "typings_props.wf_fdef__wf_cmd", doesn't use insnInBlockB *)
+    (CMDS: sublist ec.(CurCmds) (ec.(CurBB): cmds))
+    (TERM: insnInBlockB (insn_terminator ec.(Terminator)) ec.(CurBB))
+.
