@@ -328,6 +328,15 @@ Proof.
         ss.
       }
 
+      assert(wf_fdef [module_intro l_tgt ndts_tgt prods_src]
+                     (module_intro l_tgt ndts_tgt prods_src)
+                     (fdef_intro (fheader_intro fnattrs5 typ5 id5 args1 varg5)
+                                 ((l0, stmts_intro phinodes5 cmds5 terminator5) :: b1))).
+      {
+        eapply wf_system__wf_fdef; try eassumption.
+        ss.
+        unfold moduleEqB. unfold sumbool2bool. des_ifsG.
+      }
       hexploit valid_sim_fdef; try exact VALID_FDEF; [|exact WF_CONF_SRC|exact WF_CONF_TGT|].
       { ss. }
       intro SIM; des.

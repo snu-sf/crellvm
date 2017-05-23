@@ -1004,6 +1004,11 @@ Lemma function_entry_inv_sound
       (INITLOCALS_TGT: initLocals (CurTargetData conf_tgt) args args_tgt =
                        Some st_tgt.(EC).(Locals))
       (INJECT_LOCALS: inject_locals invmem st_src.(EC).(Locals) st_tgt.(EC).(Locals))
+      (WF_SRC: wf_EC st_src.(EC) /\ wf_fdef conf_src.(CurSystem) conf_src st_src.(EC).(CurFunction))
+      (WF_TGT: wf_EC st_tgt.(EC) /\ wf_fdef conf_tgt.(CurSystem) conf_tgt st_tgt.(EC).(CurFunction))
+      (* TODO: conf_src.(CurSystem) != [(module_of_conf conf_src)] *)
+      (* WF condition for this? which is conceptually right? *)
+      (* Anyway, let's do this lazy.. *)
       prods_src prods_tgt
   :
     (* TODO: prods_src/prods_tgt are not bound. is it ok? *)
@@ -1069,8 +1074,6 @@ Proof.
         ii. inv H; clarify.
       }
       eapply IHINJECT; eauto.
-    + admit. (* wf_fdef *)
-    + admit. (* wf_EC *)
   - (* tgt. same with src *) admit.
   - ii. clear NOTIN.
     destruct id0; ss.
@@ -1079,6 +1082,21 @@ Proof.
     eapply INJECT_LOCALS; eauto.
   - econs; eauto.
 Admitted.
+
+Lemma init_fdef_wf_EC
+      conf fdef args ec
+      (INIT: init_fdef conf fdef args ec)
+  :
+    <<WF: wf_EC ec>>
+.
+Proof.
+  inv INIT; ss.
+  des_ifs.
+  econs; ss; eauto.
+  - apply orb_true_iff. left. unfold blockEqB. unfold sumbool2bool. des_ifs.
+  - unfold get_cmds_from_block. ss. apply sublist_refl.
+  - unfold terminatorEqB. unfold sumbool2bool. des_ifs.
+Qed.
 
 Lemma valid_init
       m_src m_tgt
@@ -1099,7 +1117,10 @@ Lemma valid_init
   exists ec_tgt,
     (<<INIT_TGT: init_fdef conf_tgt fdef_tgt args_tgt ec_tgt>>) /\
     (forall (WF_SRC: wf_ConfigI conf_src /\ wf_StateI conf_src (mkState ec_src stack0_src mem_src))
-            (WF_TGT: wf_ConfigI conf_tgt /\ wf_StateI conf_tgt (mkState ec_tgt stack0_tgt mem_tgt)),
+            (WF_TGT: wf_ConfigI conf_tgt /\ wf_StateI conf_tgt (mkState ec_tgt stack0_tgt mem_tgt))
+            (WF_FDEF_SRC: wf_fdef conf_src.(CurSystem) conf_src ec_src.(CurFunction))
+            (WF_FDEF_TGT: wf_fdef conf_tgt.(CurSystem) conf_tgt ec_tgt.(CurFunction))
+      ,
         <<SIM:
           valid_state_sim
             conf_src conf_tgt
@@ -1108,6 +1129,7 @@ Lemma valid_init
             (mkState ec_src stack0_src mem_src)
             (mkState ec_tgt stack0_tgt mem_tgt)>>).
 Proof.
+  expl init_fdef_wf_EC. rename init_fdef_wf_EC0 into WF_EC_SRC. (* TODO: make "expl into" *)
   inv INIT_SRC. unfold valid_fdef in FDEF. simtac.
   exploit locals_init; eauto; [by apply CONF|apply MEM|]. i. des.
   generalize FDEF. i.
@@ -1132,9 +1154,16 @@ Proof.
   clear COND4. des.
 
   i. des.
-  esplits.
+
+  eexists.
+  apply dependent_split.
   - econs; eauto; ss.
-  - econs; eauto.
+  - intros INIT_TGT ? ? ? ? . des.
+    expl init_fdef_wf_EC. rename init_fdef_wf_EC0 into WF_EC_TGT. clear INIT_TGT.
+    econs; eauto.
+  (* esplits. *)
+  (* - econs; eauto; ss. *)
+  (* - econs; eauto. *)
     { ss.
       repeat
         (try match goal with
@@ -1180,17 +1209,30 @@ Lemma valid_sim_fdef
       (FDEF: valid_fdef m_src m_tgt fdef_src fdef_tgt fdef_hint)
       (WF_SRC: wf_ConfigI conf_src)
       (WF_TGT: wf_ConfigI conf_tgt)
+      (WF_FDEF_SRC: wf_fdef [m_src] m_src fdef_src)
+      (WF_FDEF_TGT: wf_fdef [m_tgt] m_tgt fdef_tgt)
   :
   sim_fdef conf_src conf_tgt fdef_src fdef_tgt.
 Proof.
   ii.
+  assert(WF: wf_EC ec0_src).
+  { inv SRC. ss.
+    des_ifs.
+    econs; ss; eauto.
+    - apply orb_true_iff. left. unfold blockEqB. unfold sumbool2bool. des_ifs.
+    - unfold get_cmds_from_block. ss. apply sublist_refl.
+    - unfold terminatorEqB. unfold sumbool2bool. des_ifs.
+  }
   exploit valid_init; eauto.
   intro VALID_INIT. des.
   esplits; eauto. i.
   specialize (VALID_INIT0 WF_SRC0).
   specialize (VALID_INIT0 WF_TGT0).
-  des.
+  exploit VALID_INIT0.
+  { admit. (* this unequality comes because InvState cannot have m_src/m_tgt *) }
+  { admit. (* this unequality comes because InvState cannot have m_src/m_tgt *) }
+  intro VALID_INIT; des.
   apply valid_sim; eauto.
 Grab Existential Variables.
   { exact 0%nat. }
-Qed.
+Admitted.
