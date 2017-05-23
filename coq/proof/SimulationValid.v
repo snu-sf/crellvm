@@ -1095,11 +1095,11 @@ Lemma valid_init
       (MEM: InvMem.Rel.sem conf_src conf_tgt mem_src mem_tgt inv)
       (CONF: InvState.valid_conf m_src m_tgt conf_src conf_tgt)
       (INIT_SRC: init_fdef conf_src fdef_src args_src ec_src)
-      (WF_SRC: wf_ConfigI conf_src /\ wf_StateI conf_src (mkState ec_src stack0_src mem_src))
   :
   exists ec_tgt,
     (<<INIT_TGT: init_fdef conf_tgt fdef_tgt args_tgt ec_tgt>>) /\
-    (forall (WF_TGT: wf_ConfigI conf_tgt /\ wf_StateI conf_tgt (mkState ec_tgt stack0_tgt mem_tgt)),
+    (forall (WF_SRC: wf_ConfigI conf_src /\ wf_StateI conf_src (mkState ec_src stack0_src mem_src))
+            (WF_TGT: wf_ConfigI conf_tgt /\ wf_StateI conf_tgt (mkState ec_tgt stack0_tgt mem_tgt)),
         <<SIM:
           valid_state_sim
             conf_src conf_tgt
@@ -1186,7 +1186,10 @@ Proof.
   ii.
   exploit valid_init; eauto.
   intro VALID_INIT. des.
-  esplits; eauto. i. specialize (VALID_INIT0 WF_TGT0). des.
+  esplits; eauto. i.
+  specialize (VALID_INIT0 WF_SRC0).
+  specialize (VALID_INIT0 WF_TGT0).
+  des.
   apply valid_sim; eauto.
 Grab Existential Variables.
   { exact 0%nat. }

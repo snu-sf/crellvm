@@ -204,9 +204,6 @@ Section SimLocal.
                                 retval3_src id2_src noret2_src typ2_src
                                 st2_src.(EC).(Locals)
                               = Some locals4_src)
-                 (WF_SRC: wf_StateI conf_src (mkState (mkEC st2_src.(EC).(CurFunction) st2_src.(EC).(CurBB)
-                                      cmds2_src st2_src.(EC).(Terminator) locals4_src st2_src.(EC).(Allocas))
-                                st2_src.(ECS) mem3_src))
         ,
                exists locals4_tgt idx4 inv4,
                  (* TODO: Define update_locals function *)
@@ -216,7 +213,10 @@ Section SimLocal.
                                  st1_tgt.(EC).(Locals)
                                = Some locals4_tgt>> /\
                  <<MEMLE: InvMem.Rel.le inv1 inv4>> /\
-                 forall (WF_TGT: wf_StateI conf_tgt (mkState (mkEC st1_tgt.(EC).(CurFunction) st1_tgt.(EC).(CurBB) cmds1_tgt st1_tgt.(EC).(Terminator) locals4_tgt st1_tgt.(EC).(Allocas)) st1_tgt.(ECS) mem3_tgt)),
+                 forall
+                   (WF_SRC: wf_StateI conf_src (mkState (mkEC st2_src.(EC).(CurFunction) st2_src.(EC).(CurBB) cmds2_src st2_src.(EC).(Terminator) locals4_src st2_src.(EC).(Allocas)) st2_src.(ECS) mem3_src))
+                   (WF_TGT: wf_StateI conf_tgt (mkState (mkEC st1_tgt.(EC).(CurFunction) st1_tgt.(EC).(CurBB) cmds1_tgt st1_tgt.(EC).(Terminator) locals4_tgt st1_tgt.(EC).(Allocas)) st1_tgt.(ECS) mem3_tgt))
+                 ,
                    <<SIM:
                      sim_local
                        stack0_src stack0_tgt inv4 idx4
@@ -261,7 +261,7 @@ Section SimLocal.
     - econs 4; eauto.
       i. expl RETURN.
       esplits; eauto.
-      i. specialize (RETURN0 WF_TGT1). des.
+      i. specialize (RETURN0 WF_SRC1). specialize (RETURN0 WF_TGT1). des.
       splits; eauto.
     - econs 5; eauto.
       i. exploit STEP; eauto. i. des.
@@ -347,11 +347,12 @@ Section SimLocalFdef.
       (MEM: InvMem.Rel.sem conf_src conf_tgt mem0_src mem0_tgt inv0)
       (ARGS: list_forall2 (genericvalues_inject.gv_inject inv0.(InvMem.Rel.inject)) args_src args_tgt)
       (SRC: init_fdef conf_src fdef_src args_src ec0_src)
-      (WF_SRC: wf_ConfigI conf_src /\ wf_StateI conf_src (mkState ec0_src stack0_src mem0_src))
     ,
     exists ec0_tgt idx0,
       (init_fdef conf_tgt fdef_tgt args_tgt ec0_tgt) /\
-      (forall (WF_TGT: wf_ConfigI conf_tgt /\ wf_StateI conf_tgt (mkState ec0_tgt stack0_tgt mem0_tgt)),
+      (forall
+          (WF_SRC: wf_ConfigI conf_src /\ wf_StateI conf_src (mkState ec0_src stack0_src mem0_src))
+          (WF_TGT: wf_ConfigI conf_tgt /\ wf_StateI conf_tgt (mkState ec0_tgt stack0_tgt mem0_tgt)),
           sim_local conf_src conf_tgt stack0_src stack0_tgt inv0 idx0
                     (mkState ec0_src stack0_src mem0_src)
                     (mkState ec0_tgt stack0_tgt mem0_tgt)).

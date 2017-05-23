@@ -136,7 +136,8 @@ Lemma transl_products_sim_conf
       md_src md_tgt prods_src prods_tgt
       TD
       (TRANSL_PRODUCTS: transl_products md_src md_tgt prods_src prods_tgt)
-      (WF_CONF: wf_ConfigI (mkCfg [md_tgt] TD prods_tgt gl ft))
+      (WF_SRC: wf_ConfigI (mkCfg [md_src] TD prods_src gl ft))
+      (WF_TGT: wf_ConfigI (mkCfg [md_tgt] TD prods_tgt gl ft))
       (* (WF: wf_prods [md_tgt] md_tgt prods_tgt) *)
       (* (WF_SYST: wf_system sys_tgt) *)
       (* (WF_CONF: wf_ConfigI (mkCfg sys_tgt TD prods_tgt gl ft)) *)
@@ -154,7 +155,7 @@ Proof.
     inv FDEF.
     + eapply valid_sim_fdef; eauto.
       { ss. }
-  - clear_tac. clear WF_CONF.
+  - clear_tac. clear WF_TGT WF_SRC.
     i.
     ginduction prods_src; ii; inv TRANSL_PRODUCTS; ss.
     rename H1 into TRANSL_PRODUCT.
@@ -164,7 +165,7 @@ Proof.
     + des_ifs. exfalso. unfold valid_fdef in *. des_ifs. ss.
       clear - n Heq0.
       compute in Heq0. des_ifs.
-  - clear_tac. clear WF_CONF.
+  - clear_tac. clear WF_TGT WF_SRC.
     i.
     ginduction prods_src; ii; inv TRANSL_PRODUCTS; ss.
     rename H1 into TRANSL_PRODUCT.
@@ -267,6 +268,7 @@ Proof.
   {
     pose (s_genInitState [module_intro l_src ndts_src prods_src] main args0 Mem.empty)
       as SRC_INIT.
+    dup SRC. rename SRC0 into SRC_INIT_SUCCESS. sguard in SRC_INIT_SUCCESS.
     pose st_src as SRC_ST.
 
     remember (s_genInitState [module_intro l_tgt ndts_tgt prods_tgt]
@@ -304,25 +306,30 @@ Proof.
       (* both "TGT_INIT1 = Soem" && VALID_FDEF is used in next hexploit *)
       (* TODO: can we do this in more smart way? *)
       (* Here, even "ss" breaks VALID_FDEF. It is really truly annoying *)
-      hexploit valid_sim_fdef; try exact VALID_FDEF.
-      { instantiate (1:= {|
-                          CurSystem := [module_intro l_tgt ndts_tgt prods_tgt];
-                          CurTargetData := (l_tgt, ndts_tgt);
-                          CurProducts := prods_tgt;
-                          Globals := g;
-                          FunTable := g0 |}).
-        instantiate (1:= {|
-                          CurSystem := [module_intro l_tgt ndts_tgt prods_src];
-                          CurTargetData := (l_tgt, ndts_tgt);
-                          CurProducts := prods_src;
-                          Globals := g;
-                          FunTable := g0 |}).
+
+      assert(WF_CONF_SRC: wf_ConfigI (mkCfg [module_intro l_tgt ndts_tgt prods_src]
+                                            (l_tgt, ndts_tgt)
+                                            prods_src
+                                            g g0)).
+      { unsguard SRC_INIT_SUCCESS. simpl in SRC_INIT_SUCCESS.
+        (* TODO: Was this needed? *)
+        (* What if it doesn't work, what should I do? *)
+        (* In general, making all the props before (when SRC_INIT_SUCCESS was alive) is not the answer, *)
+        (* because it will severly mar readability && the props made itself may not survive ss *)
+        expl s_genInitState__opsem_wf (try exact WF_SRC; eauto).
         ss.
       }
+      assert(WF_CONF_TGT: wf_ConfigI (mkCfg [module_intro l_tgt ndts_tgt prods_tgt]
+                                            (l_tgt, ndts_tgt)
+                                            prods_tgt
+                                            g g0)).
       { subst TGT_INIT1.
-        expl s_genInitState__opsem_wf.
+        expl s_genInitState__opsem_wf (try exact WF_TGT; eauto).
         ss.
       }
+
+      hexploit valid_sim_fdef; try exact VALID_FDEF; [|exact WF_CONF_SRC|exact WF_CONF_TGT|].
+      { ss. }
       intro SIM; des.
 
 
@@ -341,7 +348,7 @@ Proof.
       unfold sim_fdef in *.
       hexploit SIM.
       { eapply init_mem_sem; eauto.
-        erewrite <- transl_products_genGlobalAndInitMem; eauto.
+        - erewrite <- transl_products_genGlobalAndInitMem; eauto.
       }
       { instantiate (1:= args0).
         instantiate (1:= args0).
@@ -361,17 +368,18 @@ Proof.
 
       esplits; eauto.
       + eapply sim_local_lift_sim; eauto.
-        { eapply transl_products_sim_conf; eauto.
-          subst TGT_INIT1.
-          expl s_genInitState__opsem_wf.
-          eapply wf_ConfigI_spec; eauto.
-        }
+        { eapply transl_products_sim_conf; eauto. }
         econs; ss; eauto.
         * econs; eauto.
         * eapply SIM_LOCAL0.
-          { (* wf *)
+          { (* wf_src *)
+            unsguard SRC_INIT_SUCCESS.
+            expl s_genInitState__opsem_wf (try exact WF_SRC; eauto).
+            split; ss.
+          }
+          { (* wf_tgt *)
             subst TGT_INIT1.
-            expl s_genInitState__opsem_wf.
+            expl s_genInitState__opsem_wf (try exact WF_TGT; eauto).
             split; ss.
           }
         * reflexivity.
