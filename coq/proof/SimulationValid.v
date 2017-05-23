@@ -1209,8 +1209,8 @@ Lemma valid_sim_fdef
       (FDEF: valid_fdef m_src m_tgt fdef_src fdef_tgt fdef_hint)
       (WF_SRC: wf_ConfigI conf_src)
       (WF_TGT: wf_ConfigI conf_tgt)
-      (WF_FDEF_SRC: wf_fdef [m_src] m_src fdef_src)
-      (WF_FDEF_TGT: wf_fdef [m_tgt] m_tgt fdef_tgt)
+      (WF_FDEF_SRC: wf_fdef conf_src.(CurSystem) conf_src fdef_src)
+      (WF_FDEF_TGT: wf_fdef conf_tgt.(CurSystem) conf_tgt fdef_tgt)
   :
   sim_fdef conf_src conf_tgt fdef_src fdef_tgt.
 Proof.
@@ -1229,10 +1229,10 @@ Proof.
   specialize (VALID_INIT0 WF_SRC0).
   specialize (VALID_INIT0 WF_TGT0).
   exploit VALID_INIT0.
-  { admit. (* this unequality comes because InvState cannot have m_src/m_tgt *) }
-  { admit. (* this unequality comes because InvState cannot have m_src/m_tgt *) }
+  { rpapply WF_FDEF_SRC. inv SRC. ss. }
+  { rpapply WF_FDEF_TGT. inv INIT_TGT. ss. }
   intro VALID_INIT; des.
   apply valid_sim; eauto.
 Grab Existential Variables.
   { exact 0%nat. }
-Admitted.
+Qed.

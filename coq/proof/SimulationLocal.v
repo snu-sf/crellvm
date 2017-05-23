@@ -21,6 +21,7 @@ Require Import Inject.
 Require Import program_sim.
 Require Import TODOProof.
 Import Vellvm.program_sim.
+Require Import OpsemAux.
 
 Set Implicit Arguments.
 
@@ -332,7 +333,9 @@ Inductive init_fdef (conf:Config) (f:fdef) (args:list GenericValue): forall (ec:
     lc'
     (FDEF: f = fdef_intro (fheader_intro fa rt fid la va) lb)
     (ENTRY: getEntryBlock f = Some (l', stmts_intro ps' cs' tmn'))
-    (LOCALS: initLocals conf.(CurTargetData) la args = Some lc'):
+    (LOCALS: initLocals conf.(CurTargetData) la args = Some lc')
+    (* (WF: wf_fdef conf.(CurSystem) conf f) *)
+  :
     init_fdef conf f args (mkEC f (l', stmts_intro ps' cs' tmn') cs' tmn' lc' nil)
 .
 
