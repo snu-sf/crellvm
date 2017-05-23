@@ -131,10 +131,6 @@ Definition empty_invmem : InvMem.Rel.t.
   apply (xH, 0).
 Defined.
 
-(* Definition td_of_md (md: module): TargetData. *)
-(* Proof. destruct md. econs; ss. Defined. *)
-(* Coercion gives wrong concept on "clarify"ing tactic *)
-
 Lemma transl_products_sim_conf
       gl ft
       prods_src prods_tgt
@@ -145,9 +141,6 @@ Lemma transl_products_sim_conf
                                         (module_intro los nd prods_tgt) prods_src prods_tgt)
       (WF_SRC: wf_ConfigI (mkCfg [module_intro los nd prods_src] (los, nd) prods_src gl ft))
       (WF_TGT: wf_ConfigI (mkCfg [module_intro los nd prods_tgt] (los, nd) prods_tgt gl ft))
-      (* (WF: wf_prods [md_tgt] md_tgt prods_tgt) *)
-      (* (WF_SYST: wf_system sys_tgt) *)
-      (* (WF_CONF: wf_ConfigI (mkCfg sys_tgt TD prods_tgt gl ft)) *)
       (WF_SRC_SYS: wf_system [module_intro los nd prods_src])
       (WF_TGT_SYS: wf_system [module_intro los nd prods_tgt])
   :
@@ -349,15 +342,6 @@ Proof.
         ss.
       }
 
-      (* assert(wf_fdef [module_intro l_tgt ndts_tgt prods_src] *)
-      (*                (module_intro l_tgt ndts_tgt prods_src) *)
-      (*                (fdef_intro (fheader_intro fnattrs5 typ5 id5 args1 varg5) *)
-      (*                            ((l0, stmts_intro phinodes5 cmds5 terminator5) :: b1))). *)
-      (* { *)
-      (*   eapply wf_system__wf_fdef; try eassumption. *)
-      (*   ss. *)
-      (*   unfold moduleEqB. unfold sumbool2bool. des_ifsG. *)
-      (* } *)
       hexploit valid_sim_fdef; try exact VALID_FDEF; [|exact WF_CONF_SRC|exact WF_CONF_TGT|..].
       { ss. }
       { eapply wf_system__wf_fdef; try eassumption.
