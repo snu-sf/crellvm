@@ -152,6 +152,7 @@ Lemma transl_products_sim_conf
       TD
       (TRANSL_PRODUCTS: transl_products md_src md_tgt prods_src prods_tgt)
       (WF_CONF: wf_ConfigI (mkCfg [md_tgt] TD prods_tgt gl ft))
+      (WF_CONF_SRC: wf_ConfigI (mkCfg [md_src] TD prods_src gl ft))
       (* (WF: wf_prods [md_tgt] md_tgt prods_tgt) *)
       (* (WF_SYST: wf_system sys_tgt) *)
       (* (WF_CONF: wf_ConfigI (mkCfg sys_tgt TD prods_tgt gl ft)) *)
@@ -171,9 +172,10 @@ Proof.
       eapply nop_sim_fdef; eauto; try (econs; eauto).
       { inv BLOCKS; ss.
         des_ifs. des. clarify. }
-    + eapply valid_sim_fdef; eauto.
-      { ss. }
-  - clear_tac. clear WF_CONF.
+    + eapply valid_sim_fdef; eauto; ss.
+      { apply WF_CONF_SRC. }
+      { apply WF_CONF. }
+  - clear_tac. clear WF_CONF WF_CONF_SRC.
     i.
     ginduction prods_src; ii; inv TRANSL_PRODUCTS; ss.
     rename H1 into TRANSL_PRODUCT.
@@ -184,7 +186,7 @@ Proof.
     + des_ifs. exfalso. unfold valid_fdef in *. des_ifs. ss.
       clear - n Heq0.
       compute in Heq0. des_ifs.
-  - clear_tac. clear WF_CONF.
+  - clear_tac. clear WF_CONF WF_CONF_SRC.
     i.
     ginduction prods_src; ii; inv TRANSL_PRODUCTS; ss.
     rename H1 into TRANSL_PRODUCT.
@@ -402,9 +404,11 @@ Proof.
       esplits; eauto.
       + eapply sim_local_lift_sim; eauto.
         { eapply transl_products_sim_conf; eauto.
-          subst TGT_INIT1.
-          expl s_genInitState__opsem_wf.
-          eapply wf_ConfigI_spec; eauto.
+          { subst TGT_INIT1.
+            expl s_genInitState__opsem_wf.
+            eapply wf_ConfigI_spec; eauto.
+          }
+          { admit. (* wf_conf_src *) }
         }
         econs; ss; eauto.
         * econs; eauto.
@@ -429,25 +433,30 @@ Proof.
       (* both "TGT_INIT1 = Soem" && VALID_FDEF is used in next hexploit *)
       (* TODO: can we do this in more smart way? *)
       (* Here, even "ss" breaks VALID_FDEF. It is really truly annoying *)
-      hexploit valid_sim_fdef; try exact VALID_FDEF.
-      { instantiate (1:= {|
-                          CurSystem := [module_intro l_tgt ndts_tgt prods_tgt];
-                          CurTargetData := (l_tgt, ndts_tgt);
-                          CurProducts := prods_tgt;
-                          Globals := g;
-                          FunTable := g0 |}).
-        instantiate (1:= {|
-                          CurSystem := [module_intro l_tgt ndts_tgt prods_src];
-                          CurTargetData := (l_tgt, ndts_tgt);
-                          CurProducts := prods_src;
-                          Globals := g;
-                          FunTable := g0 |}).
-        ss.
-      }
+      remember {|
+          CurSystem := [module_intro l_tgt ndts_tgt prods_tgt];
+          CurTargetData := (l_tgt, ndts_tgt);
+          CurProducts := prods_tgt;
+          Globals := g;
+          FunTable := g0 |} as conf_tgt.
+      remember {|
+          CurSystem := [module_intro l_tgt ndts_tgt prods_src];
+          CurTargetData := (l_tgt, ndts_tgt);
+          CurProducts := prods_src;
+          Globals := g;
+          FunTable := g0 |} as conf_src.
+      assert (WF_CONF_TGT: wf_ConfigI conf_tgt).
       { subst TGT_INIT1.
         expl s_genInitState__opsem_wf.
         ss.
       }
+      assert (WF_CONF_SRC: wf_ConfigI conf_src).
+      { admit. }
+      hexploit valid_sim_fdef; try exact VALID_FDEF;
+        try refine (@InvState.valid_conf_intro _ _ conf_src conf_tgt _); subst; ss.
+      { apply WF_CONF_SRC. }
+      { apply WF_CONF_TGT. }
+
       intro SIM; des.
 
 
@@ -486,11 +495,7 @@ Proof.
 
       esplits; eauto.
       + eapply sim_local_lift_sim; eauto.
-        { eapply transl_products_sim_conf; eauto.
-          subst TGT_INIT1.
-          expl s_genInitState__opsem_wf.
-          eapply wf_ConfigI_spec; eauto.
-        }
+        { eapply transl_products_sim_conf; eauto. }
         econs; ss; eauto.
         * econs; eauto.
         * eapply SIM_LOCAL0.
