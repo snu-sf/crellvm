@@ -81,6 +81,36 @@ Definition return_locals
   | _, _ => None
   end.
 
+Lemma return_locals_fully_inject_locals
+      TD id noret ty inv
+      retval_src locals1_src locals2_src
+      retval_tgt locals1_tgt
+      conf_src conf_tgt mem_src mem_tgt
+      (RETVAL: lift2_option (genericvalues_inject.gv_inject inv.(InvMem.Rel.inject)) retval_src retval_tgt)
+      (LOCAL: fully_inject_locals inv.(InvMem.Rel.inject) locals1_src locals1_tgt)
+      (MEM: InvMem.Rel.sem conf_src conf_tgt mem_src mem_tgt inv)
+      (SRC: return_locals TD retval_src id noret ty locals1_src = Some locals2_src):
+  exists locals2_tgt,
+    <<TGT: return_locals TD retval_tgt id noret ty locals1_tgt = Some locals2_tgt>> /\
+    <<LOCAL: fully_inject_locals inv.(InvMem.Rel.inject) locals2_src locals2_tgt>>
+.
+Proof.
+  unfold return_locals in *.
+  destruct noret; ss.
+  { assert(locals1_src = locals2_src).
+    { des_ifs. }
+    clarify. clear SRC.
+    esplits; eauto.
+    - des_ifs. }
+  des_ifs_safe ss. clarify.
+  exploit genericvalues_inject.simulation__fit_gv; eauto.
+  { apply MEM. }
+  intro FIT_GV; des.
+  rewrite FIT_GV.
+  esplits; eauto.
+  eapply fully_inject_locals_update; eauto.
+Qed.
+
 Lemma return_locals_inject_locals
       TD id noret ty inv
       retval_src locals1_src locals2_src
