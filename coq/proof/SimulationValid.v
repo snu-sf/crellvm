@@ -1135,7 +1135,7 @@ Lemma function_entry_inv_sound
                        Some st_src.(EC).(Locals))
       (INITLOCALS_TGT: initLocals (CurTargetData conf_tgt) args args_tgt =
                        Some st_tgt.(EC).(Locals))
-      (INJECT_LOCALS: inject_locals invmem st_src.(EC).(Locals) st_tgt.(EC).(Locals))
+      (INJECT_LOCALS: fully_inject_locals invmem.(InvMem.Rel.inject) st_src.(EC).(Locals) st_tgt.(EC).(Locals))
       (WF_SRC: wf_EC st_src.(EC) /\ wf_fdef conf_src.(CurSystem) conf_src st_src.(EC).(CurFunction))
       (WF_TGT: wf_EC st_tgt.(EC) /\ wf_fdef conf_tgt.(CurSystem) conf_tgt st_tgt.(EC).(CurFunction))
       (* TODO: conf_src.(CurSystem) != [(module_of_conf conf_src)] *)
@@ -1180,11 +1180,12 @@ Proof.
             mi_mappedblocks mi_range_block mi_bounds mi_globals.
       clear_tac. unfold initLocals in *.
       {
-        ii.
-        expl INJECT_LOCALS.
-        clear - INJECT mi_freeblocks.
+        ii. ss.
+        expl fully_inject_locals_spec.
+        rewrite H in *. unfold lift2_option in *. des_ifs.
+        clear - fully_inject_locals_spec mi_freeblocks.
         ginduction gvs; ii; ss.
-        - inv INJECT.
+        - inv fully_inject_locals_spec.
           expl IHgvs.
           des_ifs; eauto.
           split; ss.
@@ -1200,17 +1201,19 @@ Proof.
       ii.
       eapply sublist_In in UNIQUE_PRIVATE_PARENT; eauto.
       expl PRIVATE_PARENT.
-      expl INJECT_LOCALS.
+      expl fully_inject_locals_spec.
+      rewrite PTR in *. unfold lift2_option in *.
+      des_ifs.
       unfold InvMem.private_block in *. des.
-      clear - PRIVATE_PARENT0 ING INJECT.
-      ginduction INJECT; ii; ss.
+      clear - PRIVATE_PARENT0 ING fully_inject_locals_spec.
+      ginduction fully_inject_locals_spec; ii; ss.
       rewrite GV2blocks_cons in ING.
       apply in_app in ING. des.
       { destruct v1; ss. des; ss. clarify.
         apply PRIVATE_PARENT0; eauto.
         ii. inv H; clarify.
       }
-      eapply IHINJECT; eauto.
+      eauto.
   - (* tgt. same with src *)
     (* exactly copied from above *)
     econs; ss; eauto.
@@ -1237,22 +1240,21 @@ Proof.
       inv WF.
       clear Hno_overlap Hmap1 Hmap2
             (* mi_freeblocks *)
-            mi_mappedblocks mi_range_block mi_bounds mi_globals.
+            mi_freeblocks mi_range_block mi_bounds mi_globals.
       clear_tac. unfold initLocals in *.
       {
-        ii.
-        admit. (* we need fully inject locals *)
-        (* expl INJECT_LOCALS. *)
-        (* clear - INJECT mi_freeblocks. *)
-        (* ginduction gvs; ii; ss. *)
-        (* - inv INJECT. *)
-        (*   expl IHgvs. *)
-        (*   des_ifs; eauto. *)
-        (*   split; ss. *)
-        (*   inv H1. *)
-        (*   reductio_ad_absurdum. *)
-        (*   expl mi_freeblocks. *)
-        (*   clarify. *)
+        ii. ss.
+        expl fully_inject_locals_spec.
+        rewrite H in *. unfold lift2_option in *. des_ifs.
+        clear - fully_inject_locals_spec mi_mappedblocks.
+        ginduction gvs; ii; ss.
+        - inv fully_inject_locals_spec.
+          expl IHgvs.
+          des_ifs; eauto.
+          split; ss.
+          inv H2.
+          reductio_ad_absurdum.
+          expl mi_mappedblocks.
       }
     + (* diffblock unique parent *)
       inv MEM. clear SRC INJECT FUNTABLE.
@@ -1261,25 +1263,27 @@ Proof.
       ii.
       eapply sublist_In in UNIQUE_PRIVATE_PARENT; eauto.
       expl PRIVATE_PARENT.
-      admit. (* ditto *)
-      (* expl INJECT_LOCALS. *)
-      (* unfold InvMem.private_block in *. des. *)
-      (* clear - PRIVATE_PARENT0 ING INJECT. *)
-      (* ginduction INJECT; ii; ss. *)
-      (* rewrite GV2blocks_cons in ING. *)
-      (* apply in_app in ING. des. *)
-      (* { destruct v1; ss. des; ss. clarify. *)
-      (*   apply PRIVATE_PARENT0; eauto. *)
-      (*   ii. inv H; clarify. *)
-      (* } *)
-      (* eapply IHINJECT; eauto. *)
+      expl fully_inject_locals_spec.
+      rewrite PTR in *. unfold lift2_option in *.
+      des_ifs.
+      unfold InvMem.private_block in *. des.
+      clear - PRIVATE_PARENT0 ING fully_inject_locals_spec.
+      ginduction fully_inject_locals_spec; ii; ss.
+      rewrite GV2blocks_cons in ING.
+      apply in_app in ING. des.
+      { destruct v2; ss. des; ss. clarify.
+        apply PRIVATE_PARENT0; eauto.
+        unfold InvMem.Rel.public_tgt.
+        inv H. esplits; eauto.
+      }
+      eauto.
   - ii. clear NOTIN.
     destruct id0; ss.
     destruct t; ss.
     unfold InvState.Unary.sem_idT in *. ss.
-    eapply INJECT_LOCALS; eauto.
+    eapply fully_inject_locals_inject_locals; eauto.
   - econs; eauto.
-Admitted.
+Qed.
 
 Lemma init_fdef_wf_EC
       conf fdef args ec
