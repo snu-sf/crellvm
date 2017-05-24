@@ -376,13 +376,39 @@ Proof.
       { instantiate (1:= args0).
         instantiate (1:= args0).
         ss.
-        clear - WF4 WF INIT_LOCALS.
+        clear - WF4 WF INIT_LOCALS SRC_INIT_SUCCESS.
+        (* OpsemPP.wf_ExecutionContext__at_beginning_of_function *)
         assert(Forall (memory_props.MemProps.valid_ptrs (Mem.nextblock m0)) args0).
         {
+          (* OpsemPP.initLocals_spec' *)
+          (* opsem_props.OpsemProps.initLocals_spec *)
+
+          clear SRC_INIT_SUCCESS.
+          (* This is not true, I prove false below *)
+          generalize dependent args0.
+          generalize dependent args1.
+          generalize dependent g1.
+          assert(~forall g1 : GVsMap,
+                      memory_props.MemProps.wf_lc m0 g1 ->
+                      (forall (i0 : atom) (gv : GenericValue),
+                          lookupAL GenericValue g1 i0 = ret gv ->
+                          genericvalues_inject.gv_inject (memory_props.MemProps.inject_init
+                                                            (Mem.nextblock m0 - 1)) gv gv) ->
+                      forall (args1 : args) (args0 : list GenericValue),
+                        initLocals (l_tgt, ndts_tgt) args1 args0 = ret g1 ->
+                        Forall (memory_props.MemProps.valid_ptrs (Mem.nextblock m0)) args0).
+          { ii.
+            specialize (H []).
+            exploit H.
+            { ss. }
+            { ii. ss. }
+            { instantiate (1:= [[((Vptr (m0.(Mem.nextblock)) (Int.repr 31 0)), AST.Mfloat32)]]).
+              instantiate (1:= []).
+              ss.
+            }
+            i. inv x. inv H2. eapply Plt_irrefl; eauto.
+          }
           admit.
-        (* OpsemPP.wf_ExecutionContext__at_beginning_of_function *)
-        (* OpsemPP.initLocals_spec' *)
-        (* opsem_props.OpsemProps.initLocals_spec *)
         }
         clear - H.
         ginduction args0; ii; ss.
