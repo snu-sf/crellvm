@@ -855,7 +855,9 @@ Proof.
 
                 assert(DEFINED: exists val, const2GV CurTargetData0 Globals0 (const_undef typ5) =
                                             Some val).
-                { admit. }
+                { ADMIT "
+Issue on encoding definedness with undef.
+More explanation on: https://github.com/snu-sf/llvmberry/issues/426". }
                 des.
                 exploit InvState.Rel.lessdef_expr_spec; eauto.
                 { apply STATE. }
