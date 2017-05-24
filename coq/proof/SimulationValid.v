@@ -989,9 +989,141 @@ Admitted.
 Definition init_invst: InvState.Rel.t :=
   (InvState.Rel.mk (InvState.Unary.mk [] []) (InvState.Unary.mk [] [])).
 
+Lemma initLocals_type_spec
+      TD args argvs lc
+      a ty
+      (IN:In a (getArgsIDs args))
+      (ARGTY: lookupTypViaIDFromArgs args a = Some ty)
+      (INIT:initLocals TD args argvs = Some lc)
+  : exists gv : GenericValue,
+    ((exists gv0, fit_gv TD ty gv0 = Some gv) \/ gundef TD ty = Some gv) /\
+    lookupAL GenericValue lc a = Some gv.
+Proof.
+  revert lc argvs IN ARGTY INIT.
+  induction args; ss.
+  i. unfold initLocals in INIT. ss.
+  des_ifs; try (by esplits; eauto using lookupAL_updateAddAL_eq);
+    by rewrite <- lookupAL_updateAddAL_neq; eauto;
+      exploit IHargs; eauto; ss; des; congruence.
+Qed.
+
+Lemma fit_gv_undef
+      TD gl ty gv1 gv2 gvu
+      (FIT_GV:fit_gv TD ty gv1 = Some gv2)
+      (UNDEF:const2GV TD gl (const_undef ty) = Some gvu)
+  : GVs.lessdef gvu gv2.
+Proof.
+  exploit const2GV_undef; eauto. i. des.
+  exploit fit_gv_chunks_aux; eauto. i. des.
+  apply all_undef_lessdef_aux; eauto. clarify.
+Qed.
+
+Lemma function_entry_args_sound
+      conf st a args ty argvs lc invst
+      (INARG: In a (getArgsIDs args))
+      (ARGTY: lookupTypViaIDFromArgs args a = Some ty)
+      (INITLOCALS_SRC : initLocals (CurTargetData conf) args argvs = Some lc)
+      (LOCALS: st.(EC).(Locals) = lc)
+  : InvState.Unary.sem_lessdef conf st invst
+                               (Exprs.Expr.value (Exprs.ValueT.const (const_undef ty)),
+                                Exprs.Expr.value (Exprs.ValueT.id (Exprs.Tag.physical, a))).
+Proof.
+  ii. ss.
+  exploit opsem_props.OpsemProps.initLocals_spec; eauto. i. des.
+  esplits.
+  - unfold InvState.Unary.sem_idT. ss. subst. eauto.
+  - exploit initLocals_type_spec; eauto. i. des.
+    + clarify. eapply fit_gv_undef; eauto.
+    + clarify. unfold const2GV, _const2GV in *.
+      des_ifs. unfold cgv2gv. apply GVs.lessdef_refl.
+Qed.
+
+Lemma function_entry_args_aux
+      e1 e2 args
+      (IN : Exprs.ExprPairSet.In (e1, e2) (Invariant.add_Args_IDs args))
+  : exists a ty, In a (getArgsIDs args) /\
+                 lookupTypViaIDFromArgs args a = Some ty /\
+                 e1 = Exprs.Expr.value (Exprs.ValueT.const (const_undef ty)) /\
+                 e2 = Exprs.Expr.value (Exprs.ValueT.id (Exprs.Tag.physical, a)).
+Proof.
+  unfold Invariant.add_Args_IDs in *.
+  induction (getArgsIDs args) as [|a al]; simpl in *.
+  - apply Exprs.ExprPairSetFacts.empty_iff in IN. contradiction.
+  - destruct (lookupTypViaIDFromArgs args a) eqn:ARGTY.
+    + apply Exprs.ExprPairSetFacts.add_iff in IN. des.
+      * inv IN. esplits; eauto.
+      * apply IHal in IN. des. esplits; eauto.
+    + apply IHal in IN. des. esplits; eauto.
+Qed.
+
+Lemma function_entry_gids_aux
+      e1 e2 prods
+      (IN : Exprs.ExprPairSet.In (e1, e2) (Invariant.add_Gvar_IDs prods))
+  : exists gv id ty, In (product_gvar gv) prods /\
+                     (id = getGvarID gv) /\
+                     (lookupTypViaGIDFromProducts prods id = Some (typ_pointer ty)) /\
+                     e1 = Exprs.Expr.value (Exprs.ValueT.const (const_undef (typ_pointer ty))) /\
+                     e2 = Exprs.Expr.value (Exprs.ValueT.const (const_gid ty id)).
+Proof.
+  unfold Invariant.add_Gvar_IDs in *.
+  remember (Invariant.getGvarIDs prods) as gvars eqn:HGVARS.
+  assert (GVARS_SPEC: forall x, In x gvars -> exists gv, In (product_gvar gv) prods /\ getGvarID gv = x).
+  { i. unfold Invariant.getGvarIDs in HGVARS. exploit filter_map_inv.
+    - subst; eauto.
+    - i. des. des_ifs. esplits; eauto. }
+  clear HGVARS.
+  induction gvars as [|g gl]; simpl in *.
+  - apply Exprs.ExprPairSetFacts.empty_iff in IN. contradiction.
+  - destruct (lookupTypViaGIDFromProducts prods g) as [ty|] eqn:ARGTY.
+    + destruct ty; try by apply IHgl; eauto; i; apply GVARS_SPEC; intuition.
+      apply Exprs.ExprPairSetFacts.add_iff in IN. des.
+      * exploit (GVARS_SPEC g); eauto.
+        i. des. clarify. esplits; eauto.
+      * apply IHgl; eauto.
+    + apply IHgl; eauto.
+Qed.
+
+Lemma function_entry_gids_sound
+      conf lo ndt
+      st ty invst prods gv x
+      (SYSTEM: conf.(CurSystem) = [module_intro lo ndt prods])
+      (WF: OpsemPP.wf_Config conf)
+      (IN_PROD: In (product_gvar gv) prods)
+      (ID: getGvarID gv = x)
+      (GID_TY: lookupTypViaGIDFromProducts prods x = Some (typ_pointer ty))
+  : InvState.Unary.sem_lessdef conf st invst
+                               ((Exprs.Expr.value
+                                   (Exprs.ValueT.const (const_undef (typ_pointer ty)))),
+                                (Exprs.Expr.value (Exprs.ValueT.const (const_gid ty x)))).
+Proof.
+  subst. ii. ss.
+  unfold OpsemPP.wf_Config in WF.
+  destruct conf as [sys TD curprods gl ft]. ss. destruct TD as [los nts].
+  destruct WF as [WF_NAMEDT [WF_GLOBAL [WF_SYSTEM WF_MIN]]].
+  exploit (WF_GLOBAL (getGvarID gv) (typ_pointer ty)).
+  { clarify. inv WF_SYSTEM. ss. des. des_ifs. }
+  intros (gv_wf & sz_wf & LOOKUP_GL & TYSIZE & ZDIV & CHUNK).
+  i. des.
+  esplits; eauto.
+  { unfold const2GV. ss. des_ifs. }
+  unfold cgv2gv.
+  unfold gv_chunks_match_typ in *. ss.
+  unfold const2GV, cgv2gv in *. ss. clarify.
+  destruct gv_wf as [|[v ch] gv_wf].
+  { inversion CHUNK. }
+  destruct gv_wf; [|inv CHUNK; match goal with [H:Forall2 _ _ _ |- _] => inv H end].
+  inv CHUNK. match goal with [H:vm_matches_typ _ _ |- _] => inv H end.
+  ss. clarify. econs; eauto; econs.
+Qed.
+
 Lemma function_entry_inv_sound
-      conf_src conf_tgt
+      conf_src lo_src ndt_src prods_src
+      conf_tgt lo_tgt ndt_tgt prods_tgt
       (CONF: inject_conf conf_src conf_tgt)
+      (WF_CONF_SRC: wf_ConfigI conf_src)
+      (WF_CONF_TGT: wf_ConfigI conf_tgt)
+      (SYSTEM_SRC: conf_src.(CurSystem) = [module_intro lo_src ndt_src prods_src])
+      (SYSTEM_TGT: conf_tgt.(CurSystem) = [module_intro lo_tgt ndt_tgt prods_tgt])
       invmem
       st_src st_tgt
       (MEM: InvMem.Rel.sem conf_src conf_tgt st_src.(Mem) st_tgt.(Mem) invmem)
@@ -1009,9 +1141,7 @@ Lemma function_entry_inv_sound
       (* TODO: conf_src.(CurSystem) != [(module_of_conf conf_src)] *)
       (* WF condition for this? which is conceptually right? *)
       (* Anyway, let's do this lazy.. *)
-      prods_src prods_tgt
   :
-    (* TODO: prods_src/prods_tgt are not bound. is it ok? *)
   <<SEM: InvState.Rel.sem conf_src conf_tgt
                           st_src st_tgt init_invst invmem
                           (Invariant.function_entry_inv args args prods_src prods_tgt)>>
@@ -1024,7 +1154,14 @@ Proof.
   des; clarify.
   econs; ss; eauto.
   - econs; ss; eauto.
-    + admit. (* function_entry_inv *)
+    + intros [e1 e2] IN. apply Exprs.ExprPairSetFacts.union_iff in IN. des.
+      * (* ARGS *)
+        exploit function_entry_args_aux; eauto.
+        i. des. subst. eapply function_entry_args_sound; eauto.
+      * (* GID *)
+        exploit function_entry_gids_aux; eauto.
+        i. des; subst. eapply function_entry_gids_sound; eauto.
+        eapply wf_ConfigI_spec in WF_CONF_SRC; eauto.
     + econs; ss; eauto.
       * ii. clarify.
         eapply Exprs.ValueTPairSetFacts.empty_iff; eauto.
@@ -1074,7 +1211,68 @@ Proof.
         ii. inv H; clarify.
       }
       eapply IHINJECT; eauto.
-  - (* tgt. same with src *) admit.
+  - (* tgt. same with src *)
+    (* exactly copied from above *)
+    econs; ss; eauto.
+    + intros [e1 e2] IN. apply Exprs.ExprPairSetFacts.union_iff in IN. des.
+      * (* ARGS *)
+        exploit function_entry_args_aux; eauto.
+        i. des. subst. eapply function_entry_args_sound; eauto.
+      * (* GID *)
+        exploit function_entry_gids_aux; eauto.
+        i. des; subst. eapply function_entry_gids_sound; eauto.
+        eapply wf_ConfigI_spec in WF_CONF_TGT; eauto.
+    + econs; ss; eauto.
+      * ii. clarify.
+        eapply Exprs.ValueTPairSetFacts.empty_iff; eauto.
+        eapply Exprs.ValueTPairSetFacts.mem_iff; eauto.
+      * ii. clarify.
+        eapply Exprs.PtrPairSetFacts.empty_iff; eauto.
+        eapply Exprs.PtrPairSetFacts.mem_iff; eauto.
+    + ii. exfalso. eapply AtomSetFacts.empty_iff; eauto.
+    + ii. exfalso. eapply Exprs.IdTSetFacts.empty_iff; eauto.
+    + (* wf_lc *)
+      inv MEM.
+      clear SRC TGT INJECT FUNTABLE.
+      inv WF.
+      clear Hno_overlap Hmap1 Hmap2
+            (* mi_freeblocks *)
+            mi_mappedblocks mi_range_block mi_bounds mi_globals.
+      clear_tac. unfold initLocals in *.
+      {
+        ii.
+        admit. (* we need fully inject locals *)
+        (* expl INJECT_LOCALS. *)
+        (* clear - INJECT mi_freeblocks. *)
+        (* ginduction gvs; ii; ss. *)
+        (* - inv INJECT. *)
+        (*   expl IHgvs. *)
+        (*   des_ifs; eauto. *)
+        (*   split; ss. *)
+        (*   inv H1. *)
+        (*   reductio_ad_absurdum. *)
+        (*   expl mi_freeblocks. *)
+        (*   clarify. *)
+      }
+    + (* diffblock unique parent *)
+      inv MEM. clear SRC INJECT FUNTABLE.
+      inv TGT.
+      clear MEM_PARENT UNIQUE_PARENT_MEM UNIQUE_PARENT_GLOBALS NEXTBLOCK NEXTBLOCK_PARENT.
+      ii.
+      eapply sublist_In in UNIQUE_PRIVATE_PARENT; eauto.
+      expl PRIVATE_PARENT.
+      admit. (* ditto *)
+      (* expl INJECT_LOCALS. *)
+      (* unfold InvMem.private_block in *. des. *)
+      (* clear - PRIVATE_PARENT0 ING INJECT. *)
+      (* ginduction INJECT; ii; ss. *)
+      (* rewrite GV2blocks_cons in ING. *)
+      (* apply in_app in ING. des. *)
+      (* { destruct v1; ss. des; ss. clarify. *)
+      (*   apply PRIVATE_PARENT0; eauto. *)
+      (*   ii. inv H; clarify. *)
+      (* } *)
+      (* eapply IHINJECT; eauto. *)
   - ii. clear NOTIN.
     destruct id0; ss.
     destruct t; ss.
@@ -1108,6 +1306,10 @@ Lemma valid_init
       mem_src mem_tgt
       inv idx
       ec_src
+      (WF_SRC: wf_ConfigI conf_src)
+      (WF_TGT: wf_ConfigI conf_tgt)
+      (SYSTEM_SRC: conf_src.(CurSystem) = [m_src])
+      (SYSTEM_TGT: conf_tgt.(CurSystem) = [m_tgt])
       (FDEF: valid_fdef m_src m_tgt fdef_src fdef_tgt fdef_hint)
       (ARGS: list_forall2 (genericvalues_inject.gv_inject inv.(InvMem.Rel.inject)) args_src args_tgt)
       (MEM: InvMem.Rel.sem conf_src conf_tgt mem_src mem_tgt inv)
@@ -1205,6 +1407,8 @@ Lemma valid_sim_fdef
       conf_src conf_tgt
       fdef_src fdef_tgt
       fdef_hint
+      (SYSTEM_SRC: conf_src.(CurSystem) = [m_src])
+      (SYSTEM_TGT: conf_tgt.(CurSystem) = [m_tgt])
       (CONF: InvState.valid_conf m_src m_tgt conf_src conf_tgt)
       (FDEF: valid_fdef m_src m_tgt fdef_src fdef_tgt fdef_hint)
       (WF_SRC: wf_ConfigI conf_src)
@@ -1223,7 +1427,7 @@ Proof.
     - unfold get_cmds_from_block. ss. apply sublist_refl.
     - unfold terminatorEqB. unfold sumbool2bool. des_ifs.
   }
-  exploit valid_init; eauto.
+  exploit valid_init; try exact CONF; eauto.
   intro VALID_INIT. des.
   esplits; eauto. i.
   specialize (VALID_INIT0 WF_SRC0).

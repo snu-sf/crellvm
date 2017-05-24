@@ -157,6 +157,8 @@ Proof.
     inv FDEF.
     + eapply valid_sim_fdef; eauto.
       { ss. }
+      { ss. }
+      { ss. }
       { ss.
         eapply wf_system__wf_fdef; try eassumption.
         - ss. unfold moduleEqB. unfold sumbool2bool. des_ifsG.
@@ -342,8 +344,7 @@ Proof.
         ss.
       }
 
-      hexploit valid_sim_fdef; try exact VALID_FDEF; [|exact WF_CONF_SRC|exact WF_CONF_TGT|..].
-      { ss. }
+      hexploit valid_sim_fdef; try exact VALID_FDEF; [| | |exact WF_CONF_SRC|exact WF_CONF_TGT|..]; ss.
       { eapply wf_system__wf_fdef; try eassumption.
         ss.
         unfold moduleEqB. unfold sumbool2bool. des_ifsG.
@@ -375,11 +376,45 @@ Proof.
       { instantiate (1:= args0).
         instantiate (1:= args0).
         ss.
-        (* OpsemPP.wf_ExecutionContext__at_beginning_of_function *)
         clear - WF4 WF INIT_LOCALS.
+        assert(Forall (memory_props.MemProps.valid_ptrs (Mem.nextblock m0)) args0).
+        {
+          admit.
+        (* OpsemPP.wf_ExecutionContext__at_beginning_of_function *)
         (* OpsemPP.initLocals_spec' *)
         (* opsem_props.OpsemProps.initLocals_spec *)
-        admit.
+        }
+        clear - H.
+        ginduction args0; ii; ss.
+        - econs; eauto.
+        - inv H. econs; eauto.
+          clear - H2.
+          ginduction a; ii; ss.
+          des_ifs; ss; try (by econs; eauto).
+          des.
+          unfold memory_props.MemProps.inject_init.
+          econs; eauto.
+          econs; eauto.
+          { des_ifs. exfalso.
+            rewrite Pos.leb_nle in Heq. apply Heq.
+            rewrite <- Pos.lt_succ_r.
+            abstr (Mem.nextblock m0) a.
+            clear - H2.
+            eapply Pos.lt_le_trans; eauto. clear - a.
+            rewrite <- Pos.add_1_r.
+            destruct a eqn:T; ss.
+            - reflexivity.
+            - rewrite Pos.sub_add.
+              + reflexivity.
+              + destruct b; ss.
+          }
+          { clear - i0.
+            destruct i0; ss.
+            unfold Int.add; ss.
+            rewrite Z.add_0_r.
+            unfold Int.repr.
+            admit.
+          }
       }
       { econs; ss; eauto. }
       clear SIM. intro SIM_LOCAL; des.
