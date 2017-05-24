@@ -520,7 +520,7 @@ Lemma lessdef_definedness
       (DEFINED: postcond_cmd_get_definedness cmd = Some exp_pair)
   : InvState.Unary.sem_lessdef conf st1 invst exp_pair.
 Proof.
-  exact (SF_ADMIT "Upnrovable for now. Semantics should check more.
+  ADMIT "Upnrovable for now. Semantics should check more.
 For instance, semantics should check extractValue's return type.
 It seems there is neither no wf condition to derive this.
 However, the high level idea of this lemma seems correct.
@@ -530,7 +530,7 @@ postcond_cmd_add_lessdef, and that is only used for 1 hint generation scenario.
 For that case, the ""cmd"" is not a random cmd, but we know that cmd have been
 calculated before. It means there is at least one more certain way to remove
 this ad-mit whilst keeping working hint generation.
-").
+".
  (*  { *)
  (*    ii. *)
  (*    inv DEFINED. *)

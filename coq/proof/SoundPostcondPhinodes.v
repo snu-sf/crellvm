@@ -109,7 +109,7 @@ Proof.
         replace (wz+1-1)%nat with wz; try omega.
         rewrite Integers.Int.repr_signed. eauto.
       }
-      { exact (SF_ADMIT "chunk").
+      { ADMIT "chunk".
         (* clarification for "chunk" ad-mit *)
         (*
         "GenericValue = list (Values.val * AST.memory_chunk)"
@@ -144,7 +144,7 @@ Proof.
       replace (wz+1-1)%nat with wz; try omega.
       rewrite Integers.Int.repr_signed. eauto.
     }
-    { exact (SF_ADMIT "chunk"). }
+    { ADMIT "chunk". }
   - apply LESSDEF; eauto.
 Qed.
 
@@ -255,7 +255,7 @@ Proof.
       econs; eauto.
       { (* value *)
         des; subst; unfold Integers.Int.repr; ss. }
-      { exact (SF_ADMIT "chunk"). }
+      { ADMIT "chunk". }
     +  esplits; ss. ss.
        destruct wz; try omega.
        specialize (int_sizezero_cases i0). i.
@@ -264,7 +264,7 @@ Proof.
        econs; eauto.
        { (* value *)
          des; subst; unfold Integers.Int.repr; ss. }
-       { exact (SF_ADMIT "chunk"). }
+       { ADMIT "chunk". }
   - clarify. ss.
     rewrite InvState.Unary.sem_valueT_physical.
     unfold ite in *.
@@ -283,7 +283,7 @@ Proof.
       econs; eauto.
       { (* value *)
         des; subst; unfold Integers.Int.repr; ss. }
-      { exact (SF_ADMIT "chunk"). }
+      { ADMIT "chunk". }
     + esplits; ss; eauto.
       destruct wz; try omega.
       specialize (int_sizezero_cases i0). i.
@@ -296,7 +296,7 @@ Proof.
       econs; eauto.
       { (* value *)
         des; subst; unfold Integers.Int.repr; ss. }
-      { exact (SF_ADMIT "chunk"). }
+      { ADMIT "chunk". }
   - exploit LESSDEF; eauto.
 Qed.
 
@@ -459,8 +459,7 @@ Proof.
     + unfold InvState.Unary.sem_idT. ss. eauto.
     + exploit const2GV_undef; eauto. i. des.
       apply all_undef_lessdef_aux; eauto.
-      exact (SF_ADMIT "PHI registers have the specified types (or chunks):
- the current semantics doesn't support this ").
+      ADMIT "chunk".
       (* It also seem no wf condition provide this. *)
   - esplits; [|reflexivity].
     assert (GV_VAL1: gv = val1).

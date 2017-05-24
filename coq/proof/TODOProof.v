@@ -465,7 +465,8 @@ Abort.
 (* @jeehoonkang adviced me to use semantic ad-mit instead of just comment. *)
 (* Tactic Notation "SF_AD-MIT" string(excuse) := idtac excuse; ad-mit. *)
 (* above definition requires "Adm-itted" at the end of the proof, and I consider that not good *)
-Definition SF_ADMIT (excuse: String.string) {T: Type} : T.  Admitted.
+Definition ADMIT (excuse: String.string) {T: Type} : T.  Admitted.
+Tactic Notation "ADMIT" constr(excuse) := idtac excuse; exact (ADMIT excuse).
 
 (* Clarify purpose of this file more clearly? *)
 (* Should prevent circular dependency *)
@@ -511,7 +512,7 @@ Lemma mstore_mload_same
     <<MLOAD: mload td Mem' mp2 typ1 align1 = ret gv1>>
 .
 Proof.
-  exact (SF_ADMIT "
+  ADMIT ("
 Language/Memory model should provide this.
 This lemma was originally in Vellvm (Compcert memory model).
 However, when we upgraded Vellvm's Compcert memory model to version 2, this lemma was commented.
@@ -606,7 +607,7 @@ Lemma wf_globals_const2GV
 Proof.
   (* globals: <= gmax *)
   (* valid_ptr: < gmax+1 *)
-  exact (SF_ADMIT "
+  ADMIT "
 Language should provide this. This should be provable.
 - Inside _const2GV, it seems the only source of pointer is ""gid"", which looks up globals table.
 - Note that int2ptr/ptr2int is currently defind as undef in mcast.
@@ -619,7 +620,7 @@ Claiming all const satisfies wf_const is too strong and it will introduce incons
 We might need to add some constraints in our validator,
 such as, the const of interest (all that appears in hint/invariant) actually exists in the original code,
 which passed type checking, so wf_const holds.
-").
+".
 Qed.
 
 Lemma mstore_aux_never_produce_new_ptr
@@ -635,7 +636,35 @@ Lemma mstore_aux_never_produce_new_ptr
     MemProps.no_alias nptr gv
 .
 Proof.
-  exact (SF_ADMIT "
+  (* ii. *)
+  (* destruct ptr; ss. destruct p; ss. destruct v; ss. *)
+  (* destruct ptr; ss. *)
+  (* destruct (Pos.eq_dec b0 b). *)
+  (* - clarify. *)
+  (*   unfold mload in *. des_ifs. *)
+  (*   assert(val = gv). *)
+  (*   { ad-mit. } *)
+  (*   clarify. *)
+  (* - eapply MEM_NOALIAS; eauto. *)
+  (*   instantiate (1:= a). *)
+  (*   instantiate (1:= ty). *)
+  (*   instantiate (1:= [(Vptr b0 i0, m)]). *)
+  (*   assert(exists ofs, o = (Int.signed 31 ofs)). *)
+  (*   { ad-mit. } des. *)
+  (*   assert(exists ty0, Some ch = flatten_typ TD ty0). *)
+  (*   { ad-mit. } des. *)
+  (*   eapply MemProps.mstore_preserves_mload_inv'; eauto. *)
+  (*   { instantiate (1:= a). *)
+  (*     instantiate (1:= val). *)
+  (*     instantiate (1:= ty0). *)
+  (*     instantiate (1:= [(Vptr b ofs, m)]). *)
+  (*     unfold mstore. ss. *)
+  (*     unfold mload in *. des_ifsH H. rewrite <- H1. *)
+  (*     eauto. *)
+  (*   } *)
+  (*   ss. split; ss. split; ss. *)
+  (*   ii; clarify; ss. *)
+  ADMIT "
 Memory model should provide this.
 - [nptr] is a pointer.
 - [mem0] contains no pointers aliased with [nptr].
@@ -643,5 +672,5 @@ Memory model should provide this.
 - Then, only storing [val] into somewhere in [mem0] shouldn't produce an
   alias to [nptr]
 - Therefore, the result memory [mem1] contains no aliases to [nptr]
-").
+".
 Qed.
