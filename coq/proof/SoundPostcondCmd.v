@@ -29,6 +29,7 @@ Require Import SoundBase.
 Require Import SoundForgetStack.
 Require Import SoundForgetMemory.
 Require Import SoundPostcondCmdAdd.
+Require Import MemAux.
 
 Set Implicit Arguments.
 

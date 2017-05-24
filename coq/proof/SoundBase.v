@@ -866,63 +866,6 @@ Proof.
   i. congruence.
 Qed.
 
-Lemma vellvm_no_alias_is_diffblock
-      conf gv1 gv2
-  : MemProps.no_alias gv1 gv2 <->
-    InvState.Unary.sem_diffblock conf gv1 gv2.
-Proof.
-  assert (NOALIAS_BLK_AUX:
-            forall gv b,
-              MemProps.no_alias_with_blk gv b <->
-              ~ In b (GV2blocks gv)).
-  { clear.
-    induction gv; ss.
-    destruct a. i.
-    destruct v; ss.
-    split.
-    - ii. des; eauto.
-      rewrite IHgv in *. eauto.
-    - i. split.
-      + ii. subst. eauto.
-      + rewrite IHgv. eauto.
-  }
-  split; i.
-  { unfold InvState.Unary.sem_diffblock.
-    revert dependent gv1.
-    induction gv2; i; ss.
-    destruct a. unfold GV2blocks in *.
-    destruct v; eauto.
-    ss.
-    cut (~ In b (filter_map (val2block <*> fst) gv1) /\
-         list_disjoint (filter_map (val2block <*> fst) gv1)
-                       (filter_map (val2block <*> fst) gv2)).
-    { i. des.
-      unfold list_disjoint in *.
-      i. ss.
-      des; subst; eauto.
-      ii. clarify.
-    }
-    des.
-    split; eauto.
-    apply NOALIAS_BLK_AUX. eauto.
-  }
-  { unfold InvState.Unary.sem_diffblock in *.
-    revert dependent gv1.
-    induction gv2; i; ss.
-    destruct a.
-    destruct v; eauto.
-    split.
-    - apply NOALIAS_BLK_AUX.
-      ii. unfold list_disjoint in *.
-      exploit H; eauto. ss. eauto.
-    - apply IHgv2.
-      unfold list_disjoint in *.
-      i.
-      ii; clarify.
-      exploit H; eauto. ss. right. eauto.
-  }
-Qed.
-
 Lemma invmem_free_invmem_unary
       conf_src inv m x lo hi m' TD inv_unary
       (BOUNDS: Mem.bounds m x = (lo, hi))

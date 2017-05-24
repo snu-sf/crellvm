@@ -25,8 +25,8 @@ Require InvState.
 Require Import SoundBase.
 
 Require Import Inject. (* TODO: for simtac *)
-Require Import SoundPostcondCmdAdd.
 Require Import TODOProof.
+Require Import MemAux.
 
 Set Implicit Arguments.
 
