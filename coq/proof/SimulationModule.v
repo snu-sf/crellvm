@@ -377,71 +377,147 @@ Proof.
         instantiate (1:= args0).
         ss.
         clear - WF4 WF INIT_LOCALS SRC_INIT_SUCCESS.
-        (* OpsemPP.wf_ExecutionContext__at_beginning_of_function *)
-        assert(Forall (memory_props.MemProps.valid_ptrs (Mem.nextblock m0)) args0).
-        {
-          (* OpsemPP.initLocals_spec' *)
-          (* opsem_props.OpsemProps.initLocals_spec *)
-
-          clear SRC_INIT_SUCCESS.
-          (* This is not true, I prove false below *)
-          generalize dependent args0.
-          generalize dependent args1.
-          generalize dependent g1.
-          assert(~forall g1 : GVsMap,
-                      memory_props.MemProps.wf_lc m0 g1 ->
-                      (forall (i0 : atom) (gv : GenericValue),
-                          lookupAL GenericValue g1 i0 = ret gv ->
-                          genericvalues_inject.gv_inject (memory_props.MemProps.inject_init
-                                                            (Mem.nextblock m0 - 1)) gv gv) ->
-                      forall (args1 : args) (args0 : list GenericValue),
-                        initLocals (l_tgt, ndts_tgt) args1 args0 = ret g1 ->
-                        Forall (memory_props.MemProps.valid_ptrs (Mem.nextblock m0)) args0).
-          { ii.
-            specialize (H []).
-            exploit H.
-            { ss. }
-            { ii. ss. }
-            { instantiate (1:= [[((Vptr (m0.(Mem.nextblock)) (Int.repr 31 0)), AST.Mfloat32)]]).
-              instantiate (1:= []).
-              ss.
-            }
-            i. inv x. inv H2. eapply Plt_irrefl; eauto.
-          }
-          admit.
+        clear SRC_INIT_SUCCESS.
+        (* initLocals_type_spec  *)
+        assert(FITGV: Forall2 (fun x y => (fit_gv (l_tgt, ndts_tgt) x.(fst).(fst) y = Some y)) args1 args0).
+        { admit. }
+        (* assert(WF_FDEF: wf_fdef [module_intro l_tgt ndts_tgt prods_src] *)
+        (*                    (module_intro l_tgt ndts_tgt prods_src) *)
+        (*                    (fdef_intro (fheader_intro fnattrs0 typ0 id0 args1 varg0) b1)). *)
+        (* { admit. } *)
+        (* inv WF_FDEF. ss. des_ifs. *)
+        (* clear H5 H9 H8. *)
+        (* inv H6. *)
+        assert(NODUP: NoDup (getArgsIDs args1)).
+        { admit. }
+        assert(forall arg (IN: In arg args0), exists id, In id (getArgsIDs args1) /\
+                                                         lookupAL GenericValue g1 id = Some arg).
+        { clear - NODUP INIT_LOCALS FITGV.
+          unfold initLocals in *.
+          i.
+          ginduction args0; ii; ss.
+          inv FITGV. ss. des_ifs.
+          des.
+          - clarify. ss.
+            exists i0.
+            split; ss.
+            { left; ss. }
+            rewrite lookupAL_updateAddAL_eq; ss. clarify.
+          - exploit IHargs0; eauto.
+            { apply NoDup_cons_iff in NODUP. des; ss. }
+            i; des.
+            exists id0.
+            split; ss.
+            { right. ss. }
+            rewrite <- lookupAL_updateAddAL_neq; ss.
+            ii. clarify.
+            apply NoDup_cons_iff in NODUP. des; ss.
         }
-        clear - H.
+        clear - H WF4.
         ginduction args0; ii; ss.
         - econs; eauto.
-        - inv H. econs; eauto.
-          clear - H2.
-          ginduction a; ii; ss.
-          des_ifs; ss; try (by econs; eauto).
-          des.
-          unfold memory_props.MemProps.inject_init.
-          econs; eauto.
-          econs; eauto.
-          { des_ifs. exfalso.
-            rewrite Pos.leb_nle in Heq. apply Heq.
-            rewrite <- Pos.lt_succ_r.
-            abstr (Mem.nextblock m0) a.
-            clear - H2.
-            eapply Pos.lt_le_trans; eauto. clear - a.
-            rewrite <- Pos.add_1_r.
-            destruct a eqn:T; ss.
-            - reflexivity.
-            - rewrite Pos.sub_add.
-              + reflexivity.
-              + destruct b; ss.
-          }
-          { clear - i0.
-            destruct i0; ss.
-            unfold Int.add; ss.
-            rewrite Z.add_0_r.
-            unfold Int.repr.
-            admit.
-          }
-      }
+        - econs; eauto.
+          exploit H; eauto; []; i; des.
+          eapply WF4; eauto.
+        }
+
+(* (* NoDup (getArgsIDs la2) -> *) *)
+(* (* wf_fheader s (los, nts) (fheader_intro fattr ft fid la2 va) -> *) *)
+
+(*         assert(Forall (memory_props.MemProps.valid_ptrs (Mem.nextblock m0)) args0). *)
+(*         { *)
+(*           (* OpsemPP.initLocals_spec' *) *)
+(*           (* opsem_props.OpsemProps.initLocals_spec *) *)
+(*           clear SRC_INIT_SUCCESS. clear_tac. *)
+(*           (* OpsemPP.initializeFrameValues__wf_lc *) *)
+(*           (* gv_inject_initialize_frames *) *)
+(*           assert(Forall (fun x => lookupAl GenericValue g1  *)
+(*           unfold initLocals in *. *)
+(*           ginduction args1; ii; ss. *)
+(*           { inv H; ss. } *)
+(*           { des_ifs. inv H. ss. *)
+(*             exploit IHargs1; eauto. *)
+(*             admit. *)
+(*           } *)
+(*           ginduction args0; ii; ss. *)
+(*           { destruct args1; ss. *)
+(*             unfold initLocals in *. ss. des_ifs. *)
+(*             exploit IHargs0; eauto. *)
+(*           } *)
+(*           econs; eauto. *)
+(*         } *)
+
+
+(*         (* OpsemPP.wf_ExecutionContext__at_beginning_of_function *) *)
+(*         assert(Forall (memory_props.MemProps.valid_ptrs (Mem.nextblock m0)) args0). *)
+(*         { *)
+(*           (* OpsemPP.initLocals_spec' *) *)
+(*           (* opsem_props.OpsemProps.initLocals_spec *) *)
+
+(*           clear SRC_INIT_SUCCESS. *)
+(*           (* This is not true, I prove false below *) *)
+(*           generalize dependent args0. *)
+(*           generalize dependent args1. *)
+(*           generalize dependent g1. *)
+(*           assert(~forall g1 : GVsMap, *)
+(*                       memory_props.MemProps.wf_lc m0 g1 -> *)
+(*                       (forall (i0 : atom) (gv : GenericValue), *)
+(*                           lookupAL GenericValue g1 i0 = ret gv -> *)
+(*                           genericvalues_inject.gv_inject (memory_props.MemProps.inject_init *)
+(*                                                             (Mem.nextblock m0 - 1)) gv gv) -> *)
+(*                       forall (args1 : args) (args0 : list GenericValue), *)
+(*                         initLocals (l_tgt, ndts_tgt) args1 args0 = ret g1 -> *)
+(*                         Forall (memory_props.MemProps.valid_ptrs (Mem.nextblock m0)) args0). *)
+(*           { ii. *)
+(*             specialize (H []). *)
+(*             exploit H. *)
+(*             { ss. } *)
+(*             { ii. ss. } *)
+(*             { instantiate (1:= [[((Vptr (m0.(Mem.nextblock)) (Int.repr 31 0)), AST.Mfloat32)]]). *)
+(*               instantiate (1:= []). *)
+(*               ss. *)
+(*             } *)
+(*             i. inv x. inv H2. eapply Plt_irrefl; eauto. *)
+(*           } *)
+(*           admit. *)
+(*         } *)
+(*         clear - H. *)
+(*         ginduction args0; ii; ss. *)
+(*         - econs; eauto. *)
+(*         - inv H. econs; eauto. *)
+(*           clear - H2. *)
+(*           ginduction a; ii; ss. *)
+(*           des_ifs; ss; try (by econs; eauto). *)
+(*           des. *)
+(*           unfold memory_props.MemProps.inject_init. *)
+(*           econs; eauto. *)
+(*           econs; eauto. *)
+(*           { des_ifs. exfalso. *)
+(*             rewrite Pos.leb_nle in Heq. apply Heq. *)
+(*             rewrite <- Pos.lt_succ_r. *)
+(*             abstr (Mem.nextblock m0) a. *)
+(*             clear - H2. *)
+(*             eapply Pos.lt_le_trans; eauto. clear - a. *)
+(*             rewrite <- Pos.add_1_r. *)
+(*             destruct a eqn:T; ss. *)
+(*             - reflexivity. *)
+(*             - rewrite Pos.sub_add. *)
+(*               + reflexivity. *)
+(*               + destruct b; ss. *)
+(*           } *)
+(*           { clear - i0. *)
+(*             destruct i0; ss. *)
+(*             unfold Int.add; ss. *)
+(*             rewrite Z.add_0_r. *)
+(*             unfold Int.repr. *)
+(*             apply Int.mkint_eq; eauto. *)
+(*             rewrite Int.Z_mod_modulus_eq. *)
+(*             abstr (Int.modulus 31) X. *)
+(*             des. *)
+(*             rewrite Zdiv.Zmod_small; ss. *)
+(*             omega. *)
+(*           } *)
+(*       } *)
       { econs; ss; eauto. }
       clear SIM. intro SIM_LOCAL; des.
       inv SIM_LOCAL. ss. clarify.
