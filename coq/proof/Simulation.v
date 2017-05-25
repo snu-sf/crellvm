@@ -110,11 +110,28 @@ Proof.
   destruct (classic (error_state conf_src st_src)); eauto.
 Qed.
 
+Definition get_params (S: system) (fid: id): option args :=
+  match lookupFdefViaIDFromSystem S fid with
+  | Some (fdef_intro (fheader_intro _ _ _ args _) _) => Some args
+  | _ => None
+  end
+.
+
+Definition TD_of_module (md: module): TargetData :=
+  match md with
+  | module_intro los ndts _ => (los, ndts)
+  end
+.
 
 Definition sim_module (module_src module_tgt:module): Prop :=
   forall main args
     conf_src st_src
-    (SRC: s_genInitState [module_src] main args Mem.empty = Some (conf_src, st_src)),
+    (SRC: s_genInitState [module_src] main args Mem.empty = Some (conf_src, st_src))
+    (FIT_ARGS:
+       forall params
+       (PARAMS: (get_params [module_src] main) = Some params),
+       Forall2 (fun x y => (fit_gv (TD_of_module module_src) x.(fst).(fst) y = Some y)) params args)
+  ,
   exists conf_tgt st_tgt idx,
     <<TGT: s_genInitState [module_tgt] main args Mem.empty = Some (conf_tgt, st_tgt)>> /\
     <<SIM: sim conf_src conf_tgt idx st_src st_tgt>>.
