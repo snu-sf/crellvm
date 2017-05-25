@@ -376,8 +376,16 @@ Proof.
       { instantiate (1:= args0).
         instantiate (1:= args0).
         ss.
-        clear - WF4 WF INIT_LOCALS SRC_INIT_SUCCESS.
-        clear SRC_INIT_SUCCESS.
+        assert(UNIQF: uniqFdef (fdef_intro (fheader_intro fnattrs0 typ0 id0 args1 varg0)
+                                    ((l1, stmts_intro [] cmds5 terminator5) :: b1))).
+        { eapply wf_system__uniqFdef; revgoals.
+          { instantiate (1:= prods_src). ss. }
+          { instantiate (1:= [module_intro l_tgt ndts_tgt prods_src]). ss.
+            unfold moduleEqB. unfold sumbool2bool. des_ifs.
+          }
+          { ss. }
+        }
+        clear - WF4 WF INIT_LOCALS UNIQF.
         (* initLocals_type_spec  *)
         assert(FITGV: Forall2 (fun x y => (fit_gv (l_tgt, ndts_tgt) x.(fst).(fst) y = Some y)) args1 args0).
         { admit. }
@@ -389,7 +397,12 @@ Proof.
         (* clear H5 H9 H8. *)
         (* inv H6. *)
         assert(NODUP: NoDup (getArgsIDs args1)).
-        { admit. }
+        { inv UNIQF. ss.
+          repeat match goal with
+                 | [H: NoDup (_ ++ _) |- _ ] => eapply NoDup_split' in H; des
+                 end.
+          ss.
+        } clear UNIQF.
         assert(forall arg (IN: In arg args0), exists id, In id (getArgsIDs args1) /\
                                                          lookupAL GenericValue g1 id = Some arg).
         { clear - NODUP INIT_LOCALS FITGV.
