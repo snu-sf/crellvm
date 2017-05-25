@@ -666,26 +666,80 @@ Proof.
 Abort.
 
 
+Hint Unfold Debug.debug_print_auto. (* TODO: Put all debugs into this *)
+Hint Unfold Debug.debug_print_validation_process.
+
+Lemma apply_is_true
+      x
+  :
+    is_true x <-> x = true (* using << >> here will unable rewrite *)
+.
+Proof. ss. Qed.
+
 Lemma valid_sim
-      conf_src conf_tgt:
+      conf_src conf_tgt
+  :
   (valid_state_sim conf_src conf_tgt) <6= (sim_local conf_src conf_tgt).
 Proof.
   pcofix CIH.
   intros stack0_src stack0_tgt inv0 idx0 st_src st_tgt SIM. pfold.
-  apply _sim_local_src_error. i.
+  apply _sim_local_src_error; try apply SIM; []. i.
   destruct st_src, st_tgt. destruct EC0, EC1.
   inv SIM. ss.
-  destruct CurCmds0; simtac;
-    (try by exfalso; eapply has_false_False; eauto).
+  destruct CurCmds0.
   - (* term *)
     des.
+    simtac.
     expl valid_sim_term.
     eapply _sim_local_mon; eauto.
   - (* cmd *)
+    ss. des_ifs_safe. Fail progress repeat (simtac0; []).
+    destruct (Invariant.has_false inv) eqn:T.
+    { exfalso; eapply has_false_False; eauto. }
+    autounfold in *. ss.
+    destruct (match Postcond.postcond_cmd c c0 inv with
+              | Some inv1 => Some inv1
+              | None =>
+                Postcond.postcond_cmd
+                  c c0
+                  (Infrules.apply_infrules m_src m_tgt
+                                           (gen_infrules_from_insns (insn_cmd c) (insn_cmd c0) inv) inv)
+              end) eqn: PCND; try by ss.
+    assert(PCND0: exists infrulesA,
+              Postcond.postcond_cmd
+                c c0
+                (Infrules.apply_infrules m_src m_tgt infrulesA inv) = Some t0).
+    { clear CMDS.
+      des_ifs.
+      - exists nil. esplits; ss.
+      - esplits; eassumption.
+    } clear PCND. des.
+    des_ifs_safe ss.
+
+    assert(IMPLIES: exists infrulesB,
+            Invariant.implies
+              (Postcond.reduce_maydiff
+                 (Infrules.apply_infrules
+                    m_src m_tgt infrulesB
+                    (Postcond.reduce_maydiff (Infrules.apply_infrules m_src m_tgt l1 t0)))) t = true).
+    { des_ifs.
+      - exists nil. ss.
+        rewrite <- apply_is_true.
+        rewrite <- apply_is_true in Heq0.
+        etransitivity; eauto.
+        eapply implies_reduce_maydiff.
+      - esplits; eassumption.
+    } clear Heq. des.
+
+    exploit apply_infrules_sound; try apply STATE; eauto; []; intro PCND;
+      destruct PCND as [invst_pcnd [invmem_pcnd [STATE_PCND [MEM_PCND MEMLE_PCND]]]]. des.
+    clears invst.
+
     destruct (Instruction.isCallInst c) eqn:CALL.
     + (* call *)
       exploit postcond_cmd_is_call; eauto. i.
       destruct c; ss. destruct c0; ss.
+      clear_tac.
       hexploit postcond_call_sound; try exact COND; eauto;
         (try instantiate (2 := (mkState (mkEC _ _ _ _ _ _) _ _))); ss; eauto; ss.
       i. des. subst. do 24 simtac0. des.
@@ -695,6 +749,10 @@ Proof.
         (privs_src:= (memory_blocks_of_t conf_src _ _ (Invariant.private (Invariant.src inv))))
         (privs_tgt:= (memory_blocks_of_t conf_tgt _ _ (Invariant.private (Invariant.tgt inv))));
         ss; eauto; ss.
+      { clear - FUN MEMLE_PCND.
+        ii. expl FUN. esplits; eauto.
+        eapply genericvalues_inject.gv_inject_incr; try eassumption.
+      }
       { inv STATE. inv SRC.
         unfold memory_blocks_of. ii.
         des.
@@ -981,9 +1039,13 @@ More explanation on: https://github.com/snu-sf/llvmberry/issues/426". }
       esplits; (try by etransitivity; eauto); eauto.
       { econs 1. eauto. }
       right. apply CIH. econs; try exact x1; eauto.
+      split; ss. eapply preservation; eauto.
+  -
 Unshelve.
 all: try ss.
-Admitted.
+{ split; ss. eapply preservation; eauto. }
+  -
+Qed.
 
 
 (* TODO: move to better position? with init_invvmem in SimModule *)
