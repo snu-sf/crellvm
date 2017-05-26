@@ -518,9 +518,9 @@ This lemma was originally in Vellvm (Compcert memory model).
 However, when we upgraded Vellvm's Compcert memory model to version 2, this lemma was commented.
 See common/Memdata.v, ""encode_decode_encode_val__eq__encode_val"" is commented
 and all tainted Theorems are commented.
-It seems those Theorems are commented at that moment because they are not used in Vellvm.
+It seems those Theorems are commented at that momment because they are not used in Vellvm.
 One may able to track this issue with git lg/blame, also with actual compcert code before/after upgrade.
-I consider this ad-mit can be solved, but it does not worth to.
+I consider this ad-mit can be solved, but it does not worth to do so.
 ").
   (* eapply MemProps.mstore_mload_same; eauto. *) (* From Vellvm, should uncomment *)
   (* eapply mstore_implies_gv_chunks_match; eauto. *)
