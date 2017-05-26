@@ -187,11 +187,6 @@ Proof.
       rename s0 into __s0__.
       rename s into __s__.
 
-      Ltac hide_goal := (* for readability *)
-        match goal with
-        | [ |- ?g: ?G ] => remember g as Goal eqn: HeqGoal; move HeqGoal at top
-        end.
-      hide_goal.
       abstr (gen_infrules_next_inv
                            (Postcond.reduce_maydiff
                               (Infrules.apply_infrules m_src m_tgt
@@ -395,6 +390,7 @@ Proof.
 
         assert(InvMem.Rel.le inv0 invmem5).
         { etransitivity; eauto. etransitivity; eauto. }
+        unfold HIDDEN_GOAL.
         esplits; eauto.
         { econs 1. econs; eauto. rewrite lookupBlockViaLabelFromFdef_spec. ss. }
         {
@@ -508,6 +504,7 @@ Proof.
 
         assert(InvMem.Rel.le inv0 invmem5).
         { etransitivity; eauto. etransitivity; eauto. }
+        unfold HIDDEN_GOAL.
         esplits; eauto.
         { econs 1. econs; eauto. rewrite lookupBlockViaLabelFromFdef_spec. ss. }
         {
@@ -582,6 +579,7 @@ Proof.
 
         assert(InvMem.Rel.le inv0 invmem5).
         { etransitivity; eauto. etransitivity; eauto. }
+        unfold HIDDEN_GOAL.
         esplits; eauto.
         { econs 1. econs; eauto. rewrite lookupBlockViaLabelFromFdef_spec. ss. }
         {
@@ -705,6 +703,8 @@ Proof.
                   (Infrules.apply_infrules m_src m_tgt
                                            (gen_infrules_from_insns (insn_cmd c) (insn_cmd c0) inv) inv)
               end) eqn: PCND; try by ss.
+
+    rename t into __t__.
     assert(PCND0: exists infrulesA,
               Postcond.postcond_cmd
                 c c0
@@ -721,7 +721,7 @@ Proof.
               (Postcond.reduce_maydiff
                  (Infrules.apply_infrules
                     m_src m_tgt infrulesB
-                    (Postcond.reduce_maydiff (Infrules.apply_infrules m_src m_tgt l1 t0)))) t = true).
+                    (Postcond.reduce_maydiff (Infrules.apply_infrules m_src m_tgt l1 t0)))) __t__ = true).
     { des_ifs.
       - exists nil. ss.
         rewrite <- apply_is_true.
@@ -735,114 +735,38 @@ Proof.
       destruct PCND as [invst_pcnd [invmem_pcnd [STATE_PCND [MEM_PCND MEMLE_PCND]]]]. des.
     clears invst.
 
-    destruct (Instruction.isCallInst c) eqn:CALL.
-    + (* call *)
-      exploit postcond_cmd_is_call; eauto. i.
-      destruct c; ss. destruct c0; ss.
-      clear_tac.
-      hexploit postcond_call_sound; try exact COND; eauto;
-        (try instantiate (2 := (mkState (mkEC _ _ _ _ _ _) _ _))); ss; eauto; ss.
-      i. des. subst. do 24 simtac0. des.
-      eapply _sim_local_call with
-      (uniqs_src:= (memory_blocks_of conf_src Locals0 (Invariant.unique (Invariant.src inv))))
-        (uniqs_tgt:= (memory_blocks_of conf_tgt Locals1 (Invariant.unique (Invariant.tgt inv))))
-        (privs_src:= (memory_blocks_of_t conf_src _ _ (Invariant.private (Invariant.src inv))))
-        (privs_tgt:= (memory_blocks_of_t conf_tgt _ _ (Invariant.private (Invariant.tgt inv))));
-        ss; eauto; ss.
-      { clear - FUN MEMLE_PCND.
-        ii. expl FUN. esplits; eauto.
-        eapply genericvalues_inject.gv_inject_incr; try eassumption.
-      }
-      { inv STATE. inv SRC.
-        unfold memory_blocks_of. ii.
-        des.
-        match goal with [ H: In _ (flat_map _ _) |- _ ] => eapply in_flat_map in H; eauto end.
-        des.
-        des_ifs.
-        exploit UNIQUE.
-        { apply AtomSetFacts.elements_iff, InA_iff_In. eauto. }
-        intro UNIQUE_A. inv UNIQUE_A. ss. clarify.
-        exploit MEM0; eauto.
-      }
-      { inv STATE. inv SRC.
-        unfold memory_blocks_of. ii.
-        des.
-        match goal with [ H: In _ (flat_map _ _) |- _ ] => eapply in_flat_map in H; eauto end.
-        des.
-        des_ifs.
-        exploit UNIQUE.
-        { apply AtomSetFacts.elements_iff, InA_iff_In. eauto. }
-        intro UNIQUE_A. inv UNIQUE_A. ss. clarify.
-        exploit GLOBALS; eauto.
-        (* NEED TO STRENGTHEN GLOBALS *)
-      }
 
-      { inv STATE. inv TGT.
-        unfold memory_blocks_of. ii.
-        des.
-        match goal with [ H: In _ (flat_map _ _) |- _ ] => eapply in_flat_map in H; eauto end.
-        des.
-        des_ifs.
-        exploit UNIQUE.
-        { apply AtomSetFacts.elements_iff, InA_iff_In. eauto. }
-        intro UNIQUE_A. inv UNIQUE_A. ss. clarify.
-        exploit MEM0; eauto.
-      }
-      { inv STATE. inv TGT.
-        unfold memory_blocks_of. ii.
-        des.
-        match goal with [ H: In _ (flat_map _ _) |- _ ] => eapply in_flat_map in H; eauto end.
-        des.
-        des_ifs.
-        exploit UNIQUE.
-        { apply AtomSetFacts.elements_iff, InA_iff_In. eauto. }
-        intro UNIQUE_A. inv UNIQUE_A. ss. clarify.
-        exploit GLOBALS; eauto.
-      }
-      { inv STATE. inv SRC. ss.
-        i. unfold memory_blocks_of_t in IN.
-        des.
-        match goal with [ H: In _ (flat_map _ _) |- _ ] => eapply in_flat_map in H; eauto end.
-        des.
-        des_ifs.
-        exploit PRIVATE; eauto.
-        { apply Exprs.IdTSetFacts.elements_iff.
-          apply In_InA; eauto. }
-        ss. i. des. clarify.
-      }
-      { inv STATE. inv TGT. ss.
-        i. unfold memory_blocks_of_t in IN.
-        des.
-        match goal with [ H: In _ (flat_map _ _) |- _ ] => eapply in_flat_map in H; eauto end.
-        des.
-        des_ifs.
-        exploit PRIVATE; eauto.
-        { apply Exprs.IdTSetFacts.elements_iff.
-          apply In_InA; eauto. }
-        ss. i. des. clarify.
-      }
-      i. exploit RETURN; eauto. i. des.
-      exploit apply_infrules_sound; eauto; ss. i. des.
-      exploit reduce_maydiff_sound; eauto; ss. i. des.
-      exploit implies_sound; eauto; ss. i. des.
-      exists locals2_tgt, 0%nat, invmem1. splits; ss.
-      * etransitivity; eauto.
-      * right. apply CIH. econs; eauto.
-        (* { ss. *)
-        (*   eapply inject_allocas_inj_incr; eauto. *)
-        (*   etransitivity; eauto. } *)
-    + (* non-call *)
-      des.
+    (* clears inv0. *)
+    (* MEMLE should survive. *)
+    (* TODO: if we can make a lemma, sim_local inv0 && inv0 <= inv1 => sim_local inv1, we can *)
+    (* do "clears inv0". *)
+    (* The lemma is not true for now, (InvMem.Rel.le not relaxed in all cases) but it seems ok *)
+    clear MEM.
+    instantiate (1:= infrulesA) in STATE_PCND.
+    abstr (Infrules.apply_infrules m_src m_tgt infrulesA inv) inv_pcnd.
+    clears inv.
+
+    rename MEM_PCND into MEM1.
+    rename MEMLE_PCND into MEMLE1.
+    rename STATE_PCND into STATE1.
+    rename invst_pcnd into invst1.
+    rename invmem_pcnd into invmem1.
+    rename inv_pcnd into inv1.
+
+
+    destruct (Instruction.isCallInst c) eqn:CALL; cycle 1.
+    + ss.
+      simtac. des.
       eapply _sim_local_step; swap 2 4. (* move 2 to the end *)
       {
+
         expl progress.
         - ss.
         - move ERROR_SRC at bottom.
           apply error_state_neg in ERROR_SRC. des; ss. apply NNPP in ERROR_SRC. des.
           rename ERROR_SRC into SRC_STEP.
-          rename COND0 into POSTCOND.
-          rename inv0 into invmem.
-          rename inv into inv0.
+          rename PCND0 into POSTCOND.
+          (* rename inv into inv0. *)
           move POSTCOND at bottom.
           destruct conf_src; ss.
           inv CONF. inv INJECT. ss. clarify.
@@ -854,10 +778,10 @@ Proof.
           + exfalso.
             destruct c; des_ifs. ss. des_bool; des. des_sumbool. clarify.
             inv SRC_STEP.
-            assert(INJECT : genericvalues_inject.gv_inject (InvMem.Rel.inject invmem) mptr0 g).
+            assert(INJECT : genericvalues_inject.gv_inject (InvMem.Rel.inject invmem1) mptr0 g).
             {
               eapply InvState.Subset.inject_value_Subset in POSTCOND0; cycle 1.
-              { instantiate (1:= inv0).
+              { instantiate (1:= inv1).
                 etransitivity; eauto.
                 { eapply SoundForgetStack.forget_stack_Subset; eauto. }
                 etransitivity; eauto.
@@ -876,16 +800,16 @@ Proof.
               unfold GV2ptr in *. des_ifs_safe.
               repeat all_with_term ltac:(fun H => inv H) genericvalues_inject.gv_inject.
               repeat all_with_term ltac:(fun H => inv H) memory_sim.MoreMem.val_inject.
-              exploit genericvalues_inject.mem_inj__free; eauto; try apply MEM; i; des.
+              exploit genericvalues_inject.mem_inj__free; eauto; try apply MEM1; i; des.
               assert(delta = 0).
-              { inv MEM. ss. inv WF. expl mi_bounds. }
+              { inv MEM1. ss. inv WF. expl mi_bounds. }
               clarify.
               repeat rewrite Z.add_0_r in *.
               rewrite <- int_add_0 in *. clarify.
 
               des_ifs.
               exploit genericvalues_inject.mi_bounds.
-              { apply MEM. }
+              { apply MEM1. }
               { eauto. }
               i; des.
 
@@ -903,8 +827,8 @@ Proof.
               apply Exprs.ExprPairSetFacts.mem_iff in POSTCOND.
               {
                 des. des_sumbool. clarify.
-                assert(NOT_IN_MD: Invariant.not_in_maydiff inv0
-                                            (Exprs.ValueT.lift Exprs.Tag.physical value1)).
+                assert(NOT_IN_MD: Invariant.not_in_maydiff inv1
+                                                           (Exprs.ValueT.lift Exprs.Tag.physical value1)).
                 {
                   expl SoundForgetStack.forget_stack_Subset.
                   eapply InvState.Subset.not_in_maydiff_Subset; eauto.
@@ -918,11 +842,11 @@ Issue on encoding definedness with undef.
 More explanation on: https://github.com/snu-sf/llvmberry/issues/426". }
                 des.
                 exploit InvState.Rel.lessdef_expr_spec; eauto.
-                { apply STATE. }
+                { apply STATE1. }
                 { unfold InvState.Unary.sem_expr. ss. eauto. }
                 i; des. ss. rewrite InvState.Unary.sem_valueT_physical in *. ss. des_ifs.
 
-                exploit InvState.Rel.not_in_maydiff_value_spec; try apply STATE; eauto.
+                exploit InvState.Rel.not_in_maydiff_value_spec; try apply STATE1; eauto.
                 { ss.  }
                 { rewrite InvState.Unary.sem_valueT_physical. ss. eauto. }
                 i; des.
@@ -935,9 +859,9 @@ More explanation on: https://github.com/snu-sf/llvmberry/issues/426". }
                   rename g into __g__.
                   repeat all_with_term ltac:(fun H => inv H) genericvalues_inject.gv_inject.
                   repeat all_with_term ltac:(fun H => inv H) memory_sim.MoreMem.val_inject.
-                  exploit genericvalues_inject.simulation_mload_aux; eauto; try apply MEM; i; des.
+                  exploit genericvalues_inject.simulation_mload_aux; eauto; try apply MEM1; i; des.
                   assert(delta = 0).
-                  { inv MEM. ss. inv WF. expl mi_bounds. }
+                  { inv MEM1. ss. inv WF. expl mi_bounds. }
                   clarify.
                   rewrite Z.add_0_r in *.
                   rewrite <- int_add_0 in *. clarify.
@@ -945,10 +869,10 @@ More explanation on: https://github.com/snu-sf/llvmberry/issues/426". }
               }
             * exfalso.
               inv SRC_STEP.
-              assert(INJECT : genericvalues_inject.gv_inject (InvMem.Rel.inject invmem) mp g).
+              assert(INJECT : genericvalues_inject.gv_inject (InvMem.Rel.inject invmem1) mp g).
               {
                 eapply InvState.Subset.inject_value_Subset in POSTCOND0; cycle 1.
-                { instantiate (1:= inv0).
+                { instantiate (1:= inv1).
                   etransitivity; eauto.
                   { eapply SoundForgetStack.forget_stack_Subset; eauto. }
                   etransitivity; eauto.
@@ -967,9 +891,9 @@ More explanation on: https://github.com/snu-sf/llvmberry/issues/426". }
                 unfold GV2ptr in *. des_ifs_safe.
                 repeat all_with_term ltac:(fun H => inv H) genericvalues_inject.gv_inject.
                 repeat all_with_term ltac:(fun H => inv H) memory_sim.MoreMem.val_inject.
-                exploit genericvalues_inject.simulation_mload_aux; eauto; try apply MEM; i; des.
+                exploit genericvalues_inject.simulation_mload_aux; eauto; try apply MEM1; i; des.
                 assert(delta = 0).
-                { inv MEM. ss. inv WF. expl mi_bounds. }
+                { inv MEM1. ss. inv WF. expl mi_bounds. }
                 clarify.
                 rewrite Z.add_0_r in *.
                 rewrite <- int_add_0 in *. clarify.
@@ -977,10 +901,10 @@ More explanation on: https://github.com/snu-sf/llvmberry/issues/426". }
           + exfalso.
             destruct c; des_ifs; ss; repeat (des_bool; des; des_sumbool; clarify).
             inv SRC_STEP.
-            assert(INJECT1 : genericvalues_inject.gv_inject (InvMem.Rel.inject invmem) gv1 g).
+            assert(INJECT1 : genericvalues_inject.gv_inject (InvMem.Rel.inject invmem1) gv1 g).
             {
               eapply InvState.Subset.inject_value_Subset in POSTCOND1; cycle 1.
-              { instantiate (1:= inv0).
+              { instantiate (1:= inv1).
                 etransitivity; eauto.
                 { eapply SoundForgetStack.forget_stack_Subset; eauto. }
                 etransitivity; eauto.
@@ -993,10 +917,10 @@ More explanation on: https://github.com/snu-sf/llvmberry/issues/426". }
               i; des.
               rewrite InvState.Unary.sem_valueT_physical in *. ss. rewrite Heq in *. clarify.
             }
-            assert(INJECT2 : genericvalues_inject.gv_inject (InvMem.Rel.inject invmem) mp2 g0).
+            assert(INJECT2 : genericvalues_inject.gv_inject (InvMem.Rel.inject invmem1) mp2 g0).
             {
               eapply InvState.Subset.inject_value_Subset in POSTCOND0; cycle 1.
-              { instantiate (1:= inv0).
+              { instantiate (1:= inv1).
                 etransitivity; eauto.
                 { eapply SoundForgetStack.forget_stack_Subset; eauto. }
                 etransitivity; eauto.
@@ -1015,9 +939,9 @@ More explanation on: https://github.com/snu-sf/llvmberry/issues/426". }
               unfold GV2ptr in *. des_ifs_safe.
               inv INJECT2. inv H4.
               repeat all_with_term ltac:(fun H => inv H) memory_sim.MoreMem.val_inject.
-              exploit genericvalues_inject.mem_inj_mstore_aux; eauto; try apply MEM; i; des.
+              exploit genericvalues_inject.mem_inj_mstore_aux; eauto; try apply MEM1; i; des.
               assert(delta = 0).
-              { inv MEM. ss. inv WF. expl mi_bounds. }
+              { inv MEM1. ss. inv WF. expl mi_bounds. }
               clarify.
               rewrite Z.add_0_r in *.
               rewrite <- int_add_0 in *. clarify.
@@ -1025,6 +949,7 @@ More explanation on: https://github.com/snu-sf/llvmberry/issues/426". }
           + destruct c; ss.
         - i; ss.
       }
+
       { split; ss. }
       { split; ss. }
       i.
@@ -1033,18 +958,163 @@ More explanation on: https://github.com/snu-sf/llvmberry/issues/426". }
       exploit sInsn_non_call; eauto; try congruence. i. des. subst. ss.
       exploit postcond_cmd_sound; eauto; ss; try congruence. i. des.
       exploit sInsn_non_call; eauto; try congruence. i. des. subst. ss.
-      exploit apply_infrules_sound; eauto; ss. i. des.
-      exploit reduce_maydiff_sound; eauto; ss. i. des.
-      exploit implies_sound; eauto; ss. i. des.
-      esplits; (try by etransitivity; eauto); eauto.
-      { econs 1. eauto. }
-      right. apply CIH. econs; try exact x1; eauto.
-      split; ss. eapply preservation; eauto.
-  -
+
+
+      (* Want to get InvState.Rel.sem of __t__ *)
+      exploit apply_infrules_sound; try apply STATE; eauto; []; intro STATE2;
+        destruct STATE2 as [invst2 [invmem2 [STATE2 [MEM2 MEMLE2]]]]. des. ss.
+      clears invst1.
+      instantiate (1:= l1) in STATE2.
+
+      exploit reduce_maydiff_sound; try apply STATE2; eauto; ss; []; intro STATE3.
+      destruct STATE3 as [invst3 STATE3]; des.
+      clears invst2.
+
+      exploit apply_infrules_sound; try apply STATE3; eauto; []; intro STATE4;
+        destruct STATE4 as [invst4 [invmem4 [STATE4 [MEM4 MEMLE4]]]]. des. ss.
+      clears invst3.
+      instantiate (1:= infrulesB) in STATE4.
+
+      exploit reduce_maydiff_sound; try apply STATE4; eauto; ss; []; intro STATE5.
+      destruct STATE5 as [invst5 STATE5]; des.
+      clears invst4.
+
+      {
+        assert(InvMem.Rel.le inv0 invmem4).
+        { etransitivity; eauto. etransitivity; eauto. etransitivity; eauto. }
+        esplits; eauto.
+        { econs 1; eauto. }
+        { right. apply CIH. econs; eauto.
+          - eapply implies_sound; eauto.
+          - split; ss. eapply preservation; eauto.
+        }
+      }
+    + (* call *)
+      exploit postcond_cmd_is_call; eauto. i.
+      destruct c; ss. destruct c0; ss.
+      clear_tac.
+      rename t0 into __t0__.
+      hexploit postcond_call_sound; try exact PCND0; eauto;
+        (try instantiate (2 := (mkState (mkEC _ _ _ _ _ _) _ _))); ss; eauto; ss.
+      i. des. subst. des.
+
+      eapply _sim_local_call with
+          (inv2 := invmem1)
+          (uniqs_src:= (memory_blocks_of conf_src Locals0 (Invariant.unique (Invariant.src inv1))))
+          (uniqs_tgt:= (memory_blocks_of conf_tgt Locals1 (Invariant.unique (Invariant.tgt inv1))))
+          (privs_src:= (memory_blocks_of_t conf_src _ _ (Invariant.private (Invariant.src inv1))))
+          (privs_tgt:= (memory_blocks_of_t conf_tgt _ _ (Invariant.private (Invariant.tgt inv1))));
+        ss; eauto; ss.
+      { inv STATE1. inv SRC.
+        unfold memory_blocks_of. ii.
+        des.
+        match goal with [ H: In _ (flat_map _ _) |- _ ] => eapply in_flat_map in H; eauto end.
+        des.
+        des_ifs.
+        exploit UNIQUE.
+        { apply AtomSetFacts.elements_iff, InA_iff_In. eauto. }
+        intro UNIQUE_A. inv UNIQUE_A. ss. clarify.
+        (* TODO: name clash on "MEM". Chnage sem_unqiue? smarter way? *)
+        exploit MEM; eauto.
+      }
+      { inv STATE1. inv SRC.
+        unfold memory_blocks_of. ii.
+        des.
+        match goal with [ H: In _ (flat_map _ _) |- _ ] => eapply in_flat_map in H; eauto end.
+        des.
+        des_ifs.
+        exploit UNIQUE.
+        { apply AtomSetFacts.elements_iff, InA_iff_In. eauto. }
+        intro UNIQUE_A. inv UNIQUE_A. ss. clarify.
+        exploit GLOBALS; eauto.
+        (* NEED TO STRENGTHEN GLOBALS *)
+      }
+
+      { inv STATE1. inv TGT.
+        unfold memory_blocks_of. ii.
+        des.
+        match goal with [ H: In _ (flat_map _ _) |- _ ] => eapply in_flat_map in H; eauto end.
+        des.
+        des_ifs.
+        exploit UNIQUE.
+        { apply AtomSetFacts.elements_iff, InA_iff_In. eauto. }
+        intro UNIQUE_A. inv UNIQUE_A. ss. clarify.
+        exploit MEM; eauto.
+      }
+      { inv STATE1. inv TGT.
+        unfold memory_blocks_of. ii.
+        des.
+        match goal with [ H: In _ (flat_map _ _) |- _ ] => eapply in_flat_map in H; eauto end.
+        des.
+        des_ifs.
+        exploit UNIQUE.
+        { apply AtomSetFacts.elements_iff, InA_iff_In. eauto. }
+        intro UNIQUE_A. inv UNIQUE_A. ss. clarify.
+        exploit GLOBALS; eauto.
+      }
+      { inv STATE1. inv SRC. ss.
+        i. unfold memory_blocks_of_t in IN.
+        des.
+        match goal with [ H: In _ (flat_map _ _) |- _ ] => eapply in_flat_map in H; eauto end.
+        des.
+        des_ifs.
+        exploit PRIVATE; eauto.
+        { apply Exprs.IdTSetFacts.elements_iff.
+          apply In_InA; eauto. }
+        ss. i. des. clarify.
+      }
+      { inv STATE1. inv TGT. ss.
+        i. unfold memory_blocks_of_t in IN.
+        des.
+        match goal with [ H: In _ (flat_map _ _) |- _ ] => eapply in_flat_map in H; eauto end.
+        des.
+        des_ifs.
+        exploit PRIVATE; eauto.
+        { apply Exprs.IdTSetFacts.elements_iff.
+          apply In_InA; eauto. }
+        ss. i. des. clarify.
+      }
+
+      i.
+      exploit RETURN; eauto. intro STATE'. des.
+      hide_goal.
+      rename STATE into STATE'0.
+      rename MEM0 into MEM'0.
+      rename invmem2 into invmem'0.
+      rename invst2 into invst'0.
+
+      (* Want to get InvState.Rel.sem of __t__ *)
+      (* This part is common with non-call case... can we remove redundancy? *)
+
+      exploit apply_infrules_sound; try apply STATE'0; eauto; []; intro STATE'1;
+        destruct STATE'1 as [invst'1 [invmem'1 [STATE'1 [MEM'1 MEMLE'1]]]]. des. ss.
+      clears invst'0.
+      instantiate (1:= l1) in STATE'1.
+
+      exploit reduce_maydiff_sound; try apply STATE'1; eauto; ss; []; intro STATE'2.
+      destruct STATE'2 as [invst'2 STATE'2]; des.
+      clears invst'1.
+
+      exploit apply_infrules_sound; try apply STATE'2; eauto; []; intro STATE'3;
+        destruct STATE'3 as [invst'3 [invmem'3 [STATE'3 [MEM'3 MEMLE'3]]]]. des. ss.
+      clears invst'2.
+      instantiate (1:= infrulesB) in STATE'3.
+
+      exploit reduce_maydiff_sound; try apply STATE'3; eauto; ss; []; intro STATE'4.
+      destruct STATE'4 as [invst'4 STATE'4]; des.
+      clears invst'3.
+
+      {
+       unfold HIDDEN_GOAL.
+        exists locals2_tgt, 0%nat, invmem'3. splits; ss.
+        - etransitivity; eauto. etransitivity; eauto.
+        - esplits; eauto.
+          { right. apply CIH. econs; eauto.
+            - eapply implies_sound; eauto.
+          }
+      }
 Unshelve.
 all: try ss.
-{ split; ss. eapply preservation; eauto. }
-  -
 Qed.
 
 

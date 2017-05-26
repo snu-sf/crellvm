@@ -504,28 +504,36 @@ Proof.
       
       esplits; eauto.
       * econs 1. eauto.
-      * right. apply CIH. econs; try reflexivity.
-        { ss. }
+      * right. apply CIH.
         {
-          econs 2; eauto; [|reflexivity].
-          s. i.
-          hexploit RETURN; eauto. clear RETURN. intro RETURN. des.
-          esplits; eauto.
-          i. specialize (RETURN1 WF_SRC1). specialize (RETURN1 WF_TGT1).
-          inv RETURN1; ss.
-          eauto.
-        }
-        {
-          inv SIM.
-          unfold getEntryBlock in *.
-          des_ifs.
-          ss. clarify.
-          eapply SIM0.
-          - splits; ss.
-            eapply sop_star_preservation; eauto.
-            eapply opsem_props.OpsemProps.sop_star_trans; try eassumption.
-            econs; eauto.
-          - split; ss.
+          eapply sim_local_lift_intro with
+              (inv := (InvMem.Rel.lift Mem0 Mem1 uniqs_src uniqs_tgt privs_src privs_tgt inv2)); ss.
+          {
+            econstructor 2 with (inv1 := inv2); [..|reflexivity]; ss; try eassumption.
+            { etransitivity; eauto. }
+            { s. i.
+              hexploit RETURN; eauto. clear RETURN. intro RETURN. des.
+              esplits; eauto.
+              i. specialize (RETURN1 WF_SRC1). specialize (RETURN1 WF_TGT1).
+              inv RETURN1; ss.
+              eauto.
+            }
+          }
+          {
+            match goal with
+            | [H: context[init_fdef] |- _ ] => inv H
+            end.
+            unfold getEntryBlock in *.
+            des_ifs.
+            ss. clarify.
+            eapply SIM0.
+            - splits; ss.
+              eapply sop_star_preservation; eauto.
+              eapply opsem_props.OpsemProps.sop_star_trans; try eassumption.
+              econs; eauto.
+            - splits; ss.
+          }
+          { reflexivity. }
         }
     + (* excall *)
       exploit FUN; eauto. i. des.
@@ -673,7 +681,7 @@ Proof.
           }
           {
             eapply sim_local_stack_invmem_le; eauto.
-            etransitivity; eauto.
+            etransitivity; eauto. etransitivity; eauto.
           }
       }
   - (* step *)
