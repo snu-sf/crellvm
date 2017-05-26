@@ -107,7 +107,7 @@ Proof.
   destruct value.
   - eapply WF_LC; eauto.
   - ss.
-    exploit TODOProof.wf_globals_const2GV; eauto; []; ii; des.
+    exploit MemProps.wf_globals_const2GV; eauto; []; ii; des.
     destruct WF as [_ WF_MEM].
     eapply MemProps.valid_ptrs__trans; eauto.
     apply Pos.lt_succ_r.

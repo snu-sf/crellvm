@@ -9,6 +9,7 @@ Require Import Metatheory.
 Import LLVMsyntax.
 Import LLVMinfra.
 Require Import opsem.
+Require Import memory_props.
 
 Require Import sflib.
 Require Import paco.
@@ -861,7 +862,7 @@ Proof.
       destruct v; ss.
       - eapply WF_LOCAL; eauto.
       - inv MEM.
-        exploit wf_globals_const2GV; eauto; []; ii; des.
+        exploit MemProps.wf_globals_const2GV; eauto; []; ii; des.
         unfold memory_props.MemProps.wf_Mem in WF. des.
         clear - WF0 x4.
         eapply memory_props.MemProps.valid_ptrs__trans; eauto.

@@ -249,7 +249,7 @@ Lemma getOperandValue_diffblock
 Proof.
   destruct valy; ss.
   - hexploit LOOKUP_DIFFBLOCK; eauto.
-  - eapply TODOProof.wf_globals_const2GV in GET_OPERAND; eauto.
+  - eapply MemProps.wf_globals_const2GV in GET_OPERAND; eauto.
     des.
     eapply valid_ptr_globals_diffblock_with_blocks; eauto.
 Unshelve.
@@ -927,7 +927,7 @@ Proof.
       * ss.
         rename g into __g__.
         rename val into __val__.
-        exploit TODOProof.wf_globals_const2GV; eauto; []; i; des.
+        exploit MemProps.wf_globals_const2GV; eauto; []; i; des.
         eapply valid_ptr_globals_diffblock; eauto.
       * eapply LOCALS; try apply Heq; eauto.
         apply AtomSetFacts.not_mem_iff in NOT_LEAKED_U.
@@ -961,7 +961,7 @@ Proof.
         }
       }
       {
-        exploit TODOProof.wf_globals_const2GV; eauto; []; intro VALID_PTR; des.
+        exploit MemProps.wf_globals_const2GV; eauto; []; intro VALID_PTR; des.
         eapply valid_ptr_globals_diffblock; eauto.
       }
     }
@@ -984,7 +984,7 @@ Proof.
         }
       }
       {
-        exploit TODOProof.wf_globals_const2GV; eauto; []; intro VALID_PTR; des.
+        exploit MemProps.wf_globals_const2GV; eauto; []; intro VALID_PTR; des.
         eapply valid_ptr_globals_diffblock; eauto.
       }
     }

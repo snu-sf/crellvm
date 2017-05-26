@@ -730,7 +730,7 @@ Lemma unique_const_diffblock
 .
 Proof.
   red.
-  eapply TODOProof.wf_globals_const2GV in VAL2; eauto. des.
+  eapply MemProps.wf_globals_const2GV in VAL2; eauto. des.
 
   inv UNIQUE. clear LOCALS MEM. clarify.
 

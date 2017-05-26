@@ -505,27 +505,6 @@ Proof.
   eapply mstore_aux_implies_vm_matches; eauto.
 Qed.
 
-Lemma mstore_mload_same
-      td Mem mp2 typ1 gv1 align1 Mem'
-      (MSTORE: mstore td Mem mp2 typ1 gv1 align1 = ret Mem')
-  :
-    <<MLOAD: mload td Mem' mp2 typ1 align1 = ret gv1>>
-.
-Proof.
-  ADMIT ("
-Language/Memory model should provide this.
-This lemma was originally in Vellvm (Compcert memory model).
-However, when we upgraded Vellvm's Compcert memory model to version 2, this lemma was commented.
-See common/Memdata.v, ""encode_decode_encode_val__eq__encode_val"" is commented
-and all tainted Theorems are commented.
-It seems those Theorems are commented at that momment because they are not used in Vellvm.
-One may able to track this issue with git lg/blame, also with actual compcert code before/after upgrade.
-I consider this ad-mit can be solved, but it does not worth to do so.
-").
-  (* eapply MemProps.mstore_mload_same; eauto. *) (* From Vellvm, should uncomment *)
-  (* eapply mstore_implies_gv_chunks_match; eauto. *)
-Qed.
-
 Lemma filter_map_spec
       X Y
       a b (f:X -> option Y) l
@@ -595,82 +574,4 @@ Proof.
   symmetry.
   rewrite -> DEF_Z_ofs.
   apply Int.repr_unsigned.
-Qed.
-
-Lemma wf_globals_const2GV
-      gmax gl TD cnst gv
-      (GLOBALS: genericvalues_inject.wf_globals gmax gl)
-      (C2G: const2GV TD gl cnst = Some gv)
-  :
-    <<VALID_PTR: MemProps.valid_ptrs (gmax + 1)%positive gv>>
-.
-Proof.
-  (* globals: <= gmax *)
-  (* valid_ptr: < gmax+1 *)
-  ADMIT "
-Language should provide this. This should be provable.
-- Inside _const2GV, it seems the only source of pointer is ""gid"", which looks up globals table.
-- Note that int2ptr/ptr2int is currently defind as undef in mcast.
-- null has pointer type but its value is int.
-Therefore, any pointer returned by const2GV may originate from globals table, so this theorem should hold.
-
-Also, even in case this does not hold, look: https://github.com/snu-sf/llvmberry/blob/c6acd1462bdb06c563185e23756897914f80e53a/coq/proof/SoundForgetMemory.v#L1504
-This is provable with wf_const, by the lemma ""MemProps.const2GV_valid_ptrs"".
-Claiming all const satisfies wf_const is too strong and it will introduce inconsistency.
-We might need to add some constraints in our validator,
-such as, the const of interest (all that appears in hint/invariant) actually exists in the original code,
-which passed type checking, so wf_const holds.
-".
-Qed.
-
-Lemma mstore_aux_never_produce_new_ptr
-      TD mem0 mem1
-      nptr ch val b o
-      (MEM_NOALIAS: forall ptr ty a gv,
-          mload TD mem0 ptr ty a = Some gv ->
-          MemProps.no_alias nptr gv)
-      (STORE_AUX: mstore_aux mem0 ch val b o = Some mem1)
-      (NOALIAS: MemProps.no_alias nptr val)
-  : forall ptr ty a gv,
-    mload TD mem1 ptr ty a = Some gv ->
-    MemProps.no_alias nptr gv
-.
-Proof.
-  (* ii. *)
-  (* destruct ptr; ss. destruct p; ss. destruct v; ss. *)
-  (* destruct ptr; ss. *)
-  (* destruct (Pos.eq_dec b0 b). *)
-  (* - clarify. *)
-  (*   unfold mload in *. des_ifs. *)
-  (*   assert(val = gv). *)
-  (*   { ad-mit. } *)
-  (*   clarify. *)
-  (* - eapply MEM_NOALIAS; eauto. *)
-  (*   instantiate (1:= a). *)
-  (*   instantiate (1:= ty). *)
-  (*   instantiate (1:= [(Vptr b0 i0, m)]). *)
-  (*   assert(exists ofs, o = (Int.signed 31 ofs)). *)
-  (*   { ad-mit. } des. *)
-  (*   assert(exists ty0, Some ch = flatten_typ TD ty0). *)
-  (*   { ad-mit. } des. *)
-  (*   eapply MemProps.mstore_preserves_mload_inv'; eauto. *)
-  (*   { instantiate (1:= a). *)
-  (*     instantiate (1:= val). *)
-  (*     instantiate (1:= ty0). *)
-  (*     instantiate (1:= [(Vptr b ofs, m)]). *)
-  (*     unfold mstore. ss. *)
-  (*     unfold mload in *. des_ifsH H. rewrite <- H1. *)
-  (*     eauto. *)
-  (*   } *)
-  (*   ss. split; ss. split; ss. *)
-  (*   ii; clarify; ss. *)
-  ADMIT "
-Memory model should provide this.
-- [nptr] is a pointer.
-- [mem0] contains no pointers aliased with [nptr].
-- [val] is also not aliased with [nptr].
-- Then, only storing [val] into somewhere in [mem0] shouldn't produce an
-  alias to [nptr]
-- Therefore, the result memory [mem1] contains no aliases to [nptr]
-".
 Qed.

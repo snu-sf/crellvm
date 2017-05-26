@@ -965,17 +965,17 @@ Proof.
       clear LESSDEF NOALIAS UNIQUE PRIVATE.
       ss.
       destruct value1, value2; ss; u; ss; rewrite H; rewrite H0; des_lookupAL_updateAddAL;
-        erewrite mstore_mload_same; eauto.
+        erewrite MemProps.mstore_mload_same; eauto.
     +
       apply lessdef_add.
       apply lessdef_add; [apply LESSDEF|].
       clear LESSDEF NOALIAS UNIQUE PRIVATE.
       ss.
       destruct value1, value2; ss; u; ss; rewrite H; rewrite H0; des_lookupAL_updateAddAL;
-        erewrite mstore_mload_same; eauto.
+        erewrite MemProps.mstore_mload_same; eauto.
       ss.
       destruct value1, value2; ss; u; ss; rewrite H; rewrite H0; des_lookupAL_updateAddAL;
-        erewrite mstore_mload_same; eauto.
+        erewrite MemProps.mstore_mload_same; eauto.
 Qed.
 
 Lemma postcond_cmd_add_lessdef_src_sound

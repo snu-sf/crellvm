@@ -1607,7 +1607,7 @@ Proof.
       { (* const case : need wf_const *)
         ss.
         rename g into __g__.
-        exploit TODOProof.wf_globals_const2GV; eauto; []; intro VALID_PTR; des.
+        exploit MemProps.wf_globals_const2GV; eauto; []; intro VALID_PTR; des.
         destruct WF_MEM as [_ WF_MEM].
         clear - WF_MEM ALLOCA GV2PTR VALID_PTR.
         (* GV2ptr is a bit weird? it is artificially made from above destruct, *)

@@ -57,7 +57,7 @@ Lemma mstore_never_produce_new_ptr
 Proof.
   unfold mstore in *.
   des_ifs.
-  eapply TODOProof.mstore_aux_never_produce_new_ptr; eauto.
+  eapply MemProps.mstore_aux_never_produce_new_ptr; eauto.
 Qed.
 
 Lemma getOperandValue_not_unique_parent
@@ -528,7 +528,7 @@ Proof.
   i. eapply valid_ptrs__no_alias__fresh_ptr_iff.
   instantiate (1:=conf.(CurTargetData)).
   i. apply MemProps.no_alias_sym.
-  eapply TODOProof.mstore_aux_never_produce_new_ptr; eauto.
+  eapply MemProps.mstore_aux_never_produce_new_ptr; eauto.
   - i. exploit WF_MEM; eauto. i.
     erewrite valid_ptrs__no_alias__fresh_ptr_iff in x.
     apply MemProps.no_alias_sym.
@@ -554,7 +554,7 @@ Proof.
   { i. rewrite vellvm_no_alias_is_diffblock. eauto. }
   {
     clear_tac.
-    expl wf_globals_const2GV.
+    expl MemProps.wf_globals_const2GV.
     unfold MemProps.wf_lc in *.
     clear - wf_globals_const2GV VAL GLOBALS.
     induction gv; ii; ss.
