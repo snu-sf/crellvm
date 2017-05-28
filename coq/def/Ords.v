@@ -30,6 +30,7 @@ Print MSetAVL.Make.
 
 Require Import Orders.
 (* Because "Orders" name is already used, I choose "Ords" as this file's name *)
+Require Import OrdersAlt.
 Print OrdersAlt.
 Print OrdersAlt.OrderedTypeAlt.
 (* It seems convenient, but I will stick to standard. *)
@@ -93,7 +94,7 @@ Definition compare_list X (compare: X -> X -> comparison) :=
 (* I write "Orders.OrderedType" in order to not confuse with "OrderedType.OrderedType" *)
 (* This is weird... I think it is impossible to define OrderedType X => OrderedType (option X) *)
 (* because OrderedType's lt's irrefl is defined with leibniz eq, not eq of that module *)
-Module option (E: Orders.UsualOrderedType) <: Orders.UsualOrderedType.
+Module option (E: Orders.OrderedType) <: Orders.OrderedType.
 
   Module EAlt <: OrdersAlt.OrderedTypeAlt := OrdersAlt.OT_to_Alt E.
   Import EAlt. (* To get compare_trans *)
@@ -107,6 +108,36 @@ Module option (E: Orders.UsualOrderedType) <: Orders.UsualOrderedType.
   (* ETac is included in EFacts *)
 
   Definition t := option E.t.
+
+  Definition eq (x y: t) :=
+    match x, y with
+    | Some x_, Some y_ => E.eq x_ y_
+    | None, None => True
+    | _, _ => False
+    end.
+
+  Definition eq_dec (x y:t): {eq x y} + {~ eq x y}.
+    destruct x, y; ss.
+    - apply E.eq_dec.
+    - right; ii; ss.
+    - right; ii; ss.
+    - left; ss.
+  Defined.
+
+  Global Program Instance eq_equiv : Equivalence eq.
+  Next Obligation.
+    ii. destruct x; ss. apply eq_refl; ss.
+  Qed.
+  Next Obligation.
+    ii. destruct x; ss.
+    des_ifs. ss. apply eq_sym; ss.
+  Qed.
+  Next Obligation.
+    ii. destruct x; ss; des_ifs; ss.
+    eapply eq_trans; eauto.
+  Qed.
+
+
 
   Definition compare (x y: t): comparison :=
     match x, y with
@@ -126,6 +157,7 @@ Module option (E: Orders.UsualOrderedType) <: Orders.UsualOrderedType.
     hexploit E.compare_spec; eauto; []; intro SPEC; des.
     destruct (E.compare t0 t1) eqn:T0;
       rewrite T0 in *; inv SPEC; econs; ss.
+    - 
     compute. eapply compare_lt_iff; ss.
   Qed.
   
@@ -138,7 +170,10 @@ Module option (E: Orders.UsualOrderedType) <: Orders.UsualOrderedType.
 
   Global Program Instance lt_compat : Proper (eq ==> eq ==> iff) lt.
   Next Obligation.
-    ii. split; ii; clarify; try order.
+    ii.
+    unfold eq in *. des_ifs.
+    unfold lt in *. ss. repeat rewrite compare_lt_iff in *.
+    split; ii; clarify; order.
   Qed.
   Next Obligation.
     intros x y z LTXY LTYZ. unfold lt in *.
@@ -148,13 +183,6 @@ Module option (E: Orders.UsualOrderedType) <: Orders.UsualOrderedType.
     eapply EAlt.compare_trans; eauto.
   Qed.
 
-
-  Definition eq := @eq t.
-  Global Program Instance eq_equiv : Equivalence eq.
-  Definition eq_dec (x y:t): {x = y} + {x <> y}.
-    decide equality.
-    apply eq_dec.
-  Defined.
 
 End option.
 
