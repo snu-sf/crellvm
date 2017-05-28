@@ -10,6 +10,10 @@ Export LLVMsyntax.
 Export LLVMinfra.
 
 Require Import Decs.
+Require Import TODOProof.
+(* for des_ifs_safe tac *)
+(* I checked dependency, but conceptually this may not good.. *)
+(* file in def/ imports file in proof/ *)
 
 
 Print Orders.OrderedType.
@@ -45,7 +49,7 @@ Require Import Recdef.
 
 
 
-
+Local Open Scope nat.
 
 
 Fixpoint lexico_order (x0: list comparison): comparison :=
@@ -56,6 +60,17 @@ Fixpoint lexico_order (x0: list comparison): comparison :=
   | Gt :: _ => Gt
   end
 .
+
+Definition compare_list X (compare: X -> X -> comparison) :=
+  fix compare_list_ (a0 b0: list X): comparison :=
+    match a0, b0 with
+    | a :: a1, b :: b1 => lexico_order [(compare a b) ; (compare_list_ a1 b1)]
+    | [], [] => Eq
+    | [], _ => Lt
+    | _, [] => Gt
+    end
+.
+
 
 
 (* TODO: move to TODO.v? *)
@@ -210,6 +225,12 @@ Module floating_point <: Orders.OrderedType.
 
 End floating_point.
 
+Module floating_pointFacts := OrdersFacts.OrderedTypeFacts floating_point.
+(* TODO: Can I define it inside original module? *)
+(* just make a wrapper for UsualOrderedType? *)
+
+
+
 
 Module varg <: Orders.OrderedType.
 
@@ -218,6 +239,7 @@ Module varg <: Orders.OrderedType.
 
 End varg.
 
+Module vargFacts := OrdersFacts.OrderedTypeFacts varg.
 
 
 
@@ -225,7 +247,26 @@ End varg.
 
 
 
+Module CompareTac (E: Orders.UsualOrderedType).
+  (* Module EAlt <: OrdersAlt.OrderedTypeAlt := OrdersAlt.OT_to_Alt E. *)
+  (* Import EAlt. (* To get compare_trans *) *)
+  Module EFull <: OrderedTypeFull := (OT_to_Full E).
+  Module EFacts := OrdersFacts.OrderedTypeFacts EFull.
+  (* Import EFacts. *)
 
+  Ltac compare_tac :=
+    match goal with
+    | [H: E.compare ?a ?b = Eq |- _ ] => rewrite EFacts.compare_eq_iff in H
+    | [H: E.compare ?a ?b = Lt |- _ ] => rewrite EFacts.compare_lt_iff in H
+    | [H: E.compare ?a ?b = Gt |- _ ] => rewrite EFacts.compare_gt_iff in H
+    end.
+  
+End CompareTac.
+
+Module NatCompare := CompareTac Nat.
+(* NatCompare.compare_tac. *)
+Module NatTacs := OrdersTac.MakeOrderTac Nat Nat.
+Module NatFacts := OrdersFacts.OrderedTypeFacts Nat.
 
 
 
@@ -373,13 +414,7 @@ Module typ <: OrderedType.
     end
   .
   (* Why error???????? *)
-
-  Fail Function compare (x y: t) {measure (wf_order x)}: comparison :=
-    match x, y with
-    | _, _ => Eq
-    end
-  .
-  (* Why??????????? *)
+  Reset wf_order.
 
 
 
@@ -417,13 +452,18 @@ Module typ <: OrderedType.
 
   Reset compare_list_failing.
 
-  Definition compare_list (compare: t -> t -> comparison) :=
-    fix compare_list_ (a0 b0: list t): comparison :=
-    match a0, b0 with
-    | a :: a1, b :: b1 => lexico_order [(compare a b) ; (compare_list_ a1 b1)]
-    | [], [] => Eq
-    | [], _ => Lt
-    | _, [] => Gt
+  Definition case_order (x: t): nat :=
+    match x with
+    | typ_int _ => 0
+    | typ_floatpoint _ => 1
+    | typ_void => 2
+    | typ_label => 3
+    | typ_metadata => 4
+    | typ_array _ _ => 5
+    | typ_function _ _ _ => 6
+    | typ_struct _ => 7
+    | typ_pointer _ => 8
+    | typ_namedt _ => 9
     end
   .
 
@@ -435,45 +475,168 @@ Module typ <: OrderedType.
     | typ_label, typ_label => Eq
     | typ_metadata, typ_metadata => Eq
     | typ_array sz0 ty0, typ_array sz1 ty1 =>
-      Eq
-      (* lexico_order [Nat.compare sz0 sz1; compare ty0 ty1] *)
+      lexico_order [Nat.compare sz0 sz1; compare ty0 ty1]
     | typ_function ty0 tys0 arg0, typ_function ty1 tys1 arg1 =>
-      (* Not in definition's order, but "singleton first, list later" *)
-      (* This is because I don't want to use "++" *)
-      (* lexico_order ((varg.compare arg0 arg1) *)
-      (*                 :: (compare ty0 ty1) :: (map2 compare tys0 tys1)) *)
-      Eq
+      lexico_order
+        [(compare ty0 ty1) ; (compare_list compare tys0 tys1) ; (varg.compare arg0 arg1)]
     | typ_struct tys0, typ_struct tys1 =>
       compare_list compare tys0 tys1
     | typ_pointer ty0, typ_pointer ty1 =>
       compare ty0 ty1
     | typ_namedt id0, typ_namedt id1 => Eq
 
-    | _, _ => Eq
+    | _, _ => Nat.compare (case_order x) (case_order y)
     end
   .
 
+  Definition lt (x y: t): Prop := compare x y = Lt.
 
-
-  Definition lt: t -> t -> Prop := ltb.
-
-  Definition eq_dec (x y:t): {x = y} + {x <> y}.
-    apply typ_dec.
-  Defined.
-
-  Definition compare (x y: t): comparison :=
-    if(eq_dec x y) then Eq else
-      (if (ltb x y) then Lt else Gt)
+  Ltac nat_compare_tac :=
+    repeat
+      match goal with
+      | [H: Nat.compare ?a ?b = Eq |- _ ] => rewrite Nat.compare_eq_iff in H
+      | [H: Nat.compare ?a ?b = Lt |- _ ] => rewrite Nat.compare_lt_iff in H
+      | [H: Nat.compare ?a ?b = Gt |- _ ] => rewrite Nat.compare_gt_iff in H
+      | [ |- Nat.compare ?a ?b = Eq ] => rewrite Nat.compare_eq_iff
+      | [ |- Nat.compare ?a ?b = Lt ] => rewrite Nat.compare_lt_iff
+      | [ |- Nat.compare ?a ?b = Gt ] => rewrite Nat.compare_gt_iff
+      end
   .
-  
+
+  Ltac elim_compare :=
+    match goal with
+    | [ |- CompareSpec _ _ _ ?x ] => destruct x eqn:T; try econs; ss
+    end
+  .
+
+  Lemma typ_ind_gen2: forall P : typ -> typ -> Prop,
+      (forall X sz5, P (typ_int sz5) X /\ P X (typ_int sz5)) ->
+      (forall X floating_point5,
+          P (typ_floatpoint floating_point5) X /\ P X (typ_floatpoint floating_point5)) ->
+      (forall X, P typ_void X /\ P X typ_void) ->
+      (forall X, P typ_label X /\ P X typ_label) ->
+      (forall X, P typ_metadata X /\ P X typ_metadata) ->
+      (forall X (sz5 : sz) (typ5 : typ),
+          P typ5 X /\ P X typ5 -> P (typ_array sz5 typ5) X /\ P X (typ_array sz5 typ5)) ->
+      (forall X typ_5,
+          P typ_5 X /\ P X typ_5->
+          forall l varg5,
+            P (typ_function typ_5 l varg5) X /\ P X (typ_function typ_5 l varg5)) ->
+      (* (forall typ_5 : typ, *)
+      (*     P typ_5 -> *)
+      (*     forall (l : list typ) (varg5 : varg) (IH: Forall P l), P (typ_function typ_5 l varg5)) -> *)
+      (* (forall (l : list typ) (IH: Forall P l), P (typ_struct l)) -> *)
+      (* (forall typ5 : typ, P typ5 -> P (typ_pointer typ5)) -> *)
+      (* (forall id5 : id, P (typ_namedt id5)) -> *)
+      forall t0 t1 : typ, P t0 t1.
+  Proof.
+    intros; revert t0; revert t1; fix IH 1.
+    intros; destruct t0; try (by clear IH; eauto).
+    Guarded.
+    - clear IH. expl H. eauto.
+    - clear IH. expl H0. eauto.
+    - clear IH. expl H1. eauto.
+    - clear IH. expl H2. eauto.
+    - clear IH. expl H3. eauto.
+    - hexploit H4.
+      { instantiate (1:= t0). instantiate (1:= t1). split; ss. }
+      clear IH. Guarded.
+      i; des. eauto.
+  Abort.
+
   Lemma compare_spec : forall x y : t, CompareSpec (eq x y) (lt x y) (lt y x) (compare x y).
   Proof.
-    ii. destruct x, y; ss; by econs.
-  Qed.
+    ii.
+    revert y.
+    induction x using typ_ind_gen; ii; ss; destruct y; ss; try by econs.
+    - Fail NatTacs.elim_compare sz5 sz0. (* TODO: WHY??? Because it is tactic notation?? *)
+      destruct (Nat.compare sz5 sz0) eqn:T; ss; try (by econs; ss).
+      + Fail NatCompare.compare_tac. (* TODO: WHY??????? *)
+        nat_compare_tac. Undo 1.
+        unfold Nat.compare in *.
+        Fail NatCompare.compare_tac. (* TODO: WHY??????? *)
+        Fail progress nat_compare_tac.
+        Undo 4.
+        nat_compare_tac. clarify. econs; eauto. ss.
+      + econs; ss. unfold lt. ss. nat_compare_tac. ss.
+    -  elim_compare.
+       + compute in T. des_ifs.
+       + apply floating_pointFacts.compare_gt_iff in T.
+         compute in T. des_ifs.
+    - assert(SPEC:= (IHx y)).
+      des_ifs; try nat_compare_tac; subst; econs.
+      + inv SPEC.
+        unfold eq in *. clarify.
+      + inv SPEC.
+        unfold lt. ss. des_ifs. nat_compare_tac. omega.
+      + inv SPEC.
+        unfold lt. ss. des_ifs.
+        * Abort.
+
+  Ltac fp_compare_tac :=
+    repeat
+      match goal with
+      | [H: floating_point.compare ?a ?b = Eq |- _ ] =>
+        rewrite floating_pointFacts.compare_eq_iff in H
+      | [H: floating_point.compare ?a ?b = Lt |- _ ] =>
+        rewrite floating_pointFacts.compare_lt_iff in H
+      | [H: floating_point.compare ?a ?b = Gt |- _ ] =>
+        rewrite floating_pointFacts.compare_gt_iff in H
+      | [ |- floating_point.compare ?a ?b = Eq ] =>
+        rewrite floating_pointFacts.compare_eq_iff
+      | [ |- floating_point.compare ?a ?b = Lt ] =>
+        rewrite floating_pointFacts.compare_lt_iff
+      | [ |- floating_point.compare ?a ?b = Gt ] =>
+        rewrite floating_pointFacts.compare_gt_iff
+      end
+  .
+
+  Ltac varg_compare_tac :=
+    repeat
+      match goal with
+      | [H: varg.compare ?a ?b = Eq |- _ ] =>
+        rewrite vargFacts.compare_eq_iff in H
+      | [H: varg.compare ?a ?b = Lt |- _ ] =>
+        rewrite vargFacts.compare_lt_iff in H
+      | [H: varg.compare ?a ?b = Gt |- _ ] =>
+        rewrite vargFacts.compare_gt_iff in H
+      | [ |- varg.compare ?a ?b = Eq ] =>
+        rewrite vargFacts.compare_eq_iff
+      | [ |- varg.compare ?a ?b = Lt ] =>
+        rewrite vargFacts.compare_lt_iff
+      | [ |- varg.compare ?a ?b = Gt ] =>
+        rewrite vargFacts.compare_gt_iff
+      end
+  .
+
 
   Global Program Instance lt_strorder : StrictOrder lt.
   Next Obligation.
-    ii. unfold lt in *. unfold ltb in *. des_ifs.
+    ii. unfold lt in *.
+    revert H.
+    induction x using typ_ind_gen; ii; ss;
+      fp_compare_tac;
+      unfold floating_point.ltb in *;
+      nat_compare_tac;
+      try omega.
+    - destruct floating_point5; ss.
+    - des_ifs; nat_compare_tac; subst; ss. omega.
+    - des_ifs; varg_compare_tac; subst; ss.
+      + clear - Heq1. unfold varg.compare in *.
+        rewrite vargFacts.compare_lt_iff in Heq1.
+        Undo 2.
+        unfold varg.compare in *. des_ifs.
+        Fail progress nat_compare_tac.
+        rewrite Nat.compare_lt_iff in *. omega.
+      + clear - Heq0 IH.
+        ginduction l0; ii; ss.
+        inv IH.
+        des_ifs.
+        apply IHl0; ss.
+    - ginduction l0; ii; ss.
+      inv IH.
+      des_ifs.
+      apply IHl0; eauto.
   Qed.
 
   Global Program Instance lt_compat : Proper (eq ==> eq ==> iff) lt.
@@ -481,8 +644,87 @@ Module typ <: OrderedType.
     ii. unfold eq in *. clarify.
   Qed.
   Next Obligation.
-    ii. unfold lt in *. unfold ltb in *. des_ifs.
+    ii. unfold lt in *.
+    revert_until x.
+    induction x using typ_ind_gen; ii; ss; destruct y, z; ss; nat_compare_tac.
+    - omega.
+    - fp_compare_tac.
+      destruct floating_point0, floating_point1, floating_point5; ss.
+    - des_ifs; nat_compare_tac; subst; ss; try omega; clear_tac.
+      + expl IHx. eq_closure_tac. ss.
+      + expl IHx. eq_closure_tac. ss.
+    - des_ifs; nat_compare_tac; varg_compare_tac; subst; ss; try omega; clear_tac.
+  Abort.
+
+
+  Lemma compare_spec_aux x y:
+    (CompareSpec (eq x y) (lt x y) (lt y x) (compare x y)) /\
+    (CompareSpec (eq y x) (lt y x) (lt x y) (compare y x))
+  .
+  Proof.
+    ii.
+    revert y.
+    induction x using typ_ind_gen; ii; ss; destruct y; ss; try by (split; ss; econs).
+    - split; ss.
+      + elim_compare; nat_compare_tac; subst; ss.
+        unfold lt. unfold compare. nat_compare_tac. ss.
+      + elim_compare; nat_compare_tac; subst; ss.
+        unfold lt. unfold compare. nat_compare_tac. ss.
+    - split; ss.
+      + elim_compare; fp_compare_tac; subst; ss.
+        unfold lt. unfold compare. fp_compare_tac. ss.
+      + elim_compare; fp_compare_tac; subst; ss.
+        unfold lt. unfold compare. fp_compare_tac. ss.
+    - assert(SPEC:= (IHx y)). des.
+      split; ss.
+      + destruct (sz5 ?= sz0) eqn: COMP0; ss; try nat_compare_tac; subst; try econs.
+        * inv SPEC; econs.
+          { unfold eq in *. clarify. }
+          { unfold lt. ss. des_ifs. nat_compare_tac. omega. }
+          { unfold lt. ss.
+            des_ifs; ss; [| |].
+            { inv SPEC0; ss; unfold eq in *; clarify.
+              eq_closure_tac. ss. }
+            { unfold lt in *. eq_closure_tac. ss. }
+            { nat_compare_tac. omega. } }
+        * unfold lt. ss.
+          des_ifs; nat_compare_tac; try omega.
+        * unfold lt. ss.
+          des_ifs; nat_compare_tac; try omega.
+      + destruct (sz0 ?= sz5) eqn: COMP0; ss; try nat_compare_tac; subst; try econs.
+        * inv SPEC0; econs.
+          { unfold eq in *. clarify. }
+          { unfold lt. ss. des_ifs. nat_compare_tac. omega. }
+          { unfold lt. ss.
+            des_ifs; ss; [| |].
+            { inv SPEC; ss; unfold eq in *; clarify.
+              eq_closure_tac. ss. }
+            { unfold lt in *. eq_closure_tac. ss. }
+            { nat_compare_tac. omega. } }
+        * unfold lt. ss.
+          des_ifs; nat_compare_tac; try omega.
+        * unfold lt. ss.
+          des_ifs; nat_compare_tac; try omega.
+    - split; ss.
+      + elim_compare.
+        * des_ifs. compute.
+          assert(SPEC:= (IHx y)). des.
+          rewrite Heq in *. inv SPEC; ss.
+          varg_compare_tac. subst.
+          unfold eq in *. subst. clear_tac.
+          f_equal; ss.
+          clear - Heq0 IH IHx.
+          ginduction l0; ii; ss.
+          { des_ifs. }
+          { des_ifs. clear_tac.
+            inv IH.
+            f_equal.
+            - specialize (H1 t0). des. rewrite Heq in *. inv H1. ss.
+            - eapply IHl0; ss.
+          }
+        *
   Qed.
+
 
 End typ.
 
