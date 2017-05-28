@@ -72,6 +72,29 @@ Definition compare_list X (compare: X -> X -> comparison) :=
     end
 .
 
+Lemma compare_list_sym
+      X l0
+      (compare: X -> X -> comparison)
+      (IHLIST: Forall (fun x => forall y, compare y x = CompOpp (compare x y)) l0)
+      l1
+  :
+    <<SYM: compare_list compare l1 l0 = CompOpp (compare_list compare l0 l1)>>
+.
+Proof.
+  red.
+  generalize dependent l1.
+  revert IHLIST.
+  induction l0; ii; ss; des_ifs_safe.
+  - des_ifs.
+  - ss. inv IHLIST.
+    erewrite H1. clear H1.
+    abstr (compare a x) QQ0.  clear_tac.
+    erewrite IHl0; ss. clear IHl0.
+    abstr (compare_list compare l0 l2) QQ1. clear_tac.
+    des_ifs.
+Qed.
+
+
 
 
 (* TODO: move to TODO.v? *)
@@ -91,10 +114,76 @@ Definition compare_list X (compare: X -> X -> comparison) :=
 
 
 
+
+
+
+
+Module AltFacts (E: OrdersAlt.OrderedTypeAlt).
+
+  (* Include E. *)
+  (* TODO: This prohibits including "EOrigFacts" later. Is there smarter way to do this? *)
+
+  Module EOrig := OrdersAlt.OT_from_Alt E.
+  (* Module EOrigFull <: OrderedTypeFull := (OT_to_Full EOrig). *)
+  Module EOrigFacts := OrdersFacts.OrderedTypeFacts EOrig.
+  (* Import EOrigFacts.OrderTac. *)
+
+  Include EOrigFacts.
+
+  Lemma compare_eq_any_trans
+        c x y z
+        (XY: E.compare x y = Eq)
+        (YZ: E.compare y z = c)
+    :
+      <<XZ: E.compare x z = c>>
+  .
+  Proof.
+    red.
+    destruct c; try EOrigFacts.order.
+    - erewrite EOrigFacts.eq_trans; eauto.
+    - erewrite EOrigFacts.OrderTac.eq_lt; eauto.
+    - repeat rewrite EOrigFacts.compare_gt_iff in *.
+      erewrite EOrigFacts.OrderTac.lt_eq; eauto.
+      apply EOrigFacts.eq_sym; ss.
+  Qed.
+
+  Lemma compare_any_eq_trans
+        c x y z
+        (XY: E.compare x y = c)
+        (YZ: E.compare y z = Eq)
+    :
+      <<XZ: E.compare x z = c>>
+  .
+  Proof.
+    red.
+    destruct c; try EOrigFacts.order.
+    - erewrite EOrigFacts.eq_trans; eauto.
+    - erewrite EOrigFacts.OrderTac.lt_eq; eauto.
+    - repeat rewrite EOrigFacts.compare_gt_iff in *.
+      erewrite EOrigFacts.OrderTac.eq_lt; eauto.
+      apply EOrigFacts.eq_sym; ss.
+  Qed.
+
+End AltFacts.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 (* I write "Orders.OrderedType" in order to not confuse with "OrderedType.OrderedType" *)
 (* This is weird... I think it is impossible to define OrderedType X => OrderedType (option X) *)
 (* because OrderedType's lt's irrefl is defined with leibniz eq, not eq of that module *)
-Module option (E: Orders.OrderedType) <: Orders.OrderedType.
+Module option_orig (E: Orders.OrderedType) <: Orders.OrderedType.
 
   Module EAlt <: OrdersAlt.OrderedTypeAlt := OrdersAlt.OT_to_Alt E.
   Import EAlt. (* To get compare_trans *)
@@ -184,9 +273,17 @@ Module option (E: Orders.OrderedType) <: Orders.OrderedType.
   Qed.
 
 
+End option_orig.
+
+
+
+Module option (E: OrdersAlt.OrderedTypeAlt) <: OrdersAlt.OrderedTypeAlt.
+  Module EOrig := OrdersAlt.OT_from_Alt E.
+  Module OptionEOrig := option_orig EOrig.
+  Module OptionE := OrdersAlt.OT_to_Alt OptionEOrig.
+  Include OptionE.
 End option.
 
-                          
 
 
 
@@ -198,19 +295,11 @@ End option.
 
 
 
-
-Module floating_point <: Orders.OrderedType.
+Module floating_point <: OrdersAlt.OrderedTypeAlt.
 
   Definition t := floating_point.
 
-  Definition eq := @eq t.
-  Global Program Instance eq_equiv : Equivalence eq.
-
-  Definition eq_dec (x y:t): {x = y} + {x <> y}.
-    decide equality.
-  Defined.
-
-  Definition nat_ord(x: t): nat :=
+  Definition case_ord(x: t): nat :=
     match x with
     | fp_float => 0
     | fp_double => 1
@@ -220,54 +309,43 @@ Module floating_point <: Orders.OrderedType.
     end
   .
 
-  Definition ltb (x y: t): bool := Nat.ltb (nat_ord x) (nat_ord y).
-  
-  Definition lt: t -> t -> Prop := ltb.
+  Definition compare (x y: t): comparison := Nat.compare (case_ord x) (case_ord y).
 
-  Global Program Instance lt_strorder : StrictOrder lt.
-  Next Obligation.
-    ii. unfold lt in *. unfold ltb in *. destruct x; ss.
-  Qed.
-
-  Global Program Instance lt_compat : Proper (eq ==> eq ==> iff) lt.
-  Next Obligation.
-    ii. unfold eq in *. clarify.
-  Qed.
-  Next Obligation.
-    intros x y z LTXY LTYZ. unfold lt in *. unfold ltb in *.
-    apply Nat.ltb_lt in LTXY.
-    apply Nat.ltb_lt in LTYZ.
-    apply Nat.ltb_lt.
-    etransitivity; eauto.
-  Qed.
-
-  Definition compare (x y: t): comparison :=
-    if(eq_dec x y) then Eq else
-      (if (ltb x y) then Lt else Gt)
+  Lemma compare_sym
+        x y
+    :
+      <<SYM: compare y x = CompOpp (compare x y)>>
   .
+  Proof. destruct x, y; ss. Qed.
   
-  Lemma compare_spec : forall x y : t, CompareSpec (eq x y) (lt x y) (lt y x) (compare x y).
-  Proof.
-    ii. destruct x, y; ss; try (by econs).
-  Qed.
+  Lemma compare_trans
+        c x y z
+        (XY: compare x y = c)
+        (YZ: compare y z = c)
+    :
+      <<XZ: compare x z = c>>
+  .
+  Proof. destruct x, y, z, c; ss. Qed.
 
 End floating_point.
 
-Module floating_pointFacts := OrdersFacts.OrderedTypeFacts floating_point.
+Module floating_pointFacts := AltFacts floating_point.
+
+
+
+(* Module floating_pointFacts := OrdersFacts.OrderedTypeFacts floating_point. *)
 (* TODO: Can I define it inside original module? *)
 (* just make a wrapper for UsualOrderedType? *)
 
 
 
+Module NatAlt := OrdersAlt.OT_to_Alt Nat.
+Module NatAltFacts := AltFacts NatAlt.
 
-Module varg <: Orders.OrderedType.
+Module varg <: OrdersAlt.OrderedTypeAlt := option NatAlt.
+Module vargFacts := AltFacts varg.
 
-  Module option_nat := option Nat.
-  Include option_nat.
-
-End varg.
-
-Module vargFacts := OrdersFacts.OrderedTypeFacts varg.
+(* Module vargFacts := OrdersFacts.OrderedTypeFacts varg. *)
 
 
 
@@ -303,7 +381,139 @@ Module NatFacts := OrdersFacts.OrderedTypeFacts Nat.
 
 
 
-Module typ <: OrderedType.
+Module typ <: OrdersAlt.OrderedTypeAlt.
+
+  Definition t := typ.
+
+  Definition case_order (x: t): nat :=
+    match x with
+    | typ_int _ => 0
+    | typ_floatpoint _ => 1
+    | typ_void => 2
+    | typ_label => 3
+    | typ_metadata => 4
+    | typ_array _ _ => 5
+    | typ_function _ _ _ => 6
+    | typ_struct _ => 7
+    | typ_pointer _ => 8
+    | typ_namedt _ => 9
+    end
+  .
+
+  Fixpoint compare (x y: t): comparison :=
+    match x, y with
+    | typ_int sz0, typ_int sz1 => Nat.compare sz0 sz1
+    | typ_floatpoint fp0, typ_floatpoint fp1 => (floating_point.compare fp0 fp1)
+    | typ_void, typ_void => Eq
+    | typ_label, typ_label => Eq
+    | typ_metadata, typ_metadata => Eq
+    | typ_array sz0 ty0, typ_array sz1 ty1 =>
+      lexico_order [Nat.compare sz0 sz1; compare ty0 ty1]
+    | typ_function ty0 tys0 arg0, typ_function ty1 tys1 arg1 =>
+      lexico_order
+        [(compare ty0 ty1) ; (compare_list compare tys0 tys1) ; (varg.compare arg0 arg1)]
+    | typ_struct tys0, typ_struct tys1 =>
+      compare_list compare tys0 tys1
+    | typ_pointer ty0, typ_pointer ty1 =>
+      compare ty0 ty1
+    | typ_namedt id0, typ_namedt id1 => Eq
+
+    | _, _ => Nat.compare (case_order x) (case_order y)
+    end
+  .
+
+
+
+  Hint Unfold NatAlt.compare.
+
+  Lemma compare_sym
+        x y
+    :
+      <<SYM: compare y x = CompOpp (compare x y)>>
+  .
+  Proof.
+    red.
+    (* unfold CompOpp. *)
+    revert y.
+    induction x using typ_ind_gen; ii; ss; des_ifs_safe; ss.
+    - apply Nat.compare_antisym.
+    - apply floating_point.compare_sym.
+    - des_ifs.
+    - des_ifs.
+    - des_ifs.
+    - erewrite IHx. abstr (compare x t0) X. clear IHx.
+      rewrite Nat.compare_antisym. abstr (sz5 ?= sz0) Y.
+      unfold CompOpp. des_ifs.
+    - erewrite IHx. abstr (compare x t0) X. clear IHx.
+      rewrite varg.compare_sym. abstr (varg.compare varg5 varg0) Y.
+      (* TODO: Nat is anti_sym, varg is _sym ... *)
+      (* I want to use NatALt.compare_sym instead of Nat.compare_antisym *)
+      erewrite compare_list_sym; ss. abstr (compare_list compare l0 l1) Z. clear IH.
+      des_ifs.
+    - erewrite compare_list_sym; ss.
+    - des_ifs.
+  Qed.
+  
+  Lemma compare_trans
+        c x y z
+        (XY: compare x y = c)
+        (YZ: compare y z = c)
+    :
+      <<XZ: compare x z = c>>
+  .
+  Proof.
+    red.
+    (* unfold CompOpp. *)
+    generalize dependent y.
+    revert z. revert c.
+    induction x using typ_ind_gen; ii; ss.
+    - des_ifs.
+      eapply NatAlt.compare_trans; eauto.
+    - des_ifs.
+      eapply floating_point.compare_trans; eauto.
+    - des_ifs.
+    - des_ifs.
+    - des_ifs.
+    - progress des_ifs_safe.
+      destruct y, z; ss.
+      destruct (sz5 ?= sz0) eqn:SZ0;
+        destruct (sz0 ?= sz1) eqn:SZ1; ss;
+          des_ifs_safe; ss.
+      { erewrite NatAlt.compare_trans; [|exact SZ0|exact SZ1]. ss.
+        destruct (compare x y) eqn:CMP0;
+          destruct (compare y z) eqn:CMP1; ss;
+            (erewrite IHx; [|exact CMP0|exact CMP1]; ss).
+      }
+      { erewrite NatAltFacts.compare_eq_any_trans; eauto. ss. }
+      { erewrite NatAltFacts.compare_eq_any_trans; eauto. ss. }
+      { erewrite NatAltFacts.compare_any_eq_trans; eauto. ss. }
+      { erewrite NatAlt.compare_trans; eauto. ss. }
+      { erewrite NatAltFacts.compare_any_eq_trans; eauto. ss. }
+      { erewrite NatAlt.compare_trans; eauto. ss. }
+    - progress des_ifs_safe.
+      destruct y, z; ss.
+      destruct (compare x y) eqn:CMP0;
+        destruct (compare y z) eqn:CMP1; ss;
+          try (erewrite IHx; [|exact CMP0|exact CMP1]; ss).
+      { admit. }
+      { admit. }
+
+      erewrite IHx; ss.
+
+      destruct (sz5 ?= sz0) eqn:SZ0;
+        destruct (sz0 ?= sz1) eqn:SZ1;
+        destruct (sz5 ?= sz1) eqn:SZ2;
+        repeat rewrite Nat.compare_eq_iff in *; subst; ss.
+      { des_ifs.
+        expl IHx.
+        erewrite NatAlt.compare_trans in SZ2; ss.
+      
+      erewrite NatAlt.compare_trans; ss.
+    destruct x, y, z, c; ss.
+  Qed.
+
+End typ.
+
 
   Definition t := typ.
 
