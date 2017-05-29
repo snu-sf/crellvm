@@ -254,8 +254,7 @@ End LISTS.
 
 
 
-
-Module Type AltStrong.
+Module Type AltUsual.
 
   Parameter t: Type.
   Parameter compare: t -> t -> comparison.
@@ -265,14 +264,23 @@ Module Type AltStrong.
       <<SYM: compare y x = CompOpp (compare x y)>>
   .
   
-  Parameter compare_strong_trans: forall
-        x y z c (* c should come at the end, to make "specialize" easy *)
-        (TRANS: comparison_trans (compare x y) (compare y z) = Some c)
+  Parameter compare_trans: forall
+        (* x y z c (* c should come at the end, to make "specialize" easy *) *)
+      c x y z (* for compatibility with Alt *)
+      (XY: compare x y = c)
+      (YZ: compare y z = c)
     ,
       <<XZ: compare x z = c>>
   .
 
-End AltStrong.
+  Parameter compare_leibniz: forall
+      x y
+      (EQ: compare x y = Eq)
+    ,
+      x = y
+  .
+
+End AltUsual.
 
 
 
@@ -329,54 +337,13 @@ End AltFacts.
 
 
 
-(* AltExtra is bad name, it is not extra, it is stronger *)
-Module Alt_to_AltStrong (E: OrdersAlt.OrderedTypeAlt) <: AltStrong.
+(* Module Alt_from_AltUsual (E: AltUsual) <: OrdersAlt.OrderedTypeAlt := E. *)
+Module Alt_from_AltUsual (E: AltUsual) <: OrdersAlt.OrderedTypeAlt := E.
 
-  Include E.
-  Import E.
-  Module EFacts := AltFacts E.
-  
-  Lemma compare_strong_trans: forall
-      x y z c
-      (TRANS: comparison_trans (compare x y) (compare y z) = Some c)
-    ,
-      <<XZ: compare x z = c>>
-  .
-  Proof.
-    ii.
-    apply comparison_trans_spec in TRANS. des.
-    - eapply EFacts.compare_eq_any_trans; eauto.
-    - eapply EFacts.compare_any_eq_trans; eauto.
-    - eapply compare_trans; eauto.
-  Qed.
- 
-End Alt_to_AltStrong.
+Module AltUsualFacts (E: AltUsual). (* <: (AltFacts E). *)
+(* TODO: How to check subtype of these? forall E, AltUsualFacts E >= AltFacts E*)
 
-
-(* Module Alt_from_AltStrong (E: AltStrong) <: OrdersAlt.OrderedTypeAlt := E. *)
-Module Alt_from_AltStrong (E: AltStrong) <: OrdersAlt.OrderedTypeAlt.
-
-  Include E.
-  Import E.
-
-  Lemma compare_trans
-        c x y z
-        (XY: compare x y = c)
-        (YZ: compare y z = c)
-    :
-      <<XZ: compare x z = c>>
-  .
-  Proof.
-    expl compare_strong_trans.
-    rewrite XY. rewrite YZ. apply comparison_trans_same.
-  Qed.
-
-End Alt_from_AltStrong.
-
-Module AltStrongFacts (E: AltStrong). (* <: (AltFacts E). *)
-(* TODO: How to check subtype of these? forall E, AltStrongFacts E >= AltFacts E*)
-
-  Module EAlt <: OrdersAlt.OrderedTypeAlt := Alt_from_AltStrong E.
+  Module EAlt <: OrdersAlt.OrderedTypeAlt := Alt_from_AltUsual E.
   Module EAltFacts := (AltFacts EAlt).
   Include EAlt.
   Include EAltFacts.
@@ -412,7 +379,7 @@ Module AltStrongFacts (E: AltStrong). (* <: (AltFacts E). *)
     destruct (compare z y) eqn:T; eapply compare_trans; eauto.
   Qed.
 
-End AltStrongFacts.
+End AltUsualFacts.
 
 
 
@@ -520,16 +487,49 @@ End option_orig.
 
 
 
-Module option (E: AltStrong) <: AltStrong.
-  Module EAlt := Alt_from_AltStrong E.
-  Module EOrig := OrdersAlt.OT_from_Alt EAlt.
-  Module OptionEOrig := option_orig EOrig.
-  Module OptionEAlt := OrdersAlt.OT_to_Alt OptionEOrig.
-  Module OptionE := Alt_to_AltStrong OptionEAlt.
-  Include OptionE.
+Module option (E: AltUsual) <: AltUsual.
+
+  Definition t := option E.t.
+
+  Definition compare (x y: t): comparison :=
+    match x, y with
+    | Some x_, Some y_ => E.compare x_ y_
+    | None, Some _ => Lt
+    | Some _, None => Gt
+    | None, None => Eq
+    end.
+
+  Lemma compare_sym
+        x y
+    :
+      <<SYM: compare y x = CompOpp (compare x y)>>
+  .
+  Proof. destruct x, y; ss. apply E.compare_sym. Qed.
+
+  Lemma compare_trans: forall
+      c x y z (* for compatibility with Alt *)
+      (XY: compare x y = c)
+      (YZ: compare y z = c)
+    ,
+      <<XZ: compare x z = c>>
+  .
+  Proof.
+    destruct x, y, z, c; ss; apply E.compare_trans; ss.
+  Qed.
+
+  Lemma compare_leibniz: forall
+      x y
+      (EQ: compare x y = Eq)
+    ,
+      x = y
+  .
+  Proof.
+    destruct x, y; ss. intro. f_equal. apply E.compare_leibniz; ss.
+  Qed.
+
 End option.
 
-Module optionFacts (E: AltStrong) := AltStrongFacts E.
+Module optionFacts (E: AltUsual) := AltUsualFacts E.
 
 
 
@@ -542,7 +542,7 @@ Module optionFacts (E: AltStrong) := AltStrongFacts E.
 
 
 
-Module floating_point <: AltStrong.
+Module floating_point <: AltUsual.
 
   Definition t := floating_point.
 
@@ -565,19 +565,30 @@ Module floating_point <: AltStrong.
   .
   Proof. destruct x, y; ss. Qed.
   
-  Lemma compare_strong_trans: forall
-      x y z c
-      (TRANS: comparison_trans (compare x y) (compare y z) = Some c)
+  Lemma compare_trans: forall
+      c x y z (* for compatibility with Alt *)
+      (XY: compare x y = c)
+      (YZ: compare y z = c)
     ,
       <<XZ: compare x z = c>>
   .
   Proof.
-    ii. destruct x, y, z; ss; clarify; ss.
+    destruct x, y, z, c; ss.
   Qed.
- 
+
+  Lemma compare_leibniz: forall
+      x y
+      (EQ: compare x y = Eq)
+    ,
+      x = y
+  .
+  Proof.
+    destruct x, y; ss.
+  Qed.
+
 End floating_point.
 
-Module floating_pointFacts := AltStrongFacts floating_point.
+Module floating_pointFacts := AltUsualFacts floating_point.
 
 
 
@@ -585,26 +596,42 @@ Module floating_pointFacts := AltStrongFacts floating_point.
 (* TODO: Can I define it inside original module? *)
 (* just make a wrapper for UsualOrderedType? *)
 
+Module UOT_to_AltU (E: Orders.UsualOrderedType) <: AltUsual.
+  Import E.
+  Module EAlt := OrdersAlt.OT_to_Alt E.
+  Include EAlt.
+
+  Lemma compare_leibniz: forall
+      x y
+      (EQ: compare x y = Eq)
+    ,
+      x = y
+  .
+  Proof.
+    ii.
+    apply EAlt.compare_Eq. ss.
+  Qed.
+
+End UOT_to_AltU.
 
 
-Module NatAlt := OrdersAlt.OT_to_Alt Nat.
-Module NatAltStrong := Alt_to_AltStrong NatAlt.
-Module NatAltStrongFacts := AltStrongFacts NatAltStrong.
+Module NatAltUsual := UOT_to_AltU Nat.
+Module NatAltUsualFacts := AltUsualFacts NatAltUsual.
 
 Ltac to_nat_alt_compare :=
   repeat match goal with
          | [ H: context[Nat.compare ?a ?b] |- _ ] =>
-           replace (Nat.compare a b) with (NatAlt.compare a b) in H by ss
+           replace (Nat.compare a b) with (NatAltUsual.compare a b) in H by ss
          | [ |- context[Nat.compare ?a ?b] ] =>
-           replace (Nat.compare a b) with (NatAlt.compare a b) by ss
+           replace (Nat.compare a b) with (NatAltUsual.compare a b) by ss
          end.
 (* I Really want to remove this tactic ... *)
 
 
 
-Module varg <: AltStrong := option NatAltStrong.
+Module varg <: AltUsual := option NatAltUsual.
 (* Module vargFacts := AltFacts varg. *)
-Module vargFacts := optionFacts varg. (* or AltStrongFacts varg directly? *)
+Module vargFacts := optionFacts varg. (* or AltUsualFacts varg directly? *)
 
 (* Module vargFacts := OrdersFacts.OrderedTypeFacts varg. *)
 
@@ -642,7 +669,7 @@ Module vargFacts := optionFacts varg. (* or AltStrongFacts varg directly? *)
 
 
 
-Module typ <: AltStrong.
+Module typ <: AltUsual.
 
   Definition t := typ.
 
@@ -677,7 +704,7 @@ Module typ <: AltStrong.
       compare_list compare tys0 tys1
     | typ_pointer ty0, typ_pointer ty1 =>
       compare ty0 ty1
-    | typ_namedt id0, typ_namedt id1 => Eq
+    | typ_namedt id0, typ_namedt id1 => MetatheoryAtom.AtomImpl.atom_compare id0 id1
 
     | _, _ => Nat.compare (case_order x) (case_order y)
     end
@@ -685,7 +712,7 @@ Module typ <: AltStrong.
 
 
 
-  Hint Unfold NatAlt.compare.
+  Hint Unfold NatAltUsual.compare.
 
   Lemma compare_sym
         x y
@@ -712,8 +739,56 @@ Module typ <: AltStrong.
       erewrite compare_list_sym; ss. abstr (compare_list compare l0 l1) Z. clear IH.
       des_ifs.
     - erewrite compare_list_sym; ss.
-    - des_ifs.
-  Qed.
+    - admit.
+  Admitted.
+
+  Lemma compare_leibniz: forall
+      x y
+      (EQ: compare x y = Eq)
+    ,
+      x = y
+  .
+  Admitted.
+
+  Lemma compare_trans: forall
+      c x y z (* for compatibility with Alt *)
+      (XY: compare x y = c)
+      (YZ: compare y z = c)
+    ,
+      <<XZ: compare x z = c>>
+  .
+  Proof.
+    do 2 intro.
+    revert c.
+    induction x using typ_ind_gen; ii; ss.
+    - destruct y, z; ss; clarify; [].
+      eapply NatAltUsual.compare_trans; eauto.
+    - destruct y, z; ss; clarify; [].
+      eapply floating_point.compare_trans; eauto.
+    - destruct y, z; ss; clarify.
+    - destruct y, z; ss; clarify.
+    - destruct y, z; ss; clarify.
+    - destruct y, z; ss; clarify; [].
+      to_nat_alt_compare.
+      destruct (NatAltUsual.compare sz5 sz0) eqn:SZ0;
+        destruct (NatAltUsual.compare sz0 sz1) eqn:SZ1; ss;
+          try (expl NatAltUsualFacts.EAlt.compare_leibniz; clarify); ss;
+            try rewrite SZ0; try rewrite SZ1; des_ifs_safe; ss;
+              try (erewrite NatAltUsual.compare_trans; eauto; []); ss.
+      destruct (compare x y) eqn:CMP0;
+        destruct (compare y z) eqn:CMP1; ss;
+          try (expl compare_leibniz; clarify); ss;
+            try rewrite CMP0; try rewrite CMP1; des_ifs_safe; ss;
+              try (erewrite IHx; eauto; []); ss.
+    - destruct y, z; ss; clarify; [].
+      destruct (compare x y) eqn:CMP0;
+        destruct (compare y z) eqn:CMP1; ss;
+          try (expl compare_leibniz; clarify); ss;
+            try rewrite CMP0; try rewrite CMP1; des_ifs_safe; ss;
+              try (erewrite IHx; eauto; []); ss.
+      admit.
+  Admitted.
+
 
   (* Ltac comparison_trans_tac := *)
   (*   repeat match goal with *)
@@ -737,32 +812,32 @@ Module typ <: AltStrong.
     induction x using typ_ind_gen; ii; ss.
     - apply comparison_trans_spec in TRANS. des; ss.
       + des_ifs; []. ss.
-        eapply NatAltStrongFacts.eq_repl_l; ss.
+        eapply NatAltUsualFacts.eq_repl_l; ss.
       + des_ifs; []. ss.
-        eapply NatAltStrongFacts.eq_repl_r; ss.
+        eapply NatAltUsualFacts.eq_repl_r; ss.
       + des_ifs; []. ss.
-        apply NatAltStrongFacts.weird_lemma; ss.
+        apply NatAltUsualFacts.weird_lemma; ss.
     - apply comparison_trans_spec in TRANS. des; ss.
       + des_ifs; []. ss.
-        eapply NatAltStrongFacts.eq_repl_l; ss.
+        eapply NatAltUsualFacts.eq_repl_l; ss.
       + des_ifs; []. ss.
-        eapply NatAltStrongFacts.eq_repl_r; ss.
+        eapply NatAltUsualFacts.eq_repl_r; ss.
       + des_ifs; []. ss.
-        apply NatAltStrongFacts.weird_lemma; ss.
+        apply NatAltUsualFacts.weird_lemma; ss.
     - apply comparison_trans_spec in TRANS. des; ss; des_ifs.
     - apply comparison_trans_spec in TRANS. des; ss; des_ifs.
     - apply comparison_trans_spec in TRANS. des; ss; des_ifs.
     - apply comparison_trans_spec in TRANS. des; ss.
       + destruct y, z; ss; [].
         all_once des_outest_ifs; []. des_ifs_safe. clear_tac.
-        erewrite NatAltStrongFacts.eq_repl_l; eauto.
+        erewrite NatAltUsualFacts.eq_repl_l; eauto.
         Fail rewrite XY in IHx. (* TODO: I only want to specialize "y" in IHx... *)
         destruct (compare y z) eqn:T;
           (exploit IHx; [rewrite Heq0; rewrite T; ss; eauto|]; intro XZ; des);
           rewrite XZ; des_ifs.
       + destruct y, z; ss; [].
         all_once des_outest_ifs; []. des_ifs_safe. clear_tac.
-        erewrite NatAltStrongFacts.eq_repl_r; eauto.
+        erewrite NatAltUsualFacts.eq_repl_r; eauto.
         rename Heq0 into YZ.
         destruct (compare x y) eqn:T;
           (exploit IHx; [rewrite YZ; rewrite T; ss; eauto|]; intro XZ; des);
@@ -772,11 +847,10 @@ Module typ <: AltStrong.
         destruct (Nat.compare sz5 sz0) eqn:SZ0;
           destruct (Nat.compare sz0 sz1) eqn:SZ1;
           ss; to_nat_alt_compare;
-            (erewrite NatAltStrong.compare_strong_trans; [|rewrite SZ0; rewrite SZ1; done]); ss.
-
-        destruct (compare x y) eqn:CMP0;
-          destruct (compare y z) eqn:CMP1;
-          try (expl IHx (ss; eauto)); try rewrite IHx0; ss.
+            try (expl NatAltUsualFacts.EAlt.compare_leibniz; clarify); ss;
+              try rewrite SZ0; try rewrite SZ1; des_ifs_safe; ss;
+                try (erewrite NatAltUsual.compare_trans; eauto; ss).
+        des_ifs; expl NatAltUsual.compare_trans.
     - apply compare_list_trans in IH. des.
       apply comparison_trans_spec in TRANS. des; ss.
       + destruct y, z; ss; [].
@@ -832,12 +906,12 @@ Module typ <: AltStrong.
     - apply comparison_trans_spec in TRANS. des; ss; des_ifs; ss.
   Unshelve.
     all: ss.
-  Qed.
+  Admitted.
 
 End typ.
 
 
-Module Float <: AltStrong.
+Module Float <: AltUsual.
 
   (* Floats.float *)
   Definition t := Float.
@@ -846,26 +920,35 @@ Module Float <: AltStrong.
   (* Floats.Float *)
   (* Floats.Float.cmp *)
 
-  Definition compare (x y: t): comparison :=
-    if (Floats.Float.cmp Integers.Clt x y)
-    then Lt
-    else (if (Floats.Float.cmp Integers.Cgt x y)
-          then Gt
-          else Eq)
+  Definition compare (x y: t): comparison := FLOAT.compare x y.
+
+  Lemma compare_leibniz: forall
+      x y
+      (EQ: compare x y = Eq)
+    ,
+      x = y
   .
+  Proof. apply FLOAT.compare_leibniz; eauto. Qed.
 
   Lemma compare_sym
         x y
     :
       <<SYM: compare y x = CompOpp (compare x y)>>
   .
-  Proof.
-    unfold compare.
-  Qed.
+  Proof. apply FLOAT.compare_sym; eauto. Qed.
+
+  Lemma compare_trans: forall
+      c x y z
+      (XY: compare x y = c)
+      (YZ: compare y z = c)
+    ,
+      <<XZ: compare x z = c>>
+  .
+  Proof. apply FLOAT.compare_trans; eauto. Qed.
  
 End Float.
 
-Module const <: AltStrong.
+Module const <: AltUsual.
 
   Definition t := const.
 
@@ -894,21 +977,27 @@ Module const <: AltStrong.
 
   Fixpoint compare (x y: t): comparison :=
     match x, y with
-    | typ_int sz0, typ_int sz1 => Nat.compare sz0 sz1
-    | typ_floatpoint fp0, typ_floatpoint fp1 => (floating_point.compare fp0 fp1)
-    | typ_void, typ_void => Eq
-    | typ_label, typ_label => Eq
-    | typ_metadata, typ_metadata => Eq
-    | typ_array sz0 ty0, typ_array sz1 ty1 =>
-      lexico_order [Nat.compare sz0 sz1; compare ty0 ty1]
-    | typ_function ty0 tys0 arg0, typ_function ty1 tys1 arg1 =>
-      lexico_order
-        [(compare ty0 ty1) ; (compare_list compare tys0 tys1) ; (varg.compare arg0 arg1)]
-    | typ_struct tys0, typ_struct tys1 =>
-      compare_list compare tys0 tys1
-    | typ_pointer ty0, typ_pointer ty1 =>
-      compare ty0 ty1
-    | typ_namedt id0, typ_namedt id1 => Eq
+    | const_zeroinitializer ty0, const_zeroinitializer ty1 => typ.compare ty0 ty1
+    | const_int sz0 i0, const_int sz1 i1 =>
+      lexico_order [Nat.compare sz0 sz1 ; Z.compare i0 i1]
+    | const_floatpoint fp0 f0, const_floatpoint fp1 f1 =>
+      lexico_order [floating_point.compare fp0 fp1 ; Float.compare f0 f1]
+    | const_undef ty0, const_undef ty1 => 3
+    | const_null ty0, const_null ty1 => 4
+    | const_arr ty0 cs0, const_arr ty1 cs1 => 5
+    | const_struct ty0 cs0, const_struct ty1 cs1 => 6
+    | const_gid ty0 i0, const_gid ty1 i1 => 7
+    | const_truncop trop0 c0 ty0, const_truncop trop1 c1 ty1 => 8
+    | const_extop extop0 c0 ty0, const_extop extop1 c1 ty1 => 9
+    | const_castop csop0 c0 ty0, const_castop csop1 c1 ty1 => 10
+    | const_gep inb0 c0 cs0, const_gep inb1 c1 cs1 => 11
+    | const_select cx0 cy0 cz0, const_select cx1 cy1 cz1 => 12
+    | const_icmp cx0 cy0 cz0, const_icmp cx1 cy1 cz1 => 13
+    | const_fcmp fc0 cx0 cy0, const_fcmp fc1 cx1 cy1 => 14
+    | const_extractvalue c0 cs0, const_extractvalue c1 cs1 => 15
+    | const_insertvalue cx0 cy0 cs0, const_insertvalue cx1 cy1 cs1 => 16
+    | const_bop bop0 cx0 cy0, const_bop bop1 cx1 cy1 => 17
+    | const_fbop fbop0 cx0 cy0, const_fbop fbop1 cx1 cy1 => 18
 
     | _, _ => Nat.compare (case_order x) (case_order y)
     end
