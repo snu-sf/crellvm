@@ -42,6 +42,76 @@ Set Implicit Arguments.
 
 (* not high priority for proof *)
 
+Theorem wf_globals_const2GV: forall
+    gmax gl TD cnst gv
+    (GLOBALS: genericvalues_inject.wf_globals gmax gl)
+    (C2G: const2GV TD gl cnst = Some gv)
+  ,
+    <<VALID_PTR: MemProps.valid_ptrs (gmax + 1)%positive gv>>
+.
+Proof.
+  ii.
+  unfold const2GV in *. des_ifs.
+  move cnst at top. revert_until cnst.
+  unfold cgv2gv.
+  induction cnst using Decs.const_ind_gen; ii; ss; des_ifs_safe ss; clarify.
+  - clear GLOBALS. clear_tac.
+    expl MemProps.zeroconst2GV_no_ptr.
+    clear Heq0.
+    ginduction g; ii; ss.
+    des_ifs; ss; eapply IHg; eauto.
+  - des_ifs.
+  - eapply MemProps.undef_valid_ptrs; eauto.
+  - {
+      clear Heq1.
+      ginduction l0; ii; ss; clarify.
+      inv IH. des_ifs.
+      expl H1.
+      expl IHl0.
+      eapply MemProps.valid_ptrs_app; eauto.
+      eapply MemProps.valid_ptrs_app; eauto.
+      eapply MemProps.uninits_valid_ptrs; eauto.
+    }
+  - abstr (p :: g1) gv.
+    clear Heq1.
+    ginduction l0; ii; ss; clarify.
+    des_ifs.
+    inv IH.
+    expl H1.
+    expl IHl0.
+    eapply MemProps.valid_ptrs_app; eauto.
+    eapply MemProps.valid_ptrs_app; eauto.
+    eapply MemProps.uninits_valid_ptrs; eauto.
+  - expl genericvalues_inject.wf_globals__wf_global.
+    clear - wf_globals__wf_global.
+    ginduction g; ii; ss.
+    des_ifs; ss; des; try eapply IHg; eauto.
+    split; ss.
+    + rewrite <- Pplus_one_succ_r.
+      eapply Pos.lt_succ_r; eauto.
+    + eapply IHg; eauto.
+  - eapply MemProps.mtrunc_preserves_valid_ptrs; eauto.
+  - eapply MemProps.mext_preserves_valid_ptrs; eauto.
+  - eapply MemProps.mcast_preserves_valid_ptrs; eauto.
+    eapply IHcnst; eauto.
+  - des_ifs; try (by eapply MemProps.undef_valid_ptrs; eauto).
+    eapply MemProps.mgep_preserves_valid_ptrs; eauto.
+    unfold GV2ptr in *. des_ifs.
+    ss. des_ifs. expl IHcnst.
+  - des_ifs.
+    + eapply IHcnst3; eauto.
+    + eapply IHcnst2; eauto.
+  - eapply MemProps.micmp_preserves_valid_ptrs; eauto.
+  - eapply MemProps.mfcmp_preserves_valid_ptrs; eauto.
+  - eapply MemProps.extractGenericValue_preserves_valid_ptrs; eauto.
+    eapply IHcnst; eauto.
+  - eapply MemProps.insertGenericValue_preserves_valid_ptrs; eauto.
+    + expl IHcnst1.
+    + expl IHcnst2.
+  - eapply MemProps.mbop_preserves_valid_ptrs; eauto.
+  - eapply MemProps.mfbop_preserves_valid_ptrs; eauto.
+Qed.
+
 Lemma mstore_never_produce_new_ptr
       TD mem0 mem1
       sptr sty val sa nptr
