@@ -31,6 +31,7 @@ Require Import SoundReduceMaydiff.
 Require Import SoundImplies.
 Require Import TODOProof.
 Require Import OpsemAux.
+Require Import MemAux.
 
 Set Implicit Arguments.
 
@@ -633,7 +634,8 @@ Proof.
   rename GLOBALS into WF_GLOBALS.
   eapply wf_globals_eq in WF_GLOBALS.
 
-  exploit memory_props.MemProps.const2GV_valid_ptrs; eauto.
+  exploit MemAux.wf_globals_const2GV; eauto.
+  eapply wf_globals_eq; eauto.
 Qed.
 
 Lemma wf_const_diffblock
@@ -862,7 +864,7 @@ Proof.
       destruct v; ss.
       - eapply WF_LOCAL; eauto.
       - inv MEM.
-        exploit MemProps.wf_globals_const2GV; eauto; []; ii; des.
+        exploit MemAux.wf_globals_const2GV; eauto; []; ii; des.
         unfold memory_props.MemProps.wf_Mem in WF. des.
         clear - WF0 x4.
         eapply memory_props.MemProps.valid_ptrs__trans; eauto.

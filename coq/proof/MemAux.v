@@ -153,9 +153,7 @@ Proof.
     exploit UNIQUE_PARENT_GLOBALS; eauto. intro GT_GMAX.
     inv STATE. ss.
     inv WF_VALUE.
-    exploit MemProps.const2GV_valid_ptrs; eauto.
-    { eapply TODOProof.wf_globals_eq; eauto. }
-    { rewrite <- surjective_pairing. eauto. }
+    exploit wf_globals_const2GV; eauto.
     intro LT_GMAX_1.
     generalize ING LT_GMAX_1.
     generalize b GT_GMAX.
@@ -624,9 +622,9 @@ Proof.
   { i. rewrite vellvm_no_alias_is_diffblock. eauto. }
   {
     clear_tac.
-    expl MemProps.wf_globals_const2GV.
+    expl wf_globals_const2GV.
     unfold MemProps.wf_lc in *.
-    clear - wf_globals_const2GV VAL GLOBALS.
+    clear - wf_globals_const2GV0 VAL GLOBALS.
     induction gv; ii; ss.
     - des_ifs; des; expl IHgv; clear IHgv.
       splits; ss.
@@ -641,7 +639,7 @@ Proof.
         * ii. clarify.
           apply_all_once Pos.le_succ_l.
           rewrite <- Pplus_one_succ_r in *.
-          apply Pos.succ_le_mono in wf_globals_const2GV.
+          apply Pos.succ_le_mono in wf_globals_const2GV0.
           hexploit Pos.le_trans.
           { apply x. }
           { eauto. }

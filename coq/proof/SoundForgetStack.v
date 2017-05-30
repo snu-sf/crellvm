@@ -27,6 +27,8 @@ Require Import SoundBase.
 Require Import Inject. (* TODO: for simtac *)
 Require Import TODOProof.
 Require Import MemAux.
+Require Import memory_props.
+Import MemProps.
 
 Set Implicit Arguments.
 
@@ -189,9 +191,6 @@ Inductive unique_preserved_except conf inv unique_parent st gmax except_for : Pr
        forall b (IN: In b unique_parent), (gmax < b)%positive)
 .
 
-Require Import memory_props.
-Import MemProps.
-
 Lemma mbop_multiple_result_inv
       TD bop sz gvs1 gvs2 val1 val2 vals
       (MBOP: mbop TD bop sz gvs1 gvs2 = Some (val1 :: val2 :: vals))
@@ -249,7 +248,7 @@ Lemma getOperandValue_diffblock
 Proof.
   destruct valy; ss.
   - hexploit LOOKUP_DIFFBLOCK; eauto.
-  - eapply MemProps.wf_globals_const2GV in GET_OPERAND; eauto.
+  - eapply MemAux.wf_globals_const2GV in GET_OPERAND; eauto.
     des.
     eapply valid_ptr_globals_diffblock_with_blocks; eauto.
 Unshelve.
@@ -588,8 +587,8 @@ Proof.
         rename b into __b__.
         destruct TD; ss.
         apply TODOProof.wf_globals_eq in GLOBALS.
-        exploit const2GV_valid_ptrs; eauto.
-        { inv WF_INSN. inv H12. eauto. }
+        exploit MemAux.wf_globals_const2GV; eauto.
+        { eapply wf_globals_eq; eauto. }
         intro VALID_PTR; des. clear WF_INSN.
         ss.
         idtac.
@@ -927,7 +926,7 @@ Proof.
       * ss.
         rename g into __g__.
         rename val into __val__.
-        exploit MemProps.wf_globals_const2GV; eauto; []; i; des.
+        exploit MemAux.wf_globals_const2GV; eauto; []; i; des.
         eapply valid_ptr_globals_diffblock; eauto.
       * eapply LOCALS; try apply Heq; eauto.
         apply AtomSetFacts.not_mem_iff in NOT_LEAKED_U.
@@ -961,7 +960,7 @@ Proof.
         }
       }
       {
-        exploit MemProps.wf_globals_const2GV; eauto; []; intro VALID_PTR; des.
+        exploit MemAux.wf_globals_const2GV; eauto; []; intro VALID_PTR; des.
         eapply valid_ptr_globals_diffblock; eauto.
       }
     }
@@ -984,7 +983,7 @@ Proof.
         }
       }
       {
-        exploit MemProps.wf_globals_const2GV; eauto; []; intro VALID_PTR; des.
+        exploit MemAux.wf_globals_const2GV; eauto; []; intro VALID_PTR; des.
         eapply valid_ptr_globals_diffblock; eauto.
       }
     }

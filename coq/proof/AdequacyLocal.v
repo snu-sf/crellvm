@@ -600,7 +600,6 @@ Proof.
         clarify. }
       clarify.
       move TGT_CALL at bottom.
-      Print match_traces.
 
       rename Mem' into mem_src.
       rename Mem'0 into mem_tgt.

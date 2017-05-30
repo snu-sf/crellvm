@@ -29,6 +29,7 @@ Import Memory.
 Require Import opsem_wf.
 Require Import genericvalues_inject.
 Require Import memory_sim.
+Require Import MemAux.
 
 Set Implicit Arguments.
 
@@ -730,7 +731,7 @@ Lemma unique_const_diffblock
 .
 Proof.
   red.
-  eapply MemProps.wf_globals_const2GV in VAL2; eauto. des.
+  eapply MemAux.wf_globals_const2GV in VAL2; eauto. des.
 
   inv UNIQUE. clear LOCALS MEM. clarify.
 

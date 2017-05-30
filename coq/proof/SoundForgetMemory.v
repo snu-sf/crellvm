@@ -262,8 +262,7 @@ Proof.
           destruct value1; ss.
           - eapply WF_LOCAL; eauto.
           - inv H10.
-            exploit MemProps.const2GV_valid_ptrs; eauto.
-            { eapply TODOProof.wf_globals_eq; eauto. }
+            exploit MemAux.wf_globals_const2GV; eauto.
             i. inv MEM. ss.
             inv WF0.
             eapply MemProps.valid_ptrs__trans; eauto.
@@ -1607,7 +1606,7 @@ Proof.
       { (* const case : need wf_const *)
         ss.
         rename g into __g__.
-        exploit MemProps.wf_globals_const2GV; eauto; []; intro VALID_PTR; des.
+        exploit MemAux.wf_globals_const2GV; eauto; []; intro VALID_PTR; des.
         destruct WF_MEM as [_ WF_MEM].
         clear - WF_MEM ALLOCA GV2PTR VALID_PTR.
         (* GV2ptr is a bit weird? it is artificially made from above destruct, *)
