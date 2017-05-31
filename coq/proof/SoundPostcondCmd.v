@@ -335,6 +335,10 @@ Lemma postcond_cmd_sound
       m_tgt conf_tgt st0_tgt cmd_tgt cmds_tgt
       invst0 invmem0 inv0
       st1_tgt evt inv1
+      (WF_CONF_SRC: opsem_wf.OpsemPP.wf_Config conf_src)
+      (WF_CONF_TGT: opsem_wf.OpsemPP.wf_Config conf_tgt)
+      (WF_STATE_PREV_SRC: opsem_wf.OpsemPP.wf_State conf_src st0_src)
+      (WF_STATE_PREV_TGT: opsem_wf.OpsemPP.wf_State conf_tgt st0_tgt)
       (CONF: InvState.valid_conf m_src m_tgt conf_src conf_tgt)
       (POSTCOND: Postcond.postcond_cmd cmd_src cmd_tgt inv0 = Some inv1)
       (STATE: InvState.Rel.sem conf_src conf_tgt st0_src st0_tgt invst0 invmem0 inv0)
