@@ -338,7 +338,7 @@ module NewAutoSubstTransHelper = struct
            print_endline "right SUCCEEDED";
            attach_oinfrs (h er) [] (by_dest_intl depth scp ld oel e1 e2_new oer)
         | None -> None in
-      let res_fin = 
+      let res_fin =
       match by_dest_intl depth scp ld oel e1 e2 oer with
       | Some infrs -> Some infrs
       | None ->
