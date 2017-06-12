@@ -95,6 +95,7 @@ Definition valid_phinodes
           let infrules := gen_infrules_next_inv inv3 inv4 in
           let inv3_infr := apply_infrules m_src m_tgt infrules inv3 in
           let inv3_red := reduce_maydiff inv3_infr in
+          let inv3_red := debug_print_auto infrules inv3_red in
           if negb (Invariant.implies inv3_red inv4)
           then failwith_false "valid_phinodes: Invariant.implies returned false at phinode" (l_from::l_to::nil)
           else true
@@ -235,6 +236,7 @@ Definition valid_stmts
                          (insn_terminator terminator_tgt)
                          inv in
        let inv' := apply_infrules m_src m_tgt infrules inv in
+       let inv' := debug_print_auto infrules inv' in
        (if (valid_terminator hint_fdef inv' m_src m_tgt blocks_src blocks_tgt bid terminator_src terminator_tgt)
         then true
         else failwith_false "valid_stmts: valid_terminator failed at block" [bid]))

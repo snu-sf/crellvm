@@ -591,6 +591,11 @@ type and_true_bool = {
   y : value;
 }
 
+type and_true_bool_tgt = {
+  x : value;
+  y : value;
+}
+
 type and_undef = {
   z : value;
   x : value;
@@ -673,7 +678,47 @@ type bop_commutative_rev = {
   sz : size;
 }
 
+type bop_commutative_tgt = {
+  e : expr;
+  bop : bop;
+  x : value;
+  y : value;
+  sz : size;
+}
+
+type bop_commutative_rev_tgt = {
+  e : expr;
+  bop : bop;
+  x : value;
+  y : value;
+  sz : size;
+}
+
 type fbop_commutative = {
+  e : expr;
+  fbop : fbop;
+  x : value;
+  y : value;
+  fty : float_type;
+}
+
+type fbop_commutative_rev = {
+  e : expr;
+  fbop : fbop;
+  x : value;
+  y : value;
+  fty : float_type;
+}
+
+type fbop_commutative_tgt = {
+  e : expr;
+  fbop : fbop;
+  x : value;
+  y : value;
+  fty : float_type;
+}
+
+type fbop_commutative_rev_tgt = {
   e : expr;
   fbop : fbop;
   x : value;
@@ -1124,6 +1169,12 @@ type or_commutative_tgt = {
 }
 
 type or_false = {
+  x : value;
+  y : value;
+  sz : size;
+}
+
+type or_false_tgt = {
   x : value;
   y : value;
   sz : size;
@@ -1829,6 +1880,22 @@ type icmp_inverse_rhs = {
   boolean : const_int;
 }
 
+type icmp_inverse_tgt = {
+  predicate : icmp_pred;
+  ty : value_type;
+  x : value;
+  y : value;
+  boolean : const_int;
+}
+
+type icmp_inverse_rhs_tgt = {
+  predicate : icmp_pred;
+  ty : value_type;
+  x : value;
+  y : value;
+  boolean : const_int;
+}
+
 type icmp_swap_operands = {
   predicate : icmp_pred;
   ty : value_type;
@@ -1837,7 +1904,55 @@ type icmp_swap_operands = {
   e : expr;
 }
 
+type icmp_swap_operands_rev = {
+  predicate : icmp_pred;
+  ty : value_type;
+  x : value;
+  y : value;
+  e : expr;
+}
+
+type icmp_swap_operands_tgt = {
+  predicate : icmp_pred;
+  ty : value_type;
+  x : value;
+  y : value;
+  e : expr;
+}
+
+type icmp_swap_operands_rev_tgt = {
+  predicate : icmp_pred;
+  ty : value_type;
+  x : value;
+  y : value;
+  e : expr;
+}
+
 type fcmp_swap_operands = {
+  predicate : fcmp_pred;
+  fty : float_type;
+  x : value;
+  y : value;
+  e : expr;
+}
+
+type fcmp_swap_operands_rev = {
+  predicate : fcmp_pred;
+  fty : float_type;
+  x : value;
+  y : value;
+  e : expr;
+}
+
+type fcmp_swap_operands_tgt = {
+  predicate : fcmp_pred;
+  fty : float_type;
+  x : value;
+  y : value;
+  e : expr;
+}
+
+type fcmp_swap_operands_rev_tgt = {
   predicate : fcmp_pred;
   fty : float_type;
   x : value;
@@ -1861,6 +1976,12 @@ type icmp_eq_add_add = {
 }
 
 type icmp_eq_same = {
+  ty : value_type;
+  x : value;
+  y : value;
+}
+
+type icmp_eq_same_tgt = {
   ty : value_type;
   x : value;
   y : value;
@@ -1947,6 +2068,12 @@ type icmp_ne_srem = {
 }
 
 type icmp_neq_same = {
+  ty : value_type;
+  x : value;
+  y : value;
+}
+
+type icmp_neq_same_tgt = {
   ty : value_type;
   x : value;
   y : value;
@@ -2055,6 +2182,7 @@ type infrule = [
   | AndOrConst2 of and_or_const2
   | AndSame of and_same
   | AndTrueBool of and_true_bool
+  | AndTrueBoolTgt of and_true_bool_tgt
   | AndUndef of and_undef
   | AndXorConst of and_xor_const
   | AndZero of and_zero
@@ -2078,7 +2206,12 @@ type infrule = [
   | BopAssociative of bop_associative
   | BopCommutative of bop_commutative
   | BopCommutativeRev of bop_commutative_rev
+  | BopCommutativeTgt of bop_commutative_tgt
+  | BopCommutativeRevTgt of bop_commutative_rev_tgt
   | FbopCommutative of fbop_commutative
+  | FbopCommutativeRev of fbop_commutative_rev
+  | FbopCommutativeTgt of fbop_commutative_tgt
+  | FbopCommutativeRevTgt of fbop_commutative_rev_tgt
   | BopDistributiveOverSelectinst of bop_distributive_over_selectinst
   | BopDistributiveOverSelectinst2 of bop_distributive_over_selectinst2
   | DiffblockUnique of diffblock_unique
@@ -2120,6 +2253,7 @@ type infrule = [
   | OrAndXor of or_and_xor
   | OrCommutativeTgt of or_commutative_tgt
   | OrFalse of or_false
+  | OrFalseTgt of or_false_tgt
   | OrMone of or_mone
   | OrNot of or_not
   | OrOr of or_or
@@ -2211,14 +2345,23 @@ type infrule = [
   | ZextZext of zext_zext
   | IcmpInverse of icmp_inverse
   | IcmpInverseRhs of icmp_inverse_rhs
+  | IcmpInverseTgt of icmp_inverse_tgt
+  | IcmpInverseRhsTgt of icmp_inverse_rhs_tgt
   | IcmpSwapOperands of icmp_swap_operands
+  | IcmpSwapOperandsRev of icmp_swap_operands_rev
+  | IcmpSwapOperandsTgt of icmp_swap_operands_tgt
+  | IcmpSwapOperandsRevTgt of icmp_swap_operands_rev_tgt
   | FcmpSwapOperands of fcmp_swap_operands
+  | FcmpSwapOperandsRev of fcmp_swap_operands_rev
+  | FcmpSwapOperandsTgt of fcmp_swap_operands_tgt
+  | FcmpSwapOperandsRevTgt of fcmp_swap_operands_rev_tgt
   | ImpliesFalse of implies_false
   | IcmpEqAddAdd of icmp_eq_add_add
   | IcmpEqSrem of icmp_eq_srem
   | IcmpEqSub of icmp_eq_sub
   | IcmpEqSubSub of icmp_eq_sub_sub
   | IcmpEqSame of icmp_eq_same
+  | IcmpEqSameTgt of icmp_eq_same_tgt
   | IcmpEqXorNot of icmp_eq_xor_not
   | IcmpEqXorXor of icmp_eq_xor_xor
   | IcmpNeAddAdd of icmp_ne_add_add
@@ -2226,6 +2369,7 @@ type infrule = [
   | IcmpNeSub of icmp_ne_sub
   | IcmpNeSubSub of icmp_ne_sub_sub
   | IcmpNeqSame of icmp_neq_same
+  | IcmpNeqSameTgt of icmp_neq_same_tgt
   | IcmpNeXor of icmp_ne_xor
   | IcmpNeXorXor of icmp_ne_xor_xor
   | IcmpSgeOrNot of icmp_sge_or_not

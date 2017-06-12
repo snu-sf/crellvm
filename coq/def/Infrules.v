@@ -568,6 +568,20 @@ Definition apply_infrule
                +++src (Expr.value y) >= true_expr
          }}
     else apply_fail tt
+  | Infrule.and_true_bool_tgt x y =>
+    let true_expr := Expr.value (ValueT.const (const_int Size.One (INTEGER.of_Z (Size.to_Z Size.One) (-1)%Z true))) in
+    if $$ inv0 |-tgt true_expr >= (Expr.bop bop_and Size.One x y) $$
+    then {{
+             {{
+                 {{
+                     {{inv0 +++tgt true_expr >= (Expr.value x)}}
+                       +++tgt (Expr.value x) >= true_expr
+                 }}
+                   +++tgt true_expr >= (Expr.value y)
+             }}
+               +++tgt (Expr.value y) >= true_expr
+         }}
+    else apply_fail tt
   | Infrule.and_undef z x s =>
     if $$ inv0 |-src (Expr.value z) >= (Expr.bop bop_and s x (ValueT.const (const_undef (typ_int s)))) $$
     then {{ inv0 +++src (Expr.value z) >= (Expr.value
@@ -733,10 +747,35 @@ Definition apply_infrule
       (is_commutative_bop opcode)
     then {{ inv0 +++src (Expr.bop opcode s y x) >= e }}
     else apply_fail tt
+  | Infrule.bop_commutative_tgt e opcode x y s =>
+    if $$ inv0 |-tgt e >= (Expr.bop opcode s x y) $$ &&
+      (is_commutative_bop opcode)
+    then {{ inv0 +++tgt e >= (Expr.bop opcode s y x) }}
+    else apply_fail tt
+  | Infrule.bop_commutative_rev_tgt e opcode x y s =>
+    if $$ inv0 |-tgt (Expr.bop opcode s x y) >= e $$ &&
+      (is_commutative_bop opcode)
+    then {{ inv0 +++tgt (Expr.bop opcode s y x) >= e }}
+    else apply_fail tt
   | Infrule.fbop_commutative e opcode x y fty =>
     if $$ inv0 |-src e >= (Expr.fbop opcode fty x y) $$ &&
       (is_commutative_fbop opcode)
     then {{ inv0 +++src e >= (Expr.fbop opcode fty y x) }}
+    else apply_fail tt
+  | Infrule.fbop_commutative_rev e opcode x y fty =>
+    if $$ inv0 |-src (Expr.fbop opcode fty x y) >= e $$ &&
+      (is_commutative_fbop opcode)
+    then {{ inv0 +++src (Expr.fbop opcode fty y x) >= e }}
+    else apply_fail tt
+  | Infrule.fbop_commutative_tgt e opcode x y fty =>
+    if $$ inv0 |-tgt e >= (Expr.fbop opcode fty x y) $$ &&
+      (is_commutative_fbop opcode)
+    then {{ inv0 +++tgt e >= (Expr.fbop opcode fty y x) }}
+    else apply_fail tt
+  | Infrule.fbop_commutative_rev_tgt e opcode x y fty =>
+    if $$ inv0 |-tgt (Expr.fbop opcode fty x y) >= e $$ &&
+      (is_commutative_fbop opcode)
+    then {{ inv0 +++tgt (Expr.fbop opcode fty y x) >= e }}
     else apply_fail tt
   | Infrule.fadd_commutative_tgt z x y fty =>
     if $$ inv0 |-tgt (Expr.fbop fbop_fadd fty x y) >= (Expr.value (ValueT.id z)) $$
@@ -983,6 +1022,20 @@ Definition apply_infrule
                    +++src false_expr >= (Expr.value y)
              }}
                +++src (Expr.value y) >= false_expr
+         }}
+    else apply_fail tt
+  | Infrule.or_false_tgt x y sz =>
+    let false_expr := Expr.value (ValueT.const (const_int sz (INTEGER.of_Z (Size.to_Z sz) 0%Z true))) in
+    if $$ inv0 |-tgt false_expr >= (Expr.bop bop_or sz x y) $$
+    then {{
+             {{
+                 {{
+                     {{inv0 +++tgt false_expr >= (Expr.value x)}}
+                       +++tgt (Expr.value x) >= false_expr
+                 }}
+                   +++tgt false_expr >= (Expr.value y)
+             }}
+               +++tgt (Expr.value y) >= false_expr
          }}
     else apply_fail tt
   | Infrule.or_undef z a s =>
@@ -1557,7 +1610,7 @@ Definition apply_infrule
       {{inv0 +++src (Expr.map_valueTs e x_to_y) >= e}}
     else apply_fail tt
   | Infrule.substitute_tgt x y e =>
-    if $$ inv0 |-tgt (Expr.value y) >= (Expr.value x) $$
+    if $$ inv0 |-tgt (Expr.value x) >= (Expr.value y) $$
     then
       let x_to_y := (fun v =>
                        match v with
@@ -1760,17 +1813,69 @@ Definition apply_infrule
           {{inv0 +++src (Expr.value (ValueT.const (const_int Size.One b'))) >= (Expr.icmp c' ty x y)}}
       in {{inv1 +++src (Expr.icmp c' ty x y) >= (Expr.value (ValueT.const (const_int Size.One b')))}}
     else apply_fail tt
+  | Infrule.icmp_inverse_tgt c ty x y b =>
+    if $$ inv0 |-tgt (Expr.icmp c ty x y) >= (Expr.value (ValueT.const (const_int Size.One b))) $$
+    then
+      let c' := get_inverse_icmp_cond c in
+      let b' := get_inverse_boolean_Int b in
+      {{inv0 +++tgt (Expr.icmp c' ty x y) >= (Expr.value (ValueT.const (const_int Size.One b')))}}
+    else apply_fail tt
+  | Infrule.icmp_inverse_rhs_tgt c ty x y b =>
+    if $$ inv0 |-tgt (Expr.value (ValueT.const (const_int Size.One b))) >= (Expr.icmp c ty x y) $$
+    then
+      let c' := get_inverse_icmp_cond c in
+      let b' := get_inverse_boolean_Int b in
+      let inv1 :=
+          {{inv0 +++tgt (Expr.value (ValueT.const (const_int Size.One b'))) >= (Expr.icmp c' ty x y)}}
+      in {{inv1 +++tgt (Expr.icmp c' ty x y) >= (Expr.value (ValueT.const (const_int Size.One b')))}}
+    else apply_fail tt
   | Infrule.icmp_swap_operands c ty x y e =>
     if $$ inv0 |-src e >= (Expr.icmp c ty x y) $$
     then
       let c' := get_swapped_icmp_cond c in
       {{inv0 +++src e >= (Expr.icmp c' ty y x) }}
     else apply_fail tt
+  | Infrule.icmp_swap_operands_rev c ty x y e =>
+    if $$ inv0 |-src (Expr.icmp c ty x y) >= e $$
+    then
+      let c' := get_swapped_icmp_cond c in
+      {{inv0 +++src (Expr.icmp c' ty y x) >= e }}
+    else apply_fail tt
+  | Infrule.icmp_swap_operands_tgt c ty x y e =>
+    if $$ inv0 |-tgt e >= (Expr.icmp c ty x y) $$
+    then
+      let c' := get_swapped_icmp_cond c in
+      {{inv0 +++tgt e >= (Expr.icmp c' ty y x) }}
+    else apply_fail tt
+  | Infrule.icmp_swap_operands_rev_tgt c ty x y e =>
+    if $$ inv0 |-tgt (Expr.icmp c ty x y) >= e $$
+    then
+      let c' := get_swapped_icmp_cond c in
+      {{inv0 +++tgt (Expr.icmp c' ty y x) >= e }}
+    else apply_fail tt
   | Infrule.fcmp_swap_operands c fty x y e =>
     if $$ inv0 |-src e >= (Expr.fcmp c fty x y) $$
     then
       let c' := get_swapped_fcmp_cond c in
       {{inv0 +++src e >= (Expr.fcmp c' fty y x) }}
+    else apply_fail tt
+  | Infrule.fcmp_swap_operands_rev c fty x y e =>
+    if $$ inv0 |-src (Expr.fcmp c fty x y) >= e $$
+    then
+      let c' := get_swapped_fcmp_cond c in
+      {{inv0 +++src (Expr.fcmp c' fty y x) >= e }}
+    else apply_fail tt
+  | Infrule.fcmp_swap_operands_tgt c fty x y e =>
+    if $$ inv0 |-tgt e >= (Expr.fcmp c fty x y) $$
+    then
+      let c' := get_swapped_fcmp_cond c in
+      {{inv0 +++tgt e >= (Expr.fcmp c' fty y x) }}
+    else apply_fail tt
+  | Infrule.fcmp_swap_operands_rev_tgt c fty x y e =>
+    if $$ inv0 |-tgt (Expr.fcmp c fty x y) >= e $$
+    then
+      let c' := get_swapped_fcmp_cond c in
+      {{inv0 +++tgt (Expr.fcmp c' fty y x) >= e }}
     else apply_fail tt
   | Infrule.implies_false c1 c2 =>
     if $$ inv0 |-src (Expr.value c1) >= (Expr.value c2) $$
@@ -1790,6 +1895,14 @@ Definition apply_infrule
     then {{
              {{inv0 +++src (Expr.value x) >= (Expr.value y)}}
                +++src (Expr.value y) >= (Expr.value x)
+         }}
+    else apply_fail tt
+  | Infrule.icmp_eq_same_tgt ty x y =>
+    let Int_one := INTEGER.of_Z 1 1 true in
+    if $$ inv0 |-tgt (Expr.value (ValueT.const (const_int Size.One Int_one))) >= (Expr.icmp cond_eq ty x y) $$
+    then {{
+             {{inv0 +++tgt (Expr.value x) >= (Expr.value y)}}
+               +++tgt (Expr.value y) >= (Expr.value x)
          }}
     else apply_fail tt
   | Infrule.icmp_eq_srem z w x y s =>
@@ -1865,6 +1978,14 @@ Definition apply_infrule
     then {{
              {{inv0 +++src (Expr.value x) >= (Expr.value y)}}
                +++src (Expr.value y) >= (Expr.value x)
+         }}
+    else apply_fail tt
+  | Infrule.icmp_neq_same_tgt ty x y =>
+    let Int_zero := INTEGER.of_Z 1 0 true in
+    if $$ inv0 |-tgt (Expr.value (ValueT.const (const_int Size.One Int_zero))) >= (Expr.icmp cond_ne ty x y) $$
+    then {{
+             {{inv0 +++tgt (Expr.value x) >= (Expr.value y)}}
+               +++tgt (Expr.value y) >= (Expr.value x)
          }}
     else apply_fail tt
   | Infrule.icmp_sge_or_not z z' a b s =>
