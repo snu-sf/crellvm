@@ -27,7 +27,7 @@ Require Import SoundBase.
 Require Import SoundReduceMaydiff.
 Require Import memory_props.
 Require Import TODOProof.
-Require Import SoundForgetMemory.
+Require Import MemAux.
 
 Set Implicit Arguments.
 
@@ -188,88 +188,6 @@ Proof.
     rewrite IdTSetFacts.mem_iff in *.
     rewrite IdTSetFacts.remove_b in H.
     des_bool; des; ss.
-Qed.
-
-Lemma valid_ptr_alloca_diffblock
-      SRC_MEM val'
-      (VALID_PTR: MemProps.valid_ptrs (Memory.Mem.nextblock SRC_MEM) val')
-      TD align0 tsz gn SRC_MEM_STEP mb
-      (ALLOCA: alloca TD SRC_MEM tsz gn align0 = Some (SRC_MEM_STEP, mb))
-      conf_src
-  :
-    <<DIFFBLOCK: InvState.Unary.sem_diffblock conf_src (blk2GV TD mb) val'>>
-.
-Proof.
-  exploit MemProps.nextblock_alloca; try apply ALLOCA; []; ii; des.
-  exploit MemProps.alloca_result; try apply ALLOCA; []; ii; des.
-  subst.
-
-  induction val'; ss.
-  destruct a; ss.
-  des; ss.
-  destruct v; ss; try (eapply IHval'; eauto; fail).
-  des; clarify.
-  - ss. exploit Pos.lt_irrefl; eauto.
-  - eapply IHval'; ss.
-Qed.
-
-Lemma locals_alloca_diffblock
-      conf_src mem locals
-      TD tsz gn align0 SRC_MEM_STEP mb
-      reg val
-      (ALLOCA: alloca TD mem tsz gn align0 = Some (SRC_MEM_STEP, mb))
-      (VAL: lookupAL GenericValue locals reg = Some val)
-      (WF_LOCAL: MemProps.wf_lc mem locals)
-  :
-  <<DIFFBLOCK: InvState.Unary.sem_diffblock conf_src (blk2GV TD mb) val>>
-.
-Proof.
-  exploit WF_LOCAL; eauto; []; intro WF; des.
-  eapply valid_ptr_alloca_diffblock; eauto.
-Qed.
-
-Lemma globals_alloca_diffblock
-      align0 TD gn SRC_MEM SRC_MEM_STEP
-      tsz conf_src mb
-      gmax
-      (WF_GLOBALS: genericvalues_inject.wf_globals gmax (Globals conf_src))
-      (ALLOCA: alloca TD SRC_MEM tsz gn align0 = Some (SRC_MEM_STEP, mb))
-      (WF_MEM: MemProps.wf_Mem gmax (CurTargetData conf_src) SRC_MEM)
-  : (gmax < mb)%positive.
-Proof.
-  unfold MemProps.wf_Mem in *. des.
-  exploit MemProps.nextblock_alloca; try apply ALLOCA; []; ii; des.
-  exploit MemProps.alloca_result; try apply ALLOCA; []; ii; des. clarify.
-Qed.
-
-Lemma mload_alloca_diffblock
-  align0 TD gn tsz conf_src SRC_MEM SRC_MEM_STEP mb
-  (ALLOCA: alloca TD SRC_MEM tsz gn align0 = Some (SRC_MEM_STEP, mb))
-  mptr0 typ0 align1 val'
-  (LOAD: mload (CurTargetData conf_src) SRC_MEM_STEP mptr0 typ0 align1 = Some val')
-  gmax
-  (WF: MemProps.wf_Mem gmax (CurTargetData conf_src) SRC_MEM)
-  :
-  <<DIFFBLOCK: InvState.Unary.sem_diffblock conf_src (blk2GV TD mb) val'>>
-.
-Proof.
-  inversion WF as [WF_A WF_B]. clear WF.
-  (*
-WTS
-mb <-> val'
-val': read from SRC_MEM_STEP.
-if read from SRC_MEM -> use WF.
-if read from SRC_MEM_STEP - SRC_MEM -> undef
-   *)
-  exploit MemProps.alloca_preserves_mload_inv; try apply LOAD; eauto; []; i.
-  des.
-  - exploit WF_A; try apply LOAD; eauto; []; clear WF_A; intros WF_A; des.
-    eapply valid_ptr_alloca_diffblock; eauto.
-  - eapply InvState.Unary.diffblock_comm.
-    eapply InvState.Unary.undef_diffblock; eauto.
-Unshelve.
-eauto.
-eauto.
 Qed.
 
 Lemma add_unique_alloca
@@ -602,7 +520,7 @@ Lemma lessdef_definedness
       (DEFINED: postcond_cmd_get_definedness cmd = Some exp_pair)
   : InvState.Unary.sem_lessdef conf st1 invst exp_pair.
 Proof.
-  exact (SF_ADMIT "Upnrovable for now. Semantics should check more.
+  ADMIT "Upnrovable for now. Semantics should check more.
 For instance, semantics should check extractValue's return type.
 It seems there is neither no wf condition to derive this.
 However, the high level idea of this lemma seems correct.
@@ -612,7 +530,7 @@ postcond_cmd_add_lessdef, and that is only used for 1 hint generation scenario.
 For that case, the ""cmd"" is not a random cmd, but we know that cmd have been
 calculated before. It means there is at least one more certain way to remove
 this ad-mit whilst keeping working hint generation.
-").
+".
  (*  { *)
  (*    ii. *)
  (*    inv DEFINED. *)
@@ -1047,17 +965,17 @@ Proof.
       clear LESSDEF NOALIAS UNIQUE PRIVATE.
       ss.
       destruct value1, value2; ss; u; ss; rewrite H; rewrite H0; des_lookupAL_updateAddAL;
-        erewrite mstore_mload_same; eauto.
+        erewrite MemProps.mstore_mload_same; eauto.
     +
       apply lessdef_add.
       apply lessdef_add; [apply LESSDEF|].
       clear LESSDEF NOALIAS UNIQUE PRIVATE.
       ss.
       destruct value1, value2; ss; u; ss; rewrite H; rewrite H0; des_lookupAL_updateAddAL;
-        erewrite mstore_mload_same; eauto.
+        erewrite MemProps.mstore_mload_same; eauto.
       ss.
       destruct value1, value2; ss; u; ss; rewrite H; rewrite H0; des_lookupAL_updateAddAL;
-        erewrite mstore_mload_same; eauto.
+        erewrite MemProps.mstore_mload_same; eauto.
 Qed.
 
 Lemma postcond_cmd_add_lessdef_src_sound

@@ -62,16 +62,23 @@ Inductive sim_local_stack
          (RETURN_SRC: return_locals
                         conf_src.(CurTargetData)
                         retval'_src id_src noret_src typ_src
-                        locals_src = Some locals'_src),
+                        locals_src = Some locals'_src)
+       ,
        exists inv'' idx' locals'_tgt,
          <<RETURN_TGT: return_locals
                          conf_tgt.(CurTargetData)
                          retval'_tgt id_tgt noret_tgt typ_tgt
                          locals_tgt = Some locals'_tgt>> /\
          <<MEMLE: InvMem.Rel.le inv1 inv''>> /\
-         forall (WF_TGT: wf_StateI conf_tgt
-                                   (mkState (mkEC func_tgt b_tgt cmds_tgt term_tgt locals'_tgt allocas_tgt)
-                                            ecs_tgt mem'_tgt)),
+         forall
+           (WF_SRC: wf_StateI conf_src
+                              (mkState
+                                 (mkEC func_src b_src cmds_src term_src locals'_src allocas_src)
+                                 ecs_src mem'_src))
+           (WF_TGT: wf_StateI conf_tgt
+                              (mkState (mkEC func_tgt b_tgt cmds_tgt term_tgt locals'_tgt allocas_tgt)
+                                       ecs_tgt mem'_tgt))
+         ,
          <<SIM:
            sim_local
              conf_src conf_tgt ecs0_src ecs0_tgt
@@ -202,6 +209,21 @@ Proof.
     etransitivity; eauto.
 Qed.
 
+(* TODO move to definition point *)
+Lemma sop_star_preservation
+      conf st0 st1 tr
+      (WF_CONF: wf_ConfigI conf)
+      (WF_ST: wf_StateI conf st0)
+      (SOP_STAR: sop_star conf st0 st1 tr)
+  :
+    <<WF_ST: wf_StateI conf st1>>
+.
+Proof.
+  ginduction SOP_STAR; ii; ss.
+  eapply IHSOP_STAR; eauto.
+  eapply preservation; eauto.
+Qed.
+
 Lemma sim_local_lift_sim conf_src conf_tgt
       (SIM_CONF: sim_conf conf_src conf_tgt):
   (sim_local_lift conf_src conf_tgt) <3= (sim conf_src conf_tgt).
@@ -248,7 +270,8 @@ Proof.
           rewrite returnUpdateLocals_spec, RET_TGT. ss.
           rewrite x0. eauto.
       }
-      i. expl preservation. inv STEP0. ss. rewrite returnUpdateLocals_spec in *. ss.
+      i. expl preservation. rename preservation into WF_TGT_NEXT.
+      inv STEP0. ss. rewrite returnUpdateLocals_spec in *. ss.
       inv CONF. ss. clarify.
       expl invmem_free_allocas_invmem_rel. rename invmem_free_allocas_invmem_rel into MEMFREE.
       des_ifs.
@@ -260,12 +283,43 @@ Proof.
         }
         { ss. }
         clear LOCAL. intro LOCAL. des. simtac.
-        specialize (LOCAL1 preservation).
-        esplits; eauto.
-        { econs 1. econs; eauto.
+
+
+        assert(SRC_STEP:
+                  sInsn (mkCfg S TD0 Ps gl0 fs)
+                        (mkState (mkEC CurFunction0 CurBB0 [] (insn_return id2_src typ1_tgt ret2_src)
+                                       Locals0 Allocas0)
+                                 ((mkEC func_src b_src
+                                        (insn_call id_src true clattrs_tgt typ_tgt
+                                                   varg_tgt fun_src params_src :: cmds_src)
+                                        term_src lc'' allocas_src) :: ecs_src)
+                                 Mem0)
+                        (mkState (mkEC func_src b_src cmds_src term_src lc'' allocas_src) ecs_src Mem')
+                        E0).
+        { econs; eauto.
           rewrite returnUpdateLocals_spec, COND. ss.
         }
-        { right. apply CIH. econs; try exact SIM; eauto.
+        (* I tried dependent split, but it gives sInsn_indexed (not sInsn) which gives two cases when "inv"ed *)
+        (* SRC_STEP is needed for preservation, to get WF_SRC_NEXT, which is needed to exploit LOCAL1 *)
+        (* TODO: Can we do this in more smart way? *)
+
+        (* Anyway, I will state how I get the above statement soley by tactic: *)
+        (* do 3 eexists. *)
+        (* split; [econs|]. apply dependent_split. *)
+        (* { econs 1. econs; eauto. *)
+        (*   rewrite returnUpdateLocals_spec, COND. ss. *)
+        (* } *)
+        (* { intro SRC_STEP. *) (* <----------------- this *)
+
+        exploit LOCAL1.
+        { eapply sop_star_preservation; eauto.
+          eapply opsem_props.OpsemProps.sop_star_trans; try eassumption.
+          econs; eauto. }
+        { eauto. }
+        intro LOCAL; des. clear LOCAL1.
+        esplits; eauto.
+        { econs 1. eauto. }
+        { right. apply CIH. econs; eauto.
           - ss.
           - etransitivity; eauto.
         }
@@ -277,12 +331,34 @@ Proof.
         }
         { ss. des_ifs. }
         clear LOCAL. intro LOCAL. des. simtac.
-        specialize (LOCAL1 preservation).
-        esplits; eauto.
-        { econs 1. econs; eauto.
+
+        assert(SRC_STEP:
+                  sInsn (mkCfg S TD0 Ps gl0 fs)
+                        (mkState (mkEC CurFunction0 CurBB0 [] (insn_return id2_src typ1_tgt ret2_src)
+                                       Locals0 Allocas0)
+                                 ((mkEC func_src b_src
+                                        (insn_call id_src false clattrs_tgt typ_tgt
+                                                   varg_tgt fun_src params_src :: cmds_src)
+                                        term_src locals_src allocas_src) :: ecs_src)
+                                 Mem0)
+                        (mkState (mkEC func_src b_src cmds_src term_src
+                                       (updateAddAL GenericValue locals_src id_src g1) allocas_src)
+                                 ecs_src Mem')
+                        E0).
+        { econs; eauto.
           rewrite returnUpdateLocals_spec, COND. ss. des_ifs.
         }
-        { right. apply CIH. econs; try exact SIM; eauto.
+
+        exploit LOCAL1.
+        { eapply sop_star_preservation; eauto.
+          eapply opsem_props.OpsemProps.sop_star_trans; try eassumption.
+          econs; eauto. }
+        { eauto. }
+        intro LOCAL; des. clear LOCAL1.
+
+        esplits; eauto.
+        { econs 1. eauto. }
+        { right. apply CIH. econs; eauto.
           - ss.
           - etransitivity; eauto.
         }
@@ -306,7 +382,8 @@ Proof.
         exploit OpsemPP.free_allocas_not_stuck; []; intro FREE_ALLOCAS. des.
         esplits. econs; ss; eauto. des_ifs.
       }
-      i. expl preservation. inv STEP0. ss.
+      i. expl preservation. rename preservation into WF_TGT_NEXT.
+      inv STEP0. ss.
       inv CONF. ss. clarify.
       expl invmem_free_allocas_invmem_rel. rename invmem_free_allocas_invmem_rel into MEMFREE.
       des_ifs.
@@ -318,10 +395,17 @@ Proof.
         }
         { ss. }
         clear LOCAL. intro LOCAL. des. simtac.
-        specialize (LOCAL1 preservation).
+
+        exploit LOCAL1.
+        { eapply sop_star_preservation; eauto.
+          eapply opsem_props.OpsemProps.sop_star_trans; try eassumption.
+          econs; eauto. }
+        { eauto. }
+        intro LOCAL; des. clear LOCAL1.
+
         esplits; eauto.
         { econs 1. econs; eauto. }
-        { right. apply CIH. econs; try exact SIM; eauto.
+        { right. apply CIH. econs; eauto.
           - ss.
           - etransitivity; eauto.
         }
@@ -357,7 +441,8 @@ Proof.
           rewrite FDEF_TGT. ss.
         - unfold getEntryBlock in *. ss.
       }
-      i. expl preservation. inv STEP0; ss; cycle 1.
+      i. expl preservation. rename preservation into WF_TGT_NEXT.
+      inv STEP0; ss; cycle 1.
       { exfalso.
         rewrite FUN_TGT in *. clarify.
         clear - H18 H23 INJECT MEM SIM_CONF.
@@ -394,28 +479,61 @@ Proof.
       unfold sim_fdef in SIM.
       hexploit SIM; try apply invmem_lift; eauto.
       { econs; eauto. }
-      i; des.
+      clear SIM. intro SIM; des.
 
+      (* do 3 eexists. *)
+      (* split; [econs|]. *)
+      (* apply dependent_split. *)
+      (* { econs 1. econs; eauto. } *)
+      (* { i. Set Printing All. <----------------------- I get stmt from here *)
+      assert(STEP_SRC:
+               sInsn (mkCfg S TD Ps gl fs)
+           (mkState
+              (mkEC CurFunction0 CurBB0
+                    ((insn_call id2_src noret1_tgt clattrs1_tgt typ1_tgt varg1_tgt fun2_src params2_src) ::
+                    cmds2_src) Terminator0 Locals0 Allocas0) ECS0 Mem0)
+           (mkState
+              (mkEC (fdef_intro (fheader_intro fa rt fid la va) lb)
+                    (l', (stmts_intro ps' cs' tmn')) cs' tmn' lc' [])
+              ((mkEC CurFunction0 CurBB0
+                    ((insn_call id2_src noret1_tgt clattrs1_tgt typ1_tgt varg1_tgt fun2_src params2_src) ::
+                       cmds2_src) Terminator0 Locals0 Allocas0) :: ECS0)
+              Mem0)
+           E0).
+      { econs; eauto. }
+      
       esplits; eauto.
-      * econs 1. econs; eauto.
-      * right. apply CIH. econs; try reflexivity.
-        { ss. }
+      * econs 1. eauto.
+      * right. apply CIH.
         {
-          econs 2; eauto; [|reflexivity].
-          s. i.
-          hexploit RETURN; eauto. clear RETURN. intro RETURN. des.
-          esplits; eauto.
-          i. specialize (RETURN1 WF_TGT1).
-          inv RETURN1; ss.
-          eauto.
-        }
-        {
-          inv H.
-          unfold getEntryBlock in *.
-          des_ifs.
-          ss. clarify.
-          eapply H0.
-          splits; ss.
+          eapply sim_local_lift_intro with
+              (inv := (InvMem.Rel.lift Mem0 Mem1 uniqs_src uniqs_tgt privs_src privs_tgt inv2)); ss.
+          {
+            econstructor 2 with (inv1 := inv2); [..|reflexivity]; ss; try eassumption.
+            { etransitivity; eauto. }
+            { s. i.
+              hexploit RETURN; eauto. clear RETURN. intro RETURN. des.
+              esplits; eauto.
+              i. specialize (RETURN1 WF_SRC1). specialize (RETURN1 WF_TGT1).
+              inv RETURN1; ss.
+              eauto.
+            }
+          }
+          {
+            match goal with
+            | [H: context[init_fdef] |- _ ] => inv H
+            end.
+            unfold getEntryBlock in *.
+            des_ifs.
+            ss. clarify.
+            eapply SIM0.
+            - splits; ss.
+              eapply sop_star_preservation; eauto.
+              eapply opsem_props.OpsemProps.sop_star_trans; try eassumption.
+              econs; eauto.
+            - splits; ss.
+          }
+          { reflexivity. }
         }
     + (* excall *)
       exploit FUN; eauto. i. des.
@@ -465,7 +583,8 @@ Proof.
           rewrite SIM_NONE0.
           rewrite SIM_SOME_FDEC0. ss.
       }
-      i. expl preservation. inv STEP0; ss.
+      i. expl preservation. rename preservation into WF_TGT_NEXT.
+      inv STEP0; ss.
       { exfalso. (* call excall mismatch *)
         clarify.
         rename H18 into SRC_LOOKUP.
@@ -481,7 +600,6 @@ Proof.
         clarify. }
       clarify.
       move TGT_CALL at bottom.
-      Print match_traces.
 
       rename Mem' into mem_src.
       rename Mem'0 into mem_tgt.
@@ -517,20 +635,39 @@ Proof.
         }
         clear RETURN. intro RETURN. des.
 
-        hexploit RETURN1; eauto.
-        { move preservation at bottom.
-          assert(lc'0 = locals4_tgt).
-          {
-            move lc'0 at bottom.
-            move RETURN_TGT at bottom.
-            rewrite exCallUpdateLocals_spec in *. clarify.
-          }
-          clarify.
-        }
-        intro SIM; des.
-
         rewrite exCallUpdateLocals_spec in *.
         rewrite RETURN_LOCALS in *. rewrite RETURN_TGT in *. clarify.
+
+        (* do 3 eexists. *)
+        (* split; [econs|]. *)
+        (* apply dependent_split. *)
+        (* { econs 1. econs; eauto. *)
+        (*   rewrite exCallUpdateLocals_spec; eauto. *)
+        (* } *)
+        (* { i. Set Printing All. *) (* <------------------- this *)
+        (* TODO: this kind of asserting STEP_SRC is weird.. *)
+        (* We may make lemma that replaces current goal's sInsn_indexed into sInsn *)
+        (* If that is completed, we can get STEP_SRC via dependent_split, *)
+        (* not by writing the whole fragile term *)
+        assert(STEP_SRC:
+                 sInsn (mkCfg S CurTargetData0 Ps Globals0 fs)
+                       (mkState (mkEC CurFunction0 CurBB0
+                                      ((insn_call id2_src noret1_tgt clattrs1_tgt
+                                                  typ1_tgt varg1_tgt fun2_src params2_src) :: cmds2_src)
+                                      Terminator0 Locals0 Allocas0)
+                                ECS0 Mem0)
+                       (mkState (mkEC CurFunction0 CurBB0 cmds2_src Terminator0 lc' Allocas0) ECS0 mem_src)
+                       event).
+        { econs; eauto.
+          rewrite exCallUpdateLocals_spec; eauto.
+        }
+
+        hexploit RETURN1; eauto.
+        { eapply sop_star_preservation; eauto.
+          eapply opsem_props.OpsemProps.sop_star_trans; try eassumption.
+          econs; eauto.
+        }
+        intro SIM; des.
 
         esplits; eauto.
         * econs 1. econs; eauto.
@@ -543,7 +680,7 @@ Proof.
           }
           {
             eapply sim_local_stack_invmem_le; eauto.
-            etransitivity; eauto.
+            etransitivity; eauto. etransitivity; eauto.
           }
       }
   - (* step *)

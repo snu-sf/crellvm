@@ -38,12 +38,6 @@ Inductive transl_product m_src m_tgt
   : transl_product
       m_src m_tgt
       (product_fdec f) (product_fdec f)
-| transl_product_fdef_nop
-    f_src f_tgt
-    (NOP_FDEF: nop_fdef f_src f_tgt)
-  : transl_product
-      m_src m_tgt
-      (product_fdef f_src) (product_fdef f_tgt)
 | transl_product_fdef_valid
     f_src f_tgt hint
     (VALID_FDEF: valid_fdef m_src m_tgt f_src f_tgt hint)
@@ -93,13 +87,6 @@ Proof.
   - des_ifs.
     + unfold lookupFdefViaIDFromProduct in *. des_ifs.
       esplits; eauto.
-      eapply transl_product_fdef_nop; eauto.
-    + inv NOP_FDEF. simtac.
-    + inv NOP_FDEF. simtac.
-    + apply IHproducts_src; eauto.
-  - des_ifs.
-    + unfold lookupFdefViaIDFromProduct in *. des_ifs.
-      esplits; eauto.
       eapply transl_product_fdef_valid; eauto.
     + unfold valid_fdef in *. simtac. clarify.
     + unfold valid_fdef in *. simtac. clarify.
@@ -125,8 +112,6 @@ Proof.
   - inv H2. des_ifs; eauto.
   - inv H2. des_ifs; eauto.
   - inv H2.
-    + destruct fdef5, fdef0.
-      inv NOP_FDEF. des_ifs. eauto.
     + destruct fdef5, fdef0; ss.
       destruct fheader5, fheader0; ss.
       des_ifs; simtac; clarify.
@@ -148,16 +133,18 @@ Defined.
 
 Lemma transl_products_sim_conf
       gl ft
-      md_src md_tgt prods_src prods_tgt
-      TD
-      (TRANSL_PRODUCTS: transl_products md_src md_tgt prods_src prods_tgt)
-      (WF_CONF: wf_ConfigI (mkCfg [md_tgt] TD prods_tgt gl ft))
-      (* (WF: wf_prods [md_tgt] md_tgt prods_tgt) *)
-      (* (WF_SYST: wf_system sys_tgt) *)
-      (* (WF_CONF: wf_ConfigI (mkCfg sys_tgt TD prods_tgt gl ft)) *)
+      prods_src prods_tgt
+      los nd
+      (* los/nd is same for src/tgt *)
+      (TRANSL_PRODUCTS: transl_products (module_intro los nd prods_src)
+                                        (module_intro los nd prods_tgt) prods_src prods_tgt)
+      (WF_SRC: wf_ConfigI (mkCfg [module_intro los nd prods_src] (los, nd) prods_src gl ft))
+      (WF_TGT: wf_ConfigI (mkCfg [module_intro los nd prods_tgt] (los, nd) prods_tgt gl ft))
+      (WF_SRC_SYS: wf_system [module_intro los nd prods_src])
+      (WF_TGT_SYS: wf_system [module_intro los nd prods_tgt])
   :
-    <<SIM_CONF: sim_conf (mkCfg [md_src] TD prods_src gl ft)
-                         (mkCfg [md_tgt] TD prods_tgt gl ft)>>
+    <<SIM_CONF: sim_conf (mkCfg [module_intro los nd prods_src] (los, nd) prods_src gl ft)
+                         (mkCfg [module_intro los nd prods_tgt] (los, nd) prods_tgt gl ft)>>
 .
 Proof.
   econs; eauto.
@@ -167,25 +154,34 @@ Proof.
     expl transl_products_lookupFdefViaIDFromProducts.
     esplits; eauto.
     inv FDEF.
-    + inv NOP_FDEF.
-      eapply nop_sim_fdef; eauto; try (econs; eauto).
-      { inv BLOCKS; ss.
-        des_ifs. des. clarify. }
     + eapply valid_sim_fdef; eauto.
       { ss. }
-  - clear_tac. clear WF_CONF.
+      { ss. }
+      { ss. }
+      { ss.
+        eapply wf_system__wf_fdef; try eassumption.
+        - ss. unfold moduleEqB. unfold sumbool2bool. des_ifsG.
+        - ss. erewrite lookupFdefViaIDFromProducts_inv; eauto.
+      }
+      { ss.
+        eapply wf_system__wf_fdef; try eassumption.
+        - ss. unfold moduleEqB. unfold sumbool2bool. des_ifsG.
+        - ss. erewrite lookupFdefViaIDFromProducts_inv; eauto.
+      }
+  - clear WF_TGT WF_SRC WF_SRC_SYS WF_TGT_SYS. clear_tac.
     i.
+    revert TRANSL_PRODUCTS. generalize prods_src at 1. generalize prods_tgt at 1. ii.
     ginduction prods_src; ii; inv TRANSL_PRODUCTS; ss.
     rename H1 into TRANSL_PRODUCT.
     des_ifsH FDEF_SRC.
     expl IHprods_src.
     inv TRANSL_PRODUCT; ss.
-    + des_ifs. exfalso. inv NOP_FDEF. ss.
     + des_ifs. exfalso. unfold valid_fdef in *. des_ifs. ss.
       clear - n Heq0.
       compute in Heq0. des_ifs.
-  - clear_tac. clear WF_CONF.
+  - clear WF_TGT WF_SRC WF_SRC_SYS WF_TGT_SYS. clear_tac.
     i.
+    revert TRANSL_PRODUCTS. generalize prods_src at 1. generalize prods_tgt at 1. ii.
     ginduction prods_src; ii; inv TRANSL_PRODUCTS; ss.
     rename H1 into TRANSL_PRODUCT.
     des_ifsH FDEC_SRC.
@@ -235,8 +231,6 @@ Proof.
   rename Heq3 into INIT_LOCALS.
   clear - FDEF INIT_LOCALS.
   inv FDEF.
-  - inv NOP_FDEF. ss. inv BLOCKS. des_ifs_safe ss. des. clarify.
-    esplits; eauto.
   - inv VALID_FDEF. des_ifs_safe ss.
     des_bool. des_sumbool. clarify.
     rewrite INIT_LOCALS.
@@ -289,6 +283,7 @@ Proof.
   {
     pose (s_genInitState [module_intro l_src ndts_src prods_src] main args0 Mem.empty)
       as SRC_INIT.
+    dup SRC. rename SRC0 into SRC_INIT_SUCCESS. sguard in SRC_INIT_SUCCESS.
     pose st_src as SRC_ST.
 
     remember (s_genInitState [module_intro l_tgt ndts_tgt prods_tgt]
@@ -315,93 +310,6 @@ Proof.
 
 
 
-    - (* fheader_intro is different here *)
-      (* actually, it is same and this fact is needed for nop_sim_fdef. *)
-      (* this fact can only be achieved by *)
-      (* inv NOP_FDEF. so I save nop_fdef here, and then inv *)
-      (* TODO: generalize nop_sim_fdef, header -> header_src/header_tgt. anyhow they are same *)
-      (* by nop_fdef in premise *)
-      inversion NOP_FDEF; subst.
-      ss. inv BLOCKS. des_ifs_safe ss. des. clarify.
-      hexploit nop_sim_fdef; try exact NOP_FDEF.
-      { instantiate (1:= {|
-                          CurSystem := [module_intro l_tgt ndts_tgt prods_tgt];
-                          CurTargetData := (l_tgt, ndts_tgt);
-                          CurProducts := prods_tgt;
-                          Globals := g;
-                          FunTable := g0 |}).
-        instantiate (1:= {|
-                          CurSystem := [module_intro l_tgt ndts_tgt prods_src];
-                          CurTargetData := (l_tgt, ndts_tgt);
-                          CurProducts := prods_src;
-                          Globals := g;
-                          FunTable := g0 |}).
-        ss.
-      }
-      { ss. }
-      intro SIM; des.
-
-
-
-
-
-
-
-      hexploit genGlobalAndInitMem__wf_globals_Mem; eauto; []; intro WF; des.
-      unfold sim_fdef in *.
-      hexploit SIM.
-      { eapply init_mem_sem; eauto.
-        erewrite <- transl_products_genGlobalAndInitMem; eauto.
-      }
-      { instantiate (1:= args0).
-        instantiate (1:= args0).
-        ss.
-        rename Heq1 into INIT_LOCALS.
-        (* OpsemPP.wf_ExecutionContext__at_beginning_of_function *)
-        clear - WF4 WF INIT_LOCALS.
-        (* OpsemPP.initLocals_spec' *)
-        (* opsem_props.OpsemProps.initLocals_spec *)
-        admit.
-      }
-      {
-        (* instantiate *)
-        (*   (1:= *)
-        (*      {| *)
-        (*        CurFunction := fdef_intro *)
-        (*                         (fheader_intro fnattrs0 typ0 id0 args1 varg0) *)
-        (*                         ((l1, stmts_intro phinodes0 cmds5 terminator0) :: b1); *)
-        (*        CurBB := (l1, stmts_intro phinodes0 cmds5 terminator0); *)
-        (*        CurCmds := cmds5; *)
-        (*        Terminator := terminator0; *)
-        (*        Locals := g1; *)
-        (*        Allocas := [] |}). *)
-        econs; ss; eauto.
-      }
-      clear SIM. intro SIM_LOCAL; des.
-      inv SIM_LOCAL. ss. clarify.
-
-
-
-
-      esplits; eauto.
-      + eapply sim_local_lift_sim; eauto.
-        { eapply transl_products_sim_conf; eauto.
-          subst TGT_INIT1.
-          expl s_genInitState__opsem_wf.
-          eapply wf_ConfigI_spec; eauto.
-        }
-        econs; ss; eauto.
-        * econs; eauto.
-        * eapply SIM_LOCAL0.
-          { (* wf *)
-            subst TGT_INIT1.
-            expl s_genInitState__opsem_wf.
-            split; ss.
-          }
-        * reflexivity.
-
-
-
     - destruct blocks5.
       { ss. des_ifs. }
       assert(args5 = args1).
@@ -413,24 +321,36 @@ Proof.
       (* both "TGT_INIT1 = Soem" && VALID_FDEF is used in next hexploit *)
       (* TODO: can we do this in more smart way? *)
       (* Here, even "ss" breaks VALID_FDEF. It is really truly annoying *)
-      hexploit valid_sim_fdef; try exact VALID_FDEF.
-      { instantiate (1:= {|
-                          CurSystem := [module_intro l_tgt ndts_tgt prods_tgt];
-                          CurTargetData := (l_tgt, ndts_tgt);
-                          CurProducts := prods_tgt;
-                          Globals := g;
-                          FunTable := g0 |}).
-        instantiate (1:= {|
-                          CurSystem := [module_intro l_tgt ndts_tgt prods_src];
-                          CurTargetData := (l_tgt, ndts_tgt);
-                          CurProducts := prods_src;
-                          Globals := g;
-                          FunTable := g0 |}).
+
+      assert(WF_CONF_SRC: wf_ConfigI (mkCfg [module_intro l_tgt ndts_tgt prods_src]
+                                            (l_tgt, ndts_tgt)
+                                            prods_src
+                                            g g0)).
+      { unsguard SRC_INIT_SUCCESS. simpl in SRC_INIT_SUCCESS.
+        (* TODO: Was this needed? *)
+        (* What if it doesn't work, what should I do? *)
+        (* In general, making all the props before (when SRC_INIT_SUCCESS was alive) is not the answer, *)
+        (* because it will severly mar readability && the props made itself may not survive ss *)
+        expl s_genInitState__opsem_wf (try exact WF_SRC; eauto).
         ss.
       }
+      assert(WF_CONF_TGT: wf_ConfigI (mkCfg [module_intro l_tgt ndts_tgt prods_tgt]
+                                            (l_tgt, ndts_tgt)
+                                            prods_tgt
+                                            g g0)).
       { subst TGT_INIT1.
-        expl s_genInitState__opsem_wf.
+        expl s_genInitState__opsem_wf (try exact WF_TGT; eauto).
         ss.
+      }
+
+      hexploit valid_sim_fdef; try exact VALID_FDEF; [| | |exact WF_CONF_SRC|exact WF_CONF_TGT|..]; ss.
+      { eapply wf_system__wf_fdef; try eassumption.
+        ss.
+        unfold moduleEqB. unfold sumbool2bool. des_ifsG.
+      }
+      { eapply wf_system__wf_fdef; try eassumption.
+        ss.
+        unfold moduleEqB. unfold sumbool2bool. des_ifsG.
       }
       intro SIM; des.
 
@@ -450,17 +370,65 @@ Proof.
       unfold sim_fdef in *.
       hexploit SIM.
       { eapply init_mem_sem; eauto.
-        erewrite <- transl_products_genGlobalAndInitMem; eauto.
+        - erewrite <- transl_products_genGlobalAndInitMem; eauto.
       }
-      { instantiate (1:= args0).
+      { clear SIM.
+        instantiate (1:= args0).
         instantiate (1:= args0).
         ss.
-        (* OpsemPP.wf_ExecutionContext__at_beginning_of_function *)
-        clear - WF4 WF INIT_LOCALS.
-        (* OpsemPP.initLocals_spec' *)
-        (* opsem_props.OpsemProps.initLocals_spec *)
-        admit.
-      }
+        assert(UNIQF: uniqFdef (fdef_intro (fheader_intro fnattrs0 typ0 id0 args1 varg0)
+                                    ((l1, stmts_intro [] cmds5 terminator5) :: b1))).
+        { eapply wf_system__uniqFdef; revgoals.
+          { instantiate (1:= prods_src). ss. }
+          { instantiate (1:= [module_intro l_tgt ndts_tgt prods_src]). ss.
+            unfold moduleEqB. unfold sumbool2bool. des_ifs.
+          }
+          { ss. }
+        }
+        unfold get_params in *.
+        exploit FIT_ARGS.
+        { ss. des_ifs. }
+        clear FIT_ARGS. intro FIT_ARGS; des.
+        clear - WF4 WF INIT_LOCALS UNIQF FIT_ARGS.
+        (* initLocals_type_spec  *)
+        assert(NODUP: NoDup (getArgsIDs args1)).
+        { inv UNIQF. ss.
+          repeat match goal with
+                 | [H: NoDup (_ ++ _) |- _ ] => eapply NoDup_split' in H; des
+                 end.
+          ss.
+        } clear UNIQF.
+        assert(forall arg (IN: In arg args0), exists id, In id (getArgsIDs args1) /\
+                                                         lookupAL GenericValue g1 id = Some arg).
+        { clear - NODUP INIT_LOCALS FIT_ARGS.
+          unfold initLocals in *.
+          i.
+          ginduction args0; ii; ss.
+          inv FIT_ARGS. ss. des_ifs.
+          des.
+          - clarify. ss.
+            exists i0.
+            split; ss.
+            { left; ss. }
+            rewrite lookupAL_updateAddAL_eq; ss. clarify.
+          - exploit IHargs0; eauto.
+            { apply NoDup_cons_iff in NODUP. des; ss. }
+            i; des.
+            exists id0.
+            split; ss.
+            { right. ss. }
+            rewrite <- lookupAL_updateAddAL_neq; ss.
+            ii. clarify.
+            apply NoDup_cons_iff in NODUP. des; ss.
+        }
+        clear - H WF4.
+        ginduction args0; ii; ss.
+        - econs; eauto.
+        - econs; eauto.
+          exploit H; eauto; []; i; des.
+          eapply WF4; eauto.
+        }
+
       { econs; ss; eauto. }
       clear SIM. intro SIM_LOCAL; des.
       inv SIM_LOCAL. ss. clarify.
@@ -470,147 +438,22 @@ Proof.
 
       esplits; eauto.
       + eapply sim_local_lift_sim; eauto.
-        { eapply transl_products_sim_conf; eauto.
-          subst TGT_INIT1.
-          expl s_genInitState__opsem_wf.
-          eapply wf_ConfigI_spec; eauto.
-        }
+        { eapply transl_products_sim_conf; eauto. }
         econs; ss; eauto.
         * econs; eauto.
         * eapply SIM_LOCAL0.
-          { (* wf *)
+          { (* wf_src *)
+            unsguard SRC_INIT_SUCCESS.
+            expl s_genInitState__opsem_wf (try exact WF_SRC; eauto).
+            split; ss.
+          }
+          { (* wf_tgt *)
             subst TGT_INIT1.
-            expl s_genInitState__opsem_wf.
+            expl s_genInitState__opsem_wf (try exact WF_TGT; eauto).
             split; ss.
           }
         * reflexivity.
-Admitted.
-
-(* Lemma transl_sim_module: *)
-(*   transl_module <2= sim_module. *)
-(* Proof. *)
-(*   s. intros module_src module_tgt MODULE. *)
-(*   inv MODULE. *)
-(*   ii. *)
-(*   expl s_genInitState__opsem_wf (try exact WF_SRC; eauto). *)
-(*   apply_all_once wf_ConfigI_spec. apply_all_once wf_StateI_spec. *)
-(*   (* Without this, prop will be destructed into multiple parts, and readibility is marred. *) *)
-(*   unfold s_genInitState in SRC. simtac. *)
-(*   clear COND e0. apply infrastructure_props.InProductsB_In in e. *)
-(*   exploit transl_products_lookupFdefViaIDFromProducts; eauto. i. des. *)
-(*   destruct fdef_tgt. unfold LLVMinfra.is_true in *. simtac. *)
-(*   destruct fheader5. *)
-(*   (* TODO: define all_with_term_once *) *)
-(*   (* Ltac expl_with H := expl lookupFdefViaIDFromProducts_ideq (idtac H; try exact H; eauto). *) *)
-(*   (* all_with_term expl_with lookupFdefViaIDFromProducts. *) *)
-(*   expl lookupFdefViaIDFromProducts_ideq (try exact COND3; eauto). clarify. *)
-(*   expl lookupFdefViaIDFromProducts_ideq (try exact TGT; eauto). clarify. *)
-(*   inv FDEF. *)
-(*   { inv NOP_FDEF. *)
-(*     assert (NOP_BLOCKS_ENTRY: *)
-(*               exists phi' cmds' term' b', *)
-(*                 blocks5 = ((l0, stmts_intro phi' cmds' term')::b')). *)
-(*     { inv BLOCKS. *)
-(*       destruct y. destruct s. *)
-(*       assert (LEQ: l1 = l0). *)
-(*       { *)
-(*         exploit transl_products_lookupFdefViaIDFromProducts; eauto. i. des. *)
-(*         clarify. *)
-(*       } *)
-(*       subst. *)
-(*       esplits; eauto. *)
-(*     } *)
-(*     des. *)
-
-
-
-(*     expl genGlobalAndInitMem__wf_globals_Mem. *)
-
-(*     do 3 eexists. *)
-(*     apply dependent_split. *)
-(*     - unfold s_genInitState. ss. rewrite TGT. *)
-(*       match goal with *)
-(*       | [|- context [productInModuleB_dec ?a ?b]] => destruct (productInModuleB_dec a b) *)
-(*       end; simtac; cycle 1. *)
-(*       { apply infrastructure_props.lookupFdefViaIDFromProducts_inv in TGT. congruence. } *)
-(*       unfold initTargetData in *. *)
-(*       erewrite <- transl_products_genGlobalAndInitMem; eauto. rewrite COND1. *)
-(*       rewrite COND2. *)
-(*       eauto. *)
-(*     - i; des. *)
-
-(*       clear s_genInitState__opsem_wf. *)
-(*       hexploit s_genInitState__opsem_wf; eauto; []; intro WF_TGT2; destruct WF_TGT2 as [WF_CONF_TGT WF_ST_TGT]. *)
-(*       apply wf_ConfigI_spec in WF_CONF_TGT. apply wf_StateI_spec in WF_ST_TGT. *)
-
-(*       apply sim_local_lift_sim. *)
-(*       { eapply transl_products_sim_conf; eauto. } *)
-(*       econs; ss. *)
-(*       + econs. *)
-(*       + apply nop_sim. *)
-(*         * econs; eauto. *)
-(*         * clarify. *)
-(*           inv BLOCKS. des. clarify. *)
-(*           econs; eauto. *)
-(*           { econs; eauto. *)
-(*             econs; eauto. } *)
-(*           { econs. esplits; eauto. *)
-(*             exact (SF_ADMIT "inject_locals"). } *)
-(*           { econs. } *)
-(*           { exact (SF_ADMIT "init mem"). } *)
-(*           { ss. } *)
-(*           { ss. } *)
-(*       + reflexivity. *)
-(*   } *)
-(*   { ss. simtac. *)
-(*     inv e0. *)
-(*     expl genGlobalAndInitMem__wf_globals_Mem. *)
-(*     do 3 eexists. apply dependent_split. *)
-(*     - unfold s_genInitState. ss. rewrite TGT. *)
-(*       match goal with *)
-(*       | [|- context [productInModuleB_dec ?a ?b]] => destruct (productInModuleB_dec a b) *)
-(*       end; simtac; cycle 1. *)
-(*       { apply infrastructure_props.lookupFdefViaIDFromProducts_inv in TGT. congruence. } *)
-(*       unfold initTargetData in *. *)
-(*       erewrite <- transl_products_genGlobalAndInitMem; eauto. rewrite COND1. *)
-(*       rewrite COND2. eauto. *)
-(*     - i; des. *)
-
-(*       clear s_genInitState__opsem_wf. *)
-(*       hexploit s_genInitState__opsem_wf; eauto; []; intro WF_TGT2; destruct WF_TGT2 as [WF_CONF_TGT WF_ST_TGT]. *)
-(*       apply wf_ConfigI_spec in WF_CONF_TGT. apply wf_StateI_spec in WF_ST_TGT. *)
-
-(*       apply sim_local_lift_sim. *)
-(*       { eapply transl_products_sim_conf; eauto. } *)
-(*       econs; ss. *)
-(*       + econs. *)
-(*       + generalize VALID_FDEF. i. *)
-(*         unfold forallb2AL in VALID_FDEF0. ss. apply andb_true_iff in VALID_FDEF0. *)
-(*         repeat (des; des_bool; des_sumbool; des_ifs_safe). *)
-(*         hexploit InvState.Rel.sem_empty; eauto. *)
-(*         { exact (SF_ADMIT "init_locals inject_locals"). } *)
-(*         i. des. *)
-(*         apply valid_sim. econs; eauto. *)
-(*         * ss. *)
-(*         * *)
-(*           cbn in *. *)
-(*           clear_tac. *)
-(*           unfold Debug.failwith_false in *. *)
-(*           repeat multimatch goal with *)
-(*                  | H:context [id_dec ?a ?b] |- _ => destruct (id_dec a b); ss *)
-(*                  end. *)
-(*           repeat (des; des_bool; des_sumbool; des_ifs_safe). *)
-(*         (* inject allocas *) *)
-(*         (* * ss. econs; eauto. *) *)
-(*         * ss. des_ifsH Heq0. *)
-(*           { exists []. ss. } *)
-(*           { eexists; eauto. } *)
-(*         * ss. exact (SF_ADMIT "InvMem.Rel.sem init_mem"). *)
-(*       + reflexivity. *)
-(*   } *)
-(* Unshelve. *)
-(* { apply empty_invmem. } *)
-(* { by econs; eauto. } *)
-(* { apply empty_invmem. } *)
-(* (* Qed. *) *)
-(* Qed. *)
+  }
+Unshelve.
+all: try (by ss).
+Qed.

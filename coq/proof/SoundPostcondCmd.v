@@ -29,6 +29,7 @@ Require Import SoundBase.
 Require Import SoundForgetStack.
 Require Import SoundForgetMemory.
 Require Import SoundPostcondCmdAdd.
+Require Import MemAux.
 
 Set Implicit Arguments.
 
@@ -106,7 +107,7 @@ Proof.
   destruct value.
   - eapply WF_LC; eauto.
   - ss.
-    exploit TODOProof.wf_globals_const2GV; eauto; []; ii; des.
+    exploit MemAux.wf_globals_const2GV; eauto; []; ii; des.
     destruct WF as [_ WF_MEM].
     eapply MemProps.valid_ptrs__trans; eauto.
     apply Pos.lt_succ_r.
@@ -279,6 +280,56 @@ Proof.
   - ss. (* call *)
 Qed.
 
+(* Proving "sublist_In"'s inverse is hard... is it possible? *)
+Lemma sublist_app_inv
+      A
+      (xs ys zs: list A)
+      (SUB: sublist (zs ++ xs) ys)
+  :
+    <<SUB: sublist xs ys>>
+.
+Proof.
+  ginduction ys; ii; ss.
+  - inv SUB. expl nil_eq_app. clarify. econs; eauto.
+  - inv SUB.
+    + expl nil_eq_app. clarify. econs; eauto.
+    + destruct zs; ss.
+      { clarify. econs; eauto. }
+      { clarify. econs; eauto. eapply IHys; eauto. }
+    + econs; eauto. eapply IHys; eauto.
+Qed.
+
+Lemma sublist_cons_inv
+      A
+      (xs ys: list A)
+      x
+      (SUB: sublist (x :: xs) ys)
+  :
+    <<SUB: sublist xs ys>>
+.
+Proof.
+  eapply sublist_app_inv.
+  instantiate (1:= [x]).
+  ss.
+Qed.
+
+Lemma step_wf_EC
+      st0
+      (WF: OpsemAux.wf_EC st0.(EC))
+      cmd cmds
+      (CMDS: st0.(EC).(CurCmds) = cmd :: cmds)
+      (NONCALL: Instruction.isCallInst cmd = false)
+      conf st1 tr
+      (STEP: sInsn conf st0 st1 tr)
+  :
+    <<WF: OpsemAux.wf_EC st1.(EC)>>
+.
+Proof.
+  inv WF.
+  inv STEP; ss; try (by econs; ss; eauto; [eapply sublist_cons_inv; eauto]).
+  - des_ifs.
+Qed.
+
 Lemma postcond_cmd_sound
       m_src conf_src st0_src cmd_src cmds_src
       m_tgt conf_tgt st0_tgt cmd_tgt cmds_tgt
@@ -374,6 +425,8 @@ Proof.
   { ss. }
   { ss. }
   { ss. }
+  { eapply step_wf_EC; try apply STEP_SRC; eauto. apply STATE. }
+  { eapply step_wf_EC; try apply STEP_TGT; eauto. apply STATE. }
   i. des.
 
   hexploit postcond_cmd_add_sound; try apply CONF; try eapply STEP_SRC; try eapply MEMLE;

@@ -29,6 +29,7 @@ Import Memory.
 Require Import opsem_wf.
 Require Import genericvalues_inject.
 Require Import memory_sim.
+Require Import MemAux.
 
 Set Implicit Arguments.
 
@@ -80,6 +81,36 @@ Definition return_locals
   | _, true => Some lc
   | _, _ => None
   end.
+
+Lemma return_locals_fully_inject_locals
+      TD id noret ty inv
+      retval_src locals1_src locals2_src
+      retval_tgt locals1_tgt
+      conf_src conf_tgt mem_src mem_tgt
+      (RETVAL: lift2_option (genericvalues_inject.gv_inject inv.(InvMem.Rel.inject)) retval_src retval_tgt)
+      (LOCAL: fully_inject_locals inv.(InvMem.Rel.inject) locals1_src locals1_tgt)
+      (MEM: InvMem.Rel.sem conf_src conf_tgt mem_src mem_tgt inv)
+      (SRC: return_locals TD retval_src id noret ty locals1_src = Some locals2_src):
+  exists locals2_tgt,
+    <<TGT: return_locals TD retval_tgt id noret ty locals1_tgt = Some locals2_tgt>> /\
+    <<LOCAL: fully_inject_locals inv.(InvMem.Rel.inject) locals2_src locals2_tgt>>
+.
+Proof.
+  unfold return_locals in *.
+  destruct noret; ss.
+  { assert(locals1_src = locals2_src).
+    { des_ifs. }
+    clarify. clear SRC.
+    esplits; eauto.
+    - des_ifs. }
+  des_ifs_safe ss. clarify.
+  exploit genericvalues_inject.simulation__fit_gv; eauto.
+  { apply MEM. }
+  intro FIT_GV; des.
+  rewrite FIT_GV.
+  esplits; eauto.
+  eapply fully_inject_locals_update; eauto.
+Qed.
 
 Lemma return_locals_inject_locals
       TD id noret ty inv
@@ -462,42 +493,6 @@ Proof.
   destruct e; ss; try rewrite <- MEM_EQ; sem_value_st; eauto.
 Qed.
 
-Lemma unary_sem_eq_locals_mem
-      conf st0 st1 invst0 invmem0 inv0 gmax public
-      (LOCALS_EQ: Locals (EC st0) = Locals (EC st1))
-      (MEM_EQ : Mem st0 = Mem st1)
-      (STATE: InvState.Unary.sem conf st0 invst0 invmem0 gmax public inv0)
-      (EQ_FUNC: st0.(EC).(CurFunction) = st1.(EC).(CurFunction))
-      (EQ_ALLOCAS: st0.(EC).(Allocas) = st1.(EC).(Allocas))
-  : InvState.Unary.sem conf st1 invst0 invmem0 gmax public inv0.
-Proof.
-  inv STATE.
-  econs.
-  - ii.
-    exploit LESSDEF; eauto.
-    { erewrite sem_expr_eq_locals_mem; eauto. }
-    i. des.
-    esplits; eauto.
-    erewrite sem_expr_eq_locals_mem; eauto.
-  - inv NOALIAS.
-    econs; i; [eapply DIFFBLOCK | eapply NOALIAS0];
-      try erewrite sem_valueT_eq_locals; eauto.
-  - ii. exploit UNIQUE; eauto. intro UNIQ_X. inv UNIQ_X.
-    econs; try rewrite <- LOCALS_EQ; try rewrite <- MEM_EQ; eauto.
-  - ii. exploit PRIVATE; eauto.
-    { erewrite sem_idT_eq_locals; eauto. }
-    rewrite <- MEM_EQ. eauto.
-  - rewrite <- EQ_ALLOCAS. ss.
-  - rpapply ALLOCAS_VALID.
-    + rewrite MEM_EQ. eauto.
-    + rewrite EQ_ALLOCAS. eauto.
-  - rewrite <- LOCALS_EQ. rewrite <- MEM_EQ. eauto.
-  - rewrite <- MEM_EQ. eauto.
-  - rewrite <- MEM_EQ. eauto.
-  - rewrite <- LOCALS_EQ. eauto.
-  - rewrite <- EQ_FUNC. ss.
-Qed.
-
 Definition memory_blocks_of (conf: Config) lc ids : list mblock :=
   List.flat_map (fun x =>
                    match lookupAL _ lc x with
@@ -736,7 +731,7 @@ Lemma unique_const_diffblock
 .
 Proof.
   red.
-  eapply TODOProof.wf_globals_const2GV in VAL2; eauto. des.
+  eapply MemAux.wf_globals_const2GV in VAL2; eauto. des.
 
   inv UNIQUE. clear LOCALS MEM. clarify.
 
@@ -900,63 +895,6 @@ Proof.
   unfold vm_matches_typ in *. des. subst. ss.
   exploit IHg2; eauto.
   i. congruence.
-Qed.
-
-Lemma vellvm_no_alias_is_diffblock
-      conf gv1 gv2
-  : MemProps.no_alias gv1 gv2 <->
-    InvState.Unary.sem_diffblock conf gv1 gv2.
-Proof.
-  assert (NOALIAS_BLK_AUX:
-            forall gv b,
-              MemProps.no_alias_with_blk gv b <->
-              ~ In b (GV2blocks gv)).
-  { clear.
-    induction gv; ss.
-    destruct a. i.
-    destruct v; ss.
-    split.
-    - ii. des; eauto.
-      rewrite IHgv in *. eauto.
-    - i. split.
-      + ii. subst. eauto.
-      + rewrite IHgv. eauto.
-  }
-  split; i.
-  { unfold InvState.Unary.sem_diffblock.
-    revert dependent gv1.
-    induction gv2; i; ss.
-    destruct a. unfold GV2blocks in *.
-    destruct v; eauto.
-    ss.
-    cut (~ In b (filter_map (val2block <*> fst) gv1) /\
-         list_disjoint (filter_map (val2block <*> fst) gv1)
-                       (filter_map (val2block <*> fst) gv2)).
-    { i. des.
-      unfold list_disjoint in *.
-      i. ss.
-      des; subst; eauto.
-      ii. clarify.
-    }
-    des.
-    split; eauto.
-    apply NOALIAS_BLK_AUX. eauto.
-  }
-  { unfold InvState.Unary.sem_diffblock in *.
-    revert dependent gv1.
-    induction gv2; i; ss.
-    destruct a.
-    destruct v; eauto.
-    split.
-    - apply NOALIAS_BLK_AUX.
-      ii. unfold list_disjoint in *.
-      exploit H; eauto. ss. eauto.
-    - apply IHgv2.
-      unfold list_disjoint in *.
-      i.
-      ii; clarify.
-      exploit H; eauto. ss. right. eauto.
-  }
 Qed.
 
 Lemma invmem_free_invmem_unary
