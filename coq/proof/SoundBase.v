@@ -1037,6 +1037,46 @@ Proof.
   destruct m0; ss. clarify.
 Qed.
 
+Lemma unchecked_free_block:
+   forall (m1 : mem) (bf : Values.block) 
+     (lo hi : Z) (m2 : mem),
+   Mem.unchecked_free m1 bf lo hi = m2 ->
+   forall b : Values.block,
+   Mem.valid_block m1 b -> Mem.valid_block m2 b.
+ Proof. 
+   intros. rewrite <- H. assumption. 
+ Qed.
+
+(*Mem.bounds_free_3 *)
+Lemma bounds_unchecked_free : 
+forall (m1 : mem) (bf : Values.block) (lo hi : Z) (m2 : mem), 
+  Mem.unchecked_free m1 bf lo hi = m2 -> 
+forall b : Values.block,
+Mem.bounds m2 b = Mem.bounds m1 b.
+Proof. 
+  intros. rewrite <- H. simpl. auto. 
+Qed.
+
+Lemma load_unchecked_free:  
+  forall (m1 : mem) (bf : Values.block) (lo hi : Z) (m2 : mem) (ofs : Z) (b : Values.block) (chunk : AST.memory_chunk),
+  m2 = Mem.unchecked_free m1 bf lo hi -> 
+   b <> bf  ->
+  Mem.load chunk m2 b ofs = Mem.load chunk m1 b ofs.
+Proof. 
+  intros. 
+  Transparent Mem.load.
+  unfold Mem.load.
+  destruct (Mem.valid_access_dec m2 chunk b ofs Readable). 
+  rewrite pred_dec_true. 
+  rewrite H. auto.
+  rewrite H in v.   
+  eapply MoreMem.valid_access_unchecked_free_before; eauto. 
+  rewrite pred_dec_false; auto. 
+  red; intros; elim n. 
+  rewrite H. apply MoreMem.valid_access_diffblock_free_after. auto. 
+  auto.
+Qed.
+
 (* Mem.load_free_2 *)
 Lemma load_unchecked_free2
       m0 bf lo hi m1
@@ -1047,7 +1087,53 @@ Lemma load_unchecked_free2
     <<LOAD: Mem.load mc m0 b ofs = Some v>>
 .
 Proof.
-Admitted.
+  destruct m0;ss. rewrite <- FREE in LOAD. 
+  Transparent Mem.load.
+  unfold Mem.load. rewrite pred_dec_true.   
+  rewrite (Mem.load_result _ _ _ _ _ LOAD ). auto. 
+  eapply MoreMem.valid_access_unchecked_free_before. 
+  apply Mem.load_valid_access in LOAD. eauto. 
+Qed.
+
+Lemma perm_unchecked_free_1
+     : forall (m1 : mem) (bf : Values.block)
+         (lo hi : Z) (m2 : mem),
+       Mem.unchecked_free m1 bf lo hi = m2 ->
+       forall (b : Values.block) 
+         (ofs : Z) (k : perm_kind)
+         (p : permission),
+       b <> bf \/ ofs < lo \/ hi <= ofs ->
+       Mem.perm m1 b ofs k p ->
+       Mem.perm m2 b ofs k p.
+Proof. 
+  intros. rewrite <- H.  
+  unfold Mem.perm, Mem.unchecked_free; simpl. 
+  rewrite Maps.PMap.gsspec.
+  destruct (peq b bf). subst b. 
+  destruct (zle lo ofs); simpl.
+  destruct (zlt ofs hi); simpl.
+  elimtype False; intuition.
+  auto. auto. auto.
+Qed.
+
+Lemma perm_unchecked_free_3 :
+  forall (m1 : mem) (bf : Values.block) (lo hi : Z) (m2 : mem),
+       Mem.unchecked_free m1 bf lo hi = m2 ->
+       forall (b : Values.block) 
+         (ofs : Z) (k : perm_kind)
+         (p : permission),
+       Mem.perm m2 b ofs k p ->
+       Mem.perm m1 b ofs k p.
+Proof.
+  intros until p. rewrite <- H. 
+  unfold Mem.perm, Mem.unchecked_free; simpl. 
+  rewrite Maps.PMap.gsspec.
+  destruct (peq b bf). 
+  subst b. 
+  destruct (zle lo ofs); simpl.
+  destruct (zlt ofs hi); simpl. tauto. 
+  auto. auto. auto.
+Qed.
 
 (* MemProps.free_preserves_mload_aux_inv *)
 Lemma unchecked_free_preserves_mload_aux_inv
@@ -1059,7 +1145,15 @@ Lemma unchecked_free_preserves_mload_aux_inv
     <<LOAD: mload_aux m0 mc b ofs = Some v>>
 .
 Proof.
-Admitted.
+  generalize dependent ofs.  generalize dependent v.  
+  induction mc; simpl; auto. 
+  intros. simpl in LOAD. guardH FREE.       
+  Vellvm.Vellvm.vellvm_tactics.inv_mbind'.  
+  symmetry in HeqR0. unguardH FREE. 
+  apply IHmc in HeqR0.
+  rewrite HeqR0. 
+  erewrite load_unchecked_free2; eauto. 
+Qed. 
 
 (* MemProps.free_preserves_mload_inv: *)
 Lemma unchecked_free_preserves_mload_inv
@@ -1088,7 +1182,17 @@ Lemma unchecked_free_preserves_mload_aux
     <<LOAD: mload_aux m1 mc b ofs = Some gv>>
 .
 Proof.
-Admitted.
+  generalize dependent ofs. generalize dependent gv. 
+  induction mc; simpl; intros;  auto. 
+  guardH FREE.  
+  Vellvm.Vellvm.vellvm_tactics.inv_mbind'.  
+  unguardH FREE. 
+  symmetry in HeqR0. 
+  apply IHmc in HeqR0. 
+  rewrite HeqR0. 
+  erewrite load_unchecked_free; eauto. rewrite <- HeqR. 
+  auto. 
+Qed.
 
 (* MemProps.free_preserves_mload *)
 Lemma unchecked_free_preserves_mload
@@ -1128,6 +1232,25 @@ Proof.
   unfold MemProps.valid_ptrs in *. des_ifs.
 Qed.
 
+(*MoreMem.free_left_nonmap_inj memory_sim *) 
+Lemma unchecked_free_left_nonmap_inj
+     : forall (f : MoreMem.meminj) (m1 m2 : Memory.mem) (b : Values.block) 
+         (lo hi : Z) (m1' : Memory.mem),
+       f b = None -> MoreMem.mem_inj f m1 m2 -> Mem.unchecked_free m1 b lo hi =  m1' -> MoreMem.mem_inj f m1' m2.
+Proof.  
+  intros. inversion H0. constructor. 
+  intros. eapply MoreMem.mi_access; eauto. 
+  rewrite <- H1 in H3.  
+  eapply MoreMem.valid_access_unchecked_free_before; eauto.  
+  intros. rewrite <- H1; simpl. 
+  assert (b=b1 /\ lo <= ofs < hi \/ (b<> b1 \/ ofs<lo \/ hi <= ofs))
+    by (assert (lo <= ofs < hi \/ ofs<lo \/ hi <= ofs) by omega; tauto). 
+  destruct H4. destruct H4. subst b1. 
+  Vellvm.Vellvm.vellvm_tactics.uniq_result. 
+  apply mi_memval; auto.
+  eapply perm_unchecked_free_3; eauto.
+Qed.
+
 (* mem_inj__pfree *)
 Lemma mem_inj__psrc_unchecked_free
       mi m_src0 m_tgt0 m_src1 mgb
@@ -1141,7 +1264,56 @@ Lemma mem_inj__psrc_unchecked_free
     <<WASABI: wf_sb_mi mgb mi m_src1 m_tgt0>> /\ <<MOREINJ: MoreMem.mem_inj mi m_src1 m_tgt0>>
 .
 Proof.
-Admitted.
+  split. 
+  SCase "wasabi".  
+  clear - PRIV_SRC FREE WASABI.
+  inversion_clear WASABI. 
+  split; eauto with mem. 
+  intros. erewrite unchecked_free_nextblock in H; eauto. 
+  intros.   
+  apply mi_freeblocks. eauto using unchecked_free_block. 
+  intros.  
+  apply mi_bounds in H. erewrite bounds_unchecked_free; eauto.   
+
+  SCase "moreinj".   
+  clear - MOREINJ WASABI FREE PRIV_SRC. 
+  guardH FREE. 
+  inv WASABI. 
+  unguardH FREE.  
+  apply  unchecked_free_left_nonmap_inj with m_src0 b lo hi; eauto. 
+Qed.
+
+Lemma unchecked_free_right_inj:
+      forall (f : Values.meminj) (m1 m2 : mem) (b : Values.block)
+         (lo hi : Z) (m2' : mem),
+       MoreMem.mem_inj f m1 m2 ->  Mem.unchecked_free m2 b lo hi = m2' ->
+       (forall (b' : Values.block) (delta ofs : Z) (k : perm_kind)
+          (p : permission),
+        f b' = Some (b, delta) -> Mem.perm m1 b' ofs k p ->
+        lo <= ofs + delta < hi -> False) ->
+       MoreMem.mem_inj f m1 m2'.
+Proof. 
+  intros. inversion H. constructor. 
+
+  intros. exploit MoreMem.mi_access; eauto. intros [RG AL].
+  split; auto. 
+  red; intros. eapply perm_unchecked_free_1; eauto. 
+  destruct (peq b2 b); auto. subst b. right.
+  destruct (zlt ofs0 lo); auto. destruct (zle hi ofs0); auto.
+  elimtype False. eapply H1 with (ofs := ofs0 - delta). eauto. 
+  apply H3. omega. omega.
+
+  intros. rewrite <- H0; simpl. 
+  specialize (mi_memval _ _ _ _ H2 H3).
+  assert (b=b2 /\ lo <= ofs+delta < hi \/ (b<>b2 \/ ofs+delta<lo \/ hi <= ofs+delta)).
+  {
+    assert (lo <= ofs+delta < hi \/ ofs + delta < lo \/ hi <= ofs + delta) by omega.
+    destruct (peq b b2); tauto.
+  }
+  destruct H4. destruct H4. subst b2.
+  specialize (H1 _ _ _ _ _ H2 H3). elimtype False; auto.
+  auto. 
+Qed.
 
 (* no matching here *)
 Lemma mem_inj__ptgt_unchecked_free
@@ -1156,7 +1328,29 @@ Lemma mem_inj__ptgt_unchecked_free
     <<WASABI: wf_sb_mi mgb mi m_src0 m_tgt1>> /\ <<MOREINJ: MoreMem.mem_inj mi m_src0 m_tgt1>>
 .
 Proof.
-Admitted.
+ split. 
+{
+  clear - PRIV_TGT FREE WASABI. 
+  inversion_clear WASABI.
+  split; eauto with mem.  
+  intros. apply Hmap2 in H. 
+  eapply unchecked_free_nextblock in FREE. rewrite FREE. auto. 
+  intros. apply mi_mappedblocks in H. 
+  eapply unchecked_free_block; eauto.  
+  intros. apply mi_bounds in H.
+  rewrite H. 
+  symmetry. 
+  erewrite bounds_unchecked_free; eauto. 
+}
+{
+  clear - MOREINJ WASABI FREE PRIV_TGT. 
+  guardH FREE. 
+  inv WASABI. 
+  unguardH FREE.
+  eapply unchecked_free_right_inj; eauto. 
+  intros. eapply PRIV_TGT. eapply H; eauto.
+} 
+Qed.
 
 Lemma unchecked_free_preserves_sem_unary
       conf_src gmax inv0 m0 pub
