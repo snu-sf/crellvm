@@ -719,6 +719,11 @@ Qed.
 Hint Unfold OpsemAux.get_cmds_from_block. (* TODO: move to definition point *)
 Hint Unfold OpsemAux.module_of_conf. (* TODO: move to definition point *)
 
+(* st0 is the state before entering "phinodes". *)
+(* Therefore, phinodes in st0.(EC).(CurBB) <> "phinodes". *)
+(* st0.(EC).(CurBB) is the block before "phinodes". *)
+(* "nextbb" represents block of the "phinodes". *)
+(* It is introduced for "WF_PHIS" only. *)
 Lemma phinodes_unique_preserved_except
       conf st0 inv0 invmem invst
       l_to phinodes cmds terminator locals l0
@@ -729,12 +734,8 @@ Lemma phinodes_unique_preserved_except
       (UNIQUE_ID : unique id_dec (List.map Phinode.get_def l0) = true)
       (STEP : switchToNewBasicBlock (CurTargetData conf) (l_to, stmts_intro phinodes cmds terminator)
                                     (CurBB (EC st0)) (Globals conf) (Locals (EC st0)) = Some locals)
-      (* (PHIS: phinodes = let (phis, _, _) := st0.(EC).(CurBB).(snd) in phis) *)
-      (* above is not true *)
       nextbb
       (WF_PHIS: wf_phinodes (CurSystem conf) conf (CurFunction (EC st0)) nextbb phinodes)
-      (* wf_phinodes' blocks arg's phi should be equal to phinodes, in order to get this from wf_fdef *)
-      (* this is why I introduced nextbb *)
       (WF_SUBSET: List.Forall (fun phi =>
                           exists b,
                             insnInBlockB (insn_phinode phi) b
@@ -787,15 +788,6 @@ Proof.
           eapply filter_map_spec; eauto.
         - eapply wf_const_diffblock; eauto.
           eapply wf_phinodes_wf_insn; eauto.
-          (* move WF_PHIS at bottom. unfold OpsemAux.module_of_conf in *. des_ifs. *)
-          (* destruct st0; ss. destruct EC0; ss. destruct CurBB0; ss. destruct s; ss. clarify. *)
-          (* eapply typings_props.wf_fdef__wf_phinodes. eauto. *)
-          (* destruct st0; ss. destruct EC0; ss. destruct conf; ss. destruct CurTargetData0; ss. *)
-          (* destruct CurBB0; ss. destruct s; ss. clarify. *)
-          (* clear - WF_EC WF_FDEF INCOMING_IN. *)
-          (* inv WF_EC; ss. *)
-          (* hexploit typings_props.wf_fdef__wf_phinodes; eauto; i. *)
-          (* eapply wf_phinodes_wf_insn; eauto. *)
       }
       { rewrite <- AtomSetFacts.not_mem_iff in REG_MEM.
         rewrite opsem_props.OpsemProps.updateValuesForNewBlock_spec7' in VAL'; eauto.
@@ -819,13 +811,6 @@ Proof.
       - eapply UNIQUE_PARENT_LOCAL; eauto.
       - hexploit wf_const_valid_ptr; eauto.
         { eapply wf_phinodes_wf_insn; eauto.
-          (* move WF_PHIS at bottom. autounfold in *. des_ifs. *)
-          (* destruct st0; ss. destruct EC0; ss. destruct conf; ss. destruct CurTargetData0; ss. *)
-          (* destruct CurBB0; ss. destruct s; ss. clarify. *)
-          (* clear - WF_EC WF_FDEF x1. (* INCOMING_IN *) *)
-          (* inv WF_EC; ss. *)
-          (* hexploit typings_props.wf_fdef__wf_phinodes; eauto; i. *)
-          (* eapply wf_phinodes_wf_insn; eauto. *)
         }
         intro VALID_PTR; des.
         inv MEM.
@@ -928,8 +913,6 @@ Lemma postcond_phinodes_sound
                  Some (stmts_intro phinodes_src cmds_src terminator_src))
       (STMT_TGT: lookupAL stmts st0_tgt.(EC).(CurFunction).(get_blocks) l_to =
                  Some (stmts_intro phinodes_tgt cmds_tgt terminator_tgt))
-      (* (PHIS_SRC: phinodes_src = let (phis, _, _) := st0_src.(EC).(CurBB).(snd) in phis) *)
-      (* (PHIS_TGT: phinodes_tgt = let (phis, _, _) := st0_tgt.(EC).(CurBB).(snd) in phis) *)
       (POSTCOND: Postcond.postcond_phinodes l_from phinodes_src phinodes_tgt inv0 = Some inv1)
       (STATE: InvState.Rel.sem conf_src conf_tgt st0_src st0_tgt invst0 invmem inv0)
       (MEM: InvMem.Rel.sem conf_src conf_tgt st0_src.(Mem) st0_tgt.(Mem) invmem)

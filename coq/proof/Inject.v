@@ -399,19 +399,6 @@ Proof.
     rewrite TGT, PARAM_TGT. esplits; eauto. econs; eauto.
 Qed.
 
-(* define with "Definition"? How is it good/bad compared with Inductive? *)
-(* ex: Definition -> sem_lessdef *)
-(* ex: Inductive -> sem_unique *)
-(* @jeehoonkang noted that # of premises can matter, it may be concatenated with "/\" when using "Definition" *)
-(* Also he mentioned econs/exploit's behavior may differ *)
-(* Inductive GVsMap_inject meminj gvs0 gvs1: Prop := *)
-(* | GVsMap_inject_intro *)
-(*     (INJECT: *)
-(*        forall id gv0 *)
-(*        (LOOKUP: lookupAL GenericValue gvs0 id = ret gv0), *)
-(*          exists gv1, lookupAL GenericValue gvs1 id = ret gv1 /\ gv_inject meminj gv0 gv1) *)
-(* . *)
-
 Definition fully_inject_locals (meminj: Values.meminj) (lc_src lc_tgt : GVsMap) :=
   list_forall2
     (fun l_src l_tgt =>

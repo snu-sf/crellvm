@@ -462,8 +462,7 @@ Abort.
 
 (* Motivation: I want to distinguish excused ad-mits from normal ad-mits, *)
 (* and further, I do not want to "grep" excused ones, so I give them different name. *)
-(* @jeehoonkang adviced me to use semantic ad-mit instead of just comment. *)
-(* Tactic Notation "SF_AD-MIT" string(excuse) := idtac excuse; ad-mit. *)
+(* Tactic Notation "AD-MIT" string(excuse) := idtac excuse; ad-mit. *)
 (* above definition requires "Adm-itted" at the end of the proof, and I consider that not good *)
 Definition ADMIT (excuse: String.string) {T: Type} : T.  Admitted.
 Tactic Notation "ADMIT" constr(excuse) := idtac excuse; exact (ADMIT excuse).

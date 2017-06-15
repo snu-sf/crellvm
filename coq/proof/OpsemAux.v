@@ -72,7 +72,8 @@ Inductive wf_EC (ec: ExecutionContext): Prop :=
 | wf_EC_intro
     (BLOCK: blockInFdefB ec.(CurBB) ec.(CurFunction))
     (* (CMDS: forall c (IN: In c ec.(CurCmds)), insnInBlockB (insn_cmd c) ec.(CurBB)) *)
-    (* wf_fdef lemmas, such as "typings_props.wf_fdef__wf_cmd", doesn't use insnInBlockB *)
+    (* Instead of above definition, I intentionally choose below definition. It was easier. *)
+    (* FYI: wf_fdef lemmas, such as "typings_props.wf_fdef__wf_cmd", doesn't use insnInBlockB *)
     (CMDS: sublist ec.(CurCmds) (ec.(CurBB): cmds))
     (TERM: insnInBlockB (insn_terminator ec.(Terminator)) ec.(CurBB))
 .

@@ -134,9 +134,8 @@ Defined.
 Lemma transl_products_sim_conf
       gl ft
       prods_src prods_tgt
-      (* l_src nd_src *)
-      (* l_tgt nd *)
       los nd
+      (* los/nd is same for src/tgt *)
       (TRANSL_PRODUCTS: transl_products (module_intro los nd prods_src)
                                         (module_intro los nd prods_tgt) prods_src prods_tgt)
       (WF_SRC: wf_ConfigI (mkCfg [module_intro los nd prods_src] (los, nd) prods_src gl ft))

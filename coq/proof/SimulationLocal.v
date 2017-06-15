@@ -304,37 +304,6 @@ Hint Resolve _sim_local_mon: paco.
 (*     + eapply InvState.Rel.inject_allocas_preserved_aux; eauto. *)
 (* Qed. *)
 
-(* alxest: This lemma's proof is broken while adding WF_SRC *)
-(* However, this lemma is not used at all; so I comment this *)
-(* Lemma sop_star_sim_local *)
-(*       conf_src conf_tgt sim_local ecs0_src ecs0_tgt *)
-(*       inv idx *)
-(*       st1_src st2_src *)
-(*       st1_tgt *)
-(*       (TAU: sop_star conf_src st1_src st2_src events.E0) *)
-(*       (SIM: _sim_local conf_src conf_tgt sim_local ecs0_src ecs0_tgt inv idx st2_src st1_tgt): *)
-(*   _sim_local conf_src conf_tgt sim_local ecs0_src ecs0_tgt inv idx st1_src st1_tgt. *)
-(* Proof. *)
-(*   inv SIM. *)
-(*   - econs 1; try exact ERROR; eauto. *)
-(*     rewrite <- events.E0_left. *)
-(*     eapply opsem_props.OpsemProps.sop_star_trans; eauto. *)
-(*   - econs 2; try exact MEM; eauto.  *)
-(*     rewrite <- events.E0_left. *)
-(*     eapply opsem_props.OpsemProps.sop_star_trans; eauto. *)
-(*   - econs 3; try exact MEM; eauto. *)
-(*     rewrite <- events.E0_left. *)
-(*     eapply opsem_props.OpsemProps.sop_star_trans; eauto. *)
-(*   - econs 4; try exact MEM; eauto. *)
-(*     rewrite <- events.E0_left. *)
-(*     eapply opsem_props.OpsemProps.sop_star_trans; eauto. *)
-(*   - econs 5; eauto. *)
-(*     i. exploit STEP; eauto. i. des. *)
-(*     esplits; cycle 1; eauto. *)
-(*     rewrite <- events.E0_left. *)
-(*     eapply opsem_props.OpsemProps.sop_star_trans; eauto. *)
-(* Qed. *)
-
 Lemma _sim_local_src_error
       conf_src conf_tgt sim_local ecs_src ecs_tgt
       inv index
@@ -362,7 +331,6 @@ Inductive init_fdef (conf:Config) (f:fdef) (args:list GenericValue): forall (ec:
     (FDEF: f = fdef_intro (fheader_intro fa rt fid la va) lb)
     (ENTRY: getEntryBlock f = Some (l', stmts_intro ps' cs' tmn'))
     (LOCALS: initLocals conf.(CurTargetData) la args = Some lc')
-    (* (WF: wf_fdef conf.(CurSystem) conf f) *)
   :
     init_fdef conf f args (mkEC f (l', stmts_intro ps' cs' tmn') cs' tmn' lc' nil)
 .

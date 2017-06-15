@@ -113,8 +113,8 @@ Section SIMDEF.
   Coercion inject_conf_of_nop_conf_sim (conf_src conf_tgt: Config):
     nop_conf_sim conf_src conf_tgt -> inject_conf conf_src conf_tgt
   .
-  i. destruct H. assumption.
-  (* using inversion yields complex program *)
+  Proof.
+    i. destruct H. assumption.
   Defined.
 
 End SIMDEF.
@@ -414,7 +414,6 @@ Lemma nop_state_sim_final
       g
       (FINAL_TGT: s_isFinialState conf_tgt st_tgt0 = Some g)
   :
-    (* TODO: we may state exists -> forall? *)
   exists st_src1,
     <<FINAL_SRC: sop_star conf_src st_src0 st_src1 [] /\
                  s_isFinialState conf_src st_src1 = Some g>>
