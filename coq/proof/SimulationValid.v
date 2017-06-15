@@ -956,7 +956,8 @@ More explanation on: https://github.com/snu-sf/llvmberry/issues/426". }
       expl preservation. rename preservation into WF_TGT_NEXT.
       exploit postcond_cmd_is_call; eauto. i. rewrite CALL in x0.
       exploit sInsn_non_call; eauto; try congruence. i. des. subst. ss.
-      exploit postcond_cmd_sound; eauto; ss; try congruence. i. des.
+      exploit postcond_cmd_sound; [apply WF_SRC | apply WF_TGT | apply WF_SRC0 | apply WF_TGT0|..]; eauto;
+        ss; try congruence. i. des.
       exploit sInsn_non_call; eauto; try congruence. i. des. subst. ss.
 
 
