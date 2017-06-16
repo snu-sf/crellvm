@@ -180,19 +180,6 @@ Proof.
   inv x. inv x0. inv H4. inv H2. inv H0. inv H.
 Qed.
 
-Lemma inject_incr_fully_inject_allocas
-      (inv0 inv1 : InvMem.Rel.t)
-      (allocas_src allocas_tgt : list mblock)
-      (ALLOCAS: fully_inject_allocas inv0 allocas_src allocas_tgt)
-      (MEMINJ: memory_sim.MoreMem.inject_incr inv0.(InvMem.Rel.inject) inv1.(InvMem.Rel.inject))
-  : fully_inject_allocas inv1 allocas_src allocas_tgt.
-Proof.
-  unfold fully_inject_allocas in *.
-  eapply list_forall2_imply; eauto.
-Qed.
-
-(* inject_event_subset *)
-
 Ltac inject_clarify :=
   repeat
     match goal with
@@ -1000,31 +987,6 @@ Next Obligation.
   expl H.
 Qed.
 
-
-Lemma fully_inject_allocas_cons_inv
-      a0 a1 Allocas0 Allocas1 inv
-      (ALLOCAS: fully_inject_allocas inv (a0 :: Allocas0) (a1 :: Allocas1))
-  :
-    <<ALLOCAS: fully_inject_allocas inv Allocas0 Allocas1 /\
-               InvMem.Rel.inject inv a0 = Some (a1, 0)>>
-.
-Proof.
-  inv ALLOCAS.
-  splits; ss.
-Qed.
-
-Lemma fully_inject_allocas_mem_le
-      Allocas0 Allocas1 inv inv'
-      (MEMLE: InvMem.Rel.le inv inv')
-      (ALLOCAS: fully_inject_allocas inv Allocas0 Allocas1)
-  :
-    <<ALLOCAS: fully_inject_allocas inv' Allocas0 Allocas1>>
-.
-Proof.
-  inv MEMLE.
-  eapply list_forall2_imply; eauto.
-Qed.
-
 (* Mem.nextblock_free *)
 Lemma unchecked_free_nextblock
       m0 b lo hi m1
@@ -1436,16 +1398,4 @@ Lemma mem_le_private_parent
 .
 Proof.
   splits; apply MEMLE.
-Qed.
-
-Lemma fully_inject_allocas_inject_allocas
-      inv0 als_src als_tgt
-      (FULLY_INJECT: fully_inject_allocas inv0 als_src als_tgt)
-  :
-    <<INJECT: InvState.Rel.inject_allocas inv0.(InvMem.Rel.inject) als_src als_tgt>>
-.
-Proof.
-  ginduction FULLY_INJECT; ii; ss.
-  - econs; eauto.
-  - econs 4; eauto.
 Qed.

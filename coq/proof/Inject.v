@@ -343,13 +343,6 @@ Inductive inject_conf (conf_src conf_tgt:Config): Prop :=
     (GLOBALS: conf_src.(Globals) = conf_tgt.(Globals))
 .
 
-Definition fully_inject_allocas
-           (inv:InvMem.Rel.t)
-           (alc_src alc_tgt:list mblock): Prop :=
-  list_forall2
-    (fun a_src a_tgt => inv.(InvMem.Rel.inject) a_src = Some (a_tgt, 0))
-    alc_src alc_tgt.
-
 Lemma inject_locals_getOperandValue
       inv val
       conf_src mem_src locals_src gval_src
@@ -598,17 +591,6 @@ Proof.
     + split; ss.
       eapply genericvalues_inject.gv_inject_incr; eauto.
     + eapply IHlocals_src; eauto.
-Qed.
-
-Lemma fully_inject_allocas_inj_incr
-      inv0 inv1
-      allocas_src allocas_tgt
-      (ALLOCAS: fully_inject_allocas inv0 allocas_src allocas_tgt)
-      (INCR: InvMem.Rel.le inv0 inv1):
-  fully_inject_allocas inv1 allocas_src allocas_tgt.
-Proof.
-  eapply list_forall2_imply; eauto. s. i.
-  apply INCR. auto.
 Qed.
 
 Lemma decide_nonzero_inject
