@@ -196,7 +196,7 @@ Module Unary.
         match GV2int conf.(CurTargetData) Size.One gv0 with
         | Some z =>
           Some (if negb (zeq z 0) then gv1 else gv2)
-        | _ => None
+        | _ => gundef conf.(CurTargetData) ty
         end
       | _, _, _ => None
       end
@@ -749,6 +749,8 @@ Module Rel.
     - exploit genericvalues_inject.simulation__mfcmp; try apply VAL_SRC; eauto; ii; des; eauto.
     - esplits; eauto.
     - esplits; eauto.
+    - esplits; eauto.
+      eapply genericvalues_inject.gv_inject_gundef; eauto.
     - eapply not_in_maydiff_value_spec; eauto.
     - eapply not_in_maydiff_load; eauto.
   Qed.
@@ -915,6 +917,8 @@ Module Rel.
     - exploit genericvalues_inject.simulation__mfcmp; try apply VAL_SRC; eauto; ii; des; eauto.
     - esplits; eauto.
     - esplits; eauto.
+    - esplits; eauto.
+      eapply genericvalues_inject.gv_inject_gundef; eauto.
     - exploit inject_value_spec; eauto.
     -
       eapply inject_expr_load; eauto.

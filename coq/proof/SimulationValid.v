@@ -167,7 +167,18 @@ Proof.
       expl progress.
       - ss.
       - unfold OpsemPP.undefined_state in *.
-        des_ifs; des; ss.
+        des_ifs_safe; ss.
+        des; ss.
+        { des_ifs; ss. }
+        des_ifs.
+        exfalso.
+        inv H13.
+        inv CONF. inv INJECT0. ss. clarify.
+        clear - Heq0 INT INJECT.
+        unfold GV2int in *.
+        des_ifs_safe.
+        inv INJECT. inv H4. inv H3.
+        des_ifs.
       - ii. ss.
     }
     { splits; ss. }
@@ -413,7 +424,21 @@ Proof.
       expl progress.
       - ss.
       - unfold OpsemPP.undefined_state in *.
-        des_ifs; des; ss.
+        des_ifs_safe; ss.
+        des; ss.
+        { des_ifs. }
+        des_ifs.
+        exfalso.
+        inv CONF. inv INJECT. ss. clarify.
+        exploit InvState.Rel.inject_value_spec; eauto.
+        { ss. }
+        { rewrite InvState.Unary.sem_valueT_physical. ss. eauto. }
+        i; des. rewrite InvState.Unary.sem_valueT_physical in *. ss. clarify.
+        clear - INJECT Heq1 Heq0.
+        unfold GV2int in *.
+        des_ifs_safe.
+        inv INJECT. inv H4. inv H3.
+        des_ifs.
       - ii. ss.
     }
     { split; ss. }
