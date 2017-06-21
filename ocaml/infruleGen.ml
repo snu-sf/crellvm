@@ -7,7 +7,7 @@ open LLVMsyntax
 
 module AutoOpt = struct
     type pass_t =
-      GVN | SROA | INSTCOMBINE | TEST1 | TEST2 | TEST3 | TEST4 | DEFAULT
+      GVN | SROA | INSTCOMBINE | LICM | TEST1 | TEST2 | TEST3 | TEST4 | DEFAULT
     let pass_option : pass_t ref = ref DEFAULT
   end
 
@@ -639,6 +639,7 @@ module Auto_Default2 : AutoInjVal = struct
 
 let autoGVN : auto_t = (AutoUnaryLD_NewGVN.run, Auto_Default2.run)
 let autoSROA : auto_t = (AutoUnaryLD_Trans.run, AutoInjectValues_Trans.run)
+let autoLICM : auto_t = (AutoUnaryLD_Trans.run, AutoInjectValues_Trans.run)
 let autoDflt : auto_t = (Auto_Default1.run, Auto_Default2.run)
 
 let autoTest1 : auto_t = (AutoRemMD_SubstTransSrc.run, Auto_Default2.run)
@@ -654,6 +655,7 @@ module AutoStrategy = struct
       match !AutoOpt.pass_option with
       | AutoOpt.GVN -> autoGVN
       | AutoOpt.SROA -> autoSROA
+      | AutoOpt.LICM -> autoLICM
       | AutoOpt.TEST1 -> autoTest1
       | AutoOpt.TEST2 -> autoTest2
       | AutoOpt.TEST3 -> autoTest3

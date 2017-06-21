@@ -2239,7 +2239,7 @@ type cpp_debug_info = {
   line_number : int;
 }
 
-type auto_opt = [AUTO_GVN | AUTO_SROA | AUTO_INSTCOMBINE | AUTO_DEFAULT] <ocaml repr="classic">
+type auto_opt = [AUTO_GVN | AUTO_SROA | AUTO_LICM | AUTO_INSTCOMBINE | AUTO_DEFAULT] <ocaml repr="classic">
 
 type hints = {
   module_id : string;
