@@ -63,6 +63,8 @@ Module Unary.
 
       (UNIQUE_PRIVATE_PARENT: sublist inv.(unique_parent) inv.(private_parent))
       (NEXTBLOCK: m.(Mem.nextblock) = inv.(nextblock))
+      (NEXTBLOCK_PARENT: (inv.(mem_parent).(Mem.nextblock) <= m.(Mem.nextblock))%positive)
+      (* NB_PARENT is added for lift_unlift_le *)
   .
 
   Inductive le (lhs rhs:t): Prop :=
@@ -122,6 +124,16 @@ Module Rel.
       (TGT: Unary.sem conf_tgt inv.(gmax) (public_tgt inv.(inject)) mem_tgt inv.(tgt))
       (INJECT: MoreMem.mem_inj inv.(inject) mem_src mem_tgt)
       (WF: genericvalues_inject.wf_sb_mi inv.(gmax) inv.(inject) mem_src mem_tgt)
+      (FUNTABLE: ftable_simulation inv.(inject) conf_src.(FunTable) conf_tgt.(FunTable))
+  .
+
+  (* Inspired from Compcert's inject_separated *)
+  Inductive frozen (f_old f_new: MoreMem.meminj) (bound_src bound_tgt: mblock): Prop :=
+    | frozen_intro
+        (NEW_IMPLIES_OUTSIDE:
+           forall b_src b_tgt delta
+           (NEW: f_old b_src = None /\ f_new b_src = Some(b_tgt, delta)),
+             <<OUTSIDE_SRC: (bound_src <= b_src)%positive>> /\ <<OUTSIDE_TGT: (bound_tgt <= b_tgt)%positive>>)
   .
 
   (* TODO: not sure if inject_incr is enough.
@@ -133,16 +145,108 @@ Module Rel.
       (TGT: Unary.le lhs.(tgt) rhs.(tgt))
       (GMAX: lhs.(gmax) = rhs.(gmax))
       (INJECT: inject_incr lhs.(inject) rhs.(inject))
+      (FROZEN: frozen lhs.(inject) rhs.(inject)
+                            lhs.(src).(Unary.mem_parent).(Mem.nextblock)
+                            lhs.(tgt).(Unary.mem_parent).(Mem.nextblock))
   .
 
   Global Program Instance PreOrder_le: PreOrder le.
-  Next Obligation. econs; ss; reflexivity. Qed.
+  Next Obligation.
+    econs; ss; try reflexivity.
+    econs; eauto. ii. des. clarify.
+  Qed.
   Next Obligation.
     ii. inv H. inv H0. econs.
     - etransitivity; eauto.
     - etransitivity; eauto.
     - etransitivity; eauto.
     - eapply inject_incr_trans; eauto.
+    -
+      econs; eauto.
+      ii. des.
+      destruct (inject y b_src) eqn:T.
+      + destruct p.
+        inv FROZEN.
+        hexploit NEW_IMPLIES_OUTSIDE; eauto; []; i; des.
+        split; ss.
+        exploit INJECT0; eauto; []; i; des. clarify.
+      + inv FROZEN0.
+        hexploit NEW_IMPLIES_OUTSIDE; eauto; []; i; des.
+        inv SRC. inv TGT. rewrite MEM_PARENT_EQ. rewrite MEM_PARENT_EQ0.
+        split; ss.
+  Qed.
+
+  Lemma frozen_preserves_src
+        inv0 inv1
+        (INJECT: inject_incr inv0.(inject) inv1.(inject))
+        bound_src bound_tgt
+        (FROZEN: frozen inv0.(inject) inv1.(inject) bound_src bound_tgt)
+        (* Above two can be driven from both "le inv0 inv1" && "le inv0 (unlift inv0 inv1)" *)
+        (* in actual proof, the latter one is given as premise *)
+        (* IDK if this is also true for former one *)
+        (* Anyhow, I intentionally choose smaller premise that can serve for both cases *)
+        b_src
+        (INSIDE: (b_src < bound_src)%positive)
+    :
+      <<PRESERVED: inv0.(inject) b_src = inv1.(inject) b_src>>
+  .
+  Proof.
+    inv FROZEN.
+    destruct (inject inv0 b_src) eqn:T0; ss;
+      destruct (inject inv1 b_src) eqn:T1; ss.
+    - destruct p, p0; ss.
+      exploit INJECT; eauto; []; i; des.
+      clarify.
+    - destruct p; ss.
+      exploit INJECT; eauto; []; i; des.
+      clarify.
+    - destruct p; ss.
+      exploit NEW_IMPLIES_OUTSIDE; eauto; []; i; des.
+      exfalso.
+      eapply TODOProof.Pos_lt_le_irrefl; revgoals; eauto.
+  Qed.
+
+  Lemma frozen_preserves_tgt
+        inv0 inv1
+        (INJECT: inject_incr inv0.(inject) inv1.(inject))
+        bound_src bound_tgt
+        (FROZEN: frozen inv0.(inject) inv1.(inject) bound_src bound_tgt)
+        b_tgt
+        (INSIDE: (b_tgt < bound_tgt)%positive)
+    :
+      <<PRESERVED: forall b_src delta (NOW: inv1.(inject) b_src = Some (b_tgt, delta)),
+        <<OLD: inv0.(inject) b_src = Some (b_tgt, delta)>> >>
+  .
+  Proof.
+    inv FROZEN.
+    ii.
+    destruct (inject inv0 b_src) eqn:T; ss.
+    - destruct p; ss.
+      exploit INJECT; eauto; []; i; des.
+      clarify.
+    - exfalso.
+      exploit NEW_IMPLIES_OUTSIDE; eauto; []; i; des.
+      eapply TODOProof.Pos_lt_le_irrefl; revgoals; eauto.
+  Qed.
+
+  Lemma frozen_shortened
+        f_old f_new
+        bd_src0 bd_tgt0
+        (FROZEN: frozen f_old f_new bd_src0 bd_tgt0)
+        bd_src1 bd_tgt1
+        (SHORT_SRC: (bd_src1 <= bd_src0)%positive)
+        (SHORT_TGT: (bd_tgt1 <= bd_tgt0)%positive)
+    :
+      <<FROZEN: frozen f_old f_new bd_src1 bd_tgt1>>
+  .
+  Proof.
+    inv FROZEN.
+    econs; eauto.
+    ii. des.
+    hexploit NEW_IMPLIES_OUTSIDE; eauto; []; i; des. clear NEW_IMPLIES_OUTSIDE.
+    split; ss.
+    - red. etransitivity; eauto.
+    - red. etransitivity; eauto.
   Qed.
 
   Definition lift
@@ -161,4 +265,5 @@ Module Rel.
         (Unary.unlift inv0.(src) inv1.(src))
         (Unary.unlift inv0.(tgt) inv1.(tgt))
         inv0.(gmax) inv1.(inject).
+
 End Rel.

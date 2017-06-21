@@ -27,7 +27,7 @@ Require Import SoundBase.
 Require Import SoundReduceMaydiff.
 Require Import memory_props.
 Require Import TODOProof.
-Require Import SoundForgetMemory.
+Require Import MemAux.
 
 Set Implicit Arguments.
 
@@ -190,91 +190,9 @@ Proof.
     des_bool; des; ss.
 Qed.
 
-Lemma valid_ptr_malloc_diffblock
-      SRC_MEM val'
-      (VALID_PTR: MemProps.valid_ptrs (Memory.Mem.nextblock SRC_MEM) val')
-      TD align0 tsz gn SRC_MEM_STEP mb
-      (MALLOC: malloc TD SRC_MEM tsz gn align0 = Some (SRC_MEM_STEP, mb))
-      conf_src
-  :
-    <<DIFFBLOCK: InvState.Unary.sem_diffblock conf_src (blk2GV TD mb) val'>>
-.
-Proof.
-  exploit MemProps.nextblock_malloc; try apply MALLOC; []; ii; des.
-  exploit MemProps.malloc_result; try apply MALLOC; []; ii; des.
-  subst.
-
-  induction val'; ss.
-  destruct a; ss.
-  des; ss.
-  destruct v; ss; try (eapply IHval'; eauto; fail).
-  des; clarify.
-  - ss. exploit Pos.lt_irrefl; eauto.
-  - eapply IHval'; ss.
-Qed.
-
-Lemma locals_malloc_diffblock
-      conf_src mem locals
-      TD tsz gn align0 SRC_MEM_STEP mb
-      reg val
-      (MALLOC: malloc TD mem tsz gn align0 = Some (SRC_MEM_STEP, mb))
-      (VAL: lookupAL GenericValue locals reg = Some val)
-      (WF_LOCAL: MemProps.wf_lc mem locals)
-  :
-  <<DIFFBLOCK: InvState.Unary.sem_diffblock conf_src (blk2GV TD mb) val>>
-.
-Proof.
-  exploit WF_LOCAL; eauto; []; intro WF; des.
-  eapply valid_ptr_malloc_diffblock; eauto.
-Qed.
-
-Lemma globals_malloc_diffblock
-      align0 TD gn SRC_MEM SRC_MEM_STEP
-      tsz conf_src mb
-      gmax
-      (WF_GLOBALS: genericvalues_inject.wf_globals gmax (Globals conf_src))
-      (MALLOC: malloc TD SRC_MEM tsz gn align0 = Some (SRC_MEM_STEP, mb))
-      (WF_MEM: MemProps.wf_Mem gmax (CurTargetData conf_src) SRC_MEM)
-  : (gmax < mb)%positive.
-Proof.
-  unfold MemProps.wf_Mem in *. des.
-  exploit MemProps.nextblock_malloc; try apply MALLOC; []; ii; des.
-  exploit MemProps.malloc_result; try apply MALLOC; []; ii; des. clarify.
-Qed.
-
-Lemma mload_malloc_diffblock
-  align0 TD gn tsz conf_src SRC_MEM SRC_MEM_STEP mb
-  (MALLOC: malloc TD SRC_MEM tsz gn align0 = Some (SRC_MEM_STEP, mb))
-  mptr0 typ0 align1 val'
-  (LOAD: mload (CurTargetData conf_src) SRC_MEM_STEP mptr0 typ0 align1 = Some val')
-  gmax
-  (WF: MemProps.wf_Mem gmax (CurTargetData conf_src) SRC_MEM)
-  :
-  <<DIFFBLOCK: InvState.Unary.sem_diffblock conf_src (blk2GV TD mb) val'>>
-.
-Proof.
-  inversion WF as [WF_A WF_B]. clear WF.
-  (*
-WTS
-mb <-> val'
-val': read from SRC_MEM_STEP.
-if read from SRC_MEM -> use WF.
-if read from SRC_MEM_STEP - SRC_MEM -> undef
-   *)
-  exploit MemProps.malloc_preserves_mload_inv; try apply LOAD; eauto; []; i.
-  des.
-  - exploit WF_A; try apply LOAD; eauto; []; clear WF_A; intros WF_A; des.
-    eapply valid_ptr_malloc_diffblock; eauto.
-  - eapply InvState.Unary.diffblock_comm.
-    eapply InvState.Unary.undef_diffblock; eauto.
-Unshelve.
-eauto.
-eauto.
-Qed.
-
-Lemma add_unique_malloc
+Lemma add_unique_alloca
   cmds_src id0 align0 inv_unary TD F B lc gn ECS0 tmn SRC_MEM als SRC_MEM_STEP tsz mb conf_src gmax
-  (MALLOC: malloc TD SRC_MEM tsz gn align0 = Some (SRC_MEM_STEP, mb))
+  (ALLOCA: alloca TD SRC_MEM tsz gn align0 = Some (SRC_MEM_STEP, mb))
   (UNIQUE: AtomSetImpl.For_all
              (InvState.Unary.sem_unique conf_src
                 {|
@@ -314,13 +232,13 @@ Proof.
   + (* LOCALS *)
     ii.
     des_lookupAL_updateAddAL.
-    eapply locals_malloc_diffblock; ss; eauto.
+    eapply locals_alloca_diffblock; ss; eauto.
   + (* MEM *)
-    ii. eapply mload_malloc_diffblock; eauto.
+    ii. eapply mload_alloca_diffblock; eauto.
   + (* GLOBALS *)
     ii. ss. clarify.
     des; ss. clarify.
-    eapply globals_malloc_diffblock; eauto.
+    eapply globals_alloca_diffblock; eauto.
 Qed.
 
 Lemma postcond_cmd_add_inject_sound
@@ -403,7 +321,7 @@ Proof.
       eapply AtomSetFacts.add_iff in IN.
       des; [|eauto]; [].
       subst.
-      eapply add_unique_malloc; eauto; try apply MEM; try apply STATE;
+      eapply add_unique_alloca; eauto; try apply MEM; try apply STATE;
         rewrite <- MEM_GMAX; try apply MEM; try apply STATE.
     + clear UNIQUE.
       clear MEM SRC STATE.
@@ -453,7 +371,7 @@ Proof.
       eapply AtomSetFacts.add_iff in IN.
       des; [|eauto]; [].
       subst.
-      eapply add_unique_malloc; eauto; try apply MEM; try apply STATE;
+      eapply add_unique_alloca; eauto; try apply MEM; try apply STATE;
         rewrite <- MEM_GMAX; try apply MEM; try apply STATE.
     + clear UNIQUE.
       clear MEM TGT STATE.
@@ -539,12 +457,12 @@ Proof.
       - (* SRC *)
         inv SRC. inv MEM. inv STATE.
         econs; eauto; []. ss.
-        eapply add_unique_malloc; eauto; try apply SRC; try apply SRC0;
+        eapply add_unique_alloca; eauto; try apply SRC; try apply SRC0;
           rewrite <- MEM_GMAX; try apply SRC; try apply SRC0.
       - (* TGT *)
         inv TGT. inv MEM. inv STATE.
         econs; eauto; []. ss.
-        eapply add_unique_malloc; eauto; try apply TGT; try apply TGT0;
+        eapply add_unique_alloca; eauto; try apply TGT; try apply TGT0;
           rewrite <- MEM_GMAX; try apply TGT; try apply TGT0.
       - (* MAYDIFF *)
         inv SRC. inv TGT.
@@ -578,9 +496,9 @@ Proof.
 
         (* exploit MemProps.nextblock_malloc; try apply H3; []; ii; des. *)
         (* exploit MemProps.nextblock_malloc; try apply H7; []; ii; des. *)
-        exploit MemProps.malloc_result; try apply H3; []; intro MALLOC_RES1; des.
-        exploit MemProps.malloc_result; try apply H7; []; intro MALLOC_RES2; des.
-        rewrite MALLOC_RES1. rewrite MALLOC_RES2. (* subst, clarify ruin ordering of premisses *)
+        exploit MemProps.alloca_result; try apply H3; []; intro ALLOCA_RES1; des.
+        exploit MemProps.alloca_result; try apply H7; []; intro ALLOCA_RES2; des.
+        rewrite ALLOCA_RES1. rewrite ALLOCA_RES2. (* subst, clarify ruin ordering of premisses *)
 
         move ALLOC_INJECT at bottom.
         unfold alloc_inject in ALLOC_INJECT.
@@ -590,68 +508,90 @@ Proof.
         des_lookupAL_updateAddAL.
 
         econs; eauto.
+      - ss. clarify.
     }
+Qed.
+
+Lemma opsem_assigns_getCmdID
+      conf st0 st1 evt
+      cmd cmds x
+      (STEP: sInsn conf st0 st1 evt)
+      (CMDS: st0.(EC).(CurCmds) = cmd :: cmds)
+      (NONCALL: Instruction.isCallInst cmd = false)
+      (CMD_ID: getCmdID cmd = Some x)
+  : exists gv, lookupAL _ st1.(EC).(Locals) x = Some gv.
+Proof.
+  inv STEP; ss; clarify; ss; clarify;
+    try by esplits; apply lookupAL_updateAddAL_eq.
+Qed.
+
+Lemma wf_GVs__lessthan_undef
+      TD gl t gvu gv
+      (CONST_GV: const2GV TD gl (const_undef t) = Some gvu)
+      (WF_GVS: opsem_wf.OpsemPP.wf_GVs TD gv t)
+  : GVs.lessdef gvu gv.
+Proof.
+  exploit const2GV_undef; eauto. i. des.
+  inv WF_GVS. unfold gv_chunks_match_typ in *. des_ifs.
+  apply all_undef_lessdef_aux; eauto.
+  exploit vm_matches_typ__eq__snd; eauto. i.
+  rewrite util.snd_split__map_snd in *. eauto.
 Qed.
 
 Lemma lessdef_definedness
       conf st0 st1 invst evt
       cmd cmds exp_pair
       (STEP: sInsn conf st0 st1 evt)
+      (WF_CONF: opsem_wf.OpsemPP.wf_Config conf)
+      (WF_STATE_PREV: opsem_wf.OpsemPP.wf_State conf st0)
       (CMDS: st0.(EC).(CurCmds) = cmd :: cmds)
+      (NONCALL: Instruction.isCallInst cmd = false)
       (DEFINED: postcond_cmd_get_definedness cmd = Some exp_pair)
   : InvState.Unary.sem_lessdef conf st1 invst exp_pair.
 Proof.
-  exact (SF_ADMIT "Upnrovable for now. Semantics should check more.
-For instance, semantics should check extractValue's return type.
-It seems there is neither no wf condition to derive this.
-However, the high level idea of this lemma seems correct.
-
-Also, this is only used for proving ""postcond_cmd_get_definedness"" case of
-postcond_cmd_add_lessdef, and that is only used for 1 hint generation scenario.
-For that case, the ""cmd"" is not a random cmd, but we know that cmd have been
-calculated before. It means there is at least one more certain way to remove
-this ad-mit whilst keeping working hint generation.
-").
- (*  { *)
- (*    ii. *)
- (*    inv DEFINED. *)
- (*    unfold postcond_cmd_get_definedness in *. des_ifs. ss. *)
- (*    unfold InvState.Unary.sem_idT. ss. *)
- (*    unfold Cmd.get_def in *. *)
- (*    hexploit const2GV_undef; eauto; []; intro UNDEF; des. clarify. *)
- (*    unfold const2GV in VAL1. unfold _const2GV in VAL1. des_ifs. *)
- (*    unfold cgv2gv in *. *)
- (*    rename g into __g__. *)
- (*    inv STEP; repeat (ss; clarify); *)
- (*      try (esplits; [apply lookupAL_updateAddAL_eq|]; []; *)
- (*           apply all_undef_lessdef_aux; eauto; clarify *)
- (*          ). *)
- (*    - eapply BOP_inversion in H. des. *)
- (*      unfold mbop in H1. *)
- (*      unfold Size.to_nat in *. *)
- (*      des_ifs; ss; *)
- (*        match goal with *)
- (*        | [ H: flatten_typ _ _ = Some _ |- _ ] => compute in H; des_ifs *)
- (*        end. *)
- (*    - eapply FBOP_inversion in H. des. *)
- (*      unfold mfbop in H1. *)
- (*      unfold Size.to_nat in *. *)
- (*      des_ifs; ss; *)
- (*        match goal with *)
- (*        | [ H: flatten_typ _ _ = Some _ |- _ ] => compute in H; des_ifs *)
- (*        end. *)
- (*    - unfold extractGenericValue in *. *)
- (*      des_ifs. *)
- (*      exact (SF_AD-MIT "Upnrovable for now. Semantics should check *)
- (* extractValue's return type. It seems there is neither no wf condition to derive this"). *)
- (*    - unfold insertGenericValue in *. *)
- (*      des_ifs. *)
- (*      exact (SF_AD-MIT "Ditto"). *)
+  ii.
+  unfold postcond_cmd_get_definedness in *. des_ifs. ss.
+  unfold InvState.Unary.sem_idT. ss.
+  unfold Cmd.get_def in *.
+  assert (CMD_TYP: lookupTypViaIDFromFdef st1.(EC).(CurFunction) i0 = Some t).
+  { replace st1.(EC).(CurFunction) with st0.(EC).(CurFunction); cycle 1.
+    { inv STEP; ss; by clarify. }
+    unfold opsem_wf.OpsemPP.wf_State in *. des_ifs. ss. des.
+    unfold opsem_wf.OpsemPP.wf_ExecutionContext in *.
+    destruct EC0. destruct WF_STATE_PREV as (_ & IN_FDEF & IN_PRODS & WF_LC & _ & CMDS_BB0).
+    destruct CurBB0 as [l [phis_BB0 cmds_BB0 tmn_BB0]].
+    eapply infrastructure_props.uniqF__lookupTypViaIDFromFdef; eauto.
+    - ss.
+      eapply infrastructure_props.uniqSystem__uniqFdef.
+      + inv WF_CONF1. eauto.
+      + unfold productInSystemModuleB. unfold is_true.
+        apply andb_true_iff. split; eauto.
+    - des. clarify. ss.
+      apply in_app. right. subst. econs. eauto.
+  }
+  assert (WF_STATE_NEXT: opsem_wf.OpsemPP.wf_State conf st1).
+  { eapply opsem_wf.OpsemPP.preservation; eauto. }
+  assert (WF_LC : forall (gvs0 : GenericValue),
+             lookupAL GenericValue st1.(EC).(Locals) i0 = Some gvs0 ->
+             opsem_wf.OpsemPP.wf_GVs conf.(CurTargetData) gvs0 t).
+  { unfold opsem_wf.OpsemPP.wf_State in WF_STATE_NEXT. des_ifs. ss.
+    destruct WF_STATE_NEXT as [WF_EC _].
+    unfold opsem_wf.OpsemPP.wf_ExecutionContext in *. destruct EC0. simpl.
+    destruct WF_EC as (_ & _ & _ & WF_LC & _).
+    unfold opsem_wf.OpsemPP.wf_lc in *. eauto.
+  }
+  exploit opsem_assigns_getCmdID; eauto. i. des.
+  esplits; eauto.
+  exploit WF_LC; eauto. intros WF_GVS.
+  eapply wf_GVs__lessthan_undef; eauto.
 Qed.
 
 Lemma lessdef_add_definedness
       conf st0 st1 evt
       cmd cmds
+      (WF_CONF: opsem_wf.OpsemPP.wf_Config conf)
+      (WF_STATE_PREV: opsem_wf.OpsemPP.wf_State conf st0)
+      (NONCALL: Instruction.isCallInst cmd = false)
       (STEP: sInsn conf st0 st1 evt)
       (CMDS: st0.(EC).(CurCmds) = cmd :: cmds)
   : forall invst exp_pair lessdef
@@ -725,6 +665,8 @@ Lemma postcond_cmd_add_lessdef_unary_sound_alloca
       conf st0 st1 cmd cmds def uses
       invst0 invmem0 inv0 gmax public
       evt
+      (WF_CONF: opsem_wf.OpsemPP.wf_Config conf)
+      (WF_STATE_PREV: opsem_wf.OpsemPP.wf_State conf st0)
       (POSTCOND_CHECK: AtomSetImpl.is_empty (AtomSetImpl.inter def uses))
       (STATE: InvState.Unary.sem conf st1 invst0 invmem0 gmax public inv0)
       (MEM: InvMem.Unary.sem conf gmax public st1.(Mem) invmem0)
@@ -741,7 +683,7 @@ Lemma postcond_cmd_add_lessdef_unary_sound_alloca
                (Invariant.update_lessdef (postcond_cmd_add_lessdef cmd) inv0)>>
 .
 Proof.
-  generalize (lessdef_add_definedness STEP CMDS).
+  generalize (lessdef_add_definedness WF_CONF WF_STATE_PREV NONCALL STEP CMDS).
   intro DEFINEDNESS.
   (inv NONCALL; []); (inv STATE; []); ss; ((inv STEP; ss); []).
   econs; eauto; [].
@@ -783,14 +725,14 @@ Proof.
     {
       ss. u. ss.
       rewrite STATE1. des_lookupAL_updateAddAL.
-      exploit memory_props.MemProps.nextblock_malloc; eauto; []; ii; des.
-      exploit memory_props.MemProps.malloc_result; eauto; []; ii; des.
+      exploit memory_props.MemProps.nextblock_alloca; eauto; []; ii; des.
+      exploit memory_props.MemProps.alloca_result; eauto; []; ii; des.
       subst. ss.
       unfold const2GV. unfold _const2GV.
       unfold gundef.
       unfold mload.
       destruct (flatten_typ (CurTargetData conf) typ1) eqn:T2; ss.
-      erewrite MemProps.malloc_mload_aux_undef; eauto.
+      erewrite MemProps.alloca_mload_aux_undef; eauto.
       unfold const2GV. unfold _const2GV. unfold gundef. rewrite T2. ss.
     }
   -
@@ -800,28 +742,28 @@ Proof.
       {
         ss. u. ss.
         rewrite STATE1. des_lookupAL_updateAddAL.
-        exploit memory_props.MemProps.nextblock_malloc; eauto; []; ii; des.
-        exploit memory_props.MemProps.malloc_result; eauto; []; ii; des.
+        exploit memory_props.MemProps.nextblock_alloca; eauto; []; ii; des.
+        exploit memory_props.MemProps.alloca_result; eauto; []; ii; des.
         subst. ss.
         unfold const2GV. unfold _const2GV.
         unfold gundef.
         unfold mload.
         destruct (flatten_typ (CurTargetData conf) typ1) eqn:T2; ss.
-        erewrite MemProps.malloc_mload_aux_undef; eauto.
+        erewrite MemProps.alloca_mload_aux_undef; eauto.
         unfold const2GV. unfold _const2GV. unfold gundef. rewrite T2. ss.
       }
     +
       {
         ss. u. ss.
         rewrite STATE1. des_lookupAL_updateAddAL.
-        exploit memory_props.MemProps.nextblock_malloc; eauto; []; ii; des.
-        exploit memory_props.MemProps.malloc_result; eauto; []; ii; des.
+        exploit memory_props.MemProps.nextblock_alloca; eauto; []; ii; des.
+        exploit memory_props.MemProps.alloca_result; eauto; []; ii; des.
         subst. ss.
         unfold const2GV. unfold _const2GV.
         unfold gundef.
         unfold mload.
         destruct (flatten_typ (CurTargetData conf) typ1) eqn:T2; ss.
-        erewrite MemProps.malloc_mload_aux_undef; eauto.
+        erewrite MemProps.alloca_mload_aux_undef; eauto.
         unfold const2GV. unfold _const2GV. unfold gundef. rewrite T2. ss.
       }
 Unshelve.
@@ -834,6 +776,8 @@ Lemma postcond_cmd_add_lessdef_unary_sound_gep
       conf st0 st1 cmd cmds def uses
       invst0 invmem0 inv0 gmax public
       evt
+      (WF_CONF: opsem_wf.OpsemPP.wf_Config conf)
+      (WF_STATE_PREV: opsem_wf.OpsemPP.wf_State conf st0)
       (POSTCOND_CHECK: AtomSetImpl.is_empty (AtomSetImpl.inter def uses))
       (STATE: InvState.Unary.sem conf st1 invst0 invmem0 gmax public inv0)
       (MEM: InvMem.Unary.sem conf gmax public st1.(Mem) invmem0)
@@ -850,7 +794,7 @@ Lemma postcond_cmd_add_lessdef_unary_sound_gep
                (Invariant.update_lessdef (postcond_cmd_add_lessdef cmd) inv0)>>
 .
 Proof.
-  generalize (lessdef_add_definedness STEP CMDS).
+  generalize (lessdef_add_definedness WF_CONF WF_STATE_PREV NONCALL STEP CMDS).
   intro DEFINEDNESS.
   (inv NONCALL; []); (inv STATE; []); ss; ((inv STEP; ss); []).
   econs; eauto; [].
@@ -906,6 +850,8 @@ Lemma postcond_cmd_add_lessdef_unary_sound_select
       conf st0 st1 cmd cmds def uses
       invst0 invmem0 inv0 gmax public
       evt
+      (WF_CONF: opsem_wf.OpsemPP.wf_Config conf)
+      (WF_STATE_PREV: opsem_wf.OpsemPP.wf_State conf st0)
       (POSTCOND_CHECK: AtomSetImpl.is_empty (AtomSetImpl.inter def uses))
       (STATE: InvState.Unary.sem conf st1 invst0 invmem0 gmax public inv0)
       (MEM: InvMem.Unary.sem conf gmax public st1.(Mem) invmem0)
@@ -922,7 +868,7 @@ Lemma postcond_cmd_add_lessdef_unary_sound_select
                (Invariant.update_lessdef (postcond_cmd_add_lessdef cmd) inv0)>>
 .
 Proof.
-  generalize (lessdef_add_definedness STEP CMDS).
+  generalize (lessdef_add_definedness WF_CONF WF_STATE_PREV NONCALL STEP CMDS).
   intro DEFINEDNESS.
   (inv NONCALL; []); (inv STATE; []); ss; ((inv STEP; ss); []).
   econs; eauto; [].
@@ -970,6 +916,8 @@ Lemma postcond_cmd_add_lessdef_unary_sound
       conf st0 st1 cmd cmds def uses
       invst0 invmem0 inv0 gmax public
       evt
+      (WF_CONF: opsem_wf.OpsemPP.wf_Config conf)
+      (WF_STATE_PREV: opsem_wf.OpsemPP.wf_State conf st0)
       (POSTCOND_CHECK: AtomSetImpl.is_empty (AtomSetImpl.inter def uses))
       (STATE: InvState.Unary.sem conf st1 invst0 invmem0 gmax public inv0)
       (MEM: InvMem.Unary.sem conf gmax public st1.(Mem) invmem0)
@@ -984,8 +932,9 @@ Lemma postcond_cmd_add_lessdef_unary_sound
                (Invariant.update_lessdef (postcond_cmd_add_lessdef cmd) inv0)>>
 .
 Proof.
-  generalize (lessdef_add_definedness STEP CMDS).
+  generalize (lessdef_add_definedness WF_CONF WF_STATE_PREV NONCALL STEP CMDS).
   intro DEFINEDNESS.
+  (* clear WF_CONF WF_STATE_PREV. *)
   destruct cmd;
     try (eapply postcond_cmd_add_lessdef_unary_sound_alloca; eauto; fail);
     try (eapply postcond_cmd_add_lessdef_unary_sound_gep; eauto; fail);
@@ -997,7 +946,8 @@ Proof.
            repeat match goal with
                   | [ v: value |- _ ] => destruct v
                   end; u; ss; simpl_list; des_lookupAL_updateAddAL; des_ifs; fail).
-  - (* malloc *)
+  - (* alloca *)
+    clear WF_CONF WF_STATE_PREV.
     clarify.
     econs; eauto; [].
     unfold postcond_cmd_add_lessdef. ss.
@@ -1010,6 +960,7 @@ Proof.
                 end; u; ss; simpl_list; des_lookupAL_updateAddAL; des_ifs;
          apply DEFINEDNESS; ss).
   - (* load *)
+    clear WF_CONF WF_STATE_PREV.
     econs; eauto; [].
     unfold postcond_cmd_add_lessdef. ss.
     des_ifs;
@@ -1021,6 +972,7 @@ Proof.
                 end; u; ss; simpl_list; des_lookupAL_updateAddAL; des_ifs;
          apply DEFINEDNESS; ss).
   - (* store *)
+    clear WF_CONF WF_STATE_PREV.
     econs; eauto; [].
     unfold postcond_cmd_add_lessdef. ss.
     apply AtomSetImpl_from_list_inter_is_empty in POSTCOND_CHECK.
@@ -1031,17 +983,17 @@ Proof.
       clear LESSDEF NOALIAS UNIQUE PRIVATE.
       ss.
       destruct value1, value2; ss; u; ss; rewrite H; rewrite H0; des_lookupAL_updateAddAL;
-        erewrite mstore_mload_same; eauto.
+        erewrite MemProps.mstore_mload_same; eauto.
     +
       apply lessdef_add.
       apply lessdef_add; [apply LESSDEF|].
       clear LESSDEF NOALIAS UNIQUE PRIVATE.
       ss.
       destruct value1, value2; ss; u; ss; rewrite H; rewrite H0; des_lookupAL_updateAddAL;
-        erewrite mstore_mload_same; eauto.
+        erewrite MemProps.mstore_mload_same; eauto.
       ss.
       destruct value1, value2; ss; u; ss; rewrite H; rewrite H0; des_lookupAL_updateAddAL;
-        erewrite mstore_mload_same; eauto.
+        erewrite MemProps.mstore_mload_same; eauto.
 Qed.
 
 Lemma postcond_cmd_add_lessdef_src_sound
@@ -1049,6 +1001,8 @@ Lemma postcond_cmd_add_lessdef_src_sound
       conf_tgt st1_tgt cmd_tgt def_tgt uses_tgt
       invst0 invmem0 inv0
       evt
+      (WF_CONF_SRC: opsem_wf.OpsemPP.wf_Config conf_src)
+      (WF_STATE_PREV_SRC: opsem_wf.OpsemPP.wf_State conf_src st0_src)
       (POSTCOND: Postcond.postcond_cmd_check
                    cmd_src cmd_tgt def_src def_tgt uses_src uses_tgt inv0)
       (STATE: InvState.Rel.sem conf_src conf_tgt st1_src st1_tgt invst0 invmem0 inv0)
@@ -1099,6 +1053,10 @@ Lemma postcond_cmd_add_lessdef_tgt_sound
       conf_tgt st0_tgt st1_tgt cmd_tgt cmds_tgt def_tgt uses_tgt
       invst0 invmem0 inv0
       evt
+      (WF_CONF_SRC: opsem_wf.OpsemPP.wf_Config conf_src)
+      (WF_CONF_TGT: opsem_wf.OpsemPP.wf_Config conf_tgt)
+      (WF_STATE_PREV_SRC: opsem_wf.OpsemPP.wf_State conf_src st0_src)
+      (WF_STATE_PREV_TGT: opsem_wf.OpsemPP.wf_State conf_tgt st0_tgt)
       (POSTCOND: Postcond.postcond_cmd_check cmd_src cmd_tgt def_src def_tgt uses_src uses_tgt inv0)
       (STATE: InvState.Rel.sem conf_src conf_tgt st1_src st1_tgt invst0 invmem0 inv0)
       (MEM: InvMem.Rel.sem conf_src conf_tgt st1_src.(Mem) st1_tgt.(Mem) invmem0)
@@ -1153,6 +1111,10 @@ Theorem postcond_cmd_add_sound
         invst1 invmem1 inv1
         invst0 invmem0 inv0
         evt
+        (WF_CONF_SRC: opsem_wf.OpsemPP.wf_Config conf_src)
+        (WF_CONF_TGT: opsem_wf.OpsemPP.wf_Config conf_tgt)
+        (WF_STATE_PREV_SRC: opsem_wf.OpsemPP.wf_State conf_src st0_src)
+        (WF_STATE_PREV_TGT: opsem_wf.OpsemPP.wf_State conf_tgt st0_tgt)
         (CONF: InvState.valid_conf m_src m_tgt conf_src conf_tgt)
         (POSTCOND: Postcond.postcond_cmd_check cmd_src cmd_tgt
                                                def_src def_tgt uses_src uses_tgt inv1)
@@ -1186,9 +1148,9 @@ Proof.
   exploit postcond_cmd_add_inject_sound; try apply CONF;
     try apply STEP_SRC; try apply STEP_TGT; eauto; []; ii; des.
   exploit x0; eauto; ii; des; clear x0.
-  exploit postcond_cmd_add_lessdef_src_sound; try apply STATE_STEP0; eauto; []; ii; des.
-  exploit postcond_cmd_add_lessdef_tgt_sound; try apply STATE_STEP1; eauto; []; ii; des.
-  exploit reduce_maydiff_sound; try apply STATE_STEP2; eauto; []; ii; des.
+  exploit postcond_cmd_add_lessdef_src_sound; try exact STATE0; eauto; []; ii; des.
+  hexploit postcond_cmd_add_lessdef_tgt_sound; try exact STATE1; try exact POSTCOND1; eauto; []; ii; des.
+  exploit reduce_maydiff_sound; try apply STATE2; eauto; []; ii; des.
   esplits; eauto.
   reflexivity.
 Qed.

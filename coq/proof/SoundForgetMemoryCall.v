@@ -238,7 +238,8 @@ Proof.
       (* clear VAL. *)
 
       {
-        unfold InvState.Unary.sem_diffblock. ii.
+        clear_tac.
+        unfold InvState.Unary.sem_diffblock. ii. clarify.
         unfold InvMem.gv_diffblock_with_blocks in *.
         eapply GV_DIFFBLOCK; eauto. clear GV_DIFFBLOCK.
         rewrite <- UNIQUE_PARENT_EQ. ss.
@@ -255,7 +256,7 @@ Proof.
             rewrite VAL. ss.
         - unfold memory_blocks_of.
           eapply existsb_exists.
-          exists z; splits; cycle 1.
+          exists y; splits; cycle 1.
           { compute. des_ifs. }
           apply in_flat_map.
           esplits; eauto.
@@ -284,13 +285,22 @@ Proof.
       rewrite <- PRIVATE_PARENT_EQ. ss.
       apply in_app. left. eauto.
     - ss.
+    - eapply Forall_harder.
+      { rpapply ALLOCAS_VALID. }
+      ss. i.
+      eapply Pos.lt_le_trans; eauto.
+      inv MEM_LE. ss.
+      rewrite MEM_PARENT_EQ in *.
+      apply MEM_AFTER_CALL.
+    - ss.
       ii. exploit WF_LOCAL; eauto. i.
       eapply memory_props.MemProps.valid_ptrs__trans; eauto.
       eapply mem_lift_le_nextblock; eauto.
     - ss. eapply mem_le_wf_lc; eauto.
     - ss. eapply mem_le_wf_lc; eauto.
     - ss.
-    - ii. exploit WF_INSNS; eauto.
+    - ss.
+    - ss.
   }
   { (* MEM *)
     hexploit mem_lift_le_nextblock; try exact MEM_LE; eauto. intro NEXT_BLOCK.
@@ -324,6 +334,15 @@ Proof.
         des.
         esplits; eauto.
         apply in_app. right. ss.
+      }
+    - ss.
+      clear - MEM_LE NEXTBLOCK0 NEXTBLOCK NEXTBLOCK_PARENT.
+      {
+        inv MEM_LE. ss. clear MEM_PARENT_EQ PRIVATE_PARENT_EQ UNIQUE_PARENT_EQ MEM_PARENT.
+        rewrite NEXTBLOCK0.
+        etransitivity; eauto.
+        etransitivity; try apply NEXTBLOCK_LE; eauto.
+        rewrite NEXTBLOCK. reflexivity.
       }
   }
 Qed.
@@ -390,6 +409,20 @@ Lemma forget_memory_call_sound
       <<MEM: InvMem.Rel.sem conf_src conf_tgt mem1_src mem1_tgt invmem2>> /\
       <<MEM_INJ: invmem2.(InvMem.Rel.inject) = invmem1.(InvMem.Rel.inject)>>.
 Proof.
+  assert(INJECT_ALLOCAS_NEW:
+           InvState.Rel.inject_allocas (InvMem.Rel.inject invmem1)
+                                       st0_src.(EC).(Allocas)
+                                       st0_tgt.(EC).(Allocas)).
+  { eapply InvState.Rel.inject_allocas_preserved_le_lift; try exact INCR; eauto; try apply STATE.
+    - inv MEM_BEFORE_CALL. inv SRC. etransitivity; eauto.
+      inv INCR. ss. inv SRC. ss. rewrite MEM_PARENT_EQ. reflexivity.
+    - inv MEM_BEFORE_CALL. inv TGT. etransitivity; eauto.
+      inv INCR. ss. inv TGT. ss. rewrite MEM_PARENT_EQ. reflexivity.
+  }
+  hexploit SoundBase.lift_unlift_le; eauto.
+  { apply MEM_BEFORE_CALL. }
+  { apply MEM_BEFORE_CALL. }
+  intro NEW_LE; des.
   exists (InvMem.Rel.unlift invmem0 invmem1).
   unfold InvMem.Rel.unlift in *.
   assert (INCR_CPY:=INCR).
@@ -407,15 +440,10 @@ Proof.
 
   esplits; eauto.
   - econs; ss.
-    + econs; eauto.
-      inv LE_SRC. ss.
-    + econs; eauto.
-      inv LE_TGT. ss.
-  - econs; ss.
-    ii. exploit MAYDIFF; eauto. i.
-    erewrite sem_idT_eq_locals.
-    { des. esplits; eauto.
-      eapply genericvalues_inject.gv_inject_incr; eauto. }
-    ss.
+    + ii. exploit MAYDIFF; eauto. i.
+      erewrite sem_idT_eq_locals.
+      { des. esplits; eauto.
+        eapply genericvalues_inject.gv_inject_incr; eauto. }
+      ss.
   - econs; ss.
 Qed.

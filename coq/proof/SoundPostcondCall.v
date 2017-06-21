@@ -219,8 +219,9 @@ Proof.
           rewrite lookupAL_updateAddAL_eq in VAL_SRC.
           clarify.
       }
+      * ss.
     + inv STATE.
-      econs; [ | | by eauto];
+      econs; [ | | by eauto|];
         ss; try by (eapply updateAddAL_lessdef_undef; eauto);
         (eapply fit_gv_chunks_aux; eauto).
   - rewrite postcond_cmd_add_noret_call.
@@ -319,6 +320,8 @@ Proof.
 
   exploit forget_stack_call_sound; eauto.
   { inv CONF. eauto. }
+  { rewrite CMDS_SRC. instantiate (1:= cmds_src). econs. apply sublist_refl. }
+  { rewrite CMDS_TGT. instantiate (1:= cmds_tgt). econs. apply sublist_refl. }
   { apply forget_memory_call_unique_implies_private. }
   { apply forget_memory_call_unique_implies_private. }
   { rewrite MEM_INJ. eauto. }

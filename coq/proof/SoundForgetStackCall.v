@@ -15,6 +15,7 @@ Require Import paco.
 Import Opsem.
 
 Require Import TODO.
+Require Import TODOProof.
 Require Import Hints.
 Require Import Postcond.
 Require Import Validator.
@@ -35,6 +36,49 @@ Proof.
   apply forget_stack_Subset.
 Qed.
 
+Lemma unary_sem_eq_locals_mem
+      conf st0 st1 invst0 invmem0 inv0 gmax public
+      (LOCALS_EQ: Locals (EC st0) = Locals (EC st1))
+      (MEM_EQ : Mem st0 = Mem st1)
+      (STATE: InvState.Unary.sem conf st0 invst0 invmem0 gmax public inv0)
+      (EQ_FUNC: st0.(EC).(CurFunction) = st1.(EC).(CurFunction))
+      (EQ_ALLOCAS: st0.(EC).(Allocas) = st1.(EC).(Allocas))
+      (EQ_BB: st0.(EC).(CurBB) = st1.(EC).(CurBB))
+      (EQ_TERM: st0.(EC).(Terminator) = st1.(EC).(Terminator))
+      (CMDS_SUB: sublist st1.(EC).(CurCmds) st0.(EC).(CurCmds))
+  : InvState.Unary.sem conf st1 invst0 invmem0 gmax public inv0.
+Proof.
+  inv STATE.
+  econs.
+  - ii.
+    exploit LESSDEF; eauto.
+    { erewrite sem_expr_eq_locals_mem; eauto. }
+    i. des.
+    esplits; eauto.
+    erewrite sem_expr_eq_locals_mem; eauto.
+  - inv NOALIAS.
+    econs; i; [eapply DIFFBLOCK | eapply NOALIAS0];
+      try erewrite sem_valueT_eq_locals; eauto.
+  - ii. exploit UNIQUE; eauto. intro UNIQ_X. inv UNIQ_X.
+    econs; try rewrite <- LOCALS_EQ; try rewrite <- MEM_EQ; eauto.
+  - ii. exploit PRIVATE; eauto.
+    { erewrite sem_idT_eq_locals; eauto. }
+    rewrite <- MEM_EQ. eauto.
+  - rewrite <- EQ_ALLOCAS. ss.
+  - rpapply ALLOCAS_VALID.
+    + rewrite MEM_EQ. eauto.
+    + rewrite EQ_ALLOCAS. eauto.
+  - rewrite <- LOCALS_EQ. rewrite <- MEM_EQ. eauto.
+  - rewrite <- MEM_EQ. eauto.
+  - rewrite <- MEM_EQ. eauto.
+  - rewrite <- LOCALS_EQ. eauto.
+  - rewrite <- EQ_FUNC. ss.
+  - destruct st0, st1; ss. destruct EC0, EC1; ss. clarify.
+    clear - CMDS_SUB WF_EC.
+    inv WF_EC. econs; ss; eauto.
+    + eapply sublist_trans; eauto.
+Qed.
+
 Lemma invst_sem_eq_locals_mem
       st0_src st1_src conf_src
       st0_tgt st1_tgt conf_tgt
@@ -48,6 +92,12 @@ Lemma invst_sem_eq_locals_mem
       (EQ_BB_TGT: st0_tgt.(EC).(CurBB) = st1_tgt.(EC).(CurBB))
       (EQ_FUNC_SRC: st0_src.(EC).(CurFunction) = st1_src.(EC).(CurFunction))
       (EQ_FUNC_TGT: st0_tgt.(EC).(CurFunction) = st1_tgt.(EC).(CurFunction))
+      (EQ_ALLOCAS_SRC: st0_src.(EC).(Allocas) = st1_src.(EC).(Allocas))
+      (EQ_ALLOCAS_TGT: st0_tgt.(EC).(Allocas) = st1_tgt.(EC).(Allocas))
+      (EQ_TERM_SRC: st0_src.(EC).(Terminator) = st1_src.(EC).(Terminator))
+      (EQ_TERM_TGT: st0_tgt.(EC).(Terminator) = st1_tgt.(EC).(Terminator))
+      (CMDS_SUB_SRC: sublist st1_src.(EC).(CurCmds) st0_src.(EC).(CurCmds))
+      (CMDS_SUB_TGT: sublist st1_tgt.(EC).(CurCmds) st0_tgt.(EC).(CurCmds))
   : InvState.Rel.sem conf_src conf_tgt st1_src st1_tgt invst invmem inv.
 Proof.
   inv STATE.
@@ -58,6 +108,9 @@ Proof.
     ii. exploit H.
     { erewrite sem_idT_eq_locals; eauto. }
     i. erewrite sem_idT_eq_locals; eauto.
+  - rewrite <- EQ_ALLOCAS_SRC.
+    rewrite <- EQ_ALLOCAS_TGT.
+    ss.
 Qed.
 
 Lemma genericvalues_inject_simulation__GV2ptr_tgt:
@@ -180,8 +233,8 @@ Proof.
       eapply PRIVATE; eauto.
       eapply Exprs.IdTSetFacts.mem_iff; eauto.
       unfold InvMem.private_block in *. des.
-      hexploit gv_inject_public_src; eauto; []; ii; des.
-      clear - H PRIVATE_BLOCK. ss.
+      hexploit gv_inject_public_src; eauto; []; intro PUB; des.
+      clear - PUB PRIVATE_BLOCK. ss.
     }
   - clear STATE_SRC.
     inv STATE_TGT.
@@ -195,8 +248,8 @@ Proof.
       eapply PRIVATE; eauto.
       eapply Exprs.IdTSetFacts.mem_iff; eauto.
       unfold InvMem.private_block in *. des.
-      hexploit gv_inject_public_tgt; eauto; []; ii; des.
-      clear - H PRIVATE_BLOCK. ss.
+      hexploit gv_inject_public_tgt; eauto; []; intro PUB; des.
+      clear - PUB PRIVATE_BLOCK. ss.
     }
 Qed.
 
@@ -212,6 +265,8 @@ Lemma forget_stack_call_sound
            (mkState st0_src.(EC) st0_src.(ECS) mem1_src)
            (mkState st0_tgt.(EC) st0_tgt.(ECS) mem1_tgt)
            invst2 invmem2 inv1)
+      (CMDS_SUB_SRC: sublist cmds_src st0_src.(EC).(CurCmds))
+      (CMDS_SUB_TGT: sublist cmds_tgt st0_tgt.(EC).(CurCmds))
       (UNIQUE_PRIVATE_SRC: unique_is_private_unary inv1.(Invariant.src))
       (UNIQUE_PRIVATE_TGT: unique_is_private_unary inv1.(Invariant.tgt))
       (MEM: InvMem.Rel.sem conf_src conf_tgt mem1_src mem1_tgt invmem2)
@@ -353,6 +408,25 @@ Proof.
         apply memory_props.MemProps.updateAddAL__wf_lc; eauto.
         inv MEM.
         exploit genericvalues_inject_wf_valid_ptrs_tgt; eauto.
+      }
+      { apply STATE. }
+      { apply STATE. }
+      { apply STATE. }
+      { apply STATE. }
+      { apply STATE. }
+      { ss.
+        inv STATE. inv SRC.
+        clear - WF_FDEF WF_EC CMDS_SUB_SRC.
+        ss. inv WF_EC. ss.
+        econs; ss; eauto.
+        eapply sublist_trans; eauto.
+      }
+      { ss.
+        inv STATE. inv TGT.
+        clear - WF_FDEF WF_EC CMDS_SUB_TGT.
+        ss. inv WF_EC. ss.
+        econs; ss; eauto.
+        eapply sublist_trans; eauto.
       }
     - hexploit genericvalues_inject.simulation__fit_gv; eauto.
       { inv MEM. eauto. }

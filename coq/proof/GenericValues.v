@@ -41,16 +41,16 @@ Module GVs.
     << INJECT: memory_sim.MoreMem.val_inject mij a c >>.
   Proof.
     inv LD; inv INJECT; ss; try (econs; eauto; fail).
-    - exact (SF_ADMIT "Vellvm undef inject
+    - ADMIT "Vellvm undef inject
 Vellvm's inject definition (Vellvm.Vellvm.memory_sim.MoreMem.val_inject)
 does not provide ""forall v, Vundef >= v"".
 This should be provided, conceptually this is correct.
 FYI, look at (compcert.common.Values.val_inject).
-").
-    - exact (SF_ADMIT "Vellvm undef inject").
-    - exact (SF_ADMIT "Vellvm undef inject").
-    - exact (SF_ADMIT "Vellvm undef inject").
-    - exact (SF_ADMIT "Vellvm undef inject").
+".
+    - ADMIT "Vellvm undef inject".
+    - ADMIT "Vellvm undef inject".
+    - ADMIT "Vellvm undef inject".
+    - ADMIT "Vellvm undef inject".
   Qed.
 
   Lemma inject_lessdef_compose_single mij a b c
@@ -59,7 +59,7 @@ FYI, look at (compcert.common.Values.val_inject).
     << INJECT: memory_sim.MoreMem.val_inject mij a c >>.
   Proof.
     inv LD; inv INJECT; ss; try (econs; eauto; fail).
-    - exact (SF_ADMIT "Vellvm undef inject").
+    - ADMIT "Vellvm undef inject".
   Qed.
 
   Lemma lessdef_inject_compose mij a b c
@@ -268,4 +268,22 @@ Proof.
       eapply TODOProof.filter_map_spec; eauto.
     + right.
       eapply TODOProof.filter_map_spec; eauto.
+Qed.
+
+(* TODO: Why error_state is defined in GenericValues? *)
+(* -> It is used in SoundPostcondCmdAdd. Is it essential? *)
+Lemma error_state_neg conf st
+      (NERROR_SRC: ~error_state conf st)
+  :
+    <<NERROR_SRC: ~(stuck_state conf st) \/ exists gv, s_isFinialState conf st = Some gv>>
+.
+Proof.
+  red. unfold not in NERROR_SRC.
+  apply imply_to_or.
+  i.
+  destruct (s_isFinialState conf st) eqn:T.
+  { esplits; eauto. }
+  exploit NERROR_SRC; eauto.
+  { econs; eauto. }
+  i; ss.
 Qed.

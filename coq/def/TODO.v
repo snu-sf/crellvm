@@ -455,9 +455,6 @@ Proof.
   destruct (existsb pred (rev l0)); ss. apply orb_true_r.
 Qed.
 
-Definition list_disjoint A (xs ys: list A) :=
-  forall z (INL: In z xs) (INR: In z ys), False.
-
 Lemma list_disjoint_comm A (xs ys: list A)
   (DISJOINT: list_disjoint xs ys)
   :
@@ -470,7 +467,8 @@ Proof.
   - clarify. unfold list_disjoint in DISJOINT.
     eapply DISJOINT; eauto.
     left; ss.
-  - exploit DISJOINT; eauto.
+  - clarify.
+    exploit DISJOINT; eauto.
     right; ss.
 Qed.
 

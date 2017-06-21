@@ -25,8 +25,10 @@ Require InvState.
 Require Import SoundBase.
 
 Require Import Inject. (* TODO: for simtac *)
-Require Import SoundPostcondCmdAdd.
 Require Import TODOProof.
+Require Import MemAux.
+Require Import memory_props.
+Import MemProps.
 
 Set Implicit Arguments.
 
@@ -189,9 +191,6 @@ Inductive unique_preserved_except conf inv unique_parent st gmax except_for : Pr
        forall b (IN: In b unique_parent), (gmax < b)%positive)
 .
 
-Require Import memory_props.
-Import MemProps.
-
 Lemma mbop_multiple_result_inv
       TD bop sz gvs1 gvs2 val1 val2 vals
       (MBOP: mbop TD bop sz gvs1 gvs2 = Some (val1 :: val2 :: vals))
@@ -249,7 +248,7 @@ Lemma getOperandValue_diffblock
 Proof.
   destruct valy; ss.
   - hexploit LOOKUP_DIFFBLOCK; eauto.
-  - eapply TODOProof.wf_globals_const2GV in GET_OPERAND; eauto.
+  - eapply MemAux.wf_globals_const2GV in GET_OPERAND; eauto.
     des.
     eapply valid_ptr_globals_diffblock_with_blocks; eauto.
 Unshelve.
@@ -511,26 +510,8 @@ Proof.
 Qed.
 
 Lemma GEP_diffblock
-  (invmem : InvMem.Unary.t)
-  (inbounds5 : inbounds)
-  (typ5 : typ)
-  (value_5 : value)
-  (l0 : list (sz * value))
-  (typ' : typ)
-  (gmax : positive)
-  (u : atom)
-  (S : system)
-  (TD : TargetData)
-  (Ps : list product)
-  (F : fdef)
-  (B : block)
-  (lc : GVsMap)
-  (gl fs : GVMap)
-  (vidxs : list GenericValue)
-  (mp : GenericValue)
-  (tmn : terminator)
-  (Mem0 : mem)
-  (als : list mblock)
+  invmem inbounds5 typ5 value_5 l0 typ' gmax u S TD Ps F lc gl fs vidxs mp Mem0 reg val'
+  (B: block)
   (NEXTBLOCK : Memory.Mem.nextblock Mem0 = InvMem.Unary.nextblock invmem)
   (GLOBALS : genericvalues_inject.wf_globals gmax gl)
   (WF : wf_Mem gmax TD Mem0)
@@ -552,17 +533,14 @@ Lemma GEP_diffblock
         InvState.Unary.sem_diffblock
           {| CurSystem := S; CurTargetData := TD; CurProducts := Ps; Globals := gl; FunTable := fs |} val val')
   (GLOBALS0 : forall b : Values.block, In b (GV2blocks val) -> (gmax < b)%positive)
-  (reg : atom)
-  (val' : GenericValue)
   (REG : u <> reg)
   (NOT_LEAKED_U : AtomSetImpl.mem u
                    (AtomSetImpl_from_list
                       (Cmd.get_leaked_ids (insn_gep reg inbounds5 typ5 value_5 l0 typ'))) =
                  false)
   (H1 : GEP TD typ5 mp vidxs inbounds5 typ' = Some val')
-  (WF_INSNS: forall (insn : insn) (b : block),
-             insnInBlockB insn b /\ blockInFdefB b F ->
-             <<WF_INSN: wf_insn S (module_intro (fst TD) (snd TD) Ps) F b insn >>)
+  (WF_INSN: wf_insn S (module_intro (fst TD) (snd TD) Ps) F B
+                    (insn_cmd (insn_gep reg inbounds5 typ5 value_5 l0 typ')))
   :
   <<DIFFBLOCK: InvState.Unary.sem_diffblock
     {| CurSystem := S; CurTargetData := TD; CurProducts := Ps; Globals := gl; FunTable := fs |}
@@ -582,15 +560,6 @@ Proof.
   { eapply undef_implies_diffblock; eauto. }
   clarify. ss.
   {
-    assert (BLOCK_IN_FDEF: blockInFdefB B F).
-    { exact (SF_ADMIT "wf_EC
-This can be easily solved.
-Prove wf_EC at the start of the function, and propagating it will do."). }
-    assert (INSN_IN_BLOCK: insnInBlockB (insn_cmd (insn_gep reg inbounds5 typ5 value_5 l0 typ')) B).
-    { exact (SF_ADMIT "wf_EC"). }
-    exploit WF_INSNS; eauto; []; intro WF_INSN; des.
-    clear BLOCK_IN_FDEF INSN_IN_BLOCK.
-
     ii.
     destruct v0; ss; des; ss.
     clarify.
@@ -618,14 +587,16 @@ Prove wf_EC at the start of the function, and propagating it will do."). }
         rename b into __b__.
         destruct TD; ss.
         apply TODOProof.wf_globals_eq in GLOBALS.
-        exploit const2GV_valid_ptrs; eauto.
-        { inv WF_INSN. inv H11. eauto. }
+        exploit MemAux.wf_globals_const2GV; eauto.
+        { eapply wf_globals_eq; eauto. }
         intro VALID_PTR; des. clear WF_INSN.
         ss.
         idtac.
         exploit valid_ptr_globals_diffblock; eauto.
-        eapply {| CurSystem := S; CurTargetData := (l2, n);
-                  CurProducts := Ps; Globals := gl; FunTable := fs |}.
+        {
+          eapply {| CurSystem := S; CurTargetData := (l2, l3);
+                    CurProducts := Ps; Globals := gl; FunTable := fs |}.
+        }
         destruct mp; ss. destruct p; ss. destruct v; ss. des. des_ifs.
         left; ss.
     }
@@ -770,6 +741,7 @@ Lemma step_unique_preserved_except_current
       (WF_LC_BEFORE: wf_lc st0.(Mem) st0.(EC).(Locals))
       (MEM: InvMem.Unary.sem conf gmax public st1.(Mem) invmem)
       (NONCALL: Instruction.isCallInst cmd = false)
+      (NONMALLOC: isMallocInst cmd = false)
       (CMDS : CurCmds st0.(EC) = cmd :: cmds)
       (STEP : sInsn conf st0 st1 evt)
   : << UNIQUE_CURRENT:
@@ -845,9 +817,14 @@ Proof.
       }
       { hexploit unique_const_diffblock; ss; eauto. }
     }
-    clear - INL INR H0 H1.
-    exploit In_incl; eauto.
-    eapply GV2blocks_incl; eauto.
+    clarify.
+    {
+      clear - H1 H4 H2 H0.
+      exploit In_incl; eauto.
+      { eapply GV2blocks_incl; eauto. }
+      i.
+      exploit H4; eauto.
+    }
   -
     inversion UNIQUE_BEF; subst; narrow_down_unique.
     ii.
@@ -891,40 +868,29 @@ Proof.
       }
       { hexploit unique_const_diffblock; ss; eauto. }
     }
-    clear - H2 H3 H1 INR INL.
-    exploit In_incl.
-    { eapply INR. }
-    { instantiate (1:= (GV2blocks (gvs ++ gvs'))). eapply GV2blocks_incl; eauto. }
-    intro IN.
-    (* unfold list_disjoint in *. *)
-
+    clarify.
     {
+      clear - H1 H5 H6 H2 H3.
+      exploit In_incl; eauto.
+      { eapply GV2blocks_incl; eauto. }
+      intro IN.
       eapply GV2blocks_app_inv in IN.
       des.
       -
         apply GV2blocks_in_inv in IN.
         des.
-        eapply H2; eauto.
-        eapply GV2blocks_lift; eauto.
+        expl GV2blocks_lift.
+        expl H5.
       -
         apply GV2blocks_in_inv in IN.
         des.
-        eapply H3; eauto.
-        eapply GV2blocks_lift; eauto.
+        expl GV2blocks_lift.
+        expl H6.
     }
-  - (* malloc *)
-    inv UNIQUE_BEF; narrow_down_unique.
-    assert(TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT: True) by reflexivity.
-    move val at bottom.
-    move mb at bottom.
-    hexploit locals_malloc_diffblock; eauto; []; ii; des.
-    unfold InvState.Unary.sem_diffblock in H2.
-    unfold list_disjoint in H2.
-    eapply H2; eauto.
   - (* alloca *)
     inv UNIQUE_BEF; narrow_down_unique.
     ii.
-    exploit locals_malloc_diffblock; eauto.
+    exploit locals_alloca_diffblock; eauto.
     apply {|
         CurSystem := S;
         CurTargetData := TD;
@@ -936,7 +902,12 @@ Proof.
     eapply MEM; eauto.
   - (* GEP *)
     inv UNIQUE_BEF; narrow_down_unique.
+    destruct TD; ss. destruct B; ss. destruct s; ss.
     eapply GEP_diffblock; eauto.
+    { inv WF_EC. ss.
+      eapply typings_props.wf_fdef__wf_cmd; try eassumption.
+      - eapply sublist_In; eauto. ss. left. ss.
+    }
   - inv UNIQUE_BEF; narrow_down_unique.
     eapply TRUNC_diffblock; eauto.
   - inv UNIQUE_BEF; narrow_down_unique.
@@ -955,7 +926,7 @@ Proof.
       * ss.
         rename g into __g__.
         rename val into __val__.
-        exploit TODOProof.wf_globals_const2GV; eauto; []; i; des.
+        exploit MemAux.wf_globals_const2GV; eauto; []; i; des.
         eapply valid_ptr_globals_diffblock; eauto.
       * eapply LOCALS; try apply Heq; eauto.
         apply AtomSetFacts.not_mem_iff in NOT_LEAKED_U.
@@ -989,7 +960,7 @@ Proof.
         }
       }
       {
-        exploit TODOProof.wf_globals_const2GV; eauto; []; intro VALID_PTR; des.
+        exploit MemAux.wf_globals_const2GV; eauto; []; intro VALID_PTR; des.
         eapply valid_ptr_globals_diffblock; eauto.
       }
     }
@@ -1012,15 +983,12 @@ Proof.
         }
       }
       {
-        exploit TODOProof.wf_globals_const2GV; eauto; []; intro VALID_PTR; des.
+        exploit MemAux.wf_globals_const2GV; eauto; []; intro VALID_PTR; des.
         eapply valid_ptr_globals_diffblock; eauto.
       }
     }
 Unshelve.
-apply {| CurSystem := S; CurTargetData := TD; CurProducts := Ps; Globals := gl; FunTable := fs |}.
-apply {| CurSystem := S; CurTargetData := TD; CurProducts := Ps; Globals := gl; FunTable := fs |}.
-apply {| CurSystem := S; CurTargetData := TD; CurProducts := Ps; Globals := gl; FunTable := fs |}.
-apply {| CurSystem := S; CurTargetData := TD; CurProducts := Ps; Globals := gl; FunTable := fs |}.
+all: ss.
 Qed.
 
 Lemma step_unique_preserved_except_parent
@@ -1034,6 +1002,7 @@ Lemma step_unique_preserved_except_parent
          forall b (IN: In b invmem.(InvMem.Unary.private_parent)),
            (b < Memory.Mem.nextblock st0.(Mem))%positive)
       (NONCALL: Instruction.isCallInst cmd = false)
+      (NONMALLOC: isMallocInst cmd = false)
       (CMDS : CurCmds st0.(EC) = cmd :: cmds)
       (STEP : sInsn conf st0 st1 evt)
   : <<UNIQUE_PARENT:
@@ -1042,7 +1011,7 @@ Lemma step_unique_preserved_except_parent
       InvMem.gv_diffblock_with_blocks conf ptr (InvMem.Unary.unique_parent invmem)>>.
 Proof.
   red; i.
-  inv STATE. clear LESSDEF NOALIAS UNIQUE PRIVATE WF_LOCAL WF_PREVIOUS WF_GHOST WF_INSNS.
+  inv STATE. clear LESSDEF NOALIAS UNIQUE PRIVATE WF_LOCAL WF_PREVIOUS WF_GHOST WF_FDEF WF_EC.
   inv STEP; ss; clarify.
   - (* nop *) eapply UNIQUE_PARENT_LOCAL; eauto.
   - des_lookupAL_updateAddAL; [|eapply UNIQUE_PARENT_LOCAL; eauto].
@@ -1081,16 +1050,6 @@ Proof.
     hexploit getOperandValue_diffblock; ss; try exact H1; eauto; try apply MEM; intro DIFFBLOCK2.
     eapply incl_diffblock_with_blocks; eauto.
     eapply app_diffblock_with_blocks; eauto.
-  - des_lookupAL_updateAddAL; [|eapply UNIQUE_PARENT_LOCAL; eauto].
-    ii.
-    clear H0 H1 NONCALL UNIQUE_PARENT_LOCAL.
-    cbn in *. des; ss. clarify.
-    exploit PRIVATE_PARENT_BEFORE; eauto.
-    { eapply sublist_In; eauto. apply MEM. }
-    intro VALID_PTR.
-    clear - H2 VALID_PTR.
-    eapply malloc_result in H2. subst.
-    apply Pos.lt_irrefl in VALID_PTR. ss.
   - (* free *) eapply UNIQUE_PARENT_LOCAL; eauto.
   - des_lookupAL_updateAddAL; [|eapply UNIQUE_PARENT_LOCAL; eauto].
     ii.
@@ -1100,7 +1059,7 @@ Proof.
     { eapply sublist_In; eauto. apply MEM. }
     intro VALID_PTR.
     clear - H2 VALID_PTR.
-    eapply malloc_result in H2. subst.
+    eapply alloca_result in H2. subst.
     apply Pos.lt_irrefl in VALID_PTR. ss.
   - des_lookupAL_updateAddAL; [|eapply UNIQUE_PARENT_LOCAL; eauto].
     eapply MEM; eauto.
@@ -1160,6 +1119,7 @@ Lemma step_unique_preserved_except
            (b < Memory.Mem.nextblock st0.(Mem))%positive)
       (MEM: InvMem.Unary.sem conf gmax public st1.(Mem) invmem)
       (NONCALL: Instruction.isCallInst cmd = false)
+      (NONMALLOC: isMallocInst cmd = false)
       (CMDS : CurCmds st0.(EC) = cmd :: cmds)
       (STEP : sInsn conf st0 st1 evt)
   : unique_preserved_except conf inv0 invmem.(InvMem.Unary.unique_parent) st1 gmax
@@ -1262,6 +1222,9 @@ Lemma forget_stack_unary_sound
       (STATE : InvState.Unary.sem conf st0 invst invmem gmax public inv)
       (WF_LC: memory_props.MemProps.wf_lc st1.(Mem) st1.(EC).(Locals))
       (EQ_FUNC: st0.(EC).(CurFunction) = st1.(EC).(CurFunction))
+      (ALLOCAS_PARENT: list_disjoint (Allocas (EC st1)) (InvMem.Unary.private_parent invmem))
+      (ALLOCAS_VALID: Forall (Memory.Mem.valid_block (Mem st1)) st1.(EC).(Allocas))
+      (WF_EC: OpsemAux.wf_EC st1.(EC))
   : InvState.Unary.sem conf st1 invst invmem gmax public (ForgetStack.unary defs leaks inv).
 Proof.
   inv STATE.
@@ -1311,9 +1274,7 @@ Proof.
   - inv EQUIV. rewrite <- MEM. eauto.
   - inv EQUIV. rewrite <- MEM. eauto.
   - inv UNIQUE_PRESERVED. eauto.
-  - rewrite <- EQ_FUNC.
-    ii.
-    exploit WF_INSNS; eauto.
+  - rewrite <- EQ_FUNC. ss.
 Qed.
 
 Lemma forget_stack_sound
@@ -1340,6 +1301,16 @@ Lemma forget_stack_sound
       (WF_LC_TGT: memory_props.MemProps.wf_lc st1_tgt.(Mem) st1_tgt.(EC).(Locals))
       (EQ_FUNC_SRC: st0_src.(EC).(CurFunction) = st1_src.(EC).(CurFunction))
       (EQ_FUNC_TGT: st0_tgt.(EC).(CurFunction) = st1_tgt.(EC).(CurFunction))
+      (ALLOCAS_PARENT_SRC: list_disjoint (Allocas (EC st1_src))
+                                         (InvMem.Unary.private_parent (InvMem.Rel.src invmem)))
+      (ALLOCAS_PARENT_TGT: list_disjoint (Allocas (EC st1_tgt))
+                                         (InvMem.Unary.private_parent (InvMem.Rel.tgt invmem)))
+      (ALLOCAS_VALID_SRC: Forall (Memory.Mem.valid_block (Mem st1_src)) st1_src.(EC).(Allocas))
+      (ALLOCAS_VALID_TGT: Forall (Memory.Mem.valid_block (Mem st1_tgt)) st1_tgt.(EC).(Allocas))
+      (INJECT_ALLOCAS: InvState.Rel.inject_allocas (InvMem.Rel.inject invmem)
+                                   st1_src.(EC).(Allocas) st1_tgt.(EC).(Allocas))
+      (WF_EC_SRC: OpsemAux.wf_EC st1_src.(EC))
+      (WF_EC_TGT: OpsemAux.wf_EC st1_tgt.(EC))
   : <<STATE_FORGET: InvState.Rel.sem conf_src conf_tgt st1_src st1_tgt
                                      invst invmem (ForgetStack.t defs_src defs_tgt leaks_src leaks_tgt inv0)>>.
 Proof.

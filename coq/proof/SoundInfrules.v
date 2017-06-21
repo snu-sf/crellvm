@@ -17,7 +17,6 @@ Import Opsem.
 Require Import TODO.
 Require Import Validator.
 Require Import GenericValues.
-Require Import SimulationLocal.
 Require InvMem.
 Require InvState.
 Require Import SoundBase.
@@ -41,13 +40,13 @@ Lemma apply_infrule_sound
     <<MEM: InvMem.Rel.sem conf_src conf_tgt st_src.(Mem) st_tgt.(Mem) invmem1>> /\
     <<MEMLE: InvMem.Rel.le invmem0 invmem1>>.
 Proof.
-  exact (SF_ADMIT "Infrule
+  ADMIT "Infrule
 We will not prove soundness of infrules in this submission.
 All the infrules are simple, and we carefully installed it, so it is less likely to introduce a bug.
 Also, even in case some infrules contain bugs, the bugs does not affect the whole system,
 and it should be easy to fix. Moreover, we did prove most of the infrules in the former version of simplberry.
 To our experience, proving infrules can be done withn reasonable amount of engineering effort (maybe 2 weeks)
-by using automation techniques. However, we skip it for now.").
+by using automation techniques. However, we skip it for now.".
 Qed.
 
 Lemma apply_infrules_sound
