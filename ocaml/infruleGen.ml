@@ -8,7 +8,7 @@ open Infrastructure
 
 module AutoOpt = struct
     type pass_t =
-      GVN | SROA | INSTCOMBINE | TEST1 | TEST2 | TEST3 | TEST4 | DEFAULT
+      GVN | SROA | INSTCOMBINE | LICM | TEST1 | TEST2 | TEST3 | TEST4 | DEFAULT
     let pass_option : pass_t ref = ref DEFAULT
   end
 
@@ -953,6 +953,7 @@ let compose2 (a1:Auto.t2) (a2:Auto.t2) : Auto.t2 =
 
 let autoGVN : Auto.t = (AutoGVNModule.auto1, Auto_Default2.run)
 let autoSROA : Auto.t = (AutoUnaryLD_Trans.run, AutoInjectValues_Trans.run)
+let autoLICM : Auto.t = (AutoUnaryLD_Trans.run, AutoInjectValues_Trans.run)
 let autoDflt : Auto.t = (Auto_Default1.run, Auto_Default2.run)
 
 let autoTest1 : Auto.t = (AutoRemMD_SubstTransSrc.run, Auto_Default2.run)
@@ -968,6 +969,7 @@ module AutoStrategy = struct
       match !AutoOpt.pass_option with
       | AutoOpt.GVN -> autoGVN
       | AutoOpt.SROA -> autoSROA
+      | AutoOpt.LICM -> autoLICM
       | AutoOpt.TEST1 -> autoTest1
       | AutoOpt.TEST2 -> autoTest2
       | AutoOpt.TEST3 -> autoTest3

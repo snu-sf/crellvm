@@ -201,6 +201,7 @@ module ConvertAuto = struct
       match opt with
       | CoreHint_t.AUTO_GVN -> InfruleGen.AutoOpt.GVN
       | CoreHint_t.AUTO_SROA -> InfruleGen.AutoOpt.SROA
+      | CoreHint_t.AUTO_LICM -> InfruleGen.AutoOpt.LICM
       | CoreHint_t.AUTO_INSTCOMBINE -> InfruleGen.AutoOpt.INSTCOMBINE
       | _ -> InfruleGen.AutoOpt.DEFAULT
 
