@@ -609,6 +609,11 @@ Definition apply_infrule
        $$ inv0 |-src (Expr.value dst) >= (Expr.cast castop_bitcast midty mid dstty) $$
     then {{ inv0 +++src (Expr.value dst) >= (Expr.cast castop_bitcast srcty src dstty) }}
     else apply_fail tt
+  | Infrule.bitcast_bitcast_rev_tgt src mid dst srcty midty dstty =>
+    if $$ inv0 |-tgt (Expr.cast castop_bitcast srcty src midty) >= (Expr.value mid) $$ &&
+       $$ inv0 |-tgt (Expr.cast castop_bitcast midty mid dstty) >= (Expr.value dst) $$
+    then {{ inv0 +++tgt (Expr.cast castop_bitcast srcty src dstty) >= (Expr.value dst) }}
+    else apply_fail tt
   | Infrule.bitcast_double_i64 src tgt =>
     let s := Size.from_Z 64%Z in
     if cond_double_to_i64 src tgt
@@ -1486,6 +1491,17 @@ Definition apply_infrule
        cond_inttyp srcty
     then {{ inv0 +++src (Expr.value dst) >= (Expr.trunc truncop_int srcty src dstty) }}
     else apply_fail tt
+  | Infrule.trunc_load_bitcast_rev_tgt src mid1 mid2 dst srcty midty a =>
+    if $$ inv0 |-tgt (Expr.cast castop_bitcast (typ_pointer srcty) src (typ_pointer midty)) >= (Expr.value mid1) $$ &&
+       $$ inv0 |-tgt (Expr.load mid1 midty a) >= (Expr.value mid2) $$ &&
+       $$ inv0 |-tgt (Expr.trunc truncop_int midty mid2 srcty) >= (Expr.value dst) $$
+    then {{ inv0 +++tgt (Expr.load src srcty a) >= (Expr.value dst) }}
+    else apply_fail tt
+  | Infrule.trunc_load_const_bitcast_rev_tgt src mid dst srcty midty a =>
+    if $$ inv0 |-tgt (Expr.load (ValueT.const (const_castop castop_bitcast src (typ_pointer midty))) midty a) >= (Expr.value mid) $$ &&
+       $$ inv0 |-tgt (Expr.trunc truncop_int midty mid srcty) >= (Expr.value dst) $$
+    then {{ inv0 +++tgt (Expr.load src srcty a) >= (Expr.value dst) }}
+    else apply_fail tt
   | Infrule.trunc_ptrtoint src mid dst srcty midty dstty =>
     if $$ inv0 |-src (Expr.value mid) >= (Expr.cast castop_ptrtoint srcty src midty) $$ &&
        $$ inv0 |-src (Expr.value dst) >= (Expr.trunc truncop_int midty mid dstty) $$
@@ -1588,6 +1604,11 @@ Definition apply_infrule
     if $$ inv0 |-src (Expr.value mid) >= (Expr.trunc truncop_int srcty src midty) $$ &&
        $$ inv0 |-src (Expr.value dst) >= (Expr.trunc truncop_int midty mid dstty) $$
     then {{inv0 +++src (Expr.value dst) >= (Expr.trunc truncop_int srcty src dstty)}}
+    else apply_fail tt
+  | Infrule.trunc_trunc_rev_tgt src mid dst srcty midty dstty =>
+    if $$ inv0 |-tgt (Expr.trunc truncop_int srcty src midty) >= (Expr.value mid) $$ &&
+       $$ inv0 |-tgt (Expr.trunc truncop_int midty mid dstty) >= (Expr.value dst) $$
+    then {{inv0 +++tgt (Expr.trunc truncop_int srcty src dstty) >= (Expr.value dst) }}
     else apply_fail tt
   | Infrule.substitute x y e =>
     if $$ inv0 |-src (Expr.value x) >= (Expr.value y) $$
@@ -1695,7 +1716,6 @@ Definition apply_infrule
     {{ inv0 +++tgt x >= x }}
   | Infrule.intro_ghost_src expr g =>
     if (match expr with | Expr.load _ _ _ => false | _ => true end)
-         && (is_defined inv0.(Invariant.src) expr)
     then
       let inv1 := (Invariant.update_src (Invariant.update_lessdef
         (ExprPairSet.filter

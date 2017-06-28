@@ -609,6 +609,70 @@ module AutoGVNModule = struct
       | Some infrs -> Some (h@infrs@t)
       | _ -> None
 
+    let make_trunc scp ld ty1 s ty2 d : Infrule.t list =
+      match Auto.find_first_match (fun ep -> match ep with
+                                             | (Expr.Coq_trunc (top, tya, v1, tyb), Expr.Coq_value v2) when (LLVMinfra.typ_dec tya ty1) -> Some (v1, tyb, v2)
+                                             | _ -> None) (ExprPairSet.elements ld) with
+      | Some (_, (v1, tyb, v2)) ->
+         (if (LLVMinfra.typ_dec tyb ty2) then [] else
+            match Auto.find_first_match (fun ep -> match ep with
+                                                   | (Expr.Coq_trunc (top, tya, v1, tyb), Expr.Coq_value v2) when (LLVMinfra.typ_dec tyb ty2) -> Some (v2)
+                                                   | _ -> None) (ExprPairSet.elements ld) with
+            | Some (_, v3) -> [Infrule.Coq_trunc_trunc_rev_tgt (v1, v2, v3, ty1, tyb, ty2)]
+            | None -> [])
+      | _ -> []
+
+    let make_bc scp ld ty1 s ty2 d : Infrule.t list =
+      match Auto.find_first_match (fun ep -> match ep with
+                                             | (Expr.Coq_cast (cop, tya, v1, tyb), Expr.Coq_value v2) when (LLVMinfra.typ_dec tya ty1) -> Some (v1, tyb, v2)
+                                             | _ -> None) (ExprPairSet.elements ld) with
+      | Some (_, (v1, tyb, v2)) ->
+         (if (LLVMinfra.typ_dec tyb ty2) then [] else
+            match Auto.find_first_match (fun ep -> match ep with
+                                                   | (Expr.Coq_cast (cop, tya, v1, tyb), Expr.Coq_value v2) when (LLVMinfra.typ_dec tyb ty2) -> Some (v2)
+                                                   | _ -> None) (ExprPairSet.elements ld) with
+            | Some (_, v3) -> [Infrule.Coq_bitcast_bitcast_rev_tgt (v1, v2, v3, ty1, tyb, ty2)]
+            | None -> [])
+      | _ -> []
+
+    let hintgenLoad scp ld oell el er oerr : (Infrule.t list) option =
+      match scp with
+      | Auto.Src -> failwith "hintgenLoad src not implemented yet."
+      | Auto.Tgt ->
+         match oell, el, er with
+         | (Some e_g), (Expr.Coq_value x), (Expr.Coq_value y) ->
+            (match Auto.find_first_match (fun e -> match e with
+                                              | Expr.Coq_load (v, ty, a) -> Some (v, ty, a)
+                                              | _ -> None) (Auto.get_rhs_list ld el) with
+             | Some (_, (v1, ty1, a)) ->
+                (match Auto.find_first_match (fun ep -> match ep with
+                                                   | (Expr.Coq_load (v, ty, a), Expr.Coq_value z) ->
+                                                      if (ValueT.eq_dec v1 v) then None
+                                                      else Some(v, ty, z)
+                                                   | _ -> None) (ExprPairSet.elements ld) with
+                 | Some (_, (v2, ty2, z)) ->
+                    let infrs1 = make_trunc scp ld ty2 z ty1 y in
+                    let infrs2 =
+                      match v2 with
+                      | ValueT.Coq_const (Coq_const_castop (_, c, _)) ->
+                         [Infrule.Coq_trunc_load_const_bitcast_rev_tgt (c, z, y, ty1, ty2, a)]
+                      | _ ->
+                         (make_bc scp ld (Coq_typ_pointer ty1) v1 (Coq_typ_pointer ty2) v2)@
+                           [Infrule.Coq_trunc_load_bitcast_rev_tgt (v1, v2, z, y, ty1, ty2, a)]
+                    in Some (infrs1@infrs2@(AutoTransHelper.gen_infrules scp [e_g; el; Expr.Coq_load (v1, ty1, a); er]))
+                 | _ -> None)
+             | _ -> None)
+         | _, _, _ -> None
+
+    (* TODO: Coq_typ_pointer *)
+    (* TODO: get rhs of x : [load p1 ty1 a] *)
+    (* TODO: find other [load p2 ty2 a >= z] *)
+    (* TODO: make [trunc ty2 z ty1 >= y] *)
+    (* TODO: find if p1, p2 are const, ok. otherwise, make [bitcast ty1 p1 ty2 >= p2] *)
+    (* TODO: for each case, [load p1 ty1 a >= y is added *)
+    (* TODO: transitivity [ e_g >= x >= load p1 .. >= y*)
+         
+
     let try_resolve_icmp scp ld e1 e2 : (Infrule.t list) option =
       match e1, e2 with
       | Expr.Coq_icmp (c, ty, v1, v2),
@@ -666,7 +730,7 @@ module AutoGVNModule = struct
                 | _ -> [e_other]
               in
               match e_cand_opts with
-              | [] -> None
+              | [] -> Some (e_other, [Infrule.Coq_intro_ghost (e_other, g)], (g, e_other)::acc_ghosts)
               | e_cand::_ -> 
                  (* let e_cand_gs = List.map *)
                  let e_cand_g =
@@ -714,7 +778,9 @@ module AutoGVNModule = struct
             in
             print_endline ("before calling SubstTrans: "^(Printer.ExprsToString.of_expr el)^(Printer.ExprsToString.of_expr er));
             match NewAutoSubstTransHelper.run 0 scp ld oell el er oerr with
-            | None -> None
+            | None -> (match hintgenLoad scp ld oell el er oerr with
+                       | Some infrs2 -> Some (infrs1@infrs2, acc_ghosts2)
+                       | None -> None)
             | Some infrs2 -> Some (infrs1@infrs2, acc_ghosts2)
 
     let rec run_intl (scp:Auto.scope_t) (ld:ExprPairSet.t) (ld_other:ExprPairSet.t) (ldl_g:ExprPair.t list)
