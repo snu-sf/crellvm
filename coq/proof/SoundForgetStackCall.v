@@ -113,16 +113,16 @@ Proof.
     ss.
 Qed.
 
-Lemma genericvalues_inject_simulation__GV2ptr_tgt:
-  forall (mi : Values.meminj) (TD : TargetData) (gv1 gv1' : GenericValue) (v' : Values.val),
-    genericvalues_inject.gv_inject mi gv1 gv1' ->
-    GV2ptr TD (getPointerSize TD) gv1' = Some v' ->
-    exists v : Values.val, GV2ptr TD (getPointerSize TD) gv1 = Some v /\ memory_sim.MoreMem.val_inject mi v v'.
-Proof.
-  i. exploit external_intrinsics.GV2ptr_inv; eauto. i. des.
-  subst. inv H. inv H4. ss.
-  inv H6. esplits; eauto.
-Qed.
+(* Lemma genericvalues_inject_simulation__GV2ptr_tgt: *)
+(*   forall (mi : Values.meminj) (TD : TargetData) (gv1 gv1' : GenericValue) (v' : Values.val), *)
+(*     genericvalues_inject.gv_inject mi gv1 gv1' -> *)
+(*     GV2ptr TD (getPointerSize TD) gv1' = Some v' -> *)
+(*     exists v : Values.val, GV2ptr TD (getPointerSize TD) gv1 = Some v /\ memory_sim.MoreMem.val_inject mi v v'. *)
+(* Proof. *)
+(*   i. exploit external_intrinsics.GV2ptr_inv; eauto. i. des. *)
+(*   subst. inv H. inv H4. ss. *)
+(*   inv H6. esplits; eauto. *)
+(* Qed. *)
 
 Lemma genericvalues_inject_wf_valid_ptrs_src
       invmem
@@ -152,15 +152,18 @@ Lemma genericvalues_inject_wf_valid_ptrs_tgt
       mem_tgt gv_tgt
       (INJ_FIT : genericvalues_inject.gv_inject invmem.(InvMem.Rel.inject) gv_src gv_tgt)
       (WF : genericvalues_inject.wf_sb_mi invmem.(InvMem.Rel.gmax) invmem.(InvMem.Rel.inject) mem_src mem_tgt)
+      (NOTUNDEF: List.Forall (fun v => v.(fst) <> Values.Vundef) gv_src)
   : memory_props.MemProps.valid_ptrs (Memory.Mem.nextblock mem_tgt) gv_tgt.
 Proof.
   generalize dependent gv_src.
   inv WF.
   induction gv_tgt; i; ss.
-  des_ifs; inv INJ_FIT;
+  inv INJ_FIT. inv NOTUNDEF.
+  des_ifs;
     try by eapply IHgv_tgt; eauto.
   inv H2.
-  split; eauto.
+  - split; eauto.
+  - ss.
 Qed.
 
 Lemma gv_inject_public_src
@@ -184,6 +187,7 @@ Lemma gv_inject_public_tgt
       gv_src gv_tgt meminj b
           (INJECT: genericvalues_inject.gv_inject meminj gv_src gv_tgt)
           (IN: In b (GV2blocks gv_tgt))
+          (NOTUNDEF: List.Forall (fun v => v.(fst) <> Values.Vundef) gv_src)
       :
         <<PUBLIC: InvMem.Rel.public_tgt meminj b>>
 .
@@ -192,10 +196,12 @@ Proof.
   - eapply GV2blocks_In_cons in IN.
     des.
     + destruct v2; ss. des; ss. subst.
-      inv H.
       unfold InvMem.Rel.public_tgt.
-      esplits; eauto.
+      inv H.
+      * esplits; eauto.
+      * inv NOTUNDEF. ss.
     + exploit IHINJECT; eauto.
+      inv NOTUNDEF. ss.
 Qed.
 
 
@@ -207,6 +213,7 @@ Lemma gv_inject_no_private
       (STATE : InvState.Rel.sem conf_src conf_tgt st_src st_tgt invst invmem inv)
       (MEM : InvMem.Rel.sem conf_src conf_tgt st_src.(Mem) st_tgt.(Mem) invmem)
       (INJECT: genericvalues_inject.gv_inject (InvMem.Rel.inject invmem) gv_src gv_tgt)
+      (NOTUNDEF: List.Forall (fun v => v.(fst) <> Values.Vundef) gv_src)
   : <<DIFF_FROM_PRIVATE_SRC:
     forall p_src gv_p_src
       (PRIVATE_SRC: Exprs.IdTSet.mem p_src inv.(Invariant.src).(Invariant.private) = true)
@@ -323,7 +330,7 @@ Proof.
       clarify.
       esplits; eauto.
 
-      exploit gv_inject_no_private; eauto. intros DIFF_FROM_PRIVATE. des.
+      exploit gv_inject_no_private; eauto. { admit. } intros DIFF_FROM_PRIVATE. des.
 
       unfold ForgetStackCall.t.
       eapply forget_stack_sound; eauto.
@@ -395,6 +402,7 @@ Proof.
             exploit PRIVATE_PARENT; eauto. intros [NOT_PUBLIC _].
             apply NOT_PUBLIC.
             eapply gv_inject_public_tgt; eauto.
+            { admit. }
           }
           { erewrite <- lookupAL_updateAddAL_neq in PTR; eauto.
             exploit UNIQUE_PARENT_LOCAL; eauto. }
@@ -408,6 +416,7 @@ Proof.
         apply memory_props.MemProps.updateAddAL__wf_lc; eauto.
         inv MEM.
         exploit genericvalues_inject_wf_valid_ptrs_tgt; eauto.
+        { admit. }
       }
       { apply STATE. }
       { apply STATE. }
@@ -442,4 +451,4 @@ Proof.
       apply forget_stack_Subset. }
     eapply invst_sem_eq_locals_mem; try exact STATE; eauto.
   }
-Qed.
+Admitted.

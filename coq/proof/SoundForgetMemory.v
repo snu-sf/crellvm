@@ -120,28 +120,17 @@ Lemma simulation__GV2ptr_tgt
        GV2ptr TD (getPointerSize TD) gv1' = Some v' ->
        exists v : Values.val, GV2ptr TD (getPointerSize TD) gv1 = Some v /\ memory_sim.MoreMem.val_inject mi v v'.
 Proof.
-  i.
-  unfold GV2ptr in *.
-  destruct gv1'; clarify.
-  destruct p. destruct v; clarify.
-  destruct gv1'; clarify.
-  destruct gv1; inv H.
-  destruct v1; inv H3.
-  inv H6.
-  esplits; eauto.
-Qed.
-
-Lemma gv_inject_ptr_public_tgt
-      ptr
-      ptr_tgt conf_tgt b_tgt ofs_tgt
-      invmem
-      (PTR_INJECT : genericvalues_inject.gv_inject (InvMem.Rel.inject invmem) ptr ptr_tgt)
-      (PTR_TGT : GV2ptr (CurTargetData conf_tgt) (getPointerSize (CurTargetData conf_tgt)) ptr_tgt = Some (Values.Vptr b_tgt ofs_tgt))
-  : InvMem.Rel.public_tgt (InvMem.Rel.inject invmem) b_tgt.
-Proof.
-  exploit simulation__GV2ptr_tgt; try exact PTR_TGT; eauto. i. des.
-  inv x1. unfold InvMem.Rel.public_tgt. esplits; eauto.
-Qed.
+(*   i. *)
+(*   unfold GV2ptr in *. *)
+(*   destruct gv1'; clarify. *)
+(*   destruct p. destruct v; clarify. *)
+(*   destruct gv1'; clarify. *)
+(*   destruct gv1; inv H. *)
+(*   destruct v1; inv H3. *)
+(*   - admit. *)
+(*   - inv H6. esplits; eauto. *)
+(* Qed. *)
+Abort.
 
 (* Subset *)
 
@@ -1101,7 +1090,9 @@ Proof.
             unfold InvMem.private_block in *. des.
             split; eauto.
             erewrite <- MemProps.nextblock_mstore_aux; eauto.
-          * i. hexploit gv_inject_ptr_public_tgt; try exact PTR_INJECT; eauto. i.
+          * i. hexploit gv_inject_ptr_public_tgt; try exact PTR_INJECT; eauto.
+            { compute in GV2PTR_SRC. des_ifs. }
+            i.
             exploit MEM_PARENT; eauto. intro MLOAD_EQ. rewrite MLOAD_EQ.
             eapply mstore_aux_preserves_mload_aux_eq; eauto.
             ii. subst.
@@ -1302,7 +1293,9 @@ Proof.
             unfold InvMem.private_block in *. des.
             split; eauto.
             erewrite Mem.nextblock_free; eauto.
-          * i. hexploit gv_inject_ptr_public_tgt; try exact PTR_INJECT; eauto. i.
+          * i. hexploit gv_inject_ptr_public_tgt; try exact PTR_INJECT; eauto.
+            { compute in GV2PTR_SRC. des_ifs. }
+            i.
             exploit MEM_PARENT; eauto. intro MLOAD_EQ. rewrite MLOAD_EQ.
             exploit free_preserves_mload_aux_eq; try exact FREE_TGT; eauto.
             exploit PRIVATE_PARENT; eauto. i.

@@ -850,17 +850,24 @@ Lemma all_undef_lessdef_aux
       gv1 gv2
       (VUNDEFS : Forall (eq Values.Vundef) (List.map fst gv1))
       (CHUNKS : List.map snd gv1 = List.map snd gv2)
+      (UNDEF_OR_VALID: Forall (fun v => v.(fst) <> Values.Vundef -> Values.Val.has_chunkb v.(fst) v.(snd)) gv2)
   : GVs.lessdef gv1 gv2.
 Proof.
-  revert gv2 CHUNKS.
+  revert gv2 CHUNKS UNDEF_OR_VALID.
   induction gv1; i; ss.
   - destruct gv2; ss. econs.
   - destruct gv2; ss.
     inv CHUNKS. inv VUNDEFS.
     econs.
     { split; eauto.
-      rewrite <- H3. eauto. }
+      - rewrite <- H3. eauto.
+      - destruct a, p; ss. clarify.
+        split; ss.
+        i.
+        inv UNDEF_OR_VALID. ss. apply H5; ss.
+    }
     eapply IHgv1; eauto.
+    inv UNDEF_OR_VALID. ss.
 Qed.
 
 Lemma fit_gv_chunks_aux
@@ -1399,3 +1406,37 @@ Lemma mem_le_private_parent
 Proof.
   splits; apply MEMLE.
 Qed.
+
+Lemma simulation__GV2ptr_tgt
+     : forall (mi : Values.meminj) (TD : TargetData) (gv1 gv1' : GenericValue) (v' : Values.val),
+       genericvalues_inject.gv_inject mi gv1 gv1' ->
+       GV2ptr TD (getPointerSize TD) gv1' = Some v' ->
+       option_map fst (List.hd_error gv1) <> Some Values.Vundef ->
+       exists v : Values.val, GV2ptr TD (getPointerSize TD) gv1 = Some v /\ memory_sim.MoreMem.val_inject mi v v'.
+Proof.
+  i.
+  unfold GV2ptr in *.
+  destruct gv1'; clarify.
+  destruct p. destruct v; clarify.
+  destruct gv1'; clarify.
+  destruct gv1; inv H.
+  destruct v1; inv H4.
+  - compute in H1. exploit H1; eauto. i; ss.
+  - inv H7. esplits; eauto.
+Qed.
+
+Lemma gv_inject_ptr_public_tgt
+      ptr
+      ptr_tgt conf_tgt b_tgt ofs_tgt
+      invmem
+      (PTR_INJECT : genericvalues_inject.gv_inject (InvMem.Rel.inject invmem) ptr ptr_tgt)
+      (PTR_TGT : GV2ptr (CurTargetData conf_tgt) (getPointerSize (CurTargetData conf_tgt)) ptr_tgt = Some (Values.Vptr b_tgt ofs_tgt))
+      (NOTUNDEF: option_map fst (hd_error ptr) <> Some Values.Vundef)
+  : InvMem.Rel.public_tgt (InvMem.Rel.inject invmem) b_tgt.
+Proof.
+  exploit simulation__GV2ptr_tgt; try exact PTR_TGT; eauto. i. des.
+  inv x1.
+  - unfold InvMem.Rel.public_tgt. esplits; eauto.
+  - compute in NOTUNDEF. des_ifs. ss. des_ifs.
+Qed.
+

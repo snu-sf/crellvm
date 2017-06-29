@@ -18,7 +18,8 @@ Module GVs.
     list_forall2
       (fun vc1 vc2 =>
          Val.lessdef vc1.(fst) vc2.(fst) /\
-         vc1.(snd) = vc2.(snd))
+         vc1.(snd) = vc2.(snd) /\
+         (vc1.(fst) = Vundef -> vc2.(fst) <> Vundef -> Val.has_chunkb vc2.(fst) vc2.(snd)))
       v1 v2.
 
   Definition inject (alpha:meminj) (v1 v2:GenericValue): Prop :=
@@ -31,8 +32,11 @@ Module GVs.
   Lemma lessdef_refl x:
         <<REFL: lessdef x x>>.
   Proof.
-    induction x; ii; ss; des; econs.
-    esplits; eauto. apply IHx.
+    induction x; ii; ss; des.
+    { econs. }
+    econs.
+    - esplits; eauto. i. ss.
+    - apply IHx.
   Qed.
 
   Lemma lessdef_inject_compose_single mij a b c
@@ -40,17 +44,9 @@ Module GVs.
         (INJECT: memory_sim.MoreMem.val_inject mij b c):
     << INJECT: memory_sim.MoreMem.val_inject mij a c >>.
   Proof.
-    inv LD; inv INJECT; ss; try (econs; eauto; fail).
-    - ADMIT "Vellvm undef inject
-Vellvm's inject definition (Vellvm.Vellvm.memory_sim.MoreMem.val_inject)
-does not provide ""forall v, Vundef >= v"".
-This should be provided, conceptually this is correct.
-FYI, look at (compcert.common.Values.val_inject).
-".
-    - ADMIT "Vellvm undef inject".
-    - ADMIT "Vellvm undef inject".
-    - ADMIT "Vellvm undef inject".
-    - ADMIT "Vellvm undef inject".
+    inv LD; inv INJECT; ss; try (econs; eauto; memory_sim.MoreMem.public_auto; fail).
+    - econs; eauto. memory_sim.MoreMem.public_auto.
+      esplits; eauto.
   Qed.
 
   Lemma inject_lessdef_compose_single mij a b c
@@ -58,8 +54,10 @@ FYI, look at (compcert.common.Values.val_inject).
         (LD: Val.lessdef b c):
     << INJECT: memory_sim.MoreMem.val_inject mij a c >>.
   Proof.
-    inv LD; inv INJECT; ss; try (econs; eauto; fail).
-    - ADMIT "Vellvm undef inject".
+    inv LD; inv INJECT; ss; try (econs; eauto; memory_sim.MoreMem.public_auto; fail).
+    - econs; eauto. memory_sim.MoreMem.public_auto.
+      inv PUBLIC. exploit PUBLIC0; eauto. i; des.
+      esplits; eauto.
   Qed.
 
   Lemma lessdef_inject_compose mij a b c
@@ -75,6 +73,13 @@ FYI, look at (compcert.common.Values.val_inject).
     inv INJECT.
     inv LD; ss. des. destruct a1; ss. clarify.
     econs; eauto.
+    { i. clarify. inv H4; ss.
+      - eapply CHUNK; eauto.
+      - destruct (classic (v1 = Vundef)).
+        + clarify.
+          inv H1. eapply CHUNK; eauto.
+        + inv H1; try eapply H2; ss.
+    }
     eapply lessdef_inject_compose_single; eauto.
   Qed.
 
@@ -91,7 +96,12 @@ FYI, look at (compcert.common.Values.val_inject).
     inv INJECT.
     inv LD; ss. des. destruct b1; ss. clarify.
     econs; eauto.
-    eapply inject_lessdef_compose_single; eauto.
+    - i. clarify.
+      destruct (classic (v2 = Vundef)).
+      + clarify. apply H4; ss.
+      + inv H1; ss.
+        apply CHUNK; ss.
+    - eapply inject_lessdef_compose_single; eauto.
   Qed.
 End GVs.
 

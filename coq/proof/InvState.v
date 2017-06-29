@@ -588,6 +588,7 @@ Module Rel.
     exploit genericvalues_inject.simulation_mload_aux;
       try apply VAL_SRC; eauto; []; ii; des; eauto.
     esplits; eauto.
+    clear CHUNK.
     des_ifs. rewrite <- H0.
     (* not to spill inv contents outside of assertion proof *)
     replace delta with 0 in *; cycle 1.
@@ -648,6 +649,7 @@ Module Rel.
     exploit genericvalues_inject.simulation_mload_aux;
       try apply VAL_SRC; eauto; []; ii; des; eauto.
     esplits; eauto.
+    clear CHUNK.
     des_ifs. rewrite <- H.
     (* not to spill inv contents outside of assertion proof *)
     replace delta with 0 in *; cycle 1.

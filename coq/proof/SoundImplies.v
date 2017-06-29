@@ -83,7 +83,14 @@ Next Obligation.
   ii. des.
   split.
   - eapply Values.Val.lessdef_trans; eauto.
-  - etransitivity; eauto.
+  - destruct x0, y0, z0; ss. clarify.
+    split; ss.
+    i. clarify.
+    destruct (classic (v0 = Values.Vundef)).
+    + inv H2; ss.
+      apply H4; ss.
+    + inv H2; ss.
+      apply H6; ss.
 Qed.
 
 Lemma implies_lessdef_sound

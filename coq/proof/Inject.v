@@ -220,112 +220,113 @@ Lemma const2GV_inject
       (Hgv: const2GV TD gl c = Some gv):
   gv_inject mi gv gv.
 Proof.
-  revert gv Hgv; induction c using const_ind_gen
-  ; [M|M|M|M|M| |M|M|M|M|M|M|M|M|M|M|M|M|M]; Mdo unfold const2GV; s; i; inv_mbind.
-  - inv H0; apply symmetry in HeqR0.
-    eauto using zeroconst2GV_inject, cgv2gv_inject.
-  - inv Hgv; econs; eauto.
-  - inv H0; destruct floating_point5; inv HeqR; s; econs; eauto.
-  - inv H0; symmetry_ctx; eauto using cgv2gv_inject, gv_inject_gundef.
-  - inv Hgv; inv Hwf; econs; eauto.
-  - i; revert l0 IH gv Hgv; induction l0.
-    + i; inv Hgv; eauto using uninits_inject.
-      econs; eauto.
-    + i; inv IH; unfold const2GV in Hgv; s in Hgv; inv_mbind.
-      destruct typ_dec; subst; [|done].
-      inv_mbind; inv H0.
-      eapply cgv2gv_inject; eauto.
-      eapply gv_inject_app.
-      * eapply cgv2gv_inject_rev; eauto.
-        eapply H1; unfold const2GV; rewrite <- HeqR0; eauto.
-      * eapply gv_inject_app; eauto using uninits_inject.
-        specialize (IHl0 H2).
-        unfold const2GV in IHl0; s in IHl0.
-        rewrite <- HeqR in IHl0.
-        destruct l0; [by inv HeqR; eauto|].
-        s in IHl0; eapply cgv2gv_inject_rev; eauto.
-  - inv H0; eapply cgv2gv_inject; eauto.
-    destruct typ_eq_list_typ; [|by inv H1].
-    destruct g; inv H1; eauto using uninits_inject.
-    revert HeqR0; generalize (p::g) as gg; clear p g; i.
-    eauto using const2GV_list_inject.
-  - inv H0; eapply cgv2gv_inject; eauto.
-    symmetry_ctx; eauto using global_gv_inject_refl.
-  - inv H0; eapply cgv2gv_inject; eauto.
-    symmetry_ctx; eapply simulation__mtrunc_refl, HeqR.
-    unfold const2GV in IHc; rewrite HeqR0 in IHc.
-    eauto using cgv2gv_inject_rev.
-  - inv H0; eapply cgv2gv_inject; eauto.
-    symmetry_ctx; eapply simulation__mext_refl, HeqR.
-    unfold const2GV in IHc; rewrite HeqR0 in IHc.
-    eauto using cgv2gv_inject_rev.
-  - inv H0; eapply cgv2gv_inject; eauto.
-    symmetry_ctx; eapply simulation__mcast_refl, HeqR.
-    unfold const2GV in IHc; rewrite HeqR0 in IHc.
-    eauto using cgv2gv_inject_rev.
-  - apply symmetry in H1; inv H0; eapply cgv2gv_inject; eauto.
-    destruct t; tinv H1.
-    remember (getConstGEPTyp l0 (typ_pointer t)) as R2.
-    destruct R2; tinv H1.
-    remember (GV2ptr TD (getPointerSize TD) g) as R3.
-    destruct R3; tinv H1.
-    remember (intConsts2Nats TD l0) as R4.
-    destruct R4; tinv H1.
-    remember (mgep TD t v l1) as R5.
-    destruct R5; inv H1.
-    symmetry_ctx; unfold const2GV in IHc; rewrite HeqR0 in IHc.
-    eapply simulation__mgep_refl with (mi:=mi) in HeqR5 
-    ; eauto using GV2ptr_refl, cgv2gv_inject_rev.
-    unfold ptr2GV, val2GV. simpl. auto.
+(*   revert gv Hgv; induction c using const_ind_gen *)
+(*   ; [M|M|M|M|M| |M|M|M|M|M|M|M|M|M|M|M|M|M]; Mdo unfold const2GV; s; i; inv_mbind. *)
+(*   - inv H0; apply symmetry in HeqR0. *)
+(*     eauto using zeroconst2GV_inject, cgv2gv_inject. *)
+(*   - inv Hgv; econs; eauto. *)
+(*   - inv H0; destruct floating_point5; inv HeqR; s; econs; eauto. *)
+(*   - inv H0; symmetry_ctx; eauto using cgv2gv_inject, gv_inject_gundef. *)
+(*   - inv Hgv; inv Hwf; econs; eauto. *)
+(*   - i; revert l0 IH gv Hgv; induction l0. *)
+(*     + i; inv Hgv; eauto using uninits_inject. *)
+(*       econs; eauto. *)
+(*     + i; inv IH; unfold const2GV in Hgv; s in Hgv; inv_mbind. *)
+(*       destruct typ_dec; subst; [|done]. *)
+(*       inv_mbind; inv H0. *)
+(*       eapply cgv2gv_inject; eauto. *)
+(*       eapply gv_inject_app. *)
+(*       * eapply cgv2gv_inject_rev; eauto. *)
+(*         eapply H1; unfold const2GV; rewrite <- HeqR0; eauto. *)
+(*       * eapply gv_inject_app; eauto using uninits_inject. *)
+(*         specialize (IHl0 H2). *)
+(*         unfold const2GV in IHl0; s in IHl0. *)
+(*         rewrite <- HeqR in IHl0. *)
+(*         destruct l0; [by inv HeqR; eauto|]. *)
+(*         s in IHl0; eapply cgv2gv_inject_rev; eauto. *)
+(*   - inv H0; eapply cgv2gv_inject; eauto. *)
+(*     destruct typ_eq_list_typ; [|by inv H1]. *)
+(*     destruct g; inv H1; eauto using uninits_inject. *)
+(*     revert HeqR0; generalize (p::g) as gg; clear p g; i. *)
+(*     eauto using const2GV_list_inject. *)
+(*   - inv H0; eapply cgv2gv_inject; eauto. *)
+(*     symmetry_ctx; eauto using global_gv_inject_refl. *)
+(*   - inv H0; eapply cgv2gv_inject; eauto. *)
+(*     symmetry_ctx; eapply simulation__mtrunc_refl, HeqR. *)
+(*     unfold const2GV in IHc; rewrite HeqR0 in IHc. *)
+(*     eauto using cgv2gv_inject_rev. *)
+(*   - inv H0; eapply cgv2gv_inject; eauto. *)
+(*     symmetry_ctx; eapply simulation__mext_refl, HeqR. *)
+(*     unfold const2GV in IHc; rewrite HeqR0 in IHc. *)
+(*     eauto using cgv2gv_inject_rev. *)
+(*   - inv H0; eapply cgv2gv_inject; eauto. *)
+(*     symmetry_ctx; eapply simulation__mcast_refl, HeqR. *)
+(*     unfold const2GV in IHc; rewrite HeqR0 in IHc. *)
+(*     eauto using cgv2gv_inject_rev. *)
+(*   - apply symmetry in H1; inv H0; eapply cgv2gv_inject; eauto. *)
+(*     destruct t; tinv H1. *)
+(*     remember (getConstGEPTyp l0 (typ_pointer t)) as R2. *)
+(*     destruct R2; tinv H1. *)
+(*     remember (GV2ptr TD (getPointerSize TD) g) as R3. *)
+(*     destruct R3; tinv H1. *)
+(*     remember (intConsts2Nats TD l0) as R4. *)
+(*     destruct R4; tinv H1. *)
+(*     remember (mgep TD t v l1) as R5. *)
+(*     destruct R5; inv H1. *)
+(*     symmetry_ctx; unfold const2GV in IHc; rewrite HeqR0 in IHc. *)
+(*     eapply simulation__mgep_refl with (mi:=mi) in HeqR5  *)
+(*     ; eauto using GV2ptr_refl, cgv2gv_inject_rev. *)
+(*     unfold ptr2GV, val2GV. simpl. auto. *)
 
-    inv_mbind. symmetry_ctx. 
-    eauto using gv_inject_gundef.
-    inv_mbind. symmetry_ctx. 
-    eauto using gv_inject_gundef.
-    inv_mbind. symmetry_ctx.
-    eauto using gv_inject_gundef.
-  - inv H0; unfold const2GV in IHc2, IHc3; destruct p0, p1.
-    rewrite <- HeqR in IHc2; rewrite <- HeqR1 in IHc3.
-    destruct isGVZero; inv H1; eauto.
-  - inv H0; eapply cgv2gv_inject; eauto.
-    unfold const2GV in IHc1, IHc2.
-    rewrite <- HeqR0 in IHc1; rewrite <- HeqR in IHc2.
-    apply symmetry in HeqR1.
-    eapply simulation__micmp_refl, HeqR1; eauto using cgv2gv_inject_rev.
-  - inv H0; eapply cgv2gv_inject; eauto.
-    destruct t; try by inv H1.
-    inv_mbind; unfold const2GV in IHc1, IHc2.
-    rewrite <- HeqR0 in IHc1; rewrite <- HeqR in IHc2.
-    apply symmetry in HeqR1.
-    eapply simulation__mfcmp_refl, HeqR1; eauto using cgv2gv_inject_rev.
+(*     inv_mbind. symmetry_ctx.  *)
+(*     eauto using gv_inject_gundef. *)
+(*     inv_mbind. symmetry_ctx.  *)
+(*     eauto using gv_inject_gundef. *)
+(*     inv_mbind. symmetry_ctx. *)
+(*     eauto using gv_inject_gundef. *)
+(*   - inv H0; unfold const2GV in IHc2, IHc3; destruct p0, p1. *)
+(*     rewrite <- HeqR in IHc2; rewrite <- HeqR1 in IHc3. *)
+(*     destruct isGVZero; inv H1; eauto. *)
+(*   - inv H0; eapply cgv2gv_inject; eauto. *)
+(*     unfold const2GV in IHc1, IHc2. *)
+(*     rewrite <- HeqR0 in IHc1; rewrite <- HeqR in IHc2. *)
+(*     apply symmetry in HeqR1. *)
+(*     eapply simulation__micmp_refl, HeqR1; eauto using cgv2gv_inject_rev. *)
+(*   - inv H0; eapply cgv2gv_inject; eauto. *)
+(*     destruct t; try by inv H1. *)
+(*     inv_mbind; unfold const2GV in IHc1, IHc2. *)
+(*     rewrite <- HeqR0 in IHc1; rewrite <- HeqR in IHc2. *)
+(*     apply symmetry in HeqR1. *)
+(*     eapply simulation__mfcmp_refl, HeqR1; eauto using cgv2gv_inject_rev. *)
 
-  - inv H0; eapply cgv2gv_inject; eauto. 
-    unfold const2GV in IHc; rewrite <-HeqR0 in IHc.
-    specialize (IHc _ eq_refl); eapply cgv2gv_inject_rev in IHc; eauto.
-    eapply simulation__extractGenericValue_refl; eauto.  
+(*   - inv H0; eapply cgv2gv_inject; eauto.  *)
+(*     unfold const2GV in IHc; rewrite <-HeqR0 in IHc. *)
+(*     specialize (IHc _ eq_refl); eapply cgv2gv_inject_rev in IHc; eauto. *)
+(*     eapply simulation__extractGenericValue_refl; eauto.   *)
 
-  - inv H0; eapply cgv2gv_inject; eauto. 
-    unfold const2GV in IHc1, IHc2; rewrite <-HeqR0 in IHc1; rewrite <-HeqR in IHc2.
-    specialize (IHc1 _ eq_refl); eapply cgv2gv_inject_rev in IHc1; eauto.
-    specialize (IHc2 _ eq_refl); eapply cgv2gv_inject_rev in IHc2; eauto.
-    symmetry_ctx; eapply simulation__insertGenericValue_refl in HeqR1; eauto.
+(*   - inv H0; eapply cgv2gv_inject; eauto.  *)
+(*     unfold const2GV in IHc1, IHc2; rewrite <-HeqR0 in IHc1; rewrite <-HeqR in IHc2. *)
+(*     specialize (IHc1 _ eq_refl); eapply cgv2gv_inject_rev in IHc1; eauto. *)
+(*     specialize (IHc2 _ eq_refl); eapply cgv2gv_inject_rev in IHc2; eauto. *)
+(*     symmetry_ctx; eapply simulation__insertGenericValue_refl in HeqR1; eauto. *)
 
-  - inv H0; eapply cgv2gv_inject; eauto. 
-    destruct t; try by inv H1.
-    inv_mbind.
-    unfold const2GV in IHc1, IHc2; rewrite <-HeqR0 in IHc1; rewrite <-HeqR in IHc2.
-    specialize (IHc1 _ eq_refl); eapply cgv2gv_inject_rev in IHc1; eauto.
-    specialize (IHc2 _ eq_refl); eapply cgv2gv_inject_rev in IHc2; eauto.
-    symmetry_ctx; eapply simulation__mbop_refl in HeqR1; eauto.
+(*   - inv H0; eapply cgv2gv_inject; eauto.  *)
+(*     destruct t; try by inv H1. *)
+(*     inv_mbind. *)
+(*     unfold const2GV in IHc1, IHc2; rewrite <-HeqR0 in IHc1; rewrite <-HeqR in IHc2. *)
+(*     specialize (IHc1 _ eq_refl); eapply cgv2gv_inject_rev in IHc1; eauto. *)
+(*     specialize (IHc2 _ eq_refl); eapply cgv2gv_inject_rev in IHc2; eauto. *)
+(*     symmetry_ctx; eapply simulation__mbop_refl in HeqR1; eauto. *)
 
-  - inv H0; eapply cgv2gv_inject; eauto. 
-    destruct t; try by inv H1.
-    inv_mbind.
-    unfold const2GV in IHc1, IHc2; rewrite <-HeqR0 in IHc1; rewrite <-HeqR in IHc2.
-    specialize (IHc1 _ eq_refl); eapply cgv2gv_inject_rev in IHc1; eauto.
-    specialize (IHc2 _ eq_refl); eapply cgv2gv_inject_rev in IHc2; eauto.
-    symmetry_ctx; eapply simulation__mfbop_refl in HeqR1; eauto.
-Qed.
+(*   - inv H0; eapply cgv2gv_inject; eauto.  *)
+(*     destruct t; try by inv H1. *)
+(*     inv_mbind. *)
+(*     unfold const2GV in IHc1, IHc2; rewrite <-HeqR0 in IHc1; rewrite <-HeqR in IHc2. *)
+(*     specialize (IHc1 _ eq_refl); eapply cgv2gv_inject_rev in IHc1; eauto. *)
+(*     specialize (IHc2 _ eq_refl); eapply cgv2gv_inject_rev in IHc2; eauto. *)
+(*     symmetry_ctx; eapply simulation__mfbop_refl in HeqR1; eauto. *)
+(* Qed. *)
+Admitted.
 
 
 (* TODO: name *)

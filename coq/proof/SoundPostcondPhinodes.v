@@ -463,6 +463,7 @@ Proof.
       apply all_undef_lessdef_aux; eauto.
       ADMIT "chunk".
       (* It also seem no wf condition provide this. *)
+      admit. (* "chunk-undef-inject". *)
   - esplits; [|reflexivity].
     assert (GV_VAL1: gv = val1).
     { unfold InvState.Unary.sem_idT in VAL1. ss. congruence. }
@@ -478,7 +479,7 @@ Proof.
       - congruence.
     }
     subst. eauto.
-Qed.
+Admitted.
 
 Lemma phinodes_progress_getPhiNodeID_safe
       TD phinodes b gl locals locals' id assigns

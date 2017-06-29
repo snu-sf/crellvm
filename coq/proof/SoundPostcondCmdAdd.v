@@ -488,7 +488,7 @@ Proof.
         Fail eapply genericvalues_inject.gv_inject_cons.
         move CONF at bottom.
         inv CONF. inv INJECT. simpl in TARGETDATA. clarify.
-        econs; eauto.
+        econs; eauto. { i; clarify. }
         rename mb into _____________mb______________.
         rename mb0 into _____________mb0______________.
         move WF_LOCAL0 at bottom.
@@ -536,6 +536,9 @@ Proof.
   apply all_undef_lessdef_aux; eauto.
   exploit vm_matches_typ__eq__snd; eauto. i.
   rewrite util.snd_split__map_snd in *. eauto.
+  apply vm_matches_typ__gv_has_chunk in H1. unfold gv_has_chunk in *.
+  eapply Forall_impl; eauto.
+  i. ss. des_ifs. apply genericvalues_inject.has_chunk__has_chunkb. s. ss.
 Qed.
 
 Lemma lessdef_definedness
