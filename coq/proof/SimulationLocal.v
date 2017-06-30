@@ -208,7 +208,6 @@ Section SimLocal.
                                 retval3_src id2_src noret2_src typ2_src
                                 st2_src.(EC).(Locals)
                               = Some locals4_src)
-                 (WF_LC: memory_props.MemProps.wf_lc st2_src.(Mem) locals4_src)
         ,
                exists locals4_tgt idx4 inv4,
                  (* TODO: Define update_locals function *)
@@ -217,7 +216,6 @@ Section SimLocal.
                                  retval3_tgt id1_tgt noret1_tgt typ1_tgt
                                  st1_tgt.(EC).(Locals)
                                = Some locals4_tgt>> /\
-                 <<WF_LC: memory_props.MemProps.wf_lc st1_tgt.(Mem) locals4_tgt>> /\
                  <<MEMLE: InvMem.Rel.le inv2 inv4>> /\
                  forall
                    (WF_SRC: wf_StateI conf_src (mkState (mkEC st2_src.(EC).(CurFunction) st2_src.(EC).(CurBB) cmds2_src st2_src.(EC).(Terminator) locals4_src st2_src.(EC).(Allocas)) st2_src.(ECS) mem3_src))
@@ -267,7 +265,7 @@ Section SimLocal.
     - econs 4; eauto.
       i. expl RETURN.
       esplits; eauto.
-      i. specialize (RETURN1 WF_SRC1). specialize (RETURN1 WF_TGT1). des.
+      i. specialize (RETURN0 WF_SRC1). specialize (RETURN0 WF_TGT1). des.
       splits; eauto.
     - econs 5; eauto.
       i. exploit STEP; eauto. i. des.
