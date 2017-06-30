@@ -1397,25 +1397,7 @@ Proof.
       inv MEM. clear SRC INJECT FUNTABLE.
       inv TGT.
       clear MEM_PARENT UNIQUE_PARENT_MEM UNIQUE_PARENT_GLOBALS NEXTBLOCK NEXTBLOCK_PARENT.
-      ii.
-      eapply sublist_In in UNIQUE_PRIVATE_PARENT; eauto.
-      expl PRIVATE_PARENT.
-      expl fully_inject_locals_spec.
-      rewrite PTR in *. unfold lift2_option in *.
-      des_ifs.
-      unfold InvMem.private_block in *. des.
-      clear - PRIVATE_PARENT0 ING fully_inject_locals_spec.
-      ginduction fully_inject_locals_spec; ii; ss.
-      rewrite GV2blocks_cons in ING.
-      apply in_app in ING. des.
-      { destruct v2; ss. des; ss. clarify.
-        apply PRIVATE_PARENT0; eauto.
-        unfold InvMem.Rel.public_tgt.
-        inv H.
-        + esplits; eauto.
-        + admit.
-      }
-      eauto.
+      rewrite TGT_NOUNIQ. ii; ss.
   - ii. clear NOTIN.
     destruct id0; ss.
     destruct t; ss.
