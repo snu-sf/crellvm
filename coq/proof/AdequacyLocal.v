@@ -64,12 +64,14 @@ Inductive sim_local_stack
                         conf_src.(CurTargetData)
                         retval'_src id_src noret_src typ_src
                         locals_src = Some locals'_src)
+         (WF_LC: memory_props.MemProps.wf_lc mem'_src locals'_src)
        ,
        exists inv'' idx' locals'_tgt,
          <<RETURN_TGT: return_locals
                          conf_tgt.(CurTargetData)
                          retval'_tgt id_tgt noret_tgt typ_tgt
                          locals_tgt = Some locals'_tgt>> /\
+         <<WF_LC: memory_props.MemProps.wf_lc mem'_tgt locals'_tgt>> /\
          <<MEMLE: InvMem.Rel.le inv1 inv''>> /\
          forall
            (WF_SRC: wf_StateI conf_src
