@@ -1319,6 +1319,9 @@ Proof.
   econs; ss.
   - eapply forget_stack_unary_sound; eauto.
   - eapply forget_stack_unary_sound; eauto.
+  - eapply AtomSetFacts.Empty_s_m_Proper; eauto. red.
+    ii.
+    apply AtomSetFacts.filter_iff in H; [|solve_compat_bool]. des. ss.
   - i. ss.
     rewrite IdTSetFacts.union_b in NOTIN.
     solve_des_bool.

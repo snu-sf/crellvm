@@ -51,6 +51,7 @@ Inductive sim_local_stack
     (UNIQS_TGT: forall mptr typ align val
                   (LOAD: mload conf_tgt.(CurTargetData) mem_tgt mptr typ align = Some val),
         InvMem.gv_diffblock_with_blocks conf_tgt val uniqs_tgt)
+    (TGT_NOUNIQ: uniqs_tgt = [])
     (UNIQS_GLOBALS_TGT: forall b, In b uniqs_tgt -> (inv1.(InvMem.Rel.gmax) < b)%positive)
     (PRIVS_SRC: forall b, In b privs_src -> InvMem.private_block mem_src (InvMem.Rel.public_src inv1.(InvMem.Rel.inject)) b)
     (PRIVS_TGT: forall b, In b privs_tgt -> InvMem.private_block mem_tgt (InvMem.Rel.public_tgt inv1.(InvMem.Rel.inject)) b)
@@ -507,7 +508,7 @@ Proof.
       * right. apply CIH.
         {
           eapply sim_local_lift_intro with
-              (inv := (InvMem.Rel.lift Mem0 Mem1 uniqs_src uniqs_tgt privs_src privs_tgt inv2)); ss.
+              (inv := (InvMem.Rel.lift Mem0 Mem1 uniqs_src [] privs_src privs_tgt inv2)); ss.
           {
             econstructor 2 with (inv1 := inv2); [..|reflexivity]; ss; try eassumption.
             { etransitivity; eauto. }

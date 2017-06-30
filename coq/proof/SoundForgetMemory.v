@@ -432,13 +432,18 @@ Proof.
       econs; ii; ss; des_ifs.
     + (* InvMem sem *)
       inv MEM; ss.
+      instantiate (3:= InvMem.Unary.mk _
+                                       invmem0.(InvMem.Rel.src).(InvMem.Unary.mem_parent)
+                                       invmem0.(InvMem.Rel.src).(InvMem.Unary.unique_parent)
+                                       mem1_src.(Mem.nextblock)).
+      instantiate (2:= InvMem.Unary.mk _
+                                       invmem0.(InvMem.Rel.tgt).(InvMem.Unary.mem_parent)
+                                       invmem0.(InvMem.Rel.tgt).(InvMem.Unary.unique_parent)
+                                       mem1_tgt.(Mem.nextblock)).
+
       econs; ss; eauto.
       { (* SRC *)
         inv SRC.
-        instantiate (1:= InvMem.Unary.mk _
-                                         invmem0.(InvMem.Rel.src).(InvMem.Unary.mem_parent)
-                                         invmem0.(InvMem.Rel.src).(InvMem.Unary.unique_parent)
-                                         mem1_src.(Mem.nextblock)).
         econs; eauto.
         - eapply MemProps.alloca_preserves_wf_Mem; eauto.
         - ss. i. exploit PRIVATE_PARENT; eauto. intros [NOT_PUBLIC_B NEXT_B].
@@ -462,10 +467,6 @@ Proof.
       }
       { (* TGT *)
         inv TGT.
-        instantiate (1:= InvMem.Unary.mk _
-                                         invmem0.(InvMem.Rel.tgt).(InvMem.Unary.mem_parent)
-                                         invmem0.(InvMem.Rel.tgt).(InvMem.Unary.unique_parent)
-                                         mem1_tgt.(Mem.nextblock)).
         econs; eauto.
         - eapply MemProps.alloca_preserves_wf_Mem; eauto.
         - ss. i. exploit PRIVATE_PARENT; eauto.
@@ -1884,6 +1885,14 @@ Proof.
   econs.
   - eapply forget_memory_sem_unary; try exact SRC; eauto.
   - eapply forget_memory_sem_unary; try exact TGT; eauto.
+  - ss.
+    eapply AtomSetFacts.Empty_s_m; eauto. red.
+    unfold ForgetMemory.unary.
+    des_ifs; ss.
+    + eapply AtomSetProperties.subset_remove_3; eauto.
+      eapply AtomSetFacts.Subset_refl.
+    + eapply AtomSetProperties.subset_remove_3; eauto.
+      eapply AtomSetFacts.Subset_refl.
   - eapply forget_memory_maydiff_preserved; eauto.
   - ss.
 Qed.
@@ -1911,7 +1920,7 @@ Lemma inv_state_sem_monotone_wrt_invmem
                                        st_src.(EC).(Allocas) st_tgt.(EC).(Allocas))
   : InvState.Rel.sem conf_src conf_tgt st_src st_tgt invst0 invmem1 inv1.
 Proof.
-  destruct STATE as [STATE_SRC STATE_TGT STATE_MAYDIFF].
+  destruct STATE as [STATE_SRC STATE_TGT TGT_NOUNIQ STATE_MAYDIFF].
   inv MEM_LE.
   econs.
   - inv SRC.
@@ -1926,6 +1935,7 @@ Proof.
     + rewrite <- GMAX. eauto.
     + rewrite <- PRIVATE_PARENT_EQ. ss.
     + rewrite <- UNIQUE_PARENT_EQ. eauto.
+  - ss.
   - i. hexploit STATE_MAYDIFF; eauto.
     intros SEM_INJECT.
     ii. exploit SEM_INJECT; eauto. i. des.

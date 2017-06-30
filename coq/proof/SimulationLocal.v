@@ -193,6 +193,7 @@ Section SimLocal.
       (UNIQS_TGT: forall mptr typ align val
                          (LOAD: mload conf_tgt.(CurTargetData) st1_tgt.(Mem) mptr typ align = Some val),
           InvMem.gv_diffblock_with_blocks conf_tgt val uniqs_tgt)
+      (TGT_NOUNIQ: uniqs_tgt = [])
       (UNIQS_GLOBALS_TGT: forall b, In b uniqs_tgt -> (inv2.(InvMem.Rel.gmax) < b)%positive)
       (PRIVS_SRC: forall b (IN: In b privs_src),
           InvMem.private_block st2_src.(Mem) (InvMem.Rel.public_src inv2.(InvMem.Rel.inject)) b)

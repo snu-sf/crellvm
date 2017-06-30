@@ -292,6 +292,9 @@ Proof.
   inv STATE. econs.
   - eapply implies_unary_sound; eauto. apply MEM.
   - eapply implies_unary_sound; eauto. apply MEM.
+  - unfold Invariant.implies_unary in IMPLIES1. repeat (des_bool; des).
+    apply AtomSetFacts.subset_iff in IMPLIES3.
+    eapply AtomSetFacts.Empty_s_m_Proper; eauto.
   - i. apply MAYDIFF.
     apply IdTSetFacts.not_mem_iff. ii.
     apply IdTSetFacts.not_mem_iff in NOTIN. apply NOTIN.

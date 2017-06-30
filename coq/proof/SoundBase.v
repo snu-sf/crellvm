@@ -233,6 +233,7 @@ Lemma Subset_sem
 Proof.
   inv STATE. inv SUBSET.
   econs; try (eapply Subset_unary_sem; eauto).
+  - eapply AtomSetFacts.Empty_s_m_Proper; eauto. unfold flip. inv SUBSET_TGT. ss.
   - i. apply MAYDIFF.
     destruct (IdTSet.mem id0 (Hints.Invariant.maydiff inv1)) eqn:MEM1; ss.
     rewrite <- IdTSetFacts.not_mem_iff in *.
@@ -621,21 +622,17 @@ Qed.
 
 Lemma invmem_lift
       conf_src mem_src uniqs_src privs_src
-      conf_tgt mem_tgt uniqs_tgt privs_tgt
+      conf_tgt mem_tgt privs_tgt
       inv
       (MEM: InvMem.Rel.sem conf_src conf_tgt mem_src mem_tgt inv)
       (UNIQS_SRC : forall (mptr : mptr) (typ : typ) (align : align) (val : GenericValue),
                      mload conf_src.(CurTargetData) mem_src mptr typ align = Some val ->
                      InvMem.gv_diffblock_with_blocks conf_src val uniqs_src)
       (UNIQS_GLOBALS_SRC: forall b, In b uniqs_src -> (inv.(InvMem.Rel.gmax) < b)%positive)
-      (UNIQS_TGT : forall (mptr : mptr) (typ : typ) (align : align) (val : GenericValue),
-                     mload conf_tgt.(CurTargetData) mem_tgt mptr typ align = Some val ->
-                     InvMem.gv_diffblock_with_blocks conf_tgt val uniqs_tgt)
-      (UNIQS_GLOBALS_TGT: forall b, In b uniqs_tgt -> (inv.(InvMem.Rel.gmax) < b)%positive)
       (PRIVS_SRC: forall b, In b privs_src -> InvMem.private_block mem_src (InvMem.Rel.public_src inv.(InvMem.Rel.inject)) b)
       (PRIVS_TGT: forall b, In b privs_tgt -> InvMem.private_block mem_tgt (InvMem.Rel.public_tgt inv.(InvMem.Rel.inject)) b)
   : InvMem.Rel.sem conf_src conf_tgt mem_src mem_tgt
-                   (InvMem.Rel.lift mem_src mem_tgt uniqs_src uniqs_tgt privs_src privs_tgt inv).
+                   (InvMem.Rel.lift mem_src mem_tgt uniqs_src [] (* uniqs_tgt *) privs_src privs_tgt inv).
 Proof.
   inv MEM.
   econs; eauto.
@@ -669,24 +666,22 @@ Proof.
        * apply PRIVS_TGT; eauto.
        * exploit PRIVATE_PARENT; eauto.
     + ii. apply in_app in INB. des.
-      * apply filter_In in INB. des.
-        exploit PRIVS_TGT; eauto. i. des.
-        exploit UNIQS_TGT; eauto.
-        rewrite existsb_exists in *. des.
-        destruct (Values.eq_block b x0); ss.
-        subst. eauto.
+      * apply filter_In in INB. des. ss.
       * exploit UNIQUE_PARENT_MEM; eauto.
     + inv WF0.
       i. apply in_app in IN_UNIQUE_PARENT. des.
       * apply filter_In in IN_UNIQUE_PARENT. des.
-        apply UNIQS_GLOBALS_TGT.
-        rewrite existsb_exists in *. des.
-        destruct (Values.eq_block b x); ss.
-        subst. eauto.
+        ss.
       * exploit UNIQUE_PARENT_GLOBALS; eauto.
     + apply sublist_app; eauto.
       apply filter_sublist.
     + reflexivity.
+  - ss. rewrite TGT_NOUNIQ. rewrite app_nil_r.
+    reductio_ad_absurdum.
+    destruct (filter (fun _ : positive => false) privs_tgt) eqn:T; ss.
+    assert(In p (filter (fun _ : positive => false) privs_tgt)).
+    { rewrite T. left; ss. }
+    apply filter_In in H. des; ss.
 Qed.
 
 Lemma positive_lt_plus_one

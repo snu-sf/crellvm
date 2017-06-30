@@ -369,6 +369,17 @@ Proof.
   exploit INJECT; eauto.
 Qed.
 
+(* TODO: location *)
+Lemma filter_subset
+      f xs
+  :
+    <<SUBSET: AtomSetImpl.filter f xs [<=] xs>>
+.
+Proof.
+  ii.
+  apply AtomSetFacts.filter_iff in H; [| solve_compat_bool]. des; ss.
+Qed.
+
 Lemma forget_memory_call_sound
       conf_src st0_src id_src fun_src args_src cmds_src
       conf_tgt st0_tgt id_tgt fun_tgt args_tgt cmds_tgt
@@ -440,7 +451,10 @@ Proof.
 
   esplits; eauto.
   - econs; ss.
-    + ii. exploit MAYDIFF; eauto. i.
+    + eapply AtomSetFacts.Empty_s_m_Proper; eauto. red.
+      eapply filter_subset; eauto.
+    +
+      ii. exploit MAYDIFF; eauto. i.
       erewrite sem_idT_eq_locals.
       { des. esplits; eauto.
         eapply genericvalues_inject.gv_inject_incr; eauto. }

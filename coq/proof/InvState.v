@@ -405,6 +405,7 @@ Module Rel.
   | sem_intro
       (SRC: Unary.sem conf_src st_src invst.(src) invmem.(InvMem.Rel.src) invmem.(InvMem.Rel.gmax) (InvMem.Rel.public_src invmem.(InvMem.Rel.inject)) inv.(Invariant.src))
       (TGT: Unary.sem conf_tgt st_tgt invst.(tgt) invmem.(InvMem.Rel.tgt) invmem.(InvMem.Rel.gmax) (InvMem.Rel.public_tgt invmem.(InvMem.Rel.inject)) inv.(Invariant.tgt))
+      (TGT_NOUNIQ: AtomSetImpl.Empty (inv.(Invariant.tgt).(Invariant.unique)))
       (MAYDIFF:
          forall id (NOTIN: (IdTSet.mem id inv.(Invariant.maydiff)) = false),
            sem_inject st_src st_tgt invst invmem.(InvMem.Rel.inject) id)

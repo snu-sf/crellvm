@@ -735,10 +735,10 @@ Definition postcond_cmd_add_inject
         Invariant.update_src
           (Invariant.update_unique
              (AtomSetImpl.add aid_src)) inv0 in
-    let inv2 :=
-        Invariant.update_tgt
-          (Invariant.update_unique
-             (AtomSetImpl.add aid_tgt)) inv1 in
+    let inv2 := inv1 in
+        (* Invariant.update_tgt *)
+        (*   (Invariant.update_unique *)
+        (*      (AtomSetImpl.add aid_tgt)) inv1 in *)
     let inv3 := remove_def_from_maydiff aid_src aid_tgt inv2 in
     inv3
 
@@ -754,10 +754,10 @@ Definition postcond_cmd_add_inject
     inv2
 
   | insn_nop _, insn_alloca aid_tgt _ _ _ =>
-    let inv1 :=
-        Invariant.update_tgt
-          (Invariant.update_unique
-             (AtomSetImpl.add aid_tgt)) inv0 in
+    let inv1 := inv0 in
+        (* Invariant.update_tgt *)
+        (*   (Invariant.update_unique *)
+        (*      (AtomSetImpl.add aid_tgt)) inv0 in *)
     let inv2 :=
         Invariant.update_tgt
           (Invariant.update_private
