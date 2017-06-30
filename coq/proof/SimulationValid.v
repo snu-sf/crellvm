@@ -1142,6 +1142,32 @@ Proof.
       exploit IHargs; eauto; ss; des; congruence.
 Qed.
 
+Lemma fit_gv_undef_or_has_chunkb
+      TD ty gv1 gv2
+    (FIT_GV: fit_gv TD ty gv1 = Some gv2)
+  :
+  <<UNDEF_OR_CHUNK: Forall (fun v => v.(fst) <> Values.Vundef -> Values.Val.has_chunkb v.(fst) v.(snd)) gv2>>
+.
+Proof.
+  red.
+  unfold fit_gv in *.
+  des_ifs.
+  - des_bool; des.
+    apply gv_chunks_match_typb__gv_chunks_match_typ in Heq1.
+    unfold gv_chunks_match_typ in *. des_ifs.
+    clear - Heq1.
+    ginduction gv2; ii; ss.
+    inv Heq1; ss.
+    econs; eauto.
+    i. destruct a; ss.
+    unfold vm_matches_typ in *. des. clarify. ss.
+    apply genericvalues_inject.has_chunk__has_chunkb. ss.
+  - unfold gundef in *. des_ifs.
+    clear - Heq1. clear Heq1.
+    ginduction l0; ii; ss.
+    econs; eauto. i. ss.
+Qed.
+
 Lemma fit_gv_undef
       TD gl ty gv1 gv2 gvu
       (FIT_GV:fit_gv TD ty gv1 = Some gv2)
@@ -1151,6 +1177,10 @@ Proof.
   exploit const2GV_undef; eauto. i. des.
   exploit fit_gv_chunks_aux; eauto. i. des.
   apply all_undef_lessdef_aux; eauto. clarify.
+  {
+    clarify.
+    eapply fit_gv_undef_or_has_chunkb; eauto.
+  }
 Qed.
 
 Lemma function_entry_args_sound
@@ -1248,7 +1278,14 @@ Proof.
   { inversion CHUNK. }
   destruct gv_wf; [|inv CHUNK; match goal with [H:Forall2 _ _ _ |- _] => inv H end].
   inv CHUNK. match goal with [H:vm_matches_typ _ _ |- _] => inv H end.
-  ss. clarify. econs; eauto; econs.
+  ss. clarify.
+
+  econs; eauto; [|econs].
+  ss. splits; ss. i. destruct v; ss.
+  des.
+  destruct (Nat.eq_dec wz 31); ss. clarify.
+  destruct (zle _ _); ss.
+  destruct (zlt _ _); ss.
 Qed.
 
 Lemma function_entry_inv_sound
@@ -1388,8 +1425,9 @@ Proof.
           des_ifs; eauto.
           split; ss.
           inv H2.
-          reductio_ad_absurdum.
-          expl mi_mappedblocks.
+          + reductio_ad_absurdum.
+            expl mi_mappedblocks.
+          + admit.
       }
     + (* diffblock unique parent *)
       inv MEM. clear SRC INJECT FUNTABLE.
@@ -1409,7 +1447,9 @@ Proof.
       { destruct v2; ss. des; ss. clarify.
         apply PRIVATE_PARENT0; eauto.
         unfold InvMem.Rel.public_tgt.
-        inv H. esplits; eauto.
+        inv H.
+        + esplits; eauto.
+        + admit.
       }
       eauto.
   - ii. clear NOTIN.
@@ -1418,7 +1458,7 @@ Proof.
     unfold InvState.Unary.sem_idT in *. ss.
     eapply fully_inject_locals_inject_locals; eauto.
   - econs; eauto.
-Qed.
+Admitted.
 
 Lemma init_fdef_wf_EC
       conf fdef args ec
