@@ -120,16 +120,6 @@ Lemma simulation__GV2ptr_tgt
        GV2ptr TD (getPointerSize TD) gv1' = Some v' ->
        exists v : Values.val, GV2ptr TD (getPointerSize TD) gv1 = Some v /\ memory_sim.MoreMem.val_inject mi v v'.
 Proof.
-(*   i. *)
-(*   unfold GV2ptr in *. *)
-(*   destruct gv1'; clarify. *)
-(*   destruct p. destruct v; clarify. *)
-(*   destruct gv1'; clarify. *)
-(*   destruct gv1; inv H. *)
-(*   destruct v1; inv H3. *)
-(*   - admit. *)
-(*   - inv H6. esplits; eauto. *)
-(* Qed. *)
 Abort.
 
 (* Subset *)

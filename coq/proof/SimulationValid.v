@@ -1042,16 +1042,19 @@ More explanation on: https://github.com/snu-sf/llvmberry/issues/426". }
         intro UNIQUE_A. inv UNIQUE_A. ss. clarify.
         exploit MEM; eauto.
       }
-      { inv STATE1. inv TGT.
-        unfold memory_blocks_of. ii.
-        des.
-        match goal with [ H: In _ (flat_map _ _) |- _ ] => eapply in_flat_map in H; eauto end.
-        des.
-        des_ifs.
-        exploit UNIQUE.
-        { apply AtomSetFacts.elements_iff, InA_iff_In. eauto. }
-        intro UNIQUE_A. inv UNIQUE_A. ss. clarify.
-        exploit GLOBALS; eauto.
+      {
+        inv STATE1. inv TGT. ss.
+        unfold memory_blocks_of.
+        replace (AtomSetImpl.elements (Invariant.unique (Invariant.tgt inv1))) with ([]: list atom); cycle 1.
+        { symmetry. apply AtomSetProperties.elements_Empty; ss. }
+        ss.
+      }
+      {
+        inv STATE1. inv TGT. ss.
+        unfold memory_blocks_of.
+        replace (AtomSetImpl.elements (Invariant.unique (Invariant.tgt inv1))) with ([]: list atom); cycle 1.
+        { symmetry. apply AtomSetProperties.elements_Empty; ss. }
+        ss.
       }
       { inv STATE1. inv SRC. ss.
         i. unfold memory_blocks_of_t in IN.

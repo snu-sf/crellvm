@@ -197,6 +197,7 @@ Proof.
       inv STATE.
       econs; try by (eapply updateAddAL_lessdef_undef; eauto);
         (eapply fit_gv_chunks_aux; eauto).
+      { ss. }
       i. destruct id0 as []. ss.
       rewrite Exprs.IdTSetFacts.remove_b in *.
       des_bool. des.
@@ -221,7 +222,7 @@ Proof.
       }
       * ss.
     + inv STATE.
-      econs; [ | | by eauto|];
+      econs; [ | | | by eauto|];
         ss; try by (eapply updateAddAL_lessdef_undef; eauto);
         (eapply fit_gv_chunks_aux; eauto).
   - rewrite postcond_cmd_add_noret_call.
