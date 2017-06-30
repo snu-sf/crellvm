@@ -997,6 +997,8 @@ More explanation on: https://github.com/snu-sf/llvmberry/issues/426". }
       rename t0 into __t0__.
       hexploit postcond_call_sound; try exact PCND0; eauto;
         (try instantiate (2 := (mkState (mkEC _ _ _ _ _ _) _ _))); ss; eauto; ss.
+      { inv WF_SRC0; ss. }
+      { inv WF_TGT0; ss. }
       i. des. subst. des.
 
       eapply _sim_local_call with
