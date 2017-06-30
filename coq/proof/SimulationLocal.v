@@ -174,9 +174,12 @@ Section SimLocal.
       (MEMLE: InvMem.Rel.le inv1 inv2)
       (FUN:
          forall funval2_src
-           (FUN_SRC: getOperandValue conf_src.(CurTargetData) fun2_src st2_src.(EC).(Locals) conf_src.(Globals) = Some funval2_src),
+           (FUN_SRC: getOperandValue conf_src.(CurTargetData) fun2_src st2_src.(EC).(Locals) conf_src.(Globals) = Some funval2_src)
+           (WF_ARGS_SRC: memory_props.MemProps.valid_ptrs st2_src.(Mem).(Mem.nextblock) funval2_src)
+         ,
          exists funval1_tgt,
            <<FUN_TGT: getOperandValue conf_tgt.(CurTargetData) fun1_tgt st1_tgt.(EC).(Locals) conf_tgt.(Globals) = Some funval1_tgt>> /\
+           <<WF_ARGS_TGT: memory_props.MemProps.valid_ptrs st1_tgt.(Mem).(Mem.nextblock) funval1_tgt>> /\
            <<INJECT: genericvalues_inject.gv_inject inv2.(InvMem.Rel.inject) funval2_src funval1_tgt>>)
       (ARGS:
          forall args2_src
@@ -208,6 +211,7 @@ Section SimLocal.
                                 retval3_src id2_src noret2_src typ2_src
                                 st2_src.(EC).(Locals)
                               = Some locals4_src)
+                 (WF_LC: memory_props.MemProps.wf_lc st2_src.(Mem) locals4_src)
         ,
                exists locals4_tgt idx4 inv4,
                  (* TODO: Define update_locals function *)
@@ -216,6 +220,7 @@ Section SimLocal.
                                  retval3_tgt id1_tgt noret1_tgt typ1_tgt
                                  st1_tgt.(EC).(Locals)
                                = Some locals4_tgt>> /\
+                 <<WF_LC: memory_props.MemProps.wf_lc st1_tgt.(Mem) locals4_tgt>> /\
                  <<MEMLE: InvMem.Rel.le inv2 inv4>> /\
                  forall
                    (WF_SRC: wf_StateI conf_src (mkState (mkEC st2_src.(EC).(CurFunction) st2_src.(EC).(CurBB) cmds2_src st2_src.(EC).(Terminator) locals4_src st2_src.(EC).(Allocas)) st2_src.(ECS) mem3_src))
@@ -265,7 +270,7 @@ Section SimLocal.
     - econs 4; eauto.
       i. expl RETURN.
       esplits; eauto.
-      i. specialize (RETURN0 WF_SRC1). specialize (RETURN0 WF_TGT1). des.
+      i. specialize (RETURN1 WF_SRC1). specialize (RETURN1 WF_TGT1). des.
       splits; eauto.
     - econs 5; eauto.
       i. exploit STEP; eauto. i. des.

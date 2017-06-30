@@ -392,9 +392,12 @@ Lemma forget_memory_call_sound
       (MEM_BEFORE_CALL: InvMem.Rel.sem conf_src conf_tgt st0_src.(Mem) st0_tgt.(Mem) invmem0)
       (FUN:
          forall funval2_src
-                (FUN_SRC: getOperandValue conf_src.(CurTargetData) fun_src st0_src.(EC).(Locals) conf_src.(Globals) = Some funval2_src),
+                (FUN_SRC: getOperandValue conf_src.(CurTargetData) fun_src st0_src.(EC).(Locals) conf_src.(Globals) = Some funval2_src)
+                (WF_ARGS_SRC: memory_props.MemProps.valid_ptrs st0_src.(Mem).(Memory.Mem.nextblock) funval2_src)
+         ,
          exists funval1_tgt,
           <<FUN_TGT: getOperandValue conf_tgt.(CurTargetData) fun_tgt st0_tgt.(EC).(Locals) conf_tgt.(Globals) = Some funval1_tgt>> /\
+          <<WF_ARGS_TGT: memory_props.MemProps.valid_ptrs st0_tgt.(Mem).(Memory.Mem.nextblock) funval1_tgt>> /\
           <<INJECT: genericvalues_inject.gv_inject invmem0.(InvMem.Rel.inject) funval2_src funval1_tgt>>)
       (ARGS:
          forall args2_src
