@@ -44,9 +44,7 @@ Module GVs.
         (INJECT: memory_sim.MoreMem.val_inject mij b c):
     << INJECT: memory_sim.MoreMem.val_inject mij a c >>.
   Proof.
-    inv LD; inv INJECT; ss; try (econs; eauto; memory_sim.MoreMem.public_auto; fail).
-    - econs; eauto. memory_sim.MoreMem.public_auto.
-      esplits; eauto.
+    inv LD; inv INJECT; ss; try (econs; eauto; fail).
   Qed.
 
   Lemma inject_lessdef_compose_single mij a b c
@@ -54,10 +52,7 @@ Module GVs.
         (LD: Val.lessdef b c):
     << INJECT: memory_sim.MoreMem.val_inject mij a c >>.
   Proof.
-    inv LD; inv INJECT; ss; try (econs; eauto; memory_sim.MoreMem.public_auto; fail).
-    - econs; eauto. memory_sim.MoreMem.public_auto.
-      inv PUBLIC. exploit PUBLIC0; eauto. i; des.
-      esplits; eauto.
+    inv LD; inv INJECT; ss; try (econs; eauto; fail).
   Qed.
 
   Lemma lessdef_inject_compose mij a b c
