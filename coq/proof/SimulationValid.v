@@ -1145,47 +1145,6 @@ Proof.
       exploit IHargs; eauto; ss; des; congruence.
 Qed.
 
-Lemma fit_gv_undef_or_has_chunkb
-      TD ty gv1 gv2
-    (FIT_GV: fit_gv TD ty gv1 = Some gv2)
-  :
-  <<UNDEF_OR_CHUNK: Forall (fun v => v.(fst) <> Values.Vundef -> Values.Val.has_chunkb v.(fst) v.(snd)) gv2>>
-.
-Proof.
-  red.
-  unfold fit_gv in *.
-  des_ifs.
-  - des_bool; des.
-    apply gv_chunks_match_typb__gv_chunks_match_typ in Heq1.
-    unfold gv_chunks_match_typ in *. des_ifs.
-    clear - Heq1.
-    ginduction gv2; ii; ss.
-    inv Heq1; ss.
-    econs; eauto.
-    i. destruct a; ss.
-    unfold vm_matches_typ in *. des. clarify. ss.
-    apply genericvalues_inject.has_chunk__has_chunkb. ss.
-  - unfold gundef in *. des_ifs.
-    clear - Heq1. clear Heq1.
-    ginduction l0; ii; ss.
-    econs; eauto. i. ss.
-Qed.
-
-Lemma fit_gv_undef
-      TD gl ty gv1 gv2 gvu
-      (FIT_GV:fit_gv TD ty gv1 = Some gv2)
-      (UNDEF:const2GV TD gl (const_undef ty) = Some gvu)
-  : GVs.lessdef gvu gv2.
-Proof.
-  exploit const2GV_undef; eauto. i. des.
-  exploit fit_gv_chunks_aux; eauto. i. des.
-  apply all_undef_lessdef_aux; eauto. clarify.
-  {
-    clarify.
-    eapply fit_gv_undef_or_has_chunkb; eauto.
-  }
-Qed.
-
 Lemma function_entry_args_sound
       conf st a args ty argvs lc invst
       (INARG: In a (getArgsIDs args))

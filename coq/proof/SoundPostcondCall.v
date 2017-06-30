@@ -26,6 +26,8 @@ Require Import SoundBase.
 Require Import SoundForgetStackCall.
 Require Import SoundForgetMemoryCall.
 Require Import SoundPostcondCmdAdd.
+Require Import opsem_wf.
+Import OpsemPP.
 
 Set Implicit Arguments.
 
@@ -151,6 +153,8 @@ Lemma updateAddAL_lessdef_undef
       (LOCALS : updateAddAL GenericValue locals id gv = Locals (EC st))
       (STATE : InvState.Unary.sem conf st invst invmem gmax public inv)
       (CHUNK: exists mcs, flatten_typ conf.(CurTargetData) typ = Some mcs /\ List.map snd gv = mcs)
+      gv_
+      (FIT: fit_gv conf.(CurTargetData) typ gv_ = Some gv)
   : InvState.Unary.sem conf st invst invmem gmax public
                        (Invariant.update_lessdef
                           (Exprs.ExprPairSet.add
@@ -164,9 +168,11 @@ Proof.
     { unfold InvState.Unary.sem_idT. ss.
       rewrite <- LOCALS. apply lookupAL_updateAddAL_eq. }
     exploit const2GV_undef; eauto. i. des.
-    { clarify. apply all_undef_lessdef_aux; eauto. admit. }
+    { clarify. apply all_undef_lessdef_aux; eauto.
+      eapply fit_gv_undef_or_has_chunkb; eauto.
+    }
   - apply LESSDEF; eauto.
-Admitted.
+Qed.
 
 Lemma postcond_cmd_add_call
       m_src conf_src st0_src retval1_src id_src fun_src args_src locals0_src
@@ -242,6 +248,8 @@ Lemma postcond_call_sound
            (insn_call id_tgt noret_tgt clattrs_tgt typ_tgt varg_tgt fun_tgt args_tgt)
            inv0 = Some inv1)
       (STATE: InvState.Rel.sem conf_src conf_tgt st0_src st0_tgt invst0 invmem0 inv0)
+      (WF_SRC: wf_State conf_src st0_src)
+      (WF_TGT: wf_State conf_tgt st0_tgt)
       (MEM: InvMem.Rel.sem conf_src conf_tgt st0_src.(Mem) st0_tgt.(Mem) invmem0)
   :
   <<NORET: noret_src = noret_tgt>> /\

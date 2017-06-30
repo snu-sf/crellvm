@@ -1435,3 +1435,83 @@ Proof.
   - compute in NOTUNDEF. des_ifs. ss. des_ifs.
 Qed.
 
+Lemma fit_gv_matches_typ
+      TD ty gv1 gv2
+      (FIT_GV: fit_gv TD ty gv1 = Some gv2)
+  :
+    <<MATCH_TYP: gv_chunks_match_typ TD gv2 ty>>
+    (* <<MATCH_TYP: exists l0, Forall2 vm_matches_typ gv1 l0>> *)
+.
+Proof.
+  exploit genericvalues_props.fit_gv__matches_chunks; eauto.
+Qed.
+
+(* We can remove (fst v <> Values.Vundef in all *)
+Lemma vm_matches_typ_has_chunk
+      gv l0
+      (MATCH_TYP: Forall2 vm_matches_typ gv l0)
+  :
+  <<HAS_CHUNK: Forall (fun v => fst v <> Values.Vundef -> Values.Val.has_chunkb (fst v) (snd v)) gv>>
+.
+Proof.
+  red. ginduction gv; ii; ss. inv MATCH_TYP.
+  econs; eauto.
+  i; clarify. destruct a; ss.
+  red in H1. des; ss.
+  eapply genericvalues_inject.has_chunk__has_chunkb; eauto.
+Qed.
+
+Lemma matches_typ_has_chunk
+      TD gv ty
+      (MATCH_TYP: gv_chunks_match_typ TD gv ty)
+  :
+  <<HAS_CHUNK: Forall (fun v => fst v <> Values.Vundef -> Values.Val.has_chunkb (fst v) (snd v)) gv>>
+.
+Proof.
+  unfold gv_chunks_match_typ in *. des_ifs.
+  eapply vm_matches_typ_has_chunk; eauto.
+Qed.
+
+Lemma wf_gvs_has_chunk
+      TD gv ty
+      (WF_GVS: opsem_wf.OpsemPP.wf_GVs TD gv ty)
+  :
+    <<CHUNK: Forall (fun v => fst v <> Values.Vundef -> Values.Val.has_chunkb (fst v) (snd v)) gv>>
+.
+Proof.
+  inv WF_GVS. red.
+  eapply matches_typ_has_chunk; eauto.
+Qed.
+
+Lemma fit_gv_undef_or_has_chunkb
+      TD ty gv1 gv2
+    (FIT_GV: fit_gv TD ty gv1 = Some gv2)
+  :
+  <<UNDEF_OR_CHUNK: Forall (fun v => v.(fst) <> Values.Vundef -> Values.Val.has_chunkb v.(fst) v.(snd)) gv2>>
+.
+Proof.
+  red.
+  unfold fit_gv in *.
+  des_ifs.
+  - des_bool; des.
+    eapply matches_typ_has_chunk; eauto.
+    apply gv_chunks_match_typb__gv_chunks_match_typ; eauto.
+  - eapply matches_typ_has_chunk; eauto.
+    eapply genericvalues_props.gundef__matches_chunks; eauto.
+Qed.
+
+Lemma fit_gv_undef
+      TD gl ty gv1 gv2 gvu
+      (FIT_GV:fit_gv TD ty gv1 = Some gv2)
+      (UNDEF:const2GV TD gl (const_undef ty) = Some gvu)
+  : GVs.lessdef gvu gv2.
+Proof.
+  exploit const2GV_undef; eauto. i. des.
+  exploit fit_gv_chunks_aux; eauto. i. des.
+  apply all_undef_lessdef_aux; eauto. clarify.
+  {
+    clarify.
+    eapply fit_gv_undef_or_has_chunkb; eauto.
+  }
+Qed.
+
