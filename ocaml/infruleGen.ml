@@ -86,12 +86,6 @@ module Auto = struct
       | Src -> Infrule.Coq_icmp_inverse_rhs (c, ty, v1, v2, b)
       | Tgt -> Infrule.Coq_icmp_inverse_rhs_tgt (c, ty, v1, v2, b)
 
-    (* TODO: remove this *)
-    let intro_ghost_unary (scp:scope_t) e x : Infrule.t =
-      match scp with
-      | Src -> Infrule.Coq_intro_ghost_src (e, x)
-      | Tgt -> Infrule.Coq_intro_ghost_src (e, x) (* TGT version not present *)
-
     (* Unary invariant *)
     let inv_unary (scp:scope_t) : Invariant.t -> Invariant.unary =
       match scp with
@@ -269,7 +263,7 @@ module AutoTransHelper = struct
       run_unary_i scp inv_u.Invariant.lessdef e1 e2
   end
 
-module NewAutoSubstTransHelper = struct
+module AutoSubstTransHelper = struct
     let max_depth : int = 3
 
     let bdd (e:Expr.t) (oe:Expr.t option) : Expr.t =
@@ -298,9 +292,6 @@ module NewAutoSubstTransHelper = struct
     (* Make [(bdd e1 oe1) >= (bdd e2 oe2)]. *)
     (* If e1 = e2 and oe1=oe2=None, do nothing. *)
     let rec run depth scp ld oel e1 e2 oer : (Infrule.t list) option =
-      print_endline ("NewAutoSubstTransHelper: run start with depth: "^(string_of_int depth));
-      print_endline ("e1: "^(Printer.ExprsToString.of_expr e1));
-      print_endline ("e2: "^(Printer.ExprsToString.of_expr e2));
       if depth > max_depth then None
       else if (Expr.eq_dec e1 e2)
       then match oel, oer with
@@ -314,28 +305,22 @@ module NewAutoSubstTransHelper = struct
            | Some el, Some er -> Some [Auto.transitivity scp el e1 e2;
                                        Auto.transitivity scp el e2 er]
       else match by_destruct depth scp ld oel e1 e2 oer with
-           | Some infrs -> print_endline "run - by_destruct SUCCEEDED"; Some infrs
+           | Some infrs -> Some infrs
            | None ->
-              print_endline "run - do trans";
               match by_trans_left depth scp ld oel e1 e2 oer with
                      | Some infrs -> Some infrs
                      | None -> by_trans_right depth scp ld oel e1 e2 oer
 
     (* Generates (bdd oe1 e1) >= (bdd oer e2) *)
     and by_destruct depth scp ld oel e1 e2 oer : (Infrule.t list) option =
-      print_endline "by_destruct";
       let do_left h e1_new : (Infrule.t list) option =
-        print_endline "do_left";
         match oel with
         | Some el ->
-           print_endline "left SUCCEEDED";
            attach_oinfrs (h el) [] (by_dest_intl depth scp ld oel e1_new e2 oer)
         | None -> None in
       let do_right h e2_new : (Infrule.t list) option =
-        print_endline "do_right";
         match oer with
         | Some er ->
-           print_endline "right SUCCEEDED";
            attach_oinfrs (h er) [] (by_dest_intl depth scp ld oel e1 e2_new oer)
         | None -> None in
       let res_fin =
@@ -352,7 +337,6 @@ module NewAutoSubstTransHelper = struct
                (by_dest_intl depth scp ld (Some e1) (Expr.Coq_gep (false, tya, v, lsv, tyb)) e2 oer)
           | Expr.Coq_bop (op1, sz1, a1, b1), Expr.Coq_bop (op2, sz2, a2, b2)
                when LLVMinfra.bop_dec op1 op2 && is_commutative_bop op1 ->
-             print_endline "BOP";
              (match do_left (fun el -> [Auto.bop_commutative scp el op1 a1 b1 sz1])
                             (Expr.Coq_bop (op1, sz1, b1, a1)) with
               | Some infrs -> Some infrs
@@ -380,10 +364,7 @@ module NewAutoSubstTransHelper = struct
               | None -> do_right (fun er -> [Auto.fcmp_swap_operands_rev scp c2 ty2 a2 b2 er])
                                  (Expr.Coq_fcmp (c1, ty2, b2, a2)))
           | _, _ -> None)
-           in
-           match res_fin with
-           | Some _ -> print_endline "by_destruct SUCCEEDED"; res_fin
-           | None -> print_endline "by_destruct FAILED"; res_fin
+      in res_fin
 
     (* Generates [(bdd oel e1) >= (bdd oer e2)] by substitution *)
     and by_dest_intl depth scp ld oel e1 e2 oer : (Infrule.t list) option =
@@ -409,168 +390,30 @@ module NewAutoSubstTransHelper = struct
             with
             | None, _ -> None
             | Some acc_infrs, e_stk ->
-               print_endline "by_dest_intl SUCCEEDED";
                let e_stk = match oel with Some e_l -> e_stk@[e_l] | _ -> e_stk in
                let e_stk = match oer with Some e_r -> e_r::e_stk | _ -> e_stk in
                attach_oinfrs acc_infrs (AutoTransHelper.make_trans_rev scp e_stk)
                              (do_subst scp e1 vpl [])
 
     and by_trans_left depth scp ld oel e1 e2 oer : (Infrule.t list) option =
-      print_endline "by trans left";
       match Auto.find_first_match (fun e1_r ->
                                    run (depth+1) scp ld (Some e1) e1_r e2 oer)
                                   (Auto.get_rhs_list ld e1) with
-      | None ->
-         print_endline "by trans left FAILED";
-         None
+      | None -> None
       | Some (_, infrs) ->
-         print_endline "by trans left SUCCEEDED";
          match oel with
          | Some el -> Some (infrs@[Auto.transitivity scp el e1 (bdd e2 oer)])
          | _ -> Some infrs
 
     and by_trans_right depth scp ld oel e1 e2 oer : (Infrule.t list) option =
-      print_endline "by trans right";
       match Auto.find_first_match (fun e2_l ->
                                    run (depth+1) scp ld oel e1 e2_l (Some e2))
                                   (Auto.get_lhs_list ld e2) with
-      | None ->
-         print_endline "by trans right FAILED";
-         None
+      | None -> None
       | Some (_, infrs) ->
-         print_endline "by trans right SUCCEEDED";
          match oer with
          | Some er -> Some (infrs@[Auto.transitivity scp (bdd e1 oel) e2 er])
          | _ -> Some infrs
-
-  end
-
-
-module AutoSubstTransHelper = struct
-    let swap_expr_src (e_l:Expr.t) (e:Expr.t) : (Infrule.t list * Expr.t) option =
-      match e with
-      | Expr.Coq_bop (op, sz, v1, v2) ->
-         if is_commutative_bop op then
-           Some ([Infrule.Coq_bop_commutative (e_l, op, v1, v2, sz)],
-                 Expr.Coq_bop (op, sz, v2, v1))
-         else None
-      | Expr.Coq_fbop (op, fp, v1, v2) ->
-         if is_commutative_fbop op then
-           Some ([Infrule.Coq_fbop_commutative (e_l, op, v1, v2, fp)],
-                 Expr.Coq_fbop (op, fp, v2, v1))
-         else None
-      | Expr.Coq_icmp (c, ty, v1, v2) ->
-         Some ([Infrule.Coq_icmp_swap_operands (c, ty, v1, v2, e_l)],
-               Expr.Coq_icmp ((get_swapped_icmp_cond c), ty, v2, v1))
-      | Expr.Coq_fcmp (c, fp, v1, v2) ->
-         Some ([Infrule.Coq_fcmp_swap_operands (c, fp, v1, v2, e_l)],
-               Expr.Coq_fcmp ((get_swapped_fcmp_cond c), fp, v2, v1))
-      | _ -> None
-
-    let drop_inbounds (e_l:Expr.t) (e:Expr.t) : (Infrule.t list * Expr.t) option =
-      match e with
-      | Expr.Coq_gep (true, ty1, t, svl, ty2) ->
-         let e_noinb = Expr.Coq_gep (false, ty1, t, svl, ty2) in
-         Some ([Infrule.Coq_gep_inbounds_remove e;
-                Infrule.Coq_transitivity (e_l, e, e_noinb)], e_noinb)
-      | _ -> None
-
-    let try_modify (scp:Auto.scope_t) (e_l:Expr.t) (e:Expr.t)
-        : (Infrule.t list * Expr.t) option =
-      match scp with
-      | Auto.Src ->
-         (match swap_expr_src e_l e with
-          | Some x -> Some x
-          | None -> drop_inbounds e_l e)
-      | _ -> None
-
-    (* produce x >= v applying seq of subst-transitivity *)
-    let rec try_trans (scp:Auto.scope_t) (inv_u : Invariant.unary)
-                (x : IdT.t) (v : ValueT.t)
-            : (Infrule.t list) option =
-      if ValueT.eq_dec (ValueT.Coq_id x) v
-      then Some [] else
-        let exp_x = (Expr.Coq_value (ValueT.Coq_id x)) in
-        let exp_v = (Expr.Coq_value v) in
-        let e_l_cands = Auto.get_rhs_list inv_u.Invariant.lessdef exp_x in
-        let e_r_cands = Auto.get_lhs_list inv_u.Invariant.lessdef exp_v in
-
-        (* 1. Find direct application *)
-        match Auto.expr_find_first_match2
-                (fun e_l e_r ->
-                 if Expr.eq_dec e_l e_r
-                 then Some [Auto.transitivity scp exp_x e_l exp_v]
-                 else match try_subst scp inv_u exp_x e_l e_r with
-                      | Some infrs ->
-                         Some (infrs@[Auto.transitivity scp exp_x e_r exp_v])
-                      | None -> None)
-                e_l_cands e_r_cands
-        with
-        | Some (_, _, infrs) -> Some infrs
-        | None ->
-           (* 2. Try applying one transitivity from v's side *)
-           (match Auto.expr_find_first_match
-                    (fun e -> match e with
-                              | Expr.Coq_value nv ->
-                                 (match try_trans scp inv_u x nv with
-                                  | Some infrs -> Some (e, infrs)
-                                  | None -> None)
-                              | _ -> None) e_r_cands
-            with
-            | Some (_, (exp_m, infrs)) -> Some (infrs@[Auto.transitivity scp exp_x exp_m exp_v])
-            | None -> None)
-
-    (* generate e_ll >= e_r if possible *)
-    (* when e_l = e_r, return (Some []) *)
-    and try_subst (scp:Auto.scope_t) (inv_u:Invariant.unary) (e_ll:Expr.t)
-                  (e_l:Expr.t) (e_r:Expr.t)
-        : (Infrule.t list) option =
-      match e_l, e_r with
-      | Expr.Coq_value _, _
-      | _, Expr.Coq_value _ -> None
-      | _, _->
-         let fst_result =
-           match Auto.eq_exps_values e_l e_r with
-           | Some vpl -> try_subst_intl scp inv_u e_l e_l vpl []
-           | _ -> None
-         in
-         (match fst_result with
-          | Some infrs -> Some (infrs@[Auto.transitivity scp e_ll e_l e_r])
-          | None ->
-             (* modify and try again *)
-             (match try_modify scp e_ll e_l with
-              | Some (infrs, e_l_sw) ->
-                 (match Auto.eq_exps_values e_l_sw e_r with
-                  | Some vpl ->
-                     try_subst_intl scp inv_u e_l_sw e_l_sw vpl infrs
-                  | _ -> None)
-              | _ -> None))
-
-    (* generate e_l >= e_l[rep vpl] *)
-    (* when e_l = e_l[rep vpl], return (Some []) *)
-    and try_subst_intl (scp:Auto.scope_t) (inv_u : Invariant.unary)
-                       (e_l:Expr.t) (e_m:Expr.t) (* (e_r:Expr.t) *)
-                       (vpl: (ValueT.t * ValueT.t) list) (infrs_acc:Infrule.t list)
-        : (Infrule.t list) option =
-      match vpl with
-      | [] -> Some infrs_acc
-      | (vl, vr)::vpl_t ->
-         if ValueT.eq_dec vl vr
-         then try_subst_intl scp inv_u e_l e_m (* e_r *) vpl_t infrs_acc
-         else
-           (match vl with
-            | ValueT.Coq_id x ->
-               (match try_trans scp inv_u x vr with
-                | Some infrs_v ->
-                   let e_m_new = Auto.substitute_expr x vr e_m in
-                   let infrs_new =
-                     infrs_acc@infrs_v@[Auto.substitute scp x vr e_m]@
-                       if Expr.eq_dec e_l e_m then []
-                       else [Auto.transitivity scp e_l e_m e_m_new]
-                   in
-                   try_subst_intl scp inv_u e_l e_m_new (* e_r *) vpl_t infrs_new
-                | None -> None)
-            | _ -> None)
 
   end
 
@@ -664,15 +507,6 @@ module AutoGVNModule = struct
              | _ -> None)
          | _, _, _ -> None
 
-    (* TODO: Coq_typ_pointer *)
-    (* TODO: get rhs of x : [load p1 ty1 a] *)
-    (* TODO: find other [load p2 ty2 a >= z] *)
-    (* TODO: make [trunc ty2 z ty1 >= y] *)
-    (* TODO: find if p1, p2 are const, ok. otherwise, make [bitcast ty1 p1 ty2 >= p2] *)
-    (* TODO: for each case, [load p1 ty1 a >= y is added *)
-    (* TODO: transitivity [ e_g >= x >= load p1 .. >= y*)
-         
-
     let try_resolve_icmp scp ld e1 e2 : (Infrule.t list) option =
       match e1, e2 with
       | Expr.Coq_icmp (c, ty, v1, v2),
@@ -694,7 +528,6 @@ module AutoGVNModule = struct
       | _, _ -> None
 
     let resolve_one_ld scp ld ld_other acc_ghosts e1 e2 : (Infrule.t list * ghost_intd_t) option =
-      print_endline "AutoGVNModule: resolve_one_ld start";
       if ExprPairSet.mem (e1, e2) ld then Some ([],[]) else
       let get_list = match scp with Auto.Src -> Auto.get_rhs_list | _ -> Auto.get_lhs_list in
       let get_cmpl_val scp ld x : ValueT.t option =
@@ -709,7 +542,7 @@ module AutoGVNModule = struct
       match extract_ghostid e_g with
       | None ->
          let second_try =
-           match NewAutoSubstTransHelper.run 0 scp ld None e1 e2 None with
+           match AutoSubstTransHelper.run 0 scp ld None e1 e2 None with
            | Some infrs -> Some infrs
            | None -> try_resolve_icmp scp ld e1 e2
          in (match second_try with Some infrs -> Some (infrs, acc_ghosts) | None -> None)
@@ -732,7 +565,6 @@ module AutoGVNModule = struct
               match e_cand_opts with
               | [] -> Some (e_other, [Infrule.Coq_intro_ghost (e_other, g)], (g, e_other)::acc_ghosts)
               | e_cand::_ -> 
-                 (* let e_cand_gs = List.map *)
                  let e_cand_g =
                    List.fold_left
                      (fun e_acc v_op ->
@@ -776,8 +608,7 @@ module AutoGVNModule = struct
               | Auto.Src -> (None, e_other, e_intr, Some e_g)
               | Auto.Tgt -> (Some e_g, e_intr, e_other, None)
             in
-            print_endline ("before calling SubstTrans: "^(Printer.ExprsToString.of_expr el)^(Printer.ExprsToString.of_expr er));
-            match NewAutoSubstTransHelper.run 0 scp ld oell el er oerr with
+            match AutoSubstTransHelper.run 0 scp ld oell el er oerr with
             | None -> (match hintgenLoad scp ld oell el er oerr with
                        | Some infrs2 -> Some (infrs1@infrs2, acc_ghosts2)
                        | None -> None)
@@ -786,7 +617,6 @@ module AutoGVNModule = struct
     let rec run_intl (scp:Auto.scope_t) (ld:ExprPairSet.t) (ld_other:ExprPairSet.t) (ldl_g:ExprPair.t list)
                      (acc_ghosts:ghost_intd_t) (acc_infrs:Infrule.t list) (acc_ld:ExprPairSet.t)
       : ghost_intd_t * (Infrule.t list) * ExprPairSet.t =
-      print_endline "AutoGVNModule: run_intl start";
       match ldl_g with
       | (e1, e2)::ldl_g_t ->
          (match resolve_one_ld scp ld ld_other acc_ghosts e1 e2 with
@@ -798,27 +628,20 @@ module AutoGVNModule = struct
       
     let auto1 : Auto.t1 =
       fun inv inv_g ->
-      (* let ghost_intd : ghost_intd_t = gather_ghost inv in *)
       let ghost_intd, infrs1, ld_src =
-        print_endline "auto1 - run_intl src";
         run_intl Auto.Src inv.Invariant.src.Invariant.lessdef inv.Invariant.tgt.Invariant.lessdef
                  (ExprPairSet.elements inv_g.Invariant.src.Invariant.lessdef)
                  [] [] inv_g.Invariant.src.Invariant.lessdef
       in
-      print_endline ("len infrs1:"^(string_of_int (List.length infrs1)));
       let _, infrs2, ld_tgt =
-        print_endline "auto1 - run_intl tgt";
         run_intl Auto.Tgt inv.Invariant.tgt.Invariant.lessdef inv.Invariant.src.Invariant.lessdef
                  (ExprPairSet.elements inv_g.Invariant.tgt.Invariant.lessdef)
                  ghost_intd  [] inv_g.Invariant.tgt.Invariant.lessdef in
-      print_endline ("len infrs2:"^(string_of_int (List.length infrs2)));
-      print_endline "auto1 almost done";
       (infrs1@infrs2,
        Invariant.update_src
          (Invariant.update_lessdef (fun _ -> ld_src))
          (Invariant.update_tgt
             (Invariant.update_lessdef (fun _ -> ld_tgt)) inv_g))
-
   end
 
 (** Framework 1. AutoNextInvariant *)
@@ -915,7 +738,6 @@ module type AutoInjVal = sig
     val run : Auto.t2
   end
 
-(* module AutoInjectValues (GEN:InjectExprGenerator): AutoInjVal = struct *)
 module AutoInjectValues (GEN:InjectValueGenerator): AutoInjVal = struct
     let rec run_intl (inv:Invariant.t) (vpl_acc:ValueTPair.t list)
                      (infrs_acc:Infrule.t list) (vpl:ValueTPair.t list)
@@ -932,66 +754,17 @@ module AutoInjectValues (GEN:InjectValueGenerator): AutoInjVal = struct
       run_intl inv [] [] vpl
   end
 
-(** Instances of Resolving Next Invariant *)
-module AutoRemMD_SubstTransSrc : AutoNextInv =
-  AutoRemMD
-    (struct
-        let f = fun inv v1 v2 ->
-          let exp1 = Expr.Coq_value v1 in
-          let exp2 = Expr.Coq_value v2 in
-          let e_src_cands =
-            Auto.get_rhs_list inv.Invariant.src.Invariant.lessdef exp1 in
-          let e_tgt_cands =
-            Auto.get_lhs_list inv.Invariant.tgt.Invariant.lessdef exp2 in
-          match 
-            Auto.expr_find_first_match2
-              (fun e1 e2 ->
-               AutoSubstTransHelper.try_subst Auto.Src inv.Invariant.src exp1 e1 e2)
-              e_src_cands e_tgt_cands
-          with
-          | Some (_, _, v) -> Some v
-          | _ -> None
-      end)
-
-module AutoUnaryLD_SubstTrans : AutoNextInv =
-  AutoUnaryLD
-    (struct
-        let f = fun scp inv_u e1 e2 ->
-          match e1, e2 with
-          | Expr.Coq_value (ValueT.Coq_id x), Expr.Coq_value v ->
-             AutoSubstTransHelper.try_trans scp inv_u x v
-          | _, _ -> None
-      end)
-
 module AutoUnaryLD_Trans : AutoNextInv =
   AutoUnaryLD
     (struct
         let f = AutoTransHelper.run_unary
       end)
 
-(* module AutoUnaryLD_GVNModule : AutoNextInv = *)
-(*   AutoUnaryLD *)
-(*     (struct *)
-(*         let f = AutoGVNModule.run_unary *)
-(*       end) *)
-
 module Auto_Default1 : AutoNextInv = struct
     let run : Auto.t1 = fun _ r -> ([], r)
   end
 
 (** Instances of AutoInjectValues *)
-module AutoInjectValues_SubstTransSrc : AutoInjVal =
-  AutoInjectValues
-    (struct
-        let f = fun inv v1 v2 ->
-          match v1 with
-          | ValueT.Coq_id x ->
-             if Invariant.not_in_maydiff inv v2
-             then AutoSubstTransHelper.try_trans
-                    Auto.Src inv.Invariant.src x v2
-             else None
-          | _ -> None
-      end)
 
 module AutoInjectValues_Trans : AutoInjVal =
   AutoInjectValues
@@ -1022,11 +795,6 @@ let autoSROA : Auto.t = (AutoUnaryLD_Trans.run, AutoInjectValues_Trans.run)
 let autoLICM : Auto.t = (AutoUnaryLD_Trans.run, AutoInjectValues_Trans.run)
 let autoDflt : Auto.t = (Auto_Default1.run, Auto_Default2.run)
 
-let autoTest1 : Auto.t = (AutoRemMD_SubstTransSrc.run, Auto_Default2.run)
-let autoTest2 : Auto.t = (AutoUnaryLD_SubstTrans.run, Auto_Default2.run)
-let autoTest3 : Auto.t = (AutoUnaryLD_Trans.run, Auto_Default2.run)
-let autoTest4 : Auto.t = (Auto_Default1.run, AutoInjectValues_SubstTransSrc.run)
-
 (** interface *)
 
 module AutoStrategy = struct
@@ -1036,10 +804,6 @@ module AutoStrategy = struct
       | AutoOpt.GVN -> autoGVN
       | AutoOpt.SROA -> autoSROA
       | AutoOpt.LICM -> autoLICM
-      | AutoOpt.TEST1 -> autoTest1
-      | AutoOpt.TEST2 -> autoTest2
-      | AutoOpt.TEST3 -> autoTest3
-      | AutoOpt.TEST4 -> autoTest4
       | _ -> autoDflt
   end
 
@@ -1088,98 +852,3 @@ let gen_infrules_next_inv (inv:Invariant.t) (inv_nxt:Invariant.t)
   let res = fst (run inv inv_nxt) in
   Printer.debug_print "AutoInfruleGen: gen_infrules_next_inv end";
   res
-
-(* module AutoTest = struct *)
-(*     let empty_inv_unary : Invariant.unary = *)
-(*        { Invariant.lessdef = ExprPairSet.empty; *)
-(*          Invariant.alias = *)
-(*            { Invariant.diffblock = ValueTPairSet.empty; *)
-(*              Invariant.noalias = PtrPairSet.empty }; *)
-(*          Invariant.unique = AtomSetImpl.empty; *)
-(*          Invariant.coq_private = IdTSet.empty } *)
-
-(*      let empty_inv : Invariant.t = *)
-(*        { Invariant.src = empty_inv_unary; *)
-(*          Invariant.tgt = empty_inv_unary; *)
-(*          Invariant.maydiff = IdTSet.empty } *)
-
-(*      let value_of_str (s:string) : ValueT.t = *)
-(*        ValueT.Coq_id (Tag.Coq_physical, s) *)
-(*      let gvalue_of_str (s:string) : ValueT.t = *)
-(*        ValueT.Coq_id (Tag.Coq_ghost, s) *)
-
-(*      let vx = value_of_str "x" *)
-(*      let vA = value_of_str "A" *)
-(*      let vB = value_of_str "B" *)
-(*      let gA = gvalue_of_str "A" *)
-(*      let gy = gvalue_of_str "y" *)
-
-(*      let ex = Expr.Coq_value vx *)
-(*      let eA = Expr.Coq_value vA *)
-(*      let eB = Expr.Coq_value vB *)
-(*      let egA = Expr.Coq_value gA *)
-(*      let egy = Expr.Coq_value gy *)
-
-(*      let gen_pair1 e v1 v2 : ExprPair.t = *)
-(*        (e, Expr.Coq_bop (LLVMsyntax.Coq_bop_add, 1, v1, v2)) *)
-(*      let gen_pair2 e v1 v2 : ExprPair.t = *)
-(*        (Expr.Coq_bop (LLVMsyntax.Coq_bop_add, 1, v1, v2), e) *)
-
-(*      let expr_pair_set_add_list (epl:ExprPair.t list) *)
-(*          : ExprPairSet.t -> ExprPairSet.t = *)
-(*        fun eps -> *)
-(*        List.fold_left *)
-(*          (fun s ep -> ExprPairSet.add ep s) *)
-(*          eps epl *)
-
-(*      let inv_precond1 : Invariant.t = *)
-(*        Invariant.update_src *)
-(*          (Invariant.update_lessdef *)
-(*             (expr_pair_set_add_list *)
-(*                [gen_pair1 ex vA vB; *)
-(*                 gen_pair2 ex vA vB; *)
-(*                 (eA, egA) *)
-(*          ])) empty_inv *)
-
-(*      let inv_precond2 : Invariant.t = *)
-(*        Invariant.update_src *)
-(*          (Invariant.update_lessdef *)
-(*             (expr_pair_set_add_list *)
-(*                [gen_pair1 ex vA vB; *)
-(*                 gen_pair2 ex vA vB; *)
-(*                 (eA, egA); *)
-(*                 gen_pair1 egy gA vB; *)
-(*                 gen_pair2 egy gA vB *)
-(*          ])) empty_inv *)
-
-(*      let inv_postcond : Invariant.t = *)
-(*        Invariant.update_src *)
-(*          (Invariant.update_lessdef *)
-(*             (expr_pair_set_add_list *)
-(*                [gen_pair1 ex vA vB; *)
-(*                 gen_pair2 ex vA vB; *)
-(*                 (eA, egA); *)
-(*                 (egy, ex); *)
-(*                 (ex, egy); *)
-(*                 gen_pair1 egy gA vB; *)
-(*                 gen_pair2 egy gA vB *)
-(*          ])) empty_inv *)
-
-(*      let print_string_list sl : unit = *)
-(*        let size = List.length sl in *)
-(*        print_endline ("length: "^(string_of_int size)); *)
-(*        List.fold_left *)
-(*          (fun _ s -> (print_endline "MID"); print_endline s) *)
-(*          () sl *)
-
-(*      let infrs1, _ = AutoUnaryLD_GVNModule.run inv_precond1 inv_postcond *)
-(*      let infr_strs1 = List.map Printer.PrintHints.infrule_to_string infrs1 *)
-(*      let _ = print_endline "GVNModule generated infrules:" *)
-(*      let _ = print_string_list infr_strs1 *)
-
-(*      let infrs2, _ = AutoUnaryLD_GVNModule.run inv_precond2 inv_postcond *)
-(*      let infr_strs2 = List.map Printer.PrintHints.infrule_to_string infrs2 *)
-(*      let _ = print_endline "GVNModule generated infrules:" *)
-(*      let _ = print_string_list infr_strs2 *)
-
-(*   end *)
