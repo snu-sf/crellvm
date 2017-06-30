@@ -60,17 +60,12 @@ Inductive sim_local_stack
          (INCR: InvMem.Rel.le (InvMem.Rel.lift mem_src mem_tgt uniqs_src uniqs_tgt privs_src privs_tgt inv1) inv')
          (MEM: InvMem.Rel.sem conf_src conf_tgt mem'_src mem'_tgt inv')
          (RETVAL: TODO.lift2_option (genericvalues_inject.gv_inject inv'.(InvMem.Rel.inject)) retval'_src retval'_tgt)
-         (VALID_PTR: option_map
-                       (memory_props.MemProps.valid_ptrs
-                          mem'_src.(Mem.nextblock)) retval'_src = Some True)
          (RETURN_SRC: return_locals
                         conf_src.(CurTargetData)
                         retval'_src id_src noret_src typ_src
                         locals_src = Some locals'_src)
        ,
        exists inv'' idx' locals'_tgt,
-         <<VALID_PTR: option_map (memory_props.MemProps.valid_ptrs
-                                    (mem'_tgt).(Mem.nextblock)) retval'_tgt = Some True>> /\
          <<RETURN_TGT: return_locals
                          conf_tgt.(CurTargetData)
                          retval'_tgt id_tgt noret_tgt typ_tgt

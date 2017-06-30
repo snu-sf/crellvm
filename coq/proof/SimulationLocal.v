@@ -124,12 +124,9 @@ Section SimLocal.
       (MEM: InvMem.Rel.sem conf_src conf_tgt st2_src.(Mem) st1_tgt.(Mem) inv2)
       (RET:
          forall retval2_src
-           (RET_SRC: getOperandValue conf_src.(CurTargetData) ret2_src st2_src.(EC).(Locals) conf_src.(Globals) = Some retval2_src)
-           (VALID_PTR: memory_props.MemProps.valid_ptrs st2_src.(Mem).(Mem.nextblock) retval2_src)
-         ,
+           (RET_SRC: getOperandValue conf_src.(CurTargetData) ret2_src st2_src.(EC).(Locals) conf_src.(Globals) = Some retval2_src),
          exists retval1_tgt,
            <<RET_TGT: getOperandValue conf_tgt.(CurTargetData) ret1_tgt st1_tgt.(EC).(Locals) conf_tgt.(Globals) = Some retval1_tgt>> /\
-           <<VALID_PTR: memory_props.MemProps.valid_ptrs st1_src.(Mem).(Mem.nextblock) retval1_tgt>> /\
            <<INJECT: genericvalues_inject.gv_inject inv2.(InvMem.Rel.inject) retval2_src retval1_tgt>>)
       (WF_SRC: wf_ConfigI conf_src /\ wf_StateI conf_src st1_src)
       (WF_TGT: wf_ConfigI conf_tgt /\ wf_StateI conf_tgt st1_tgt)
@@ -206,9 +203,6 @@ Section SimLocal.
                  (INCR: InvMem.Rel.le (InvMem.Rel.lift st2_src.(Mem) st1_tgt.(Mem) uniqs_src uniqs_tgt privs_src privs_tgt inv2) inv3)
                  (MEM: InvMem.Rel.sem conf_src conf_tgt mem3_src mem3_tgt inv3)
                  (RETVAL: TODO.lift2_option (genericvalues_inject.gv_inject inv3.(InvMem.Rel.inject)) retval3_src retval3_tgt)
-                 (VALID_PTR: option_map
-                               (memory_props.MemProps.valid_ptrs
-                                  st2_src.(Mem).(Mem.nextblock)) retval3_src = Some True)
                  (RETURN_SRC: return_locals
                                 conf_src.(CurTargetData)
                                 retval3_src id2_src noret2_src typ2_src
@@ -216,9 +210,6 @@ Section SimLocal.
                               = Some locals4_src)
         ,
                exists locals4_tgt idx4 inv4,
-                 <<VALID_PTR: option_map
-                                (memory_props.MemProps.valid_ptrs
-                                   st1_tgt.(Mem).(Mem.nextblock)) retval3_tgt = Some True>> /\
                  (* TODO: Define update_locals function *)
                  <<RETURN_TGT: return_locals
                                  conf_tgt.(CurTargetData)
@@ -274,7 +265,7 @@ Section SimLocal.
     - econs 4; eauto.
       i. expl RETURN.
       esplits; eauto.
-      i. specialize (RETURN1 WF_SRC1). specialize (RETURN1 WF_TGT1). des.
+      i. specialize (RETURN0 WF_SRC1). specialize (RETURN0 WF_TGT1). des.
       splits; eauto.
     - econs 5; eauto.
       i. exploit STEP; eauto. i. des.
