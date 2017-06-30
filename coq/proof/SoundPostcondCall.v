@@ -27,24 +27,10 @@ Require Import SoundForgetStackCall.
 Require Import SoundForgetMemoryCall.
 Require Import SoundPostcondCmdAdd.
 Require Import opsem_wf.
-Require Import TODOProof.
 Import OpsemPP.
 
 Set Implicit Arguments.
 
-(* TODO: location *)
-Lemma memory_props_MemProps_valid_ptrs_cons
-      bd hd tl
-  :
-    <<EQ: (memory_props.MemProps.valid_ptrs bd [hd] /\ memory_props.MemProps.valid_ptrs bd tl)
-          <-> memory_props.MemProps.valid_ptrs bd (hd :: tl)>>
-.
-Proof.
-  red. ss.
-  destruct hd; ss. split; i.
-  - des_ifs; des; ss.
-  - des_ifs; des; ss.
-Qed.
 
 Lemma postcond_cmd_inject_event_call
       m_src conf_src st0_src cmds_src
@@ -66,12 +52,9 @@ Lemma postcond_cmd_inject_event_call
     <<VARG: varg_src = varg_tgt>> /\
     <<FUN:
       forall funval2_src
-        (FUN_SRC: getOperandValue conf_src.(CurTargetData) fun_src st0_src.(EC).(Locals) conf_src.(Globals) = Some funval2_src)
-        (WF_ARGS_SRC: memory_props.MemProps.valid_ptrs st0_src.(Mem).(Memory.Mem.nextblock) funval2_src)
-      ,
+        (FUN_SRC: getOperandValue conf_src.(CurTargetData) fun_src st0_src.(EC).(Locals) conf_src.(Globals) = Some funval2_src),
       exists funval1_tgt,
         <<FUN_TGT: getOperandValue conf_tgt.(CurTargetData) fun_tgt st0_tgt.(EC).(Locals) conf_tgt.(Globals) = Some funval1_tgt>> /\
-        <<WF_ARGS_TGT: memory_props.MemProps.valid_ptrs st0_tgt.(Mem).(Memory.Mem.nextblock) funval1_tgt>> /\
         <<INJECT: genericvalues_inject.gv_inject invmem0.(InvMem.Rel.inject) funval2_src funval1_tgt>>>> /\
     <<ARGS:
       forall args2_src
@@ -90,20 +73,7 @@ Proof.
     { rewrite InvState.Unary.sem_valueT_physical. eauto. }
     i. des.
     esplits; eauto.
-    - erewrite <- InvState.Unary.sem_valueT_physical. eauto.
-    - rewrite InvState.Unary.sem_valueT_physical in VAL_TGT.
-      destruct fun_tgt; ss.
-      + inv STATE. clear SRC TGT_NOUNIQ MAYDIFF ALLOCAS.
-        inv TGT.
-        eapply WF_LOCAL; eauto.
-      + exploit MemAux.wf_globals_const2GV; eauto.
-        { apply MEM. }
-        i; des.
-        eapply memory_props.MemProps.valid_ptrs__trans; eauto.
-        clear - MEM. inv MEM. clear - TGT. inv TGT.
-        inv WF.
-        rewrite Pos.add_1_r.
-        eapply Pos.le_succ_l. ss.
+    erewrite <- InvState.Unary.sem_valueT_physical. eauto.
   }
   { (* args *)
     clear -CONF STATE MEM INJECT_EVENT0.
@@ -288,12 +258,9 @@ Lemma postcond_call_sound
   <<VARG: varg_src = varg_tgt>> /\
   <<FUN:
     forall funval2_src
-      (FUN_SRC: getOperandValue conf_src.(CurTargetData) fun_src st0_src.(EC).(Locals) conf_src.(Globals) = Some funval2_src)
-      (WF_ARGS_SRC: memory_props.MemProps.valid_ptrs st0_src.(Mem).(Memory.Mem.nextblock) funval2_src)
-    ,
+      (FUN_SRC: getOperandValue conf_src.(CurTargetData) fun_src st0_src.(EC).(Locals) conf_src.(Globals) = Some funval2_src),
     exists funval1_tgt,
       <<FUN_TGT: getOperandValue conf_tgt.(CurTargetData) fun_tgt st0_tgt.(EC).(Locals) conf_tgt.(Globals) = Some funval1_tgt>> /\
-      <<WF_ARGS_TGT: memory_props.MemProps.valid_ptrs st0_tgt.(Mem).(Memory.Mem.nextblock) funval1_tgt>> /\
       <<INJECT: genericvalues_inject.gv_inject invmem0.(InvMem.Rel.inject) funval2_src funval1_tgt>>>> /\
   <<ARGS:
     forall args2_src
