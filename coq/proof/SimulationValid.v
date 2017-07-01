@@ -35,7 +35,6 @@ Require Import SoundPostcondPhinodes.
 Require Import SoundInfrules.
 Require Import SoundReduceMaydiff.
 Require Import opsem_wf.
-Require Import memory_props.
 
 Set Implicit Arguments.
 
@@ -66,10 +65,8 @@ Inductive valid_state_sim
                          (st_tgt.(EC).(Terminator)))
     (STATE: InvState.Rel.sem conf_src conf_tgt st_src st_tgt invst invmem inv)
     (MEM: InvMem.Rel.sem conf_src conf_tgt st_src.(Mem) st_tgt.(Mem) invmem)
-    (WF_SRC: wf_ConfigI conf_src /\ wf_StateI conf_src st_src
-             /\ MemProps.wf_lc st_src.(Mem) st_src.(EC).(Locals))
-    (WF_TGT: wf_ConfigI conf_tgt /\ wf_StateI conf_tgt st_tgt
-             /\ MemProps.wf_lc st_tgt.(Mem) st_tgt.(EC).(Locals))
+    (WF_SRC: wf_ConfigI conf_src /\ wf_StateI conf_src st_src)
+    (WF_TGT: wf_ConfigI conf_tgt /\ wf_StateI conf_tgt st_tgt)
 .
 
 Lemma decide_nonzero_inject
@@ -109,12 +106,10 @@ Lemma valid_sim_term
                                 invst inv0 inv_term)
       (WF_SRC: wf_ConfigI conf_src /\
                wf_StateI conf_src (mkState (mkEC CurFunction0 CurBB0 [] Terminator0 Locals0 Allocas0)
-                                           ECS0 Mem0) /\
-               MemProps.wf_lc Mem0 Locals0)
+                                           ECS0 Mem0))
       (WF_TGT: wf_ConfigI conf_tgt /\
                wf_StateI conf_tgt (mkState (mkEC CurFunction1 CurBB1 [] Terminator1 Locals1 Allocas1)
-                                           ECS1 Mem1) /\
-               MemProps.wf_lc Mem1 Locals1)
+                                           ECS1 Mem1))
   :
     <<SIM_TERM: _sim_local conf_src conf_tgt
                            (valid_state_sim conf_src conf_tgt)
@@ -279,14 +274,12 @@ Proof.
           econs; eauto; ss.
           - eapply implies_sound; eauto.
             { ss. }
-          - splits; ss.
-            + eapply preservation; eauto.
-              rpapply sBranch; eauto. ss.
-              rewrite lookupBlockViaLabelFromFdef_spec. ss.
-              (* Are we lucky? Will there be no siuation that forces us to get wf_src before esplits? *)
-              (* Will we always be able to (easy to) re-construct sInsn like this? *)
-            + apply STATE6.
-          - splits; ss. apply STATE6.
+          - split; ss.
+            eapply preservation; eauto.
+            rpapply sBranch; eauto. ss.
+            rewrite lookupBlockViaLabelFromFdef_spec. ss.
+            (* Are we lucky? Will there be no siuation that forces us to get wf_src before esplits? *)
+            (* Will we always be able to (easy to) re-construct sInsn like this? *)
         }
       -
         exploit postcond_phinodes_sound;
@@ -319,13 +312,10 @@ Proof.
           (* - eapply inject_allocas_inj_incr; eauto. *)
           - eapply implies_sound; eauto.
             { ss. }
-          - splits; ss.
-            + eapply preservation; eauto.
-              rpapply sBranch; eauto. ss.
-              rewrite lookupBlockViaLabelFromFdef_spec. ss.
-            + apply STATE6.
-          - splits; ss.
-            apply STATE6.
+          - split; ss.
+            eapply preservation; eauto.
+            rpapply sBranch; eauto. ss.
+            rewrite lookupBlockViaLabelFromFdef_spec. ss.
         }
     }
   + (* br_uncond *)
@@ -408,13 +398,10 @@ Proof.
           (* - eapply inject_allocas_inj_incr; eauto. *)
           - eapply implies_sound; eauto.
             { ss. }
-          - splits; ss.
-            + eapply preservation; eauto.
-              econs; eauto.
-              rewrite lookupBlockViaLabelFromFdef_spec. ss.
-            + apply STATE6.
-          - splits; ss.
-            apply STATE6.
+          - split; ss.
+            eapply preservation; eauto.
+            econs; eauto.
+            rewrite lookupBlockViaLabelFromFdef_spec. ss.
         }
     }
   + (* switch *)
@@ -525,13 +512,10 @@ Proof.
           (* - eapply inject_allocas_inj_incr; eauto. *)
           - eapply implies_sound; eauto.
             { ss. }
-          - splits; ss.
-            + eapply preservation; eauto.
-              econs; eauto.
-              rewrite lookupBlockViaLabelFromFdef_spec. ss.
-            + apply STATE6.
-          - splits; ss.
-            apply STATE6.
+          - split; ss.
+            eapply preservation; eauto.
+            econs; eauto.
+            rewrite lookupBlockViaLabelFromFdef_spec. ss.
         }
       }
       { (* cases *)
@@ -603,13 +587,10 @@ Proof.
           (* - eapply inject_allocas_inj_incr; eauto. *)
           - eapply implies_sound; eauto.
             { ss. }
-          - splits; ss.
-            + eapply preservation; eauto.
-              econs; eauto.
-              rewrite lookupBlockViaLabelFromFdef_spec. ss.
-            + apply STATE6.
-          - splits; ss.
-            apply STATE6.
+          - split; ss.
+            eapply preservation; eauto.
+            econs; eauto.
+            rewrite lookupBlockViaLabelFromFdef_spec. ss.
         }
       }
     }
@@ -1006,10 +987,7 @@ More explanation on: https://github.com/snu-sf/llvmberry/issues/426". }
         { econs 1; eauto. }
         { right. apply CIH. econs; eauto.
           - eapply implies_sound; eauto.
-          - splits; ss.
-            + eapply preservation; eauto.
-            + apply STATE5.
-          - splits; ss. apply STATE5.
+          - split; ss. eapply preservation; eauto.
         }
       }
     + (* call *)
@@ -1137,11 +1115,8 @@ More explanation on: https://github.com/snu-sf/llvmberry/issues/426". }
         exists locals2_tgt, 0%nat, invmem'3. splits; ss.
         - etransitivity; eauto. etransitivity; eauto.
         - esplits; eauto.
-          { right. apply CIH.
-            econs; eauto.
+          { right. apply CIH. econs; eauto.
             - eapply implies_sound; eauto.
-            - des. splits; ss. apply STATE'4.
-            - des. splits; ss. apply STATE'4.
           }
       }
 Unshelve.
@@ -1468,10 +1443,8 @@ Lemma valid_init
   :
   exists ec_tgt,
     (<<INIT_TGT: init_fdef conf_tgt fdef_tgt args_tgt ec_tgt>>) /\
-    (forall (WF_SRC: wf_ConfigI conf_src /\ wf_StateI conf_src (mkState ec_src stack0_src mem_src)
-                     /\ MemProps.wf_lc mem_src ec_src.(Locals))
-            (WF_TGT: wf_ConfigI conf_tgt /\ wf_StateI conf_tgt (mkState ec_tgt stack0_tgt mem_tgt)
-                     /\ MemProps.wf_lc mem_tgt ec_tgt.(Locals))
+    (forall (WF_SRC: wf_ConfigI conf_src /\ wf_StateI conf_src (mkState ec_src stack0_src mem_src))
+            (WF_TGT: wf_ConfigI conf_tgt /\ wf_StateI conf_tgt (mkState ec_tgt stack0_tgt mem_tgt))
             (WF_FDEF_SRC: wf_fdef conf_src.(CurSystem) conf_src ec_src.(CurFunction))
             (WF_FDEF_TGT: wf_fdef conf_tgt.(CurSystem) conf_tgt ec_tgt.(CurFunction))
       ,
