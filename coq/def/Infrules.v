@@ -916,9 +916,9 @@ Definition apply_infrule
     | const_floatpoint fptyp fp =>
       match fptyp with
       | fp_float =>
-        {{ inv0 +++src (Expr.value (ValueT.const (const_undef (typ_floatpoint fp_float)))) >= (Expr.value (const_floatpoint fp_float fp)) }}
+        {{ inv0 +++tgt (Expr.value (ValueT.const (const_undef (typ_floatpoint fp_float)))) >= (Expr.value (const_floatpoint fp_float fp)) }}
       | fp_double =>
-        {{ inv0 +++src (Expr.value (ValueT.const (const_undef (typ_floatpoint fp_double)))) >= (Expr.value (const_floatpoint fp_double fp)) }}
+        {{ inv0 +++tgt (Expr.value (ValueT.const (const_undef (typ_floatpoint fp_double)))) >= (Expr.value (const_floatpoint fp_double fp)) }}
       | _ => apply_fail tt
       end
     | const_null typ =>
