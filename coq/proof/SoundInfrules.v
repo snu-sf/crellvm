@@ -125,7 +125,38 @@ Proof.
   - ADMIT "fptrunc_bitcast".
   - ADMIT "fptrunc_fpext".
   - ADMIT "gepzero".
-  - ADMIT "gep_inbounds_remove".
+  -
+        exists invst0, invmem0. splits; eauto; [|reflexivity].
+    inv STATE. econs; eauto. ss.
+    inv SRC. econs; eauto. ss.
+    ii.
+    destruct gepinst.
+    unfold Debug.debug_string, Debug.debug_print2 in H;
+      apply LESSDEF; auto.
+    unfold Debug.debug_string, Debug.debug_print2 in H;
+      apply LESSDEF; auto.
+    unfold Debug.debug_string, Debug.debug_print2 in H;
+      apply LESSDEF; auto.
+    unfold Debug.debug_string, Debug.debug_print2 in H;
+      apply LESSDEF; auto.
+    admit.
+    unfold Debug.debug_string, Debug.debug_print2 in H;
+      apply LESSDEF; auto.
+    unfold Debug.debug_string, Debug.debug_print2 in H;
+      apply LESSDEF; auto.
+    unfold Debug.debug_string, Debug.debug_print2 in H;
+      apply LESSDEF; auto.
+   unfold Debug.debug_string, Debug.debug_print2 in H;
+     apply LESSDEF; auto.
+   unfold Debug.debug_string, Debug.debug_print2 in H;
+     apply LESSDEF; auto.
+   unfold Debug.debug_string, Debug.debug_print2 in H;
+     apply LESSDEF; auto.
+   unfold Debug.debug_string, Debug.debug_print2 in H;
+     apply LESSDEF; auto.
+   unfold Debug.debug_string, Debug.debug_print2 in H;
+     apply LESSDEF; auto.
+   admit. admit. admit. admit. admit.
   - ADMIT "gep_inbounds_add".
   - ADMIT "inttoptr_bitcast".
   - ADMIT "inttoptr_ptrtoint".
@@ -231,16 +262,41 @@ Proof.
     inv STATE. econs; eauto. ss.
     inv SRC. econs; eauto. ss.
     ii. apply Exprs.ExprPairSetFacts.add_iff in H. des.
-    (* + subst. *)
-    (*   repeat (match goal with *)
-    (*           | [H: orb _ _ = true |- _] => apply orb_prop in H *)
-    (*           | [H: andb _ _ = true |- _] => apply andb_prop in H *)
-    (*           end; des). *)
-    (*   * ss. *)
+    + subst.
+      repeat (match goal with
+              | [H: orb _ _ = true |- _] => apply orb_prop in H
+              | [H: andb _ _ = true |- _] => apply andb_prop in H
+              end; des).
+      * ss.
 
-    (*     unfold Hints.Invariant.lessdef_expr in *. *)
-      (*   (* apply orb_prop in C. *) *)
-      (*   (* apply orb_prop in C0. *) *)
+        unfold Hints.Invariant.lessdef_expr in *.
+        apply orb_prop in C.
+        apply orb_prop in C0. des.
+        exploit LESSDEF.
+        apply Exprs.ExprPairSetFacts.mem_iff. apply C. eauto.
+        intros. des.
+        exploit LESSDEF.
+        apply Exprs.ExprPairSetFacts.mem_iff. apply C0. eauto.
+        intros. des.
+        exists val0. split. auto. apply GVs.lessdef_trans with (y:=val2); auto.
+        admit. admit. admit.
+      * admit.
+      * admit.
+      * admit.
+      * admit.
+      * admit.
+      * admit.
+      * admit.
+      * admit.
+      * admit.
+      * admit.
+      * admit.
+      * admit.
+      * admit.
+      * admit.
+      * admit.
+
+      (* admit. *)
       (*   repeat (match goal with *)
       (*           | [H: orb _ _ = true |- _] => apply orb_prop in H *)
       (*           end; des). *)
