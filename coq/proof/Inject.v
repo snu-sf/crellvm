@@ -646,11 +646,9 @@ Lemma get_switch_branch_inject
   get_switch_branch TD typ val_tgt cls l0 = Some l.
 Proof.
   destruct typ; ss.
-  exploit genericvalues_inject.simulation__eq__GV2int; eauto. i.
-  (* TODO: The definition of val_inject is WRONG!
-   * https://github.com/snu-sf/llvmberry/issues/327
-   *)
-  rewrite x0 in *. eauto.
+  des_ifs.
+  - expl genericvalues_inject.simulation__GV2int. clarify.
+  - expl genericvalues_inject.simulation__GV2int. clarify.
 Qed.
 
 Lemma get_switch_branch_inject_aux

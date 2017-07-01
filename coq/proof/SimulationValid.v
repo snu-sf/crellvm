@@ -78,9 +78,8 @@ Lemma decide_nonzero_inject
 .
 Proof.
   inv NONZERO.
-  red. econs; eauto. rewrite <- INT.
-  symmetry.
-  eapply genericvalues_inject.simulation__eq__GV2int; eauto.
+  red. econs; eauto.
+  eapply genericvalues_inject.simulation__GV2int; eauto.
 Qed.
 
 Lemma valid_sim_term
