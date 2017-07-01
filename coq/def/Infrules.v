@@ -898,7 +898,13 @@ Definition apply_infrule
     | const_int s v =>
       {{ inv0 +++src (Expr.value (ValueT.const (const_undef (typ_int s)))) >= (Expr.value (const_int s v)) }}
     | const_floatpoint fptyp fp =>
-      {{ inv0 +++src (Expr.value (ValueT.const (const_undef (typ_floatpoint fptyp)))) >= (Expr.value (const_floatpoint fptyp fp)) }}
+      match fptyp with
+      | fp_float =>
+        {{ inv0 +++src (Expr.value (ValueT.const (const_undef (typ_floatpoint fp_float)))) >= (Expr.value (const_floatpoint fp_float fp)) }}
+      | fp_double =>
+        {{ inv0 +++src (Expr.value (ValueT.const (const_undef (typ_floatpoint fp_double)))) >= (Expr.value (const_floatpoint fp_double fp)) }}
+      | _ => apply_fail tt
+      end
     | const_null typ =>
       {{ inv0 +++src (Expr.value (ValueT.const (const_undef (typ_pointer typ)))) >= (Expr.value (const_null typ)) }}
     | _ => apply_fail tt
@@ -908,9 +914,15 @@ Definition apply_infrule
     | const_int s v =>
       {{ inv0 +++tgt (Expr.value (ValueT.const (const_undef (typ_int s)))) >= (Expr.value (const_int s v)) }}
     | const_floatpoint fptyp fp =>
-      {{ inv0 +++tgt (Expr.value (ValueT.const (const_undef (typ_floatpoint fptyp)))) >= (Expr.value (const_floatpoint fptyp fp)) }}
+      match fptyp with
+      | fp_float =>
+        {{ inv0 +++src (Expr.value (ValueT.const (const_undef (typ_floatpoint fp_float)))) >= (Expr.value (const_floatpoint fp_float fp)) }}
+      | fp_double =>
+        {{ inv0 +++src (Expr.value (ValueT.const (const_undef (typ_floatpoint fp_double)))) >= (Expr.value (const_floatpoint fp_double fp)) }}
+      | _ => apply_fail tt
+      end
     | const_null typ =>
-      {{ inv0 +++tgt (Expr.value (ValueT.const (const_undef typ))) >= (Expr.value (const_null typ)) }}
+      {{ inv0 +++tgt (Expr.value (ValueT.const (const_undef (typ_pointer typ)))) >= (Expr.value (const_null typ)) }}
     | _ => apply_fail tt
     end
   | Infrule.lessthan_undef_const_gep_or_cast typ ce =>
