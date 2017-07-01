@@ -137,46 +137,24 @@ Proof.
     admit.
   - (* lessthan_undef_const *)
     exists invst0, invmem0. splits; eauto; [|reflexivity].
-    destruct c eqn:C; inv STATE; econs; eauto;
+    destruct c eqn:C; (try destruct floating_point5);
+      (try (inv STATE; econs; eauto;
       ss; inv SRC; econs; eauto; ss;
-        ii; apply Exprs.ExprPairSetFacts.add_iff in H; des.
-    + subst. esplits; ss; eauto.
-      eapply all_undef_lessdef_aux; apply const2GV_undef in VAL1; des; eauto.
-      unfold flatten_typ in VAL1; simpl in VAL1; destruct (CurTargetData conf_src).
-      inv VAL1. eauto.
-    + eapply LESSDEF; auto.
-    + admit.
-    (* subst. esplits; ss; eauto. destruct floating_point5; unfold const2GV.  *)
-    (* eapply all_undef_lessdef_aux; apply const2GV_undef in VAL1; des; eauto. *)
-    (* unfold flatten_typ in VAL1; simpl in VAL1; destruct (CurTargetData conf_src). *)
-    (* inv VAL1. eauto. *)
-    + eapply LESSDEF; auto.
-    + subst; esplits; ss; eauto.
-      eapply all_undef_lessdef_aux; apply const2GV_undef in VAL1; des; eauto.
-      unfold flatten_typ in VAL1; simpl in VAL1; destruct (CurTargetData conf_src).
-      inv VAL1. eauto.
-    + eapply LESSDEF; auto.
+      ii; apply Exprs.ExprPairSetFacts.add_iff in H; des));
+    (try (subst; esplits; ss; eauto;
+      eapply all_undef_lessdef_aux; apply const2GV_undef in VAL1; des; eauto;
+      unfold flatten_typ in VAL1; simpl in VAL1; destruct (CurTargetData conf_src);
+        inv VAL1; eauto)); (try (eapply LESSDEF; auto)).
   - (* lessthan_undef_const_tgt *)
     exists invst0, invmem0. splits; eauto; [|reflexivity].
-    destruct c eqn:C; inv STATE; econs; eauto;
+    destruct c eqn:C; (try destruct floating_point5);
+      (try (inv STATE; econs; eauto;
       ss; inv TGT; econs; eauto; ss;
-        ii; apply Exprs.ExprPairSetFacts.add_iff in H; des.
-    + subst. esplits; ss; eauto.
-      eapply all_undef_lessdef_aux; apply const2GV_undef in VAL1; des; eauto.
-      unfold flatten_typ in VAL1; simpl in VAL1; destruct (CurTargetData conf_tgt).
-      inv VAL1. eauto.
-    + eapply LESSDEF; auto.
-    + admit.
-    (* subst. esplits; ss; eauto. destruct floating_point5; unfold const2GV.  *)
-    (* eapply all_undef_lessdef_aux; apply const2GV_undef in VAL1; des; eauto. *)
-    (* unfold flatten_typ in VAL1; simpl in VAL1; destruct (CurTargetData conf_src). *)
-    (* inv VAL1. eauto. *)
-    + eapply LESSDEF; auto.
-    + subst; esplits; ss; eauto.
-      eapply all_undef_lessdef_aux; apply const2GV_undef in VAL1; des; eauto.
-      unfold flatten_typ in VAL1; simpl in VAL1; destruct (CurTargetData conf_tgt).
-      inv VAL1. eauto.
-    + eapply LESSDEF; auto.
+      ii; apply Exprs.ExprPairSetFacts.add_iff in H; des));
+    (try (subst; esplits; ss; eauto;
+      eapply all_undef_lessdef_aux; apply const2GV_undef in VAL1; des; eauto;
+      unfold flatten_typ in VAL1; simpl in VAL1; destruct (CurTargetData conf_tgt);
+        inv VAL1; eauto)); (try (eapply LESSDEF; auto)).
   - ADMIT "!lessthan_undef_const_gep_or_cast".
   - ADMIT "mul_bool".
   - ADMIT "mul_mone".
@@ -253,11 +231,20 @@ Proof.
     inv STATE. econs; eauto. ss.
     inv SRC. econs; eauto. ss.
     ii. apply Exprs.ExprPairSetFacts.add_iff in H. des.
-    + subst.
-      (* repeat (match goal with *)
-      (*         | [H: orb _ _ = true |- _] => apply orb_prop in H *)
-      (*         | [H: andb _ _ = true |- _] => apply andb_prop in H *)
-      (*         end; des). *)
+    (* + subst. *)
+    (*   repeat (match goal with *)
+    (*           | [H: orb _ _ = true |- _] => apply orb_prop in H *)
+    (*           | [H: andb _ _ = true |- _] => apply andb_prop in H *)
+    (*           end; des). *)
+    (*   * ss. *)
+
+    (*     unfold Hints.Invariant.lessdef_expr in *. *)
+      (*   (* apply orb_prop in C. *) *)
+      (*   (* apply orb_prop in C0. *) *)
+      (*   repeat (match goal with *)
+      (*           | [H: orb _ _ = true |- _] => apply orb_prop in H *)
+      (*           end; des). *)
+      (*   admit. *)
       ADMIT "use C".
       (*
        * 1. transitivity definition: make a function of match Expr.load.
