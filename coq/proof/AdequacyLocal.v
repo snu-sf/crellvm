@@ -75,10 +75,12 @@ Inductive sim_local_stack
            (WF_SRC: wf_StateI conf_src
                               (mkState
                                  (mkEC func_src b_src cmds_src term_src locals'_src allocas_src)
-                                 ecs_src mem'_src))
+                                 ecs_src mem'_src)
+                    /\ MemProps.wf_lc mem'_src locals'_src)
            (WF_TGT: wf_StateI conf_tgt
                               (mkState (mkEC func_tgt b_tgt cmds_tgt term_tgt locals'_tgt allocas_tgt)
-                                       ecs_tgt mem'_tgt))
+                                       ecs_tgt mem'_tgt)
+                    /\ MemProps.wf_lc mem'_tgt locals'_tgt)
          ,
          <<SIM:
            sim_local
