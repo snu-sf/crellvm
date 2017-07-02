@@ -24,6 +24,31 @@ Require Import TODOProof.
 
 Set Implicit Arguments.
 
+(* TODO: move location. SoundBase? *)
+Lemma load_align_one_sem_expr
+      conf st invst e0
+  :
+    <<EQ: InvState.Unary.sem_expr conf st invst e0 =
+          InvState.Unary.sem_expr conf st invst (Infrules.load_align_one e0)>>
+.
+Proof.
+  red.
+  unfold Infrules.load_align_one. des_ifs; ss.
+Qed.
+
+(* TODO: Move to invstate.v *)
+Lemma sem_lessdef_trans
+      conf st invst e0 e1 e2
+      (LD01: InvState.Unary.sem_lessdef conf st invst (e0, e1))
+      (LD12: InvState.Unary.sem_lessdef conf st invst (e1, e2))
+  :
+    <<LD12: InvState.Unary.sem_lessdef conf st invst (e0, e2)>>
+.
+Proof.
+  ii. expl LD01. expl LD12. ss. esplits; eauto.
+  eapply GVs.lessdef_trans; eauto.
+Qed.
+
 Lemma apply_infrule_sound
       m_src m_tgt
       conf_src st_src
@@ -259,78 +284,42 @@ Proof.
     match goal with
     | [|- context[if ?c then _ else _]] => destruct c eqn:C
     end; ss.
-    inv STATE. econs; eauto. ss.
-    inv SRC. econs; eauto. ss.
-    ii. apply Exprs.ExprPairSetFacts.add_iff in H. des.
-    + (* subst. *)
-      (* repeat (match goal with *)
-      (*         | [H: orb _ _ = true |- _] => apply orb_prop in H *)
-      (*         | [H: andb _ _ = true |- _] => apply andb_prop in H *)
-      (*         end; des). *)
-      (* * ss. *)
-      (*   unfold Hints.Invariant.lessdef_expr in *. *)
-      (*   apply orb_prop in C. *)
-      (*   apply orb_prop in C0. des. *)
-      (*   { *)
-      (*     exploit LESSDEF. *)
-      (*     apply Exprs.ExprPairSetFacts.mem_iff. apply C. eauto. *)
-      (*     intros. des. *)
-      (*     exploit LESSDEF. *)
-      (*     apply Exprs.ExprPairSetFacts.mem_iff. apply C0. eauto. *)
-      (*     intros. des. *)
-      (*     exists val0. split. auto. apply GVs.lessdef_trans with (y:=val2); auto. *)
-      (*   } *)
-      (*   { *)
-      (*     simpl in C. *)
-      (*     (* I think exploit LESSDEF is not a soln *) *)
-      (*     (* unfold Hints.Invariant.deep_check_expr in C. *) *)
-      (*     (* apply andb_prop in C. des. destruct e1; destruct e2; inv C. *) *)
-      (*     (* simpl in C1. rewrite andb_true_iff in C1. rewrite andb_true_iff in C1. *) *)
-      (*     (* apply andb_prop in H0. des. *) *)
-      (*     exploit LESSDEF.  *)
-      (*     apply Exprs.ExprPairSetFacts.mem_iff. *)
-      (*     unfold Hints.Invariant.deep_check_expr in C. *)
-      (*     apply andb_prop in C. des. destruct e1; destruct e2; inv C. *)
-      (*     simpl in C1. rewrite andb_true_iff in C1. rewrite andb_true_iff in C1. *)
-      (*     rewrite H0. *)
-      (*     des. *)
-
-
-      (*     apply transitivity_aux in C. apply C. eauto. *)
-      (*     intros. des. *)
-      (*     exploit LESSDEF. *)
-      (*     apply Exprs.ExprPairSetFacts.mem_iff. apply C0. eauto. *)
-      (*     intros. des. *)
-      (*     exists val0. split. auto. apply GVs.lessdef_trans with (y:=val2); auto. *)
-      (*   } *)
-      (*   admit. admit. admit. *)
-      (* * admit. *)
-      (* * admit. *)
-      (* * admit. *)
-      (* * admit. *)
-      (* * admit. *)
-      (* * admit. *)
-      (* * admit. *)
-      (* * admit. *)
-      (* * admit. *)
-      (* * admit. *)
-      (* * admit. *)
-      (* * admit. *)
-      (* * admit. *)
-      (* * admit. *)
-      (* * admit. *)
-
-      (* admit. *)
-      (*   repeat (match goal with *)
-      (*           | [H: orb _ _ = true |- _] => apply orb_prop in H *)
-      (*           end; des). *)
-      (*   admit. *)
-      ADMIT "use C".
-      (*
-       * 1. transitivity definition: make a function of match Expr.load.
-       * 2. cannot understand the rule...
-       *)
-    + apply LESSDEF; ss.
+    inv STATE. econs; eauto. ss. clear TGT MAYDIFF ALLOCAS.
+    (* inv SRC. econs; eauto. ss. clear NOALIAS UNIQUE PRIVATE ALLOCAS_PARENT ALLOCAS_VALID *)
+    (*                                  WF_LOCAL WF_PREVIOUS WF_GHOST UNIQUE_PARENT_LOCAL WF_FDEF WF_EC. *)
+    econs; try apply SRC; eauto; ss.
+    red. i. apply Exprs.ExprPairSetFacts.add_iff in H.
+    des; cycle 1.
+    { eapply SRC; eauto. }
+    destruct x; ss. clarify.
+    rename t into __e0__.
+    rename e2 into __e1__.
+    rename t0 into __e2__.
+    des_bool; des.
+    abstr (InvState.Rel.src invst0) invst.
+    (* abstr (Hints.Invariant.lessdef (Hints.Invariant.src inv0)) LD. *)
+    clear MEM CONF. clear_tac.
+    assert(LD01: InvState.Unary.sem_lessdef conf_src st_src invst (__e0__, __e1__)).
+    { clear C0. repeat (des_bool; des).
+      - eapply InvState.Rel.lessdef_expr_spec2; eauto.
+      - eapply InvState.Rel.lessdef_expr_spec2; eauto;
+          repeat rewrite <- load_align_one_sem_expr; eauto.
+      - eapply InvState.Rel.lessdef_expr_spec2; eauto;
+          repeat rewrite <- load_align_one_sem_expr; eauto.
+      - eapply InvState.Rel.lessdef_expr_spec2; eauto;
+          repeat rewrite <- load_align_one_sem_expr; eauto.
+    }
+    assert(LD12: InvState.Unary.sem_lessdef conf_src st_src invst (__e1__, __e2__)).
+    { clear C. repeat (des_bool; des).
+      - eapply InvState.Rel.lessdef_expr_spec2; eauto.
+      - eapply InvState.Rel.lessdef_expr_spec2; eauto;
+          repeat rewrite <- load_align_one_sem_expr; eauto.
+      - eapply InvState.Rel.lessdef_expr_spec2; eauto;
+          repeat rewrite <- load_align_one_sem_expr; eauto.
+      - eapply InvState.Rel.lessdef_expr_spec2; eauto;
+          repeat rewrite <- load_align_one_sem_expr; eauto.
+    }
+    eapply sem_lessdef_trans; eauto.
   - ADMIT "!transitivity_tgt".
   - ADMIT "!transitivity_pointer_lhs".
   - ADMIT "!transitivity_pointer_rhs".
