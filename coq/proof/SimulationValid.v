@@ -775,6 +775,27 @@ Proof.
           des_ifs_safe. des; ss; des_ifs_safe; ss.
           + des_ifs; ss.
           + exfalso.
+            destruct c; des_ifs. ss. repeat (des_bool; des; des_sumbool). clarify.
+            inv SRC_STEP.
+            unfold alloca in *. des_ifs.
+            assert(INJECT : genericvalues_inject.gv_inject (InvMem.Rel.inject invmem1) gn g).
+            {
+              eapply InvState.Subset.inject_value_Subset in POSTCOND1; cycle 1.
+              { instantiate (1:= inv1).
+                etransitivity; eauto.
+                { eapply SoundForgetStack.forget_stack_Subset; eauto. }
+                etransitivity; eauto.
+                { eapply SoundForgetMemory.forget_memory_Subset; eauto. }
+                reflexivity.
+              }
+              exploit InvState.Rel.inject_value_spec; try exact POSTCOND1; eauto.
+              { ss. }
+              { rewrite InvState.Unary.sem_valueT_physical. ss. eauto. }
+              i; des.
+              rewrite InvState.Unary.sem_valueT_physical in *. ss. rewrite Heq in *. clarify.
+            }
+            expl genericvalues_inject.simulation__GV2int. rewrite simulation__GV2int in *. ss.
+          + exfalso.
             destruct c; des_ifs. ss. des_bool; des. des_sumbool. clarify.
             inv SRC_STEP.
             assert(INJECT : genericvalues_inject.gv_inject (InvMem.Rel.inject invmem1) mptr0 g).

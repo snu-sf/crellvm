@@ -315,53 +315,53 @@ Proof.
   - (* nop, alloca *)
     clear ALLOC_INJECT.
     unfold postcond_cmd_check in *. des_ifs; des_bool; clarify.
-    ss. clear_true.
-    splits; ss.
-    apply_all_once AtomSetImpl_from_list_inter_is_empty.
-    simpl_list.
+    (* ss. clear_true. *)
+    (* splits; ss. *)
+    (* apply_all_once AtomSetImpl_from_list_inter_is_empty. *)
+    (* simpl_list. *)
 
-    inv STATE_STEP.
+    (* inv STATE_STEP. *)
 
-    ((inv STEP_SRC; ss); []).
-    (* inv SRC. *)
-    inv CMDS_SRC.
+    (* ((inv STEP_SRC; ss); []). *)
+    (* (* inv SRC. *) *)
+    (* inv CMDS_SRC. *)
 
-    econs; eauto; [].
+    (* econs; eauto; []. *)
 
-    ((inv STEP_TGT; ss); []).
+    (* ((inv STEP_TGT; ss); []). *)
+    (* (* inv TGT. *) *)
+    (* inv CMDS_TGT. *)
+    (* ss. *)
+    (* clear MAYDIFF. *)
+
     (* inv TGT. *)
-    inv CMDS_TGT.
-    ss.
-    clear MAYDIFF.
-
-    inv TGT.
-    clear H H2.
-    clear MEM_STEP.
-    clear CONF.
-    (* inv TGT. clear LESSDEF0 NOALIAS0 UNIQUE0 PRIVATE0 WF_LOCAL0. *)
-    unfold alloc_private, alloc_private_unary in *. ss.
-    destruct ALLOC_PRIVATE as [_ ALLOC_PRIVATE].
-    exploit ALLOC_PRIVATE; eauto. clear ALLOC_PRIVATE. intro ALLOC_PRIVATE.
-    econs; eauto; (* [|]; *) clear LESSDEF NOALIAS WF_LOCAL.
-    (* + clear ALLOC_PRIVATE. *)
-    (*   clear PRIVATE. *)
-    (*   unfold Invariant.update_src. ss. *)
-    (*   intros ____id____ IN. *)
-    (*   eapply AtomSetFacts.add_iff in IN. *)
-    (*   des; [|eauto]; []. *)
-    (*   subst. *)
-    (*   eapply add_unique_alloca; eauto; try apply MEM; try apply STATE; *)
-    (*     rewrite <- MEM_GMAX; try apply MEM; try apply STATE. *)
-    + clear UNIQUE.
-      clear MEM SRC STATE.
-      unfold Invariant.update_private. ss.
-      ii. rewrite IdTSetFacts.add_iff in *. des.
-      { (* x is alloca *)
-        destruct x as [[] x]; ss.
-        unfold IdT.lift, InvState.Unary.sem_idT in *. ss. clarify.
-        exploit ALLOC_PRIVATE0; eauto.
-      }
-      { exploit PRIVATE; eauto. }
+    (* clear H H2. *)
+    (* clear MEM_STEP. *)
+    (* clear CONF. *)
+    (* (* inv TGT. clear LESSDEF0 NOALIAS0 UNIQUE0 PRIVATE0 WF_LOCAL0. *) *)
+    (* unfold alloc_private, alloc_private_unary in *. ss. *)
+    (* destruct ALLOC_PRIVATE as [_ ALLOC_PRIVATE]. *)
+    (* exploit ALLOC_PRIVATE; eauto. clear ALLOC_PRIVATE. intro ALLOC_PRIVATE. *)
+    (* econs; eauto; (* [|]; *) clear LESSDEF NOALIAS WF_LOCAL. *)
+    (* (* + clear ALLOC_PRIVATE. *) *)
+    (* (*   clear PRIVATE. *) *)
+    (* (*   unfold Invariant.update_src. ss. *) *)
+    (* (*   intros ____id____ IN. *) *)
+    (* (*   eapply AtomSetFacts.add_iff in IN. *) *)
+    (* (*   des; [|eauto]; []. *) *)
+    (* (*   subst. *) *)
+    (* (*   eapply add_unique_alloca; eauto; try apply MEM; try apply STATE; *) *)
+    (* (*     rewrite <- MEM_GMAX; try apply MEM; try apply STATE. *) *)
+    (* + clear UNIQUE. *)
+    (*   clear MEM SRC STATE. *)
+    (*   unfold Invariant.update_private. ss. *)
+    (*   ii. rewrite IdTSetFacts.add_iff in *. des. *)
+    (*   { (* x is alloca *) *)
+    (*     destruct x as [[] x]; ss. *)
+    (*     unfold IdT.lift, InvState.Unary.sem_idT in *. ss. clarify. *)
+    (*     exploit ALLOC_PRIVATE0; eauto. *)
+    (*   } *)
+    (*   { exploit PRIVATE; eauto. } *)
   - (* allica, nop *)
     clear ALLOC_INJECT.
     unfold postcond_cmd_check in *. des_ifs; des_bool; clarify.

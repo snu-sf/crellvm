@@ -695,9 +695,14 @@ Definition postcond_cmd_inject_event
        inv (ValueT.lift Tag.physical v1) (ValueT.lift Tag.physical v2)) &&
     align_dec a1 a2
   | insn_alloca _ _ _ _, insn_nop _ => true
-  | insn_nop _, insn_alloca _ _ _ _ => true
+  (* | insn_nop _, insn_alloca _ _ _ _ => true *)
+
   (* | insn_alloca _ _ _ _, _ => false *)
-  (* | _, insn_alloca _ _ _ _ => false *)
+  | _, insn_alloca _ _ _ _ => false
+  (* This change is introduced by @alxest, when sanitizing semantics of alloca *)
+  (* We can allow nop-alloca case when arg is known to be int. *)
+  (* This will sufficiently allow register spilling to be validated. *)
+  (* We can also make new predicate (:= is defined && int) for more power *)
 
   | insn_malloc _ _ _ _, _ => false
   | _, insn_malloc _ _ _ _ => false
