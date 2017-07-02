@@ -267,19 +267,17 @@ Lemma alloca_result
       TD mem mem' sz gn a mb
       (ALLOCA: alloca TD mem sz gn a = Some (mem', mb))
   : <<ALLOC_BLOCK: mb = mem.(Mem.nextblock)>> /\
-    <<NEXT_BLOCK: mem'.(Mem.nextblock) = Pos.succ mem.(Mem.nextblock)>>
+    <<NEXT_BLOCK: mem'.(Mem.nextblock) = Pos.succ mem.(Mem.nextblock)>> /\
+    <<GV2INT: exists z, GV2int TD Size.ThirtyTwo gn = Some z>>
 .
 Proof.
   unfold alloca in *.
-  abstr (match GV2int TD Size.ThirtyTwo gn with
-            | Some n => Size.to_Z sz * n
-            | None => 0
-            end) hi.
   des_ifs. unfold Datatypes.option_map, flip in *. des_ifs.
   expl Mem.alloc_result. clarify.
   splits; ss.
-  erewrite Mem.nextblock_drop; eauto.
-  eapply Mem.nextblock_alloc; eauto.
+  - erewrite Mem.nextblock_drop; eauto.
+    eapply Mem.nextblock_alloc; eauto.
+  - esplits; eauto.
 Qed.
 
 Ltac u_alloca := MemProps.u_alloca; des_ifs_safe.
@@ -288,10 +286,12 @@ Lemma valid_access_alloca_inv
       TD mem0 mem1 bsz gn a b mb p chunk ofs
       (ALLOCA: alloca TD mem0 bsz gn a = Some (mem1, mb))
       (VALID: Mem.valid_access mem1 chunk b ofs p)
+      z
+      (INT: GV2int TD Size.ThirtyTwo gn = Some z)
   : if Values.eq_block b mb
     then 0 <= ofs /\
          ofs + Memdata.size_chunk chunk <=
-         Size.to_Z bsz * get_or_else (GV2int TD Size.ThirtyTwo gn) 0 /\
+         (Size.to_Z bsz * z)%Z /\
          (Memdata.align_chunk chunk | ofs) /\
          Memtype.perm_order Memtype.Writable p
     else Mem.valid_access mem0 chunk b ofs p.
@@ -317,7 +317,6 @@ Proof.
     intro CONTR. inv CONTR.
   }
   des_ifs; des; esplits; ss.
-  rewrite Z.mul_0_r in *. eauto.
 Unshelve.
 { by econs. }
 { by econs. }
@@ -326,10 +325,11 @@ Qed.
 Lemma valid_access_alloca_same
       TD mem0 mem1 bsz gn a mb p chunk ofs
       (ALLOCA: alloca TD mem0 bsz gn a = Some (mem1, mb))
+      z
+      (INT: GV2int TD Size.ThirtyTwo gn = Some z)
       (OFS: 0 <= ofs /\
                ofs + Memdata.size_chunk chunk <=
-               Size.to_Z bsz *
-               (get_or_else (GV2int TD Size.ThirtyTwo gn) 0) /\
+               (Size.to_Z bsz * z)%Z /\
                (Memdata.align_chunk chunk | ofs) /\
                (Memtype.perm_order Memtype.Writable p))
   : Mem.valid_access mem1 chunk mb ofs p.
@@ -341,9 +341,6 @@ Proof.
     eapply Mem.valid_access_implies;
       try apply Memtype.perm_F_any.
     eapply Mem.valid_access_alloc_same; eauto.
-  - rewrite Z.mul_0_r in *.
-    specialize (Memdata.size_chunk_pos chunk). i.
-    omega.
 Qed.
 
 Lemma valid_access_alloca_other
@@ -358,7 +355,7 @@ Proof.
   { ii. clarify.
     eapply Mem.valid_access_implies in VALID; [
       apply Mem.valid_access_valid_block in VALID|econs]; [].
-    apply Mem.alloc_result in Heq. clarify.
+    apply Mem.alloc_result in Heq0. clarify.
     eapply Plt_irrefl; eauto.
   }
   eapply Mem.valid_access_drop_1; try eassumption.

@@ -498,11 +498,12 @@ Proof.
           destruct (Values.eq_block _ _).
           - clarify.
             assert(Memtype.perm_order Memtype.Writable p).
-            { move Heq4 at bottom.
+            { move Heq6 at bottom.
               destruct p; try econs.
               eapply Mem.valid_access_perm in H0.
-              hexploit Mem.perm_drop_2; eauto.
-              des. split; ss.
+              des.
+              hexploit Mem.perm_drop_2; try apply H0; eauto.
+              split; ss.
               expl Memdata.size_chunk_pos. instantiate (1:= chunk) in size_chunk_pos.
               apply Z.gt_lt_iff in size_chunk_pos.
               eapply Z.lt_le_trans.
@@ -512,9 +513,11 @@ Proof.
             eapply valid_access_alloca_same; eauto.
             repeat rewrite Z.add_0_r.
             des. splits; eauto.
-            admit. (* TODO: change semantics of allocas *)
-            (* exploit genericvalues_inject.simulation__eq__GV2int; eauto. intro GV2INT_INJECT. *)
-            (* rewrite <- GV2INT_INJECT. eauto. *)
+            exploit genericvalues_inject.simulation__GV2int; eauto. intro GV2INT_INJECT.
+            assert(TD = TD0).
+            { inv CONF. inv INJECT. ss. }
+            subst.
+            rewrite <- GV2INT_INJECT in *. clarify.
           - exploit mi_access; eauto.
             eapply valid_access_alloca_other; eauto.
         }
@@ -532,9 +535,9 @@ Proof.
               rewrite DIFF_BLK_TGT.
               erewrite alloca_contents_other; eauto.
               apply mi_memval; eauto.
-              eapply Mem.perm_drop_4 in H0; [|try exact Heq4].
+              eapply Mem.perm_drop_4 in H0; [|try exact Heq6].
               exploit Mem.perm_alloc_inv.
-              { try exact Heq3. }
+              { try exact Heq5. }
               { eauto. }
               i. des_ifs.
             + ii.
@@ -607,9 +610,11 @@ Proof.
             { eauto. }
             apply injective_projections; ss.
             solve_match_bool. clarify.
-            admit. (* Ditto *)
-            (* exploit genericvalues_inject.simulation__eq__GV2int; eauto. intro GV2INT_INJECT. *)
-            (* rewrite <- GV2INT_INJECT. eauto. *)
+            exploit genericvalues_inject.simulation__GV2int; eauto. intro GV2INT_INJECT.
+            assert(TD = TD0).
+            { inv CONF. inv INJECT0. ss. }
+            subst.
+            rewrite GV2INT_INJECT in *. clarify.
           + erewrite Mem.bounds_drop; eauto.
             erewrite Mem.bounds_alloc_other with (b':=b); eauto; cycle 1.
             assert (NEQ_BLK_TGT: b' <> mem0_tgt.(Mem.nextblock)).
@@ -821,7 +826,7 @@ Proof.
             eapply Mem.perm_drop_4 in H0; revgoals; eauto.
             hexploit Mem.perm_alloc_inv; eauto; []; i.
             clear INJECT_EVENT.
-            des_ifs. eauto. ss.
+            des_ifs. eauto.
           }
           i. exploit alloca_contents_other; eauto.
           intro CONTENTS.
@@ -868,12 +873,12 @@ Proof.
       inv WF.
       apply Hmap1. psimpl.
     + inv STATE. inv SRC. ss.
-      clear - ALLOCAS_VALID ALLOCA_NEXT_SRC.
+      clear - ALLOCAS_VALID NEXT_BLOCK.
       econs; eauto.
-      * unfold Mem.valid_block. rewrite ALLOCA_NEXT_SRC. eapply Plt_succ.
+      * unfold Mem.valid_block. rewrite NEXT_BLOCK. eapply Plt_succ.
       * eapply Forall_harder; eauto.
         i.
-        unfold Mem.valid_block. rewrite ALLOCA_NEXT_SRC.
+        unfold Mem.valid_block. rewrite NEXT_BLOCK.
         eapply Pos.lt_le_trans; eauto.
         eapply Ple_succ.
     + assert(EQ_ALLOC: Allocas (EC st1_tgt) = Allocas (EC st0_tgt) /\ ECS st1_tgt = ECS st0_tgt).
@@ -1001,12 +1006,12 @@ Proof.
       inv STATE. inv SRC. ss.
       rewrite EQ_ALLOC. ss.
     + inv STATE. inv TGT. ss.
-      clear - ALLOCAS_VALID ALLOCA_NEXT_TGT.
+      clear - ALLOCAS_VALID NEXT_BLOCK.
       econs; eauto.
-      * unfold Mem.valid_block. rewrite ALLOCA_NEXT_TGT. eapply Plt_succ.
+      * unfold Mem.valid_block. rewrite NEXT_BLOCK. eapply Plt_succ.
       * eapply Forall_harder; eauto.
         i.
-        unfold Mem.valid_block. rewrite ALLOCA_NEXT_TGT.
+        unfold Mem.valid_block. rewrite NEXT_BLOCK.
         eapply Pos.lt_le_trans; eauto.
         eapply Ple_succ.
   - (* store - store *)
@@ -1357,7 +1362,7 @@ Proof.
       apply STATE.
 Unshelve.
 { by econs. }
-Admitted.
+Qed.
 
 (* invariant *)
 
