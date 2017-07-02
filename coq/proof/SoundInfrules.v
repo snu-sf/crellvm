@@ -24,7 +24,6 @@ Require Import TODOProof.
 
 Set Implicit Arguments.
 
-
 Lemma apply_infrule_sound
       m_src m_tgt
       conf_src st_src
@@ -126,7 +125,7 @@ Proof.
   - ADMIT "fptrunc_fpext".
   - ADMIT "gepzero".
   -
-        exists invst0, invmem0. splits; eauto; [|reflexivity].
+    exists invst0, invmem0. splits; eauto; [|reflexivity].
     inv STATE. econs; eauto. ss.
     inv SRC. econs; eauto. ss.
     ii.
@@ -186,7 +185,8 @@ Proof.
       eapply all_undef_lessdef_aux; apply const2GV_undef in VAL1; des; eauto;
       unfold flatten_typ in VAL1; simpl in VAL1; destruct (CurTargetData conf_tgt);
         inv VAL1; eauto)); (try (eapply LESSDEF; auto)).
-  - ADMIT "!lessthan_undef_const_gep_or_cast".
+  - admit.
+    (* ADMIT "lessthan_undef_const_gep_or_cast" *)
   - ADMIT "mul_bool".
   - ADMIT "mul_mone".
   - ADMIT "mul_neg".
@@ -262,39 +262,63 @@ Proof.
     inv STATE. econs; eauto. ss.
     inv SRC. econs; eauto. ss.
     ii. apply Exprs.ExprPairSetFacts.add_iff in H. des.
-    + subst.
-      repeat (match goal with
-              | [H: orb _ _ = true |- _] => apply orb_prop in H
-              | [H: andb _ _ = true |- _] => apply andb_prop in H
-              end; des).
-      * ss.
+    + (* subst. *)
+      (* repeat (match goal with *)
+      (*         | [H: orb _ _ = true |- _] => apply orb_prop in H *)
+      (*         | [H: andb _ _ = true |- _] => apply andb_prop in H *)
+      (*         end; des). *)
+      (* * ss. *)
+      (*   unfold Hints.Invariant.lessdef_expr in *. *)
+      (*   apply orb_prop in C. *)
+      (*   apply orb_prop in C0. des. *)
+      (*   { *)
+      (*     exploit LESSDEF. *)
+      (*     apply Exprs.ExprPairSetFacts.mem_iff. apply C. eauto. *)
+      (*     intros. des. *)
+      (*     exploit LESSDEF. *)
+      (*     apply Exprs.ExprPairSetFacts.mem_iff. apply C0. eauto. *)
+      (*     intros. des. *)
+      (*     exists val0. split. auto. apply GVs.lessdef_trans with (y:=val2); auto. *)
+      (*   } *)
+      (*   { *)
+      (*     simpl in C. *)
+      (*     (* I think exploit LESSDEF is not a soln *) *)
+      (*     (* unfold Hints.Invariant.deep_check_expr in C. *) *)
+      (*     (* apply andb_prop in C. des. destruct e1; destruct e2; inv C. *) *)
+      (*     (* simpl in C1. rewrite andb_true_iff in C1. rewrite andb_true_iff in C1. *) *)
+      (*     (* apply andb_prop in H0. des. *) *)
+      (*     exploit LESSDEF.  *)
+      (*     apply Exprs.ExprPairSetFacts.mem_iff. *)
+      (*     unfold Hints.Invariant.deep_check_expr in C. *)
+      (*     apply andb_prop in C. des. destruct e1; destruct e2; inv C. *)
+      (*     simpl in C1. rewrite andb_true_iff in C1. rewrite andb_true_iff in C1. *)
+      (*     rewrite H0. *)
+      (*     des. *)
 
-        unfold Hints.Invariant.lessdef_expr in *.
-        apply orb_prop in C.
-        apply orb_prop in C0. des.
-        exploit LESSDEF.
-        apply Exprs.ExprPairSetFacts.mem_iff. apply C. eauto.
-        intros. des.
-        exploit LESSDEF.
-        apply Exprs.ExprPairSetFacts.mem_iff. apply C0. eauto.
-        intros. des.
-        exists val0. split. auto. apply GVs.lessdef_trans with (y:=val2); auto.
-        admit. admit. admit.
-      * admit.
-      * admit.
-      * admit.
-      * admit.
-      * admit.
-      * admit.
-      * admit.
-      * admit.
-      * admit.
-      * admit.
-      * admit.
-      * admit.
-      * admit.
-      * admit.
-      * admit.
+
+      (*     apply transitivity_aux in C. apply C. eauto. *)
+      (*     intros. des. *)
+      (*     exploit LESSDEF. *)
+      (*     apply Exprs.ExprPairSetFacts.mem_iff. apply C0. eauto. *)
+      (*     intros. des. *)
+      (*     exists val0. split. auto. apply GVs.lessdef_trans with (y:=val2); auto. *)
+      (*   } *)
+      (*   admit. admit. admit. *)
+      (* * admit. *)
+      (* * admit. *)
+      (* * admit. *)
+      (* * admit. *)
+      (* * admit. *)
+      (* * admit. *)
+      (* * admit. *)
+      (* * admit. *)
+      (* * admit. *)
+      (* * admit. *)
+      (* * admit. *)
+      (* * admit. *)
+      (* * admit. *)
+      (* * admit. *)
+      (* * admit. *)
 
       (* admit. *)
       (*   repeat (match goal with *)
@@ -413,7 +437,7 @@ Proof.
   - ADMIT "cmp_ne_srem2".
   - ADMIT "cmp_eq_xor".
   - ADMIT "cmp_ne_xor".
-Qed.
+Admitted.
 
 (*  ADMIT "Infrule
 We will not prove soundness of infrules in this submission.

@@ -766,6 +766,26 @@ Module Rel.
     - eauto.
   Qed.
 
+  Lemma lessdef_expr_spec2
+        invst invmem inv
+        conf st gmax public
+        e1 e2 gv1
+        (SEM: Unary.sem conf st invst invmem gmax public inv)
+        (E: Hints.Invariant.lessdef_expr (e1, e2) inv.(Invariant.lessdef) = true)
+        (E1: Unary.sem_expr conf st invst e1 = ret gv1):
+    exists gv2,
+      <<E2: Unary.sem_expr conf st invst e2 = ret gv2>> /\
+      <<GV: GVs.lessdef gv1 gv2>>.
+  Proof.
+    inv SEM. unfold Hints.Invariant.lessdef_expr in E.
+    apply orb_prop in E. des.
+    - exploit LESSDEF.
+      + apply ExprPairSetFacts.mem_iff. eauto.
+      + eauto.
+      + eauto.
+    - admit.
+  Admitted.
+
   Lemma inject_value_spec
         m_src conf_src st_src val_src
         m_tgt conf_tgt st_tgt val_tgt
