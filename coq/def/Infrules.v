@@ -931,13 +931,14 @@ Definition apply_infrule
       (* what kinds of constraint i need ?? *)
       {{ inv0 +++src (Expr.value (ValueT.const (const_undef typ))) >= (Expr.value ce) }}
     | (typ_pointer t, const_castop op c ty) =>
-      match ty with
-      | typ_int _ =>
-        {{ inv0 +++src (Expr.value (ValueT.const (const_undef typ))) >= (Expr.value ce) }}
-      | typ_pointer _ =>
-        {{ inv0 +++src (Expr.value (ValueT.const (const_undef typ))) >= (Expr.value ce) }}
-      | _ => apply_fail tt
-      end
+      (* match ty with *)
+      (* | typ_int _ => *)
+      (*   {{ inv0 +++src (Expr.value (ValueT.const (const_undef typ))) >= (Expr.value ce) }} *)
+      (* | typ_pointer _ =>  *)
+      (*   {{ inv0 +++src (Expr.value (ValueT.const (const_undef typ))) >= (Expr.value ce) }} *)
+      (* | _ => apply_fail tt *)
+    (* end *)
+      {{ inv0 +++src (Expr.value (ValueT.const (const_undef typ))) >= (Expr.value ce) }}
     | _ => apply_fail tt
     end
   | Infrule.sdiv_sub_srem z b a x y s =>
