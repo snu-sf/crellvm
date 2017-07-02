@@ -249,6 +249,7 @@ Lemma forget_stack_call_sound
       (UNIQUE_PRIVATE_TGT: unique_is_private_unary inv1.(Invariant.tgt))
       (MEM: InvMem.Rel.sem conf_src conf_tgt mem1_src mem1_tgt invmem2)
       (RETVAL: TODO.lift2_option (genericvalues_inject.gv_inject invmem2.(InvMem.Rel.inject)) retval1_src retval1_tgt)
+      (VALID: valid_retvals mem1_src mem1_tgt retval1_src retval1_tgt)
       (RETURN_SRC: return_locals
                      conf_src.(CurTargetData)
                                 retval1_src id_src noret typ
@@ -355,16 +356,17 @@ Proof.
           expl TGT_NOUNIQ. ss.
         - rewrite TGT_NOUNIQ0. ii. inv INB.
       }
-      { ss. inv STATE. inv SRC. ss.
+      { (* REMARK: We can use VALID premise just as in tgt. Actually this is more symmetric. *)
+        (* But I intentionally leave this code, just to remember old logic: inject implies vaild, by wasabi *)
+        ss. inv STATE. inv SRC. ss.
         apply memory_props.MemProps.updateAddAL__wf_lc; eauto.
         inv MEM.
         exploit genericvalues_inject_wf_valid_ptrs_src; eauto.
       }
-      { ss. inv STATE. inv TGT. ss.
-        apply memory_props.MemProps.updateAddAL__wf_lc; eauto.
-        inv MEM.
-        exploit genericvalues_inject_wf_valid_ptrs_tgt; eauto.
-        { admit. }
+      { apply memory_props.MemProps.updateAddAL__wf_lc; ss; eauto.
+        - inv VALID.
+          admit. (* fit_gv preserves valid_ptrs *)
+        - apply STATE.
       }
       { apply STATE. }
       { apply STATE. }

@@ -142,6 +142,9 @@ Proof.
     { rewrite InvState.Unary.sem_valueT_physical. eauto. }
     i. des. rewrite InvState.Unary.sem_valueT_physical in VAL_TGT. ss.
     esplits; eauto.
+    econs; eauto.
+    * eapply get_operand_valid_ptr; eauto; try apply STATE0; try apply MEM0.
+    * eapply get_operand_valid_ptr; eauto; try apply STATE0; try apply MEM0.
   + (* return_void *)
     eapply _sim_local_return_void; eauto; ss.
     { apply STATE. }

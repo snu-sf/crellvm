@@ -22,6 +22,7 @@ Require Import program_sim.
 Require Import TODOProof.
 Import Vellvm.program_sim.
 Require Import OpsemAux.
+Require Import memory_props.
 
 Set Implicit Arguments.
 
@@ -127,7 +128,8 @@ Section SimLocal.
            (RET_SRC: getOperandValue conf_src.(CurTargetData) ret2_src st2_src.(EC).(Locals) conf_src.(Globals) = Some retval2_src),
          exists retval1_tgt,
            <<RET_TGT: getOperandValue conf_tgt.(CurTargetData) ret1_tgt st1_tgt.(EC).(Locals) conf_tgt.(Globals) = Some retval1_tgt>> /\
-           <<INJECT: genericvalues_inject.gv_inject inv2.(InvMem.Rel.inject) retval2_src retval1_tgt>>)
+           <<INJECT: genericvalues_inject.gv_inject inv2.(InvMem.Rel.inject) retval2_src retval1_tgt>> /\
+           <<VALID: valid_retvals st2_src.(Mem) st1_tgt.(Mem) (Some retval2_src) (Some retval1_tgt)>>)
       (WF_SRC: wf_ConfigI conf_src /\ wf_StateI conf_src st1_src)
       (WF_TGT: wf_ConfigI conf_tgt /\ wf_StateI conf_tgt st1_tgt)
 
@@ -203,6 +205,7 @@ Section SimLocal.
                  (INCR: InvMem.Rel.le (InvMem.Rel.lift st2_src.(Mem) st1_tgt.(Mem) uniqs_src uniqs_tgt privs_src privs_tgt inv2) inv3)
                  (MEM: InvMem.Rel.sem conf_src conf_tgt mem3_src mem3_tgt inv3)
                  (RETVAL: TODO.lift2_option (genericvalues_inject.gv_inject inv3.(InvMem.Rel.inject)) retval3_src retval3_tgt)
+                 (VALID: valid_retvals mem3_src mem3_tgt retval3_src retval3_tgt)
                  (RETURN_SRC: return_locals
                                 conf_src.(CurTargetData)
                                 retval3_src id2_src noret2_src typ2_src

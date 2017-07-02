@@ -1515,3 +1515,12 @@ Proof.
   }
 Qed.
 
+Inductive valid_retvals (mem_src mem_tgt: mem): option GenericValue -> option GenericValue -> Prop :=
+| valid_retvals_none
+  : valid_retvals mem_src mem_tgt None None
+| valid_retvals_some
+    rv_src rv_tgt
+    (VALID_SRC: (memory_props.MemProps.valid_ptrs (Memory.Mem.nextblock mem_src)) rv_src)
+    (VALID_TGT: (memory_props.MemProps.valid_ptrs (Memory.Mem.nextblock mem_tgt)) rv_tgt)
+  : valid_retvals mem_src mem_tgt (Some rv_src) (Some rv_tgt)
+.
