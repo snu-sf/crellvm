@@ -766,24 +766,152 @@ Module Rel.
     - eauto.
   Qed.
 
+  Lemma lessdef_GV2val
+        TD gv0 gv1
+        (GV: GVs.lessdef gv0 gv1)
+    :
+      TODO.lift2_option Val.lessdef (GV2val TD gv0) (GV2val TD gv1)
+  .
+  Proof.
+    inv GV; ss.
+    des; ss. destruct a1, b1; ss. clarify.
+    inv H; ss.
+    - des_ifs; ss; try (by inv H0).
+    - des_ifs; ss; try (by inv H0).
+  Qed.
+
+  Lemma lessdef_mc2undefs
+        gv0 mcs0
+        (CHUNK: gv_chunks_match_typb_aux gv0 mcs0)
+    :
+      <<LD: GVs.lessdef (mc2undefs mcs0) gv0>>
+  .
+  Proof.
+    ginduction gv0; ii; ss.
+    - des_ifs. ss. econs; eauto.
+    - des_ifs. ss.
+      apply memory_chunk_eq_prop in H0. clarify.
+      econs; ss; eauto.
+      eapply IHgv0; eauto.
+  Qed.
+
+  Lemma lessdef_gundef
+        TD ty gv0
+        (UNDEF: gundef TD ty = ret gv0)
+        gv1
+        (CHUNK: gv_chunks_match_typb TD gv1 ty)
+    :
+      <<LD: GVs.lessdef gv0 gv1>>
+  .
+  Proof.
+    red.
+    unfold gundef, gv_chunks_match_typb in *. des_ifs.
+    eapply lessdef_mc2undefs; eauto.
+  Qed.
+
+  (* Vellvm: mbop_is_total *)
+  (* Just drag wf condition? *)
+  Lemma mbop_total
+        TD b0 s0 gva0 gvb0
+    :
+      exists val0, <<MBOP: mbop TD b0 s0 gva0 gvb0 = ret val0>> /\
+                           <<CHUNK: gv_chunks_match_typb TD val0 (typ_int (Size.to_nat s0))>>
+  .
+  Proof.
+    assert(MBOP: exists val0, mbop TD b0 s0 gva0 gvb0 = ret val0).
+    { unfold mbop.
+      des_ifs; try by (unfold gundef, flatten_typ; ss; esplits; eauto; des_ifs).
+    }
+    des.
+    expl mbop_matches_chunks.
+    esplits; eauto.
+    ADMIT "this should hold".
+  Qed.
+
+  Lemma lessdef_mbop
+        b0 s0 val0 gva0 gva1 gvb0 gvb1
+        TD
+        (MBOP0: mbop TD b0 s0 gva0 gvb0 = ret val0)
+        (GVA: GVs.lessdef gva0 gva1)
+        (GVB: GVs.lessdef gvb0 gvb1)
+    :
+      exists val1, <<MBOP: mbop TD b0 s0 gva1 gvb1 = ret val1 >> /\ <<LD: GVs.lessdef val0 val1>>
+  .
+  Proof.
+    exploit lessdef_GV2val; try apply GVA; eauto.
+    instantiate (1:= TD).
+    intro VA.
+    exploit lessdef_GV2val; try apply GVB; eauto.
+    instantiate (1:= TD).
+    intro VB.
+    clear GVA GVB.
+    generalize (mbop_total TD b0 s0 gva1 gvb1); intro MBOP1. des.
+    esplits; eauto.
+    unfold mbop in *.
+    abstr (GV2val TD gva0) va0.
+    abstr (GV2val TD gva1) va1.
+    abstr (GV2val TD gvb0) vb0.
+    abstr (GV2val TD gvb1) vb1.
+    destruct va0, va1; ss; [|]; cycle 1.
+    { rewrite MBOP in *. clarify. eapply GVs.lessdef_refl; eauto. }
+    destruct vb0, vb1; ss; [|]; cycle 1.
+    { des_ifs; try rewrite MBOP in *; clarify; eapply GVs.lessdef_refl; eauto. }
+    inv VA; ss; cycle 1.
+    { eapply lessdef_gundef; eauto. }
+    inv VB; ss; cycle 1.
+    { assert(UNDEF: gundef TD (typ_int (Size.to_nat s0)) = ret val0).
+      { destruct v0; ss. }
+      clear MBOP0.
+      eapply lessdef_gundef; eauto.
+    }
+    { assert(val0 = val1).
+      { des_ifs. }
+      clarify.
+      eapply GVs.lessdef_refl.
+    }
+  Qed.
+
+  (* TODO: put off 2 from here, rename colliding lemma *)
   Lemma lessdef_expr_spec2
         invst invmem inv
         conf st gmax public
-        e1 e2 gv1
+        e0 e1
         (SEM: Unary.sem conf st invst invmem gmax public inv)
-        (E: Hints.Invariant.lessdef_expr (e1, e2) inv.(Invariant.lessdef) = true)
-        (E1: Unary.sem_expr conf st invst e1 = ret gv1):
-    exists gv2,
-      <<E2: Unary.sem_expr conf st invst e2 = ret gv2>> /\
-      <<GV: GVs.lessdef gv1 gv2>>.
+        (LD_EXPR: Hints.Invariant.lessdef_expr (e0, e1) inv.(Invariant.lessdef) = true)
+        e0' e1'
+        (EQ0: Unary.sem_expr conf st invst e0 = Unary.sem_expr conf st invst e0')
+        (EQ1: Unary.sem_expr conf st invst e1 = Unary.sem_expr conf st invst e1')
+    :
+      <<LD: Unary.sem_lessdef conf st invst (e0', e1')>>
+  .
   Proof.
-    inv SEM. unfold Hints.Invariant.lessdef_expr in E.
-    apply orb_prop in E. des.
-    - exploit LESSDEF.
-      + apply ExprPairSetFacts.mem_iff. eauto.
-      + eauto.
-      + eauto.
-    - admit.
+    ii. ss.
+    rewrite <- EQ0 in *.
+    rewrite <- EQ1 in *.
+    clear EQ0 EQ1. clear_tac.
+    unfold Invariant.lessdef_expr in *.
+    des_bool; des.
+    { eapply lessdef_expr_spec; eauto. }
+    unfold Invariant.deep_check_expr in *. ss.
+    des_bool; des.
+    destruct e0, e1; ss; repeat (des_bool; des); des_sumbool; des_ifs_safe; clarify; clear_tac.
+    - expl lessdef_expr_spec (try exact LD_EXPR0; eauto).
+      expl lessdef_expr_spec (try exact LD_EXPR1; eauto). ss.
+      des_ifs_safe.
+      clear - VAL1 GV GV0.
+      eapply lessdef_mbop; eauto.
+    - admit. (* similar *)
+    - admit. (* similar *)
+    - admit. (* similar *)
+    - admit. (* similar *)
+    - admit. (* similar *)
+    - admit. (* similar *)
+    - admit. (* similar *)
+    - admit. (* similar *)
+    - admit. (* similar *)
+    - admit. (* similar *)
+    - admit. (* similar *)
+    - admit. (* similar *)
   Admitted.
 
   Lemma inject_value_spec
