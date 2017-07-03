@@ -900,6 +900,105 @@ Lemma postcond_cmd_add_lessdef_unary_sound_select
                (Invariant.update_lessdef (postcond_cmd_add_lessdef cmd) inv0)>>
 .
 Proof.
+  {
+    generalize (lessdef_add_definedness WF_CONF WF_STATE_PREV NONCALL STEP CMDS).
+    intro DEFINEDNESS.
+    clarify. ss. clear_tac.
+    apply AtomSetImpl_from_list_inter_is_empty in POSTCOND_CHECK.
+    inv POSTCOND_CHECK. inv H2. rename H1 into CHECK.
+    econs; ss; eauto; try apply STATE.
+    unfold postcond_cmd_add_lessdef. ss.
+    inv STEP; ss. clarify.
+    clear WF_STATE_PREV WF_CONF.
+    rename H2 into SEL.
+    intros ? IN ? ?.
+
+    assert(NVAL0: getOperandValue TD value_cond (updateAddAL GenericValue lc id1 gvresult) gl = Some c).
+    { destruct value_cond; ss.
+      rewrite <- lookupAL_updateAddAL_neq in *; ss.
+      inv CHECK. ii. clarify.
+    }
+    assert(NVAL1: getOperandValue TD value1 (updateAddAL GenericValue lc id1 gvresult) gl = Some gvs1).
+    { destruct value1; ss.
+      rewrite <- lookupAL_updateAddAL_neq in *; ss.
+      destruct value_cond; ss; inv CHECK; ii; clarify. inv H5; ss.
+    }
+    assert(NVAL2: getOperandValue TD value2 (updateAddAL GenericValue lc id1 gvresult) gl = Some gvs2).
+    { destruct value2; ss.
+      rewrite <- lookupAL_updateAddAL_neq in *; ss.
+      destruct value_cond, value1; ss; inv CHECK; ii; clarify; try inv H5; ss. inv H7; ss.
+    }
+
+    apply ExprPairSetFacts.add_iff in IN. des.
+    { clarify. ss.
+      unfold InvState.Unary.sem_idT. ss.
+      repeat rewrite InvState.Unary.sem_valueT_physical in *. ss.
+      des_lookupAL_updateAddAL.
+      esplits; eauto.
+      des_ifs_safe.
+      clear_tac.
+      inv SEL.
+      - des_ifs; try apply GVs.lessdef_refl.
+      - des_ifs.
+        eapply GVs.lessdef_refl; eauto.
+    }
+
+    hexploit lessdef_add.
+    { apply STATE. }
+    { instantiate (1:= Expr.value (IdT.lift Tag.physical id1)).
+      instantiate (1:= Expr.select (ValueT.lift Tag.physical value_cond) typ1 (ValueT.lift Tag.physical value1)
+              (ValueT.lift Tag.physical value2)).
+      ss.
+      repeat rewrite InvState.Unary.sem_valueT_physical in *. ss.
+      unfold InvState.Unary.sem_idT. ss.
+      rewrite lookupAL_updateAddAL_eq in *; ss.
+      des_ifs_safe.
+      inv SEL.
+      - rewrite INT. ss.
+      - rewrite NOINT. ss.
+    }
+    intro LD_ADD.
+    exploit LD_ADD; eauto.
+    clear - IN.
+    eapply ExprPairSetFacts.add_iff; eauto. right. ss.
+    ttttttttttttttt
+
+    apply ExprPairSetFacts.add_iff in IN. des.
+    { clarify. ss.
+      unfold InvState.Unary.sem_idT in *. ss.
+      repeat rewrite InvState.Unary.sem_valueT_physical in *. ss.
+      des_ifs_safe.
+      rewrite lookupAL_updateAddAL_eq in *; ss. clarify.
+      inv SEL.
+      - des_ifs_safe.
+        esplits; eauto.
+        des_ifs; apply GVs.lessdef_refl.
+      - des_ifs_safe.
+        esplits; eauto.
+        apply GVs.lessdef_refl.
+    }
+    apply ExprPairSetFacts.add_iff in IN. des.
+    { clarify. ss.
+      unfold InvState.Unary.sem_idT in *. ss.
+      repeat rewrite InvState.Unary.sem_valueT_physical in *. ss.
+      des_ifs_safe.
+      rewrite lookupAL_updateAddAL_eq in *; ss. clarify.
+      esplits; eauto.
+      inv SEL.
+      - eapply wf_GVs__lessthan_undef; eauto.
+        apply MEM.
+      des_ifs; apply GVs.lessdef_refl.
+      - des_ifs_safe.
+        esplits; eauto.
+        apply GVs.lessdef_refl.
+    }
+        
+       
+      esplits; eauto.
+    }
+    apply lessdef_add; try apply STATE.
+    [apply DEFINEDNESS; ss|]; [].
+  }
   generalize (lessdef_add_definedness WF_CONF WF_STATE_PREV NONCALL STEP CMDS).
   intro DEFINEDNESS.
   (inv NONCALL; []); (inv STATE; []); ss; ((inv STEP; ss); []).
