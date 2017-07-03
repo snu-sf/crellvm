@@ -285,7 +285,7 @@ Proof.
         }
         {
           exploit RET; eauto. i; des.
-          admit. (* free-allocas preserves valid_ptr *)
+          eapply free_allocas_preserves_valid_retvals; eauto.
         }
         { ss. }
         clear LOCAL. intro LOCAL. des. simtac.
@@ -336,7 +336,7 @@ Proof.
           eassumption.
         }
         { exploit RET; eauto. i; des.
-          admit. (* ditto *)
+          eapply free_allocas_preserves_valid_retvals; eauto.
         }
         { ss. des_ifs. }
         clear LOCAL. intro LOCAL. des. simtac.
@@ -703,4 +703,4 @@ Unshelve.
 { by econs; eauto. }
 (* { by econs; eauto. } *)
 (* { by econs; eauto. } *)
-Admitted.
+Qed.

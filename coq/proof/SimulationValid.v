@@ -1290,6 +1290,8 @@ Lemma function_entry_inv_sound
       args args_src args_tgt
       (INJECT_ARGS: list_forall2 (genericvalues_inject.gv_inject
                                     (InvMem.Rel.inject invmem)) args_src args_tgt)
+      (VALID_SRC: List.Forall (memory_props.MemProps.valid_ptrs (Memory.Mem.nextblock st_src.(Mem))) args_src)
+      (VALID_TGT: List.Forall (memory_props.MemProps.valid_ptrs (Memory.Mem.nextblock st_tgt.(Mem))) args_tgt)
       (INITLOCALS_SRC: initLocals (CurTargetData conf_src) args args_src =
                        Some st_src.(EC).(Locals))
       (INITLOCALS_TGT: initLocals (CurTargetData conf_tgt) args args_tgt =
@@ -1338,21 +1340,26 @@ Proof.
             (* mi_freeblocks *)
             mi_mappedblocks mi_range_block mi_bounds mi_globals.
       clear_tac. unfold initLocals in *.
-      {
-        ii. ss.
-        expl fully_inject_locals_spec.
-        rewrite H in *. unfold lift2_option in *. des_ifs.
-        clear - fully_inject_locals_spec mi_freeblocks.
-        ginduction gvs; ii; ss.
-        - inv fully_inject_locals_spec.
-          expl IHgvs.
-          des_ifs; eauto.
-          split; ss.
-          inv H1.
-          reductio_ad_absurdum.
-          expl mi_freeblocks.
-          clarify.
-      }
+      (* REMARK: Originally, we proved this by using wasabi, injection implies valid *)
+      (* However, this logic no longer holds in tgt, so validitiy condition of args became needed *)
+      (* This is current proof, same logic as tgt *)
+      eapply initLocals_preserves_valid_ptrs; eauto.
+      (* Below is old proof, it still works. I just choose above way in order to unify & simplify *)
+      (* { *)
+      (*   ii. ss. *)
+      (*   expl fully_inject_locals_spec. *)
+      (*   rewrite H in *. unfold lift2_option in *. des_ifs. *)
+      (*   clear - fully_inject_locals_spec mi_freeblocks. *)
+      (*   ginduction gvs; ii; ss. *)
+      (*   - inv fully_inject_locals_spec. *)
+      (*     expl IHgvs. *)
+      (*     des_ifs; eauto. *)
+      (*     split; ss. *)
+      (*     inv H1. *)
+      (*     reductio_ad_absurdum. *)
+      (*     expl mi_freeblocks. *)
+      (*     clarify. *)
+      (* } *)
     + (* diffblock unique parent *)
       inv MEM. clear TGT INJECT FUNTABLE.
       inv SRC.
@@ -1401,21 +1408,7 @@ Proof.
             (* mi_freeblocks *)
             mi_freeblocks mi_range_block mi_bounds mi_globals.
       clear_tac. unfold initLocals in *.
-      {
-        ii. ss.
-        expl fully_inject_locals_spec.
-        rewrite H in *. unfold lift2_option in *. des_ifs.
-        clear - fully_inject_locals_spec mi_mappedblocks.
-        ginduction gvs; ii; ss.
-        - inv fully_inject_locals_spec.
-          expl IHgvs.
-          des_ifs; eauto.
-          split; ss.
-          inv H2.
-          + reductio_ad_absurdum.
-            expl mi_mappedblocks.
-          + admit.
-      }
+      eapply initLocals_preserves_valid_ptrs; eauto.
     + (* diffblock unique parent *)
       inv MEM. clear SRC INJECT FUNTABLE.
       inv TGT.
@@ -1427,7 +1420,7 @@ Proof.
     unfold InvState.Unary.sem_idT in *. ss.
     eapply fully_inject_locals_inject_locals; eauto.
   - econs; eauto.
-Admitted.
+Qed.
 
 Lemma init_fdef_wf_EC
       conf fdef args ec
@@ -1460,6 +1453,8 @@ Lemma valid_init
       (SYSTEM_TGT: conf_tgt.(CurSystem) = [m_tgt])
       (FDEF: valid_fdef m_src m_tgt fdef_src fdef_tgt fdef_hint)
       (ARGS: list_forall2 (genericvalues_inject.gv_inject inv.(InvMem.Rel.inject)) args_src args_tgt)
+      (VALID_SRC: List.Forall (memory_props.MemProps.valid_ptrs (Memory.Mem.nextblock mem_src)) args_src)
+      (VALID_TGT: List.Forall (memory_props.MemProps.valid_ptrs (Memory.Mem.nextblock mem_tgt)) args_tgt)
       (MEM: InvMem.Rel.sem conf_src conf_tgt mem_src mem_tgt inv)
       (CONF: InvState.valid_conf m_src m_tgt conf_src conf_tgt)
       (INIT_SRC: init_fdef conf_src fdef_src args_src ec_src)

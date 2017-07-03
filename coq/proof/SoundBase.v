@@ -1524,3 +1524,88 @@ Inductive valid_retvals (mem_src mem_tgt: mem): option GenericValue -> option Ge
     (VALID_TGT: (memory_props.MemProps.valid_ptrs (Memory.Mem.nextblock mem_tgt)) rv_tgt)
   : valid_retvals mem_src mem_tgt (Some rv_src) (Some rv_tgt)
 .
+
+Lemma free_allocas_preserves_valid_retvals
+      Mem0 Mem1 gv0 gv1
+      (VALID: valid_retvals Mem0 Mem1 (Some gv0) (Some gv1))
+      TD Als0 Als1 Mem0' Mem1'
+      (FREE0: free_allocas TD Mem0 Als0 = Some Mem0')
+      (FREE1: free_allocas TD Mem1 Als1 = Some Mem1')
+  :
+    <<VALID: valid_retvals Mem0' Mem1' (Some gv0) (Some gv1)>>
+.
+Proof.
+  inv VALID.
+  econs; eauto.
+  - clear FREE1 VALID_TGT. clear_tac.
+    ginduction Als0; ii; ss; clarify.
+    des_ifs.
+    eapply IHAls0; eauto.
+  - clear FREE0 VALID_SRC. clear_tac.
+    ginduction Als1; ii; ss; clarify.
+    des_ifs.
+    eapply IHAls1; eauto.
+Qed.
+
+Lemma get_operand_valid_ptr
+      Mem0 lc TD value gl gvs
+      (WF_LC: MemProps.wf_lc Mem0 lc)
+      (WF_CONST: True)
+      (GET_OPERAND: getOperandValue TD value lc gl = Some gvs)
+      gmax
+      (GLOBALS : genericvalues_inject.wf_globals gmax gl)
+      (WF : MemProps.wf_Mem gmax TD Mem0)
+  :
+    <<VALID_PTR: MemProps.valid_ptrs (Memory.Mem.nextblock Mem0) gvs>>
+.
+Proof.
+  destruct value.
+  - eapply WF_LC; eauto.
+  - ss.
+    exploit MemAux.wf_globals_const2GV; eauto; []; ii; des.
+    destruct WF as [_ WF_MEM].
+    eapply MemProps.valid_ptrs__trans; eauto.
+    apply Pos.lt_succ_r.
+    replace (gmax + 1)%positive with (Pos.succ gmax); cycle 1.
+    { destruct gmax; ss. }
+    rewrite <- Pos.succ_lt_mono.
+    ss.
+Qed.
+
+Lemma fit_gv_preserves_valid_ptrs
+      TD t gv0 gv1
+      (FIT: fit_gv TD t gv0 = Some gv1)
+      nb
+      (VALID: MemProps.valid_ptrs nb gv0)
+  :
+    <<VALID: MemProps.valid_ptrs nb gv1>>
+.
+Proof.
+  red.
+  unfold fit_gv in *. des_ifs.
+  eapply MemProps.undef_valid_ptrs; eauto.
+Qed.
+
+Lemma initLocals_preserves_valid_ptrs
+      Mem0 args argvs Locals0 TD
+      (VALID_TGT: Forall (memory_props.MemProps.valid_ptrs (Memory.Mem.nextblock Mem0)) argvs)
+      (INITLOCALS_TGT: initLocals TD args argvs = Some Locals0)
+  :
+    <<WF_LC: memory_props.MemProps.wf_lc Mem0 Locals0>>
+.
+Proof.
+  unfold initLocals in *. red.
+  ginduction argvs; i; ss.
+  - ginduction args0; ii; ss; clarify.
+    des_ifs.
+    des_lookupAL_updateAddAL.
+    + eapply MemProps.undef_valid_ptrs; eauto.
+    + eapply IHargs0; eauto.
+  - inv VALID_TGT.
+    destruct args0; ii; ss.
+    { clarify. }
+    des_ifs.
+    des_lookupAL_updateAddAL.
+    + eapply fit_gv_preserves_valid_ptrs; eauto.
+    + eapply IHargvs; eauto.
+Qed.

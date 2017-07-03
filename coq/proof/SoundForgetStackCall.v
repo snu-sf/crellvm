@@ -365,7 +365,7 @@ Proof.
       }
       { apply memory_props.MemProps.updateAddAL__wf_lc; ss; eauto.
         - inv VALID.
-          admit. (* fit_gv preserves valid_ptrs *)
+          eapply fit_gv_preserves_valid_ptrs; eauto.
         - apply STATE.
       }
       { apply STATE. }
@@ -401,4 +401,4 @@ Proof.
       apply forget_stack_Subset. }
     eapply invst_sem_eq_locals_mem; try exact STATE; eauto.
   }
-Admitted.
+Qed.
