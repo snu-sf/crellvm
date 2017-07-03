@@ -15,6 +15,9 @@ open ConvertInfrule
 open Hints
 open Exprs
 open AddInfrule
+open PostPropagation
+open Printer
+open DomTreeUtil
 
 type atom = AtomImpl.atom
 
@@ -210,6 +213,14 @@ module ConvertAuto = struct
       InfruleGen.AutoOpt.pass_option := auto_opt
   end
 
+module ConvertPostPropagation = struct
+    let convert_postprop_opt (opt:CoreHint_t.postprop_opt)
+        : PostPropagation.PostProp.t = 
+      match opt with
+      | CoreHint_t.POSTPROP_GVN -> PostProp.test
+  end
+
+
 let convert
       (lm:LLVMsyntax.coq_module)
       (rm:LLVMsyntax.coq_module)
@@ -233,6 +244,12 @@ let convert
                     (TODOCAML.flip (apply_corehint_command lfdef rfdef dtree_lfdef nops))
                     hint_fdef others in
   let hint_fdef = add_false_to_dead_block hint_fdef lfdef in
+  let hint_fdef = match core_hint.CoreHint_t.postprop_option.CoreHint_t.opt with
+    | CoreHint_t.POSTPROP_NONE -> hint_fdef
+    | k -> PostPropagation.update hint_fdef lfdef dtree_lfdef
+        (ConvertPostPropagation.convert_postprop_opt k) (core_hint.CoreHint_t.postprop_option.CoreHint_t.itrnum)
+  in
+  (*let _ = PrintHints.invariants hint_fdef (bfs_tree dtree_lfdef) in *)
 
   let hint_module = EmptyHint.module_hint lm in
   (* let hint_module = noret hint_module in *) (*TODO*)
