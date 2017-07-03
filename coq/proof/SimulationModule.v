@@ -274,6 +274,60 @@ Proof.
     + eapply Pos.le_1_l; eauto.
 Qed.
 
+Lemma not_in_init_locals
+      TD args argvs lc
+      (INIT_LOCALS: initLocals TD args argvs = Some lc)
+      i0
+      (NOTIN: ~ In i0 (getArgsIDs args))
+      gv
+      (LOOKUP: lookupAL GenericValue lc i0 = Some gv)
+  :
+    False
+.
+Proof.
+  unfold initLocals in *.
+  ginduction args; ii; ss; clarify.
+  des_ifs_safe.
+  des_ifs.
+  - ss.
+    apply not_or_and in NOTIN. des.
+    des_lookupAL_updateAddAL.
+    exploit IHargs; eauto.
+  - ss.
+    apply not_or_and in NOTIN. des.
+    des_lookupAL_updateAddAL.
+    exploit IHargs; eauto.
+Qed.
+
+Lemma init_locals_wf_inv
+      TD args argvs lc
+      (INIT_LOCALS: initLocals TD args argvs = Some lc)
+      (UNIQ: List.NoDup (getArgsIDs args))
+      m
+      (WF: memory_props.MemProps.wf_lc m lc)
+      (FIT: Forall2
+              (fun x y => fit_gv TD (fst (fst x)) y = ret y) args argvs)
+  :
+    <<VALID: Forall (memory_props.MemProps.valid_ptrs (Mem.nextblock m)) argvs>>
+.
+Proof.
+  red.
+  ginduction argvs; ii; ss.
+  destruct args0; ss; inv FIT.
+  unfold initLocals in *. ss. des_ifs.
+  econs; eauto.
+  - ss.
+    exploit WF.
+    { des_lookupAL_updateAddAL. }
+    i. ss.
+  - ss. inv UNIQ.
+    eapply IHargvs; eauto.
+    ii.
+    eapply WF; eauto. instantiate (1:= id0).
+    des_lookupAL_updateAddAL.
+    exploit not_in_init_locals; eauto. i; ss.
+Qed.
+
 Lemma transl_sim_module:
   transl_module <2= sim_module.
 Proof.
@@ -367,6 +421,17 @@ Proof.
 
 
       hexploit genGlobalAndInitMem__wf_globals_Mem; eauto; []; intro WF; des.
+
+      assert(UNIQF: uniqFdef (fdef_intro (fheader_intro fnattrs0 typ0 id0 args1 varg0)
+                                         ((l1, stmts_intro [] cmds5 terminator5) :: b1))).
+      { eapply wf_system__uniqFdef; revgoals.
+        { instantiate (1:= prods_src). ss. }
+        { instantiate (1:= [module_intro l_tgt ndts_tgt prods_src]). ss.
+          unfold moduleEqB. unfold sumbool2bool. des_ifs.
+        }
+        { ss. }
+      }
+
       unfold sim_fdef in *.
       hexploit SIM.
       { eapply init_mem_sem; eauto.
@@ -376,20 +441,11 @@ Proof.
         instantiate (1:= args0).
         instantiate (1:= args0).
         ss.
-        assert(UNIQF: uniqFdef (fdef_intro (fheader_intro fnattrs0 typ0 id0 args1 varg0)
-                                    ((l1, stmts_intro [] cmds5 terminator5) :: b1))).
-        { eapply wf_system__uniqFdef; revgoals.
-          { instantiate (1:= prods_src). ss. }
-          { instantiate (1:= [module_intro l_tgt ndts_tgt prods_src]). ss.
-            unfold moduleEqB. unfold sumbool2bool. des_ifs.
-          }
-          { ss. }
-        }
         unfold get_params in *.
         exploit FIT_ARGS.
         { ss. des_ifs. }
         clear FIT_ARGS. intro FIT_ARGS; des.
-        clear - WF4 WF INIT_LOCALS UNIQF FIT_ARGS.
+        clear - WF4 WF INIT_LOCALS UNIQF UNIQF0 FIT_ARGS.
         (* initLocals_type_spec  *)
         assert(NODUP: NoDup (getArgsIDs args1)).
         { inv UNIQF. ss.
@@ -397,7 +453,7 @@ Proof.
                  | [H: NoDup (_ ++ _) |- _ ] => eapply NoDup_split' in H; des
                  end.
           ss.
-        } clear UNIQF.
+        } clear UNIQF UNIQF0.
         assert(forall arg (IN: In arg args0), exists id, In id (getArgsIDs args1) /\
                                                          lookupAL GenericValue g1 id = Some arg).
         { clear - NODUP INIT_LOCALS FIT_ARGS.
@@ -427,8 +483,25 @@ Proof.
         - econs; eauto.
           exploit H; eauto; []; i; des.
           eapply WF4; eauto.
+      }
+      {
+        exploit FIT_ARGS.
+        { unfold get_params. ss. des_ifs. }
+        intro FIT.
+        eapply init_locals_wf_inv; eauto.
+        { ss. des.
+          apply NoDup_split in UNIQF0. des. ss.
         }
-
+      }
+      {
+        exploit FIT_ARGS.
+        { unfold get_params. ss. des_ifs. }
+        intro FIT.
+        eapply init_locals_wf_inv; eauto.
+        { ss. des.
+          apply NoDup_split in UNIQF0. des. ss.
+        }
+      }
       { econs; ss; eauto. }
       clear SIM. intro SIM_LOCAL; des.
       inv SIM_LOCAL. ss. clarify.
