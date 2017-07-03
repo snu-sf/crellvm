@@ -575,16 +575,6 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
      let ty = Convert.value_type args.ty in
      let v = Convert.value args.v in
      Infrule.Coq_lessthan_undef_tgt (ty, v)
-  | CoreHint_t.LessthanUndefConst (args:CoreHint_t.lessthan_undef_const) ->
-     let c = Convert.constant args.c in
-     Infrule.Coq_lessthan_undef_const (c)
-  | CoreHint_t.LessthanUndefConstTgt (args:CoreHint_t.lessthan_undef_const_tgt) ->
-     let c = Convert.constant args.c in
-     Infrule.Coq_lessthan_undef_const_tgt (c)
-  | CoreHint_t.LessthanUndefConstGEPorCast (args:CoreHint_t.lessthan_undef_const_gep_or_cast) ->
-     let ty = Convert.value_type args.ty in
-     let ce = Convert.constant args.c in
-     Infrule.Coq_lessthan_undef_const_gep_or_cast (ty, ce)
   | CoreHint_t.OrCommutativeTgt (args:CoreHint_t.or_commutative_tgt) ->
      let z = Convert.register args.z in
      let x = Convert.value args.x in
