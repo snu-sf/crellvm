@@ -5,6 +5,8 @@ open Coq_pretty_printer
 open Printf
 open List
 open MetatheoryAtom
+
+type atom = AtomImpl.atom
        
 let out_channel = ref stderr
 
@@ -351,6 +353,20 @@ module PrintHints = struct
         () in
       let _ = if(length sum <> 0) then print_sum() else () in
       ()
+
+    let invariants (hint_fdef:ValidationHint.fdef) (blockids: atom list): unit =
+      let print_bar() = debug_print (String.make 200 '=') in
+      print_bar ();
+      List.iter
+          (fun blockid ->
+              let stmts = TODOCAML.get (Alist.lookupAL hint_fdef blockid) in
+              debug_print (sprintf "<block %s>" blockid) ; 
+              invariant (stmts.invariant_after_phinodes) ;
+              List.iter 
+                  (fun inv -> invariant inv)
+                  (List.map snd stmts.cmds))
+          blockids;
+      print_bar ()
   end
 
 let debug_print_validation_process (infrules: Infrule.t list)
@@ -427,6 +443,7 @@ let expr_printer (x: Expr.t): unit =
   debug_run(
       fun _ ->
       debug_print (ExprsToString.of_expr x))
+
 
 let debug_string (x: char list) (y: 'a) =
   let _ = debug_run(fun _ -> debug_print (string_of_char_list x))
