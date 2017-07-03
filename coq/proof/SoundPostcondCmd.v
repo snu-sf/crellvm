@@ -206,9 +206,10 @@ Proof.
     eapply opsem_props.OpsemProps.FCMP_inversion in H.
     des.
     eapply MemProps.mfcmp_preserves_valid_ptrs; eauto.
-  - destruct decision.
-    + eapply get_operand_valid_ptr; eauto.
-    + eapply get_operand_valid_ptr; eauto.
+  - unfold SELECT in *. des_ifs.
+    unfold mselect, fit_chunk_gv in *.
+    des_ifs; try (by eapply get_operand_valid_ptr; eauto);
+      try (by eapply MemProps.undef_valid_ptrs; eauto).
 Unshelve.
 ss.
 Qed.

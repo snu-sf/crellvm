@@ -272,7 +272,7 @@ Lemma alloca_result
 .
 Proof.
   unfold alloca in *.
-  des_ifs. unfold Datatypes.option_map, flip in *. des_ifs.
+  des_ifs. unfold option_map, flip in *. des_ifs.
   expl Mem.alloc_result. clarify.
   splits; ss.
   - erewrite Mem.nextblock_drop; eauto.
@@ -300,6 +300,7 @@ Proof.
   rename mem1 into mem2.
   rename m into mem1.
   dup VALID.
+  unfold option_map in *. des_ifs_safe.
   eapply Mem.valid_access_drop_2 in VALID; eauto.
   exploit Mem.valid_access_alloc_inv; eauto; []; i; des.
   destruct (Values.eq_block b mb); ss. clarify.
@@ -413,7 +414,7 @@ Lemma alloca_preserves_mload_aux_other_eq
       (DIFFBLOCK: b <> mb)
   : mload_aux mem0 ch b ofs = mload_aux mem1 ch b ofs.
 Proof.
-  unfold alloca, Datatypes.option_map, flip in *. des_ifs_safe.
+  unfold alloca, option_map, flip in *. des_ifs_safe.
   destruct (mload_aux mem1 ch b ofs) eqn:LOAD1.
   - exploit MemProps.alloc_drop_preserves_mload_aux_inv; eauto; []; i; des; ss.
   - destruct (mload_aux mem0 ch b ofs) eqn:LOAD0; eauto.
