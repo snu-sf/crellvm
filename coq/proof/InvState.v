@@ -18,6 +18,7 @@ Require InvMem.
 Require Import TODO.
 Require Import paco.
 Require Import TODOProof.
+Require Import OpsemAux.
 
 Set Implicit Arguments.
 
@@ -312,7 +313,8 @@ Module Unary.
            (VAL: sem_idT st invst a = Some val)
            (IN: In b (GV2blocks val)),
       <<PRIVATE_BLOCK: InvMem.private_block st.(Mem) public b>> /\
-                       <<PARENT_DISJOINT: ~ In b private_parent>>.
+                       <<PARENT_DISJOINT: ~ In b private_parent>>
+  .
       (* In b private. *)
       (* match GV2ptr conf.(CurTargetData) (getPointerSize conf.(CurTargetData)) val with *)
       (* | ret Vptr b _ => In b private *)
@@ -334,16 +336,8 @@ Module Unary.
          forall x ptr
            (PTR:lookupAL _ st.(EC).(Locals) x = Some ptr),
            InvMem.gv_diffblock_with_blocks conf ptr invmem.(InvMem.Unary.unique_parent))
-      (WF_INSNS:
-         forall insn b
-                (IN: insnInBlockB insn b /\ blockInFdefB b (st.(EC).(CurFunction))),
-           <<WF_INSN: wf_insn (conf.(CurSystem))
-                              (module_intro (conf.(CurTargetData).(fst))
-                                            (conf.(CurTargetData).(snd))
-                                            (conf.(CurProducts)))
-                              (st.(EC).(CurFunction))
-                              b
-                              insn>>)
+      (WF_FDEF: wf_fdef conf.(CurSystem) conf st.(EC).(CurFunction))
+      (WF_EC: wf_EC st.(EC))
   .
 
   Lemma sem_valueT_physical
@@ -1078,47 +1072,3 @@ Module Subset.
   Qed.
 
 End Subset.
-
-(* GEPPPPPPPPPPPPPPPPPPPPPPP *)
-(* 2 focused subgoals *)
-(* (unfocused: 13, shelved: 3), subgoal 1 (ID 257388) *)
-
-(*   m_src : module *)
-(*   conf_src : Config *)
-(*   st_src : State *)
-(*   v : ValueT.t *)
-(*   lsv : list (sz * ValueT.t) *)
-(*   m_tgt : module *)
-(*   conf_tgt : Config *)
-(*   st_tgt : State *)
-(*   ib0 : inbounds *)
-(*   t1 : typ *)
-(*   v0 : ValueT.t *)
-(*   lsv0 : list (sz * ValueT.t) *)
-(*   u0 : typ *)
-(*   invst : t *)
-(*   invmem : InvMem.Rel.t *)
-(*   inv : Invariant.t *)
-(*   gval_src : GenericValue *)
-(*   STATE : sem conf_src conf_tgt st_src st_tgt invst invmem inv *)
-(*   MEM : InvMem.Rel.sem conf_src conf_tgt (Mem st_src) (Mem st_tgt) invmem *)
-(*   INJECT0 : Invariant.inject_value inv v v0 = true *)
-(*   INJECT1 : list_forallb2 (Invariant.inject_value inv) (List.map snd lsv) (List.map snd lsv0) = true *)
-(*   g0 : GenericValue *)
-(*   Heq1 : Unary.sem_valueT conf_src st_src (src invst) v = ret g0 *)
-(*   l1 : list GenericValue *)
-(*   Heq2 : Unary.sem_list_valueT conf_src st_src (src invst) lsv = ret l1 *)
-(*   TARGETDATA : CurTargetData conf_src = CurTargetData conf_tgt *)
-(*   GLOBALS : Globals conf_src = Globals conf_tgt *)
-(*   H2 : List.map fst lsv = List.map fst lsv0 *)
-(*   g : GenericValue *)
-(*   l0 : list GenericValue *)
-(*   Heq0 : Unary.sem_list_valueT conf_tgt st_tgt (tgt invst) lsv0 = ret l0 *)
-(*   VAL_SRC : gep (CurTargetData conf_src) t1 l1 ib0 u0 g0 = ret gval_src *)
-(*   VAL_TGT : Unary.sem_valueT conf_tgt st_tgt (tgt invst) v0 = ret g *)
-(*   INJECT : genericvalues_inject.gv_inject (InvMem.Rel.inject invmem) g0 g *)
-(*   ============================ *)
-(*   genericvalues_inject.wf_sb_mi ?Goal14 (InvMem.Rel.inject invmem) ?Goal15 ?Goal16 *)
-
-(* subgoal 2 (ID 257312) is: *)
-(*  genericvalues_inject.gvs_inject (InvMem.Rel.inject invmem) l1 l0 *)

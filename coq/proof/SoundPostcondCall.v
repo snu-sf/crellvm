@@ -320,6 +320,8 @@ Proof.
 
   exploit forget_stack_call_sound; eauto.
   { inv CONF. eauto. }
+  { rewrite CMDS_SRC. instantiate (1:= cmds_src). econs. apply sublist_refl. }
+  { rewrite CMDS_TGT. instantiate (1:= cmds_tgt). econs. apply sublist_refl. }
   { apply forget_memory_call_unique_implies_private. }
   { apply forget_memory_call_unique_implies_private. }
   { rewrite MEM_INJ. eauto. }

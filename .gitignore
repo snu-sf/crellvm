@@ -36,3 +36,6 @@ Makefile.coq
 
 lib/*
 llvmberry-tests
+
+graph.dot
+graph.png

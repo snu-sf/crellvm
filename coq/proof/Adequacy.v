@@ -73,7 +73,10 @@ Lemma sim_module_init
       module_src module_tgt main args
       conf_src st_src
       (SIM: sim_module module_src module_tgt)
-      (SRC: s_genInitState [module_src] main args Mem.empty = ret (conf_src, st_src)):
+      (SRC: s_genInitState [module_src] main args Mem.empty = ret (conf_src, st_src))
+      (FIT_ARGS: forall params (PARAMS: (get_params [module_src] main) = Some params),
+           Forall2 (fun x y => (fit_gv (TD_of_module module_src) x.(fst).(fst) y = Some y)) params args)
+  :
   exists conf_tgt st_tgt idx,
     <<TGT: s_genInitState [module_tgt] main args Mem.empty = ret (conf_tgt, st_tgt)>> /\
     <<SIM: sim conf_src conf_tgt idx st_src st_tgt>>.
@@ -81,10 +84,14 @@ Proof. exploit SIM; eauto. Qed.
 
 Lemma adequacy_module
       module_src module_tgt
-      (SIM: sim_module module_src module_tgt):
-  behave_module module_tgt <3= behave_module module_src.
+      (SIM: sim_module module_src module_tgt)
+      main args
+      (FIT_ARGS: forall params (PARAMS: (get_params [module_src] main) = Some params),
+          Forall2 (fun x y => (fit_gv (TD_of_module module_src) x.(fst).(fst) y = Some y)) params args)
+  :
+  behave_module module_tgt main args <1= behave_module module_src main args.
 Proof.
-  s. intros main args obs TGT conf_src st_src INIT_SRC.
+  s. intros obs TGT conf_src st_src INIT_SRC.
   exploit sim_module_init; eauto. i. des.
   exploit TGT; eauto.
   eapply adequacy. eauto.

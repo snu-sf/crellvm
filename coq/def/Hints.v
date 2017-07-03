@@ -309,69 +309,59 @@ Module Invariant.
       (SUBSET_MAYDIFF: IdTSet.Subset inv2.(maydiff) inv1.(maydiff))
   .
 
+  Definition getGvarIDs (ps: products) :=
+    filter_map (fun p => match p with
+                         | product_gvar gv => Some (getGvarID gv)
+                         | _ => None
+                         end) ps
+  .
+
+  Definition add_Gvar_IDs (ps: products) :=
+    List.fold_right
+      (fun id inv =>
+         match lookupTypViaGIDFromProducts ps id with
+         | Some (typ_pointer ty) =>
+           ExprPairSet.add (Expr.value (ValueT.const (const_undef (typ_pointer ty))),
+                            Expr.value (ValueT.const (const_gid ty id))) inv
+         | _ => inv
+         end)
+      ExprPairSet.empty (getGvarIDs ps)
+  .
+
+  Definition add_Args_IDs (la: args) :=
+    List.fold_right
+      (fun id inv =>
+         let ty := lookupTypViaIDFromArgs la id in
+         match lookupTypViaIDFromArgs la id with
+         | Some ty =>
+           ExprPairSet.add (Expr.value (ValueT.const (const_undef ty)),
+                            Expr.value (ValueT.id (Tag.physical, id))) inv
+         | None => inv
+         end)
+      ExprPairSet.empty (getArgsIDs la)
+  .
+
   Definition function_entry_inv (la_src la_tgt: args) (products_src products_tgt: products): t :=
-  let getGvarIDs (ps: products) :=
-    List.map
-      getGvarID
-      (List.fold_right
-        (fun p lst =>
-          match p with
-          | product_gvar gvar => gvar::lst
-          | _ => lst
-          end
-        )
-        [] ps)
-  in
-  let add_Gvar_IDs (ps: products) :=
-    let gvarIDs := getGvarIDs ps in
-    List.fold_right
-      (fun id inv =>
-        match lookupTypViaGIDFromProducts ps id with
-        | Some (typ_pointer ty) =>
-            ExprPairSet.add (Expr.value (ValueT.const (const_undef (typ_pointer ty))),
-                             Expr.value (ValueT.const (const_gid ty id))) inv
-        | Some (typ_function ty _ _) =>
-            ExprPairSet.add (Expr.value (ValueT.const (const_undef (typ_pointer ty))),
-                             Expr.value (ValueT.const (const_gid ty id))) inv
-        | _ => inv
-        end
-      )
-      ExprPairSet.empty gvarIDs
-  in
-  let add_Args_IDs (la: args) :=
-    let argsIDs := getArgsIDs la in
-    List.fold_right
-      (fun id inv =>
-        let ty := lookupTypViaIDFromArgs la id in
-        match lookupTypViaIDFromArgs la id with
-        | Some ty =>
-            ExprPairSet.add (Expr.value (ValueT.const (const_undef ty)),
-                             Expr.value (ValueT.id (Tag.physical, id))) inv
-        | None => inv
-        end
-      )
-      ExprPairSet.empty argsIDs
-  in
-  let inv_src :=
-      ExprPairSet.union (add_Args_IDs la_src) (add_Gvar_IDs products_src) in
-  let inv_tgt :=
-      ExprPairSet.union (add_Args_IDs la_tgt) (add_Gvar_IDs products_tgt) in
-  mk
-    (mk_unary
-      inv_src
-      (mk_aliasrel
-        ValueTPairSet.empty
-        PtrPairSet.empty)
-      AtomSetImpl.empty
-      IdTSet.empty)
-    (mk_unary
-      inv_tgt
-      (mk_aliasrel
-        ValueTPairSet.empty
-        PtrPairSet.empty)
-      AtomSetImpl.empty
-      IdTSet.empty)
-    IdTSet.empty
+    let inv_src :=
+        ExprPairSet.union (add_Args_IDs la_src) (add_Gvar_IDs products_src) in
+    let inv_tgt :=
+        ExprPairSet.union (add_Args_IDs la_tgt) (add_Gvar_IDs products_tgt) in
+    mk
+      (mk_unary
+         inv_src
+         (mk_aliasrel
+            ValueTPairSet.empty
+            PtrPairSet.empty)
+         AtomSetImpl.empty
+         IdTSet.empty)
+      (mk_unary
+         inv_tgt
+         (mk_aliasrel
+            ValueTPairSet.empty
+            PtrPairSet.empty)
+         AtomSetImpl.empty
+         IdTSet.empty)
+      IdTSet.empty
   .
 End Invariant.
 
@@ -397,6 +387,7 @@ Module Infrule.
   | and_or_const2 (z:IdT.t) (y:IdT.t) (y':IdT.t) (x:ValueT.t) (c1:INTEGER.t) (c2:INTEGER.t) (c3:INTEGER.t) (sz:sz)
   | and_same (z:ValueT.t) (x:ValueT.t) (s:sz)
   | and_true_bool (x:ValueT.t) (y:ValueT.t)
+  | and_true_bool_tgt (x:ValueT.t) (y:ValueT.t)
   | and_undef (z:ValueT.t) (x:ValueT.t) (s:sz)
   | and_xor_const (z:IdT.t) (y:IdT.t) (y':IdT.t) (x:ValueT.t) (c1:INTEGER.t) (c2:INTEGER.t) (c3:INTEGER.t) (sz:sz)
   | and_zero (z:ValueT.t) (x:ValueT.t) (s:sz)
@@ -404,11 +395,17 @@ Module Infrule.
   | bop_associative (x:IdT.t) (y:IdT.t) (z:IdT.t) (opcode:bop) (c1:INTEGER.t) (c2:INTEGER.t) (c3:INTEGER.t) (s:sz)
   | bop_commutative (e:Expr.t) (opcode:bop) (x:ValueT.t) (y:ValueT.t) (s:sz)
   | bop_commutative_rev (e:Expr.t) (opcode:bop) (x:ValueT.t) (y:ValueT.t) (s:sz)
+  | bop_commutative_tgt (e:Expr.t) (opcode:bop) (x:ValueT.t) (y:ValueT.t) (s:sz)
+  | bop_commutative_rev_tgt (e:Expr.t) (opcode:bop) (x:ValueT.t) (y:ValueT.t) (s:sz)
   | fbop_commutative (e:Expr.t) (opcode:fbop) (x:ValueT.t) (y:ValueT.t) (fty:floating_point)
+  | fbop_commutative_rev (e:Expr.t) (opcode:fbop) (x:ValueT.t) (y:ValueT.t) (fty:floating_point)
+  | fbop_commutative_tgt (e:Expr.t) (opcode:fbop) (x:ValueT.t) (y:ValueT.t) (fty:floating_point)
+  | fbop_commutative_rev_tgt (e:Expr.t) (opcode:fbop) (x:ValueT.t) (y:ValueT.t) (fty:floating_point)
   | bop_distributive_over_selectinst (opcode:bop) (r:IdT.t) (s:IdT.t) (t':IdT.t) (t0:IdT.t) (x:ValueT.t) (y:ValueT.t) (z:ValueT.t) (c:ValueT.t) (bopsz:sz) (selty:typ)
   | bop_distributive_over_selectinst2 (opcode:bop) (r:IdT.t) (s:IdT.t) (t':IdT.t) (t0:IdT.t) (x:ValueT.t) (y:ValueT.t) (z:ValueT.t) (c:ValueT.t) (bopsz:sz) (selty:typ)
   | bitcastptr (v':ValueT.t) (bitcastinst:Expr.t)
   | bitcast_bitcast (src:ValueT.t) (mid:ValueT.t) (dst:ValueT.t) (srcty:typ) (midty:typ) (dstty:typ)
+  | bitcast_bitcast_rev_tgt (src:ValueT.t) (mid:ValueT.t) (dst:ValueT.t) (srcty:typ) (midty:typ) (dstty:typ)
   | bitcast_double_i64 (src:const) (tgt:INTEGER.t)
   | bitcast_load (ptr:ValueT.t) (ty:typ) (v1:ValueT.t) (ty2:typ) (v2:ValueT.t) (a:align)
   | bitcast_fpext (src:ValueT.t) (mid:ValueT.t) (dst:ValueT.t) (srcty:typ) (midty:typ) (dstty:typ)
@@ -461,6 +458,7 @@ Module Infrule.
   | or_and_xor (z:ValueT.t) (x:ValueT.t) (y:ValueT.t) (a:ValueT.t) (b:ValueT.t) (s:sz)
   | or_commutative_tgt (z:IdT.t) (x:ValueT.t) (y:ValueT.t) (sz:sz)
   | or_false (x:ValueT.t) (y:ValueT.t) (sz:sz)
+  | or_false_tgt (x:ValueT.t) (y:ValueT.t) (sz:sz)
   | or_mone (z:ValueT.t) (a:ValueT.t) (s:sz)
   | or_not (z:ValueT.t) (y:ValueT.t) (x:ValueT.t) (s:sz)
   | or_or  (z:ValueT.t) (x:ValueT.t) (y:ValueT.t) (a:ValueT.t) (b:ValueT.t) (sz:sz)
@@ -527,6 +525,9 @@ Module Infrule.
   | trunc_bitcast (src:ValueT.t) (mid:ValueT.t) (dst:ValueT.t) (srcty:typ) (midty:typ) (dstty:typ)
   | trunc_ptrtoint (src:ValueT.t) (mid:ValueT.t) (dst:ValueT.t) (srcty:typ) (midty:typ) (dstty:typ)
   | trunc_trunc (src:ValueT.t) (mid:ValueT.t) (dst:ValueT.t) (srcty:typ) (midty:typ) (dstty:typ)
+  | trunc_trunc_rev_tgt (src:ValueT.t) (mid:ValueT.t) (dst:ValueT.t) (srcty:typ) (midty:typ) (dstty:typ)
+  | trunc_load_bitcast_rev_tgt (src:ValueT.t) (mid1:ValueT.t) (mid2:ValueT.t) (dst:ValueT.t) (srcty:typ) (midty:typ) (a:align)
+  | trunc_load_const_bitcast_rev_tgt (src:const) (mid:ValueT.t) (dst:ValueT.t) (srcty:typ) (midty:typ) (a:align)
   | substitute (x:IdT.t) (y:ValueT.t) (e:Expr.t)
   | substitute_rev (x:IdT.t) (y:ValueT.t) (e:Expr.t)
   | substitute_tgt (x:IdT.t) (y:ValueT.t) (e:Expr.t)
@@ -553,10 +554,19 @@ Module Infrule.
   | intro_eq_tgt (x:Expr.t)
   | icmp_inverse (c:cond) (ty:typ) (x:ValueT.t) (y:ValueT.t) (v:INTEGER.t)
   | icmp_inverse_rhs (c:cond) (ty:typ) (x:ValueT.t) (y:ValueT.t) (v:INTEGER.t)
+  | icmp_inverse_tgt (c:cond) (ty:typ) (x:ValueT.t) (y:ValueT.t) (v:INTEGER.t)
+  | icmp_inverse_rhs_tgt (c:cond) (ty:typ) (x:ValueT.t) (y:ValueT.t) (v:INTEGER.t)
   | icmp_swap_operands (c:cond) (ty:typ) (x:ValueT.t) (y:ValueT.t) (e:Expr.t)
+  | icmp_swap_operands_rev (c:cond) (ty:typ) (x:ValueT.t) (y:ValueT.t) (e:Expr.t)
+  | icmp_swap_operands_tgt (c:cond) (ty:typ) (x:ValueT.t) (y:ValueT.t) (e:Expr.t)
+  | icmp_swap_operands_rev_tgt (c:cond) (ty:typ) (x:ValueT.t) (y:ValueT.t) (e:Expr.t)
   | fcmp_swap_operands (c:fcond) (fty:floating_point) (x:ValueT.t) (y:ValueT.t) (e:Expr.t)
+  | fcmp_swap_operands_rev (c:fcond) (fty:floating_point) (x:ValueT.t) (y:ValueT.t) (e:Expr.t)
+  | fcmp_swap_operands_tgt (c:fcond) (fty:floating_point) (x:ValueT.t) (y:ValueT.t) (e:Expr.t)
+  | fcmp_swap_operands_rev_tgt (c:fcond) (fty:floating_point) (x:ValueT.t) (y:ValueT.t) (e:Expr.t)
   | icmp_eq_add_add (z:ValueT.t) (w:ValueT.t) (x:ValueT.t) (y:ValueT.t) (a:ValueT.t) (b:ValueT.t) (s:sz)
   | icmp_eq_same (ty:typ) (x:ValueT.t) (y:ValueT.t)
+  | icmp_eq_same_tgt (ty:typ) (x:ValueT.t) (y:ValueT.t)
   | icmp_eq_sub_sub (z:ValueT.t) (w:ValueT.t) (x:ValueT.t) (y:ValueT.t) (a:ValueT.t) (b:ValueT.t) (s:sz)
   | icmp_eq_xor_not (z:ValueT.t) (z':ValueT.t) (a:ValueT.t) (b:ValueT.t) (s:sz)
   | icmp_eq_xor_xor (z:ValueT.t) (w:ValueT.t) (x:ValueT.t) (y:ValueT.t) (a:ValueT.t) (b:ValueT.t) (s:sz)
@@ -569,6 +579,7 @@ Module Infrule.
   | icmp_ne_xor (z:ValueT.t) (a:ValueT.t) (b:ValueT.t) (s:sz)
   | icmp_ne_xor_xor (z:ValueT.t) (w:ValueT.t) (x:ValueT.t) (y:ValueT.t) (a:ValueT.t) (b:ValueT.t) (s:sz)
   | icmp_neq_same (ty:typ) (x:ValueT.t) (y:ValueT.t)
+  | icmp_neq_same_tgt (ty:typ) (x:ValueT.t) (y:ValueT.t)
   | icmp_sge_or_not (z:ValueT.t) (z':ValueT.t) (a:ValueT.t) (b:ValueT.t) (s:sz)
   | icmp_sgt_and_not (z:ValueT.t) (z':ValueT.t) (a:ValueT.t) (b:ValueT.t) (s:sz)
   | icmp_sle_or_not (z:ValueT.t) (z':ValueT.t) (a:ValueT.t) (b:ValueT.t) (s:sz)
