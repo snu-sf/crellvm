@@ -47,7 +47,14 @@ Module IdT <: UsualDecidableType.
 End IdT.
 Hint Resolve IdT.eq_dec: EqDecDb.
 
-Module IdTSet : FSetExtra.WSfun IdT := FSetExtra.Make IdT.
+Module IdTSet <: FSetExtra.WSfun IdT.
+  Include FSetExtra.Make IdT.
+
+  Definition clear_idt (idt0: IdT.t) (t0: t): t :=
+    filter (fun x => negb (IdT.eq_dec idt0 x)) t0
+  .
+
+End IdTSet.
 Module IdTSetFacts := WFacts_fun2 IdT IdTSet.
 
 Lemma IdTSet_from_list_spec ids:
@@ -121,7 +128,15 @@ Module ValueTPair <: UsualDecidableType.
 End ValueTPair.
 Hint Resolve ValueTPair.eq_dec: EqDecDb.
 
-Module ValueTPairSet : FSetExtra.WSfun ValueTPair := FSetExtra.Make ValueTPair.
+Module ValueTPairSet <: FSetExtra.WSfun ValueTPair.
+  Include FSetExtra.Make ValueTPair.
+
+  Definition clear_idt (idt: IdT.t) (t0: t): t :=
+    filter (fun xy => negb (list_inb IdT.eq_dec (ValueTPair.get_idTs xy) idt)) t0
+  .
+
+End ValueTPairSet.
+
 Module ValueTPairSetFacts := WFacts_fun2 ValueTPair ValueTPairSet.
 
 Module Expr <: UsualDecidableType.
@@ -270,6 +285,13 @@ Module Expr <: UsualDecidableType.
       (Expr.load (f v) _blah _blah2)
     end.
 
+  Definition is_load (e: t): bool :=
+    match e with
+    | Expr.load _ _ _ => true
+    | _ => false
+    end
+  .
+
 End Expr.
 Hint Resolve Expr.eq_dec: EqDecDb.
 Coercion Expr.value: ValueT.t >-> Expr.t_.
@@ -293,7 +315,15 @@ Module ExprPair <: UsualDecidableType.
 End ExprPair.
 Hint Resolve ExprPair.eq_dec: EqDecDb.
 
-Module ExprPairSet : FSetExtra.WSfun ExprPair := FSetExtra.Make ExprPair.
+Module ExprPairSet <: FSetExtra.WSfun ExprPair.
+  Include FSetExtra.Make ExprPair.
+
+  Definition clear_idt (idt: IdT.t) (t0: t): t :=
+    filter (fun xy => negb (list_inb IdT.eq_dec (ExprPair.get_idTs xy) idt)) t0
+  .
+
+End ExprPairSet.
+
 Module ExprPairSetFacts := WFacts_fun2 ExprPair ExprPairSet.
 
 (* Ptr: alias related values *)
@@ -345,5 +375,12 @@ Module PtrPair <: UsualDecidableType.
 End PtrPair.
 Hint Resolve PtrPair.eq_dec: EqDecDb.
 
-Module PtrPairSet : FSetExtra.WSfun PtrPair := FSetExtra.Make PtrPair.
+Module PtrPairSet <: FSetExtra.WSfun PtrPair.
+  Include FSetExtra.Make PtrPair.
+
+  Definition clear_idt (idt: IdT.t) (t0: t): t :=
+    filter (fun xy => negb (list_inb IdT.eq_dec (PtrPair.get_idTs xy) idt)) t0
+  .
+
+End PtrPairSet.
 Module PtrPairSetFacts := WFacts_fun2 PtrPair PtrPairSet.

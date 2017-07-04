@@ -561,3 +561,14 @@ Definition isMallocInst(c: cmd): bool :=
   | LLVMsyntax.insn_malloc _ _ _ _ => true
   | _ => false
   end.
+
+Definition is_none X (x: option X): bool :=
+  match x with
+  | None => true
+  | _ => false
+  end
+.
+
+Definition list_inb X (dec: forall x0 x1: X, {x0 = x1} + {x0 <> x1}) (xs: list X) (x0: X) : bool :=
+  is_none (List.find (dec x0) xs)
+.

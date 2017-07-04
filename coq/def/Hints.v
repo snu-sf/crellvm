@@ -106,6 +106,25 @@ Module Invariant.
       invariant.(tgt)
       (f invariant.(maydiff)).
 
+  Definition clear_idt_alias (idt0: IdT.t) (t: aliasrel): aliasrel :=
+    mk_aliasrel (ValueTPairSet.clear_idt idt0 t.(diffblock))
+                (PtrPairSet.clear_idt idt0 t.(noalias))
+  .
+
+  Definition clear_idt_unary (idt0: IdT.t) (invst0: unary): unary :=
+    mk_unary
+      ((ExprPairSet.clear_idt idt0) invst0.(lessdef))
+      (clear_idt_alias idt0 invst0.(alias))
+      invst0.(unique)
+      (IdTSet.clear_idt idt0 invst0.(private))
+  .
+
+  Definition clear_idt (idt0: IdT.t) (invst0: t): t :=
+    mk (clear_idt_unary idt0 invst0.(src))
+       (clear_idt_unary idt0 invst0.(tgt))
+       (IdTSet.clear_idt idt0 invst0.(maydiff))
+  .
+
   Definition is_private (inv:unary) (value:ValueT.t): bool :=
     match value with
     | ValueT.id id => IdTSet.mem id inv.(private)

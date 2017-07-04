@@ -1696,19 +1696,12 @@ Definition apply_infrule
     else apply_fail tt
   | Infrule.intro_ghost expr g =>
     if List.forallb (fun x => Invariant.not_in_maydiff inv0 x) (Expr.get_valueTs expr) &&
-      (match expr with | Expr.load _ _ _ => false | _ => true end)
+                    negb (Expr.is_load expr)
     then 
-      let inv1 := (Invariant.update_src (Invariant.update_lessdef 
-        (ExprPairSet.filter
-          (fun (p: ExprPair.t) => negb (Expr.eq_dec (Expr.value (ValueT.id (Tag.ghost, g))) (snd p))))) 
-          inv0) in
-      let inv2 := (Invariant.update_tgt (Invariant.update_lessdef 
-        (ExprPairSet.filter
-          (fun (p: ExprPair.t) => negb (Expr.eq_dec (Expr.value (ValueT.id (Tag.ghost, g))) (fst p)))))
-          inv1) in
-      let inv3 := {{ inv2 +++src expr >= (Expr.value (ValueT.id (Tag.ghost, g))) }} in
-      let inv4 := {{ inv3 +++tgt (Expr.value (ValueT.id (Tag.ghost, g))) >= expr }} in
-      inv4
+      let inv1 := Invariant.clear_idt (Tag.ghost, g) inv0 in
+      let inv2 := {{ inv1 +++src expr >= (Expr.value (ValueT.id (Tag.ghost, g))) }} in
+      let inv3 := {{ inv2 +++tgt (Expr.value (ValueT.id (Tag.ghost, g))) >= expr }} in
+      inv3
     else apply_fail tt
   | Infrule.xor_commutative_tgt z x y s =>
     if $$ inv0 |-tgt (Expr.bop bop_xor s x y) >= (Expr.value z) $$
