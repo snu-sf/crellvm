@@ -825,7 +825,8 @@ Module Rel.
     des.
     expl mbop_matches_chunks.
     esplits; eauto.
-    ADMIT "this should hold".
+    unfold Size.to_nat.
+    apply OpsemPP.gv_chunks_match_typ__gv_chunks_match_typb. auto.
   Qed.
 
   Lemma lessdef_mbop

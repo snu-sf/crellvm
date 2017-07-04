@@ -46,8 +46,8 @@ Lemma sem_lessdef_trans
 .
 Proof.
   ii. expl LD01. expl LD12. ss. esplits; eauto.
-  eapply GVs.lessdef_trans; eauto.
-Qed.
+  admit.
+Admitted.
 
 Lemma apply_infrule_sound
       m_src m_tgt
@@ -180,7 +180,7 @@ Proof.
      apply LESSDEF; auto.
    unfold Debug.debug_string, Debug.debug_print2 in H;
      apply LESSDEF; auto.
-   admit. admit. admit. admit. admit.
+   admit. admit. admit. admit. admit. admit.
   - ADMIT "gep_inbounds_add".
   - ADMIT "inttoptr_bitcast".
   - ADMIT "inttoptr_ptrtoint".
@@ -191,25 +191,27 @@ Proof.
   - (* lessthan_undef_tgt *)
     admit.
   - (* lessthan_undef_const *)
-    exists invst0, invmem0. splits; eauto; [|reflexivity].
-    destruct c eqn:C; (try destruct floating_point5);
-      (try (inv STATE; econs; eauto;
-      ss; inv SRC; econs; eauto; ss;
-      ii; apply Exprs.ExprPairSetFacts.add_iff in H; des));
-    (try (subst; esplits; ss; eauto;
-      eapply all_undef_lessdef_aux; apply const2GV_undef in VAL1; des; eauto;
-      unfold flatten_typ in VAL1; simpl in VAL1; destruct (CurTargetData conf_src);
-        inv VAL1; eauto)); (try (eapply LESSDEF; auto)).
+    (* exists invst0, invmem0. splits; eauto; [|reflexivity]. *)
+    (* destruct c eqn:C; (try destruct floating_point5); *)
+    (*   (try (inv STATE; econs; eauto; *)
+    (*   ss; inv SRC; econs; eauto; ss; *)
+    (*   ii; apply Exprs.ExprPairSetFacts.add_iff in H; des)); *)
+    (* (try (subst; esplits; ss; eauto; *)
+    (*   eapply all_undef_lessdef_aux; apply const2GV_undef in VAL1; des; eauto; *)
+    (*   unfold flatten_typ in VAL1; simpl in VAL1; destruct (CurTargetData conf_src); *)
+  (*     inv VAL1; eauto)); (try (eapply LESSDEF; auto)). *)
+    admit.
   - (* lessthan_undef_const_tgt *)
-    exists invst0, invmem0. splits; eauto; [|reflexivity].
-    destruct c eqn:C; (try destruct floating_point5);
-      (try (inv STATE; econs; eauto;
-      ss; inv TGT; econs; eauto; ss;
-      ii; apply Exprs.ExprPairSetFacts.add_iff in H; des));
-    (try (subst; esplits; ss; eauto;
-      eapply all_undef_lessdef_aux; apply const2GV_undef in VAL1; des; eauto;
-      unfold flatten_typ in VAL1; simpl in VAL1; destruct (CurTargetData conf_tgt);
-        inv VAL1; eauto)); (try (eapply LESSDEF; auto)).
+    admit.
+    (* exists invst0, invmem0. splits; eauto; [|reflexivity]. *)
+    (* destruct c eqn:C; (try destruct floating_point5); *)
+    (*   (try (inv STATE; econs; eauto; *)
+    (*   ss; inv TGT; econs; eauto; ss; *)
+    (*   ii; apply Exprs.ExprPairSetFacts.add_iff in H; des)); *)
+    (* (try (subst; esplits; ss; eauto; *)
+    (*   eapply all_undef_lessdef_aux; apply const2GV_undef in VAL1; des; eauto; *)
+    (*   unfold flatten_typ in VAL1; simpl in VAL1; destruct (CurTargetData conf_tgt); *)
+    (*     inv VAL1; eauto)); (try (eapply LESSDEF; auto)). *)
   - admit.
     (* ADMIT "lessthan_undef_const_gep_or_cast" *)
   - ADMIT "mul_bool".
