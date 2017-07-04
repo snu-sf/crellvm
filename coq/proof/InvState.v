@@ -96,6 +96,16 @@ Module Unary.
   Definition update_both f x :=
     update_ghost f (update_previous f x).
 
+  Definition clear_idt (idt0: IdT.t) (invst: t): t :=
+    match idt0 with
+    | (Tag.physical, id0) => invst
+    | (Tag.previous, id0) => (mk (filter_AL_atom (fun x => negb (id_dec id0 x)) invst.(previous))
+                                 invst.(ghost))
+    | (Tag.ghost, id0) => (mk (invst.(previous))
+                              (filter_AL_atom (fun x => negb (id_dec id0 x)) invst.(ghost)))
+    end
+  .
+
   Definition sem_tag (st:State) (invst:t) (tag:Tag.t): GVsMap :=
     match tag with
     | Tag.physical => st.(EC).(Locals)
@@ -357,6 +367,10 @@ Module Rel.
 
   Definition update_both f x :=
     update_src f (update_tgt f x).
+
+  Definition clear_idt (idt0: IdT.t) (invst: t): t :=
+    mk (Unary.clear_idt idt0 invst.(src)) (Unary.clear_idt idt0 invst.(tgt))
+  .
 
   Definition sem_inject (st_src st_tgt:State) (invst:t) (inject:meminj) (id:IdT.t): Prop :=
     forall val_src (VAL_SRC: Unary.sem_idT st_src invst.(src) id = Some val_src),
