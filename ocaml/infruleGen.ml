@@ -5,6 +5,7 @@ open Syntax
 open MetatheoryAtom
 open LLVMsyntax
 open Infrastructure
+open TODOCAML
 
 module AutoOpt = struct
     type pass_t =
@@ -24,6 +25,11 @@ module Auto = struct
       match scp with
       | Src -> Infrule.Coq_transitivity (e1, e2, e3)
       | Tgt -> Infrule.Coq_transitivity_tgt (e1, e2, e3)
+
+    let gep_inbounds_remove scp gepinst : Infrule.t =
+      match scp with
+      | Src -> Infrule.Coq_gep_inbounds_remove (gepinst)
+      | Tgt -> Infrule.Coq_gep_inbounds_remove_tgt (gepinst)
 
     let substitute (scp:scope_t) x v e : Infrule.t =
       match scp with
@@ -127,6 +133,13 @@ module Auto = struct
                     | None -> None))
         None b_list
 
+    let find_first_matchb (f:'b -> bool)
+                          (b_list:'b list)
+        : 'b option =
+      match find_first_match (fun b -> if (f b) then Some () else None) b_list with
+      | Some (b, _) -> Some b
+      | None -> None
+
     let expr_find_first_match (f:Expr.t -> 'a option)
                               (exp_list:Expr.t list)
         : (Expr.t * 'a) option = find_first_match f exp_list
@@ -164,6 +177,12 @@ module Auto = struct
 
     let repl_value e v1 v2 : Expr.t =
       Expr.map_valueTs e (fun v -> if ValueT.eq_dec v1 v then v2 else v)
+
+    (* let rec filter_map f l = *)
+    (*   match  *)
+    (*   | Some y -> y::(filter_map f l) *)
+    (*   | None -> filter_map f l *)
+
   end
 
 module AutoTransHelper = struct
@@ -330,7 +349,7 @@ module AutoSubstTransHelper = struct
          (match e1, e2 with
           | Expr.Coq_gep (true, tya, v, lsv, tyb), Expr.Coq_gep (false, _, _, _, _) ->
              attach_oinfrs
-               [Infrule.Coq_gep_inbounds_remove e1] (* assume this occurs only on SRC side *)
+               [Auto.gep_inbounds_remove scp e1] (* assume this occurs only on SRC side *)
                (match oel with
                 | Some el -> [Auto.transitivity scp el e1 (bdd e2 oer)]
                 | _ -> [])
@@ -415,9 +434,93 @@ module AutoSubstTransHelper = struct
          | Some er -> Some (infrs@[Auto.transitivity scp (bdd e1 oel) e2 er])
          | _ -> Some infrs
 
+    let auto1_unary scp (inv_u:Invariant.unary) (inv_u_g:Invariant.unary)
+        : (Infrule.t list) * Invariant.unary =
+      let ld = inv_u.Invariant.lessdef in
+      let ldl_g = ExprPairSet.elements inv_u_g.Invariant.lessdef in
+      let (infrs, ld_g) =
+        List.fold_left (fun (acc:(Infrule.t list) * ExprPairSet.t) (ep_g:ExprPair.t) ->
+                        if ExprPairSet.mem ep_g ld then acc else
+                          let infrs_acc, inv_acc = acc in
+                          match run 0 scp ld None (fst ep_g) (snd ep_g) None with
+                          | Some infrs -> (infrs_acc@infrs, inv_acc)
+                          | None -> (infrs_acc, ExprPairSet.add ep_g inv_acc)) ([], ExprPairSet.empty) ldl_g
+      in (infrs, Invariant.update_lessdef (fun _ -> ld_g) inv_u_g)
+
+    let auto1 : Auto.t1 =
+      fun inv inv_g ->
+      let (infrs1, inv_src_g) = auto1_unary Auto.Src inv.Invariant.src inv_g.Invariant.src in
+      let (infrs2, inv_tgt_g) = auto1_unary Auto.Tgt inv.Invariant.tgt inv_g.Invariant.tgt in
+      let inv_g = Invariant.update_src (fun _ -> inv_src_g) inv_g in
+      let inv_g = Invariant.update_tgt (fun _ -> inv_tgt_g) inv_g in
+      (infrs1@infrs2, inv_g)
+
+  end
+
+module IntroGhostHelper = struct
+    let gather_ghost (inv:Invariant.t) : id list =
+      let gather_ghost_ld (ld:ExprPairSet.t) : id list =
+        List.fold_left (fun acc ep ->
+                        let idts = (Expr.get_idTs (fst ep)) @ (Expr.get_idTs (snd ep)) in
+                        (filter_map (fun idt -> if (fst idt = Tag.Coq_ghost) then Some (snd idt) else None) idts)
+                        @acc) [] (ExprPairSet.elements ld) in
+      let raw =(gather_ghost_ld inv.Invariant.src.Invariant.lessdef)
+               @(gather_ghost_ld inv.Invariant.tgt.Invariant.lessdef) in
+      List.sort_uniq compare raw
+
+    let get_ghost_id e : id =
+      match e with
+      | Expr.Coq_value (ValueT.Coq_id (Tag.Coq_ghost, x)) -> x
+      | _ -> failwith "get_ghost_id applied to non-ghost expr"
+
+    let find_non_value_src (epl : ExprPair.t list) : ExprPair.t option =
+      Auto.find_first_matchb (fun ep -> match (fst ep) with
+                                        | Expr.Coq_value _ -> false
+                                        | _ -> true) epl
+
+    let find_to_intro (inv:Invariant.t) (inv_g:Invariant.t) : (id * Expr.t) list =
+      let check_intro_cand scp g ep: bool =
+        match ((if scp = Auto.Src then snd else fst) ep) with
+        | Expr.Coq_value (ValueT.Coq_id (Tag.Coq_ghost, x)) -> x = g
+        | _ -> false
+      in
+      let existing_ghosts : id list = gather_ghost inv in
+      let ghosts_g : id list = gather_ghost inv_g in
+      List.fold_left (fun intros_acc g ->
+                      if (List.mem g existing_ghosts) then intros_acc else
+                        let src_side = List.filter (check_intro_cand Auto.Src g)
+                                                   (ExprPairSet.elements inv_g.Invariant.src.Invariant.lessdef) in
+                        (* let tgt_side = List.filter (check_intro_cand Auto.Tgt g) *)
+                        (*                            (ExprPairSet.elements inv_g.Invariant.tgt.Invariant.lessdef) in *)
+                        match find_non_value_src src_side with
+                        | Some ep -> (get_ghost_id (snd ep), fst ep)::intros_acc
+                        | None -> if List.length src_side > 0
+                                  then let ep = List.nth src_side 0 in
+                                       (get_ghost_id (snd ep), fst ep)::intros_acc
+                                  else intros_acc) [] ghosts_g
+
+                        (* (if List.length src_side = 1 then *)
+                        (*    let ep = List.nth src_side 0 in (get_ghost_id (snd ep), fst ep)::intros_acc *)
+                        (*  else if List.length tgt_side = 1 then *)
+                        (*    let ep = List.nth tgt_side 0 in (get_ghost_id (fst ep), snd ep)::intros_acc *)
+                        (*  else intros_acc)) [] ghosts_g *)
+
+    let gen_infrule (l: (id * Expr.t) list) : Infrule.t list =
+      List.map (fun (g, e) -> Infrule.Coq_intro_ghost (e, g)) l
   end
 
 module AutoGVNModule = struct
+    let new_auto1 : Auto.t1 =
+      fun inv inv_g ->
+      let intros = IntroGhostHelper.find_to_intro inv inv_g in
+      let infrs_intros = IntroGhostHelper.gen_infrule intros in
+      let intros_e = List.map (fun (x, e) -> (Expr.Coq_value (ValueT.Coq_id (Tag.Coq_ghost, x)), e)) intros in
+      let augment_ld f ld = List.fold_left (fun ld1 ep -> ExprPairSet.add (f ep) ld1) ld intros_e in
+      let inv = Invariant.update_src (Invariant.update_lessdef (augment_ld (fun ep -> (snd ep, fst ep)))) inv in
+      let inv = Invariant.update_tgt (Invariant.update_lessdef (augment_ld (fun ep -> ep))) inv in
+      let (infrs_st, inv_g) = AutoSubstTransHelper.auto1 inv inv_g in
+      (infrs_intros@infrs_st, inv_g)
+
     type ghost_intd_t = (id * Expr.t) list
 
     let find_ghost_pair scp ld (l:ghost_intd_t) (x:id) : Expr.t option =
@@ -790,7 +893,7 @@ let compose2 (a1:Auto.t2) (a2:Auto.t2) : Auto.t2 =
 
 (** candidates *)
 
-let autoGVN : Auto.t = (AutoGVNModule.auto1, Auto_Default2.run)
+let autoGVN : Auto.t = (AutoGVNModule.new_auto1, Auto_Default2.run)
 let autoSROA : Auto.t = (AutoUnaryLD_Trans.run, AutoInjectValues_Trans.run)
 let autoLICM : Auto.t = (AutoUnaryLD_Trans.run, AutoInjectValues_Trans.run)
 let autoDflt : Auto.t = (Auto_Default1.run, Auto_Default2.run)

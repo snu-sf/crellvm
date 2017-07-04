@@ -458,6 +458,7 @@ Module Infrule.
   | fptrunc_fpext (src:ValueT.t) (mid:ValueT.t) (dst:ValueT.t) (srcty:typ) (midty:typ) (dstty:typ)
   | gepzero (v':ValueT.t) (gepinst:Expr.t)
   | gep_inbounds_remove (gepinst:Expr.t)
+  | gep_inbounds_remove_tgt (gepinst:Expr.t)
   | gep_inbounds_add (v:ValueT.t) (ptr:ValueT.t) (loadty:typ) (al:align) (e:Expr.t)
   | inttoptr_bitcast (src:ValueT.t) (mid:ValueT.t) (dst:ValueT.t) (srcty:typ) (midty:typ) (dstty:typ)
   | inttoptr_ptrtoint (src:ValueT.t) (mid:ValueT.t) (dst:ValueT.t) (srcty:typ) (midty:typ) (dstty:typ)

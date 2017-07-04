@@ -868,6 +868,12 @@ Definition apply_infrule
       {{inv0 +++src (Expr.gep true t v lsv u) >= (Expr.gep false t v lsv u) }}
     | _ => apply_fail tt
     end
+  | Infrule.gep_inbounds_remove_tgt gepinst =>
+    match gepinst with
+    | Expr.gep _ t v lsv u =>
+      {{inv0 +++tgt (Expr.gep true t v lsv u) >= (Expr.gep false t v lsv u) }}
+    | _ => apply_fail tt
+    end
   | Infrule.gep_inbounds_add loadv ptr loadty al e =>
     match e with
     | Expr.gep _ t v lsv u =>
