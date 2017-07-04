@@ -396,7 +396,7 @@ Proof.
     clear_tac.
     dup ALLOCA_SRC.
     dup ALLOCA_TGT.
-    unfold alloca, Datatypes.option_map, flip in ALLOCA_SRC, ALLOCA_TGT. des_ifs_safe.
+    unfold alloca, option_map, flip in ALLOCA_SRC, ALLOCA_TGT. des_ifs_safe.
     expl alloca_result (try exact ALLOCA_SRC0; eauto). clarify.
     expl alloca_result (try exact ALLOCA_TGT0; eauto). clarify.
     expl Mem.alloc_result (try exact Heq1; eauto). clarify.

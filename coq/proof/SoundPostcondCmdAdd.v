@@ -901,6 +901,7 @@ Lemma postcond_cmd_add_lessdef_unary_sound_select
 .
 Proof.
   generalize (lessdef_add_definedness WF_CONF WF_STATE_PREV NONCALL STEP CMDS).
+  clear WF_STATE_PREV.
   intro DEFINEDNESS.
   (inv NONCALL; []); (inv STATE; []); ss; ((inv STEP; ss); []).
   econs; eauto; [].
@@ -915,19 +916,17 @@ Proof.
   { rewrite Heqconf. auto. }
   assert(CONF2: conf.(Globals) = gl).
   { rewrite Heqconf. auto. }
-  remember
-  {|
+  remember {|
     EC := {|
            CurFunction := F;
            CurBB := B;
            CurCmds := cs;
            Terminator := tmn;
-           Locals := updateAddAL GenericValue lc id0 (if decision then gvs1 else gvs2);
+           Locals := updateAddAL GenericValue lc id0 gvresult;
            Allocas := als |};
     ECS := ECS0;
     Mem := Mem0 |} as state.
-  assert(STATE: state.(EC).(Locals) =
-                updateAddAL GenericValue lc id0 (if decision then gvs1 else gvs2)).
+  assert(STATE: state.(EC).(Locals) = updateAddAL GenericValue lc id0 gvresult).
   { rewrite Heqstate. auto. }
   clear Heqconf Heqstate.
   inv CMDS.
@@ -938,7 +937,7 @@ Proof.
   rewrite STATE. des_lookupAL_updateAddAL.
   clear e.
   rewrite ? InvState.Unary.sem_valueT_physical in *.
-  inv H3.
+  unfold SELECT in *.
   destruct value_cond, value1, value2; simpl in *;
     try rewrite STATE; simpl_list; des_lookupAL_updateAddAL;
       try rewrite H; try rewrite H1; try rewrite H2; try rewrite INT; ss.

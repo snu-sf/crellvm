@@ -609,10 +609,9 @@ Lemma decide_nonzero_inject
   decide_nonzero TD val_tgt decision.
 Proof.
   inv DECIDE_SRC. inv INJECT; ss.
-  destruct v1; ss. destruct gv1; ss. simtac. inv H. inv H0.
-  apply inj_pair2 in H3. subst.
-  econs; eauto. unfold GV2int.
-  destruct (Nat.eq_dec (wz + 1) (Size.to_nat Size.One)); ss.
+  des_ifs. inv H0.
+  econs; eauto. inv H. apply inj_pair2 in H2. clarify.
+  ss. des_ifs.
 Qed.
 
 Lemma decide_nonzero_unique
