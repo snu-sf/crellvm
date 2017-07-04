@@ -39,6 +39,24 @@ Module GVs.
     - apply IHx.
   Qed.
 
+  Lemma lessdef_trans x y z
+        (LESSDEF1: lessdef x y)
+        (LESSDEF2: lessdef y z):
+    <<TRANS: lessdef x z>>.
+  Proof.
+    unfold lessdef in *.
+    generalize dependent y.
+    generalize dependent z.
+    induction x.
+    - intros. induction y, z; inv LESSDEF1; inv LESSDEF2.
+      apply list_forall2_nil.
+    - intros z.
+      induction z; intros; induction y; inv LESSDEF1; inv LESSDEF2.
+      des. apply list_forall2_cons. split.
+      apply Val.lessdef_trans with (v2:=fst a1); auto.
+      rewrite H1. auto. apply IHx with (y:=y); auto.
+  Qed.
+
   Lemma lessdef_inject_compose_single mij a b c
         (LD: Val.lessdef a b)
         (INJECT: memory_sim.MoreMem.val_inject mij b c):
