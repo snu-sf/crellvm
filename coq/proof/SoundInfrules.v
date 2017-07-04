@@ -355,7 +355,122 @@ Proof.
   - ADMIT "zext_xor".
   - ADMIT "zext_zext".
   - ADMIT "!intro_ghost_src".
-  - ADMIT "!intro_ghost".
+  - ss. des_ifs; cycle 1.
+    { esplits; eauto. reflexivity. }
+    repeat (des_bool; des).
+    rename g into i0.
+    rename x into x0.
+    Local Opaque InvState.Unary.clear_idt.
+    destruct (InvState.Unary.sem_expr conf_src st_src
+             (InvState.Rel.clear_idt (Exprs.Tag.ghost, i0) invst0).(InvState.Rel.src) x0) eqn:T0; cycle 1.
+    {
+      exists (InvState.Rel.clear_idt (Exprs.Tag.ghost, i0) invst0), invmem0.
+      splits; ss; eauto; [|reflexivity].
+      exploit clear_idt_ghost_spec; eauto.
+      { instantiate (1:= (Exprs.Tag.ghost, i0)). ss. }
+      intro STATE_CLEAR; des.
+      clear - STATE_CLEAR T0.
+      unfold Hints.Invariant.update_tgt, Hints.Invariant.update_src, Hints.Invariant.update_lessdef. ss.
+      econs; eauto; try apply STATE_CLEAR.
+      + ss.
+        inv STATE_CLEAR. clear - SRC T0.
+
+        econs; eauto; try apply SRC.
+        ss.
+        inv SRC. clear - LESSDEF T0.
+
+        ii.
+        apply Exprs.ExprPairSetFacts.add_iff in H. des.
+        * clarify. ss. rewrite T0 in *. clarify.
+        * eapply LESSDEF; eauto.
+      + ss.
+        inv STATE_CLEAR. clear - TGT T0.
+
+        econs; eauto; try apply TGT.
+        ss.
+        inv TGT. clear - LESSDEF T0.
+
+        ii.
+        apply Exprs.ExprPairSetFacts.add_iff in H. des.
+        * clarify. ss.
+          assert(NONE: InvState.Unary.sem_idT
+                         st_tgt (InvState.Rel.tgt
+                                   (InvState.Rel.clear_idt
+                                      (Exprs.Tag.ghost, i0) invst0)) (Exprs.Tag.ghost, i0) = None).
+          { clear - i0.
+            unfold InvState.Unary.sem_idT. ss.
+            ss.
+            Local Transparent InvState.Unary.clear_idt. ss.
+            rewrite lookup_AL_filter_spec. des_ifs. des_bool; des_sumbool. ss.
+            Local Opaque InvState.Unary.clear_idt.
+          }
+          unfold InvState.Rel.clear_idt in *. ss.
+          rewrite NONE in *. clarify.
+        * ss. eapply LESSDEF; eauto.
+    }
+    rename g into g0.
+    assert(T1: exists g1,
+              InvState.Unary.sem_expr conf_tgt st_tgt
+                   (InvState.Rel.clear_idt (Exprs.Tag.ghost, i0) invst0).(InvState.Rel.tgt) x0 = Some g1
+              /\ genericvalues_inject.gv_inject invmem0.(InvMem.Rel.inject) g0 g1).
+    {
+      hexploit InvState.Rel.not_in_maydiff_expr_spec; try apply T0; try apply STATE; eauto.
+      { ii.
+        (* Pull out lemma *)
+        assert(id0 <> (Exprs.Tag.ghost, i0)).
+        { ii. clarify. ss.
+          unfold InvState.Unary.sem_idT in *. ss.
+          Local Transparent InvState.Unary.clear_idt.
+          unfold InvState.Unary.clear_idt in *. ss.
+          Local Opaque InvState.Unary.clear_idt.
+          rewrite lookup_AL_filter_spec in VAL_SRC. unfold negb in *. des_ifs. des_sumbool. ss.
+        }
+        ss.
+        erewrite <- clear_idt_spec_id; ss; cycle 1.
+        { unfold proj_sumbool. des_ifs. }
+        inv STATE.
+        eapply MAYDIFF; ss.
+        erewrite clear_idt_spec_id; try eassumption; cycle 1.
+        unfold proj_sumbool. des_ifs.
+      }
+    }
+    exists (InvState.Rel.update_both
+              (InvState.Unary.update_ghost (fun idgs => (i0, g0) :: idgs))
+              (InvState.Rel.clear_idt (Exprs.Tag.ghost, i0) invst0)), invmem0.
+    splits; ss; eauto; [|reflexivity].
+    exploit clear_idt_ghost_spec; eauto.
+    { instantiate (1:= (Exprs.Tag.ghost, i0)). ss. }
+    intro STATE_CLEAR; des.
+    clear - STATE_CLEAR T0 T1 T2.
+    unfold Hints.Invariant.update_tgt, Hints.Invariant.update_src, Hints.Invariant.update_lessdef. ss.
+    econs; eauto; try apply STATE_CLEAR.
+    + ss.
+      inv STATE_CLEAR. clear - SRC T0 T1 T2.
+
+      econs; eauto; try apply SRC.
+      * ss.
+        inv SRC. clear - LESSDEF T0 T1 T2.
+
+        ii.
+        apply Exprs.ExprPairSetFacts.add_iff in H. des.
+        { clarify. ss.
+          assert(val1 = g0).
+          { admit. }
+          clarify.
+          exists g0.
+          split; ss.
+          - admit.
+          - eapply GVs.lessdef_refl.
+        }
+        { ss.
+          exploit LESSDEF; eauto.
+          { instantiate (1:= val1). admit. }
+          i; des.
+          esplits; eauto.
+          admit.
+        }
+      * ss.
+    +
   - (* intro_eq *)
     exists invst0, invmem0. splits; eauto; [|reflexivity].
     inv STATE. econs; eauto. ss.
