@@ -51,6 +51,7 @@ Inductive sim_local_stack
     (UNIQS_TGT: forall mptr typ align val
                   (LOAD: mload conf_tgt.(CurTargetData) mem_tgt mptr typ align = Some val),
         InvMem.gv_diffblock_with_blocks conf_tgt val uniqs_tgt)
+    (TGT_NOUNIQ: uniqs_tgt = [])
     (UNIQS_GLOBALS_TGT: forall b, In b uniqs_tgt -> (inv1.(InvMem.Rel.gmax) < b)%positive)
     (PRIVS_SRC: forall b, In b privs_src -> InvMem.private_block mem_src (InvMem.Rel.public_src inv1.(InvMem.Rel.inject)) b)
     (PRIVS_TGT: forall b, In b privs_tgt -> InvMem.private_block mem_tgt (InvMem.Rel.public_tgt inv1.(InvMem.Rel.inject)) b)
@@ -59,6 +60,7 @@ Inductive sim_local_stack
          (INCR: InvMem.Rel.le (InvMem.Rel.lift mem_src mem_tgt uniqs_src uniqs_tgt privs_src privs_tgt inv1) inv')
          (MEM: InvMem.Rel.sem conf_src conf_tgt mem'_src mem'_tgt inv')
          (RETVAL: TODO.lift2_option (genericvalues_inject.gv_inject inv'.(InvMem.Rel.inject)) retval'_src retval'_tgt)
+         (VALID: valid_retvals mem'_src mem'_tgt retval'_src retval'_tgt)
          (RETURN_SRC: return_locals
                         conf_src.(CurTargetData)
                         retval'_src id_src noret_src typ_src
@@ -189,8 +191,8 @@ Axiom callExternalOrIntrinsics_inject: forall
              (<<MEM: InvMem.Rel.sem (mkCfg S0 TD Ps0 Gs Fs0) (mkCfg S1 TD Ps1 Gs Fs1) Mem0' Mem1' invmem1>>)
              /\ (<<MEMLE: InvMem.Rel.le invmem0 invmem1>>)
              /\ (<<VAL_INJECT: option_f2 (genericvalues_inject.gv_inject (InvMem.Rel.inject invmem1))
-                                 oresult0 oresult1>>))
-
+                                 oresult0 oresult1>>)
+             /\ (<<VALID: valid_retvals Mem0' Mem1' oresult0 oresult1>>))
 .
 
 Lemma sim_local_stack_invmem_le
@@ -281,6 +283,10 @@ Proof.
           instantiate (1:= Some _).
           eassumption.
         }
+        {
+          exploit RET; eauto. i; des.
+          eapply free_allocas_preserves_valid_retvals; eauto.
+        }
         { ss. }
         clear LOCAL. intro LOCAL. des. simtac.
 
@@ -328,6 +334,9 @@ Proof.
         { instantiate (2:= Some _).
           instantiate (1:= Some _).
           eassumption.
+        }
+        { exploit RET; eauto. i; des.
+          eapply free_allocas_preserves_valid_retvals; eauto.
         }
         { ss. des_ifs. }
         clear LOCAL. intro LOCAL. des. simtac.
@@ -393,6 +402,7 @@ Proof.
           instantiate (1:= Some _).
           ss. (* it may put existential goals as nil/nil, but I don't care. It's return void *)
         }
+        { econs; eauto; ss. }
         { ss. }
         clear LOCAL. intro LOCAL. des. simtac.
 
@@ -507,7 +517,7 @@ Proof.
       * right. apply CIH.
         {
           eapply sim_local_lift_intro with
-              (inv := (InvMem.Rel.lift Mem0 Mem1 uniqs_src uniqs_tgt privs_src privs_tgt inv2)); ss.
+              (inv := (InvMem.Rel.lift Mem0 Mem1 uniqs_src [] privs_src privs_tgt inv2)); ss.
           {
             econstructor 2 with (inv1 := inv2); [..|reflexivity]; ss; try eassumption.
             { etransitivity; eauto. }
@@ -630,9 +640,7 @@ Proof.
         } des.
 
         hexploit RETURN; eauto.
-        { instantiate (1:= oresult0).
-          inv VAL_INJECT; ss.
-        }
+        { inv VAL_INJECT; ss. }
         clear RETURN. intro RETURN. des.
 
         rewrite exCallUpdateLocals_spec in *.

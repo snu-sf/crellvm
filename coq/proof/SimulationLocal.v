@@ -22,6 +22,7 @@ Require Import program_sim.
 Require Import TODOProof.
 Import Vellvm.program_sim.
 Require Import OpsemAux.
+Require Import memory_props.
 
 Set Implicit Arguments.
 
@@ -127,7 +128,8 @@ Section SimLocal.
            (RET_SRC: getOperandValue conf_src.(CurTargetData) ret2_src st2_src.(EC).(Locals) conf_src.(Globals) = Some retval2_src),
          exists retval1_tgt,
            <<RET_TGT: getOperandValue conf_tgt.(CurTargetData) ret1_tgt st1_tgt.(EC).(Locals) conf_tgt.(Globals) = Some retval1_tgt>> /\
-           <<INJECT: genericvalues_inject.gv_inject inv2.(InvMem.Rel.inject) retval2_src retval1_tgt>>)
+           <<INJECT: genericvalues_inject.gv_inject inv2.(InvMem.Rel.inject) retval2_src retval1_tgt>> /\
+           <<VALID: valid_retvals st2_src.(Mem) st1_tgt.(Mem) (Some retval2_src) (Some retval1_tgt)>>)
       (WF_SRC: wf_ConfigI conf_src /\ wf_StateI conf_src st1_src)
       (WF_TGT: wf_ConfigI conf_tgt /\ wf_StateI conf_tgt st1_tgt)
 
@@ -182,8 +184,12 @@ Section SimLocal.
          forall args2_src
            (ARGS_SRC: params2GVs conf_src.(CurTargetData) params2_src st2_src.(EC).(Locals) conf_src.(Globals) = Some args2_src),
          exists args1_tgt,
-           <<ARGS_TGT: params2GVs conf_tgt.(CurTargetData) params1_tgt st1_tgt.(EC).(Locals) conf_tgt.(Globals) = Some args1_tgt>> /\
-           <<INJECT: list_forall2 (genericvalues_inject.gv_inject inv2.(InvMem.Rel.inject)) args2_src args1_tgt>>)
+           (<<ARGS_TGT: params2GVs (conf_tgt.(CurTargetData)) params1_tgt
+                                   st1_tgt.(EC).(Locals) conf_tgt.(Globals) = Some args1_tgt>>) /\
+           (<<INJECT: list_forall2
+                        (genericvalues_inject.gv_inject inv2.(InvMem.Rel.inject)) args2_src args1_tgt>>) /\
+           (<<VALID_SRC: List.Forall (MemProps.valid_ptrs (Mem.nextblock st2_src.(Mem))) args2_src>>) /\
+           (<<VALID_TGT: List.Forall (MemProps.valid_ptrs (Mem.nextblock st1_tgt.(Mem))) args1_tgt>>))
       (MEM: InvMem.Rel.sem conf_src conf_tgt st2_src.(Mem) st1_tgt.(Mem) inv2)
       uniqs_src uniqs_tgt privs_src privs_tgt
       (UNIQS_SRC: forall mptr typ align val
@@ -193,6 +199,7 @@ Section SimLocal.
       (UNIQS_TGT: forall mptr typ align val
                          (LOAD: mload conf_tgt.(CurTargetData) st1_tgt.(Mem) mptr typ align = Some val),
           InvMem.gv_diffblock_with_blocks conf_tgt val uniqs_tgt)
+      (TGT_NOUNIQ: uniqs_tgt = [])
       (UNIQS_GLOBALS_TGT: forall b, In b uniqs_tgt -> (inv2.(InvMem.Rel.gmax) < b)%positive)
       (PRIVS_SRC: forall b (IN: In b privs_src),
           InvMem.private_block st2_src.(Mem) (InvMem.Rel.public_src inv2.(InvMem.Rel.inject)) b)
@@ -202,6 +209,7 @@ Section SimLocal.
                  (INCR: InvMem.Rel.le (InvMem.Rel.lift st2_src.(Mem) st1_tgt.(Mem) uniqs_src uniqs_tgt privs_src privs_tgt inv2) inv3)
                  (MEM: InvMem.Rel.sem conf_src conf_tgt mem3_src mem3_tgt inv3)
                  (RETVAL: TODO.lift2_option (genericvalues_inject.gv_inject inv3.(InvMem.Rel.inject)) retval3_src retval3_tgt)
+                 (VALID: valid_retvals mem3_src mem3_tgt retval3_src retval3_tgt)
                  (RETURN_SRC: return_locals
                                 conf_src.(CurTargetData)
                                 retval3_src id2_src noret2_src typ2_src
@@ -345,6 +353,8 @@ Section SimLocalFdef.
       ec0_src
       (MEM: InvMem.Rel.sem conf_src conf_tgt mem0_src mem0_tgt inv0)
       (ARGS: list_forall2 (genericvalues_inject.gv_inject inv0.(InvMem.Rel.inject)) args_src args_tgt)
+      (VALID_SRC: List.Forall (MemProps.valid_ptrs (Mem.nextblock mem0_src)) args_src)
+      (VALID_TGT: List.Forall (MemProps.valid_ptrs (Mem.nextblock mem0_tgt)) args_tgt)
       (SRC: init_fdef conf_src fdef_src args_src ec0_src)
     ,
     exists ec0_tgt idx0,

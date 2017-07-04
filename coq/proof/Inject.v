@@ -213,6 +213,8 @@ Proof.
     + eapply gv_inject_app; eauto using uninits_inject.
 Qed.
 
+Ltac chunk_simpl := i; clarify. (* TODO: remove redundancy with genericvalues_inject.chunk_simpl *)
+
 Lemma const2GV_inject
       maxb mi Mem Mem' TD gl c gv
       (Hwf: wf_sb_mi maxb mi Mem Mem')
@@ -224,7 +226,7 @@ Proof.
   ; [M|M|M|M|M| |M|M|M|M|M|M|M|M|M|M|M|M|M]; Mdo unfold const2GV; s; i; inv_mbind.
   - inv H0; apply symmetry in HeqR0.
     eauto using zeroconst2GV_inject, cgv2gv_inject.
-  - inv Hgv; econs; eauto.
+  - inv Hgv; econs; eauto. chunk_simpl.
   - inv H0; destruct floating_point5; inv HeqR; s; econs; eauto.
   - inv H0; symmetry_ctx; eauto using cgv2gv_inject, gv_inject_gundef.
   - inv Hgv; inv Hwf; econs; eauto.
@@ -268,22 +270,28 @@ Proof.
     remember (getConstGEPTyp l0 (typ_pointer t)) as R2.
     destruct R2; tinv H1.
     remember (GV2ptr TD (getPointerSize TD) g) as R3.
-    destruct R3; tinv H1.
+    destruct R3; tinv H1; cycle 1.
+    {
+      inv_mbind. symmetry_ctx.
+      eauto using gv_inject_gundef.
+    }
     remember (intConsts2Nats TD l0) as R4.
-    destruct R4; tinv H1.
+    destruct R4; tinv H1; cycle 1.
+    {
+      inv_mbind. symmetry_ctx.
+      eauto using gv_inject_gundef.
+    }
     remember (mgep TD t v l1) as R5.
-    destruct R5; inv H1.
+    destruct R5; inv H1; cycle 1.
+    {
+      inv_mbind. symmetry_ctx.
+      eauto using gv_inject_gundef.
+    }
     symmetry_ctx; unfold const2GV in IHc; rewrite HeqR0 in IHc.
-    eapply simulation__mgep_refl with (mi:=mi) in HeqR5 
+    eapply simulation__mgep_refl with (mi:=mi) in HeqR5
     ; eauto using GV2ptr_refl, cgv2gv_inject_rev.
     unfold ptr2GV, val2GV. simpl. auto.
-
-    inv_mbind. symmetry_ctx. 
-    eauto using gv_inject_gundef.
-    inv_mbind. symmetry_ctx. 
-    eauto using gv_inject_gundef.
-    inv_mbind. symmetry_ctx.
-    eauto using gv_inject_gundef.
+    econs; eauto. chunk_simpl.
   - inv H0; unfold const2GV in IHc2, IHc3; destruct p0, p1.
     rewrite <- HeqR in IHc2; rewrite <- HeqR1 in IHc3.
     destruct isGVZero; inv H1; eauto.
@@ -299,18 +307,18 @@ Proof.
     apply symmetry in HeqR1.
     eapply simulation__mfcmp_refl, HeqR1; eauto using cgv2gv_inject_rev.
 
-  - inv H0; eapply cgv2gv_inject; eauto. 
+  - inv H0; eapply cgv2gv_inject; eauto.
     unfold const2GV in IHc; rewrite <-HeqR0 in IHc.
     specialize (IHc _ eq_refl); eapply cgv2gv_inject_rev in IHc; eauto.
-    eapply simulation__extractGenericValue_refl; eauto.  
+    eapply simulation__extractGenericValue_refl; eauto.
 
-  - inv H0; eapply cgv2gv_inject; eauto. 
+  - inv H0; eapply cgv2gv_inject; eauto.
     unfold const2GV in IHc1, IHc2; rewrite <-HeqR0 in IHc1; rewrite <-HeqR in IHc2.
     specialize (IHc1 _ eq_refl); eapply cgv2gv_inject_rev in IHc1; eauto.
     specialize (IHc2 _ eq_refl); eapply cgv2gv_inject_rev in IHc2; eauto.
     symmetry_ctx; eapply simulation__insertGenericValue_refl in HeqR1; eauto.
 
-  - inv H0; eapply cgv2gv_inject; eauto. 
+  - inv H0; eapply cgv2gv_inject; eauto.
     destruct t; try by inv H1.
     inv_mbind.
     unfold const2GV in IHc1, IHc2; rewrite <-HeqR0 in IHc1; rewrite <-HeqR in IHc2.
@@ -318,7 +326,7 @@ Proof.
     specialize (IHc2 _ eq_refl); eapply cgv2gv_inject_rev in IHc2; eauto.
     symmetry_ctx; eapply simulation__mbop_refl in HeqR1; eauto.
 
-  - inv H0; eapply cgv2gv_inject; eauto. 
+  - inv H0; eapply cgv2gv_inject; eauto.
     destruct t; try by inv H1.
     inv_mbind.
     unfold const2GV in IHc1, IHc2; rewrite <-HeqR0 in IHc1; rewrite <-HeqR in IHc2.
@@ -638,11 +646,9 @@ Lemma get_switch_branch_inject
   get_switch_branch TD typ val_tgt cls l0 = Some l.
 Proof.
   destruct typ; ss.
-  exploit genericvalues_inject.simulation__eq__GV2int; eauto. i.
-  (* TODO: The definition of val_inject is WRONG!
-   * https://github.com/snu-sf/llvmberry/issues/327
-   *)
-  rewrite x0 in *. eauto.
+  des_ifs.
+  - expl genericvalues_inject.simulation__GV2int. clarify.
+  - expl genericvalues_inject.simulation__GV2int. clarify.
 Qed.
 
 Lemma get_switch_branch_inject_aux

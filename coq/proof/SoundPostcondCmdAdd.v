@@ -154,7 +154,7 @@ Ltac clear_true :=
          | [ H: ?x = ?x |- _ ] => clear H
          end.
 
-Lemma remove_def_from_maydiff_Subset
+Lemma remove_def_from_maydiff_Subset_old
       id0 inv0
   :
     Invariant.Subset
@@ -177,12 +177,41 @@ Proof.
     ii.
     eapply AtomSetFacts.add_s_m. eauto.
     apply AtomSetFacts.Subset_refl.
-    info_eauto. (* SUGOI!!!!!!!!!!!!!!!!!!!!!!!! *)
+    info_eauto.
   -
     ii.
     eapply AtomSetFacts.add_s_m. eauto.
     apply AtomSetFacts.Subset_refl.
-    info_eauto. (* SUGOI!!!!!!!!!!!!!!!!!!!!!!!! *)
+    info_eauto.
+  -
+    ii.
+    rewrite IdTSetFacts.mem_iff in *.
+    rewrite IdTSetFacts.remove_b in H.
+    des_bool; des; ss.
+Qed.
+
+Lemma remove_def_from_maydiff_Subset
+      id0 inv0
+  :
+    Invariant.Subset
+      inv0
+      (remove_def_from_maydiff
+         id0 id0 (Invariant.update_src (Invariant.update_unique (add id0)) inv0))
+.
+Proof.
+  destruct inv0; ss.
+  destruct src; ss.
+  destruct tgt; ss.
+  unfold Invariant.update_src, Invariant.update_tgt,
+  remove_def_from_maydiff, Invariant.update_maydiff. ss.
+  destruct (id_dec id0 id0); clarify.
+  unfold Invariant.update_unique; ss.
+  econs; ss; try (econs; try splits; ss).
+  -
+    ii.
+    eapply AtomSetFacts.add_s_m. eauto.
+    apply AtomSetFacts.Subset_refl.
+    info_eauto.
   -
     ii.
     rewrite IdTSetFacts.mem_iff in *.
@@ -286,53 +315,53 @@ Proof.
   - (* nop, alloca *)
     clear ALLOC_INJECT.
     unfold postcond_cmd_check in *. des_ifs; des_bool; clarify.
-    ss. clear_true.
-    splits; ss.
-    apply_all_once AtomSetImpl_from_list_inter_is_empty.
-    simpl_list.
+    (* ss. clear_true. *)
+    (* splits; ss. *)
+    (* apply_all_once AtomSetImpl_from_list_inter_is_empty. *)
+    (* simpl_list. *)
 
-    inv STATE_STEP.
+    (* inv STATE_STEP. *)
 
-    ((inv STEP_SRC; ss); []).
-    (* inv SRC. *)
-    inv CMDS_SRC.
+    (* ((inv STEP_SRC; ss); []). *)
+    (* (* inv SRC. *) *)
+    (* inv CMDS_SRC. *)
 
-    econs; eauto; [].
+    (* econs; eauto; []. *)
 
-    ((inv STEP_TGT; ss); []).
+    (* ((inv STEP_TGT; ss); []). *)
+    (* (* inv TGT. *) *)
+    (* inv CMDS_TGT. *)
+    (* ss. *)
+    (* clear MAYDIFF. *)
+
     (* inv TGT. *)
-    inv CMDS_TGT.
-    ss.
-    clear MAYDIFF.
-
-    inv TGT.
-    clear H H2.
-    clear MEM_STEP.
-    clear CONF.
-    (* inv TGT. clear LESSDEF0 NOALIAS0 UNIQUE0 PRIVATE0 WF_LOCAL0. *)
-    unfold alloc_private, alloc_private_unary in *. ss.
-    destruct ALLOC_PRIVATE as [_ ALLOC_PRIVATE].
-    exploit ALLOC_PRIVATE; eauto. clear ALLOC_PRIVATE. intro ALLOC_PRIVATE.
-    econs; eauto; [|]; clear LESSDEF NOALIAS WF_LOCAL.
-    + clear ALLOC_PRIVATE.
-      clear PRIVATE.
-      unfold Invariant.update_src. ss.
-      intros ____id____ IN.
-      eapply AtomSetFacts.add_iff in IN.
-      des; [|eauto]; [].
-      subst.
-      eapply add_unique_alloca; eauto; try apply MEM; try apply STATE;
-        rewrite <- MEM_GMAX; try apply MEM; try apply STATE.
-    + clear UNIQUE.
-      clear MEM SRC STATE.
-      unfold Invariant.update_private. ss.
-      ii. rewrite IdTSetFacts.add_iff in *. des.
-      { (* x is alloca *)
-        destruct x as [[] x]; ss.
-        unfold IdT.lift, InvState.Unary.sem_idT in *. ss. clarify.
-        exploit ALLOC_PRIVATE0; eauto.
-      }
-      { exploit PRIVATE; eauto. }
+    (* clear H H2. *)
+    (* clear MEM_STEP. *)
+    (* clear CONF. *)
+    (* (* inv TGT. clear LESSDEF0 NOALIAS0 UNIQUE0 PRIVATE0 WF_LOCAL0. *) *)
+    (* unfold alloc_private, alloc_private_unary in *. ss. *)
+    (* destruct ALLOC_PRIVATE as [_ ALLOC_PRIVATE]. *)
+    (* exploit ALLOC_PRIVATE; eauto. clear ALLOC_PRIVATE. intro ALLOC_PRIVATE. *)
+    (* econs; eauto; (* [|]; *) clear LESSDEF NOALIAS WF_LOCAL. *)
+    (* (* + clear ALLOC_PRIVATE. *) *)
+    (* (*   clear PRIVATE. *) *)
+    (* (*   unfold Invariant.update_src. ss. *) *)
+    (* (*   intros ____id____ IN. *) *)
+    (* (*   eapply AtomSetFacts.add_iff in IN. *) *)
+    (* (*   des; [|eauto]; []. *) *)
+    (* (*   subst. *) *)
+    (* (*   eapply add_unique_alloca; eauto; try apply MEM; try apply STATE; *) *)
+    (* (*     rewrite <- MEM_GMAX; try apply MEM; try apply STATE. *) *)
+    (* + clear UNIQUE. *)
+    (*   clear MEM SRC STATE. *)
+    (*   unfold Invariant.update_private. ss. *)
+    (*   ii. rewrite IdTSetFacts.add_iff in *. des. *)
+    (*   { (* x is alloca *) *)
+    (*     destruct x as [[] x]; ss. *)
+    (*     unfold IdT.lift, InvState.Unary.sem_idT in *. ss. clarify. *)
+    (*     exploit ALLOC_PRIVATE0; eauto. *)
+    (*   } *)
+    (*   { exploit PRIVATE; eauto. } *)
   - (* allica, nop *)
     clear ALLOC_INJECT.
     unfold postcond_cmd_check in *. des_ifs; des_bool; clarify.
@@ -459,11 +488,11 @@ Proof.
         econs; eauto; []. ss.
         eapply add_unique_alloca; eauto; try apply SRC; try apply SRC0;
           rewrite <- MEM_GMAX; try apply SRC; try apply SRC0.
-      - (* TGT *)
-        inv TGT. inv MEM. inv STATE.
-        econs; eauto; []. ss.
-        eapply add_unique_alloca; eauto; try apply TGT; try apply TGT0;
-          rewrite <- MEM_GMAX; try apply TGT; try apply TGT0.
+      (* - (* TGT *) *)
+      (*   inv TGT. inv MEM. inv STATE. *)
+      (*   econs; eauto; []. ss. *)
+      (*   eapply add_unique_alloca; eauto; try apply TGT; try apply TGT0; *)
+      (*     rewrite <- MEM_GMAX; try apply TGT; try apply TGT0. *)
       - (* MAYDIFF *)
         inv SRC. inv TGT.
         ii.
@@ -488,7 +517,7 @@ Proof.
         Fail eapply genericvalues_inject.gv_inject_cons.
         move CONF at bottom.
         inv CONF. inv INJECT. simpl in TARGETDATA. clarify.
-        econs; eauto.
+        econs; eauto. { i; clarify. }
         rename mb into _____________mb______________.
         rename mb0 into _____________mb0______________.
         move WF_LOCAL0 at bottom.
@@ -536,6 +565,9 @@ Proof.
   apply all_undef_lessdef_aux; eauto.
   exploit vm_matches_typ__eq__snd; eauto. i.
   rewrite util.snd_split__map_snd in *. eauto.
+  apply vm_matches_typ__gv_has_chunk in H1. unfold gv_has_chunk in *.
+  eapply Forall_impl; eauto.
+  i. ss. des_ifs. apply genericvalues_inject.has_chunk__has_chunkb. s. ss.
 Qed.
 
 Lemma lessdef_definedness

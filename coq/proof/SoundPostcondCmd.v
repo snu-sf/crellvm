@@ -92,31 +92,6 @@ Proof.
     (etransitivity; [apply forget_stack_Subset | apply forget_memory_Subset]).
 Qed.
 
-Lemma get_operand_valid_ptr
-      Mem0 lc TD value gl gvs
-      (WF_LC: MemProps.wf_lc Mem0 lc)
-      (WF_CONST: True)
-      (GET_OPERAND: getOperandValue TD value lc gl = Some gvs)
-      gmax
-      (GLOBALS : genericvalues_inject.wf_globals gmax gl)
-      (WF : MemProps.wf_Mem gmax TD Mem0)
-  :
-    <<VALID_PTR: MemProps.valid_ptrs (Memory.Mem.nextblock Mem0) gvs>>
-.
-Proof.
-  destruct value.
-  - eapply WF_LC; eauto.
-  - ss.
-    exploit MemAux.wf_globals_const2GV; eauto; []; ii; des.
-    destruct WF as [_ WF_MEM].
-    eapply MemProps.valid_ptrs__trans; eauto.
-    apply Pos.lt_succ_r.
-    replace (gmax + 1)%positive with (Pos.succ gmax); cycle 1.
-    { destruct gmax; ss. }
-    rewrite <- Pos.succ_lt_mono.
-    ss.
-Qed.
-
 Lemma step_wf_lc
       conf st0 st1 evt
       cmd cmds

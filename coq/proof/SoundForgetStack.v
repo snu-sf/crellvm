@@ -451,9 +451,8 @@ Lemma micmp_preserves_no_embedded_ptrs
     <<NO_PTR: no_embedded_ptrs vres>>
 .
 Proof.
-  unfold micmp in *. des_ifs.
+  unfold micmp in *. des_ifs; try (by eapply undef__no_embedded_ptrs; eauto).
   - eapply micmp_int_preserves_no_embedded_ptrs; eauto.
-  - eapply undef__no_embedded_ptrs; eauto.
 Qed.
 
 Lemma ICMP_diffblock_with_blocks
@@ -1270,6 +1269,8 @@ Proof.
     exploit sem_idT_equiv_except; eauto.
     { rewrite <- lift_physical_atoms_idtset_spec1. eauto. }
     i. des.
+    red in PRIVATE.
+    red in PRIVATE.
     exploit PRIVATE; eauto.
   - inv EQUIV. rewrite <- MEM. eauto.
   - inv EQUIV. rewrite <- MEM. eauto.
@@ -1318,6 +1319,9 @@ Proof.
   econs; ss.
   - eapply forget_stack_unary_sound; eauto.
   - eapply forget_stack_unary_sound; eauto.
+  - eapply AtomSetFacts.Empty_s_m_Proper; eauto. red.
+    ii.
+    apply AtomSetFacts.filter_iff in H; [|solve_compat_bool]. des. ss.
   - i. ss.
     rewrite IdTSetFacts.union_b in NOTIN.
     solve_des_bool.

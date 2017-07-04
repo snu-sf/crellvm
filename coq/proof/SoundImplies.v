@@ -83,7 +83,14 @@ Next Obligation.
   ii. des.
   split.
   - eapply Values.Val.lessdef_trans; eauto.
-  - etransitivity; eauto.
+  - destruct x0, y0, z0; ss. clarify.
+    split; ss.
+    i. clarify.
+    destruct (classic (v0 = Values.Vundef)).
+    + inv H2; ss.
+      apply H4; ss.
+    + inv H2; ss.
+      apply H6; ss.
 Qed.
 
 Lemma implies_lessdef_sound
@@ -285,6 +292,9 @@ Proof.
   inv STATE. econs.
   - eapply implies_unary_sound; eauto. apply MEM.
   - eapply implies_unary_sound; eauto. apply MEM.
+  - unfold Invariant.implies_unary in IMPLIES1. repeat (des_bool; des).
+    apply AtomSetFacts.subset_iff in IMPLIES3.
+    eapply AtomSetFacts.Empty_s_m_Proper; eauto.
   - i. apply MAYDIFF.
     apply IdTSetFacts.not_mem_iff. ii.
     apply IdTSetFacts.not_mem_iff in NOTIN. apply NOTIN.

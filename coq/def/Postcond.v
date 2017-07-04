@@ -695,9 +695,14 @@ Definition postcond_cmd_inject_event
        inv (ValueT.lift Tag.physical v1) (ValueT.lift Tag.physical v2)) &&
     align_dec a1 a2
   | insn_alloca _ _ _ _, insn_nop _ => true
-  | insn_nop _, insn_alloca _ _ _ _ => true
+  (* | insn_nop _, insn_alloca _ _ _ _ => true *)
+
   (* | insn_alloca _ _ _ _, _ => false *)
-  (* | _, insn_alloca _ _ _ _ => false *)
+  | _, insn_alloca _ _ _ _ => false
+  (* This change is introduced by @alxest, when sanitizing semantics of alloca *)
+  (* We can allow nop-alloca case when arg is known to be int. *)
+  (* This will sufficiently allow register spilling to be validated. *)
+  (* We can also make new predicate (:= is defined && int) for more power *)
 
   | insn_malloc _ _ _ _, _ => false
   | _, insn_malloc _ _ _ _ => false
@@ -735,10 +740,10 @@ Definition postcond_cmd_add_inject
         Invariant.update_src
           (Invariant.update_unique
              (AtomSetImpl.add aid_src)) inv0 in
-    let inv2 :=
-        Invariant.update_tgt
-          (Invariant.update_unique
-             (AtomSetImpl.add aid_tgt)) inv1 in
+    let inv2 := inv1 in
+        (* Invariant.update_tgt *)
+        (*   (Invariant.update_unique *)
+        (*      (AtomSetImpl.add aid_tgt)) inv1 in *)
     let inv3 := remove_def_from_maydiff aid_src aid_tgt inv2 in
     inv3
 
@@ -754,10 +759,10 @@ Definition postcond_cmd_add_inject
     inv2
 
   | insn_nop _, insn_alloca aid_tgt _ _ _ =>
-    let inv1 :=
-        Invariant.update_tgt
-          (Invariant.update_unique
-             (AtomSetImpl.add aid_tgt)) inv0 in
+    let inv1 := inv0 in
+        (* Invariant.update_tgt *)
+        (*   (Invariant.update_unique *)
+        (*      (AtomSetImpl.add aid_tgt)) inv0 in *)
     let inv2 :=
         Invariant.update_tgt
           (Invariant.update_private
