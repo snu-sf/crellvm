@@ -220,6 +220,12 @@ module ConvertPostPropagation = struct
       | CoreHint_t.POSTPROP_GVN -> PostProp.test
   end
 
+let apply_post_propagation_func hint_fdef lfdef dtree_lfdef core_hint =
+  match core_hint.CoreHint_t.postprop_option.CoreHint_t.opt with
+  | CoreHint_t.POSTPROP_NONE -> hint_fdef
+  | k -> PostPropagation.update hint_fdef lfdef dtree_lfdef
+      (ConvertPostPropagation.convert_postprop_opt k) (core_hint.CoreHint_t.postprop_option.CoreHint_t.itrnum)
+
 
 let convert
       (lm:LLVMsyntax.coq_module)
@@ -244,12 +250,7 @@ let convert
                     (TODOCAML.flip (apply_corehint_command lfdef rfdef dtree_lfdef nops))
                     hint_fdef others in
   let hint_fdef = add_false_to_dead_block hint_fdef lfdef in
-  let hint_fdef = match core_hint.CoreHint_t.postprop_option.CoreHint_t.opt with
-    | CoreHint_t.POSTPROP_NONE -> hint_fdef
-    | k -> PostPropagation.update hint_fdef lfdef dtree_lfdef
-        (ConvertPostPropagation.convert_postprop_opt k) (core_hint.CoreHint_t.postprop_option.CoreHint_t.itrnum)
-  in
-  (*let _ = PrintHints.invariants hint_fdef (bfs_tree dtree_lfdef) in *)
+  let hint_fdef = apply_post_propagation_func hint_fdef lfdef dtree_lfdef core_hint in
 
   let hint_module = EmptyHint.module_hint lm in
   (* let hint_module = noret hint_module in *) (*TODO*)
