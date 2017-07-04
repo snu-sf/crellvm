@@ -626,6 +626,16 @@ Definition postcond_phinodes
   | _, _ => None
   end.
 
+Definition may_produce_UB (b0: bop): bool :=
+  match b0 with
+  | bop_udiv => true
+  | bop_sdiv => true
+  | bop_urem => true
+  | bop_srem => true
+  | _ => false
+  end
+.
+
 Definition postcond_cmd_inject_event
            (src tgt:cmd)
            (inv:Invariant.t): bool :=
@@ -706,6 +716,15 @@ Definition postcond_cmd_inject_event
 
   | insn_malloc _ _ _ _, _ => false
   | _, insn_malloc _ _ _ _ => false
+
+  | insn_bop _ b0 sz0 va0 vb0, insn_bop _ b1 sz1 va1 vb1 =>
+    if (may_produce_UB b1)
+    then (bop_dec b0 b1)
+           && (sz_dec sz0 sz1)
+           && (Invariant.inject_value inv (ValueT.lift Tag.physical va0) (ValueT.lift Tag.physical va1))
+           && (Invariant.inject_value inv (ValueT.lift Tag.physical vb0) (ValueT.lift Tag.physical vb1))
+    else true
+  | _, insn_bop _ b1 sz1 va1 vb1 => negb (may_produce_UB b1)
 
   | _, _ => true
   end.
