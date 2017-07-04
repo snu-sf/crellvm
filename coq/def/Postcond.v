@@ -309,7 +309,6 @@ Proof.
   rewrite AtomSetFacts.elements_b, existsb_rev.
   unfold AtomSetImpl.elt.
   induction (rev (AtomSetImpl.elements l)); ss.
-  { apply IdTSetFacts.empty_b. }
   unfold compose at 1. ss.
   rewrite IdTSetFacts.add_b, IHl0. f_equal.
   unfold IdT.lift, IdTSetFacts.eqb, AtomSetFacts.eqb.
