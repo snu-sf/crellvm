@@ -39,6 +39,26 @@ Module GVs.
     - apply IHx.
   Qed.
 
+  Lemma lessdef_trans
+        x y z
+        (LD01: lessdef x y)
+        (LD12: lessdef y z)
+    :
+      <<LD02: lessdef x z>>
+  .
+  Proof.
+    ginduction LD01; ii; ss.
+    inv LD12. des. destruct b0, b1, a1; ss. clarify.
+    econs; eauto.
+    - ss. splits; ss.
+      + eapply Val.lessdef_trans; eauto.
+      + i; clarify.
+        inv H2.
+        * eapply H5; eauto.
+        * eapply H1; eauto.
+    - eapply IHLD01; eauto.
+  Qed.
+
   Lemma lessdef_inject_compose_single mij a b c
         (LD: Val.lessdef a b)
         (INJECT: memory_sim.MoreMem.val_inject mij b c):

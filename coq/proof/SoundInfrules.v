@@ -46,8 +46,8 @@ Lemma sem_lessdef_trans
 .
 Proof.
   ii. expl LD01. expl LD12. ss. esplits; eauto.
-  admit.
-Admitted.
+  eapply GVs.lessdef_trans; eauto.
+Qed.
 
 Lemma apply_infrule_sound
       m_src m_tgt
