@@ -193,11 +193,7 @@ Module Unary.
             sem_valueT conf st invst v1,
             sem_valueT conf st invst v2 with
       | Some gv0, Some gv1, Some gv2 =>
-        match GV2int conf.(CurTargetData) Size.One gv0 with
-        | Some z =>
-          Some (if negb (zeq z 0) then gv1 else gv2)
-        | _ => None
-        end
+        mselect conf.(CurTargetData) ty gv0 gv1 gv2
       | _, _, _ => None
       end
     | Expr.value v =>
@@ -748,8 +744,7 @@ Module Rel.
     - exploit genericvalues_inject.simulation__mcast; try apply VAL_SRC; eauto; ii; des; eauto.
     - exploit genericvalues_inject.simulation__micmp; try apply VAL_SRC; eauto; ii; des; eauto.
     - exploit genericvalues_inject.simulation__mfcmp; try apply VAL_SRC; eauto; ii; des; eauto.
-    - esplits; eauto.
-    - esplits; eauto.
+    - exploit genericvalues_inject.simulation__mselect; try apply VAL_SRC; eauto; ii; des; eauto.
     - eapply not_in_maydiff_value_spec; eauto.
     - eapply not_in_maydiff_load; eauto.
   Qed.
@@ -1062,11 +1057,9 @@ Module Rel.
     - exploit genericvalues_inject.simulation__mcast; try apply VAL_SRC; eauto; ii; des; eauto.
     - exploit genericvalues_inject.simulation__micmp; try apply VAL_SRC; eauto; ii; des; eauto.
     - exploit genericvalues_inject.simulation__mfcmp; try apply VAL_SRC; eauto; ii; des; eauto.
-    - esplits; eauto.
-    - esplits; eauto.
+    - exploit genericvalues_inject.simulation__mselect; try apply VAL_SRC; eauto; ii; des; eauto.
     - exploit inject_value_spec; eauto.
-    -
-      eapply inject_expr_load; eauto.
+    - eapply inject_expr_load; eauto.
   Qed.
   (* TODO move inject_expr_load out of here, + refactor with maydiff_load *)
 End Rel.

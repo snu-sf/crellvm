@@ -136,7 +136,6 @@ Proof.
   destruct e; ss; simtac;
     try (solve_equiv_except_val st0; eauto).
   - erewrite sem_list_valueT_equiv_except; eauto.
-  - rewrite COND2. eauto.
   - inv EQUIV. rewrite <- MEM. eauto.
 Qed.
 
@@ -940,36 +939,27 @@ Proof.
   - (* select *)
     inv UNIQUE_BEF; narrow_down_unique.
     rename val into ___val___.
-    move gvs1 at bottom.
-    move gvs2 at bottom.
+    unfold SELECT in *. des_ifs.
+    unfold mselect in *.
+    move g0 at bottom.
+    move g1 at bottom.
     unfold getOperandValue in *.
-    destruct decision; ss.
-    { clear H1.
-      destruct value1; ss.
-      {
-        apply_all_once AtomSetFacts.not_mem_iff.
-        apply_all_once AtomSetImpl_from_list_spec2.
-        unfold Cmd.get_leaked_ids in *. ss.
-        eapply LOCALS; try apply H0; eauto.
-        {
-          ii. apply NOT_LEAKED_U. subst.
-          destruct value0; ss.
-          - right. left. ss.
-          - left. ss.
-        }
-      }
-      {
-        exploit MemAux.wf_globals_const2GV; eauto; []; intro VALID_PTR; des.
-        eapply valid_ptr_globals_diffblock; eauto.
-      }
-    }
-    { clear H0.
+    destruct (GV2int (l0, n) Size.One g) eqn:T; ss; cycle 1.
+    { eapply InvState.Unary.diffblock_comm; eauto.
+      eapply undef_implies_diffblock; eauto. }
+    abstr (zeq z 0) decision.
+    destruct decision; ss. 
+    { clear Heq0.
+      unfold fit_chunk_gv in *.
+      des_ifsH H; cycle 1.
+      { eapply InvState.Unary.diffblock_comm; eauto.
+        eapply undef_implies_diffblock; eauto. }
       destruct value2; ss.
       {
         apply_all_once AtomSetFacts.not_mem_iff.
         apply_all_once AtomSetImpl_from_list_spec2.
         unfold Cmd.get_leaked_ids in *. ss.
-        eapply LOCALS; try apply H1; eauto.
+        eapply LOCALS; try apply Heq1; eauto.
         {
           ii. apply NOT_LEAKED_U. subst.
           destruct value0; ss.
@@ -979,6 +969,29 @@ Proof.
           - destruct (Value.get_ids value1); ss.
             + right. left. ss.
             + left. ss.
+        }
+      }
+      {
+        exploit MemAux.wf_globals_const2GV; eauto; []; intro VALID_PTR; des.
+        eapply valid_ptr_globals_diffblock; eauto.
+      }
+    }
+    { clear Heq1.
+      unfold fit_chunk_gv in *.
+      des_ifsH H; cycle 1.
+      { eapply InvState.Unary.diffblock_comm; eauto.
+        eapply undef_implies_diffblock; eauto. }
+      destruct value1; ss.
+      {
+        apply_all_once AtomSetFacts.not_mem_iff.
+        apply_all_once AtomSetImpl_from_list_spec2.
+        unfold Cmd.get_leaked_ids in *. ss.
+        eapply LOCALS; try apply Heq0; eauto.
+        {
+          ii. apply NOT_LEAKED_U. subst.
+          destruct value0; ss.
+          - right. left. ss.
+          - left. ss.
         }
       }
       {
@@ -1097,11 +1110,12 @@ Proof.
                 CurProducts := Ps;
                 Globals := gl;
                 FunTable := fs |} as conf.
-    replace TD with conf.(CurTargetData) in H0, H1, H2; [|subst; ss].
-    replace gl with conf.(Globals) in H0, H1, H2; [|subst; ss].
-    destruct decision; ss.
-    + hexploit getOperandValue_diffblock; try exact H1; eauto; try apply MEM.
-    + hexploit getOperandValue_diffblock; try exact H2; eauto; try apply MEM.
+    { unfold SELECT in *. des_ifs.
+      unfold mselect, fit_chunk_gv in *.
+      des_ifs; try (by eapply undef_implies_diffblock_with_blocks; eauto).
+      - hexploit getOperandValue_diffblock; try apply MEM; ss; try exact Heq0; eauto.
+      - hexploit getOperandValue_diffblock; try apply MEM; ss; try exact Heq1; eauto.
+    }
 Unshelve.
 ss.
 Qed.
