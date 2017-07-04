@@ -625,7 +625,7 @@ module AutoGVNModule = struct
              run_intl scp ld ld_other ldl_g_t (gxl@acc_ghosts) (acc_infrs@infrs)
                       (ExprPairSet.remove (e1, e2) acc_ld))
       | [] -> (acc_ghosts, acc_infrs, acc_ld)
-      
+
     let auto1 : Auto.t1 =
       fun inv inv_g ->
       let ghost_intd, infrs1, ld_src =
@@ -760,6 +760,10 @@ module AutoUnaryLD_Trans : AutoNextInv =
         let f = AutoTransHelper.run_unary
       end)
 
+module AutoInstCombineModule : AutoNextInv = struct
+    let run : Auto.t1 = fun _ r -> ([], r)
+  end
+
 module Auto_Default1 : AutoNextInv = struct
     let run : Auto.t1 = fun _ r -> ([], r)
   end
@@ -793,6 +797,7 @@ let compose2 (a1:Auto.t2) (a2:Auto.t2) : Auto.t2 =
 let autoGVN : Auto.t = (AutoGVNModule.auto1, Auto_Default2.run)
 let autoSROA : Auto.t = (AutoUnaryLD_Trans.run, AutoInjectValues_Trans.run)
 let autoLICM : Auto.t = (AutoUnaryLD_Trans.run, AutoInjectValues_Trans.run)
+let autoInstCombine : Auto.t = (AutoInstCombineModule.auto1, Auto_Default2.run)
 let autoDflt : Auto.t = (Auto_Default1.run, Auto_Default2.run)
 
 (** interface *)
