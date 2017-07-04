@@ -623,4 +623,17 @@ Module ValidationHint.
   Definition fdef := AssocList stmts.
   Definition products := AssocList fdef.
   Definition module := products.
+
+  Definition update_invariant_after_phinodes (f:Invariant.t -> Invariant.t) (blockinv: stmts): stmts :=
+    mk_stmts
+      blockinv.(phinodes)
+      (f blockinv.(invariant_after_phinodes))
+      blockinv.(cmds).
+
+  Definition update_cmd_invariants (f:list Invariant.t -> list Invariant.t) (blockinv: stmts): stmts :=
+    mk_stmts
+      blockinv.(phinodes)
+      blockinv.(invariant_after_phinodes)
+      (combine (List.map fst blockinv.(cmds)) (f (List.map snd blockinv.(cmds)))).
+  
 End ValidationHint.

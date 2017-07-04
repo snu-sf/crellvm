@@ -35,6 +35,17 @@ and collapse_dtrees ?(acc=AtomSetImpl.empty) dtrees =
      let acc'' = collapse_dtrees ~acc:acc' dtrees in
      acc''
 
+let rec bfs_traversal_of_tree (dtree: 'a coq_DTree) : 'a list = 
+  match dtree with
+  | DT_node (a, dtrees) -> a :: (bfs_traversal_of_trees dtrees)
+and bfs_traversal_of_trees (dtrees: 'a coq_DTrees) : 'a list = 
+  match dtrees with
+  | DT_nil -> []
+  | DT_cons (dtree, dtrees) ->
+    let l1 = bfs_traversal_of_tree dtree in
+    let l2 = bfs_traversal_of_trees dtrees in
+    List.append l1 l2
+
 let dom_by a dtree =
   let dtree =
     match find_in_dtree a dtree with

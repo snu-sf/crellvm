@@ -2380,6 +2380,13 @@ type cpp_debug_info = {
 
 type auto_opt = [AUTO_GVN | AUTO_SROA | AUTO_LICM | AUTO_INSTCOMBINE | AUTO_DEFAULT] <ocaml repr="classic">
 
+type postprop_opt = [ POSTPROP_GVN | POSTPROP_NONE ] <ocaml repr="classic">
+
+type postprop_info = {
+  opt : postprop_opt;
+  itrnum : int;
+}
+
 type hints = {
   module_id : string;
   function_id : string;
@@ -2387,6 +2394,7 @@ type hints = {
   ~description : string;
   return_code : return_code_type;
   ~auto_option <ocaml default="AUTO_DEFAULT"> : auto_opt;
+  postprop_option : postprop_info;
   nop_positions: position list; (* insert after position *)
 
   commands : (hint_command * cpp_debug_info) list;
