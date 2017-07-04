@@ -27,7 +27,6 @@ module PostProp = struct
 
     let counter:int ref = ref 0
     let test (previnv:Invariant.t) (postinv:Invariant.t) =
-      (* let ld = postinv.(Invariant.src).(Invariant.lessdef) in *)
       debug_print "---test()------";
       debug_print "pre:";
       PrintHints.invariant previnv;
@@ -111,9 +110,7 @@ let _apply_func_to_f (hint_fdef:ValidationHint.fdef) (lfdef: LLVMsyntax.fdef)
         (dtree_lfdef: atom coq_DTree) 
         (func: PostProp.t)
         : (ValidationHint.fdef * bool) (* updated invariant, ischanged *) =
-  let order = bfs_tree dtree_lfdef in
-  (*let _ = print_string "<_apply_func_to_f> : visiting block traversal : \n\t" in*)
-  (*let _ =  List.iter (fun x-> let _ = print_string x in print_string " ") order in*)
+  let visitorder = bfs_traversal_of_tree dtree_lfdef in
   let _ = print_string "\n" in
   let preds = Cfg.predecessors lfdef in (* LLVMsyntax.ls ATree.t *)
   List.fold_left
@@ -123,12 +120,11 @@ let _apply_func_to_f (hint_fdef:ValidationHint.fdef) (lfdef: LLVMsyntax.fdef)
             | Some t -> t
             | None -> []
           in
-          match (_apply_func_to_block hint_fdef func blockid predlist) with
-          | (hint_fdef, true) ->  (hint_fdef, true)
-          | (hint_fdef, false) -> (hint_fdef, changed)
+          let (hint_fdef, changed2) = _apply_func_to_block hint_fdef func blockid predlist in
+          (hint_fdef, (changed || changed2))
       )
       (hint_fdef, false)
-      order
+      visitorder
 
 let update (hint_fdef:ValidationHint.fdef) (lfdef:LLVMsyntax.fdef)
         (dtree_lfdef: atom coq_DTree)

@@ -108,28 +108,14 @@ Proof.
       split; ss.
       { rewrite <- H1.
         rewrite <- e.
-        replace (wz+1-1)%nat with wz; try omega.
+        replace (n0+1-1)%nat with n0; try omega.
         rewrite Integers.Int.repr_signed. eauto.
       }
-      { ADMIT "chunk".
-        (* clarification for "chunk" ad-mit *)
-        (*
-        "GenericValue = list (Values.val * AST.memory_chunk)"
-        GVs.lessdef checks both "Values.val" and "AST.memory_chunk" are same.
-        When validator meets "if(c) then ~ else ~"
-        it generates postcond (c <=> 1) in "then" case, and (c <=> 0) in "else" case.
-        We need to prove it ("GVs.lessdef c 1" holds), but proving the snd of the pair (chunk) is problem.
-        In semantics, we use "GV2int: ~ GenericValue -> option Z".
-        This only looks at the fst of the pair.
-        From the semantics, we get "GV2int c = Some 1", however that does not say anything about c's chunk.
-        I think every "GenericValue" generated from the semantics has matching fst/snd of the pair.
-        Solution may include:
-          1. Relax GVs.lessdef? I am not sure if it is relaxable or not. Maybe not.
-          2. Create new wf condition, that describes fst/snd of the pair are related.
-          3. Cut off semantics, change GV2int to consider the second argument too.
-        I think the third is the easiest, and it seems it makes sense. (it does not make sane program to UB)
-        For now, we left this as ad-mit with mark "chunk"
-        *)
+      { esplits; eauto.
+        - rewrite <- e.
+          replace (n0+1-1)%nat with n0; try omega.
+          ss.
+        - chunk_simpl.
       }
   - ss. clarify. ss.
     rewrite InvState.Unary.sem_valueT_physical. clarify.
@@ -143,10 +129,13 @@ Proof.
     ss. split.
     { rewrite <- H1.
       rewrite <- e.
-      replace (wz+1-1)%nat with wz; try omega.
+      replace (n0+1-1)%nat with n0; try omega.
       rewrite Integers.Int.repr_signed. eauto.
     }
-    { ADMIT "chunk". }
+    { esplits; eauto.
+      - rewrite <- e. replace (n0+1-1)%nat with n0; try omega. ss.
+      - chunk_simpl.
+    }
   - apply LESSDEF; eauto.
 Qed.
 
@@ -249,7 +238,8 @@ Proof.
     unfold GV2int in INT.
     unfold Size.to_nat, Size.One in *.
     des_ifs; ss.
-    + esplits; ss. ss.
+    + rename n0 into wz.
+      esplits; ss. ss.
       destruct wz; try omega.
       specialize (int_sizezero_cases i0). i.
       unfold val2GV. ss. econs; ss; cycle 1.
@@ -257,8 +247,9 @@ Proof.
       econs; eauto.
       { (* value *)
         des; subst; unfold Integers.Int.repr; ss. }
-      { ADMIT "chunk". }
+      { split; ss. }
     +  esplits; ss. ss.
+       rename n1 into wz.
        destruct wz; try omega.
        specialize (int_sizezero_cases i0). i.
        unfold val2GV. ss. econs; ss; cycle 1.
@@ -266,7 +257,7 @@ Proof.
        econs; eauto.
        { (* value *)
          des; subst; unfold Integers.Int.repr; ss. }
-       { ADMIT "chunk". }
+       { split; ss. }
   - clarify. ss.
     rewrite InvState.Unary.sem_valueT_physical.
     unfold ite in *.
@@ -274,6 +265,7 @@ Proof.
     unfold Size.to_nat, Size.One in *.
     des_ifs; ss.
     + esplits; ss; eauto.
+      rename n0 into wz.
       destruct wz; try omega.
       specialize (int_sizezero_cases i0). i.
       unfold const2GV in *. des_ifs. ss. clarify. ss.
@@ -285,8 +277,9 @@ Proof.
       econs; eauto.
       { (* value *)
         des; subst; unfold Integers.Int.repr; ss. }
-      { ADMIT "chunk". }
+      { ss. }
     + esplits; ss; eauto.
+      rename n0 into wz.
       destruct wz; try omega.
       specialize (int_sizezero_cases i0). i.
       unfold const2GV in *. des_ifs. ss. clarify. ss.
@@ -298,7 +291,7 @@ Proof.
       econs; eauto.
       { (* value *)
         des; subst; unfold Integers.Int.repr; ss. }
-      { ADMIT "chunk". }
+      { ss. }
   - exploit LESSDEF; eauto.
 Qed.
 
@@ -425,6 +418,57 @@ Proof.
     apply In_map; eauto.
 Qed.
 
+Lemma gv_chunks_match_typb_aux_implies_chunk_eq
+      gv mcs
+      (CHUNK: gv_chunks_match_typb_aux gv mcs)
+  :
+    <<CHUNK_EQ: List.map snd gv = mcs>>
+.
+Proof.
+  exploit gv_chunks_match_typb_aux__gv_chunks_match_typ; eauto. i; des.
+  exploit vm_matches_typ__eq__snd; eauto. i. clarify.
+  rewrite util.snd_split__map_snd. ss.
+Qed.
+
+Lemma incomingPHINodes_lookup_chunk
+      TD phinodes blk gl ls idgs
+      (PHI: getIncomingValuesForBlockFromPHINodes TD phinodes blk gl ls = Some idgs)
+      phix phity phiv assigns
+      (ASSIGNS: In (Phinode.assign_intro phix phity phiv) assigns)
+      gv
+      (LOOKUP: lookupAL GenericValue idgs phix = Some gv)
+      (RESOLVE: forallb_map (Phinode.resolve blk.(fst)) phinodes = Some assigns)
+      (UNIQUE_PHI: unique id_dec (List.map Phinode.get_def assigns) = true)
+      mcs
+      (FLATTEN: flatten_typ TD phity = Some mcs)
+  :
+    <<CHUNK: gv_chunks_match_typb_aux gv mcs>>
+    (* <<CHUNK: List.map snd gv = mcs>> *)
+.
+Proof.
+  red.
+  ginduction phinodes; ii; ss; clarify.
+  des_ifs.
+  ss.
+  des_ifs_safe.
+  destruct (phix == id5); ss.
+  - clarify. des_ifs_safe.
+    unfold gv_chunks_match_typb in *. des_ifs_safe.
+    des.
+    { clarify. }
+    { repeat (des_bool; des; des_sumbool; clarify).
+      exfalso. clear - UNIQUE_PHI ASSIGNS.
+      apply UNIQUE_PHI. clear UNIQUE_PHI.
+      ginduction l0; ii; ss.
+      des; clarify; ss.
+      - left; ss.
+      - right. eapply IHl0; eauto.
+    }
+  - des_ifs_safe.
+    repeat (des_bool; des; des_sumbool; clarify).
+    { eapply IHphinodes; eauto. }
+Qed.
+
 Lemma phinodes_add_lessdef_sound
       conf st0 st1 gmax public
       l_to phinodes cmds terminator
@@ -460,9 +504,17 @@ Proof.
   - esplits.
     + unfold InvState.Unary.sem_idT. ss. eauto.
     + exploit const2GV_undef; eauto. i. des.
+      exploit incomingPHINodes_lookup_chunk; eauto. intro CHUNK; des.
       apply all_undef_lessdef_aux; eauto.
-      ADMIT "chunk".
-      (* It also seem no wf condition provide this. *)
+      { rewrite x3.
+        apply gv_chunks_match_typb_aux_implies_chunk_eq in CHUNK.
+        rewrite <- CHUNK. ss. }
+      { clear - CHUNK.
+        ginduction gv; ii; ss.
+        des_ifs.
+        unfold is_true in *. repeat (des_bool; des; ss; clarify).
+        econs; eauto.
+      }
   - esplits; [|reflexivity].
     assert (GV_VAL1: gv = val1).
     { unfold InvState.Unary.sem_idT in VAL1. ss. congruence. }

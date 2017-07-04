@@ -122,6 +122,7 @@ Module Rel.
   | sem_intro
       (SRC: Unary.sem conf_src inv.(gmax) (public_src inv.(inject)) mem_src inv.(src))
       (TGT: Unary.sem conf_tgt inv.(gmax) (public_tgt inv.(inject)) mem_tgt inv.(tgt))
+      (TGT_NOUNIQ: inv.(tgt).(Unary.unique_parent) = [])
       (INJECT: MoreMem.mem_inj inv.(inject) mem_src mem_tgt)
       (WF: genericvalues_inject.wf_sb_mi inv.(gmax) inv.(inject) mem_src mem_tgt)
       (FUNTABLE: ftable_simulation inv.(inject) conf_src.(FunTable) conf_tgt.(FunTable))

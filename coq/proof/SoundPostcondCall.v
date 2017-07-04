@@ -26,6 +26,9 @@ Require Import SoundBase.
 Require Import SoundForgetStackCall.
 Require Import SoundForgetMemoryCall.
 Require Import SoundPostcondCmdAdd.
+Require Import opsem_wf.
+Require Import memory_props.
+Import OpsemPP.
 
 Set Implicit Arguments.
 
@@ -54,12 +57,19 @@ Lemma postcond_cmd_inject_event_call
       exists funval1_tgt,
         <<FUN_TGT: getOperandValue conf_tgt.(CurTargetData) fun_tgt st0_tgt.(EC).(Locals) conf_tgt.(Globals) = Some funval1_tgt>> /\
         <<INJECT: genericvalues_inject.gv_inject invmem0.(InvMem.Rel.inject) funval2_src funval1_tgt>>>> /\
-    <<ARGS:
-      forall args2_src
-        (ARGS_SRC: params2GVs conf_src.(CurTargetData) args_src st0_src.(EC).(Locals) conf_src.(Globals) = Some args2_src),
-      exists args1_tgt,
-        <<ARGS_TGT: params2GVs conf_tgt.(CurTargetData) args_tgt st0_tgt.(EC).(Locals) conf_tgt.(Globals) = Some args1_tgt>> /\
-        <<INJECT: list_forall2 (genericvalues_inject.gv_inject invmem0.(InvMem.Rel.inject)) args2_src args1_tgt>>>>.
+  <<ARGS:
+    forall args2_src
+      (ARGS_SRC: params2GVs (conf_src.(CurTargetData))
+                            args_src st0_src.(EC).(Locals) conf_src.(Globals) = Some args2_src),
+    exists args1_tgt,
+      (<<ARGS_TGT: params2GVs (conf_tgt.(CurTargetData)) args_tgt
+                             st0_tgt.(EC).(Locals) conf_tgt.(Globals) = Some args1_tgt>>) /\
+      (<<INJECT: list_forall2 (genericvalues_inject.gv_inject
+                                 invmem0.(InvMem.Rel.inject)) args2_src args1_tgt>>) /\
+      (<<VALID_SRC: List.Forall (MemProps.valid_ptrs (Memory.Mem.nextblock st0_src.(Mem))) args2_src>>) /\
+      (<<VALID_TGT: List.Forall (MemProps.valid_ptrs (Memory.Mem.nextblock st0_tgt.(Mem))) args1_tgt>>)
+        >>
+.
 Proof.
   ss. unfold is_true in *.
   repeat (des_bool; des).
@@ -92,11 +102,16 @@ Proof.
         rewrite InvState.Unary.sem_valueT_physical. i. des. congruence.
       + exploit IHargs_src; eauto. i. des.
         esplits; eauto.
-        clarify.
-        econs; eauto.
-        exploit InvState.Rel.inject_value_spec; eauto.
-        { rewrite InvState.Unary.sem_valueT_physical. eauto. }
-        rewrite InvState.Unary.sem_valueT_physical. i. des. clarify.
+        * clarify.
+          econs; eauto.
+          exploit InvState.Rel.inject_value_spec; eauto.
+          { rewrite InvState.Unary.sem_valueT_physical. eauto. }
+          rewrite InvState.Unary.sem_valueT_physical. i. des. clarify.
+        * econs; eauto.
+          eapply get_operand_valid_ptr; eauto; try apply STATE; try apply MEM.
+        * rewrite Heq0 in *. clarify.
+          econs; eauto.
+          eapply get_operand_valid_ptr; eauto; try apply STATE; try apply MEM.
   }
 Qed.
 
@@ -151,6 +166,8 @@ Lemma updateAddAL_lessdef_undef
       (LOCALS : updateAddAL GenericValue locals id gv = Locals (EC st))
       (STATE : InvState.Unary.sem conf st invst invmem gmax public inv)
       (CHUNK: exists mcs, flatten_typ conf.(CurTargetData) typ = Some mcs /\ List.map snd gv = mcs)
+      gv_
+      (FIT: fit_gv conf.(CurTargetData) typ gv_ = Some gv)
   : InvState.Unary.sem conf st invst invmem gmax public
                        (Invariant.update_lessdef
                           (Exprs.ExprPairSet.add
@@ -164,7 +181,9 @@ Proof.
     { unfold InvState.Unary.sem_idT. ss.
       rewrite <- LOCALS. apply lookupAL_updateAddAL_eq. }
     exploit const2GV_undef; eauto. i. des.
-    { clarify. apply all_undef_lessdef_aux; eauto. }
+    { clarify. apply all_undef_lessdef_aux; eauto.
+      eapply fit_gv_undef_or_has_chunkb; eauto.
+    }
   - apply LESSDEF; eauto.
 Qed.
 
@@ -197,6 +216,7 @@ Proof.
       inv STATE.
       econs; try by (eapply updateAddAL_lessdef_undef; eauto);
         (eapply fit_gv_chunks_aux; eauto).
+      { ss. }
       i. destruct id0 as []. ss.
       rewrite Exprs.IdTSetFacts.remove_b in *.
       des_bool. des.
@@ -221,7 +241,7 @@ Proof.
       }
       * ss.
     + inv STATE.
-      econs; [ | | by eauto|];
+      econs; [ | | | by eauto|];
         ss; try by (eapply updateAddAL_lessdef_undef; eauto);
         (eapply fit_gv_chunks_aux; eauto).
   - rewrite postcond_cmd_add_noret_call.
@@ -241,6 +261,8 @@ Lemma postcond_call_sound
            (insn_call id_tgt noret_tgt clattrs_tgt typ_tgt varg_tgt fun_tgt args_tgt)
            inv0 = Some inv1)
       (STATE: InvState.Rel.sem conf_src conf_tgt st0_src st0_tgt invst0 invmem0 inv0)
+      (WF_SRC: wf_State conf_src st0_src)
+      (WF_TGT: wf_State conf_tgt st0_tgt)
       (MEM: InvMem.Rel.sem conf_src conf_tgt st0_src.(Mem) st0_tgt.(Mem) invmem0)
   :
   <<NORET: noret_src = noret_tgt>> /\
@@ -255,10 +277,16 @@ Lemma postcond_call_sound
       <<INJECT: genericvalues_inject.gv_inject invmem0.(InvMem.Rel.inject) funval2_src funval1_tgt>>>> /\
   <<ARGS:
     forall args2_src
-      (ARGS_SRC: params2GVs conf_src.(CurTargetData) args_src st0_src.(EC).(Locals) conf_src.(Globals) = Some args2_src),
+      (ARGS_SRC: params2GVs (conf_src.(CurTargetData))
+                            args_src st0_src.(EC).(Locals) conf_src.(Globals) = Some args2_src),
     exists args1_tgt,
-      <<ARGS_TGT: params2GVs conf_tgt.(CurTargetData) args_tgt st0_tgt.(EC).(Locals) conf_tgt.(Globals) = Some args1_tgt>> /\
-      <<INJECT: list_forall2 (genericvalues_inject.gv_inject invmem0.(InvMem.Rel.inject)) args2_src args1_tgt>>>> /\
+      (<<ARGS_TGT: params2GVs (conf_tgt.(CurTargetData)) args_tgt
+                             st0_tgt.(EC).(Locals) conf_tgt.(Globals) = Some args1_tgt>>) /\
+      (<<INJECT: list_forall2 (genericvalues_inject.gv_inject
+                                 invmem0.(InvMem.Rel.inject)) args2_src args1_tgt>>) /\
+      (<<VALID_SRC: List.Forall (MemProps.valid_ptrs (Memory.Mem.nextblock st0_src.(Mem))) args2_src>>) /\
+      (<<VALID_TGT: List.Forall (MemProps.valid_ptrs (Memory.Mem.nextblock st0_tgt.(Mem))) args1_tgt>>)
+        >> /\
   <<RETURN:
     forall invmem1 mem1_src mem1_tgt retval1_src retval1_tgt locals1_src
       (INCR: InvMem.Rel.le (InvMem.Rel.lift st0_src.(Mem) st0_tgt.(Mem)
@@ -269,6 +297,7 @@ Lemma postcond_call_sound
                                             invmem0) invmem1)
       (MEM: InvMem.Rel.sem conf_src conf_tgt mem1_src mem1_tgt invmem1)
       (RETVAL: TODO.lift2_option (genericvalues_inject.gv_inject invmem1.(InvMem.Rel.inject)) retval1_src retval1_tgt)
+      (VALID: valid_retvals mem1_src mem1_tgt retval1_src retval1_tgt)
       (RETURN_SRC: return_locals
                      conf_src.(CurTargetData)
                      retval1_src id_src noret_src typ_src

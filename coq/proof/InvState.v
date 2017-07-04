@@ -193,11 +193,7 @@ Module Unary.
             sem_valueT conf st invst v1,
             sem_valueT conf st invst v2 with
       | Some gv0, Some gv1, Some gv2 =>
-        match GV2int conf.(CurTargetData) Size.One gv0 with
-        | Some z =>
-          Some (if negb (zeq z 0) then gv1 else gv2)
-        | _ => None
-        end
+        mselect conf.(CurTargetData) ty gv0 gv1 gv2
       | _, _, _ => None
       end
     | Expr.value v =>
@@ -405,6 +401,7 @@ Module Rel.
   | sem_intro
       (SRC: Unary.sem conf_src st_src invst.(src) invmem.(InvMem.Rel.src) invmem.(InvMem.Rel.gmax) (InvMem.Rel.public_src invmem.(InvMem.Rel.inject)) inv.(Invariant.src))
       (TGT: Unary.sem conf_tgt st_tgt invst.(tgt) invmem.(InvMem.Rel.tgt) invmem.(InvMem.Rel.gmax) (InvMem.Rel.public_tgt invmem.(InvMem.Rel.inject)) inv.(Invariant.tgt))
+      (TGT_NOUNIQ: AtomSetImpl.Empty (inv.(Invariant.tgt).(Invariant.unique)))
       (MAYDIFF:
          forall id (NOTIN: (IdTSet.mem id inv.(Invariant.maydiff)) = false),
            sem_inject st_src st_tgt invst invmem.(InvMem.Rel.inject) id)
@@ -588,6 +585,7 @@ Module Rel.
     exploit genericvalues_inject.simulation_mload_aux;
       try apply VAL_SRC; eauto; []; ii; des; eauto.
     esplits; eauto.
+    clear CHUNK.
     des_ifs. rewrite <- H0.
     (* not to spill inv contents outside of assertion proof *)
     replace delta with 0 in *; cycle 1.
@@ -648,6 +646,7 @@ Module Rel.
     exploit genericvalues_inject.simulation_mload_aux;
       try apply VAL_SRC; eauto; []; ii; des; eauto.
     esplits; eauto.
+    clear CHUNK.
     des_ifs. rewrite <- H.
     (* not to spill inv contents outside of assertion proof *)
     replace delta with 0 in *; cycle 1.
@@ -715,24 +714,22 @@ Module Rel.
       | (Unary.sem_list_valueT _ _ _ _ = Some _) =>
         (exploit not_in_maydiff_list_value_spec; [| | | exact x | |]; eauto; ii; des; [])
       end.
-    Ltac exploit_eq_GV2int :=
+    Ltac exploit_GV2int :=
       let tmp := fresh in
       match goal with
       | [ H1: GV2int ?conf_x _ ?x = _,
           H2: GV2int ?conf_y _ ?y = _,
           TRGTDATA: ?conf_x = ?conf_y,
           INJ: genericvalues_inject.gv_inject _ ?x ?y |- _ ] =>
-        exploit genericvalues_inject.simulation__eq__GV2int; try eapply INJ; eauto; intro tmp; des; [];
-        rewrite H1 in tmp;
-        rewrite TRGTDATA in tmp;
-        rewrite H2 in tmp;
-        clarify
+        exploit genericvalues_inject.simulation__GV2int; try eapply INJ; eauto; []; intro tmp; des;
+        rewrite TRGTDATA in tmp; rewrite H2 in tmp; clarify
       end.
+
     Time destruct expr; ss; repeat (des_bool; des);
       des_ifs; (all_once exploit_not_in_maydiff_value_spec_with); clarify;
         (all_once exploit_not_in_maydiff_list_value_spec_with); clarify;
           try rewrite TARGETDATA in VAL_SRC;
-          try exploit_eq_GV2int.
+          try exploit_GV2int.
     (* Finished transaction in 39.843 secs (39.67u,0.194s) (successful) *)
     - exploit genericvalues_inject.simulation__mbop; try apply VAL_SRC; eauto; ii; des; eauto.
     - exploit genericvalues_inject.simulation__mfbop; try apply VAL_SRC; eauto; ii; des; eauto.
@@ -747,8 +744,7 @@ Module Rel.
     - exploit genericvalues_inject.simulation__mcast; try apply VAL_SRC; eauto; ii; des; eauto.
     - exploit genericvalues_inject.simulation__micmp; try apply VAL_SRC; eauto; ii; des; eauto.
     - exploit genericvalues_inject.simulation__mfcmp; try apply VAL_SRC; eauto; ii; des; eauto.
-    - esplits; eauto.
-    - esplits; eauto.
+    - exploit genericvalues_inject.simulation__mselect; try apply VAL_SRC; eauto; ii; des; eauto.
     - eapply not_in_maydiff_value_spec; eauto.
     - eapply not_in_maydiff_load; eauto.
   Qed.
@@ -899,7 +895,7 @@ Module Rel.
         (all_once exploit_inject_value_spec_with);
         (all_once exploit_inject_list_value_spec_with);
         clarify; (* Finished transaction in 140.027 secs (139.734u,0.373s) (successful) *)
-        try exploit_eq_GV2int.
+        try exploit_GV2int.
     - exploit genericvalues_inject.simulation__mbop; try apply VAL_SRC; eauto; ii; des; eauto.
     - exploit genericvalues_inject.simulation__mfbop; try apply VAL_SRC; eauto; ii; des; eauto.
     - exploit genericvalues_inject.simulation__extractGenericValue; try apply VAL_SRC; eauto; ii; des; eauto.
@@ -913,11 +909,9 @@ Module Rel.
     - exploit genericvalues_inject.simulation__mcast; try apply VAL_SRC; eauto; ii; des; eauto.
     - exploit genericvalues_inject.simulation__micmp; try apply VAL_SRC; eauto; ii; des; eauto.
     - exploit genericvalues_inject.simulation__mfcmp; try apply VAL_SRC; eauto; ii; des; eauto.
-    - esplits; eauto.
-    - esplits; eauto.
+    - exploit genericvalues_inject.simulation__mselect; try apply VAL_SRC; eauto; ii; des; eauto.
     - exploit inject_value_spec; eauto.
-    -
-      eapply inject_expr_load; eauto.
+    - eapply inject_expr_load; eauto.
   Qed.
   (* TODO move inject_expr_load out of here, + refactor with maydiff_load *)
 End Rel.

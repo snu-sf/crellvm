@@ -104,6 +104,7 @@ Proof.
   econs.
   - eapply unary_sem_eq_locals_mem; eauto.
   - eapply unary_sem_eq_locals_mem; eauto.
+  - ss.
   - i. hexploit MAYDIFF; eauto. i.
     ii. exploit H.
     { erewrite sem_idT_eq_locals; eauto. }
@@ -111,17 +112,6 @@ Proof.
   - rewrite <- EQ_ALLOCAS_SRC.
     rewrite <- EQ_ALLOCAS_TGT.
     ss.
-Qed.
-
-Lemma genericvalues_inject_simulation__GV2ptr_tgt:
-  forall (mi : Values.meminj) (TD : TargetData) (gv1 gv1' : GenericValue) (v' : Values.val),
-    genericvalues_inject.gv_inject mi gv1 gv1' ->
-    GV2ptr TD (getPointerSize TD) gv1' = Some v' ->
-    exists v : Values.val, GV2ptr TD (getPointerSize TD) gv1 = Some v /\ memory_sim.MoreMem.val_inject mi v v'.
-Proof.
-  i. exploit external_intrinsics.GV2ptr_inv; eauto. i. des.
-  subst. inv H. inv H4. ss.
-  inv H6. esplits; eauto.
 Qed.
 
 Lemma genericvalues_inject_wf_valid_ptrs_src
@@ -152,15 +142,18 @@ Lemma genericvalues_inject_wf_valid_ptrs_tgt
       mem_tgt gv_tgt
       (INJ_FIT : genericvalues_inject.gv_inject invmem.(InvMem.Rel.inject) gv_src gv_tgt)
       (WF : genericvalues_inject.wf_sb_mi invmem.(InvMem.Rel.gmax) invmem.(InvMem.Rel.inject) mem_src mem_tgt)
+      (NOTUNDEF: List.Forall (fun v => v.(fst) <> Values.Vundef) gv_src)
   : memory_props.MemProps.valid_ptrs (Memory.Mem.nextblock mem_tgt) gv_tgt.
 Proof.
   generalize dependent gv_src.
   inv WF.
   induction gv_tgt; i; ss.
-  des_ifs; inv INJ_FIT;
+  inv INJ_FIT. inv NOTUNDEF.
+  des_ifs;
     try by eapply IHgv_tgt; eauto.
   inv H2.
-  split; eauto.
+  - split; eauto.
+  - ss.
 Qed.
 
 Lemma gv_inject_public_src
@@ -184,6 +177,7 @@ Lemma gv_inject_public_tgt
       gv_src gv_tgt meminj b
           (INJECT: genericvalues_inject.gv_inject meminj gv_src gv_tgt)
           (IN: In b (GV2blocks gv_tgt))
+          (NOTUNDEF: List.Forall (fun v => v.(fst) <> Values.Vundef) gv_src)
       :
         <<PUBLIC: InvMem.Rel.public_tgt meminj b>>
 .
@@ -192,15 +186,17 @@ Proof.
   - eapply GV2blocks_In_cons in IN.
     des.
     + destruct v2; ss. des; ss. subst.
-      inv H.
       unfold InvMem.Rel.public_tgt.
-      esplits; eauto.
+      inv H.
+      * esplits; eauto.
+      * inv NOTUNDEF. ss.
     + exploit IHINJECT; eauto.
+      inv NOTUNDEF. ss.
 Qed.
 
 
 (* TODO: position *)
-Lemma gv_inject_no_private
+Lemma gv_inject_no_private_src
       conf_src st_src gv_src
       conf_tgt st_tgt gv_tgt
       invst invmem inv
@@ -211,16 +207,12 @@ Lemma gv_inject_no_private
     forall p_src gv_p_src
       (PRIVATE_SRC: Exprs.IdTSet.mem p_src inv.(Invariant.src).(Invariant.private) = true)
       (P_SRC_SEM: InvState.Unary.sem_idT st_src invst.(InvState.Rel.src) p_src = Some gv_p_src),
-      InvState.Unary.sem_diffblock conf_src gv_p_src gv_src>> /\
-    <<DIFF_FROM_PRIVATE_TGT:
-    forall p_tgt gv_p_tgt
-      (PRIVATE_TGT: Exprs.IdTSet.mem p_tgt inv.(Invariant.tgt).(Invariant.private) = true)
-      (P_TGT_SEM: InvState.Unary.sem_idT st_tgt invst.(InvState.Rel.tgt) p_tgt = Some gv_p_tgt),
-      InvState.Unary.sem_diffblock conf_tgt gv_p_tgt gv_tgt>>.
+      InvState.Unary.sem_diffblock conf_src gv_p_src gv_src>>
+.
 Proof.
   inv STATE. rename SRC into STATE_SRC. rename TGT into STATE_TGT. clear MAYDIFF.
   clear MEM.
-  split; ii.
+  ii.
   - clear STATE_TGT.
     inv STATE_SRC.
     clear LESSDEF NOALIAS UNIQUE
@@ -236,22 +228,8 @@ Proof.
       hexploit gv_inject_public_src; eauto; []; intro PUB; des.
       clear - PUB PRIVATE_BLOCK. ss.
     }
-  - clear STATE_SRC.
-    inv STATE_TGT.
-    clear LESSDEF NOALIAS UNIQUE
-          WF_LOCAL WF_PREVIOUS WF_GHOST UNIQUE_PARENT_LOCAL.
-
-    exploit PRIVATE; eauto.
-    { apply Exprs.IdTSetFacts.mem_iff. eauto. }
-    intro PRIV_IN_MEM. des. clear PARENT_DISJOINT.
-    {
-      eapply PRIVATE; eauto.
-      eapply Exprs.IdTSetFacts.mem_iff; eauto.
-      unfold InvMem.private_block in *. des.
-      hexploit gv_inject_public_tgt; eauto; []; intro PUB; des.
-      clear - PUB PRIVATE_BLOCK. ss.
-    }
 Qed.
+
 
 (* we need additional condition: all unique in inv1 is private, so not in inject: not in return value *)
 Lemma forget_stack_call_sound
@@ -271,6 +249,7 @@ Lemma forget_stack_call_sound
       (UNIQUE_PRIVATE_TGT: unique_is_private_unary inv1.(Invariant.tgt))
       (MEM: InvMem.Rel.sem conf_src conf_tgt mem1_src mem1_tgt invmem2)
       (RETVAL: TODO.lift2_option (genericvalues_inject.gv_inject invmem2.(InvMem.Rel.inject)) retval1_src retval1_tgt)
+      (VALID: valid_retvals mem1_src mem1_tgt retval1_src retval1_tgt)
       (RETURN_SRC: return_locals
                      conf_src.(CurTargetData)
                                 retval1_src id_src noret typ
@@ -323,7 +302,7 @@ Proof.
       clarify.
       esplits; eauto.
 
-      exploit gv_inject_no_private; eauto. intros DIFF_FROM_PRIVATE. des.
+      hexploit gv_inject_no_private_src; eauto. intros DIFF_FROM_PRIVATE_SRC. des.
 
       unfold ForgetStackCall.t.
       eapply forget_stack_sound; eauto.
@@ -373,41 +352,21 @@ Proof.
               
         econs; eauto; ss.
         - i.
-          rewrite AtomSetProperties.empty_union_2 in *; ss.
-          apply AtomSetImpl_singleton_mem_false in NO_LEAK.
-          exploit UNIQUE.
-          { apply AtomSetFacts.mem_iff; eauto. }
-          intro UNIQUE_PREV. inv UNIQUE_PREV.
-          econs; eauto; ss.
-          + rewrite <- lookupAL_updateAddAL_neq; eauto.
-          + i.
-            destruct (id_dec reg id_tgt); cycle 1.
-            * rewrite <- lookupAL_updateAddAL_neq in VAL'; eauto.
-            * subst.
-              rewrite lookupAL_updateAddAL_eq in VAL'. clarify.
-              eapply DIFF_FROM_PRIVATE_TGT; eauto.
-        - ii.
-          destruct (id_dec id_tgt x).
-          { subst.
-            rewrite lookupAL_updateAddAL_eq in PTR. clarify.
-            des.
-            eapply sublist_In in UNIQUE_PRIVATE_PARENT; eauto.
-            exploit PRIVATE_PARENT; eauto. intros [NOT_PUBLIC _].
-            apply NOT_PUBLIC.
-            eapply gv_inject_public_tgt; eauto.
-          }
-          { erewrite <- lookupAL_updateAddAL_neq in PTR; eauto.
-            exploit UNIQUE_PARENT_LOCAL; eauto. }
+          apply AtomSetFacts.mem_iff in MEM.
+          expl TGT_NOUNIQ. ss.
+        - rewrite TGT_NOUNIQ0. ii. inv INB.
       }
-      { ss. inv STATE. inv SRC. ss.
+      { (* REMARK: We can use VALID premise just as in tgt. Actually this is more symmetric. *)
+        (* But I intentionally leave this code, just to remember old logic: inject implies vaild, by wasabi *)
+        ss. inv STATE. inv SRC. ss.
         apply memory_props.MemProps.updateAddAL__wf_lc; eauto.
         inv MEM.
         exploit genericvalues_inject_wf_valid_ptrs_src; eauto.
       }
-      { ss. inv STATE. inv TGT. ss.
-        apply memory_props.MemProps.updateAddAL__wf_lc; eauto.
-        inv MEM.
-        exploit genericvalues_inject_wf_valid_ptrs_tgt; eauto.
+      { apply memory_props.MemProps.updateAddAL__wf_lc; ss; eauto.
+        - inv VALID.
+          eapply fit_gv_preserves_valid_ptrs; eauto.
+        - apply STATE.
       }
       { apply STATE. }
       { apply STATE. }
