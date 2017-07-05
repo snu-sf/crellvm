@@ -24,6 +24,8 @@ open Printer
 
 module PostProp = struct
     type t = Invariant.t -> Invariant.t -> Invariant.t option
+    
+    let default preinv postinv = None
 
     let counter:int ref = ref 0
     let test (previnv:Invariant.t) (postinv:Invariant.t) =
