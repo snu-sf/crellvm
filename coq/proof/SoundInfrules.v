@@ -21,6 +21,7 @@ Require InvMem.
 Require InvState.
 Require Import SoundBase.
 Require Import TODOProof.
+Require Import SoundInfruleIntroGhost.
 
 Set Implicit Arguments.
 
@@ -408,22 +409,20 @@ Proof.
           rewrite NONE in *. clarify.
         * ss. eapply LESSDEF; eauto.
     }
-    rename g into g0.
-    assert(T1: exists g1,
+    rename g into gv_src.
+    assert(T1: exists gv_tgt,
               InvState.Unary.sem_expr conf_tgt st_tgt
-                   (InvState.Rel.clear_idt (Exprs.Tag.ghost, i0) invst0).(InvState.Rel.tgt) x0 = Some g1
-              /\ genericvalues_inject.gv_inject invmem0.(InvMem.Rel.inject) g0 g1).
+                   (InvState.Rel.clear_idt (Exprs.Tag.ghost, i0) invst0).(InvState.Rel.tgt) x0
+              = Some gv_tgt
+              /\ genericvalues_inject.gv_inject invmem0.(InvMem.Rel.inject) gv_src gv_tgt).
     {
       hexploit InvState.Rel.not_in_maydiff_expr_spec; try apply T0; try apply STATE; eauto.
       { ii.
-        (* Pull out lemma *)
         assert(id0 <> (Exprs.Tag.ghost, i0)).
-        { ii. clarify. ss.
-          unfold InvState.Unary.sem_idT in *. ss.
-          Local Transparent InvState.Unary.clear_idt.
-          unfold InvState.Unary.clear_idt in *. ss.
-          Local Opaque InvState.Unary.clear_idt.
-          rewrite lookup_AL_filter_spec in VAL_SRC. unfold negb in *. des_ifs. des_sumbool. ss.
+        {
+          ii. clarify. ss.
+          exploit clear_idt_spec_inv_id; try eassumption; ss.
+          i. unfold proj_sumbool in *. des_ifs.
         }
         ss.
         erewrite <- clear_idt_spec_id; ss; cycle 1.
@@ -434,43 +433,71 @@ Proof.
         unfold proj_sumbool. des_ifs.
       }
     }
-    exists (InvState.Rel.update_both
-              (InvState.Unary.update_ghost (fun idgs => (i0, g0) :: idgs))
-              (InvState.Rel.clear_idt (Exprs.Tag.ghost, i0) invst0)), invmem0.
+    des.
+    exists (cons_ghost i0 gv_src gv_tgt invst0), invmem0.
     splits; ss; eauto; [|reflexivity].
     exploit clear_idt_ghost_spec; eauto.
     { instantiate (1:= (Exprs.Tag.ghost, i0)). ss. }
     intro STATE_CLEAR; des.
-    clear - STATE_CLEAR T0 T1 T2.
-    unfold Hints.Invariant.update_tgt, Hints.Invariant.update_src, Hints.Invariant.update_lessdef. ss.
-    econs; eauto; try apply STATE_CLEAR.
-    + ss.
-      inv STATE_CLEAR. clear - SRC T0 T1 T2.
+    admit.
+    (* clear - STATE_CLEAR T0 T1 T2. *)
+    (* { *)
+    (*   econs; eauto; try apply STATE_CLEAR. *)
+    (*   - ss. *)
+    (* } *)
+    (* unfold Hints.Invariant.update_tgt, *)
+    (*        Hints.Invariant.update_src, Hints.Invariant.update_lessdef. ss. *)
+    (* econs; eauto; try apply STATE_CLEAR. *)
+    (* + ss. *)
+    (*   inv STATE_CLEAR. clear - SRC T0 T1 T2. *)
 
-      econs; eauto; try apply SRC.
-      * ss.
-        inv SRC. clear - LESSDEF T0 T1 T2.
+    (*   econs; eauto; try apply SRC. *)
+    (*   * ss. *)
+    (*     inv SRC. clear - LESSDEF T0 T1 T2. *)
 
-        ii.
-        apply Exprs.ExprPairSetFacts.add_iff in H. des.
-        { clarify. ss.
-          assert(val1 = g0).
-          { admit. }
-          clarify.
-          exists g0.
-          split; ss.
-          - admit.
-          - eapply GVs.lessdef_refl.
-        }
-        { ss.
-          exploit LESSDEF; eauto.
-          { instantiate (1:= val1). admit. }
-          i; des.
-          esplits; eauto.
-          admit.
-        }
-      * ss.
-    +
+    (*     ii. *)
+    (*     apply Exprs.ExprPairSetFacts.add_iff in H. des. *)
+    (*     { clarify. ss. *)
+    (*       assert(val1 = gv_src). *)
+    (*       { admit. } *)
+    (*       clarify. *)
+    (*       exists gv_src. *)
+    (*       split; ss. *)
+    (*       - admit. *)
+    (*       - eapply GVs.lessdef_refl. *)
+    (*     } *)
+    (*     { ss. *)
+    (*       exploit LESSDEF; eauto. *)
+    (*       { instantiate (1:= val1). admit. } *)
+    (*       i; des. *)
+    (*       esplits; eauto. *)
+    (*       admit. *)
+    (*     } *)
+    (*   * inv SRC. clear - NOALIAS T0 T1 T2. *)
+    (*     ss. *)
+    (*     econs; eauto. *)
+    (*     { inv NOALIAS. clear - DIFFBLOCK T0 T1 T2. *)
+    (*       i. ss. *)
+    (*       eapply DIFFBLOCK; eauto. *)
+    (*       { admit. } *)
+    (*       { admit. } *)
+    (*     } *)
+    (*     { inv NOALIAS. clear - NOALIAS0 T0 T1 T2. *)
+    (*       i. ss. *)
+    (*       eapply NOALIAS0; eauto. *)
+    (*       { admit. } *)
+    (*       { admit. } *)
+    (*     } *)
+    (*   * inv SRC. clear - PRIVATE T0 T1 T2. *)
+    (*     ii. ss. *)
+    (*     eapply PRIVATE; eauto. *)
+    (*     { admit. } *)
+    (*   * inv SRC. clear - WF_GHOST T0 T1 T2. *)
+    (*     ii. ss. *)
+    (*     des_ifs. *)
+    (*     { admit. } *)
+    (*     { eapply WF_GHOST; eauto. } *)
+    (* + *)
   - (* intro_eq *)
     exists invst0, invmem0. splits; eauto; [|reflexivity].
     inv STATE. econs; eauto. ss.
