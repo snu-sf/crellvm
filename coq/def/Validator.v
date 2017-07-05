@@ -46,7 +46,8 @@ Fixpoint valid_cmds
     match oinv1 with
     | None => failwith_None "valid_cmds: postcond_cmd returned None" nil
     | Some inv1 =>
-      let inv2 := apply_infrules m_src m_tgt infrules inv1 in
+      let infrules_auto := gen_infrules_next_inv inv1 inv0 in
+      let inv2 := apply_infrules m_src m_tgt (infrules_auto++infrules) inv1 in
       let inv3 := reduce_maydiff inv2 in
       let inv := debug_print_validation_process infrules inv0 inv1 inv2 inv3 inv in
       if
@@ -86,7 +87,8 @@ Definition valid_phinodes
     match postcond_phinodes l_from phinodes_src phinodes_tgt inv0 with
       | None => failwith_false "valid_phinodes: postcond_phinodes returned None at phinode" (l_from::l_to::nil)
       | Some inv1 =>
-        let inv2 := apply_infrules m_src m_tgt infrules inv1 in
+        let infrules_auto := gen_infrules_next_inv inv1 inv0 in
+        let inv2 := apply_infrules m_src m_tgt (infrules_auto++infrules) inv1 in
         let inv3 := reduce_maydiff inv2 in
         let inv4 := hint_stmts.(ValidationHint.invariant_after_phinodes) in
         let inv4 := debug_print_validation_process infrules inv0 inv1 inv2 inv3 inv4 in

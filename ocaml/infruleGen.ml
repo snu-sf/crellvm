@@ -820,22 +820,30 @@ module AutoInstCombineModule : AutoNextInv = struct
 
     let run : Auto.t1 = fun (inv:Invariant.t) (inv_goal:Invariant.t) ->
       let lessdefs_src = inv.src.lessdef in
-      let (infrules_src1, lessdefs_added) =_apply_commutativities
+      let (infrules_src1, lessdefs_added) = _apply_commutativities
               Auto.Src lessdefs_src (AutoCommHelper.find_commrules_on_e1) in
       let lessdefs_src = ExprPairSet.union lessdefs_src lessdefs_added in
-      let (infrules_src2, lessdefs_added) =_apply_commutativities
+      let (infrules_src2, lessdefs_added) = _apply_commutativities
               Auto.Src lessdefs_src (AutoCommHelper.find_commrules_on_e2) in
       let lessdefs_src = ExprPairSet.union lessdefs_src lessdefs_added in
 
       let lessdefs_tgt = inv.tgt.lessdef in
-      let (infrules_src3, lessdefs_added) =_apply_commutativities
+      let (infrules_src3, lessdefs_added) = _apply_commutativities
               Auto.Tgt lessdefs_tgt (AutoCommHelper.find_commrules_on_e1) in
       let lessdefs_tgt = ExprPairSet.union lessdefs_tgt lessdefs_added in
-      let (infrules_src4, lessdefs_added) =_apply_commutativities
+      let (infrules_src4, lessdefs_added) = _apply_commutativities
               Auto.Tgt lessdefs_tgt (AutoCommHelper.find_commrules_on_e2) in
       let lessdefs_tgt = ExprPairSet.union lessdefs_tgt lessdefs_added in
 
-      (infrules_src1@infrules_src2@infrules_src3@infrules_src4, inv_goal)
+      let newinv = Invariant.update_src
+              (Invariant.update_lessdef (fun _ -> lessdefs_src))
+                (Invariant.update_tgt
+                  (Invariant.update_lessdef (fun _ -> lessdefs_tgt))
+                  inv) in
+
+      let (infrules_trans, inv_goal) = AutoUnaryLD_Trans.run newinv inv_goal in
+      (infrules_src1@infrules_src2@infrules_src3@infrules_src4@infrules_trans,
+          inv_goal)
   end
 
 module Auto_Default1 : AutoNextInv = struct
@@ -883,6 +891,7 @@ module AutoStrategy = struct
       | AutoOpt.GVN -> autoGVN
       | AutoOpt.SROA -> autoSROA
       | AutoOpt.LICM -> autoLICM
+      | AutoOpt.INSTCOMBINE -> autoInstCombine
       | _ -> autoDflt
   end
 
