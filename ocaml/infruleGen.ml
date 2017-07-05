@@ -193,6 +193,7 @@ module AutoTransHelper = struct
            List.filter (fun e -> not (ExprSet.mem e reachables)) (get_adj e_cur)
          in
          Printer.debug_print ("AutoInfruleGen: Transitivity new visit="^(string_of_exprlist new_visit));
+         let new_reachables =
            List.fold_left (fun s e -> ExprSet.add e s) reachables new_visit
          in
          let new_graph =
@@ -281,7 +282,7 @@ module AutoCommHelper = struct
        | Expr.Coq_fcmp (c2, ty2, a2, b2) ->
           Some ( (Auto.fcmp_swap_operands scp c2 ty2 a2 b2 e1),
                   (e1, Expr.Coq_fcmp (get_swapped_fcmp_cond c2, ty2, b2, a2)) )
-       | _, _ -> None
+       | _ -> None
     
     (* Given `e1 >= e2`, returns the list of commutativity rules applicable to e1 and
         the updated invariant*)
@@ -301,7 +302,7 @@ module AutoCommHelper = struct
        | Expr.Coq_fcmp (c1, ty1, a1, b1) ->
           Some ( (Auto.fcmp_swap_operands_rev scp c1 ty1 a1 b1 e2),
                   (Expr.Coq_fcmp (get_swapped_fcmp_cond c1, ty1, b1, a1), e2) )
-       | _, _ -> None
+       | _ -> None
   end
 
 module AutoSubstTransHelper = struct
@@ -802,63 +803,39 @@ module AutoUnaryLD_Trans : AutoNextInv =
       end)
 
 module AutoInstCombineModule : AutoNextInv = struct
-    let rec run_intl (scp:Auto.scope_t)
-                     (inv_u:Invariant.unary) (inv_u_goal:Invariant.unary)
-                     (infrs_acc:Infrule.t list) (ld:(Expr.t * Expr.t) list)
-            : Infrule.t list * Invariant.unary =
-      let res = match ld with
-      | [] -> (infrs_acc, inv_u_goal)
-      | (e_l, e_r)::ld_t ->
-         (match ULDG.f scp inv_u e_l e_r with
-          | Some infrs ->
-             let inv_u_goal_new =
-               Invariant.update_lessdef (ExprPairSet.remove (e_l, e_r)) inv_u_goal
-             in
-             run_intl scp inv_u inv_u_goal_new (infrs_acc@infrs) ld_t
-          | None -> run_intl scp inv_u inv_u_goal infrs_acc ld_t)
-      in res
-
-    let run_unary (scp:Auto.scope_t)
-                  (inv_u:Invariant.unary) (inv_u_goal:Invariant.unary)
-        : Infrule.t list * Invariant.unary =
-      let ld : ExprPair.t list =
-        ExprPairSet.elements inv_u.Invariant.lessdef in
-      let ld_goal : ExprPair.t list =
-        ExprPairSet.elements inv_u_goal.Invariant.lessdef in
-      let ld_remain : ExprPair.t list =
-        List.filter (fun x -> not (List.exists (ExprPair.eq_dec x) ld)) ld_goal in
-      run_intl scp inv_u inv_u_goal [] ld_remain
-
-    let run (inv:Invariant.t) (inv_goal:Invariant.t)
-        : Infrule.t list * Invariant.t =
-      let (infrs_src, inv_src) =
-        run_unary Auto.Src inv.Invariant.src inv_goal.Invariant.src in
-      let (infrs_tgt, inv_tgt) =
-        run_unary Auto.Tgt inv.Invariant.tgt inv_goal.Invariant.tgt in
-      let new_goal = Invariant.update_tgt
-                       (fun _ -> inv_tgt)
-                       (Invariant.update_src (fun _ -> inv_src) inv_goal) in
-      (infrs_src@infrs_tgt, new_goal)
-  end
-module AutoInstCombineModule : AutoNextInv = struct
-    let _apply_commutativities (scp:Auto.scope) (lessdefs:ExprPairSet.t)
-        (finder: Auto.scope -> ExprPair.t -> (Infrule.t * ExprPair.t) option)
+    let _apply_commutativities (scp:Auto.scope_t) (lessdefs:ExprPairSet.t)
+        (finder: Auto.scope_t -> ExprPair.t -> (Infrule.t * ExprPair.t) option)
         : (Infrule.t list * ExprPairSet.t) =
       let generated_itms:((Infrule.t * ExprPair.t) option) list =
-              List.map (fun lessdef -> finder scp lessdef) lessdefs in
+              List.map (fun lessdef -> finder scp lessdef) (ExprPairSet.elements lessdefs) in
       let (infrules, newlessdefs) = List.fold_left
-              (fun (infrules, newlessdefs), pairopt ->
+              (fun (infrules, newlessdefs) pairopt ->
                   match pairopt with
                   | None -> (infrules, newlessdefs)
-                  | Some (infr, newld) -> (infr::infrules, newld::newlessdefs)
+                  | Some (infr, newld) -> (infr::infrules, ExprPairSet.add newld newlessdefs)
               )
-              ([], [])
+              ([], ExprPairSet.empty)
               generated_itms in
       (infrules, ExprPairSet.union lessdefs newlessdefs)
 
-    let run : Auto.t1 = fun (inv:Invariant.t) _ ->
-      _apply_commutatives Auto.Src (inv.src.lessdef) (AutoCommHelper.find_commrules_on_e1 
-      ([], r)
+    let run : Auto.t1 = fun (inv:Invariant.t) (inv_goal:Invariant.t) ->
+      let lessdefs_src = inv.src.lessdef in
+      let (infrules_src1, lessdefs_added) =_apply_commutativities
+              Auto.Src lessdefs_src (AutoCommHelper.find_commrules_on_e1) in
+      let lessdefs_src = ExprPairSet.union lessdefs_src lessdefs_added in
+      let (infrules_src2, lessdefs_added) =_apply_commutativities
+              Auto.Src lessdefs_src (AutoCommHelper.find_commrules_on_e2) in
+      let lessdefs_src = ExprPairSet.union lessdefs_src lessdefs_added in
+
+      let lessdefs_tgt = inv.tgt.lessdef in
+      let (infrules_src3, lessdefs_added) =_apply_commutativities
+              Auto.Tgt lessdefs_tgt (AutoCommHelper.find_commrules_on_e1) in
+      let lessdefs_tgt = ExprPairSet.union lessdefs_tgt lessdefs_added in
+      let (infrules_src4, lessdefs_added) =_apply_commutativities
+              Auto.Tgt lessdefs_tgt (AutoCommHelper.find_commrules_on_e2) in
+      let lessdefs_tgt = ExprPairSet.union lessdefs_tgt lessdefs_added in
+
+      (infrules_src1@infrules_src2@infrules_src3@infrules_src4, inv_goal)
   end
 
 module Auto_Default1 : AutoNextInv = struct
@@ -894,7 +871,7 @@ let compose2 (a1:Auto.t2) (a2:Auto.t2) : Auto.t2 =
 let autoGVN : Auto.t = (AutoGVNModule.auto1, Auto_Default2.run)
 let autoSROA : Auto.t = (AutoUnaryLD_Trans.run, AutoInjectValues_Trans.run)
 let autoLICM : Auto.t = (AutoUnaryLD_Trans.run, AutoInjectValues_Trans.run)
-let autoInstCombine : Auto.t = (AutoInstCombineModule.auto1, Auto_Default2.run)
+let autoInstCombine : Auto.t = (AutoInstCombineModule.run, Auto_Default2.run)
 let autoDflt : Auto.t = (Auto_Default1.run, Auto_Default2.run)
 
 (** interface *)
