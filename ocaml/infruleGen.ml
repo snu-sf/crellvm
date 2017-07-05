@@ -883,6 +883,7 @@ module AutoStrategy = struct
       | AutoOpt.GVN -> autoGVN
       | AutoOpt.SROA -> autoSROA
       | AutoOpt.LICM -> autoLICM
+      | AutoOpt.INSTCOMBINE -> autoInstCombine
       | _ -> autoDflt
   end
 
