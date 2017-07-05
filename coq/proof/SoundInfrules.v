@@ -409,19 +409,20 @@ Proof.
           rewrite NONE in *. clarify.
         * ss. eapply LESSDEF; eauto.
     }
+    rename T0 into GV_SRC.
     rename g into gv_src.
-    assert(T1: exists gv_tgt,
+    assert(GV_TGT: exists gv_tgt,
               InvState.Unary.sem_expr conf_tgt st_tgt
                    (InvState.Rel.clear_idt (Exprs.Tag.ghost, i0) invst0).(InvState.Rel.tgt) x0
               = Some gv_tgt
               /\ genericvalues_inject.gv_inject invmem0.(InvMem.Rel.inject) gv_src gv_tgt).
     {
-      hexploit InvState.Rel.not_in_maydiff_expr_spec; try apply T0; try apply STATE; eauto.
+      hexploit InvState.Rel.not_in_maydiff_expr_spec; try apply GV_SRC; try apply STATE; eauto.
       { ii.
         assert(id0 <> (Exprs.Tag.ghost, i0)).
         {
           ii. clarify. ss.
-          exploit clear_idt_spec_inv_id; try eassumption; ss.
+          exploit clear_idt_inv_spec_id; try eassumption; ss.
           i. unfold proj_sumbool in *. des_ifs.
         }
         ss.
@@ -433,71 +434,95 @@ Proof.
         unfold proj_sumbool. des_ifs.
       }
     }
+    des. rename GV_TGT0 into GV_INJ.
     des.
-    exists (cons_ghost i0 gv_src gv_tgt invst0), invmem0.
-    splits; ss; eauto; [|reflexivity].
+
     exploit clear_idt_ghost_spec; eauto.
     { instantiate (1:= (Exprs.Tag.ghost, i0)). ss. }
     intro STATE_CLEAR; des.
-    admit.
-    (* clear - STATE_CLEAR T0 T1 T2. *)
-    (* { *)
-    (*   econs; eauto; try apply STATE_CLEAR. *)
-    (*   - ss. *)
-    (* } *)
-    (* unfold Hints.Invariant.update_tgt, *)
-    (*        Hints.Invariant.update_src, Hints.Invariant.update_lessdef. ss. *)
-    (* econs; eauto; try apply STATE_CLEAR. *)
-    (* + ss. *)
-    (*   inv STATE_CLEAR. clear - SRC T0 T1 T2. *)
+    clear - STATE_CLEAR GV_SRC GV_TGT GV_INJ MEM.
 
-    (*   econs; eauto; try apply SRC. *)
-    (*   * ss. *)
-    (*     inv SRC. clear - LESSDEF T0 T1 T2. *)
+    exists (cons_idt (Exprs.Tag.ghost, i0) gv_src gv_tgt
+                     (InvState.Rel.clear_idt (Exprs.Tag.ghost, i0) invst0)), invmem0.
+    splits; ss; eauto; [|reflexivity].
+    clear MEM.
+    {
+      econs; eauto; try apply STATE_CLEAR.
+      - ss.
+        eapply Subset_unary_sem; eauto.
+        eapply cons_ghost_unary_spec; try apply STATE_CLEAR; eauto.
+        { admit. }
+        unfold compose.
+        econs; ss; eauto.
+        + ii. apply Exprs.ExprPairSetFacts.add_iff. right. ss.
+        + split; ss.
+      - ss.
+        eapply Subset_unary_sem; eauto.
+        eapply cons_ghost_unary_spec; try apply STATE_CLEAR; eauto.
+        { admit. }
+        unfold compose.
+        econs; ss; eauto.
+        + ii.
+          apply Exprs.ExprPairSetFacts.add_iff in H. des.
+          { apply Exprs.ExprPairSetFacts.add_iff. left. ss. }
+          apply Exprs.ExprPairSetFacts.add_iff. right.
+          apply Exprs.ExprPairSetFacts.add_iff. right. ss.
+        + split; ss.
+      - i.
+    }
+    unfold Hints.Invariant.update_tgt,
+           Hints.Invariant.update_src, Hints.Invariant.update_lessdef. ss.
+    econs; eauto; try apply STATE_CLEAR.
+    + ss.
+      inv STATE_CLEAR. clear - SRC T0 T1 T2.
 
-    (*     ii. *)
-    (*     apply Exprs.ExprPairSetFacts.add_iff in H. des. *)
-    (*     { clarify. ss. *)
-    (*       assert(val1 = gv_src). *)
-    (*       { admit. } *)
-    (*       clarify. *)
-    (*       exists gv_src. *)
-    (*       split; ss. *)
-    (*       - admit. *)
-    (*       - eapply GVs.lessdef_refl. *)
-    (*     } *)
-    (*     { ss. *)
-    (*       exploit LESSDEF; eauto. *)
-    (*       { instantiate (1:= val1). admit. } *)
-    (*       i; des. *)
-    (*       esplits; eauto. *)
-    (*       admit. *)
-    (*     } *)
-    (*   * inv SRC. clear - NOALIAS T0 T1 T2. *)
-    (*     ss. *)
-    (*     econs; eauto. *)
-    (*     { inv NOALIAS. clear - DIFFBLOCK T0 T1 T2. *)
-    (*       i. ss. *)
-    (*       eapply DIFFBLOCK; eauto. *)
-    (*       { admit. } *)
-    (*       { admit. } *)
-    (*     } *)
-    (*     { inv NOALIAS. clear - NOALIAS0 T0 T1 T2. *)
-    (*       i. ss. *)
-    (*       eapply NOALIAS0; eauto. *)
-    (*       { admit. } *)
-    (*       { admit. } *)
-    (*     } *)
-    (*   * inv SRC. clear - PRIVATE T0 T1 T2. *)
-    (*     ii. ss. *)
-    (*     eapply PRIVATE; eauto. *)
-    (*     { admit. } *)
-    (*   * inv SRC. clear - WF_GHOST T0 T1 T2. *)
-    (*     ii. ss. *)
-    (*     des_ifs. *)
-    (*     { admit. } *)
-    (*     { eapply WF_GHOST; eauto. } *)
-    (* + *)
+      econs; eauto; try apply SRC.
+      * ss.
+        inv SRC. clear - LESSDEF T0 T1 T2.
+
+        ii.
+        apply Exprs.ExprPairSetFacts.add_iff in H. des.
+        { clarify. ss.
+          assert(val1 = gv_src).
+          { admit. }
+          clarify.
+          exists gv_src.
+          split; ss.
+          - admit.
+          - eapply GVs.lessdef_refl.
+        }
+        { ss.
+          exploit LESSDEF; eauto.
+          { instantiate (1:= val1). admit. }
+          i; des.
+          esplits; eauto.
+          admit.
+        }
+      * inv SRC. clear - NOALIAS T0 T1 T2.
+        ss.
+        econs; eauto.
+        { inv NOALIAS. clear - DIFFBLOCK T0 T1 T2.
+          i. ss.
+          eapply DIFFBLOCK; eauto.
+          { admit. }
+          { admit. }
+        }
+        { inv NOALIAS. clear - NOALIAS0 T0 T1 T2.
+          i. ss.
+          eapply NOALIAS0; eauto.
+          { admit. }
+          { admit. }
+        }
+      * inv SRC. clear - PRIVATE T0 T1 T2.
+        ii. ss.
+        eapply PRIVATE; eauto.
+        { admit. }
+      * inv SRC. clear - WF_GHOST T0 T1 T2.
+        ii. ss.
+        des_ifs.
+        { admit. }
+        { eapply WF_GHOST; eauto. }
+    +
   - (* intro_eq *)
     exists invst0, invmem0. splits; eauto; [|reflexivity].
     inv STATE. econs; eauto. ss.
