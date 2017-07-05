@@ -445,13 +445,12 @@ Proof.
     exists (cons_idt (Exprs.Tag.ghost, i0) gv_src gv_tgt
                      (InvState.Rel.clear_idt (Exprs.Tag.ghost, i0) invst0)), invmem0.
     splits; ss; eauto; [|reflexivity].
-    clear MEM.
     {
       econs; eauto; try apply STATE_CLEAR.
       - ss.
         eapply Subset_unary_sem; eauto.
         eapply cons_ghost_unary_spec; try apply STATE_CLEAR; eauto.
-        { admit. }
+        { eapply sem_expr_preserves_valid_ptr; try apply STATE_CLEAR; try apply MEM; eauto. }
         unfold compose.
         econs; ss; eauto.
         + ii. apply Exprs.ExprPairSetFacts.add_iff. right. ss.
@@ -459,7 +458,7 @@ Proof.
       - ss.
         eapply Subset_unary_sem; eauto.
         eapply cons_ghost_unary_spec; try apply STATE_CLEAR; eauto.
-        { admit. }
+        { eapply sem_expr_preserves_valid_ptr; try apply STATE_CLEAR; try apply MEM; eauto. }
         unfold compose.
         econs; ss; eauto.
         + ii.
@@ -469,60 +468,21 @@ Proof.
           apply Exprs.ExprPairSetFacts.add_iff. right. ss.
         + split; ss.
       - i.
-    }
-    unfold Hints.Invariant.update_tgt,
-           Hints.Invariant.update_src, Hints.Invariant.update_lessdef. ss.
-    econs; eauto; try apply STATE_CLEAR.
-    + ss.
-      inv STATE_CLEAR. clear - SRC T0 T1 T2.
-
-      econs; eauto; try apply SRC.
-      * ss.
-        inv SRC. clear - LESSDEF T0 T1 T2.
-
-        ii.
-        apply Exprs.ExprPairSetFacts.add_iff in H. des.
-        { clarify. ss.
-          assert(val1 = gv_src).
-          { admit. }
-          clarify.
-          exists gv_src.
-          split; ss.
-          - admit.
-          - eapply GVs.lessdef_refl.
-        }
-        { ss.
-          exploit LESSDEF; eauto.
-          { instantiate (1:= val1). admit. }
-          i; des.
+        unfold Hints.Invariant.update_lessdef in NOTIN. ss.
+        inv STATE_CLEAR.
+        clear SRC TGT TGT_NOUNIQ ALLOCAS.
+        ii. ss.
+        destruct (Exprs.IdT.eq_dec id0 (Exprs.Tag.ghost, i0)).
+        { clarify.
+          unfold InvState.Unary.sem_idT in *. ss. des_ifs.
           esplits; eauto.
-          admit.
         }
-      * inv SRC. clear - NOALIAS T0 T1 T2.
-        ss.
-        econs; eauto.
-        { inv NOALIAS. clear - DIFFBLOCK T0 T1 T2.
-          i. ss.
-          eapply DIFFBLOCK; eauto.
-          { admit. }
-          { admit. }
-        }
-        { inv NOALIAS. clear - NOALIAS0 T0 T1 T2.
-          i. ss.
-          eapply NOALIAS0; eauto.
-          { admit. }
-          { admit. }
-        }
-      * inv SRC. clear - PRIVATE T0 T1 T2.
-        ii. ss.
-        eapply PRIVATE; eauto.
-        { admit. }
-      * inv SRC. clear - WF_GHOST T0 T1 T2.
-        ii. ss.
-        des_ifs.
-        { admit. }
-        { eapply WF_GHOST; eauto. }
-    +
+        erewrite <- cons_idt_spec_id in VAL_SRC; cycle 1.
+        { unfold proj_sumbool; des_ifs. }
+        erewrite <- cons_idt_spec_id; cycle 1.
+        { unfold proj_sumbool; des_ifs. }
+        eapply MAYDIFF; eauto.
+    }
   - (* intro_eq *)
     exists invst0, invmem0. splits; eauto; [|reflexivity].
     inv STATE. econs; eauto. ss.
