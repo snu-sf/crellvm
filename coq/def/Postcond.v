@@ -787,7 +787,8 @@ Definition postcond_cmd_inject_event
     else true
   | _, insn_bop _ b1 sz1 va1 vb1 =>
     if (may_produce_UB b1)
-    then (is_known_nonzero_by_src inv vb1)
+    then (is_known_total_nonzero (ValueT.lift Tag.physical vb1))
+         || (is_known_nonzero_by_src inv vb1)
          || (is_known_nonzero_unary inv.(Invariant.src) vb1)
     else true
   | _, _ => true
