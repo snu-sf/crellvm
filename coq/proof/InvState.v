@@ -222,6 +222,18 @@ Module Unary.
       <<VAL2: sem_expr conf st invst es.(snd) = Some val2>> /\
       <<VAL: GVs.lessdef val1 val2>>.
 
+  Lemma sem_lessdef_trans
+        conf st invst e0 e1 e2
+        (LD01: Unary.sem_lessdef conf st invst (e0, e1))
+        (LD12: Unary.sem_lessdef conf st invst (e1, e2))
+    :
+      <<LD12: Unary.sem_lessdef conf st invst (e0, e2)>>
+  .
+  Proof.
+    ii. expl LD01. expl LD12. ss. esplits; eauto.
+    eapply GVs.lessdef_trans; eauto.
+  Qed.
+
   Definition sem_diffblock (conf:Config) (val1 val2:GenericValue): Prop :=
     list_disjoint (GV2blocks val1) (GV2blocks val2).
 

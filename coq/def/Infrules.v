@@ -410,6 +410,13 @@ Definition is_commutative_fbop (opcode:fbop) :=
   | _ => false
   end.
 
+Definition load_realign (e1: Expr.t): Expr.t :=
+  match e1 with
+  | Expr.load v ty a => Expr.load v ty Align.One
+  | _ => e1
+  end
+.
+
 Notation "$$ inv |-src y >= rhs $$" := (Invariant.lessdef_expr (y, rhs) inv.(Invariant.src).(Invariant.lessdef)) (at level 41, inv, y, rhs at level 41).
 Notation "$$ inv |-tgt y >= rhs $$" := (Invariant.lessdef_expr (y, rhs) inv.(Invariant.tgt).(Invariant.lessdef)) (at level 41, inv, y, rhs at level 41).
 Notation "$$ inv |-src y 'unique' $$" :=
@@ -430,14 +437,6 @@ Notation "{{ inv +++src y _||_ x }}" := (Invariant.update_src (Invariant.update_
 Notation "{{ inv +++tgt y _||_ x }}" := (Invariant.update_tgt (Invariant.update_diffblock (ValueTPairSet.add (y, x))) inv) (at level 41, inv, y, x at level 41).
 Notation "{{ inv --- x }}" := (Invariant.update_maydiff (IdTSet.filter (fun y => negb (IdT.eq_dec x y))) inv) (at level 41, inv, x at level 41).
 
-(* TODO *)
-
-Definition load_align_one (e1: Expr.t): Expr.t :=
-  match e1 with
-  | Expr.load v ty a => Expr.load v ty Align.One
-  | _ => e1
-  end
-.
 
 Definition apply_infrule
            (m_src m_tgt:module)
@@ -1409,9 +1408,9 @@ Definition apply_infrule
     then {{ inv0 +++src (Expr.value dst) >= (Expr.cast castop_sitofp srcty src dstty) }}
     else apply_fail tt
   | Infrule.transitivity e1 e2 e3 =>
-    let e1' := load_align_one e1 in
-    let e2' := load_align_one e2 in
-    let e3' := load_align_one e3 in
+    let e1' := load_realign e1 in
+    let e2' := load_realign e2 in
+    let e3' := load_realign e3 in
     if ($$ inv0 |-src e1 >= e2 $$ || $$ inv0 |-src e1 >= e2' $$ ||
         $$ inv0 |-src e1' >= e2 $$ || $$ inv0 |-src e1' >= e2' $$) &&
        ($$ inv0 |-src e2 >= e3 $$ || $$ inv0 |-src e2 >= e3' $$ ||
@@ -1419,21 +1418,9 @@ Definition apply_infrule
     then {{ inv0 +++src e1 >= e3 }}
     else apply_fail tt
   | Infrule.transitivity_tgt e1 e2 e3 =>
-    let e1' :=
-      match e1 with
-      | Expr.load v ty a => Expr.load v ty Align.One
-      | _ => e1
-      end in
-    let e2' :=
-      match e2 with
-      | Expr.load v ty a => Expr.load v ty Align.One
-      | _ => e2
-      end in
-    let e3' :=
-      match e3 with
-      | Expr.load v ty a => Expr.load v ty Align.One
-      | _ => e3
-      end in
+    let e1' := load_realign e1 in
+    let e2' := load_realign e2 in
+    let e3' := load_realign e3 in
     if ($$ inv0 |-tgt e1 >= e2 $$ || $$ inv0 |-tgt e1 >= e2' $$ ||
         $$ inv0 |-tgt e1' >= e2 $$ || $$ inv0 |-tgt e1' >= e2' $$) &&
        ($$ inv0 |-tgt e2 >= e3 $$ || $$ inv0 |-tgt e2 >= e3' $$ ||

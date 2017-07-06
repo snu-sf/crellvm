@@ -23,33 +23,9 @@ Require Import SoundBase.
 Require Import TODOProof.
 Require Import SoundInfruleIntroGhost.
 Require Import SoundInfruleSubstitute.
+Require Import SoundInfruleTransitivity.
 
 Set Implicit Arguments.
-
-(* TODO: move location. SoundBase? *)
-Lemma load_align_one_sem_expr
-      conf st invst e0
-  :
-    <<EQ: InvState.Unary.sem_expr conf st invst e0 =
-          InvState.Unary.sem_expr conf st invst (Infrules.load_align_one e0)>>
-.
-Proof.
-  red.
-  unfold Infrules.load_align_one. des_ifs; ss.
-Qed.
-
-(* TODO: Move to invstate.v *)
-Lemma sem_lessdef_trans
-      conf st invst e0 e1 e2
-      (LD01: InvState.Unary.sem_lessdef conf st invst (e0, e1))
-      (LD12: InvState.Unary.sem_lessdef conf st invst (e1, e2))
-  :
-    <<LD12: InvState.Unary.sem_lessdef conf st invst (e0, e2)>>
-.
-Proof.
-  ii. expl LD01. expl LD12. ss. esplits; eauto.
-  eapply GVs.lessdef_trans; eauto.
-Qed.
 
 Lemma apply_infrule_sound
       m_src m_tgt
@@ -307,24 +283,63 @@ Proof.
     { clear C0. repeat (des_bool; des).
       - eapply InvState.Rel.lessdef_expr_spec2; eauto.
       - eapply InvState.Rel.lessdef_expr_spec2; eauto;
-          repeat rewrite <- load_align_one_sem_expr; eauto.
+          repeat rewrite <- load_realign_sem_expr; eauto.
       - eapply InvState.Rel.lessdef_expr_spec2; eauto;
-          repeat rewrite <- load_align_one_sem_expr; eauto.
+          repeat rewrite <- load_realign_sem_expr; eauto.
       - eapply InvState.Rel.lessdef_expr_spec2; eauto;
-          repeat rewrite <- load_align_one_sem_expr; eauto.
+          repeat rewrite <- load_realign_sem_expr; eauto.
     }
     assert(LD12: InvState.Unary.sem_lessdef conf_src st_src invst (__e1__, __e2__)).
     { clear C. repeat (des_bool; des).
       - eapply InvState.Rel.lessdef_expr_spec2; eauto.
       - eapply InvState.Rel.lessdef_expr_spec2; eauto;
-          repeat rewrite <- load_align_one_sem_expr; eauto.
+          repeat rewrite <- load_realign_sem_expr; eauto.
       - eapply InvState.Rel.lessdef_expr_spec2; eauto;
-          repeat rewrite <- load_align_one_sem_expr; eauto.
+          repeat rewrite <- load_realign_sem_expr; eauto.
       - eapply InvState.Rel.lessdef_expr_spec2; eauto;
-          repeat rewrite <- load_align_one_sem_expr; eauto.
+          repeat rewrite <- load_realign_sem_expr; eauto.
     }
-    eapply sem_lessdef_trans; eauto.
-  - ADMIT "!transitivity_tgt".
+    eapply InvState.Unary.sem_lessdef_trans; eauto.
+  - (* transitivity_tgt *)
+    exists invst0, invmem0.
+    esplits; eauto; [ | reflexivity ].
+    ss.
+    match goal with
+    | [|- context[if ?c then _ else _]] => destruct c eqn:C
+    end; ss.
+    econs; eauto; try apply STATE. ss.
+    inv STATE. clear - TGT C.
+    des_bool; des.
+    abstr (InvState.Rel.tgt invst0) invst.
+    econs; try apply TGT; eauto; ss.
+    red. i. apply Exprs.ExprPairSetFacts.add_iff in H.
+    des; cycle 1.
+    { eapply TGT; eauto. }
+    destruct x; ss. clarify.
+    rename t into __e0__.
+    rename e2 into __e1__.
+    rename t0 into __e2__.
+    assert(LD01: InvState.Unary.sem_lessdef conf_tgt st_tgt invst (__e0__, __e1__)).
+    { clear C0. repeat (des_bool; des).
+      - eapply InvState.Rel.lessdef_expr_spec2; eauto.
+      - eapply InvState.Rel.lessdef_expr_spec2; eauto;
+          repeat rewrite <- load_realign_sem_expr; eauto.
+      - eapply InvState.Rel.lessdef_expr_spec2; eauto;
+          repeat rewrite <- load_realign_sem_expr; eauto.
+      - eapply InvState.Rel.lessdef_expr_spec2; eauto;
+          repeat rewrite <- load_realign_sem_expr; eauto.
+    }
+    assert(LD12: InvState.Unary.sem_lessdef conf_tgt st_tgt invst (__e1__, __e2__)).
+    { clear C. repeat (des_bool; des).
+      - eapply InvState.Rel.lessdef_expr_spec2; eauto.
+      - eapply InvState.Rel.lessdef_expr_spec2; eauto;
+          repeat rewrite <- load_realign_sem_expr; eauto.
+      - eapply InvState.Rel.lessdef_expr_spec2; eauto;
+          repeat rewrite <- load_realign_sem_expr; eauto.
+      - eapply InvState.Rel.lessdef_expr_spec2; eauto;
+          repeat rewrite <- load_realign_sem_expr; eauto.
+    }
+    eapply InvState.Unary.sem_lessdef_trans; eauto.
   - ADMIT "!transitivity_pointer_lhs".
   - ADMIT "!transitivity_pointer_rhs".
   - ADMIT "trunc_onebit".
