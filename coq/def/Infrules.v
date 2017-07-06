@@ -1732,8 +1732,7 @@ Definition apply_infrule
     else apply_fail tt
   | Infrule.xor_undef z a s =>
     if $$ inv0 |-src (Expr.value z) >= (Expr.bop bop_xor s a (ValueT.const (const_undef (typ_int s)))) $$
-    then {{ inv0 +++src (Expr.value z) >= (Expr.value 
-              (ValueT.const (const_int s (INTEGER.of_Z (Size.to_Z s) (0)%Z true)))) }}
+    then {{ inv0 +++src (Expr.value z) >= (Expr.value (ValueT.const (const_undef (typ_int s)))) }}
     else apply_fail tt
   | Infrule.xor_zero z a s =>
     if $$ inv0 |-src (Expr.value z) >= (Expr.bop bop_xor s a 

@@ -19,7 +19,7 @@ Require Import Debug.
 Set Implicit Arguments.
 
 Parameter gen_infrules_from_insns : insn -> insn -> Invariant.t -> list Infrule.t.
-Parameter gen_infrules_next_inv : Invariant.t -> Invariant.t -> list Infrule.t.
+Parameter gen_infrules_next_inv : bool -> Invariant.t -> Invariant.t -> list Infrule.t.
 
 Fixpoint valid_cmds
          (m_src m_tgt:module)
@@ -46,7 +46,8 @@ Fixpoint valid_cmds
     match oinv1 with
     | None => failwith_None "valid_cmds: postcond_cmd returned None" nil
     | Some inv1 =>
-      let inv2 := apply_infrules m_src m_tgt infrules inv1 in
+      let infrules_auto := gen_infrules_next_inv true inv1 inv0 in
+      let inv2 := apply_infrules m_src m_tgt (infrules_auto++infrules) inv1 in
       let inv3 := reduce_maydiff inv2 in
       let inv := debug_print_validation_process infrules inv0 inv1 inv2 inv3 inv in
       if
@@ -54,7 +55,7 @@ Fixpoint valid_cmds
          then true
          else
            (* TODO: need new print method *)
-           let infrules := gen_infrules_next_inv inv3 inv in
+           let infrules := gen_infrules_next_inv false inv3 inv in
            let inv3_infr := apply_infrules m_src m_tgt infrules inv3 in
            let inv3_red := reduce_maydiff inv3_infr in
            let inv3_red := debug_print_auto infrules inv3_red in
@@ -86,13 +87,14 @@ Definition valid_phinodes
     match postcond_phinodes l_from phinodes_src phinodes_tgt inv0 with
       | None => failwith_false "valid_phinodes: postcond_phinodes returned None at phinode" (l_from::l_to::nil)
       | Some inv1 =>
-        let inv2 := apply_infrules m_src m_tgt infrules inv1 in
+        let infrules_auto := gen_infrules_next_inv true inv1 inv0 in
+        let inv2 := apply_infrules m_src m_tgt (infrules_auto++infrules) inv1 in
         let inv3 := reduce_maydiff inv2 in
         let inv4 := hint_stmts.(ValidationHint.invariant_after_phinodes) in
         let inv4 := debug_print_validation_process infrules inv0 inv1 inv2 inv3 inv4 in
         if negb (Invariant.implies inv3 inv4)
         then
-          let infrules := gen_infrules_next_inv inv3 inv4 in
+          let infrules := gen_infrules_next_inv false inv3 inv4 in
           let inv3_infr := apply_infrules m_src m_tgt infrules inv3 in
           let inv3_red := reduce_maydiff inv3_infr in
           let inv3_red := debug_print_auto infrules inv3_red in
