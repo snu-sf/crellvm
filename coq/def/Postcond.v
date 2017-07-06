@@ -636,6 +636,65 @@ Definition may_produce_UB (b0: bop): bool :=
   end
 .
 
+Definition is_known_total (e0: Expr.t): bool :=
+  match e0 with
+  | Expr.value (ValueT.id idt0) => true
+  | Expr.value (ValueT.const (const_undef ty0)) => true
+  | _ => false
+  end
+.
+
+(* Spec: if e0 is known to be calculated, then retval of this fuc is known to be nonzero *)
+(* TODO: better definition, name, spec? *)
+(* TODO: Under current semantics, this spec does not hold: undef/0 is calculated to undef. *)
+(* However, it is problem of semantics, undef/0 should give UB too. calc denom first. *)
+Definition get_dangerous_denom (e0: Expr.t): option ValueT.t :=
+  match e0 with
+  | Expr.bop b1 sz1 va1 vb1 =>
+    if may_produce_UB b1
+    then Some vb1
+    else None
+  | _ => None
+  end
+.
+
+
+(* 1. x is total *)
+(* 2. by semantics of lessdef, y is calculated *)
+(* 3. by spec of get_dangerous_denom, y is nonzero *)
+(* 4. by def of injection, denom_tgt is nonzero (if it was zero, src too) *)
+
+(* Note that, 1. this reasoning holds for non-int case *)
+(* 2. Even if it does not hold, we can add type-checking on our invariant *)
+Definition is_known_nonzero_by_src (inv: Invariant.t) (denom_tgt: value): bool :=
+  ExprPairSet.exists_
+    (fun xy =>
+       (is_known_total (xy.(fst)))
+         &&
+         (match (get_dangerous_denom (xy.(snd))) with
+          | Some y => (Invariant.inject_value inv y (ValueT.lift Tag.physical denom_tgt))
+          | None => false
+          end))
+    (inv.(Invariant.src).(Invariant.lessdef))
+.
+
+Definition is_known_total_nonzero (e0: Expr.t): bool :=
+  match e0 with
+  | Expr.value (ValueT.const (const_int sz0 i0)) =>
+    negb (INTEGER.dec (INTEGER.of_Z (Size.to_Z sz0) 0%Z true) i0)
+  | _ => false
+  end
+.
+
+Definition is_known_nonzero_unary (inv: Invariant.unary) (denom: value): bool :=
+  ExprPairSet.exists_
+    (fun xy =>
+       (is_known_total_nonzero xy.(fst))
+         &&
+         Expr.eq_dec (xy.(snd)) (ValueT.lift Tag.physical denom))
+    (inv.(Invariant.lessdef))
+.
+
 Definition postcond_cmd_inject_event
            (src tgt:cmd)
            (inv:Invariant.t): bool :=
@@ -726,8 +785,11 @@ Definition postcond_cmd_inject_event
            && (Invariant.inject_value inv (ValueT.lift Tag.physical va0) (ValueT.lift Tag.physical va1))
            && (Invariant.inject_value inv (ValueT.lift Tag.physical vb0) (ValueT.lift Tag.physical vb1))
     else true
-  | _, insn_bop _ b1 sz1 va1 vb1 => negb (may_produce_UB b1)
-
+  | _, insn_bop _ b1 sz1 va1 vb1 =>
+    if (may_produce_UB b1)
+    then (is_known_nonzero_by_src inv vb1)
+         || (is_known_nonzero_unary inv.(Invariant.src) vb1)
+    else true
   | _, _ => true
   end.
 
