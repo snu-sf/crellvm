@@ -479,10 +479,15 @@ module IntroGhostHelper = struct
                                         | _ -> true) epl
 
     let find_unique_v (g:id) (is_src:bool) (ld:ExprPairSet.t) : Expr.t option =
-      let f = if is_src then Auto.get_lhs_list else Auto.get_rhs_list in
-      let l = f ld (Expr.Coq_value (ValueT.Coq_id (Tag.Coq_ghost, g))) in
-      (* print_endline ("find_unique_v of "^g^"list len:"^(string_of_int (List.length l))); *)
-      if (List.length l = 1) then Some (List.nth l 0) else None
+      let filtered_ld =
+        ExprPairSet.filter (fun (e1, e2) -> List.exists (fun idt -> IdT.eq_dec idt (Tag.Coq_ghost, g))
+                                                        ((Expr.get_idTs e1)@(Expr.get_idTs e2))) ld in
+      match (ExprPairSet.elements filtered_ld) with
+      | (e1, e2)::[] ->
+         let ge = Expr.Coq_value (ValueT.Coq_id (Tag.Coq_ghost, g)) in
+         if Expr.eq_dec e1 ge then Some e2 else
+           if Expr.eq_dec e2 ge then Some e1 else None
+      | _ -> None
 
     let is_prev_pair (e:Expr.t) (inv:Invariant.t) : bool =
       (* let ld = inv.Invariant.src.Invariant.lessdef in *)
