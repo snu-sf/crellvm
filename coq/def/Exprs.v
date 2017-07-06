@@ -101,6 +101,14 @@ Module ValueT <: UsualDecidableType.
       | id i => Some i
       | const _ => None
     end.
+
+  Definition substitute (from: IdT.t) (to: ValueT.t) (body: ValueT.t): ValueT.t :=
+    match body with
+    | ValueT.id i => if(IdT.eq_dec from i) then to else body
+    | _ => body
+    end
+  .
+
 End ValueT.
 Hint Resolve ValueT.eq_dec: EqDecDb.
 Coercion ValueT.id: IdT.t >-> ValueT.t_.
@@ -284,6 +292,10 @@ Module Expr <: UsualDecidableType.
     | (Expr.load v _blah _blah2) =>
       (Expr.load (f v) _blah _blah2)
     end.
+
+  Definition substitute (from: IdT.t) (to: ValueT.t) (body: t): t :=
+    (Expr.map_valueTs body (ValueT.substitute from to))
+  .
 
   Definition is_load (e: t): bool :=
     match e with

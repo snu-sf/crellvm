@@ -432,11 +432,6 @@ Notation "{{ inv --- x }}" := (Invariant.update_maydiff (IdTSet.filter (fun y =>
 
 (* TODO *)
 
-Definition is_defined inv0 expr :=
-  ExprPairSet.exists_
-    (fun xy => let (_, y) := xy in
-               Expr.eq_dec expr y) (Invariant.lessdef inv0).
-
 Definition load_align_one (e1: Expr.t): Expr.t :=
   match e1 with
   | Expr.load v ty a => Expr.load v ty Align.One
@@ -1581,32 +1576,17 @@ Definition apply_infrule
   | Infrule.substitute x y e =>
     if $$ inv0 |-src (Expr.value x) >= (Expr.value y) $$
     then
-      let x_to_y := (fun v =>
-                       match v with
-                       | ValueT.id i => if(IdT.eq_dec x i) then y else v
-                       | _ => v
-                       end) in
-      {{inv0 +++src e >= (Expr.map_valueTs e x_to_y)}}
+      {{inv0 +++src e >= (Expr.substitute x y e)}}
     else apply_fail tt
   | Infrule.substitute_rev x y e =>
     if $$ inv0 |-src (Expr.value y) >= (Expr.value x) $$
     then
-      let x_to_y := (fun v =>
-                       match v with
-                       | ValueT.id i => if(IdT.eq_dec x i) then y else v
-                       | _ => v
-                       end) in
-      {{inv0 +++src (Expr.map_valueTs e x_to_y) >= e}}
+      {{inv0 +++src (Expr.substitute x y e) >= e}}
     else apply_fail tt
   | Infrule.substitute_tgt x y e =>
     if $$ inv0 |-tgt (Expr.value x) >= (Expr.value y) $$
     then
-      let x_to_y := (fun v =>
-                       match v with
-                       | ValueT.id i => if(IdT.eq_dec x i) then y else v
-                       | _ => v
-                       end) in
-      {{inv0 +++tgt e >= (Expr.map_valueTs e x_to_y)}}
+      {{inv0 +++tgt e >= (Expr.substitute x y e)}}
     else apply_fail tt
   | Infrule.replace_rhs x y e1 e2 e2' =>
     if $$ inv0 |-src (Expr.value x) >= (Expr.value y) $$ &&

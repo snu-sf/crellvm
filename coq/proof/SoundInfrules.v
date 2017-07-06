@@ -22,6 +22,7 @@ Require InvState.
 Require Import SoundBase.
 Require Import TODOProof.
 Require Import SoundInfruleIntroGhost.
+Require Import SoundInfruleSubstitute.
 
 Set Implicit Arguments.
 
@@ -335,9 +336,33 @@ Proof.
   - ADMIT "trunc_trunc_rev_tgt".
   - ADMIT "trunc_load_bitcast_rev_tgt".
   - ADMIT "trunc_load_const_bitcast_rev_tgt".
-  - ADMIT "!substitute".
-  - ADMIT "!substitute_rev".
-  - ADMIT "!substitute_tgt".
+  - (* substitute *)
+    exists invst0, invmem0.
+    esplits; eauto; [ | reflexivity ].
+    ss. des_ifs.
+    econs; eauto; try apply STATE.
+    hexploit InvState.Rel.lessdef_expr_spec2; eauto; try apply STATE.
+    intro LD; des. clear Heq.
+    inv STATE. clear - SRC LD.
+    eapply substitute_spec_unary; eauto.
+  - (* substitute_rev *)
+    exists invst0, invmem0.
+    esplits; eauto; [ | reflexivity ].
+    ss. des_ifs.
+    econs; eauto; try apply STATE.
+    hexploit InvState.Rel.lessdef_expr_spec2; eauto; try apply STATE.
+    intro LD; des. clear Heq.
+    inv STATE. clear - SRC LD.
+    eapply substitute_spec_unary_rev; eauto.
+  - (* substitute_tgt *)
+    exists invst0, invmem0.
+    esplits; eauto; [ | reflexivity ].
+    ss. des_ifs.
+    econs; eauto; try apply STATE.
+    hexploit InvState.Rel.lessdef_expr_spec2; eauto; try apply STATE.
+    intro LD; des. clear Heq.
+    inv STATE. clear - TGT LD.
+    eapply substitute_spec_unary; eauto.
   - ADMIT "udiv_sub_urem".
   - ADMIT "udiv_zext".
   - ADMIT "udiv_zext_const".
