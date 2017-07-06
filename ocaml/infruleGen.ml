@@ -15,7 +15,7 @@ module AutoOpt = struct
 module Auto = struct
     type scope_t = Src | Tgt
 
-    type t1 = Invariant.t -> Invariant.t -> (Infrule.t list * Invariant.t)
+    type t1 = bool -> Invariant.t -> Invariant.t -> (Infrule.t list * Invariant.t)
     type t2 = Invariant.t -> ValueTPair.t list -> (Infrule.t list * ValueTPair.t list)
     type t = t1 * t2
 
@@ -669,21 +669,24 @@ module AutoGVNModule = struct
       | [] -> (acc_ghosts, acc_infrs, acc_ld)
 
     let auto1 : Auto.t1 =
-      fun inv inv_g ->
-      let ghost_intd, infrs1, ld_src =
-        run_intl Auto.Src inv.Invariant.src.Invariant.lessdef inv.Invariant.tgt.Invariant.lessdef
-                 (ExprPairSet.elements inv_g.Invariant.src.Invariant.lessdef)
-                 [] [] inv_g.Invariant.src.Invariant.lessdef
-      in
-      let _, infrs2, ld_tgt =
-        run_intl Auto.Tgt inv.Invariant.tgt.Invariant.lessdef inv.Invariant.src.Invariant.lessdef
-                 (ExprPairSet.elements inv_g.Invariant.tgt.Invariant.lessdef)
-                 ghost_intd  [] inv_g.Invariant.tgt.Invariant.lessdef in
-      (infrs1@infrs2,
-       Invariant.update_src
-         (Invariant.update_lessdef (fun _ -> ld_src))
-         (Invariant.update_tgt
-            (Invariant.update_lessdef (fun _ -> ld_tgt)) inv_g))
+      fun isfirst inv inv_g ->
+      if isfirst then
+        ([], inv_g)
+      else
+        let ghost_intd, infrs1, ld_src =
+          run_intl Auto.Src inv.Invariant.src.Invariant.lessdef inv.Invariant.tgt.Invariant.lessdef
+                   (ExprPairSet.elements inv_g.Invariant.src.Invariant.lessdef)
+                   [] [] inv_g.Invariant.src.Invariant.lessdef
+        in
+        let _, infrs2, ld_tgt =
+          run_intl Auto.Tgt inv.Invariant.tgt.Invariant.lessdef inv.Invariant.src.Invariant.lessdef
+                   (ExprPairSet.elements inv_g.Invariant.tgt.Invariant.lessdef)
+                   ghost_intd  [] inv_g.Invariant.tgt.Invariant.lessdef in
+        (infrs1@infrs2,
+         Invariant.update_src
+           (Invariant.update_lessdef (fun _ -> ld_src))
+           (Invariant.update_tgt
+              (Invariant.update_lessdef (fun _ -> ld_tgt)) inv_g))
   end
 
 (** Framework 1. AutoNextInvariant *)
@@ -715,7 +718,7 @@ module AutoRemMD (GEN:InjectValueGenerator) : AutoNextInv = struct
              run_intl inv inv_goal_new (infrs_acc@infrs) md_t
           | None -> run_intl inv inv_goal infrs_acc md_t)
 
-    let run (inv:Invariant.t) (inv_goal:Invariant.t)
+    let run (isfirst:bool) (inv:Invariant.t) (inv_goal:Invariant.t)
         : Infrule.t list * Invariant.t =
       let md : IdT.t list =
         IdTSet.elements inv.Invariant.maydiff in
@@ -760,19 +763,23 @@ module AutoUnaryLD (ULDG:UnaryLDGenerator): AutoNextInv = struct
         List.filter (fun x -> not (List.exists (ExprPair.eq_dec x) ld)) ld_goal in
       run_intl scp inv_u inv_u_goal [] ld_remain
 
-    let run (inv:Invariant.t) (inv_goal:Invariant.t)
+    let run (isfirst:bool) (inv:Invariant.t) (inv_goal:Invariant.t)
         : Infrule.t list * Invariant.t =
-      Printer.debug_print "AutoInfruleGen: AutoUnaryLD start";
-      let (infrs_src, inv_src) =
-        run_unary Auto.Src inv.Invariant.src inv_goal.Invariant.src in
-      Printer.debug_print "AutoInfruleGen: AutoUnaryLD src end";
-      let (infrs_tgt, inv_tgt) =
-        run_unary Auto.Tgt inv.Invariant.tgt inv_goal.Invariant.tgt in
-      Printer.debug_print "AutoInfruleGen: AutoUnaryLD tgt end";
-      let new_goal = Invariant.update_tgt
-                       (fun _ -> inv_tgt)
-                       (Invariant.update_src (fun _ -> inv_src) inv_goal) in
-      (infrs_src@infrs_tgt, new_goal)
+      if isfirst then
+        ([], inv_goal)
+      else (
+        Printer.debug_print "AutoInfruleGen: AutoUnaryLD start";
+        let (infrs_src, inv_src) =
+          run_unary Auto.Src inv.Invariant.src inv_goal.Invariant.src in
+        Printer.debug_print "AutoInfruleGen: AutoUnaryLD src end";
+        let (infrs_tgt, inv_tgt) =
+          run_unary Auto.Tgt inv.Invariant.tgt inv_goal.Invariant.tgt in
+        Printer.debug_print "AutoInfruleGen: AutoUnaryLD tgt end";
+        let new_goal = Invariant.update_tgt
+                         (fun _ -> inv_tgt)
+                         (Invariant.update_src (fun _ -> inv_src) inv_goal) in
+        (infrs_src@infrs_tgt, new_goal)
+      )
   end
 
 (** 2. AutoInjectValues *)
@@ -818,7 +825,7 @@ module AutoInstCombineModule : AutoNextInv = struct
               generated_itms in
       (infrules, ExprPairSet.union lessdefs newlessdefs)
 
-    let run : Auto.t1 = fun (inv:Invariant.t) (inv_goal:Invariant.t) ->
+    let run : Auto.t1 = fun (isfirst:bool) (inv:Invariant.t) (inv_goal:Invariant.t) ->
       let lessdefs_src = inv.src.lessdef in
       let (infrules_src1, lessdefs_added) = _apply_commutativities
               Auto.Src lessdefs_src (AutoCommHelper.find_commrules_on_e1) in
@@ -841,13 +848,13 @@ module AutoInstCombineModule : AutoNextInv = struct
                   (Invariant.update_lessdef (fun _ -> lessdefs_tgt))
                   inv) in
 
-      let (infrules_trans, inv_goal) = AutoUnaryLD_Trans.run newinv inv_goal in
+      let (infrules_trans, inv_goal) = AutoUnaryLD_Trans.run false newinv inv_goal in
       (infrules_src1@infrules_src2@infrules_src3@infrules_src4@infrules_trans,
           inv_goal)
   end
 
 module Auto_Default1 : AutoNextInv = struct
-    let run : Auto.t1 = fun _ r -> ([], r)
+    let run : Auto.t1 = fun _ _ r -> ([], r)
   end
 
 (** Instances of AutoInjectValues *)
@@ -862,6 +869,7 @@ module Auto_Default2 : AutoInjVal = struct
     let run : Auto.t2 = fun _ vp -> ([], vp)
   end
 
+(*
 let compose1 (a1:Auto.t1) (a2:Auto.t1) : Auto.t1 =
   fun inv0 invg ->
   let (infrs1, invg1) = a1 inv0 invg in
@@ -873,6 +881,7 @@ let compose2 (a1:Auto.t2) (a2:Auto.t2) : Auto.t2 =
   let (infrs1, vpl1) = a1 inv0 vpl in
   let (infrs2, vpl2) = a2 inv0 vpl1 in
   (infrs1@infrs2, vpl2)
+*)
 
 (** candidates *)
 
@@ -933,10 +942,10 @@ let gen_infrules_from_insns
   Printer.debug_print "AutoInfruleGen: gen_infrules_from_insns end";
   res
 
-let gen_infrules_next_inv (inv:Invariant.t) (inv_nxt:Invariant.t)
+let gen_infrules_next_inv (isfirst:bool) (inv:Invariant.t) (inv_nxt:Invariant.t)
     : Infrule.t list =
   Printer.debug_print "AutoInfruleGen: gen_infrules_next_inv start";
   let run = fst (AutoStrategy.select ()) in
-  let res = fst (run inv inv_nxt) in
+  let res = fst (run isfirst inv inv_nxt) in
   Printer.debug_print "AutoInfruleGen: gen_infrules_next_inv end";
   res
