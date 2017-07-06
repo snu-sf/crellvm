@@ -610,7 +610,6 @@ Module Infrule.
   Definition is_arithmetic (infrule : t) : bool :=
     match infrule with
     (* | gepzero _ _ => false *)
-    | gep_inbounds_remove _ => false
     (* | gep_inbounds_add _ _ _ _ _ => false *)
     | transitivity _ _ _ => false
     | transitivity_tgt _ _ _ => false
