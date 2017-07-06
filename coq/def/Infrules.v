@@ -1575,18 +1575,6 @@ Definition apply_infrule
     then
       {{inv0 +++tgt e >= (Expr.substitute x y e)}}
     else apply_fail tt
-  | Infrule.replace_rhs x y e1 e2 e2' =>
-    if $$ inv0 |-src (Expr.value x) >= (Expr.value y) $$ &&
-       $$ inv0 |-src e1 >= e2 $$ &&
-       cond_replace_lessdef x y e2 e2'
-    then {{inv0 +++src e1 >= e2'}}
-    else apply_fail tt
-  | Infrule.replace_rhs_opt x y e1 e2 e2' =>
-    if $$ inv0 |-tgt (Expr.value x) >= (Expr.value y) $$ &&
-       $$ inv0 |-tgt e1 >= e2 $$ &&
-       cond_replace_lessdef x y e2 e2'
-    then {{inv0 +++tgt e1 >= e2'}}
-    else apply_fail tt
   | Infrule.sext_zext src mid dst srcty midty dstty =>
     if $$ inv0 |-src (Expr.value mid) >= (Expr.ext extop_z srcty src midty) $$ &&
        $$ inv0 |-src (Expr.value dst) >= (Expr.ext extop_s midty mid dstty) $$
