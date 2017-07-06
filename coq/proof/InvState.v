@@ -1120,6 +1120,22 @@ Module Rel.
   Qed.
 
   (* TODO: location *)
+  Lemma mload_lessdef_sim_eq
+        TD m0 g ty a val0
+        (LOAD0: mload TD m0 g ty a = Some val0)
+        val2
+        (LD: GVs.lessdef g val2)
+    :
+      <<LOAD1: mload TD m0 val2 ty a = Some val0 >>
+  .
+  Proof.
+    rewrite <- LOAD0.
+    inv LD; ss. destruct a1, b1; ss. des; clarify.
+    inv H; ss.
+    inv H0; ss.
+  Qed.
+
+  (* TODO: location *)
   Lemma list_forallb2_spec
         X (xs ys: list X) f
     :
@@ -1214,14 +1230,9 @@ Module Rel.
       apply lessdef_inject_identity; ss.
     - eapply H2; eauto.
     - apply lessdef_inject_identity in VAL.
-      inv VAL; ss.
-      destruct a1, b1; ss. des; clarify.
-      inv H0; ss; cycle 1.
-      { unfold mload in *. ss. exfalso. des_ifs. }
-      inv H; ss; cycle 1.
-      { unfold mload in *. ss. des_ifs.
-        esplits; eauto. eapply GVs.lessdef_refl.
-      }
+      erewrite mload_lessdef_sim_eq; eauto.
+      esplits; eauto.
+      apply GVs.lessdef_refl.
   Qed.
 
   (* TODO: put off 2 from here, rename colliding lemma *)

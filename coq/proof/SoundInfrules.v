@@ -340,8 +340,99 @@ Proof.
           repeat rewrite <- load_realign_sem_expr; eauto.
     }
     eapply InvState.Unary.sem_lessdef_trans; eauto.
-  - ADMIT "!transitivity_pointer_lhs".
-  - ADMIT "!transitivity_pointer_rhs".
+  - (* transitivity-pointer-lhs *)
+    exists invst0, invmem0. splits; eauto; [|reflexivity].
+    ss.
+    match goal with
+    | [|- context[if ?c then _ else _]] => destruct c eqn:C
+    end; ss.
+    econs; eauto; try apply STATE. ss.
+    inv STATE. clear - C SRC.
+    des_bool. des.
+    rename p into from. rename q into to.
+    hexploit InvState.Rel.lessdef_expr_spec2; eauto. intro LD0; des. clear C0.
+    hexploit InvState.Rel.lessdef_expr_spec2; eauto. intro LD1; des. clear C.
+    rename v into v0.
+    destruct from; ss; cycle 1.
+    { econs; eauto; try apply SRC.
+      inv SRC. clear - LESSDEF LD0 LD1.
+      ii. ss.
+      apply Exprs.ExprPairSetFacts.add_iff in H. des.
+      - clarify. ss. des_ifs.
+        exploit LD1; eauto. i; des. ss.
+        eapply LD0; eauto. ss. des_ifs.
+        eapply InvState.Rel.mload_lessdef_sim_eq; eauto.
+      - eapply LESSDEF; eauto.
+    }
+    rename x into from.
+    exploit substitute_spec_unary; eauto.
+    instantiate (1:= Exprs.Expr.load (Exprs.ValueT.id from) ty a).
+    intro SRC1; des. ss. des_ifs.
+    econs; eauto; try apply SRC1.
+    (* inv SRC1. clear - LESSDEF LD0 LD1. ss. *)
+    ii.
+    apply Exprs.ExprPairSetFacts.add_iff in H. des.
+    { clarify. ss. des_ifs.
+      eapply LD0; eauto. ss.
+      exploit LD1; eauto. i; des. ss.
+      des_ifs.
+      erewrite InvState.Rel.mload_lessdef_sim_eq; eauto.
+    }
+    destruct x; ss.
+    hexploit InvState.Rel.lessdef_expr_spec; try apply H; eauto.
+    { ss.
+      eapply Exprs.ExprPairSetFacts.mem_iff; eauto.
+      eapply Exprs.ExprPairSetFacts.add_iff; eauto.
+    }
+  - (* transitivity-pointer-rhs *)
+    exists invst0, invmem0. splits; eauto; [|reflexivity].
+    ss.
+    match goal with
+    | [|- context[if ?c then _ else _]] => destruct c eqn:C
+    end; ss.
+    econs; eauto; try apply STATE. ss.
+    inv STATE. clear - C SRC.
+    des_bool. des.
+    rename p into from. rename q into to.
+    hexploit InvState.Rel.lessdef_expr_spec2; eauto. intro LD0; des. clear C0.
+    hexploit InvState.Rel.lessdef_expr_spec2; eauto. intro LD1; des. clear C.
+    rename v into v0.
+    destruct from; ss; cycle 1.
+    { econs; eauto; try apply SRC.
+      inv SRC. clear - LESSDEF LD0 LD1.
+      ii. ss.
+      apply Exprs.ExprPairSetFacts.add_iff in H. des.
+      - clarify. ss.
+        exploit LD0; eauto. i; des. ss. des_ifs_safe.
+        exploit LD1; eauto. i; des. ss. des_ifs_safe.
+        esplits; eauto.
+        erewrite InvState.Rel.mload_lessdef_sim_eq; eauto.
+      - eapply LESSDEF; eauto.
+    }
+    rename x into from.
+    exploit substitute_spec_unary; eauto.
+    instantiate (1:= Exprs.Expr.load (Exprs.ValueT.id from) ty a).
+    intro SRC1; des. ss. des_ifs.
+    econs; eauto; try apply SRC1.
+    (* inv SRC1. clear - LESSDEF LD0 LD1. ss. *)
+    ii.
+    apply Exprs.ExprPairSetFacts.add_iff in H. des.
+    {
+      destruct x; ss. clarify.
+      eapply InvState.Unary.sem_lessdef_trans; [apply LD0|..]; eauto; ss.
+      ii. ss. des_ifs_safe.
+      exploit LD1; eauto. i; des. ss.
+      des_ifs_safe. clear - VAL0 VAL.
+      erewrite InvState.Rel.mload_lessdef_sim_eq; eauto.
+      esplits; eauto.
+      apply GVs.lessdef_refl.
+    }
+    destruct x; ss.
+    hexploit InvState.Rel.lessdef_expr_spec; try apply H; eauto.
+    { ss.
+      eapply Exprs.ExprPairSetFacts.mem_iff; eauto.
+      eapply Exprs.ExprPairSetFacts.add_iff; eauto.
+    }
   - ADMIT "trunc_onebit".
   - ADMIT "trunc_zext".
   - ADMIT "trunc_sext".
