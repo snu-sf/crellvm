@@ -85,13 +85,13 @@ module Reachable = struct
 
   (* the set of nodes that is reachable to "t" without visiting "f" in "fd". *)
   let to_block (f:atom) (t:atom) (ids:AtomSetImpl.t) (fd:LLVMsyntax.fdef) : bool * AtomSetImpl.t =
-        (* if not (AtomSetImpl.mem t ids) *)
-        (* then (false, AtomSetImpl.empty) *)
-        (* else *)
-    let is_t_in_ids = AtomSetImpl.mem t ids in
-    let predecessors = Cfg.predecessors fd in
-    let res = _filtered t f ids predecessors in
-    if not is_t_in_ids then (fst res, AtomSetImpl.remove t (snd res)) else res
+    if not (AtomSetImpl.mem t ids)
+    then (false, AtomSetImpl.empty)
+    else
+      let is_t_in_ids = AtomSetImpl.mem t ids in
+      let predecessors = Cfg.predecessors fd in
+      let res = _filtered t f ids predecessors in
+      if not is_t_in_ids then (fst res, AtomSetImpl.remove t (snd res)) else res
 
   (* the set of nodes that is reachable from "f". *)
   let from_block (block_id_from:atom) (fdef:LLVMsyntax.fdef) : AtomSetImpl.t =
