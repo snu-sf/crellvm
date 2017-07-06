@@ -1201,6 +1201,18 @@ Module Rel.
       esplits; eauto.
       apply lessdef_inject_identity; ss.
     - expl lessdef_expr_spec (try exact LD_EXPR0; eauto).
+    - expl lessdef_expr_spec (try exact LD_EXPR0; eauto).
+      ss.
+      des_ifs_safe.
+      inv GV.
+      { ss. }
+      inv H0; ss; cycle 1.
+      { unfold mload in *. ss. exfalso. des_ifs. }
+      destruct a1, b1; ss. des; clarify.
+      inv H; ss; cycle 1.
+      { unfold mload in *. ss. des_ifs.
+        esplits; eauto. eapply GVs.lessdef_refl.
+      }
   Qed.
 
   Lemma inject_value_spec
