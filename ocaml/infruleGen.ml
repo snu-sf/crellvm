@@ -490,7 +490,8 @@ module AutoSubstTransHelper = struct
       in (infrs, Invariant.update_lessdef (fun _ -> ld_g) inv_u_g)
 
     let auto1 : Auto.t1 =
-      fun inv inv_g ->
+      fun b inv inv_g ->
+      if b then ([], inv_g) else
       let (infrs1, inv_src_g) = auto1_unary Auto.Src inv.Invariant.src inv_g.Invariant.src in
       let (infrs2, inv_tgt_g) = auto1_unary Auto.Tgt inv.Invariant.tgt inv_g.Invariant.tgt in
       let inv_g = Invariant.update_src (fun _ -> inv_src_g) inv_g in
@@ -666,7 +667,8 @@ module AutoGVNModule = struct
       
 
     let new_auto1 : Auto.t1 =
-      fun inv inv_g ->
+      fun b inv inv_g ->
+      if b then ([], inv_g) else
       let intros = IntroGhostHelper.find_to_intro inv inv_g in
       let infrs_intros = IntroGhostHelper.gen_infrule intros in
       let intros_e = List.map (fun (x, e) -> (Expr.Coq_value (ValueT.Coq_id (Tag.Coq_ghost, x)), e)) intros in
