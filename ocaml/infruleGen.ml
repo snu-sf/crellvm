@@ -516,8 +516,9 @@ module IntroGhostHelper = struct
       | Expr.Coq_value (ValueT.Coq_id (Tag.Coq_ghost, x)) -> x
       | _ -> failwith "get_ghost_id applied to non-ghost expr"
 
-    let find_non_value_src (epl : ExprPair.t list) : ExprPair.t option =
-      Auto.find_first_matchb (fun ep -> match (fst ep) with
+    let find_non_value (is_src:bool) (epl : ExprPair.t list) : ExprPair.t option =
+      let f = if is_src then fst else snd in
+      Auto.find_first_matchb (fun ep -> match (f ep) with
                                         | Expr.Coq_value _ -> false
                                         | _ -> true) epl
 
@@ -560,15 +561,24 @@ module IntroGhostHelper = struct
                          if (List.mem g existing_ghosts) then intros_acc else
                            let src_side = List.filter (check_intro_cand Auto.Src g)
                                                       (ExprPairSet.elements inv_g.Invariant.src.Invariant.lessdef) in
-                           (* let tgt_side = List.filter (check_intro_cand Auto.Tgt g) *)
-                           (*                            (ExprPairSet.elements inv_g.Invariant.tgt.Invariant.lessdef) in *)
-                           match find_non_value_src src_side with
+                           let tgt_side = List.filter (check_intro_cand Auto.Tgt g)
+                                                      (ExprPairSet.elements inv_g.Invariant.tgt.Invariant.lessdef) in
+                           match find_non_value true src_side with
                            (* | Some ep -> (get_ghost_id (snd ep), fst ep)::intros_acc *)
                            | Some ep -> (g, fst ep)::intros_acc
                            | None -> if List.length src_side > 0
                                      then let ep = List.nth src_side 0 in
                                           (g, fst ep)::intros_acc
-                                     else intros_acc) [] ghosts_g
+                                     else
+                                       match find_non_value false tgt_side with
+                                       (* | Some ep -> (get_ghost_id (snd ep), fst ep)::intros_acc *)
+                                       | Some ep -> (g, snd ep)::intros_acc
+                                       | None -> if List.length tgt_side > 0
+                                                 then let ep = List.nth tgt_side 0 in
+                                                      (g, snd ep)::intros_acc
+                                                 else intros_acc)
+
+                     [] ghosts_g
 
     let gen_infrule (l: (id * Expr.t) list) : Infrule.t list =
       List.map (fun (g, e) -> Infrule.Coq_intro_ghost (e, g)) l
