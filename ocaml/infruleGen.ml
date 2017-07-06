@@ -677,7 +677,7 @@ module AutoGVNModule = struct
       let inv = Invariant.update_tgt (Invariant.update_lessdef (augment_ld (fun ep -> ep))) inv in
       let inv = Invariant.update_tgt (Invariant.update_lessdef (process_load inv_g.Invariant.tgt.Invariant.lessdef))
                                      inv in
-      let (infrs_st, inv_g) = AutoSubstTransHelper.auto1 inv inv_g in
+      let (infrs_st, inv_g) = AutoSubstTransHelper.auto1 b inv inv_g in
       (infrs_intros@infrs_st, inv_g)
 
     type ghost_intd_t = (id * Expr.t) list
