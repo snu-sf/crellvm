@@ -524,11 +524,24 @@ module IntroGhostHelper = struct
          if (is_prev_pair e1 inv) then Some e1 else None
       | _ -> None
 
-    let extr_num (x:id) : int =
-      int_of_string (String.sub x 1 (String.length x - 1))
+    (* let extr_num (x:id) : int = *)
+    (*   int_of_string (String.sub x 1 (String.length x - 1)) *)
 
-    let sort_ghost (l:(id * Expr.t) list) =
-      List.sort (fun a b -> compare (extr_num (fst a)) (extr_num (fst b))) l
+    (* let sort_ghost (l:(id * Expr.t) list) = *)
+    (*   List.sort (fun a b -> compare (extr_num (fst a)) (extr_num (fst b))) l *)
+
+    let is_indep (x:id * Expr.t) (l:(id * Expr.t) list) : bool =
+      not (List.exists (fun (_, e) -> List.exists (IdT.eq_dec (Tag.Coq_ghost, fst x)) (Expr.get_idTs e)) l)
+
+    let rec find_indep l_todo l_seen : ((id * Expr.t) * ((id * Expr.t) list)) option =
+      match l_todo with
+      | [] -> None
+      | h::t -> if is_indep h (t@l_seen) then Some (h, t@l_seen) else find_indep t (h::l_seen)
+
+    let rec order_ghosts (l: (id * Expr.t) list) : (id * Expr.t) list =
+      match find_indep l [] with
+      | Some (xe, l_t) -> (order_ghosts l_t)@[xe]
+      | None -> l
 
     let find_to_intro (inv:Invariant.t) (inv_g:Invariant.t) : (id * Expr.t) list =
       let check_intro_cand scp g ep: bool =
@@ -563,7 +576,7 @@ module IntroGhostHelper = struct
                                                                 else intros_acc)
 
                                     [] ghosts_g
-      in sort_ghost raw_list
+      in order_ghosts raw_list
 
     let gen_infrule (l: (id * Expr.t) list) : Infrule.t list =
       List.map (fun (g, e) -> Infrule.Coq_intro_ghost (e, g)) l
