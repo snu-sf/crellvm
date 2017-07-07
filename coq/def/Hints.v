@@ -609,8 +609,6 @@ Module Infrule.
 
   Definition is_arithmetic (infrule : t) : bool :=
     match infrule with
-    (* | gepzero _ _ => false *)
-    (* | gep_inbounds_add _ _ _ _ _ => false *)
     | transitivity _ _ _ => false
     | transitivity_tgt _ _ _ => false
     | transitivity_pointer_lhs _ _ _ _ _ => false
@@ -630,6 +628,58 @@ Module Infrule.
     | implies_false _ _ => false
     | _ => true
     end.
+
+  Definition is_used_outside_instcombine (infrule : t) :bool :=
+    match infrule with
+    | intro_ghost _ _ => true
+    | transitivity _ _ _ => true
+    | transitivity_tgt _ _ _ => true
+    | intro_eq_tgt _ => true
+    | substitute _ _ _ => true
+    | substitute_rev _ _ _ => true
+    | substitute_tgt _ _ _ => true
+    | gep_inbounds_remove _ => true
+    | and_true_bool _ _ => true
+    | and_true_bool_tgt _ _ => true
+    | or_false _ _ _ => true
+    | or_false_tgt _ _ _ => true
+    | icmp_eq_same _ _ _ => true
+    | icmp_neq_same _ _ _ => true
+    | icmp_eq_same_tgt _ _ _ => true
+    | icmp_neq_same_tgt _ _ _ => true
+    | bop_commutative _ _ _ _ _ => true
+    | bop_commutative_tgt _ _ _ _ _ => true
+    | bop_commutative_rev _ _ _ _ _ => true
+    | bop_commutative_rev_tgt _ _ _ _ _ => true
+    | fbop_commutative _ _ _ _ _ => true
+    | fbop_commutative_tgt _ _ _ _ _ => true
+    | fbop_commutative_rev _ _ _ _ _ => true
+    | fbop_commutative_rev_tgt _ _ _ _ _ => true
+    | icmp_swap_operands _ _ _ _ _ => true
+    | icmp_swap_operands_tgt _ _ _ _ _ => true
+    | icmp_swap_operands_rev _ _ _ _ _ => true
+    | icmp_swap_operands_rev_tgt _ _ _ _ _ => true
+    | fcmp_swap_operands _ _ _ _ _ => true
+    | fcmp_swap_operands_tgt _ _ _ _ _ => true
+    | fcmp_swap_operands_rev _ _ _ _ _ => true
+    | fcmp_swap_operands_rev_tgt _ _ _ _ _ => true
+    | icmp_inverse _ _ _ _ _ => true
+    | icmp_inverse_tgt _ _ _ _ _ => true
+    | icmp_inverse_rhs _ _ _ _ _ => true
+    | icmp_inverse_rhs_tgt _ _ _ _ _ => true
+    | trunc_trunc_rev_tgt _ _ _ _ _ _ => true
+    | bitcast_bitcast_rev_tgt _ _ _ _ _ _ => true
+    | trunc_load_const_bitcast_rev_tgt _ _ _ _ _ _ => true
+    | trunc_load_bitcast_rev_tgt _ _ _ _ _ _ _ => true
+    | lessthan_undef _ _ => true
+    | lessthan_undef_tgt _ _ => true
+    | _ => false
+    end
+  .
+
+  Definition is_of_interest (infrule : t) : bool :=
+    (negb (is_arithmetic infrule)) && (is_used_outside_instcombine infrule).
+  
 End Infrule.
 
 Module ValidationHint.
