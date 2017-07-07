@@ -517,11 +517,12 @@ module IntroGhostHelper = struct
       List.exists (fun e0 -> match e0 with Expr.Coq_value (ValueT.Coq_id (Tag.Coq_previous, _)) -> true | _ -> false) l
 
     let simple_phi (g:id) (inv:Invariant.t) (inv_g:Invariant.t) : Expr.t option =
+      let _ = print_endline ("gid: "^g) in
       match find_unique_v g true inv_g.Invariant.src.Invariant.lessdef,
             find_unique_v g false inv_g.Invariant.tgt.Invariant.lessdef with
-      | Some e1, Some e2 when Expr.eq_dec e1 e2 ->
+      | Some e1, Some e2 when Expr.eq_dec e1 e2 -> Some e1
          (* print_endline "simple_phi yes"; *)
-         if (is_prev_pair e1 inv) then Some e1 else None
+         (* if (is_prev_pair e1 inv) then Some e1 else None *)
       | _ -> None
 
     (* let extr_num (x:id) : int = *)
@@ -534,11 +535,13 @@ module IntroGhostHelper = struct
       not (List.exists (fun (_, e) -> List.exists (IdT.eq_dec (Tag.Coq_ghost, fst x)) (Expr.get_idTs e)) l)
 
     let rec find_indep l_todo l_seen : ((id * Expr.t) * ((id * Expr.t) list)) option =
+      (* print_endline ("find_indep start"); *)
       match l_todo with
       | [] -> None
       | h::t -> if is_indep h (t@l_seen) then Some (h, t@l_seen) else find_indep t (h::l_seen)
 
     let rec order_ghosts (l: (id * Expr.t) list) : (id * Expr.t) list =
+      (* print_endline ("order_ghosts start with length "^(string_of_int (List.length l))); *)
       match find_indep l [] with
       | Some (xe, l_t) -> (order_ghosts l_t)@[xe]
       | None -> l
