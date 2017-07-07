@@ -524,6 +524,12 @@ module IntroGhostHelper = struct
          if (is_prev_pair e1 inv) then Some e1 else None
       | _ -> None
 
+    let extr_num (x:id) : int =
+      int_of_string (String.sub x 1 (String.length x - 1))
+
+    let sort_ghost (l:(id * Expr.t) list) =
+      List.sort (fun a b -> compare (extr_num (fst a)) (extr_num (fst b))) l
+
     let find_to_intro (inv:Invariant.t) (inv_g:Invariant.t) : (id * Expr.t) list =
       let check_intro_cand scp g ep: bool =
         match ((if scp = Auto.Src then snd else fst) ep) with
@@ -532,31 +538,32 @@ module IntroGhostHelper = struct
       in
       let existing_ghosts : id list = gather_ghost inv in
       let ghosts_g : id list = gather_ghost inv_g in
-      List.fold_left (fun intros_acc g ->
-                      match simple_phi g inv inv_g with
-                      | Some (e) -> (g, e)::intros_acc
-                      | None ->
-                         if (List.mem g existing_ghosts) then intros_acc else
-                           let src_side = List.filter (check_intro_cand Auto.Src g)
-                                                      (ExprPairSet.elements inv_g.Invariant.src.Invariant.lessdef) in
-                           let tgt_side = List.filter (check_intro_cand Auto.Tgt g)
-                                                      (ExprPairSet.elements inv_g.Invariant.tgt.Invariant.lessdef) in
-                           match find_non_value true src_side with
-                           (* | Some ep -> (get_ghost_id (snd ep), fst ep)::intros_acc *)
-                           | Some ep -> (g, fst ep)::intros_acc
-                           | None -> if List.length src_side > 0
-                                     then let ep = List.nth src_side 0 in
-                                          (g, fst ep)::intros_acc
-                                     else
-                                       match find_non_value false tgt_side with
-                                       (* | Some ep -> (get_ghost_id (snd ep), fst ep)::intros_acc *)
-                                       | Some ep -> (g, snd ep)::intros_acc
-                                       | None -> if List.length tgt_side > 0
-                                                 then let ep = List.nth tgt_side 0 in
-                                                      (g, snd ep)::intros_acc
-                                                 else intros_acc)
+      let raw_list = List.fold_left (fun intros_acc g ->
+                                     match simple_phi g inv inv_g with
+                                     | Some (e) -> (g, e)::intros_acc
+                                     | None ->
+                                        if (List.mem g existing_ghosts) then intros_acc else
+                                          let src_side = List.filter (check_intro_cand Auto.Src g)
+                                                                     (ExprPairSet.elements inv_g.Invariant.src.Invariant.lessdef) in
+                                          let tgt_side = List.filter (check_intro_cand Auto.Tgt g)
+                                                                     (ExprPairSet.elements inv_g.Invariant.tgt.Invariant.lessdef) in
+                                          match find_non_value true src_side with
+                                          (* | Some ep -> (get_ghost_id (snd ep), fst ep)::intros_acc *)
+                                          | Some ep -> (g, fst ep)::intros_acc
+                                          | None -> if List.length src_side > 0
+                                                    then let ep = List.nth src_side 0 in
+                                                         (g, fst ep)::intros_acc
+                                                    else
+                                                      match find_non_value false tgt_side with
+                                                      (* | Some ep -> (get_ghost_id (snd ep), fst ep)::intros_acc *)
+                                                      | Some ep -> (g, snd ep)::intros_acc
+                                                      | None -> if List.length tgt_side > 0
+                                                                then let ep = List.nth tgt_side 0 in
+                                                                     (g, snd ep)::intros_acc
+                                                                else intros_acc)
 
-                     [] ghosts_g
+                                    [] ghosts_g
+      in sort_ghost raw_list
 
     let gen_infrule (l: (id * Expr.t) list) : Infrule.t list =
       List.map (fun (g, e) -> Infrule.Coq_intro_ghost (e, g)) l
