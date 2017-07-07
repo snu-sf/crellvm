@@ -1317,7 +1317,8 @@ Definition apply_infrule
     if ($$ inv0 |-src (Expr.value z) >= (Expr.bop bop_shl s y vc) $$ ||
        $$ inv0 |-src (Expr.value z) >= (Expr.bop bop_ashr s y vc) $$ ||
        $$ inv0 |-src (Expr.value z) >= (Expr.bop bop_lshr s y vc) $$) &&
-       cond_le s (INTEGER.of_Z (Size.to_Z s) (Size.to_Z s) true) c
+       ((cond_le s (INTEGER.of_Z (Size.to_Z s) (Size.to_Z s) true) c) ||
+        (cond_le s c (INTEGER.of_Z (Size.to_Z s) (-1)%Z true)))
     then
       let inv1 := {{ inv0 +++src (Expr.value z) >= (Expr.value vundef) }} in
       {{ inv1 +++src (Expr.value vundef) >= (Expr.value z) }}
