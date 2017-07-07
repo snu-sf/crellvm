@@ -27,13 +27,13 @@ Require Import SoundInfruleTransitivity.
 
 Set Implicit Arguments.
 
-Lemma apply_not_interest_infrule_sound
+Lemma apply_not_interesting_infrule_sound
       m_src m_tgt
       conf_src st_src
       conf_tgt st_tgt
       invst0 invmem0 inv0
       infrule
-      (NOTINTEREST: Hints.Infrule.is_of_interest infrule = false)
+      (INTEREST: Hints.Infrule.is_of_interest infrule = false)
       (CONF: InvState.valid_conf m_src m_tgt conf_src conf_tgt)
       (STATE: InvState.Rel.sem conf_src conf_tgt st_src st_tgt invst0 invmem0 inv0)
       (MEM: InvMem.Rel.sem conf_src conf_tgt st_src.(Mem) st_tgt.(Mem) invmem0):
@@ -43,11 +43,11 @@ Lemma apply_not_interest_infrule_sound
     <<MEM: InvMem.Rel.sem conf_src conf_tgt st_src.(Mem) st_tgt.(Mem) invmem1>> /\
     <<MEMLE: InvMem.Rel.le invmem0 invmem1>>.
 Proof.
-  ADMIT "we will not prove soundness of arithmetic infrules or instcombine's infrules, 
-Alive (SMT solver) can prove this".
+  ADMIT "We will not prove soundness of arithmetic infrules as Alive (SMT solver) can prove them.
+Also, we haven't prove soundness of infrules that are only used inside instcombine pass.".
 Qed.
 
-Lemma apply_interest_infrule_sound
+Lemma apply_interesting_infrule_sound
       m_src m_tgt
       conf_src st_src
       conf_tgt st_tgt
@@ -326,8 +326,8 @@ Lemma apply_infrule_sound
     <<MEMLE: InvMem.Rel.le invmem0 invmem1>>.
 Proof.
   destruct (Hints.Infrule.is_of_interest infrule) eqn:T; ss.
-  - eapply apply_interest_infrule_sound; eauto.
-  - eapply apply_not_interest_infrule_sound; eauto.
+  - eapply apply_interesting_infrule_sound; eauto.
+  - eapply apply_not_interesting_infrule_sound; eauto.
 Qed.
 
 Lemma apply_infrules_sound
