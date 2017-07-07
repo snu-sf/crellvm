@@ -1614,6 +1614,16 @@ Definition apply_infrule
                        end) in
       {{inv0 +++tgt e >= (Expr.map_valueTs e x_to_y)}}
     else apply_fail tt
+  | Infrule.substitute_rev_tgt x y e =>
+    if $$ inv0 |-tgt (Expr.value y) >= (Expr.value x) $$
+    then
+      let x_to_y := (fun v =>
+                       match v with
+                       | ValueT.id i => if(IdT.eq_dec x i) then y else v
+                       | _ => v
+                       end) in
+      {{inv0 +++tgt (Expr.map_valueTs e x_to_y) >= e}}
+    else apply_fail tt
   | Infrule.replace_rhs x y e1 e2 e2' =>
     if $$ inv0 |-src (Expr.value x) >= (Expr.value y) $$ &&
        $$ inv0 |-src e1 >= e2 $$ &&

@@ -36,6 +36,11 @@ module Auto = struct
       | Src -> Infrule.Coq_substitute (x, v, e)
       | Tgt -> Infrule.Coq_substitute_tgt (x, v, e)
 
+    let substitute_rev (scp:scope_t) x v e : Infrule.t =
+      match scp with
+      | Src -> Infrule.Coq_substitute_rev (x, v, e)
+      | Tgt -> Infrule.Coq_substitute_rev_tgt (x, v, e)
+
     let bop_commutative scp e op a b sz : Infrule.t =
       match scp with
       | Src -> Infrule.Coq_bop_commutative (e, op, a, b, sz)
@@ -265,7 +270,7 @@ module AutoCommHelper = struct
   end
 
 module AutoSubstTransHelper = struct
-    let max_depth : int = 3
+    let max_depth : int = 5
 
     let bdd (e:Expr.t) (oe:Expr.t option) : Expr.t =
       match oe with
@@ -288,11 +293,28 @@ module AutoSubstTransHelper = struct
                                                 if ValueT.eq_dec v0 (ValueT.Coq_id (x))
                                                 then v2 else v0) in
                  do_subst scp e_n vplt (Auto.substitute scp x v2 e1::acc_infrs)
-              | _ -> None
+              | _ -> match v2 with
+                     | ValueT.Coq_id (y) ->
+                        let e_n = Expr.map_valueTs e1 (fun v0 ->
+                                                       if ValueT.eq_dec v0 v1
+                                                       then v2 else v0) in
+                        do_subst scp e_n vplt (Auto.substitute_rev scp y v1 e_n::acc_infrs)
+                     | _ -> None
+
 
     (* Make [(bdd e1 oe1) >= (bdd e2 oe2)]. *)
     (* If e1 = e2 and oe1=oe2=None, do nothing. *)
     let rec run depth scp ld oel e1 e2 oer : (Infrule.t list) option =
+      let string_of_exprpairlist (el:ExprPair.t list): string =
+        let sl = List.map (fun (e1, e2) ->
+                           (Printer.ExprsToString.of_expr e1) ^ ">="^
+                             (Printer.ExprsToString.of_expr e2)) el
+        in 
+        List.fold_left (fun ss s -> ss^"\n"^s) "" sl
+      in 
+      let _ = print_endline ("run d="^(string_of_int depth)) in
+      let _ = print_endline ("e1="^(Printer.ExprsToString.of_expr e1)) in
+      let _ = print_endline ("e2="^(Printer.ExprsToString.of_expr e2)) in
       if depth > max_depth then None
       else if (Expr.eq_dec e1 e2)
       then match oel, oer with
@@ -300,34 +322,45 @@ module AutoSubstTransHelper = struct
            | _ -> Some []
       else if ExprPairSet.mem (e1, e2) ld
       then match oel, oer with
-           | None, None -> Some []
-           | Some el, None -> Some [Auto.transitivity scp el e1 e2]
-           | None, Some er -> Some [Auto.transitivity scp e1 e2 er]
-           | Some el, Some er -> Some [Auto.transitivity scp el e1 e2;
-                                       Auto.transitivity scp el e2 er]
-      else match by_destruct depth scp ld oel e1 e2 oer with
-           | Some infrs -> Some infrs
-           | None ->
-              match by_trans_left depth scp ld oel e1 e2 oer with
-                     | Some infrs -> Some infrs
-                     | None -> by_trans_right depth scp ld oel e1 e2 oer
+           | None, None -> let _ = print_endline "succeed1" in Some []
+           | Some el, None -> let _ = print_endline "succeed2" in Some [Auto.transitivity scp el e1 e2]
+           | None, Some er -> let _ = print_endline "succeed3" in Some [Auto.transitivity scp e1 e2 er]
+           | Some el, Some er -> let _ = print_endline "succeed4" in Some [Auto.transitivity scp el e1 e2;
+                                                                           Auto.transitivity scp el e2 er]
+      else
+        let _ = print_endline ((Printer.ExprsToString.of_expr e1)^">="^(Printer.ExprsToString.of_expr e2)) in
+        let _ = print_endline ("not in "^string_of_exprpairlist (ExprPairSet.elements ld)) in
+        let _ = print_endline "==about to call by_destruct" in
+
+        match by_destruct depth scp ld oel e1 e2 oer with
+        | Some infrs -> Some infrs
+        | None ->
+           (let _ = print_endline "about to call by_trans_left" in
+            match by_trans_left depth scp ld oel e1 e2 oer with
+            | Some infrs -> Some infrs
+            | None -> by_trans_right depth scp ld oel e1 e2 oer
+           )
 
     (* Generates (bdd oe1 e1) >= (bdd oer e2) *)
     and by_destruct depth scp ld oel e1 e2 oer : (Infrule.t list) option =
       let do_left h e1_new : (Infrule.t list) option =
+        let _ = print_endline "do_left" in
         match oel with
         | Some el ->
            attach_oinfrs (h el) [] (by_dest_intl depth scp ld oel e1_new e2 oer)
         | None -> None in
       let do_right h e2_new : (Infrule.t list) option =
+        let _ = print_endline "do_right" in
         match oer with
         | Some er ->
            attach_oinfrs (h er) [] (by_dest_intl depth scp ld oel e1 e2_new oer)
         | None -> None in
       let res_fin =
+        let _ = print_endline "by_destruct called : about to call by_dest_intl" in
       match by_dest_intl depth scp ld oel e1 e2 oer with
       | Some infrs -> Some infrs
       | None ->
+         let _ = print_endline "by_dest_intl failed" in
          (match e1, e2 with
           | Expr.Coq_gep (true, tya, v, lsv, tyb), Expr.Coq_gep (false, _, _, _, _) ->
              attach_oinfrs
@@ -371,10 +404,10 @@ module AutoSubstTransHelper = struct
     and by_dest_intl depth scp ld oel e1 e2 oer : (Infrule.t list) option =
       match e1, e2 with
       | Expr.Coq_value _, _
-      | _, Expr.Coq_value _ -> None
+      | _, Expr.Coq_value _ -> let _ = print_endline "one is value" in None
       | _, _ ->
          match Auto.eq_exps_values e1 e2 with
-         | None -> None
+         | None -> let _ = print_endline "expr not matched" in None
          | Some vpl ->
             match
               List.fold_left
@@ -386,7 +419,13 @@ module AutoSubstTransHelper = struct
                     if (ValueT.eq_dec v1 v2) then a else
                     let e_m = match e_stk with h::_ -> h | [] -> e1 in
                     let e_m_n = Auto.repl_value e_m v1 v2 in
-                    (attach_oinfrs acc_infrs [] (run (depth+1) scp ld None (Expr.Coq_value v1) (Expr.Coq_value v2) None), e_m_n::e_stk))
+                    let oinfrs = (run (depth+1) scp ld None (Expr.Coq_value v1) (Expr.Coq_value v2) None) in
+                    let _ = match oinfrs with
+                      | Some _ -> print_endline "by_dest_intl Some"
+                      | None -> print_endline "by_dest_intl None"
+                    in
+                    let a_oinfrs = attach_oinfrs acc_infrs [] oinfrs in
+                    (a_oinfrs, e_m_n::e_stk))
                 (Some [], [e1]) vpl
             with
             | None, _ -> None
@@ -397,11 +436,15 @@ module AutoSubstTransHelper = struct
                              (do_subst scp e1 vpl [])
 
     and by_trans_left depth scp ld oel e1 e2 oer : (Infrule.t list) option =
+      let _ = print_endline "by_trans_left" in
+      let _ = print_endline ("e1="^(Printer.ExprsToString.of_expr e1)) in
+      let _ = print_endline ("e2="^(Printer.ExprsToString.of_expr e2)) in
       match Auto.find_first_match (fun e1_r ->
                                    run (depth+1) scp ld (Some e1) e1_r e2 oer)
                                   (Auto.get_rhs_list ld e1) with
       | None -> None
       | Some (_, infrs) ->
+         let _ = print_endline "matched in left" in
          match oel with
          | Some el -> Some (infrs@[Auto.transitivity scp el e1 (bdd e2 oer)])
          | _ -> Some infrs
@@ -412,6 +455,7 @@ module AutoSubstTransHelper = struct
                                   (Auto.get_lhs_list ld e2) with
       | None -> None
       | Some (_, infrs) ->
+         let _ = print_endline "matched in right" in
          match oer with
          | Some er -> Some (infrs@[Auto.transitivity scp (bdd e1 oel) e2 er])
          | _ -> Some infrs
