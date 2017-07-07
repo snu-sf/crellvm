@@ -200,19 +200,24 @@ Proof.
       rename s0 into __s0__.
       rename s into __s__.
 
-      abstr (gen_infrules_next_inv
-                           (Postcond.reduce_maydiff
-                              (Infrules.apply_infrules m_src m_tgt
-                                 (lookup_phinodes_infrules __s0__ (fst CurBB0)) t0))
-                           (ValidationHint.invariant_after_phinodes __s0__)) infrulesA0.
-      abstr (gen_infrules_next_inv
-                           (Postcond.reduce_maydiff
-                              (Infrules.apply_infrules m_src m_tgt
-                                 (lookup_phinodes_infrules __s__ (fst CurBB0)) t))
-                           (ValidationHint.invariant_after_phinodes __s__)) infrulesB0.
+      Ltac abstr_gen_infrules HYP NAME :=
+        match goal with
+        | [H: context[(gen_infrules_next_inv false ?x ?y)] |- _ ] =>
+          check_equal H HYP;
+          abstr (gen_infrules_next_inv false x y) NAME
+        end.
+      Ltac abstr_gen_infrules_first HYP NAME :=
+        match goal with
+        | [H: context[(gen_infrules_next_inv true ?x ?y) ++ ?z] |- _ ] =>
+          check_equal H HYP;
+          abstr ((gen_infrules_next_inv true x y) ++ z) NAME
+        end.
+
+      abstr_gen_infrules COND1 infrulesA0.
+      abstr_gen_infrules COND2 infrulesB0.
       unfold l in *.
 
-      abstr (lookup_phinodes_infrules __s0__ (@fst atom stmts CurBB0)) infrulesA2.
+      abstr_gen_infrules_first COND1 infrulesA2.
       abstr (ValidationHint.invariant_after_phinodes __s0__) inv_afterA.
       assert(exists infrulesA1,
                 (Invariant.implies
@@ -226,7 +231,7 @@ Proof.
           eapply implies_reduce_maydiff; eauto. }
       clear COND1.
 
-      abstr (lookup_phinodes_infrules __s__ (@fst atom stmts CurBB0)) infrulesB2.
+      abstr_gen_infrules_first COND2 infrulesB2.
       abstr (ValidationHint.invariant_after_phinodes __s__) inv_afterB.
       abstr (ValidationHint.cmds __s__) cmdsB.
       assert(exists infrulesB1,
@@ -354,13 +359,10 @@ Proof.
       repeat (simtac0; []).
       expl valid_fdef_valid_stmts.
       hide_goal.
-      abstr (gen_infrules_next_inv
-                           (Postcond.reduce_maydiff
-                              (Infrules.apply_infrules m_src m_tgt (lookup_phinodes_infrules s (fst CurBB0))
-                                 t)) (ValidationHint.invariant_after_phinodes s)) infrulesA0.
+      abstr_gen_infrules COND0 infrulesA0.
       unfold l in *.
 
-      abstr (lookup_phinodes_infrules s (@fst atom stmts CurBB0)) infrulesA2.
+      abstr_gen_infrules_first COND0 infrulesA2.
       abstr (ValidationHint.invariant_after_phinodes s) inv_afterA.
       assert(exists infrulesA1,
                 (Invariant.implies
@@ -482,15 +484,11 @@ Proof.
 
         eq_closure_tac. clarify.
 
-        abstr (gen_infrules_next_inv
-                 (Postcond.reduce_maydiff
-                    (Infrules.apply_infrules m_src m_tgt
-                                             (lookup_phinodes_infrules s (fst CurBB0)) t))
-                 (ValidationHint.invariant_after_phinodes s)) infrulesA0.
+        abstr_gen_infrules COND_DFLT infrulesA0.
         unfold l in *.
 
 
-        abstr (lookup_phinodes_infrules s (@fst atom stmts CurBB0)) infrulesA2.
+        abstr_gen_infrules_first COND_DFLT infrulesA2.
         abstr (ValidationHint.invariant_after_phinodes s) inv_afterA.
         assert(exists infrulesA1,
                   (Invariant.implies
@@ -558,15 +556,11 @@ Proof.
         ss. eq_closure_tac. clarify.
         expl valid_fdef_valid_stmts. ss.
 
-        abstr (gen_infrules_next_inv
-                 (Postcond.reduce_maydiff
-                    (Infrules.apply_infrules m_src m_tgt
-                                             (lookup_phinodes_infrules s0 (fst CurBB0)) t0))
-                 (ValidationHint.invariant_after_phinodes s0)) infrulesA0.
+        abstr_gen_infrules COND_CASES infrulesA0.
         unfold l in *.
 
 
-        abstr (lookup_phinodes_infrules s0 (@fst atom stmts CurBB0)) infrulesA2.
+        abstr_gen_infrules_first COND_CASES infrulesA2.
         abstr (ValidationHint.invariant_after_phinodes s0) inv_afterA.
         assert(exists infrulesA1,
                   (Invariant.implies
@@ -731,6 +725,9 @@ Proof.
                                            (gen_infrules_from_insns (insn_cmd c) (insn_cmd c0) inv) inv)
               end) eqn: PCND; try by ss.
 
+    abstr (gen_infrules_next_inv true t0 inv ++ l1) l2.
+    clear l1. rename l2 into l1. (* to minimize proof break *)
+
     rename t into __t__.
     assert(PCND0: exists infrulesA,
               Postcond.postcond_cmd
@@ -748,7 +745,8 @@ Proof.
               (Postcond.reduce_maydiff
                  (Infrules.apply_infrules
                     m_src m_tgt infrulesB
-                    (Postcond.reduce_maydiff (Infrules.apply_infrules m_src m_tgt l1 t0)))) __t__ = true).
+                    (Postcond.reduce_maydiff
+                       (Infrules.apply_infrules m_src m_tgt l1 t0)))) __t__ = true).
     { des_ifs.
       - exists nil. ss.
         rewrite <- apply_is_true.

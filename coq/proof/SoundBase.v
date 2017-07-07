@@ -242,6 +242,68 @@ Proof.
   - eauto.
 Qed.
 
+Lemma is_known_nonzero_by_src_Subset
+      inv0 inv1 v0
+      (NONZERO: Postcond.is_known_nonzero_by_src inv0 v0 = true)
+      (SUBSET: Hints.Invariant.Subset inv0 inv1)
+  :
+    <<NONZERO: Postcond.is_known_nonzero_by_src inv1 v0 = true>>
+.
+Proof.
+  red.
+  unfold Postcond.is_known_nonzero_by_src in *.
+  apply ExprPairSetFacts.exists_iff; try by solve_compat_bool.
+  apply ExprPairSetFacts.exists_iff in NONZERO; try by solve_compat_bool.
+  unfold ExprPairSet.Exists in *.
+  des. des_bool. des.
+  exists x.
+  split; ss.
+  - eapply ExprPairSetFacts.In_s_m; eauto.
+    apply SUBSET.
+  - des_ifs_safe. ss.
+    erewrite InvState.Subset.inject_value_Subset; eauto.
+Qed.
+
+Lemma is_known_nonzero_unary_Subset
+      inv0 inv1 v0
+      (NONZERO: Postcond.is_known_nonzero_unary inv0 v0 = true)
+      (SUBSET: Hints.Invariant.Subset_unary inv0 inv1)
+  :
+    <<NONZERO: Postcond.is_known_nonzero_unary inv1 v0 = true>>
+.
+Proof.
+  red.
+  unfold Postcond.is_known_nonzero_unary in *.
+  apply ExprPairSetFacts.exists_iff; try by solve_compat_bool.
+  apply ExprPairSetFacts.exists_iff in NONZERO; try by solve_compat_bool.
+  unfold ExprPairSet.Exists in *.
+  des. des_bool. des.
+  exists x.
+  split; ss.
+  - eapply ExprPairSetFacts.In_s_m; eauto.
+    apply SUBSET.
+  - des_ifs_safe.
+Qed.
+
+Lemma is_known_nonzero_Subset
+      inv0 inv1 value2
+      (NONZERO: Postcond.is_known_nonzero_by_src inv0 value2
+                || Postcond.is_known_nonzero_unary (Invariant.src inv0) value2)
+      (SUBSET: Invariant.Subset inv0 inv1)
+  :
+    <<NONZERO: Postcond.is_known_nonzero_by_src inv1 value2
+               || Postcond.is_known_nonzero_unary (Invariant.src inv1) value2>>
+.
+Proof.
+  red.
+  unfold is_true in *.
+  des_bool. des.
+  - erewrite is_known_nonzero_by_src_Subset; try eassumption; ss.
+  - erewrite is_known_nonzero_unary_Subset; try eassumption; ss.
+    + apply orb_true_r.
+    + apply SUBSET.
+Qed.
+
 Lemma postcond_cmd_inject_event_Subset cmd_src cmd_tgt inv0 inv1
       (INJECT_EVENT: Postcond.postcond_cmd_inject_event cmd_src cmd_tgt inv0)
       (SUBSET: Hints.Invariant.Subset inv0 inv1)
@@ -250,51 +312,31 @@ Lemma postcond_cmd_inject_event_Subset cmd_src cmd_tgt inv0 inv1
 .
 Proof.
   red.
-  destruct cmd_src; destruct cmd_tgt; ss;
-    try by 
-      (unfold is_true in *; repeat (des_bool; des);
-       inject_clarify; try rewrite andb_true_r; try (rewrite andb_true_iff; split);
-       eapply InvState.Subset.inject_value_Subset; eauto).
-  - des_ifs. unfold is_true in *.
-    repeat (des_bool; des; des_sumbool); ss; clarify.
-    destruct (bop_dec _ _); ss.
-    destruct (sz_dec _ _); ss.
-    apply andb_true_iff.
-    split; ss.
-    + eapply InvState.Subset.inject_value_Subset; eauto.
-    + eapply InvState.Subset.inject_value_Subset; eauto.
-  (* - unfold is_true in *. des_bool; des. *)
-  (*   apply andb_true_iff. *)
-  (*   split; ss. *)
-  (*   + apply Exprs.ExprPairSet.exists_2 in INJECT_EVENT; try by solve_compat_bool. *)
-  (*     inv INJECT_EVENT. des. *)
-  (*     exploit Exprs.ExprPairSet.exists_1; try by solve_compat_bool. *)
-  (*     inv SUBSET. inv SUBSET_SRC. *)
-  (*     exploit SUBSET_LESSDEF; eauto. i. *)
-  (*     econs; eauto. *)
-  (*   + destruct value1; ss. des_bool. apply negb_true_iff. *)
-  (*     apply IdTSetFacts.not_mem_iff. *)
-  (*     apply IdTSetFacts.not_mem_iff in INJECT_EVENT0. *)
-  (*     ii. *)
-  (*     apply INJECT_EVENT0. *)
-  (*     inv SUBSET. *)
-  (*     expl SUBSET_MAYDIFF. *)
-  - unfold Hints.Invariant.is_private in *. des_ifs.
-    inv SUBSET. inv SUBSET_SRC.
-    unfold is_true in *.
-    InvState.Subset.conv_mem2In.
-    exploit SUBSET_PRIVATE; eauto.
-  - unfold is_true in *; repeat (des_bool; des).
-    inject_clarify.
-    rewrite andb_true_iff; split.
-    + eapply InvState.Subset.inject_value_Subset; eauto.
-    + eapply TODO.list_forallb2_implies; eauto.
-      i. ss.
-      repeat match goal with
-             | [a: ?t * ?s |- _] => destruct a
-             end.
-      des_bool; des. clarify. ss.
-      eapply InvState.Subset.inject_value_Subset; eauto.
+  {
+    destruct cmd_src; destruct cmd_tgt; ss;
+      des_ifs; ss; try (by eapply is_known_nonzero_Subset; eauto);
+        unfold proj_sumbool, is_true in *; des_ifs; ss; des_bool; des;
+          try (eapply InvState.Subset.inject_value_Subset; eauto); ss.
+    - apply andb_true_iff.
+      split; eapply InvState.Subset.inject_value_Subset; eauto.
+    - unfold Hints.Invariant.is_private in *. des_ifs.
+      inv SUBSET. inv SUBSET_SRC.
+      unfold is_true in *.
+      InvState.Subset.conv_mem2In.
+      exploit SUBSET_PRIVATE; eauto.
+    - apply andb_true_iff. des_bool. des.
+      split; eapply InvState.Subset.inject_value_Subset; eauto.
+    - apply andb_true_iff.
+      split; ss.
+      + eapply InvState.Subset.inject_value_Subset; eauto.
+      + eapply TODO.list_forallb2_implies; eauto.
+        i. ss.
+        repeat match goal with
+               | [a: ?t * ?s |- _] => destruct a
+               end.
+        des_bool; des. clarify. ss.
+        eapply InvState.Subset.inject_value_Subset; eauto.
+  }
 Qed.
 
 (* tactics from yoonseung *)
