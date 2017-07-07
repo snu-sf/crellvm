@@ -1346,13 +1346,6 @@ Proof.
         exploit function_entry_gids_aux; eauto.
         i. des; subst. eapply function_entry_gids_sound; eauto.
         eapply wf_ConfigI_spec in WF_CONF_SRC; eauto.
-    + econs; ss; eauto.
-      * ii. clarify.
-        eapply Exprs.ValueTPairSetFacts.empty_iff; eauto.
-        eapply Exprs.ValueTPairSetFacts.mem_iff; eauto.
-      * ii. clarify.
-        eapply Exprs.PtrPairSetFacts.empty_iff; eauto.
-        eapply Exprs.PtrPairSetFacts.mem_iff; eauto.
     + ii. exfalso. eapply AtomSetFacts.empty_iff; eauto.
     + ii. exfalso. eapply Exprs.IdTSetFacts.empty_iff; eauto.
     + (* wf_lc *)
@@ -1414,13 +1407,6 @@ Proof.
         exploit function_entry_gids_aux; eauto.
         i. des; subst. eapply function_entry_gids_sound; eauto.
         eapply wf_ConfigI_spec in WF_CONF_TGT; eauto.
-    + econs; ss; eauto.
-      * ii. clarify.
-        eapply Exprs.ValueTPairSetFacts.empty_iff; eauto.
-        eapply Exprs.ValueTPairSetFacts.mem_iff; eauto.
-      * ii. clarify.
-        eapply Exprs.PtrPairSetFacts.empty_iff; eauto.
-        eapply Exprs.PtrPairSetFacts.mem_iff; eauto.
     + ii. exfalso. eapply AtomSetFacts.empty_iff; eauto.
     + ii. exfalso. eapply Exprs.IdTSetFacts.empty_iff; eauto.
     + (* wf_lc *)

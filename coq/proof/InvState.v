@@ -96,6 +96,16 @@ Module Unary.
   Definition update_both f x :=
     update_ghost f (update_previous f x).
 
+  Definition clear_idt (idt0: IdT.t) (invst: t): t :=
+    match idt0 with
+    | (Tag.physical, id0) => invst
+    | (Tag.previous, id0) => (mk (filter_AL_atom (fun x => negb (id_dec id0 x)) invst.(previous))
+                                 invst.(ghost))
+    | (Tag.ghost, id0) => (mk (invst.(previous))
+                              (filter_AL_atom (fun x => negb (id_dec id0 x)) invst.(ghost)))
+    end
+  .
+
   Definition sem_tag (st:State) (invst:t) (tag:Tag.t): GVsMap :=
     match tag with
     | Tag.physical => st.(EC).(Locals)
@@ -211,6 +221,18 @@ Module Unary.
     exists val2,
       <<VAL2: sem_expr conf st invst es.(snd) = Some val2>> /\
       <<VAL: GVs.lessdef val1 val2>>.
+
+  Lemma sem_lessdef_trans
+        conf st invst e0 e1 e2
+        (LD01: Unary.sem_lessdef conf st invst (e0, e1))
+        (LD12: Unary.sem_lessdef conf st invst (e1, e2))
+    :
+      <<LD12: Unary.sem_lessdef conf st invst (e0, e2)>>
+  .
+  Proof.
+    ii. expl LD01. expl LD12. ss. esplits; eauto.
+    eapply GVs.lessdef_trans; eauto.
+  Qed.
 
   Definition sem_diffblock (conf:Config) (val1 val2:GenericValue): Prop :=
     list_disjoint (GV2blocks val1) (GV2blocks val2).
@@ -357,6 +379,10 @@ Module Rel.
 
   Definition update_both f x :=
     update_src f (update_tgt f x).
+
+  Definition clear_idt (idt0: IdT.t) (invst: t): t :=
+    mk (Unary.clear_idt idt0 invst.(src)) (Unary.clear_idt idt0 invst.(tgt))
+  .
 
   Definition sem_inject (st_src st_tgt:State) (invst:t) (inject:meminj) (id:IdT.t): Prop :=
     forall val_src (VAL_SRC: Unary.sem_idT st_src invst.(src) id = Some val_src),
@@ -764,6 +790,490 @@ Module Rel.
     - apply ExprPairSetFacts.mem_iff. eauto.
     - eauto.
     - eauto.
+  Qed.
+
+  Lemma lessdef_list_value_spec
+        conf st invst invmem gmax public inv
+        (STATE: Unary.sem conf st invst invmem gmax public inv)
+        lsv0 lsv1
+        (LD_EXPR0: List.map fst lsv0 = List.map fst lsv1)
+        (LD_EXPR1: list_forallb2
+                     (fun v1 v2 => ExprPairSet.mem
+                                     (Expr.value v1, Expr.value v2) (Invariant.lessdef inv))
+                     (List.map snd lsv0) (List.map snd lsv1) = true)
+        l0
+        (SEM: Unary.sem_list_valueT conf st invst lsv0 = ret l0)
+    :
+      exists l1,
+        <<SEM: Unary.sem_list_valueT conf st invst lsv1 = ret l1>> /\
+               <<GV: List.Forall2 GVs.lessdef l0 l1>>
+  .
+  Proof.
+    ginduction lsv0; ii; ss; des_ifs_safe; clarify.
+    { destruct lsv1; ss.
+      esplits; eauto. }
+    ss. destruct lsv1; ss.
+    clarify. ss.
+    des_ifs_safe. ss.
+    des_bool. des.
+    exploit lessdef_expr_spec; eauto. i; des. ss.
+    des_ifs_safe.
+    exploit IHlsv0; eauto. i; des.
+    des_ifs_safe.
+    esplits; eauto.
+  Qed.
+
+  Lemma lessdef_list_value_spec'
+        conf st invst
+        lsv0 lsv1
+        (LD_EXPR0: List.map fst lsv0 = List.map fst lsv1)
+        (LD_EXPR1: Forall2
+                     (fun v1 v2 : ValueT.t =>
+                        Unary.sem_lessdef conf st invst
+                                          (Expr.value v1, Expr.value v2)) (List.map snd lsv0)
+                     (List.map snd lsv1))
+        l0
+        (SEM: Unary.sem_list_valueT conf st invst lsv0 = ret l0)
+    :
+      exists l1,
+        <<SEM: Unary.sem_list_valueT conf st invst lsv1 = ret l1>> /\
+               <<GV: List.Forall2 GVs.lessdef l0 l1>>
+  .
+  Proof.
+    ginduction lsv0; ii; ss; des_ifs_safe; clarify.
+    { destruct lsv1; ss.
+      esplits; eauto. }
+    ss. destruct lsv1; ss.
+    clarify. inv LD_EXPR1.
+    des_ifs_safe. ss.
+    des_bool.
+    exploit H3; eauto. i; des. ss.
+    des_ifs_safe.
+    exploit IHlsv0; eauto. i; des.
+    des_ifs_safe.
+    esplits; eauto.
+  Qed.
+
+  Lemma lessdef_GV2val
+        TD gv0 gv1
+        (GV: GVs.lessdef gv0 gv1)
+    :
+      TODO.lift2_option Val.lessdef (GV2val TD gv0) (GV2val TD gv1)
+  .
+  Proof.
+    inv GV; ss.
+    des; ss. destruct a1, b1; ss. clarify.
+    inv H; ss.
+    - des_ifs; ss; try (by inv H0).
+    - des_ifs; ss; try (by inv H0).
+  Qed.
+
+  Lemma lessdef_mc2undefs
+        gv0 mcs0
+        (CHUNK: gv_chunks_match_typb_aux gv0 mcs0)
+    :
+      <<LD: GVs.lessdef (mc2undefs mcs0) gv0>>
+  .
+  Proof.
+    ginduction gv0; ii; ss.
+    - des_ifs. ss. econs; eauto.
+    - des_ifs. ss.
+      apply memory_chunk_eq_prop in H0. clarify.
+      econs; ss; eauto.
+      eapply IHgv0; eauto.
+  Qed.
+
+  Lemma lessdef_gundef
+        TD ty gv0
+        (UNDEF: gundef TD ty = ret gv0)
+        gv1
+        (CHUNK: gv_chunks_match_typb TD gv1 ty)
+    :
+      <<LD: GVs.lessdef gv0 gv1>>
+  .
+  Proof.
+    red.
+    unfold gundef, gv_chunks_match_typb in *. des_ifs.
+    eapply lessdef_mc2undefs; eauto.
+  Qed.
+
+  (* Vellvm: mbop_is_total *)
+  (* Just drag wf condition? *)
+  Lemma mbop_total
+        TD b0 s0 gva0 gvb0
+    :
+      exists val0, <<MBOP: mbop TD b0 s0 gva0 gvb0 = ret val0>> /\
+                           <<CHUNK: gv_chunks_match_typb TD val0 (typ_int (Size.to_nat s0))>>
+  .
+  Proof.
+    assert(MBOP: exists val0, mbop TD b0 s0 gva0 gvb0 = ret val0).
+    { unfold mbop.
+      des_ifs; try by (unfold gundef, flatten_typ; ss; esplits; eauto; des_ifs).
+    }
+    des.
+    expl mbop_matches_chunks.
+    esplits; eauto.
+    unfold Size.to_nat.
+    apply OpsemPP.gv_chunks_match_typ__gv_chunks_match_typb. auto.
+  Qed.
+
+  Lemma lessdef_mbop
+        b0 s0 val0 gva0 gva1 gvb0 gvb1
+        TD
+        (MBOP0: mbop TD b0 s0 gva0 gvb0 = ret val0)
+        (GVA: GVs.lessdef gva0 gva1)
+        (GVB: GVs.lessdef gvb0 gvb1)
+    :
+      exists val1, <<MBOP: mbop TD b0 s0 gva1 gvb1 = ret val1 >> /\ <<LD: GVs.lessdef val0 val1>>
+  .
+  Proof.
+    exploit lessdef_GV2val; try apply GVA; eauto.
+    instantiate (1:= TD).
+    intro VA.
+    exploit lessdef_GV2val; try apply GVB; eauto.
+    instantiate (1:= TD).
+    intro VB.
+    clear GVA GVB.
+    generalize (mbop_total TD b0 s0 gva1 gvb1); intro MBOP1. des.
+    esplits; eauto.
+    unfold mbop in *.
+    abstr (GV2val TD gva0) va0.
+    abstr (GV2val TD gva1) va1.
+    abstr (GV2val TD gvb0) vb0.
+    abstr (GV2val TD gvb1) vb1.
+    destruct va0, va1; ss; [|]; cycle 1.
+    { rewrite MBOP in *. clarify. eapply GVs.lessdef_refl; eauto. }
+    destruct vb0, vb1; ss; [|]; cycle 1.
+    { des_ifs; try rewrite MBOP in *; clarify; eapply GVs.lessdef_refl; eauto. }
+    inv VA; ss; cycle 1.
+    { eapply lessdef_gundef; eauto. }
+    inv VB; ss; cycle 1.
+    { assert(UNDEF: gundef TD (typ_int (Size.to_nat s0)) = ret val0).
+      { destruct v0; ss. }
+      clear MBOP0.
+      eapply lessdef_gundef; eauto.
+    }
+    { assert(val0 = val1).
+      { des_ifs. }
+      clarify.
+      eapply GVs.lessdef_refl.
+    }
+  Qed.
+
+  Lemma int32_unsigned_repr_eq
+        (i0: int32)
+    :
+      <<EQ: i0 = (Int.repr 31 (Int.unsigned 31 i0))>>
+  .
+  Proof.
+    red.
+    destruct i0; ss.
+    unfold Int.repr.
+    apply Int.mkint_eq.
+    rewrite Int.Z_mod_modulus_eq.
+    rewrite Z.mod_small; ss.
+    omega.
+  Qed.
+
+  Lemma lessdef_inject_identity
+        gv0 gv1
+    :
+      genericvalues_inject.gv_inject inject_id gv0 gv1 <->
+      GVs.lessdef gv0 gv1
+  .
+  Proof.
+    split; i.
+    - ginduction H; ii; ss.
+      { econs; eauto; ss. }
+      econs; eauto; ss.
+      splits; ss.
+      inv H; ss. clear CHUNK.
+      unfold inject_id in *. clarify.
+      unfold Int.add. ss.
+      rewrite Z.add_0_r.
+      rewrite <- int32_unsigned_repr_eq.
+      econs; eauto.
+    - ginduction H; ii; ss.
+      destruct a1, b1; ss.
+      des; clarify; ss.
+      econs; eauto.
+      inv H; ss.
+      destruct v0; ss.
+      econs; eauto.
+      { unfold inject_id. ss. }
+      unfold Int.add. ss.
+      rewrite Z.add_0_r.
+      rewrite <- int32_unsigned_repr_eq.
+      ss.
+  Qed.
+
+  Lemma lessdef_inject_identity_list
+        l0 l1
+        (LD: Forall2 GVs.lessdef l0 l1)
+    :
+      <<INJ: genericvalues_inject.gvs_inject inject_id l0 l1>>
+  .
+  Proof.
+    ginduction LD; ii; ss.
+    split; ss.
+    - apply lessdef_inject_identity; ss.
+  Qed.
+
+  (* TODO: location *)
+  Lemma list_forallb_const_eqb
+        lc0 lc1
+        (EQB: list_forallb2 Decs.const_eqb lc0 lc1 = true)
+    :
+      <<EQ: lc0 = lc1>>
+  .
+  Proof.
+    red.
+    ginduction lc0; ii; ss; des_ifs.
+    des_bool; des. apply Decs.const_eqb_spec in EQB. clarify.
+    f_equal. eapply IHlc0; eauto.
+  Qed.
+
+  Lemma gep_lessdef_sim
+        TD ib0 l0 gv2 l1 g u0 t1 val1
+        (GEP: gep TD t1 l0 ib0 u0 g = ret val1)
+        (GV0: GVs.lessdef g gv2)
+        (GV1: Forall2 GVs.lessdef l0 l1)
+    :
+      exists val2 : GenericValue,
+        <<GEP: gep TD t1 l1 ib0 u0 gv2 = ret val2 >> /\
+               <<LESSDEF: GVs.lessdef val1 val2 >>
+  .
+  Proof.
+    {
+      unfold gep in *.
+      unfold genericvalues.LLVMgv.GEP in *.
+      apply lessdef_inject_identity in GV0.
+      (* apply lessdef_inject_identity in GV1. *)
+      destruct (GV2ptr TD (getPointerSize TD) g) eqn:T; ss; cycle 1.
+      { inv GV0; ii; ss.
+        - esplits; eauto.
+          eapply GVs.lessdef_refl.
+        - clear CHUNK.
+          (* unfold gundef in *. des_ifs_safe. compute in Heq. des_ifs_safe. ss. *)
+          des_ifs; esplits; eauto; try (by eapply GVs.lessdef_refl).
+          + eapply lessdef_gundef; eauto.
+            unfold gundef, gv_chunks_match_typb in *. des_ifs.
+            compute in Heq. ss. des_ifs.
+          + eapply lessdef_gundef; eauto.
+            unfold gundef, gv_chunks_match_typb in *. des_ifs.
+            compute in Heq. ss. des_ifs.
+          + eapply lessdef_gundef; eauto.
+            unfold gundef, gv_chunks_match_typb in *. des_ifs.
+            compute in Heq. ss. des_ifs.
+          + eapply lessdef_gundef; eauto.
+            unfold gundef, gv_chunks_match_typb in *. des_ifs.
+            compute in Heq. ss. des_ifs.
+          + eapply lessdef_gundef; eauto.
+            unfold gundef, gv_chunks_match_typb in *. des_ifs.
+            compute in Heq. ss. des_ifs.
+          + eapply lessdef_gundef; eauto.
+            unfold gundef, gv_chunks_match_typb in *. des_ifs.
+            compute in Heq. ss. des_ifs.
+      }
+      exploit genericvalues_inject.simulation__GV2ptr; eauto.
+      i; des.
+      rewrite H.
+      destruct (GVs2Nats TD l0) eqn:T2; ss; cycle 1.
+      { des_ifs; esplits; eauto; try (by apply GVs.lessdef_refl).
+        + eapply lessdef_gundef; eauto.
+          unfold gundef, gv_chunks_match_typb in *. des_ifs.
+          compute in Heq1. ss. des_ifs.
+          unfold getPointerSize. unfold getPointerSize0. ss.
+          apply andb_true_iff. split; ss.
+          eapply genericvalues_inject.has_chunk__has_chunkb; eauto.
+          eapply mgep_has_chunk; eauto.
+      }
+      exploit genericvalues_inject.simulation__GVs2Nats; eauto.
+      { apply lessdef_inject_identity_list; eauto. }
+      i; des.
+      rewrite H1.
+      des_ifsH GEP.
+      { exploit genericvalues_inject.simulation__mgep; eauto.
+        i; des.
+        des_ifs.
+        esplits; eauto.
+        apply lessdef_inject_identity.
+        apply mgep_has_chunk in Heq0.
+        clear - H3 Heq0.
+        unfold ptr2GV.
+        unfold getPointerSize. unfold getPointerSize0. ss. des_ifs. ss.
+        unfold val2GV.
+        econs; eauto.
+        i; clarify.
+        inv H3.
+        eapply genericvalues_inject.has_chunk__has_chunkb; eauto.
+      }
+      unfold gundef in *. des_ifs_safe.
+      des_ifs; esplits; eauto.
+      - eapply lessdef_mc2undefs; eauto. compute in Heq0. ss. des_ifs.
+        unfold getPointerSize. unfold getPointerSize0. ss.
+        apply andb_true_iff. split; ss.
+        eapply genericvalues_inject.has_chunk__has_chunkb; eauto.
+        eapply mgep_has_chunk; eauto.
+      - eapply lessdef_mc2undefs; eauto. compute in Heq0. ss. des_ifs.
+    }
+  Qed.
+
+  (* TODO: location *)
+  Lemma mload_lessdef_sim_eq
+        TD m0 g ty a val0
+        (LOAD0: mload TD m0 g ty a = Some val0)
+        val2
+        (LD: GVs.lessdef g val2)
+    :
+      <<LOAD1: mload TD m0 val2 ty a = Some val0 >>
+  .
+  Proof.
+    rewrite <- LOAD0.
+    inv LD; ss. destruct a1, b1; ss. des; clarify.
+    inv H; ss.
+    inv H0; ss.
+  Qed.
+
+  (* TODO: location *)
+  Lemma list_forallb2_spec
+        X (xs ys: list X) f
+    :
+      list_forallb2 f xs ys = true <-> Forall2 f xs ys
+  .
+  Proof.
+    split; i.
+    - ginduction xs; ii; ss; des_ifs.
+      des_bool; des.
+      econs; eauto.
+    - ginduction xs; ii; ss; inv H; des_ifs; ss.
+      eapply IHxs; eauto.
+  Qed.
+
+  (* TODO: put off 3 from here, rename colliding lemma *)
+  (* TODO: pretiffy name... this is extracted from coq *)
+  Lemma lessdef_expr_spec3
+        invst conf
+        st e0 e1 val1
+        (LD_EXPR: Expr.same_modulo_value e0 e1 = true)
+        (VAL1: Unary.sem_expr conf st invst e0 = ret val1)
+        (LD_EXPR_PROP: Forall2 (fun v1 v2 : ValueT.t =>
+                                  Unary.sem_lessdef conf st invst (Expr.value v1, Expr.value v2))
+                               (Expr.get_valueTs e0) (Expr.get_valueTs e1))
+    :
+      exists val2, <<SEM: Unary.sem_expr conf st invst e1 = ret val2 >> /\ <<LD: GVs.lessdef val1 val2 >>
+  .
+  Proof.
+    destruct e0, e1; ss; repeat (des_bool; des); des_sumbool; des_ifs_safe; clarify; clear_tac;
+      repeat match goal with
+             | [ H: Forall2 _ nil _ |- _] => inv H
+             | [ H: Forall2 _ [_] _ |- _] => inv H
+             | [ H: Forall2 _ [_ ; _] _ |- _] => inv H
+             | [ H: Forall2 _ [_ ; _ ; _] _ |- _] => inv H
+             end;
+      repeat multimatch goal with
+             | [ H: Unary.sem_lessdef _ _ _ _ |- _] => exploit H; eauto; []; intro LD_EXPR; des; ss; clear H
+             end;
+      repeat multimatch goal with
+             | [ H: GVs.lessdef _ _ |- _] => apply lessdef_inject_identity in H
+             end;
+      des_ifs_safe.
+    - exploit genericvalues_inject.simulation__mbop; try exact VAL1; eauto.
+      i; des.
+      esplits; eauto.
+      apply lessdef_inject_identity; ss.
+    - exploit genericvalues_inject.simulation__mfbop; try exact VAL1; eauto.
+      i; des.
+      esplits; eauto.
+      apply lessdef_inject_identity; ss.
+    - apply list_forallb_const_eqb in LD_EXPR1. des. clarify.
+      exploit genericvalues_inject.simulation__extractGenericValue; try exact VAL1; eauto.
+      i; des.
+      esplits; eauto.
+      apply lessdef_inject_identity; ss.
+    - apply list_forallb_const_eqb in LD_EXPR0. des. clarify.
+      exploit genericvalues_inject.simulation__insertGenericValue; try exact VAL1; eauto.
+      i; des.
+      esplits; eauto.
+      apply lessdef_inject_identity; ss.
+    - inv LD_EXPR_PROP.
+      repeat multimatch goal with
+             | [ H: Unary.sem_lessdef _ _ _ _ |- _] => exploit H; eauto; []; intro LD_EXPR; des; ss; clear H
+             end.
+      des_ifs_safe.
+      exploit lessdef_list_value_spec'; eauto. i; des.
+      des_ifs.
+      eapply gep_lessdef_sim; eauto.
+    - exploit genericvalues_inject.simulation__mtrunc; try exact VAL1; eauto.
+      i; des.
+      esplits; eauto.
+      apply lessdef_inject_identity; ss.
+    - exploit genericvalues_inject.simulation__mext; try exact VAL1; eauto.
+      i; des.
+      esplits; eauto.
+      apply lessdef_inject_identity; ss.
+    - exploit genericvalues_inject.simulation__mcast; try exact VAL1; eauto.
+      i; des.
+      esplits; eauto.
+      apply lessdef_inject_identity; ss.
+    - exploit genericvalues_inject.simulation__micmp; try exact VAL1; eauto.
+      i; des.
+      esplits; eauto.
+      apply lessdef_inject_identity; ss.
+    - exploit genericvalues_inject.simulation__mfcmp; try exact VAL1; eauto.
+      i; des.
+      esplits; eauto.
+      apply lessdef_inject_identity; ss.
+    - exploit genericvalues_inject.simulation__mselect; try exact VAL1; eauto.
+      i; des.
+      esplits; eauto.
+      apply lessdef_inject_identity; ss.
+    - eapply H2; eauto.
+    - apply lessdef_inject_identity in VAL.
+      erewrite mload_lessdef_sim_eq; eauto.
+      esplits; eauto.
+      apply GVs.lessdef_refl.
+  Qed.
+
+  (* TODO: put off 2 from here, rename colliding lemma *)
+  Lemma lessdef_expr_spec2
+        invst invmem inv
+        conf st gmax public
+        e0 e1
+        (SEM: Unary.sem conf st invst invmem gmax public inv)
+        (LD_EXPR: Hints.Invariant.lessdef_expr (e0, e1) inv.(Invariant.lessdef) = true)
+        e0' e1'
+        (EQ0: Unary.sem_expr conf st invst e0 = Unary.sem_expr conf st invst e0')
+        (EQ1: Unary.sem_expr conf st invst e1 = Unary.sem_expr conf st invst e1')
+    :
+      <<LD: Unary.sem_lessdef conf st invst (e0', e1')>>
+  .
+  Proof.
+    ii. ss.
+    rewrite <- EQ0 in *.
+    rewrite <- EQ1 in *.
+    clear EQ0 EQ1. clear_tac.
+    unfold Invariant.lessdef_expr in *.
+    des_bool; des.
+    { eapply lessdef_expr_spec; eauto. }
+    unfold Invariant.deep_check_expr in *. ss.
+    des_bool; des.
+    assert(LD_EXPR_PROP:
+             List.Forall2
+               (fun v1 v2 : ValueT.t => Unary.sem_lessdef conf st invst (Expr.value v1, Expr.value v2))
+               (Expr.get_valueTs e0) (Expr.get_valueTs e1)).
+    { clear - LD_EXPR0 SEM.
+      abstr (Expr.get_valueTs e0) vs0.
+      abstr (Expr.get_valueTs e1) vs1.
+      ginduction vs0; ii; ss; des_ifs.
+      des_bool. des.
+      econs; cycle 1.
+      { eapply IHvs0; eauto. }
+      clear IHvs0.
+      ii.
+      eapply lessdef_expr_spec; eauto.
+    } clear LD_EXPR0. clear_tac.
+    eapply lessdef_expr_spec3; eauto.
   Qed.
 
   Lemma inject_value_spec

@@ -131,89 +131,6 @@ Definition cond_signbit (s:sz) (v:ValueT.t) : bool :=
   end.
 
 
-(* cond_replace_value_lessdef x y v v' : 
-   Given x >= y, if all x in v1 are replaced into y(let the replaced value v2), is v2 >= v'? *)
-Definition cond_replace_lessdef_value (x:IdT.t) (y:ValueT.t) (v v':ValueT.t) : bool :=
-  match v, v' with
-  | ValueT.id a, _ =>
-    (IdT.eq_dec a x && ValueT.eq_dec v' y) || (ValueT.eq_dec v v')
-  | ValueT.const c1, ValueT.const c2 => const_eqb c1 c2 (* How about the case, c1 == undef? *)
-  | _,_ => false
-  end.
-
-
-(* cond_replace_lessdef x y e e' : 
-   Given x >= y, If all x in e are replaced into y(let the replaced expression e2), is e2 >= e'? *)
-Definition cond_replace_lessdef (x:IdT.t) (y:ValueT.t) (e e':Expr.t) : bool :=
-  match e, e' with
-  | Expr.bop b1 s1 v1 w1, Expr.bop b2 s2 v2 w2 =>
-    bop_dec b1 b2 &&
-    Size.dec s1 s2 &&
-    cond_replace_lessdef_value x y v1 v2 &&
-    cond_replace_lessdef_value x y w1 w2
-  | Expr.fbop fb1 fp1 v1 w1, Expr.fbop fb2 fp2 v2 w2 =>
-    fbop_dec fb1 fb2 &&
-    floating_point_dec fp1 fp2 &&
-    cond_replace_lessdef_value x y v1 v2 &&
-    cond_replace_lessdef_value x y w1 w2
-  | Expr.extractvalue t1 v1 lc1 u1, Expr.extractvalue t2 v2 lc2 u2 =>
-    typ_dec t1 t2 &&
-    cond_replace_lessdef_value x y v1 v2 &&
-    list_forallb2 const_eqb lc1 lc2 &&
-    typ_dec u1 u2
-  | Expr.insertvalue t1 v1 u1 w1 lc1, Expr.insertvalue t2 v2 u2 w2 lc2 =>
-    typ_dec t1 t2 &&
-    cond_replace_lessdef_value x y v1 v2 &&
-    typ_dec u1 u2 &&
-    cond_replace_lessdef_value x y w1 w2 &&
-    list_forallb2 const_eqb lc1 lc2
-  | Expr.gep ib1 t1 v1 lsv1 u1, Expr.gep ib2 t2 v2 lsv2 u2 =>
-    inbounds_dec ib1 ib2 &&
-    typ_dec t1 t2 &&
-    cond_replace_lessdef_value x y v1 v2 &&
-    beq_nat (List.length lsv1) (List.length lsv2) &&
-    List.forallb (fun k => match k with ((_, h1), (_, h2)) => cond_replace_lessdef_value x y h1 h2 end) (List.combine lsv1 lsv2) &&
-    typ_dec u1 u2
-  | Expr.trunc top1 t1 v1 u1, Expr.trunc top2 t2 v2 u2 =>
-    truncop_dec top1 top2 &&
-    typ_dec t1 t2 &&
-    cond_replace_lessdef_value x y v1 v2 &&
-    typ_dec u1 u2
-  | Expr.ext ex1 t1 v1 u1, Expr.ext ex2 t2 v2 u2 =>
-    extop_dec ex1 ex2 &&
-    typ_dec t1 t2 &&
-    cond_replace_lessdef_value x y v1 v2 &&
-    typ_dec u1 u2
-  | Expr.cast cop1 t1 v1 u1, Expr.cast cop2 t2 v2 u2 =>
-    castop_dec cop1 cop2 &&
-    typ_dec t1 t2 &&
-    cond_replace_lessdef_value x y v1 v2 &&
-    typ_dec u1 u2
-  | Expr.icmp con1 t1 v1 w1, Expr.icmp con2 t2 v2 w2 =>
-    cond_dec con1 con2 &&
-    typ_dec t1 t2 &&
-    cond_replace_lessdef_value x y v1 v2 &&
-    cond_replace_lessdef_value x y w1 w2
-  | Expr.fcmp fcon1 fp1 v1 w1, Expr.fcmp fcon2 fp2 v2 w2 =>
-    fcond_dec fcon1 fcon2 &&
-    floating_point_dec fp1 fp2 &&
-    cond_replace_lessdef_value x y v1 v2 &&
-    cond_replace_lessdef_value x y w1 w2
-  | Expr.select v1 t1 w1 z1, Expr.select v2 t2 w2 z2 =>
-    cond_replace_lessdef_value x y v1 v2 &&
-    typ_dec t1 t2 &&
-    cond_replace_lessdef_value x y w1 w2 &&
-    cond_replace_lessdef_value x y z1 z2
-  | Expr.value v1, Expr.value v2 =>
-    cond_replace_lessdef_value x y v1 v2
-  | Expr.load v1 t1 a1, Expr.load v2 t2 a2 => 
-    (* FIXME : Is this condition ok? *)
-    cond_replace_lessdef_value x y v1 v2 &&
-    typ_dec t1 t2 &&
-    Align.dec a1 a2
-  | _, _ => false
-  end.
-
 Definition cond_gep_zero (v':ValueT.t) (e:Expr.t) : bool :=
   match e with
   | Expr.gep inbound ty1 v idxlist ty2 =>
@@ -410,6 +327,13 @@ Definition is_commutative_fbop (opcode:fbop) :=
   | _ => false
   end.
 
+Definition load_realign (e1: Expr.t): Expr.t :=
+  match e1 with
+  | Expr.load v ty a => Expr.load v ty Align.One
+  | _ => e1
+  end
+.
+
 Notation "$$ inv |-src y >= rhs $$" := (Invariant.lessdef_expr (y, rhs) inv.(Invariant.src).(Invariant.lessdef)) (at level 41, inv, y, rhs at level 41).
 Notation "$$ inv |-tgt y >= rhs $$" := (Invariant.lessdef_expr (y, rhs) inv.(Invariant.tgt).(Invariant.lessdef)) (at level 41, inv, y, rhs at level 41).
 Notation "$$ inv |-src y 'unique' $$" :=
@@ -430,12 +354,6 @@ Notation "{{ inv +++src y _||_ x }}" := (Invariant.update_src (Invariant.update_
 Notation "{{ inv +++tgt y _||_ x }}" := (Invariant.update_tgt (Invariant.update_diffblock (ValueTPairSet.add (y, x))) inv) (at level 41, inv, y, x at level 41).
 Notation "{{ inv --- x }}" := (Invariant.update_maydiff (IdTSet.filter (fun y => negb (IdT.eq_dec x y))) inv) (at level 41, inv, x at level 41).
 
-(* TODO *)
-
-Definition is_defined inv0 expr :=
-  ExprPairSet.exists_
-    (fun xy => let (_, y) := xy in
-               Expr.eq_dec expr y) (Invariant.lessdef inv0).
 
 Definition apply_infrule
            (m_src m_tgt:module)
@@ -1408,21 +1326,9 @@ Definition apply_infrule
     then {{ inv0 +++src (Expr.value dst) >= (Expr.cast castop_sitofp srcty src dstty) }}
     else apply_fail tt
   | Infrule.transitivity e1 e2 e3 =>
-    let e1' :=
-      match e1 with
-      | Expr.load v ty a => Expr.load v ty Align.One
-      | _ => e1
-      end in
-    let e2' :=
-      match e2 with
-      | Expr.load v ty a => Expr.load v ty Align.One
-      | _ => e2
-      end in
-    let e3' :=
-      match e3 with
-      | Expr.load v ty a => Expr.load v ty Align.One
-      | _ => e3
-      end in
+    let e1' := load_realign e1 in
+    let e2' := load_realign e2 in
+    let e3' := load_realign e3 in
     if ($$ inv0 |-src e1 >= e2 $$ || $$ inv0 |-src e1 >= e2' $$ ||
         $$ inv0 |-src e1' >= e2 $$ || $$ inv0 |-src e1' >= e2' $$) &&
        ($$ inv0 |-src e2 >= e3 $$ || $$ inv0 |-src e2 >= e3' $$ ||
@@ -1430,21 +1336,9 @@ Definition apply_infrule
     then {{ inv0 +++src e1 >= e3 }}
     else apply_fail tt
   | Infrule.transitivity_tgt e1 e2 e3 =>
-    let e1' :=
-      match e1 with
-      | Expr.load v ty a => Expr.load v ty Align.One
-      | _ => e1
-      end in
-    let e2' :=
-      match e2 with
-      | Expr.load v ty a => Expr.load v ty Align.One
-      | _ => e2
-      end in
-    let e3' :=
-      match e3 with
-      | Expr.load v ty a => Expr.load v ty Align.One
-      | _ => e3
-      end in
+    let e1' := load_realign e1 in
+    let e2' := load_realign e2 in
+    let e3' := load_realign e3 in
     if ($$ inv0 |-tgt e1 >= e2 $$ || $$ inv0 |-tgt e1 >= e2' $$ ||
         $$ inv0 |-tgt e1' >= e2 $$ || $$ inv0 |-tgt e1' >= e2' $$) &&
        ($$ inv0 |-tgt e2 >= e3 $$ || $$ inv0 |-tgt e2 >= e3' $$ ||
@@ -1587,44 +1481,17 @@ Definition apply_infrule
   | Infrule.substitute x y e =>
     if $$ inv0 |-src (Expr.value x) >= (Expr.value y) $$
     then
-      let x_to_y := (fun v =>
-                       match v with
-                       | ValueT.id i => if(IdT.eq_dec x i) then y else v
-                       | _ => v
-                       end) in
-      {{inv0 +++src e >= (Expr.map_valueTs e x_to_y)}}
+      {{inv0 +++src e >= (Expr.substitute x y e)}}
     else apply_fail tt
   | Infrule.substitute_rev x y e =>
     if $$ inv0 |-src (Expr.value y) >= (Expr.value x) $$
     then
-      let x_to_y := (fun v =>
-                       match v with
-                       | ValueT.id i => if(IdT.eq_dec x i) then y else v
-                       | _ => v
-                       end) in
-      {{inv0 +++src (Expr.map_valueTs e x_to_y) >= e}}
+      {{inv0 +++src (Expr.substitute x y e) >= e}}
     else apply_fail tt
   | Infrule.substitute_tgt x y e =>
     if $$ inv0 |-tgt (Expr.value x) >= (Expr.value y) $$
     then
-      let x_to_y := (fun v =>
-                       match v with
-                       | ValueT.id i => if(IdT.eq_dec x i) then y else v
-                       | _ => v
-                       end) in
-      {{inv0 +++tgt e >= (Expr.map_valueTs e x_to_y)}}
-    else apply_fail tt
-  | Infrule.replace_rhs x y e1 e2 e2' =>
-    if $$ inv0 |-src (Expr.value x) >= (Expr.value y) $$ &&
-       $$ inv0 |-src e1 >= e2 $$ &&
-       cond_replace_lessdef x y e2 e2'
-    then {{inv0 +++src e1 >= e2'}}
-    else apply_fail tt
-  | Infrule.replace_rhs_opt x y e1 e2 e2' =>
-    if $$ inv0 |-tgt (Expr.value x) >= (Expr.value y) $$ &&
-       $$ inv0 |-tgt e1 >= e2 $$ &&
-       cond_replace_lessdef x y e2 e2'
-    then {{inv0 +++tgt e1 >= e2'}}
+      {{inv0 +++tgt e >= (Expr.substitute x y e)}}
     else apply_fail tt
   | Infrule.sext_zext src mid dst srcty midty dstty =>
     if $$ inv0 |-src (Expr.value mid) >= (Expr.ext extop_z srcty src midty) $$ &&
@@ -1702,19 +1569,12 @@ Definition apply_infrule
     else apply_fail tt
   | Infrule.intro_ghost expr g =>
     if List.forallb (fun x => Invariant.not_in_maydiff inv0 x) (Expr.get_valueTs expr) &&
-      (match expr with | Expr.load _ _ _ => false | _ => true end)
+                    negb (Expr.is_load expr)
     then 
-      let inv1 := (Invariant.update_src (Invariant.update_lessdef 
-        (ExprPairSet.filter
-          (fun (p: ExprPair.t) => negb (Expr.eq_dec (Expr.value (ValueT.id (Tag.ghost, g))) (snd p))))) 
-          inv0) in
-      let inv2 := (Invariant.update_tgt (Invariant.update_lessdef 
-        (ExprPairSet.filter
-          (fun (p: ExprPair.t) => negb (Expr.eq_dec (Expr.value (ValueT.id (Tag.ghost, g))) (fst p)))))
-          inv1) in
-      let inv3 := {{ inv2 +++src expr >= (Expr.value (ValueT.id (Tag.ghost, g))) }} in
-      let inv4 := {{ inv3 +++tgt (Expr.value (ValueT.id (Tag.ghost, g))) >= expr }} in
-      inv4
+      let inv1 := Invariant.clear_idt (Tag.ghost, g) inv0 in
+      let inv2 := {{ inv1 +++src expr >= (Expr.value (ValueT.id (Tag.ghost, g))) }} in
+      let inv3 := {{ inv2 +++tgt (Expr.value (ValueT.id (Tag.ghost, g))) >= expr }} in
+      inv3
     else apply_fail tt
   | Infrule.xor_commutative_tgt z x y s =>
     if $$ inv0 |-tgt (Expr.bop bop_xor s x y) >= (Expr.value z) $$

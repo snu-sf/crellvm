@@ -34,6 +34,144 @@ Require Import MemAux.
 Set Implicit Arguments.
 
 
+Section SEM_VALID_PTR.
+
+
+  Lemma sem_id_preserves_valid_ptr
+        conf st invst0 invmem0 gmax pubs inv0
+        (STATE: InvState.Unary.sem conf st invst0 invmem0 gmax pubs inv0)
+        (MEM : InvMem.Unary.sem conf gmax pubs st.(Mem) invmem0)
+        idt0 gv0
+        (SEM: InvState.Unary.sem_idT st invst0 idt0 = Some gv0)
+  :
+    <<VALID: MemProps.valid_ptrs st.(Mem).(Mem.nextblock) gv0>>
+  .
+  Proof.
+    destruct idt0; ss.
+    destruct t; ss.
+    - inv STATE. eapply WF_LOCAL; eauto.
+    - inv STATE. eapply WF_PREVIOUS; eauto.
+    - inv STATE. eapply WF_GHOST; eauto.
+  Qed.
+
+  Lemma sem_value_preserves_valid_ptr
+        conf st invst0 invmem0 gmax pubs inv0
+        (STATE: InvState.Unary.sem conf st invst0 invmem0 gmax pubs inv0)
+        (MEM : InvMem.Unary.sem conf gmax pubs st.(Mem) invmem0)
+        v0 gv0
+        (SEM: InvState.Unary.sem_valueT conf st invst0 v0 = Some gv0)
+  :
+    <<VALID: MemProps.valid_ptrs st.(Mem).(Mem.nextblock) gv0>>
+  .
+  Proof.
+    destruct v0; ss.
+    - eapply sem_id_preserves_valid_ptr; eauto.
+    - exploit wf_globals_const2GV; try apply MEM; eauto.
+      i.
+      eapply MemProps.valid_ptrs__trans; eauto.
+      { inv MEM.
+        red in WF. des.
+        rewrite <- Pplus_one_succ_r.
+        eapply Pos.le_succ_l; eauto.
+      }
+  Qed.
+
+  Lemma sem_list_value_preserves_valid_ptr
+        conf st invst0 invmem0 gmax pubs inv0
+        (STATE: InvState.Unary.sem conf st invst0 invmem0 gmax pubs inv0)
+        (MEM : InvMem.Unary.sem conf gmax pubs st.(Mem) invmem0)
+        vs0 gvs0
+        (SEM: InvState.Unary.sem_list_valueT conf st invst0 vs0 = Some gvs0)
+  :
+    <<VALID: List.Forall (MemProps.valid_ptrs st.(Mem).(Mem.nextblock)) gvs0>>
+  .
+  Proof.
+    ginduction vs0; ii; ss; clarify.
+    des_ifs.
+    econs; eauto.
+    { eapply sem_value_preserves_valid_ptr; eauto. }
+    eapply IHvs0; eauto.
+  Qed.
+
+  Lemma gep_preserves_valid_ptrs
+        conf st invst0 invmem0 gmax pubs inv0
+        (STATE: InvState.Unary.sem conf st invst0 invmem0 gmax pubs inv0)
+        (MEM : InvMem.Unary.sem conf gmax pubs st.(Mem) invmem0)
+        v g
+        (SEM0: InvState.Unary.sem_valueT conf st invst0 v = Some g)
+        l0
+        lsv
+        (SEM1: InvState.Unary.sem_list_valueT conf st invst0 lsv = Some l0)
+        t ib u gv0
+        (GEP: gep (CurTargetData conf) t l0 ib u g = Some gv0)
+    :
+      <<VALID: MemProps.valid_ptrs (Mem.nextblock (Mem st)) gv0>>
+  .
+  Proof.
+    unfold gep in *. unfold genericvalues.LLVMgv.GEP in GEP.
+    des_ifs; try (by eapply MemProps.undef_valid_ptrs; eauto).
+    unfold GV2ptr in *. des_ifs.
+    unfold mgep in *. des_ifs.
+    exploit sem_value_preserves_valid_ptr; ss; eauto.
+  Qed.
+
+  Lemma mselect_preserves_valid_ptrs
+        conf st invst0 invmem0 gmax pubs inv0
+        (STATE: InvState.Unary.sem conf st invst0 invmem0 gmax pubs inv0)
+        (MEM : InvMem.Unary.sem conf gmax pubs st.(Mem) invmem0)
+        v w z g g0 g1
+        (SEM0: InvState.Unary.sem_valueT conf st invst0 v = Some g)
+        (SEM1: InvState.Unary.sem_valueT conf st invst0 w = Some g0)
+        (SEM2: InvState.Unary.sem_valueT conf st invst0 z = Some g1)
+        t gv0
+        (SELET: mselect (CurTargetData conf) t g g0 g1 = Some gv0)
+    :
+      <<VALID: MemProps.valid_ptrs (Mem.nextblock (Mem st)) gv0>>
+  .
+  Proof.
+    unfold mselect in *.
+    unfold fit_chunk_gv in *.
+    des_ifs; try (by eapply MemProps.undef_valid_ptrs; eauto).
+    - eapply sem_value_preserves_valid_ptr; eauto.
+    - eapply sem_value_preserves_valid_ptr; eauto.
+  Qed.
+
+  Lemma sem_expr_preserves_valid_ptr
+        conf st invst0 invmem0 gmax pubs inv0
+        (STATE: InvState.Unary.sem conf st invst0 invmem0 gmax pubs inv0)
+        (MEM : InvMem.Unary.sem conf gmax pubs st.(Mem) invmem0)
+        x0 gv0
+        (SEM: InvState.Unary.sem_expr conf st invst0 x0 = Some gv0)
+  :
+    <<VALID: MemProps.valid_ptrs st.(Mem).(Mem.nextblock) gv0>>
+  .
+  Proof.
+    red.
+    destruct x0; ss; des_ifs.
+    - eapply MemProps.mbop_preserves_valid_ptrs; eauto.
+    - eapply MemProps.mfbop_preserves_valid_ptrs; eauto.
+    - eapply MemProps.extractGenericValue_preserves_valid_ptrs; eauto.
+      eapply sem_value_preserves_valid_ptr; eauto.
+    - eapply MemProps.insertGenericValue_preserves_valid_ptrs; eauto.
+      + eapply sem_value_preserves_valid_ptr; eauto.
+      + eapply sem_value_preserves_valid_ptr; eauto.
+    - eapply gep_preserves_valid_ptrs; eauto.
+    - eapply MemProps.mtrunc_preserves_valid_ptrs; eauto.
+    - eapply MemProps.mext_preserves_valid_ptrs; eauto.
+    - eapply MemProps.mcast_preserves_valid_ptrs; eauto.
+      eapply sem_value_preserves_valid_ptr; eauto.
+    - eapply MemProps.micmp_preserves_valid_ptrs; eauto.
+    - eapply MemProps.mfcmp_preserves_valid_ptrs; eauto.
+    - eapply mselect_preserves_valid_ptrs; try exact SEM; eauto.
+    - eapply sem_value_preserves_valid_ptr; eauto.
+    - inv MEM.
+      eapply WF. eauto.
+  Qed.
+
+
+End SEM_VALID_PTR.
+
+
 (* TODO: position *)
 Definition get_blocks (f:fdef): blocks :=
   let '(fdef_intro _ blocks) := f in

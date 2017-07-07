@@ -106,6 +106,25 @@ Module Invariant.
       invariant.(tgt)
       (f invariant.(maydiff)).
 
+  Definition clear_idt_alias (idt0: IdT.t) (t: aliasrel): aliasrel :=
+    mk_aliasrel (ValueTPairSet.clear_idt idt0 t.(diffblock))
+                (PtrPairSet.clear_idt idt0 t.(noalias))
+  .
+
+  Definition clear_idt_unary (idt0: IdT.t) (invst0: unary): unary :=
+    mk_unary
+      ((ExprPairSet.clear_idt idt0) invst0.(lessdef))
+      (clear_idt_alias idt0 invst0.(alias))
+      invst0.(unique)
+      (IdTSet.clear_idt idt0 invst0.(private))
+  .
+
+  Definition clear_idt (idt0: IdT.t) (invst0: t): t :=
+    mk (clear_idt_unary idt0 invst0.(src))
+       (clear_idt_unary idt0 invst0.(tgt))
+       (IdTSet.clear_idt idt0 invst0.(maydiff))
+  .
+
   Definition is_private (inv:unary) (value:ValueT.t): bool :=
     match value with
     | ValueT.id id => IdTSet.mem id inv.(private)
@@ -446,9 +465,6 @@ Module Infrule.
   | inttoptr_load (ptr:ValueT.t) (intty:typ) (v1:ValueT.t) (ptrty:typ) (v2:ValueT.t) (a:align)
   | lessthan_undef (ty:typ) (v:ValueT.t)
   | lessthan_undef_tgt (ty:typ) (v:ValueT.t)
-  | lessthan_undef_const (c:const)
-  | lessthan_undef_const_tgt (c:const)
-  | lessthan_undef_const_gep_or_cast (ty:typ) (ce:const)
   | mul_bool (z:IdT.t) (x:IdT.t) (y:IdT.t)
   | mul_mone (z:IdT.t) (x:ValueT.t) (sz:sz)
   | mul_neg (z:IdT.t) (mx:ValueT.t) (my:ValueT.t) (x:ValueT.t) (y:ValueT.t) (s:sz)  
@@ -474,8 +490,6 @@ Module Infrule.
   | ptrtoint_inttoptr (src:ValueT.t) (mid:ValueT.t) (dst:ValueT.t) (srcty:typ) (midty:typ) (dstty:typ)
   | ptrtoint_load (ptr:ValueT.t) (ptrty:typ) (v1:ValueT.t) (intty:typ) (v2:ValueT.t) (a:align)
   | ptrtoint_zero (ptrty:typ) (intty:typ)
-  | replace_rhs (x:IdT.t) (y:ValueT.t) (e1:Expr.t) (e2:Expr.t) (e2':Expr.t)
-  | replace_rhs_opt	(x:IdT.t) (y:ValueT.t) (e1:Expr.t) (e2:Expr.t) (e2':Expr.t)
   | rem_neg (z:IdT.t) (my:ValueT.t) (x:ValueT.t) (y:ValueT.t) (sz:sz)
   | sdiv_mone (z:IdT.t) (x:ValueT.t) (sz:sz)
   | sdiv_sub_srem (z:IdT.t) (b:IdT.t) (a:IdT.t) (x:ValueT.t) (y:ValueT.t) (sz:sz)
@@ -590,27 +604,32 @@ Module Infrule.
   | icmp_ult_and_not (z:ValueT.t) (z':ValueT.t) (a:ValueT.t) (b:ValueT.t) (s:sz)  
   | implies_false (x:const) (y:const)
 
-(* Updated semantics of rules should be located above this line *)
-
-  | remove_maydiff (v:IdT.t) (e:Expr.t)
-  | remove_maydiff_rhs (v:IdT.t) (e:IdT.t)
-  | eq_generate_same_heap_value (x:IdT.t) (p:ValueT.t) (v:ValueT.t) (ty:typ) (a:align)
-  | stash_variable (z:IdT.t) (v:id)
-  | add_mul_fold (z:IdT.t) (y:IdT.t) (s:sz) (x:ValueT.t) (c1:INTEGER.t) (c2:INTEGER.t)
-  | add_distributive (z:IdT.t) (x:IdT.t) (y:IdT.t) (w:IdT.t) (s:sz) (a:ValueT.t) (b:ValueT.t) (c:ValueT.t)
-  | rem_neg2 (z:IdT.t) (sz:sz) (x:ValueT.t) (c1:INTEGER.t) (c2:INTEGER.t)
-  | select_trunc (z:IdT.t) (x:IdT.t) (y:IdT.t) (z':IdT.t) (sz1:sz) (sz2:sz) (a:ValueT.t) (b:ValueT.t) (c:ValueT.t)
-  | select_add (z:IdT.t) (x:IdT.t) (y:IdT.t) (z':IdT.t) (sz1:sz) (a:ValueT.t) (b:ValueT.t) (c:ValueT.t) (cond:ValueT.t)
-  | select_const_gt (z:IdT.t) (b:IdT.t) (sz1:sz) (x:ValueT.t) (c1:INTEGER.t) (c2:INTEGER.t)
-  | cmp_eq_sub (z:IdT.t) (y:IdT.t) (s:sz) (a:ValueT.t) (b:ValueT.t)
-  | cmp_ne_sub (z:IdT.t) (y:IdT.t) (s:sz) (a:ValueT.t) (b:ValueT.t)
-  | cmp_eq_srem (z:IdT.t) (y:IdT.t) (s:sz) (a:ValueT.t) (b:ValueT.t)
-  | cmp_eq_srem2 (z:IdT.t) (y:IdT.t) (s:sz) (a:ValueT.t) (b:ValueT.t)
-  | cmp_ne_srem (z:IdT.t) (y:IdT.t) (s:sz) (a:ValueT.t) (b:ValueT.t)
-  | cmp_ne_srem2 (z:IdT.t) (y:IdT.t) (s:sz) (a:ValueT.t) (b:ValueT.t)
-  | cmp_eq_xor (z:IdT.t) (x:IdT.t) (y:IdT.t) (s:sz) (a:ValueT.t) (b:ValueT.t) (c:ValueT.t)
-  | cmp_ne_xor (z:IdT.t) (x:IdT.t) (y:IdT.t) (s:sz) (a:ValueT.t) (b:ValueT.t) (c:ValueT.t)
+  (* Updated semantics of rules should be located above this line *)
   .
+
+  Definition is_arithmetic (infrule : t) : bool :=
+    match infrule with
+    (* | gepzero _ _ => false *)
+    (* | gep_inbounds_add _ _ _ _ _ => false *)
+    | transitivity _ _ _ => false
+    | transitivity_tgt _ _ _ => false
+    | transitivity_pointer_lhs _ _ _ _ _ => false
+    | transitivity_pointer_rhs _ _ _ _ _ => false
+    | diffblock_unique _ _ => false
+    | diffblock_global_unique _ _ => false
+    | diffblock_global_global _ _ => false
+    | diffblock_lessthan _ _ _ _ => false
+    | diffblock_noalias _ _ _ _ => false
+    | substitute _ _ _ => false
+    | substitute_rev _ _ _ => false
+    | substitute_tgt _ _ _ => false
+    | intro_ghost_src _ _ => false
+    | intro_ghost _ _ => false
+    | intro_eq _ => false
+    | intro_eq_tgt _ => false
+    | implies_false _ _ => false
+    | _ => true
+    end.
 End Infrule.
 
 Module ValidationHint.

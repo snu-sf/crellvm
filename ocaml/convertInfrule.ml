@@ -1100,20 +1100,6 @@ let convert_infrule (infrule:CoreHint_t.infrule) (src_fdef:LLVMsyntax.fdef) (tgt
      let y = Convert.value args.y in
      let e = Convert.expr args.e src_fdef tgt_fdef in
      Infrule.Coq_substitute_tgt (x, y, e)
-  | CoreHint_t.ReplaceRhs (args:CoreHint_t.replace_rhs) ->
-      let x = Convert.register args.x in
-      let y = Convert.value args.y in
-      let e1 = Convert.expr args.e1 src_fdef tgt_fdef in
-      let e2 = Convert.expr args.e2 src_fdef tgt_fdef in
-      let e2' = Convert.expr args.e2' src_fdef tgt_fdef in
-      Infrule.Coq_replace_rhs (x, y, e1, e2, e2')
-  | CoreHint_t.ReplaceRhsOpt (args:CoreHint_t.replace_rhs_opt) ->
-      let x = Convert.register args.x in
-      let y = Convert.value args.y in
-      let e1 = Convert.expr args.e1 src_fdef tgt_fdef in
-      let e2 = Convert.expr args.e2 src_fdef tgt_fdef in
-      let e2' = Convert.expr args.e2' src_fdef tgt_fdef in
-      Infrule.Coq_replace_rhs_opt (x, y, e1, e2, e2')
   | CoreHint_t.TruncBitcast (args:CoreHint_t.trunc_bitcast) -> 
      let src = Convert.value args.src in
      let mid = Convert.value args.mid in

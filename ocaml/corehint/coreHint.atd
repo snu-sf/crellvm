@@ -449,22 +449,6 @@ type substitute_tgt = {
   e : expr;
 }
 
-type replace_rhs = {
-  x : register;
-  y : value;
-  e1 : expr;
-  e2 : expr;
-  e2' : expr;
-}
-
-type replace_rhs_opt = {
-  x : register;
-  y : value;
-  e1 : expr;
-  e2 : expr;
-  e2' : expr;
-}
-
 type add_onebit = {
   z : register;
   x : value;
@@ -2261,8 +2245,6 @@ type infrule = [
   | Substitute of substitute
   | SubstituteRev of substitute_rev
   | SubstituteTgt of substitute_tgt
-  | ReplaceRhs of replace_rhs
-  | ReplaceRhsOpt of replace_rhs_opt
   | SdivMone of sdiv_mone
   | SdivSubSrem of sdiv_sub_srem
   | SelectIcmpEq of select_icmp_eq
