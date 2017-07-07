@@ -27,13 +27,13 @@ Require Import SoundInfruleTransitivity.
 
 Set Implicit Arguments.
 
-Lemma apply_arithmetic_infrule_sound
+Lemma apply_not_interest_infrule_sound
       m_src m_tgt
       conf_src st_src
       conf_tgt st_tgt
       invst0 invmem0 inv0
       infrule
-      (ARITHMETIC: Hints.Infrule.is_arithmetic infrule = true)
+      (NOTINTEREST: Hints.Infrule.is_of_interest infrule = false)
       (CONF: InvState.valid_conf m_src m_tgt conf_src conf_tgt)
       (STATE: InvState.Rel.sem conf_src conf_tgt st_src st_tgt invst0 invmem0 inv0)
       (MEM: InvMem.Rel.sem conf_src conf_tgt st_src.(Mem) st_tgt.(Mem) invmem0):
@@ -43,16 +43,17 @@ Lemma apply_arithmetic_infrule_sound
     <<MEM: InvMem.Rel.sem conf_src conf_tgt st_src.(Mem) st_tgt.(Mem) invmem1>> /\
     <<MEMLE: InvMem.Rel.le invmem0 invmem1>>.
 Proof.
-  ADMIT "we will not prove soundness of arithmetic infrules, Alive (SMT solver) can prove this".
+  ADMIT "we will not prove soundness of arithmetic infrules or instcombine's infrules, 
+Alive (SMT solver) can prove this".
 Qed.
 
-Lemma apply_non_arithmetic_infrule_sound
+Lemma apply_interest_infrule_sound
       m_src m_tgt
       conf_src st_src
       conf_tgt st_tgt
       invst0 invmem0 inv0
       infrule
-      (ARITHMETIC: Hints.Infrule.is_arithmetic infrule = false)
+      (INTEREST: Hints.Infrule.is_of_interest infrule = true)
       (CONF: InvState.valid_conf m_src m_tgt conf_src conf_tgt)
       (STATE: InvState.Rel.sem conf_src conf_tgt st_src st_tgt invst0 invmem0 inv0)
       (MEM: InvMem.Rel.sem conf_src conf_tgt st_src.(Mem) st_tgt.(Mem) invmem0):
@@ -62,25 +63,7 @@ Lemma apply_non_arithmetic_infrule_sound
     <<MEM: InvMem.Rel.sem conf_src conf_tgt st_src.(Mem) st_tgt.(Mem) invmem1>> /\
     <<MEMLE: InvMem.Rel.le invmem0 invmem1>>.
 Proof.
-  destruct infrule; compute in ARITHMETIC; try (by contradict ARITHMETIC).
-  - (* diffblock_unique *)
-    exists invst0, invmem0. splits; eauto; [|reflexivity].
-    ss. des_ifs.
-    inv STATE. econs; eauto. ss.
-    inv SRC. econs; eauto. ss.
-    inv NOALIAS. econs; eauto. ss.
-    ii. apply Exprs.ValueTPairSetFacts.mem_iff in MEM0.
-    repeat (apply Exprs.ValueTPairSetFacts.add_iff in MEM0; des; subst).
-    + apply orb_prop in Heq.
-      admit.
-    + apply orb_prop in Heq.
-      admit.
-    + eapply (DIFFBLOCK val1 gval1 val2 gval2); eauto.
-      eapply Exprs.ValueTPairSetFacts.mem_iff. eauto.
-  - ADMIT "!diffblock_global_unique".
-  - ADMIT "!diffblock_global_global".
-  - ADMIT "!diffblock_lessthan".
-  - ADMIT "!diffblock_noalias".
+  destruct infrule; compute in INTEREST; try (by contradict INTEREST).
   - (* transitivity *)
     exists invst0, invmem0. splits; eauto; [|reflexivity].
     ss.
@@ -163,99 +146,6 @@ Proof.
           repeat rewrite <- load_realign_sem_expr; eauto.
     }
     eapply InvState.Unary.sem_lessdef_trans; eauto.
-  - (* transitivity-pointer-lhs *)
-    exists invst0, invmem0. splits; eauto; [|reflexivity].
-    ss.
-    match goal with
-    | [|- context[if ?c then _ else _]] => destruct c eqn:C
-    end; ss.
-    econs; eauto; try apply STATE. ss.
-    inv STATE. clear - C SRC.
-    des_bool. des.
-    rename p into from. rename q into to.
-    hexploit InvState.Rel.lessdef_expr_spec2; eauto. intro LD0; des. clear C0.
-    hexploit InvState.Rel.lessdef_expr_spec2; eauto. intro LD1; des. clear C.
-    rename v into v0.
-    destruct from; ss; cycle 1.
-    { econs; eauto; try apply SRC.
-      inv SRC. clear - LESSDEF LD0 LD1.
-      ii. ss.
-      apply Exprs.ExprPairSetFacts.add_iff in H. des.
-      - clarify. ss. des_ifs.
-        exploit LD1; eauto. i; des. ss.
-        eapply LD0; eauto. ss. des_ifs.
-        eapply InvState.Rel.mload_lessdef_sim_eq; eauto.
-      - eapply LESSDEF; eauto.
-    }
-    rename x into from.
-    exploit substitute_spec_unary; eauto.
-    instantiate (1:= Exprs.Expr.load (Exprs.ValueT.id from) ty a).
-    intro SRC1; des. ss. des_ifs.
-    econs; eauto; try apply SRC1.
-    (* inv SRC1. clear - LESSDEF LD0 LD1. ss. *)
-    ii.
-    apply Exprs.ExprPairSetFacts.add_iff in H. des.
-    { clarify. ss. des_ifs.
-      eapply LD0; eauto. ss.
-      exploit LD1; eauto. i; des. ss.
-      des_ifs.
-      erewrite InvState.Rel.mload_lessdef_sim_eq; eauto.
-    }
-    destruct x; ss.
-    hexploit InvState.Rel.lessdef_expr_spec; try apply H; eauto.
-    { ss.
-      eapply Exprs.ExprPairSetFacts.mem_iff; eauto.
-      eapply Exprs.ExprPairSetFacts.add_iff; eauto.
-    }
-  - (* transitivity-pointer-rhs *)
-    exists invst0, invmem0. splits; eauto; [|reflexivity].
-    ss.
-    match goal with
-    | [|- context[if ?c then _ else _]] => destruct c eqn:C
-    end; ss.
-    econs; eauto; try apply STATE. ss.
-    inv STATE. clear - C SRC.
-    des_bool. des.
-    rename p into from. rename q into to.
-    hexploit InvState.Rel.lessdef_expr_spec2; eauto. intro LD0; des. clear C0.
-    hexploit InvState.Rel.lessdef_expr_spec2; eauto. intro LD1; des. clear C.
-    rename v into v0.
-    destruct from; ss; cycle 1.
-    { econs; eauto; try apply SRC.
-      inv SRC. clear - LESSDEF LD0 LD1.
-      ii. ss.
-      apply Exprs.ExprPairSetFacts.add_iff in H. des.
-      - clarify. ss.
-        exploit LD0; eauto. i; des. ss. des_ifs_safe.
-        exploit LD1; eauto. i; des. ss. des_ifs_safe.
-        esplits; eauto.
-        erewrite InvState.Rel.mload_lessdef_sim_eq; eauto.
-      - eapply LESSDEF; eauto.
-    }
-    rename x into from.
-    exploit substitute_spec_unary; eauto.
-    instantiate (1:= Exprs.Expr.load (Exprs.ValueT.id from) ty a).
-    intro SRC1; des. ss. des_ifs.
-    econs; eauto; try apply SRC1.
-    (* inv SRC1. clear - LESSDEF LD0 LD1. ss. *)
-    ii.
-    apply Exprs.ExprPairSetFacts.add_iff in H. des.
-    {
-      destruct x; ss. clarify.
-      eapply InvState.Unary.sem_lessdef_trans; [apply LD0|..]; eauto; ss.
-      ii. ss. des_ifs_safe.
-      exploit LD1; eauto. i; des. ss.
-      des_ifs_safe. clear - VAL0 VAL.
-      erewrite InvState.Rel.mload_lessdef_sim_eq; eauto.
-      esplits; eauto.
-      apply GVs.lessdef_refl.
-    }
-    destruct x; ss.
-    hexploit InvState.Rel.lessdef_expr_spec; try apply H; eauto.
-    { ss.
-      eapply Exprs.ExprPairSetFacts.mem_iff; eauto.
-      eapply Exprs.ExprPairSetFacts.add_iff; eauto.
-    }
   - (* substitute *)
     exists invst0, invmem0.
     esplits; eauto; [ | reflexivity ].
@@ -283,15 +173,15 @@ Proof.
     intro LD; des. clear Heq.
     inv STATE. clear - TGT LD.
     eapply substitute_spec_unary; eauto.
-  - ADMIT "!intro_ghost_src".
-  - ss. des_ifs; cycle 1.
+  - (* intro_ghost *)
+    ss. des_ifs; cycle 1.
     { esplits; eauto. reflexivity. }
     repeat (des_bool; des).
     rename g into i0.
     rename x into x0.
     Local Opaque InvState.Unary.clear_idt.
     destruct (InvState.Unary.sem_expr conf_src st_src
-             (InvState.Rel.clear_idt (Exprs.Tag.ghost, i0) invst0).(InvState.Rel.src) x0) eqn:T0; cycle 1.
+                                      (InvState.Rel.clear_idt (Exprs.Tag.ghost, i0) invst0).(InvState.Rel.src) x0) eqn:T0; cycle 1.
     {
       exists (InvState.Rel.clear_idt (Exprs.Tag.ghost, i0) invst0), invmem0.
       splits; ss; eauto; [|reflexivity].
@@ -341,7 +231,7 @@ Proof.
     rename g into gv_src.
     assert(GV_TGT: exists gv_tgt,
               InvState.Unary.sem_expr conf_tgt st_tgt
-                   (InvState.Rel.clear_idt (Exprs.Tag.ghost, i0) invst0).(InvState.Rel.tgt) x0
+                                      (InvState.Rel.clear_idt (Exprs.Tag.ghost, i0) invst0).(InvState.Rel.tgt) x0
               = Some gv_tgt
               /\ genericvalues_inject.gv_inject invmem0.(InvMem.Rel.inject) gv_src gv_tgt).
     {
@@ -371,7 +261,7 @@ Proof.
     clear - STATE_CLEAR GV_SRC GV_TGT GV_INJ MEM.
 
     exists (cons_idt (Exprs.Tag.ghost, i0) gv_src gv_tgt
-                     (InvState.Rel.clear_idt (Exprs.Tag.ghost, i0) invst0)), invmem0.
+                 (InvState.Rel.clear_idt (Exprs.Tag.ghost, i0) invst0)), invmem0.
     splits; ss; eauto; [|reflexivity].
     {
       econs; eauto; try apply STATE_CLEAR.
@@ -411,13 +301,6 @@ Proof.
         { unfold proj_sumbool; des_ifs. }
         eapply MAYDIFF; eauto.
     }
-  - (* intro_eq *)
-    exists invst0, invmem0. splits; eauto; [|reflexivity].
-    inv STATE. econs; eauto. ss.
-    inv SRC. econs; eauto. ss.
-    ii. apply Exprs.ExprPairSetFacts.add_iff in H. des.
-    + subst. esplits; eauto. apply GVs.lessdef_refl.
-    + eapply LESSDEF; eauto.
   - (* intro_eq_tgt *)
     exists invst0, invmem0. splits; eauto; [|reflexivity].
     inv STATE. econs; eauto. ss.
@@ -425,8 +308,7 @@ Proof.
     ii. apply Exprs.ExprPairSetFacts.add_iff in H. des.
     + subst. esplits; eauto. apply GVs.lessdef_refl.
     + eapply LESSDEF; eauto.
-  - ADMIT "!implies_false".
-Admitted.
+Qed.
 
 Lemma apply_infrule_sound
       m_src m_tgt
@@ -443,9 +325,9 @@ Lemma apply_infrule_sound
     <<MEM: InvMem.Rel.sem conf_src conf_tgt st_src.(Mem) st_tgt.(Mem) invmem1>> /\
     <<MEMLE: InvMem.Rel.le invmem0 invmem1>>.
 Proof.
-  destruct (Hints.Infrule.is_arithmetic infrule) eqn:T; ss.
-  - eapply apply_arithmetic_infrule_sound; eauto.
-  - eapply apply_non_arithmetic_infrule_sound; eauto.
+  destruct (Hints.Infrule.is_of_interest infrule) eqn:T; ss.
+  - eapply apply_interest_infrule_sound; eauto.
+  - eapply apply_not_interest_infrule_sound; eauto.
 Qed.
 
 Lemma apply_infrules_sound
