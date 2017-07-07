@@ -516,13 +516,17 @@ module IntroGhostHelper = struct
       let l = Auto.get_rhs_list inv.Invariant.src.Invariant.lessdef e in
       List.exists (fun e0 -> match e0 with Expr.Coq_value (ValueT.Coq_id (Tag.Coq_previous, _)) -> true | _ -> false) l
 
+    let unique_ld ld : bool = List.length (ExprPairSet.elements ld) == 1
+
     let simple_phi (g:id) (inv:Invariant.t) (inv_g:Invariant.t) : Expr.t option =
       let _ = print_endline ("gid: "^g) in
       match find_unique_v g true inv_g.Invariant.src.Invariant.lessdef,
             find_unique_v g false inv_g.Invariant.tgt.Invariant.lessdef with
-      | Some e1, Some e2 when Expr.eq_dec e1 e2 -> Some e1
+      | Some e1, Some e2 when Expr.eq_dec e1 e2 -> (* Some e1 *)
          (* print_endline "simple_phi yes"; *)
-         (* if (is_prev_pair e1 inv) then Some e1 else None *)
+         if (is_prev_pair e1 inv) || (unique_ld inv_g.Invariant.src.Invariant.lessdef &&
+                                        unique_ld inv_g.Invariant.tgt.Invariant.lessdef)
+         then Some e1 else None
       | _ -> None
 
     (* let extr_num (x:id) : int = *)
