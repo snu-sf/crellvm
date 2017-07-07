@@ -305,13 +305,13 @@ module AutoSubstTransHelper = struct
     (* Make [(bdd e1 oe1) >= (bdd e2 oe2)]. *)
     (* If e1 = e2 and oe1=oe2=None, do nothing. *)
     let rec run depth scp ld oel e1 e2 oer : (Infrule.t list) option =
-      let string_of_exprpairlist (el:ExprPair.t list): string =
-        let sl = List.map (fun (e1, e2) ->
-                           (Printer.ExprsToString.of_expr e1) ^ ">="^
-                             (Printer.ExprsToString.of_expr e2)) el
-        in 
-        List.fold_left (fun ss s -> ss^"\n"^s) "" sl
-      in 
+      (* let string_of_exprpairlist (el:ExprPair.t list): string = *)
+      (*   let sl = List.map (fun (e1, e2) -> *)
+      (*                      (Printer.ExprsToString.of_expr e1) ^ ">="^ *)
+      (*                        (Printer.ExprsToString.of_expr e2)) el *)
+      (*   in  *)
+      (*   List.fold_left (fun ss s -> ss^"\n"^s) "" sl *)
+      (* in  *)
       (* let _ = print_endline ("run d="^(string_of_int depth)) in *)
       (* let _ = print_endline ("e1="^(Printer.ExprsToString.of_expr e1)) in *)
       (* let _ = print_endline ("e2="^(Printer.ExprsToString.of_expr e2)) in *)
@@ -679,6 +679,15 @@ module AutoGVNModule = struct
          | Some (_,(_, infrs)) -> infrs
          | None -> []
 
+    let infrules_icmp_inverse (ld:ExprPairSet.t) : (Infrule.t list) * ExprPairSet.t  =
+      List.fold_left (fun acc ep -> match ep with
+                                    | (Expr.Coq_icmp (c, t, v1, v2),
+                                       Expr.Coq_value (ValueT.Coq_const (Coq_const_int (sz, b)))) ->
+                                       ((fst acc)@[Infrule.Coq_icmp_inverse_tgt (c, t, v1, v2, b)],
+                                        ExprPairSet.add (Expr.Coq_icmp (get_inverse_icmp_cond c, t, v1, v2),
+                                                         Expr.Coq_value (ValueT.Coq_const (Coq_const_int (sz, get_inverse_boolean_Int b)))) (snd acc))
+                                    | _ -> acc) ([], ld) (ExprPairSet.elements ld)
+
     let new_auto1 : Auto.t1 =
       fun b inv inv_g ->
       if b then ([], inv_g) else
@@ -688,11 +697,13 @@ module AutoGVNModule = struct
       let augment_ld f ld = List.fold_left (fun ld1 ep -> ExprPairSet.add (f ep) ld1) ld intros_e in
       let inv = Invariant.update_src (Invariant.update_lessdef (augment_ld (fun ep -> (snd ep, fst ep)))) inv in
       let inv = Invariant.update_tgt (Invariant.update_lessdef (augment_ld (fun ep -> ep))) inv in
+      let infrs_ii, ld_t = infrules_icmp_inverse inv.Invariant.tgt.Invariant.lessdef in
+      let inv = Invariant.update_tgt (Invariant.update_lessdef (fun _ -> ld_t)) inv in
       let infrs_load = process_load inv.Invariant.tgt.Invariant.lessdef inv_g.Invariant.tgt.Invariant.lessdef in
       (* let inv = Invariant.update_tgt (Invariant.update_lessdef (process_load inv_g.Invariant.tgt.Invariant.lessdef)) *)
       (*                                inv in *)
       let (infrs_st, inv_g) = AutoSubstTransHelper.auto1 b inv inv_g in
-      (infrs_intros@infrs_load@infrs_st, inv_g)
+      (infrs_intros@infrs_ii@infrs_load@infrs_st, inv_g)
   end
 
 (** Framework 1. AutoNextInvariant *)
