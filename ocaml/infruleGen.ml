@@ -467,7 +467,6 @@ module IntroGhostHelper = struct
     let unique_ld ld : bool = List.length (ExprPairSet.elements ld) == 1
 
     let simple_phi (g:id) (inv:Invariant.t) (inv_g:Invariant.t) : Expr.t option =
-      let _ = print_endline ("gid: "^g) in
       match find_unique_v g true inv_g.Invariant.src.Invariant.lessdef,
             find_unique_v g false inv_g.Invariant.tgt.Invariant.lessdef with
       | Some e1, Some e2 when Expr.eq_dec e1 e2 -> (* Some e1 *)
