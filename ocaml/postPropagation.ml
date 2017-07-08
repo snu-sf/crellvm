@@ -24,29 +24,46 @@ open Printer
 
 module PostProp = struct
     type t = Invariant.t -> Invariant.t -> Invariant.t option
-    
-    let default preinv postinv = None
 
     let counter:int ref = ref 0
-    let test (previnv:Invariant.t) (postinv:Invariant.t) =
-      debug_print "---test()------";
-      debug_print "pre:";
-      PrintHints.invariant previnv;
-      debug_print "post:";
-      PrintHints.invariant postinv;
-      
-      let newname = sprintf "test%d" !counter in
+
+    let update_lessdef_b (f:ExprPairSet.t -> (ExprPairSet.t * bool)) (invu:Invariant.unary)
+        : Invariant.unary * bool =
+      let (ld_post, flag) = f invu.Invariant.lessdef in
+      (Invariant.update_lessdef (fun _ -> ld_post) invu, flag)
+
+    let update_src_b (f:Invariant.unary -> (Invariant.unary * bool)) (inv:Invariant.t)
+        : Invariant.t * bool =
+      let (inv_src, flag) = f inv.Invariant.src in
+      (Invariant.update_src (fun _ -> inv_src) inv, flag)
+
+    let update_tgt_b (f:Invariant.unary -> (Invariant.unary * bool)) (inv:Invariant.t)
+        : Invariant.t * bool =
+      let (inv_tgt, flag) = f inv.Invariant.tgt in
+      (Invariant.update_tgt (fun _ -> inv_tgt) inv, flag)
+
+    let remove_inconsistent_gep (previnv:Invariant.t) (postinv:Invariant.t) =
+      let rem_inc_ld (prev_ld:ExprPairSet.t) (post_ld:ExprPairSet.t) : (ExprPairSet.t * bool) =
+        List.fold_left (fun (acc, cg) ep ->
+                        match ep with
+                        | (e1, Expr.Coq_gep (inb, ty1, v, lsz, ty2)) when inb = true ->
+                           if ExprPairSet.mem (e1, Expr.Coq_gep (false, ty1, v, lsz, ty2)) prev_ld
+                           then (ExprPairSet.remove ep acc, true)
+                           else (acc, cg)
+                        | (Expr.Coq_gep (inb, ty1, v, lsz, ty2), e2) when inb = false ->
+                           if ExprPairSet.mem (Expr.Coq_gep (true, ty1, v, lsz, ty2), e2) prev_ld
+                           then (ExprPairSet.remove ep acc, true)
+                           else (acc, cg)
+                        | _ -> (acc, cg)) (post_ld, false) (ExprPairSet.elements post_ld)
+      in
       let _ = counter := !counter + 1 in
-      let testexpr = Expr.Coq_value (ValueT.Coq_id (IdT.lift Tag.Coq_physical newname)) in
-      
-      let prevld = previnv.src.lessdef in
-      let postld = postinv.src.lessdef in
-      let updatedld = ExprPairSet.add (testexpr, testexpr) (ExprPairSet.union prevld postld) in
-      let result = Invariant.update_src (Invariant.update_lessdef (fun _ -> updatedld)) previnv in
-      debug_print "post(after):";
-      PrintHints.invariant result;
-      debug_print "---test()end---";
-      Some result
+      let prev_ld_src = previnv.Invariant.src.Invariant.lessdef in
+      let prev_ld_tgt = previnv.Invariant.tgt.Invariant.lessdef in
+      let (postinv1, cg1) = update_src_b (update_lessdef_b (rem_inc_ld prev_ld_src)) postinv in
+      let (postinv2, cg2) = update_tgt_b (update_lessdef_b (rem_inc_ld prev_ld_tgt)) postinv1 in
+      if (cg1 || cg2) then Some postinv2 else None
+
+    let default (previnv:Invariant.t) (postinv:Invariant.t) = None
   end
 
 let _apply_func_to_block (hint_fdef:ValidationHint.fdef)

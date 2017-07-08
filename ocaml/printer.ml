@@ -302,6 +302,10 @@ module PrintHints = struct
          "icmp_eq_same: " ^
            "true >= icmp eq [" ^ ExprsToString.of_expr(Expr.Coq_value v1) ^ "] [" ^
            ExprsToString.of_expr(Expr.Coq_value v2) ^ "] implies both are same"
+      | Infrule.Coq_icmp_inverse_tgt (c, ty, v1, v2, b) ->
+         "icmp_inverse_tgt: " ^
+           (ExprsToString.of_expr(Expr.Coq_icmp(c,ty,v1,v2))) ^ " >= " ^ (string_of_constant (LLVMsyntax.Coq_const_int (1, b))) ^
+             " is being inversed"
       | Infrule.Coq_and_true_bool (v1, v2) ->
          "and_true_bool: " ^
            "true >= and 1 [" ^ ExprsToString.of_expr(Expr.Coq_value v1) ^ "] [" ^

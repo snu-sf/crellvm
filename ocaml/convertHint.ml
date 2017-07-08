@@ -217,8 +217,8 @@ module ConvertPostPropagation = struct
     let convert_postprop_opt (opt:CoreHint_t.postprop_opt)
         : PostPropagation.PostProp.t = 
       match opt with
+      | CoreHint_t.POSTPROP_GVN -> PostProp.remove_inconsistent_gep
       | _ -> PostProp.default
-      (* | CoreHint_t.POSTPROP_GVN -> PostProp.test *)
   end
 
 let apply_post_propagation_func hint_fdef lfdef dtree_lfdef core_hint =

@@ -355,6 +355,13 @@ Notation "{{ inv +++tgt y _||_ x }}" := (Invariant.update_tgt (Invariant.update_
 Notation "{{ inv --- x }}" := (Invariant.update_maydiff (IdTSet.filter (fun y => negb (IdT.eq_dec x y))) inv) (at level 41, inv, x at level 41).
 
 
+Definition load_align_one (e1: Expr.t): Expr.t :=
+  match e1 with
+  | Expr.load v ty a => Expr.load v ty Align.One
+  | _ => e1
+  end
+.
+
 Definition apply_infrule
            (m_src m_tgt:module)
            (infrule:Infrule.t)
@@ -777,6 +784,12 @@ Definition apply_infrule
     match gepinst with
     | Expr.gep _ t v lsv u =>
       {{inv0 +++src (Expr.gep true t v lsv u) >= (Expr.gep false t v lsv u) }}
+    | _ => apply_fail tt
+    end
+  | Infrule.gep_inbounds_remove_tgt gepinst =>
+    match gepinst with
+    | Expr.gep _ t v lsv u =>
+      {{inv0 +++tgt (Expr.gep true t v lsv u) >= (Expr.gep false t v lsv u) }}
     | _ => apply_fail tt
     end
   | Infrule.gep_inbounds_add loadv ptr loadty al e =>
@@ -1492,6 +1505,11 @@ Definition apply_infrule
     if $$ inv0 |-tgt (Expr.value x) >= (Expr.value y) $$
     then
       {{inv0 +++tgt e >= (Expr.substitute x y e)}}
+    else apply_fail tt
+  | Infrule.substitute_rev_tgt x y e =>
+    if $$ inv0 |-tgt (Expr.value y) >= (Expr.value x) $$
+    then
+      {{inv0 +++tgt (Expr.substitute x y e) >= e}}
     else apply_fail tt
   | Infrule.sext_zext src mid dst srcty midty dstty =>
     if $$ inv0 |-src (Expr.value mid) >= (Expr.ext extop_z srcty src midty) $$ &&
