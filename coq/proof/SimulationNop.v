@@ -412,14 +412,14 @@ Lemma nop_state_sim_final
       idx0 st_src0 st_tgt0
       (SIM: nop_state_sim idx0 st_src0 st_tgt0)
       g
-      (FINAL_TGT: s_isFinialState conf_tgt st_tgt0 = Some g)
+      (FINAL_TGT: s_isFinalState conf_tgt st_tgt0 = Some g)
   :
   exists st_src1,
     <<FINAL_SRC: sop_star conf_src st_src0 st_src1 [] /\
-                 s_isFinialState conf_src st_src1 = Some g>>
+                 s_isFinalState conf_src st_src1 = Some g>>
 .
 Proof.
-  inv SIM. inv EC0. ss. des_ifs_safe ss. des. clarify.
+  inv SIM. inv EC0. ss. unfold s_isFinalState in *. des_ifs_safe ss. clarify.
   assert(ecs_tgt = []).
   { des_ifs; ss. } clarify.
   inv ECS0. clear_tac.
@@ -431,10 +431,7 @@ Proof.
     + rpapply nops_sop_star; eauto.
       rewrite app_nil_r. eauto.
     + ss.
-  - esplits.
-    + rpapply nops_sop_star; eauto.
-      rewrite app_nil_r. eauto.
-    + ss.
+      des_ifs.
 Qed.
 
 Lemma nop_conf_sim_lookup
@@ -817,7 +814,7 @@ Proof.
   s.
   pcofix CIH. intros idx0 st_src0 st_tgt0 SIM. pfold.
 
-  destruct (s_isFinialState conf_tgt st_tgt0) eqn:FINAL_TGT.
+  destruct (s_isFinalState conf_tgt st_tgt0) eqn:FINAL_TGT.
   { expl nop_state_sim_final (try apply CONF; eauto).
     eapply _sim_exit; eauto.
   }
@@ -855,6 +852,7 @@ Proof.
             { econs; ss; eauto. }
           + ss.
             destruct conf_src, conf_tgt; ss. inv CONF. ss. inv CONF0. ss. clarify.
+            unfold s_isFinalState in *. ss.
             des_ifs.
             { inv ECS0. }
             { inv ECS0. }

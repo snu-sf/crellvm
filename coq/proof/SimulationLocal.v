@@ -69,7 +69,7 @@ Lemma progress
       (WF_CONF: wf_ConfigI conf)
       (WF_ST: wf_StateI conf st0)
   :
-    (<<IS_FINAL: s_isFinialState conf st0 <> merror>>) \/
+    (<<IS_FINAL: s_isFinalState conf st0 <> merror>>) \/
     (<<IS_UNDEFINED: OpsemPP.undefined_state conf st0>>) \/
     (<<PROGRESS: ~stuck_state conf st0>>)
 .

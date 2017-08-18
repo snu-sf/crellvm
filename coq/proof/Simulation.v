@@ -42,11 +42,10 @@ Section Sim.
 
   | _sim_exit
       st2_src
-      ret_src ret_tgt
+      retval
       (STEP_SRC: sop_star conf_src st1_src st2_src E0)
-      (EXIT_SRC: s_isFinialState conf_src st2_src = Some ret_src)
-      (EXIT_TGT: s_isFinialState conf_tgt st1_tgt = Some ret_tgt)
-      (* TODO: the relation of ret_src and ret_tgt *)
+      (EXIT_SRC: s_isFinalState conf_src st2_src = Some retval)
+      (EXIT_TGT: s_isFinalState conf_tgt st1_tgt = Some retval)
 
   | _sim_step
       (PROGRESS: ~ stuck_state conf_tgt st1_tgt)

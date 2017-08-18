@@ -125,12 +125,12 @@ End GVs.
 Inductive error_state conf st: Prop :=
 | error_state_intro
     (STUCK: stuck_state conf st)
-    (NFINAL: s_isFinialState conf st = None)
+    (NFINAL: s_isFinalState conf st = None)
 .
 
 Lemma final_stuck
       conf st retval
-      (FINAL: s_isFinialState conf st = Some retval):
+      (FINAL: s_isFinalState conf st = Some retval):
   stuck_state conf st.
 Proof.
   ii. des. destruct st, EC0. ss.
@@ -143,16 +143,16 @@ Lemma nerror_stuck_final
       conf st
       (NERROR: ~ error_state conf st)
       (STUCK: stuck_state conf st):
-  exists retval, s_isFinialState conf st = Some retval.
+  exists retval, s_isFinalState conf st = Some retval.
 Proof.
-  destruct (s_isFinialState conf st) eqn:X; eauto.
+  destruct (s_isFinalState conf st) eqn:X; eauto.
   exfalso. apply NERROR. econs; ss.
 Qed.
 
 Lemma nerror_nfinal_nstuck
       conf st1
       (NERROR: ~ error_state conf st1)
-      (NFINAL: s_isFinialState conf st1 = None):
+      (NFINAL: s_isFinalState conf st1 = None):
   exists st2 e, sInsn conf st1 st2 e.
 Proof.
   destruct (classic (stuck_state conf st1)).
@@ -300,13 +300,13 @@ Qed.
 Lemma error_state_neg conf st
       (NERROR_SRC: ~error_state conf st)
   :
-    <<NERROR_SRC: ~(stuck_state conf st) \/ exists gv, s_isFinialState conf st = Some gv>>
+    <<NERROR_SRC: ~(stuck_state conf st) \/ exists retval, s_isFinalState conf st = Some retval>>
 .
 Proof.
   red. unfold not in NERROR_SRC.
   apply imply_to_or.
   i.
-  destruct (s_isFinialState conf st) eqn:T.
+  destruct (s_isFinalState conf st) eqn:T.
   { esplits; eauto. }
   exploit NERROR_SRC; eauto.
   { econs; eauto. }
