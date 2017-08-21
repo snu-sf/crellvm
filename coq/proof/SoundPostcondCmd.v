@@ -349,7 +349,7 @@ Proof.
   end.
 
   destruct (s_isFinalState conf_src st0_src) eqn:FINAL.
-  { unfold s_isFinalState in FINAL. des_ifs.  unfold s_isFinalStateAux in *. simtac. }
+  { unfold s_isFinalState in FINAL. des_ifs. }
   exploit nerror_nfinal_nstuck; eauto. intros [st1_src [evt_src STEP_SRC]].
   replace evt_src with evt in *; cycle 1.
   { unfold postcond_cmd_check in COND. simtac.
