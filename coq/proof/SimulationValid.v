@@ -662,7 +662,7 @@ Lemma valid_progress
       (NOTCALL: Instruction.isCallInst c_src = false)
       c_tgt cs_tgt
       (CMDTGT: st_tgt.(EC).(CurCmds) = c_tgt :: cs_tgt)
-      (NOTFINAL: s_isFinialState conf_tgt st_tgt = None)
+      (NOTFINAL: s_isFinalState conf_tgt st_tgt = None)
   :
     <<PROGRESS: ~stuck_state conf_tgt st_tgt>>
 .

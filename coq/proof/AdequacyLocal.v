@@ -226,6 +226,20 @@ Proof.
   eapply preservation; eauto.
 Qed.
 
+Lemma GV2Vint_sim
+      mi gv0 gv1
+      (INJ: genericvalues_inject.gv_inject mi gv0 gv1)
+      vi
+      (SRCV: GV2Vint gv0 = Some vi)
+  :
+    <<TGTV: GV2Vint gv1 = Some vi>>
+.
+Proof.
+  unfold GV2Vint in SRCV.
+  des_ifs.
+  inv INJ. inv H4. inv H3. apply inj_pair2 in H1. clarify.
+Qed.
+
 Lemma sim_local_lift_sim conf_src conf_tgt
       (SIM_CONF: sim_conf conf_src conf_tgt):
   (sim_local_lift conf_src conf_tgt) <3= (sim conf_src conf_tgt).
@@ -246,8 +260,16 @@ Proof.
     + (* final *)
       exploit nerror_stuck_final; eauto.
       { ii. des. inv H. }
-      i. des. ss. exploit RET; eauto. i. des.
+      i. des. ss.
+      unfold s_isFinalState in *. ss. des_ifs.
+      exploit RET; eauto. i. des.
+      inv VALID.
       eapply _sim_exit; eauto.
+      * unfold s_isFinalState. ss.
+        rewrite Heq. eauto.
+      * unfold s_isFinalState. ss.
+        rewrite RET_TGT.
+        eapply GV2Vint_sim; eauto.
     + (* return *)
       rename inv0 into inv_stack0.
       rename inv1 into inv_stack1.
