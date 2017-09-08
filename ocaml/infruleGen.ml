@@ -5,6 +5,7 @@ open Syntax
 open MetatheoryAtom
 open LLVMsyntax
 open Infrastructure
+open Datatype_base
 open TODOCAML
 
 module AutoOpt = struct
@@ -122,6 +123,14 @@ module Auto = struct
 
     let repl_value e v1 v2 : Expr.t =
       Expr.map_valueTs e (fun v -> if ValueT.eq_dec v1 v then v2 else v)
+
+    let is_boolean e : bool option =
+      match e with
+      | Expr.Coq_value (ValueT.Coq_const (Coq_const_int (1, b))) ->
+         (match INTEGER.to_Z b with
+          | Z0 -> Some false
+          | _ -> Some true)
+      | _ -> None
   end
 
 module AutoTransHelper = struct
@@ -604,7 +613,7 @@ module AutoGVNModule = struct
          | Some (_,(_, infrs)) -> infrs
          | None -> []
 
-    let infrules_icmp_inverse (ld:ExprPairSet.t) : (Infrule.t list) * ExprPairSet.t  =
+    let infrules_icmp (ld:ExprPairSet.t) : (Infrule.t list) * ExprPairSet.t  =
       List.fold_left (fun acc ep ->
                       match ep with
                       | (Expr.Coq_icmp (c, t, v1, v2),
@@ -612,6 +621,18 @@ module AutoGVNModule = struct
                          ((fst acc)@[Infrule.Coq_icmp_inverse_tgt (c, t, v1, v2, b)],
                           ExprPairSet.add (Expr.Coq_icmp (get_inverse_icmp_cond c, t, v1, v2),
                                            Expr.Coq_value (ValueT.Coq_const (Coq_const_int (sz, get_inverse_boolean_Int b)))) (snd acc))
+                      | (e1, Expr.Coq_icmp (c, t, v1, v2)) ->
+                         (match Auto.find_first_match
+                                  (fun (ex, ey) -> if (Expr.eq_dec ey e1 &&
+                                                         match Auto.is_boolean ex with
+                                                         | Some true -> true
+                                                         | _ -> false) then Some () else None)
+                                  (ExprPairSet.elements ld) with
+                          | Some (ep2, _) ->
+                             ((fst acc)@[Auto.transitivity Auto.Tgt (fst ep2) e1 (snd ep);
+                                         Infrule.Coq_icmp_eq_same_tgt (t, v1, v2)],
+                              ExprPairSet.add (Expr.Coq_value v1, Expr.Coq_value v2) (snd acc))
+                          | _ -> acc)
                       | _ -> acc) ([], ld) (ExprPairSet.elements ld)
 
     let new_auto1 : Auto.t1 =
@@ -623,7 +644,7 @@ module AutoGVNModule = struct
       let augment_ld f ld = List.fold_left (fun ld1 ep -> ExprPairSet.add (f ep) ld1) ld intros_e in
       let inv = Invariant.update_src (Invariant.update_lessdef (augment_ld (fun ep -> (snd ep, fst ep)))) inv in
       let inv = Invariant.update_tgt (Invariant.update_lessdef (augment_ld (fun ep -> ep))) inv in
-      let infrs_ii, ld_t = infrules_icmp_inverse inv.Invariant.tgt.Invariant.lessdef in
+      let infrs_ii, ld_t = infrules_icmp inv.Invariant.tgt.Invariant.lessdef in
       let inv = Invariant.update_tgt (Invariant.update_lessdef (fun _ -> ld_t)) inv in
       let infrs_load = process_load inv.Invariant.tgt.Invariant.lessdef inv_g.Invariant.tgt.Invariant.lessdef in
 
