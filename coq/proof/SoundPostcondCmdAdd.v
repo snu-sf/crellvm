@@ -154,7 +154,7 @@ Ltac clear_true :=
          | [ H: ?x = ?x |- _ ] => clear H
          end.
 
-Lemma remove_def_from_maydiff_Subset
+Lemma remove_def_from_maydiff_Subset_old
       id0 inv0
   :
     Invariant.Subset
@@ -177,12 +177,41 @@ Proof.
     ii.
     eapply AtomSetFacts.add_s_m. eauto.
     apply AtomSetFacts.Subset_refl.
-    info_eauto. (* SUGOI!!!!!!!!!!!!!!!!!!!!!!!! *)
+    info_eauto.
   -
     ii.
     eapply AtomSetFacts.add_s_m. eauto.
     apply AtomSetFacts.Subset_refl.
-    info_eauto. (* SUGOI!!!!!!!!!!!!!!!!!!!!!!!! *)
+    info_eauto.
+  -
+    ii.
+    rewrite IdTSetFacts.mem_iff in *.
+    rewrite IdTSetFacts.remove_b in H.
+    des_bool; des; ss.
+Qed.
+
+Lemma remove_def_from_maydiff_Subset
+      id0 inv0
+  :
+    Invariant.Subset
+      inv0
+      (remove_def_from_maydiff
+         id0 id0 (Invariant.update_src (Invariant.update_unique (add id0)) inv0))
+.
+Proof.
+  destruct inv0; ss.
+  destruct src; ss.
+  destruct tgt; ss.
+  unfold Invariant.update_src, Invariant.update_tgt,
+  remove_def_from_maydiff, Invariant.update_maydiff. ss.
+  destruct (id_dec id0 id0); clarify.
+  unfold Invariant.update_unique; ss.
+  econs; ss; try (econs; try splits; ss).
+  -
+    ii.
+    eapply AtomSetFacts.add_s_m. eauto.
+    apply AtomSetFacts.Subset_refl.
+    info_eauto.
   -
     ii.
     rewrite IdTSetFacts.mem_iff in *.
@@ -286,53 +315,53 @@ Proof.
   - (* nop, alloca *)
     clear ALLOC_INJECT.
     unfold postcond_cmd_check in *. des_ifs; des_bool; clarify.
-    ss. clear_true.
-    splits; ss.
-    apply_all_once AtomSetImpl_from_list_inter_is_empty.
-    simpl_list.
+    (* ss. clear_true. *)
+    (* splits; ss. *)
+    (* apply_all_once AtomSetImpl_from_list_inter_is_empty. *)
+    (* simpl_list. *)
 
-    inv STATE_STEP.
+    (* inv STATE_STEP. *)
 
-    ((inv STEP_SRC; ss); []).
-    (* inv SRC. *)
-    inv CMDS_SRC.
+    (* ((inv STEP_SRC; ss); []). *)
+    (* (* inv SRC. *) *)
+    (* inv CMDS_SRC. *)
 
-    econs; eauto; [].
+    (* econs; eauto; []. *)
 
-    ((inv STEP_TGT; ss); []).
+    (* ((inv STEP_TGT; ss); []). *)
+    (* (* inv TGT. *) *)
+    (* inv CMDS_TGT. *)
+    (* ss. *)
+    (* clear MAYDIFF. *)
+
     (* inv TGT. *)
-    inv CMDS_TGT.
-    ss.
-    clear MAYDIFF.
-
-    inv TGT.
-    clear H H2.
-    clear MEM_STEP.
-    clear CONF.
-    (* inv TGT. clear LESSDEF0 NOALIAS0 UNIQUE0 PRIVATE0 WF_LOCAL0. *)
-    unfold alloc_private, alloc_private_unary in *. ss.
-    destruct ALLOC_PRIVATE as [_ ALLOC_PRIVATE].
-    exploit ALLOC_PRIVATE; eauto. clear ALLOC_PRIVATE. intro ALLOC_PRIVATE.
-    econs; eauto; [|]; clear LESSDEF NOALIAS WF_LOCAL.
-    + clear ALLOC_PRIVATE.
-      clear PRIVATE.
-      unfold Invariant.update_src. ss.
-      intros ____id____ IN.
-      eapply AtomSetFacts.add_iff in IN.
-      des; [|eauto]; [].
-      subst.
-      eapply add_unique_alloca; eauto; try apply MEM; try apply STATE;
-        rewrite <- MEM_GMAX; try apply MEM; try apply STATE.
-    + clear UNIQUE.
-      clear MEM SRC STATE.
-      unfold Invariant.update_private. ss.
-      ii. rewrite IdTSetFacts.add_iff in *. des.
-      { (* x is alloca *)
-        destruct x as [[] x]; ss.
-        unfold IdT.lift, InvState.Unary.sem_idT in *. ss. clarify.
-        exploit ALLOC_PRIVATE0; eauto.
-      }
-      { exploit PRIVATE; eauto. }
+    (* clear H H2. *)
+    (* clear MEM_STEP. *)
+    (* clear CONF. *)
+    (* (* inv TGT. clear LESSDEF0 NOALIAS0 UNIQUE0 PRIVATE0 WF_LOCAL0. *) *)
+    (* unfold alloc_private, alloc_private_unary in *. ss. *)
+    (* destruct ALLOC_PRIVATE as [_ ALLOC_PRIVATE]. *)
+    (* exploit ALLOC_PRIVATE; eauto. clear ALLOC_PRIVATE. intro ALLOC_PRIVATE. *)
+    (* econs; eauto; (* [|]; *) clear LESSDEF NOALIAS WF_LOCAL. *)
+    (* (* + clear ALLOC_PRIVATE. *) *)
+    (* (*   clear PRIVATE. *) *)
+    (* (*   unfold Invariant.update_src. ss. *) *)
+    (* (*   intros ____id____ IN. *) *)
+    (* (*   eapply AtomSetFacts.add_iff in IN. *) *)
+    (* (*   des; [|eauto]; []. *) *)
+    (* (*   subst. *) *)
+    (* (*   eapply add_unique_alloca; eauto; try apply MEM; try apply STATE; *) *)
+    (* (*     rewrite <- MEM_GMAX; try apply MEM; try apply STATE. *) *)
+    (* + clear UNIQUE. *)
+    (*   clear MEM SRC STATE. *)
+    (*   unfold Invariant.update_private. ss. *)
+    (*   ii. rewrite IdTSetFacts.add_iff in *. des. *)
+    (*   { (* x is alloca *) *)
+    (*     destruct x as [[] x]; ss. *)
+    (*     unfold IdT.lift, InvState.Unary.sem_idT in *. ss. clarify. *)
+    (*     exploit ALLOC_PRIVATE0; eauto. *)
+    (*   } *)
+    (*   { exploit PRIVATE; eauto. } *)
   - (* allica, nop *)
     clear ALLOC_INJECT.
     unfold postcond_cmd_check in *. des_ifs; des_bool; clarify.
@@ -459,11 +488,11 @@ Proof.
         econs; eauto; []. ss.
         eapply add_unique_alloca; eauto; try apply SRC; try apply SRC0;
           rewrite <- MEM_GMAX; try apply SRC; try apply SRC0.
-      - (* TGT *)
-        inv TGT. inv MEM. inv STATE.
-        econs; eauto; []. ss.
-        eapply add_unique_alloca; eauto; try apply TGT; try apply TGT0;
-          rewrite <- MEM_GMAX; try apply TGT; try apply TGT0.
+      (* - (* TGT *) *)
+      (*   inv TGT. inv MEM. inv STATE. *)
+      (*   econs; eauto; []. ss. *)
+      (*   eapply add_unique_alloca; eauto; try apply TGT; try apply TGT0; *)
+      (*     rewrite <- MEM_GMAX; try apply TGT; try apply TGT0. *)
       - (* MAYDIFF *)
         inv SRC. inv TGT.
         ii.
@@ -488,7 +517,7 @@ Proof.
         Fail eapply genericvalues_inject.gv_inject_cons.
         move CONF at bottom.
         inv CONF. inv INJECT. simpl in TARGETDATA. clarify.
-        econs; eauto.
+        econs; eauto. { i; clarify. }
         rename mb into _____________mb______________.
         rename mb0 into _____________mb0______________.
         move WF_LOCAL0 at bottom.
@@ -512,80 +541,89 @@ Proof.
     }
 Qed.
 
+Lemma opsem_assigns_getCmdID
+      conf st0 st1 evt
+      cmd cmds x
+      (STEP: sInsn conf st0 st1 evt)
+      (CMDS: st0.(EC).(CurCmds) = cmd :: cmds)
+      (NONCALL: Instruction.isCallInst cmd = false)
+      (CMD_ID: getCmdID cmd = Some x)
+  : exists gv, lookupAL _ st1.(EC).(Locals) x = Some gv.
+Proof.
+  inv STEP; ss; clarify; ss; clarify;
+    try by esplits; apply lookupAL_updateAddAL_eq.
+Qed.
+
+Lemma wf_GVs__lessthan_undef
+      TD gl t gvu gv
+      (CONST_GV: const2GV TD gl (const_undef t) = Some gvu)
+      (WF_GVS: opsem_wf.OpsemPP.wf_GVs TD gv t)
+  : GVs.lessdef gvu gv.
+Proof.
+  exploit const2GV_undef; eauto. i. des.
+  inv WF_GVS. unfold gv_chunks_match_typ in *. des_ifs.
+  apply all_undef_lessdef_aux; eauto.
+  exploit vm_matches_typ__eq__snd; eauto. i.
+  rewrite util.snd_split__map_snd in *. eauto.
+  apply vm_matches_typ__gv_has_chunk in H1. unfold gv_has_chunk in *.
+  eapply Forall_impl; eauto.
+  i. ss. des_ifs. apply genericvalues_inject.has_chunk__has_chunkb. s. ss.
+Qed.
+
 Lemma lessdef_definedness
       conf st0 st1 invst evt
       cmd cmds exp_pair
       (STEP: sInsn conf st0 st1 evt)
+      (WF_CONF: opsem_wf.OpsemPP.wf_Config conf)
+      (WF_STATE_PREV: opsem_wf.OpsemPP.wf_State conf st0)
       (CMDS: st0.(EC).(CurCmds) = cmd :: cmds)
+      (NONCALL: Instruction.isCallInst cmd = false)
       (DEFINED: postcond_cmd_get_definedness cmd = Some exp_pair)
   : InvState.Unary.sem_lessdef conf st1 invst exp_pair.
 Proof.
-  ADMIT "Upnrovable for now. Semantics should check more.
-For instance, semantics should check extractValue's return type.
-It seems there is neither no wf condition to derive this.
-However, the high level idea of this lemma seems correct.
-
-Also, this is only used for proving ""postcond_cmd_get_definedness"" case of
-postcond_cmd_add_lessdef, and that is only used for 1 hint generation scenario.
-For that case, the ""cmd"" is not a random cmd, but we know that cmd have been
-calculated before. It means there is at least one more certain way to remove
-this ad-mit whilst keeping working hint generation.
-".
- (*  { *)
- (*    ii. *)
- (*    inv DEFINED. *)
- (*    unfold postcond_cmd_get_definedness in *. des_ifs. ss. *)
- (*    unfold InvState.Unary.sem_idT. ss. *)
- (*    unfold Cmd.get_def in *. *)
- (*    hexploit const2GV_undef; eauto; []; intro UNDEF; des. clarify. *)
- (*    unfold const2GV in VAL1. unfold _const2GV in VAL1. des_ifs. *)
- (*    unfold cgv2gv in *. *)
- (*    rename g into __g__. *)
- (*    inv STEP; repeat (ss; clarify); *)
- (*      try (esplits; [apply lookupAL_updateAddAL_eq|]; []; *)
- (*           apply all_undef_lessdef_aux; eauto; clarify *)
- (*          ). *)
- (*    - eapply BOP_inversion in H. des. *)
- (*      unfold mbop in H1. *)
- (*      unfold Size.to_nat in *. *)
- (*      des_ifs; ss; *)
- (*        match goal with *)
- (*        | [ H: flatten_typ _ _ = Some _ |- _ ] => compute in H; des_ifs *)
- (*        end. *)
- (*    - eapply FBOP_inversion in H. des. *)
- (*      unfold mfbop in H1. *)
- (*      unfold Size.to_nat in *. *)
- (*      des_ifs; ss; *)
- (*        match goal with *)
- (*        | [ H: flatten_typ _ _ = Some _ |- _ ] => compute in H; des_ifs *)
- (*        end. *)
- (*    - unfold extractGenericValue in *. *)
- (*      des_ifs. *)
- (*      exact (SF_AD-MIT "Upnrovable for now. Semantics should check *)
- (* extractValue's return type. It seems there is neither no wf condition to derive this"). *)
- (*    - unfold insertGenericValue in *. *)
- (*      des_ifs. *)
- (*      exact (SF_AD-MIT "Ditto"). *)
+  ii.
+  unfold postcond_cmd_get_definedness in *. des_ifs. ss.
+  unfold InvState.Unary.sem_idT. ss.
+  unfold Cmd.get_def in *.
+  assert (CMD_TYP: lookupTypViaIDFromFdef st1.(EC).(CurFunction) i0 = Some t).
+  { replace st1.(EC).(CurFunction) with st0.(EC).(CurFunction); cycle 1.
+    { inv STEP; ss; by clarify. }
+    unfold opsem_wf.OpsemPP.wf_State in *. des_ifs. ss. des.
+    unfold opsem_wf.OpsemPP.wf_ExecutionContext in *.
+    destruct EC0. destruct WF_STATE_PREV as (_ & IN_FDEF & IN_PRODS & WF_LC & _ & CMDS_BB0).
+    destruct CurBB0 as [l [phis_BB0 cmds_BB0 tmn_BB0]].
+    eapply infrastructure_props.uniqF__lookupTypViaIDFromFdef; eauto.
+    - ss.
+      eapply infrastructure_props.uniqSystem__uniqFdef.
+      + inv WF_CONF1. eauto.
+      + unfold productInSystemModuleB. unfold is_true.
+        apply andb_true_iff. split; eauto.
+    - des. clarify. ss.
+      apply in_app. right. subst. econs. eauto.
+  }
+  assert (WF_STATE_NEXT: opsem_wf.OpsemPP.wf_State conf st1).
+  { eapply opsem_wf.OpsemPP.preservation; eauto. }
+  assert (WF_LC : forall (gvs0 : GenericValue),
+             lookupAL GenericValue st1.(EC).(Locals) i0 = Some gvs0 ->
+             opsem_wf.OpsemPP.wf_GVs conf.(CurTargetData) gvs0 t).
+  { unfold opsem_wf.OpsemPP.wf_State in WF_STATE_NEXT. des_ifs. ss.
+    destruct WF_STATE_NEXT as [WF_EC _].
+    unfold opsem_wf.OpsemPP.wf_ExecutionContext in *. destruct EC0. simpl.
+    destruct WF_EC as (_ & _ & _ & WF_LC & _).
+    unfold opsem_wf.OpsemPP.wf_lc in *. eauto.
+  }
+  exploit opsem_assigns_getCmdID; eauto. i. des.
+  esplits; eauto.
+  exploit WF_LC; eauto. intros WF_GVS.
+  eapply wf_GVs__lessthan_undef; eauto.
 Qed.
-(* -------------------- ALLOCA CASE IS PROVABLE ----------------------- *)
-(* expl alloca_result. *)
-(* u_alloca. *)
-(* ss. *)
-(* clear Heq Heq0 NEXT_BLOCK. *)
-(* destruct __g__; ss. *)
-(* + exfalso. *)
-(*   unfold flatten_typ in *. *)
-(*   des_ifs. *)
-(* + destruct p; ss. *)
-(*   inv UNDEF0. *)
-(*   match goal with *)
-(*   | [ H: flatten_typ _ _ = Some _ |- _ ] => compute in H; des_ifs *)
-(*   end. *)
-(*   destruct __g__; ss. *)
 
 Lemma lessdef_add_definedness
       conf st0 st1 evt
       cmd cmds
+      (WF_CONF: opsem_wf.OpsemPP.wf_Config conf)
+      (WF_STATE_PREV: opsem_wf.OpsemPP.wf_State conf st0)
+      (NONCALL: Instruction.isCallInst cmd = false)
       (STEP: sInsn conf st0 st1 evt)
       (CMDS: st0.(EC).(CurCmds) = cmd :: cmds)
   : forall invst exp_pair lessdef
@@ -659,6 +697,8 @@ Lemma postcond_cmd_add_lessdef_unary_sound_alloca
       conf st0 st1 cmd cmds def uses
       invst0 invmem0 inv0 gmax public
       evt
+      (WF_CONF: opsem_wf.OpsemPP.wf_Config conf)
+      (WF_STATE_PREV: opsem_wf.OpsemPP.wf_State conf st0)
       (POSTCOND_CHECK: AtomSetImpl.is_empty (AtomSetImpl.inter def uses))
       (STATE: InvState.Unary.sem conf st1 invst0 invmem0 gmax public inv0)
       (MEM: InvMem.Unary.sem conf gmax public st1.(Mem) invmem0)
@@ -675,7 +715,7 @@ Lemma postcond_cmd_add_lessdef_unary_sound_alloca
                (Invariant.update_lessdef (postcond_cmd_add_lessdef cmd) inv0)>>
 .
 Proof.
-  generalize (lessdef_add_definedness STEP CMDS).
+  generalize (lessdef_add_definedness WF_CONF WF_STATE_PREV NONCALL STEP CMDS).
   intro DEFINEDNESS.
   (inv NONCALL; []); (inv STATE; []); ss; ((inv STEP; ss); []).
   econs; eauto; [].
@@ -768,6 +808,8 @@ Lemma postcond_cmd_add_lessdef_unary_sound_gep
       conf st0 st1 cmd cmds def uses
       invst0 invmem0 inv0 gmax public
       evt
+      (WF_CONF: opsem_wf.OpsemPP.wf_Config conf)
+      (WF_STATE_PREV: opsem_wf.OpsemPP.wf_State conf st0)
       (POSTCOND_CHECK: AtomSetImpl.is_empty (AtomSetImpl.inter def uses))
       (STATE: InvState.Unary.sem conf st1 invst0 invmem0 gmax public inv0)
       (MEM: InvMem.Unary.sem conf gmax public st1.(Mem) invmem0)
@@ -784,7 +826,7 @@ Lemma postcond_cmd_add_lessdef_unary_sound_gep
                (Invariant.update_lessdef (postcond_cmd_add_lessdef cmd) inv0)>>
 .
 Proof.
-  generalize (lessdef_add_definedness STEP CMDS).
+  generalize (lessdef_add_definedness WF_CONF WF_STATE_PREV NONCALL STEP CMDS).
   intro DEFINEDNESS.
   (inv NONCALL; []); (inv STATE; []); ss; ((inv STEP; ss); []).
   econs; eauto; [].
@@ -840,6 +882,8 @@ Lemma postcond_cmd_add_lessdef_unary_sound_select
       conf st0 st1 cmd cmds def uses
       invst0 invmem0 inv0 gmax public
       evt
+      (WF_CONF: opsem_wf.OpsemPP.wf_Config conf)
+      (WF_STATE_PREV: opsem_wf.OpsemPP.wf_State conf st0)
       (POSTCOND_CHECK: AtomSetImpl.is_empty (AtomSetImpl.inter def uses))
       (STATE: InvState.Unary.sem conf st1 invst0 invmem0 gmax public inv0)
       (MEM: InvMem.Unary.sem conf gmax public st1.(Mem) invmem0)
@@ -856,7 +900,8 @@ Lemma postcond_cmd_add_lessdef_unary_sound_select
                (Invariant.update_lessdef (postcond_cmd_add_lessdef cmd) inv0)>>
 .
 Proof.
-  generalize (lessdef_add_definedness STEP CMDS).
+  generalize (lessdef_add_definedness WF_CONF WF_STATE_PREV NONCALL STEP CMDS).
+  clear WF_STATE_PREV.
   intro DEFINEDNESS.
   (inv NONCALL; []); (inv STATE; []); ss; ((inv STEP; ss); []).
   econs; eauto; [].
@@ -871,19 +916,17 @@ Proof.
   { rewrite Heqconf. auto. }
   assert(CONF2: conf.(Globals) = gl).
   { rewrite Heqconf. auto. }
-  remember
-  {|
+  remember {|
     EC := {|
            CurFunction := F;
            CurBB := B;
            CurCmds := cs;
            Terminator := tmn;
-           Locals := updateAddAL GenericValue lc id0 (if decision then gvs1 else gvs2);
+           Locals := updateAddAL GenericValue lc id0 gvresult;
            Allocas := als |};
     ECS := ECS0;
     Mem := Mem0 |} as state.
-  assert(STATE: state.(EC).(Locals) =
-                updateAddAL GenericValue lc id0 (if decision then gvs1 else gvs2)).
+  assert(STATE: state.(EC).(Locals) = updateAddAL GenericValue lc id0 gvresult).
   { rewrite Heqstate. auto. }
   clear Heqconf Heqstate.
   inv CMDS.
@@ -894,7 +937,7 @@ Proof.
   rewrite STATE. des_lookupAL_updateAddAL.
   clear e.
   rewrite ? InvState.Unary.sem_valueT_physical in *.
-  inv H3.
+  unfold SELECT in *.
   destruct value_cond, value1, value2; simpl in *;
     try rewrite STATE; simpl_list; des_lookupAL_updateAddAL;
       try rewrite H; try rewrite H1; try rewrite H2; try rewrite INT; ss.
@@ -904,6 +947,8 @@ Lemma postcond_cmd_add_lessdef_unary_sound
       conf st0 st1 cmd cmds def uses
       invst0 invmem0 inv0 gmax public
       evt
+      (WF_CONF: opsem_wf.OpsemPP.wf_Config conf)
+      (WF_STATE_PREV: opsem_wf.OpsemPP.wf_State conf st0)
       (POSTCOND_CHECK: AtomSetImpl.is_empty (AtomSetImpl.inter def uses))
       (STATE: InvState.Unary.sem conf st1 invst0 invmem0 gmax public inv0)
       (MEM: InvMem.Unary.sem conf gmax public st1.(Mem) invmem0)
@@ -918,8 +963,9 @@ Lemma postcond_cmd_add_lessdef_unary_sound
                (Invariant.update_lessdef (postcond_cmd_add_lessdef cmd) inv0)>>
 .
 Proof.
-  generalize (lessdef_add_definedness STEP CMDS).
+  generalize (lessdef_add_definedness WF_CONF WF_STATE_PREV NONCALL STEP CMDS).
   intro DEFINEDNESS.
+  (* clear WF_CONF WF_STATE_PREV. *)
   destruct cmd;
     try (eapply postcond_cmd_add_lessdef_unary_sound_alloca; eauto; fail);
     try (eapply postcond_cmd_add_lessdef_unary_sound_gep; eauto; fail);
@@ -932,6 +978,7 @@ Proof.
                   | [ v: value |- _ ] => destruct v
                   end; u; ss; simpl_list; des_lookupAL_updateAddAL; des_ifs; fail).
   - (* alloca *)
+    clear WF_CONF WF_STATE_PREV.
     clarify.
     econs; eauto; [].
     unfold postcond_cmd_add_lessdef. ss.
@@ -944,6 +991,7 @@ Proof.
                 end; u; ss; simpl_list; des_lookupAL_updateAddAL; des_ifs;
          apply DEFINEDNESS; ss).
   - (* load *)
+    clear WF_CONF WF_STATE_PREV.
     econs; eauto; [].
     unfold postcond_cmd_add_lessdef. ss.
     des_ifs;
@@ -955,6 +1003,7 @@ Proof.
                 end; u; ss; simpl_list; des_lookupAL_updateAddAL; des_ifs;
          apply DEFINEDNESS; ss).
   - (* store *)
+    clear WF_CONF WF_STATE_PREV.
     econs; eauto; [].
     unfold postcond_cmd_add_lessdef. ss.
     apply AtomSetImpl_from_list_inter_is_empty in POSTCOND_CHECK.
@@ -983,6 +1032,8 @@ Lemma postcond_cmd_add_lessdef_src_sound
       conf_tgt st1_tgt cmd_tgt def_tgt uses_tgt
       invst0 invmem0 inv0
       evt
+      (WF_CONF_SRC: opsem_wf.OpsemPP.wf_Config conf_src)
+      (WF_STATE_PREV_SRC: opsem_wf.OpsemPP.wf_State conf_src st0_src)
       (POSTCOND: Postcond.postcond_cmd_check
                    cmd_src cmd_tgt def_src def_tgt uses_src uses_tgt inv0)
       (STATE: InvState.Rel.sem conf_src conf_tgt st1_src st1_tgt invst0 invmem0 inv0)
@@ -1033,6 +1084,10 @@ Lemma postcond_cmd_add_lessdef_tgt_sound
       conf_tgt st0_tgt st1_tgt cmd_tgt cmds_tgt def_tgt uses_tgt
       invst0 invmem0 inv0
       evt
+      (WF_CONF_SRC: opsem_wf.OpsemPP.wf_Config conf_src)
+      (WF_CONF_TGT: opsem_wf.OpsemPP.wf_Config conf_tgt)
+      (WF_STATE_PREV_SRC: opsem_wf.OpsemPP.wf_State conf_src st0_src)
+      (WF_STATE_PREV_TGT: opsem_wf.OpsemPP.wf_State conf_tgt st0_tgt)
       (POSTCOND: Postcond.postcond_cmd_check cmd_src cmd_tgt def_src def_tgt uses_src uses_tgt inv0)
       (STATE: InvState.Rel.sem conf_src conf_tgt st1_src st1_tgt invst0 invmem0 inv0)
       (MEM: InvMem.Rel.sem conf_src conf_tgt st1_src.(Mem) st1_tgt.(Mem) invmem0)
@@ -1087,6 +1142,10 @@ Theorem postcond_cmd_add_sound
         invst1 invmem1 inv1
         invst0 invmem0 inv0
         evt
+        (WF_CONF_SRC: opsem_wf.OpsemPP.wf_Config conf_src)
+        (WF_CONF_TGT: opsem_wf.OpsemPP.wf_Config conf_tgt)
+        (WF_STATE_PREV_SRC: opsem_wf.OpsemPP.wf_State conf_src st0_src)
+        (WF_STATE_PREV_TGT: opsem_wf.OpsemPP.wf_State conf_tgt st0_tgt)
         (CONF: InvState.valid_conf m_src m_tgt conf_src conf_tgt)
         (POSTCOND: Postcond.postcond_cmd_check cmd_src cmd_tgt
                                                def_src def_tgt uses_src uses_tgt inv1)
@@ -1120,9 +1179,9 @@ Proof.
   exploit postcond_cmd_add_inject_sound; try apply CONF;
     try apply STEP_SRC; try apply STEP_TGT; eauto; []; ii; des.
   exploit x0; eauto; ii; des; clear x0.
-  exploit postcond_cmd_add_lessdef_src_sound; try apply STATE_STEP0; eauto; []; ii; des.
-  exploit postcond_cmd_add_lessdef_tgt_sound; try apply STATE_STEP1; eauto; []; ii; des.
-  exploit reduce_maydiff_sound; try apply STATE_STEP2; eauto; []; ii; des.
+  exploit postcond_cmd_add_lessdef_src_sound; try exact STATE0; eauto; []; ii; des.
+  hexploit postcond_cmd_add_lessdef_tgt_sound; try exact STATE1; try exact POSTCOND1; eauto; []; ii; des.
+  exploit reduce_maydiff_sound; try apply STATE2; eauto; []; ii; des.
   esplits; eauto.
   reflexivity.
 Qed.

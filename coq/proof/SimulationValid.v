@@ -78,9 +78,8 @@ Lemma decide_nonzero_inject
 .
 Proof.
   inv NONZERO.
-  red. econs; eauto. rewrite <- INT.
-  symmetry.
-  eapply genericvalues_inject.simulation__eq__GV2int; eauto.
+  red. econs; eauto.
+  eapply genericvalues_inject.simulation__GV2int; eauto.
 Qed.
 
 Lemma valid_sim_term
@@ -143,6 +142,9 @@ Proof.
     { rewrite InvState.Unary.sem_valueT_physical. eauto. }
     i. des. rewrite InvState.Unary.sem_valueT_physical in VAL_TGT. ss.
     esplits; eauto.
+    econs; eauto.
+    * eapply get_operand_valid_ptr; eauto; try apply STATE0; try apply MEM0.
+    * eapply get_operand_valid_ptr; eauto; try apply STATE0; try apply MEM0.
   + (* return_void *)
     eapply _sim_local_return_void; eauto; ss.
     { apply STATE. }
@@ -167,7 +169,18 @@ Proof.
       expl progress.
       - ss.
       - unfold OpsemPP.undefined_state in *.
-        des_ifs; des; ss.
+        des_ifs_safe; ss.
+        des; ss.
+        { des_ifs; ss. }
+        des_ifs.
+        exfalso.
+        inv H13.
+        inv CONF. inv INJECT0. ss. clarify.
+        clear - Heq0 INT INJECT.
+        unfold GV2int in *.
+        des_ifs_safe.
+        inv INJECT. inv H4. inv H3.
+        des_ifs.
       - ii. ss.
     }
     { splits; ss. }
@@ -187,19 +200,24 @@ Proof.
       rename s0 into __s0__.
       rename s into __s__.
 
-      abstr (gen_infrules_next_inv
-                           (Postcond.reduce_maydiff
-                              (Infrules.apply_infrules m_src m_tgt
-                                 (lookup_phinodes_infrules __s0__ (fst CurBB0)) t0))
-                           (ValidationHint.invariant_after_phinodes __s0__)) infrulesA0.
-      abstr (gen_infrules_next_inv
-                           (Postcond.reduce_maydiff
-                              (Infrules.apply_infrules m_src m_tgt
-                                 (lookup_phinodes_infrules __s__ (fst CurBB0)) t))
-                           (ValidationHint.invariant_after_phinodes __s__)) infrulesB0.
+      Ltac abstr_gen_infrules HYP NAME :=
+        match goal with
+        | [H: context[(gen_infrules_next_inv false ?x ?y)] |- _ ] =>
+          check_equal H HYP;
+          abstr (gen_infrules_next_inv false x y) NAME
+        end.
+      Ltac abstr_gen_infrules_first HYP NAME :=
+        match goal with
+        | [H: context[(gen_infrules_next_inv true ?x ?y) ++ ?z] |- _ ] =>
+          check_equal H HYP;
+          abstr ((gen_infrules_next_inv true x y) ++ z) NAME
+        end.
+
+      abstr_gen_infrules COND1 infrulesA0.
+      abstr_gen_infrules COND2 infrulesB0.
       unfold l in *.
 
-      abstr (lookup_phinodes_infrules __s0__ (@fst atom stmts CurBB0)) infrulesA2.
+      abstr_gen_infrules_first COND1 infrulesA2.
       abstr (ValidationHint.invariant_after_phinodes __s0__) inv_afterA.
       assert(exists infrulesA1,
                 (Invariant.implies
@@ -213,7 +231,7 @@ Proof.
           eapply implies_reduce_maydiff; eauto. }
       clear COND1.
 
-      abstr (lookup_phinodes_infrules __s__ (@fst atom stmts CurBB0)) infrulesB2.
+      abstr_gen_infrules_first COND2 infrulesB2.
       abstr (ValidationHint.invariant_after_phinodes __s__) inv_afterB.
       abstr (ValidationHint.cmds __s__) cmdsB.
       assert(exists infrulesB1,
@@ -341,13 +359,10 @@ Proof.
       repeat (simtac0; []).
       expl valid_fdef_valid_stmts.
       hide_goal.
-      abstr (gen_infrules_next_inv
-                           (Postcond.reduce_maydiff
-                              (Infrules.apply_infrules m_src m_tgt (lookup_phinodes_infrules s (fst CurBB0))
-                                 t)) (ValidationHint.invariant_after_phinodes s)) infrulesA0.
+      abstr_gen_infrules COND0 infrulesA0.
       unfold l in *.
 
-      abstr (lookup_phinodes_infrules s (@fst atom stmts CurBB0)) infrulesA2.
+      abstr_gen_infrules_first COND0 infrulesA2.
       abstr (ValidationHint.invariant_after_phinodes s) inv_afterA.
       assert(exists infrulesA1,
                 (Invariant.implies
@@ -413,7 +428,21 @@ Proof.
       expl progress.
       - ss.
       - unfold OpsemPP.undefined_state in *.
-        des_ifs; des; ss.
+        des_ifs_safe; ss.
+        des; ss.
+        { des_ifs. }
+        des_ifs.
+        exfalso.
+        inv CONF. inv INJECT. ss. clarify.
+        exploit InvState.Rel.inject_value_spec; eauto.
+        { ss. }
+        { rewrite InvState.Unary.sem_valueT_physical. ss. eauto. }
+        i; des. rewrite InvState.Unary.sem_valueT_physical in *. ss. clarify.
+        clear - INJECT Heq1 Heq0.
+        unfold GV2int in *.
+        des_ifs_safe.
+        inv INJECT. inv H4. inv H3.
+        des_ifs.
       - ii. ss.
     }
     { split; ss. }
@@ -455,15 +484,11 @@ Proof.
 
         eq_closure_tac. clarify.
 
-        abstr (gen_infrules_next_inv
-                 (Postcond.reduce_maydiff
-                    (Infrules.apply_infrules m_src m_tgt
-                                             (lookup_phinodes_infrules s (fst CurBB0)) t))
-                 (ValidationHint.invariant_after_phinodes s)) infrulesA0.
+        abstr_gen_infrules COND_DFLT infrulesA0.
         unfold l in *.
 
 
-        abstr (lookup_phinodes_infrules s (@fst atom stmts CurBB0)) infrulesA2.
+        abstr_gen_infrules_first COND_DFLT infrulesA2.
         abstr (ValidationHint.invariant_after_phinodes s) inv_afterA.
         assert(exists infrulesA1,
                   (Invariant.implies
@@ -531,15 +556,11 @@ Proof.
         ss. eq_closure_tac. clarify.
         expl valid_fdef_valid_stmts. ss.
 
-        abstr (gen_infrules_next_inv
-                 (Postcond.reduce_maydiff
-                    (Infrules.apply_infrules m_src m_tgt
-                                             (lookup_phinodes_infrules s0 (fst CurBB0)) t0))
-                 (ValidationHint.invariant_after_phinodes s0)) infrulesA0.
+        abstr_gen_infrules COND_CASES infrulesA0.
         unfold l in *.
 
 
-        abstr (lookup_phinodes_infrules s0 (@fst atom stmts CurBB0)) infrulesA2.
+        abstr_gen_infrules_first COND_CASES infrulesA2.
         abstr (ValidationHint.invariant_after_phinodes s0) inv_afterA.
         assert(exists infrulesA1,
                   (Invariant.implies
@@ -641,7 +662,7 @@ Lemma valid_progress
       (NOTCALL: Instruction.isCallInst c_src = false)
       c_tgt cs_tgt
       (CMDTGT: st_tgt.(EC).(CurCmds) = c_tgt :: cs_tgt)
-      (NOTFINAL: s_isFinialState conf_tgt st_tgt = None)
+      (NOTFINAL: s_isFinalState conf_tgt st_tgt = None)
   :
     <<PROGRESS: ~stuck_state conf_tgt st_tgt>>
 .
@@ -704,6 +725,9 @@ Proof.
                                            (gen_infrules_from_insns (insn_cmd c) (insn_cmd c0) inv) inv)
               end) eqn: PCND; try by ss.
 
+    abstr (gen_infrules_next_inv true t0 inv ++ l1) l2.
+    clear l1. rename l2 into l1. (* to minimize proof break *)
+
     rename t into __t__.
     assert(PCND0: exists infrulesA,
               Postcond.postcond_cmd
@@ -721,7 +745,8 @@ Proof.
               (Postcond.reduce_maydiff
                  (Infrules.apply_infrules
                     m_src m_tgt infrulesB
-                    (Postcond.reduce_maydiff (Infrules.apply_infrules m_src m_tgt l1 t0)))) __t__ = true).
+                    (Postcond.reduce_maydiff
+                       (Infrules.apply_infrules m_src m_tgt l1 t0)))) __t__ = true).
     { des_ifs.
       - exists nil. ss.
         rewrite <- apply_is_true.
@@ -776,6 +801,27 @@ Proof.
           des_ifs_safe. des; ss; des_ifs_safe; ss.
           + des_ifs; ss.
           + exfalso.
+            destruct c; des_ifs. ss. repeat (des_bool; des; des_sumbool). clarify.
+            inv SRC_STEP.
+            unfold alloca in *. des_ifs.
+            assert(INJECT : genericvalues_inject.gv_inject (InvMem.Rel.inject invmem1) gn g).
+            {
+              eapply InvState.Subset.inject_value_Subset in POSTCOND1; cycle 1.
+              { instantiate (1:= inv1).
+                etransitivity; eauto.
+                { eapply SoundForgetStack.forget_stack_Subset; eauto. }
+                etransitivity; eauto.
+                { eapply SoundForgetMemory.forget_memory_Subset; eauto. }
+                reflexivity.
+              }
+              exploit InvState.Rel.inject_value_spec; try exact POSTCOND1; eauto.
+              { ss. }
+              { rewrite InvState.Unary.sem_valueT_physical. ss. eauto. }
+              i; des.
+              rewrite InvState.Unary.sem_valueT_physical in *. ss. rewrite Heq in *. clarify.
+            }
+            expl genericvalues_inject.simulation__GV2int. rewrite simulation__GV2int in *. ss.
+          + exfalso.
             destruct c; des_ifs. ss. des_bool; des. des_sumbool. clarify.
             inv SRC_STEP.
             assert(INJECT : genericvalues_inject.gv_inject (InvMem.Rel.inject invmem1) mptr0 g).
@@ -818,55 +864,55 @@ Proof.
             }
           +
             destruct c; des_ifs; ss; repeat (des_bool; des; des_sumbool; clarify).
-            * (* nop case *)
-              exfalso.
-              rewrite SoundSnapshot.ExprPairSet_exists_filter in POSTCOND.
-              apply Exprs.ExprPairSetFacts.exists_iff in POSTCOND; [|solve_compat_bool].
-              unfold Exprs.ExprPairSet.Exists in *. des.
-              des_ifs. des_bool. des. unfold compose in *. des_bool.
-              apply Exprs.ExprPairSetFacts.mem_iff in POSTCOND.
-              {
-                des. des_sumbool. clarify.
-                assert(NOT_IN_MD: Invariant.not_in_maydiff inv1
-                                                           (Exprs.ValueT.lift Exprs.Tag.physical value1)).
-                {
-                  expl SoundForgetStack.forget_stack_Subset.
-                  eapply InvState.Subset.not_in_maydiff_Subset; eauto.
-                } clear POSTCOND0.
+(*             * (* nop case *) *)
+(*               exfalso. *)
+(*               rewrite SoundSnapshot.ExprPairSet_exists_filter in POSTCOND. *)
+(*               apply Exprs.ExprPairSetFacts.exists_iff in POSTCOND; [|solve_compat_bool]. *)
+(*               unfold Exprs.ExprPairSet.Exists in *. des. *)
+(*               des_ifs. des_bool. des. unfold compose in *. des_bool. *)
+(*               apply Exprs.ExprPairSetFacts.mem_iff in POSTCOND. *)
+(*               { *)
+(*                 des. des_sumbool. clarify. *)
+(*                 assert(NOT_IN_MD: Invariant.not_in_maydiff inv1 *)
+(*                                                            (Exprs.ValueT.lift Exprs.Tag.physical value1)). *)
+(*                 { *)
+(*                   expl SoundForgetStack.forget_stack_Subset. *)
+(*                   eapply InvState.Subset.not_in_maydiff_Subset; eauto. *)
+(*                 } clear POSTCOND0. *)
 
 
-                assert(DEFINED: exists val, const2GV CurTargetData0 Globals0 (const_undef typ5) =
-                                            Some val).
-                { ADMIT "
-Issue on encoding definedness with undef.
-More explanation on: https://github.com/snu-sf/llvmberry/issues/426". }
-                des.
-                exploit InvState.Rel.lessdef_expr_spec; eauto.
-                { apply STATE1. }
-                { unfold InvState.Unary.sem_expr. ss. eauto. }
-                i; des. ss. rewrite InvState.Unary.sem_valueT_physical in *. ss. des_ifs.
+(*                 assert(DEFINED: exists val, const2GV CurTargetData0 Globals0 (const_undef typ5) = *)
+(*                                             Some val). *)
+(*                 { AD-MIT " *)
+(* Issue on encoding definedness with undef. *)
+(* More explanation on: https://github.com/snu-sf/llvmberry/issues/426". } *)
+(*                 des. *)
+(*                 exploit InvState.Rel.lessdef_expr_spec; eauto. *)
+(*                 { apply STATE1. } *)
+(*                 { unfold InvState.Unary.sem_expr. ss. eauto. } *)
+(*                 i; des. ss. rewrite InvState.Unary.sem_valueT_physical in *. ss. des_ifs. *)
 
-                exploit InvState.Rel.not_in_maydiff_value_spec; try apply STATE1; eauto.
-                { ss.  }
-                { rewrite InvState.Unary.sem_valueT_physical. ss. eauto. }
-                i; des.
-                rewrite InvState.Unary.sem_valueT_physical in *. ss.
+(*                 exploit InvState.Rel.not_in_maydiff_value_spec; try apply STATE1; eauto. *)
+(*                 { ss.  } *)
+(*                 { rewrite InvState.Unary.sem_valueT_physical. ss. eauto. } *)
+(*                 i; des. *)
+(*                 rewrite InvState.Unary.sem_valueT_physical in *. ss. *)
 
-                {
-                  (* load inject. easy *)
-                  unfold mload in *. des_ifs_safe.
-                  unfold GV2ptr in *. des_ifs_safe.
-                  rename g into __g__.
-                  repeat all_with_term ltac:(fun H => inv H) genericvalues_inject.gv_inject.
-                  repeat all_with_term ltac:(fun H => inv H) memory_sim.MoreMem.val_inject.
-                  exploit genericvalues_inject.simulation_mload_aux; eauto; try apply MEM1; i; des.
-                  assert(delta = 0).
-                  { inv MEM1. ss. inv WF. expl mi_bounds. }
-                  clarify.
-                  rewrite Z.add_0_r in *.
-                  rewrite <- int_add_0 in *. clarify.
-                }
-              }
+(*                 { *)
+(*                   (* load inject. easy *) *)
+(*                   unfold mload in *. des_ifs_safe. *)
+(*                   unfold GV2ptr in *. des_ifs_safe. *)
+(*                   rename g into __g__. *)
+(*                   repeat all_with_term ltac:(fun H => inv H) genericvalues_inject.gv_inject. *)
+(*                   repeat all_with_term ltac:(fun H => inv H) memory_sim.MoreMem.val_inject. *)
+(*                   exploit genericvalues_inject.simulation_mload_aux; eauto; try apply MEM1; i; des. *)
+(*                   assert(delta = 0). *)
+(*                   { inv MEM1. ss. inv WF. expl mi_bounds. } *)
+(*                   clarify. *)
+(*                   rewrite Z.add_0_r in *. *)
+(*                   rewrite <- int_add_0 in *. clarify. *)
+(*                 } *)
+(*               } *)
             * exfalso.
               inv SRC_STEP.
               assert(INJECT : genericvalues_inject.gv_inject (InvMem.Rel.inject invmem1) mp g).
@@ -956,7 +1002,8 @@ More explanation on: https://github.com/snu-sf/llvmberry/issues/426". }
       expl preservation. rename preservation into WF_TGT_NEXT.
       exploit postcond_cmd_is_call; eauto. i. rewrite CALL in x0.
       exploit sInsn_non_call; eauto; try congruence. i. des. subst. ss.
-      exploit postcond_cmd_sound; eauto; ss; try congruence. i. des.
+      exploit postcond_cmd_sound; [apply WF_SRC | apply WF_TGT | apply WF_SRC0 | apply WF_TGT0|..]; eauto;
+        ss; try congruence. i. des.
       exploit sInsn_non_call; eauto; try congruence. i. des. subst. ss.
 
 
@@ -996,6 +1043,8 @@ More explanation on: https://github.com/snu-sf/llvmberry/issues/426". }
       rename t0 into __t0__.
       hexploit postcond_call_sound; try exact PCND0; eauto;
         (try instantiate (2 := (mkState (mkEC _ _ _ _ _ _) _ _))); ss; eauto; ss.
+      { inv WF_SRC0; ss. }
+      { inv WF_TGT0; ss. }
       i. des. subst. des.
 
       eapply _sim_local_call with
@@ -1041,16 +1090,19 @@ More explanation on: https://github.com/snu-sf/llvmberry/issues/426". }
         intro UNIQUE_A. inv UNIQUE_A. ss. clarify.
         exploit MEM; eauto.
       }
-      { inv STATE1. inv TGT.
-        unfold memory_blocks_of. ii.
-        des.
-        match goal with [ H: In _ (flat_map _ _) |- _ ] => eapply in_flat_map in H; eauto end.
-        des.
-        des_ifs.
-        exploit UNIQUE.
-        { apply AtomSetFacts.elements_iff, InA_iff_In. eauto. }
-        intro UNIQUE_A. inv UNIQUE_A. ss. clarify.
-        exploit GLOBALS; eauto.
+      {
+        inv STATE1. inv TGT. ss.
+        unfold memory_blocks_of.
+        replace (AtomSetImpl.elements (Invariant.unique (Invariant.tgt inv1))) with ([]: list atom); cycle 1.
+        { symmetry. apply AtomSetProperties.elements_Empty; ss. }
+        ss.
+      }
+      {
+        inv STATE1. inv TGT. ss.
+        unfold memory_blocks_of.
+        replace (AtomSetImpl.elements (Invariant.unique (Invariant.tgt inv1))) with ([]: list atom); cycle 1.
+        { symmetry. apply AtomSetProperties.elements_Empty; ss. }
+        ss.
       }
       { inv STATE1. inv SRC. ss.
         i. unfold memory_blocks_of_t in IN.
@@ -1139,17 +1191,6 @@ Proof.
   des_ifs; try (by esplits; eauto using lookupAL_updateAddAL_eq);
     by rewrite <- lookupAL_updateAddAL_neq; eauto;
       exploit IHargs; eauto; ss; des; congruence.
-Qed.
-
-Lemma fit_gv_undef
-      TD gl ty gv1 gv2 gvu
-      (FIT_GV:fit_gv TD ty gv1 = Some gv2)
-      (UNDEF:const2GV TD gl (const_undef ty) = Some gvu)
-  : GVs.lessdef gvu gv2.
-Proof.
-  exploit const2GV_undef; eauto. i. des.
-  exploit fit_gv_chunks_aux; eauto. i. des.
-  apply all_undef_lessdef_aux; eauto. clarify.
 Qed.
 
 Lemma function_entry_args_sound
@@ -1247,7 +1288,14 @@ Proof.
   { inversion CHUNK. }
   destruct gv_wf; [|inv CHUNK; match goal with [H:Forall2 _ _ _ |- _] => inv H end].
   inv CHUNK. match goal with [H:vm_matches_typ _ _ |- _] => inv H end.
-  ss. clarify. econs; eauto; econs.
+  ss. clarify.
+
+  econs; eauto; [|econs].
+  ss. splits; ss. i. destruct v; ss.
+  des.
+  destruct (Nat.eq_dec wz 31); ss. clarify.
+  destruct (zle _ _); ss.
+  destruct (zlt _ _); ss.
 Qed.
 
 Lemma function_entry_inv_sound
@@ -1265,6 +1313,8 @@ Lemma function_entry_inv_sound
       args args_src args_tgt
       (INJECT_ARGS: list_forall2 (genericvalues_inject.gv_inject
                                     (InvMem.Rel.inject invmem)) args_src args_tgt)
+      (VALID_SRC: List.Forall (memory_props.MemProps.valid_ptrs (Memory.Mem.nextblock st_src.(Mem))) args_src)
+      (VALID_TGT: List.Forall (memory_props.MemProps.valid_ptrs (Memory.Mem.nextblock st_tgt.(Mem))) args_tgt)
       (INITLOCALS_SRC: initLocals (CurTargetData conf_src) args args_src =
                        Some st_src.(EC).(Locals))
       (INITLOCALS_TGT: initLocals (CurTargetData conf_tgt) args args_tgt =
@@ -1296,13 +1346,6 @@ Proof.
         exploit function_entry_gids_aux; eauto.
         i. des; subst. eapply function_entry_gids_sound; eauto.
         eapply wf_ConfigI_spec in WF_CONF_SRC; eauto.
-    + econs; ss; eauto.
-      * ii. clarify.
-        eapply Exprs.ValueTPairSetFacts.empty_iff; eauto.
-        eapply Exprs.ValueTPairSetFacts.mem_iff; eauto.
-      * ii. clarify.
-        eapply Exprs.PtrPairSetFacts.empty_iff; eauto.
-        eapply Exprs.PtrPairSetFacts.mem_iff; eauto.
     + ii. exfalso. eapply AtomSetFacts.empty_iff; eauto.
     + ii. exfalso. eapply Exprs.IdTSetFacts.empty_iff; eauto.
     + (* wf_lc *)
@@ -1313,21 +1356,26 @@ Proof.
             (* mi_freeblocks *)
             mi_mappedblocks mi_range_block mi_bounds mi_globals.
       clear_tac. unfold initLocals in *.
-      {
-        ii. ss.
-        expl fully_inject_locals_spec.
-        rewrite H in *. unfold lift2_option in *. des_ifs.
-        clear - fully_inject_locals_spec mi_freeblocks.
-        ginduction gvs; ii; ss.
-        - inv fully_inject_locals_spec.
-          expl IHgvs.
-          des_ifs; eauto.
-          split; ss.
-          inv H1.
-          reductio_ad_absurdum.
-          expl mi_freeblocks.
-          clarify.
-      }
+      (* REMARK: Originally, we proved this by using wasabi, injection implies valid *)
+      (* However, this logic no longer holds in tgt, so validitiy condition of args became needed *)
+      (* This is current proof, same logic as tgt *)
+      eapply initLocals_preserves_valid_ptrs; eauto.
+      (* Below is old proof, it still works. I just choose above way in order to unify & simplify *)
+      (* { *)
+      (*   ii. ss. *)
+      (*   expl fully_inject_locals_spec. *)
+      (*   rewrite H in *. unfold lift2_option in *. des_ifs. *)
+      (*   clear - fully_inject_locals_spec mi_freeblocks. *)
+      (*   ginduction gvs; ii; ss. *)
+      (*   - inv fully_inject_locals_spec. *)
+      (*     expl IHgvs. *)
+      (*     des_ifs; eauto. *)
+      (*     split; ss. *)
+      (*     inv H1. *)
+      (*     reductio_ad_absurdum. *)
+      (*     expl mi_freeblocks. *)
+      (*     clarify. *)
+      (* } *)
     + (* diffblock unique parent *)
       inv MEM. clear TGT INJECT FUNTABLE.
       inv SRC.
@@ -1359,13 +1407,6 @@ Proof.
         exploit function_entry_gids_aux; eauto.
         i. des; subst. eapply function_entry_gids_sound; eauto.
         eapply wf_ConfigI_spec in WF_CONF_TGT; eauto.
-    + econs; ss; eauto.
-      * ii. clarify.
-        eapply Exprs.ValueTPairSetFacts.empty_iff; eauto.
-        eapply Exprs.ValueTPairSetFacts.mem_iff; eauto.
-      * ii. clarify.
-        eapply Exprs.PtrPairSetFacts.empty_iff; eauto.
-        eapply Exprs.PtrPairSetFacts.mem_iff; eauto.
     + ii. exfalso. eapply AtomSetFacts.empty_iff; eauto.
     + ii. exfalso. eapply Exprs.IdTSetFacts.empty_iff; eauto.
     + (* wf_lc *)
@@ -1376,41 +1417,12 @@ Proof.
             (* mi_freeblocks *)
             mi_freeblocks mi_range_block mi_bounds mi_globals.
       clear_tac. unfold initLocals in *.
-      {
-        ii. ss.
-        expl fully_inject_locals_spec.
-        rewrite H in *. unfold lift2_option in *. des_ifs.
-        clear - fully_inject_locals_spec mi_mappedblocks.
-        ginduction gvs; ii; ss.
-        - inv fully_inject_locals_spec.
-          expl IHgvs.
-          des_ifs; eauto.
-          split; ss.
-          inv H2.
-          reductio_ad_absurdum.
-          expl mi_mappedblocks.
-      }
+      eapply initLocals_preserves_valid_ptrs; eauto.
     + (* diffblock unique parent *)
       inv MEM. clear SRC INJECT FUNTABLE.
       inv TGT.
       clear MEM_PARENT UNIQUE_PARENT_MEM UNIQUE_PARENT_GLOBALS NEXTBLOCK NEXTBLOCK_PARENT.
-      ii.
-      eapply sublist_In in UNIQUE_PRIVATE_PARENT; eauto.
-      expl PRIVATE_PARENT.
-      expl fully_inject_locals_spec.
-      rewrite PTR in *. unfold lift2_option in *.
-      des_ifs.
-      unfold InvMem.private_block in *. des.
-      clear - PRIVATE_PARENT0 ING fully_inject_locals_spec.
-      ginduction fully_inject_locals_spec; ii; ss.
-      rewrite GV2blocks_cons in ING.
-      apply in_app in ING. des.
-      { destruct v2; ss. des; ss. clarify.
-        apply PRIVATE_PARENT0; eauto.
-        unfold InvMem.Rel.public_tgt.
-        inv H. esplits; eauto.
-      }
-      eauto.
+      rewrite TGT_NOUNIQ. ii; ss.
   - ii. clear NOTIN.
     destruct id0; ss.
     destruct t; ss.
@@ -1450,6 +1462,8 @@ Lemma valid_init
       (SYSTEM_TGT: conf_tgt.(CurSystem) = [m_tgt])
       (FDEF: valid_fdef m_src m_tgt fdef_src fdef_tgt fdef_hint)
       (ARGS: list_forall2 (genericvalues_inject.gv_inject inv.(InvMem.Rel.inject)) args_src args_tgt)
+      (VALID_SRC: List.Forall (memory_props.MemProps.valid_ptrs (Memory.Mem.nextblock mem_src)) args_src)
+      (VALID_TGT: List.Forall (memory_props.MemProps.valid_ptrs (Memory.Mem.nextblock mem_tgt)) args_tgt)
       (MEM: InvMem.Rel.sem conf_src conf_tgt mem_src mem_tgt inv)
       (CONF: InvState.valid_conf m_src m_tgt conf_src conf_tgt)
       (INIT_SRC: init_fdef conf_src fdef_src args_src ec_src)

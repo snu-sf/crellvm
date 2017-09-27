@@ -167,7 +167,7 @@ Section Filter.
         (IN: Exprs.ExprPairSet.In x xs):
     <<IN: List.incl (f x) (List.concat (List.map f (Exprs.ExprPairSet.elements xs)))>>.
   Proof.
-    apply ExprPairSetFacts.elements_iff in IN. induction IN; ss.
+    rewrite ExprPairSetFacts.elements_iff in IN. induction IN; ss.
     - subst. apply incl_appl. apply incl_refl.
     - apply incl_appr. ss.
   Qed.

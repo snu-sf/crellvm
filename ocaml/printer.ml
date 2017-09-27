@@ -5,6 +5,8 @@ open Coq_pretty_printer
 open Printf
 open List
 open MetatheoryAtom
+
+type atom = AtomImpl.atom
        
 let out_channel = ref stderr
 
@@ -276,12 +278,16 @@ module PrintHints = struct
          ^ ExprsToString.of_expr e ^ " ≥ ([ "
          ^ ExprsToString.of_IdT x ^ " := " ^ ExprsToString.of_ValueT y ^ " ] "
          ^ ExprsToString.of_expr e ^ ")"
+      | Infrule.Coq_substitute_tgt (x, y, e) ->
+         "substitute_tgt : "
+         ^ ExprsToString.of_expr e ^ " ≥ ([ "
+         ^ ExprsToString.of_IdT x ^ " := " ^ ExprsToString.of_ValueT y ^ " ] "
+         ^ ExprsToString.of_expr e ^ ")"
       | Infrule.Coq_substitute_rev (x, y, e) ->
          "substitute_rev : "
          ^ "([ " ^ ExprsToString.of_IdT x ^ " := " ^ ExprsToString.of_ValueT y ^ " ] "
          ^ ExprsToString.of_expr e ^ ")"
          ^ " ≥ " ^ ExprsToString.of_expr e
-      | Infrule.Coq_replace_rhs _ -> "replace_rhs"
       | Infrule.Coq_transitivity_pointer_lhs (p, q, v, ty, a) -> "transitivity_pointer_lhs : " ^
                                                 ExprsToString.of_expr(Expr.Coq_value p) ^ " ≥ " ^
                                                 ExprsToString.of_expr(Expr.Coq_value q) ^ " && " ^
@@ -296,6 +302,10 @@ module PrintHints = struct
          "icmp_eq_same: " ^
            "true >= icmp eq [" ^ ExprsToString.of_expr(Expr.Coq_value v1) ^ "] [" ^
            ExprsToString.of_expr(Expr.Coq_value v2) ^ "] implies both are same"
+      | Infrule.Coq_icmp_inverse_tgt (c, ty, v1, v2, b) ->
+         "icmp_inverse_tgt: " ^
+           (ExprsToString.of_expr(Expr.Coq_icmp(c,ty,v1,v2))) ^ " >= " ^ (string_of_constant (LLVMsyntax.Coq_const_int (1, b))) ^
+             " is being inversed"
       | Infrule.Coq_and_true_bool (v1, v2) ->
          "and_true_bool: " ^
            "true >= and 1 [" ^ ExprsToString.of_expr(Expr.Coq_value v1) ^ "] [" ^
@@ -346,6 +356,20 @@ module PrintHints = struct
         () in
       let _ = if(length sum <> 0) then print_sum() else () in
       ()
+
+    let invariants (hint_fdef:ValidationHint.fdef) (blockids: atom list): unit =
+      let print_bar() = debug_print (String.make 200 '=') in
+      print_bar ();
+      List.iter
+          (fun blockid ->
+              let stmts = TODOCAML.get (Alist.lookupAL hint_fdef blockid) in
+              debug_print (sprintf "<block %s>" blockid) ; 
+              invariant (stmts.invariant_after_phinodes) ;
+              List.iter 
+                  (fun inv -> invariant inv)
+                  (List.map snd stmts.cmds))
+          blockids;
+      print_bar ()
   end
 
 let debug_print_validation_process (infrules: Infrule.t list)

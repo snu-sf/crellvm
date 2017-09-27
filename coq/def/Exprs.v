@@ -187,12 +187,12 @@ Module IdT <: Orders.OrderedType.
   Global Program Instance eq_equiv : Equivalence eq.
 
   Definition lt (x y: t): Prop :=
-    (Tag.lt x.(fst) y.(fst)) \/ (Tag.eq x.(fst) y.(fst) /\ AtomImpl.lt x.(snd) y.(snd))
+    (Tag.lt x.(fst) y.(fst)) \/ (Tag.eq x.(fst) y.(fst) /\ AtomImpl.atom_lt x.(snd) y.(snd))
   .
 
   Definition compare (x y: t): comparison :=
     match Tag.compare x.(fst) y.(fst) with
-    | Eq => compare x.(snd) y.(snd)
+    | Eq => atom_compare x.(snd) y.(snd)
     | Lt => Lt
     | Gt => Gt
     end.
@@ -205,8 +205,8 @@ Module IdT <: Orders.OrderedType.
     unfold compare. ss.
     des_ifs; ss.
     - unfold Tag.compare in *. des_ifs.
-      destruct (AtomImpl.compare i0 i1) eqn:T;
-        (hexploit compare_spec; eauto; []; rewrite T; intro SPEC; des); inv SPEC.
+      destruct (atom_compare i0 i1) eqn:T;
+        (hexploit atom_compare_spec; eauto; []; rewrite T; intro SPEC; des); inv SPEC.
       + econs; ss.
       + econs. right. split; ss.
       + econs. right. split; ss.
@@ -224,7 +224,7 @@ Module IdT <: Orders.OrderedType.
     des.
     - generalize Tag.lt_strorder; intro ORDER. inv ORDER.
       eapply StrictOrder_Irreflexive; eauto.
-    - generalize AtomImpl.lt_strorder; intro ORDER. inv ORDER.
+    - generalize AtomImpl.atom_lt_strorder; intro ORDER. inv ORDER.
       eapply StrictOrder_Irreflexive; eauto.
   Qed.
 
@@ -257,7 +257,15 @@ Hint Resolve IdT.eq_dec: EqDecDb.
 
 Print MSetInterface.
 Print MSetInterface.S.
-Module IdTSet := MSetAVLExtra IdT. (* TODO: I want to specify type here *)
+Module IdTSet.
+  Include MSetAVLExtra IdT.
+
+  Definition clear_idt (idt0: IdT.t) (t0: t): t :=
+    filter (fun x => negb (IdT.eq_dec idt0 x)) t0
+  .
+
+End IdTSet.
+
 (* "MSetInterface.S with Module E := IdT" dosen't work *)
 Module IdTSetFacts := MSetFactsExtra IdT IdTSet.
 
@@ -305,6 +313,14 @@ Module ValueT <: UsualDecidableType.
       | id i => Some i
       | const _ => None
     end.
+
+  Definition substitute (from: IdT.t) (to: ValueT.t) (body: ValueT.t): ValueT.t :=
+    match body with
+    | ValueT.id i => if(IdT.eq_dec from i) then to else body
+    | _ => body
+    end
+  .
+
 End ValueT.
 Hint Resolve ValueT.eq_dec: EqDecDb.
 Coercion ValueT.id: IdT.t >-> ValueT.t_.
@@ -332,7 +348,15 @@ Module ValueTPair <: UsualDecidableType.
 End ValueTPair.
 Hint Resolve ValueTPair.eq_dec: EqDecDb.
 
-Module ValueTPairSet : FSetExtra.WSfun ValueTPair := FSetExtra.Make ValueTPair.
+Module ValueTPairSet <: FSetExtra.WSfun ValueTPair.
+  Include FSetExtra.Make ValueTPair.
+
+  Definition clear_idt (idt: IdT.t) (t0: t): t :=
+    filter (fun xy => negb (list_inb IdT.eq_dec (ValueTPair.get_idTs xy) idt)) t0
+  .
+
+End ValueTPairSet.
+
 Module ValueTPairSetFacts := WFacts_fun2 ValueTPair ValueTPairSet.
 
 Module Expr <: UsualDecidableType.
@@ -481,6 +505,17 @@ Module Expr <: UsualDecidableType.
       (Expr.load (f v) _blah _blah2)
     end.
 
+  Definition substitute (from: IdT.t) (to: ValueT.t) (body: t): t :=
+    (Expr.map_valueTs body (ValueT.substitute from to))
+  .
+
+  Definition is_load (e: t): bool :=
+    match e with
+    | Expr.load _ _ _ => true
+    | _ => false
+    end
+  .
+
 End Expr.
 Hint Resolve Expr.eq_dec: EqDecDb.
 Coercion Expr.value: ValueT.t >-> Expr.t_.
@@ -504,7 +539,15 @@ Module ExprPair <: UsualDecidableType.
 End ExprPair.
 Hint Resolve ExprPair.eq_dec: EqDecDb.
 
-Module ExprPairSet : FSetExtra.WSfun ExprPair := FSetExtra.Make ExprPair.
+Module ExprPairSet <: FSetExtra.WSfun ExprPair.
+  Include FSetExtra.Make ExprPair.
+
+  Definition clear_idt (idt: IdT.t) (t0: t): t :=
+    filter (fun xy => negb (list_inb IdT.eq_dec (ExprPair.get_idTs xy) idt)) t0
+  .
+
+End ExprPairSet.
+
 Module ExprPairSetFacts := WFacts_fun2 ExprPair ExprPairSet.
 
 (* Ptr: alias related values *)
@@ -556,5 +599,12 @@ Module PtrPair <: UsualDecidableType.
 End PtrPair.
 Hint Resolve PtrPair.eq_dec: EqDecDb.
 
-Module PtrPairSet : FSetExtra.WSfun PtrPair := FSetExtra.Make PtrPair.
+Module PtrPairSet <: FSetExtra.WSfun PtrPair.
+  Include FSetExtra.Make PtrPair.
+
+  Definition clear_idt (idt: IdT.t) (t0: t): t :=
+    filter (fun xy => negb (list_inb IdT.eq_dec (PtrPair.get_idTs xy) idt)) t0
+  .
+
+End PtrPairSet.
 Module PtrPairSetFacts := WFacts_fun2 PtrPair PtrPairSet.

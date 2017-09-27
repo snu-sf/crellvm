@@ -625,6 +625,75 @@ Definition postcond_phinodes
   | _, _ => None
   end.
 
+Definition may_produce_UB (b0: bop): bool :=
+  match b0 with
+  | bop_udiv => true
+  | bop_sdiv => true
+  | bop_urem => true
+  | bop_srem => true
+  | _ => false
+  end
+.
+
+Definition is_known_total (e0: Expr.t): bool :=
+  match e0 with
+  | Expr.value (ValueT.id idt0) => true
+  | Expr.value (ValueT.const (const_undef ty0)) => true
+  | _ => false
+  end
+.
+
+(* Spec: if e0 is known to be calculated, then retval of this fuc is known to be nonzero *)
+(* TODO: better definition, name, spec? *)
+(* TODO: Under current semantics, this spec does not hold: undef/0 is calculated to undef. *)
+(* However, it is problem of semantics, undef/0 should give UB too. calc denom first. *)
+Definition get_dangerous_denom (e0: Expr.t): option ValueT.t :=
+  match e0 with
+  | Expr.bop b1 sz1 va1 vb1 =>
+    if may_produce_UB b1
+    then Some vb1
+    else None
+  | _ => None
+  end
+.
+
+
+(* 1. x is total *)
+(* 2. by semantics of lessdef, y is calculated *)
+(* 3. by spec of get_dangerous_denom, y is nonzero *)
+(* 4. by def of injection, denom_tgt is nonzero (if it was zero, src too) *)
+
+(* Note that, 1. this reasoning holds for non-int case *)
+(* 2. Even if it does not hold, we can add type-checking on our invariant *)
+Definition is_known_nonzero_by_src (inv: Invariant.t) (denom_tgt: value): bool :=
+  ExprPairSet.exists_
+    (fun xy =>
+       (is_known_total (xy.(fst)))
+         &&
+         (match (get_dangerous_denom (xy.(snd))) with
+          | Some y => (Invariant.inject_value inv y (ValueT.lift Tag.physical denom_tgt))
+          | None => false
+          end))
+    (inv.(Invariant.src).(Invariant.lessdef))
+.
+
+Definition is_known_total_nonzero (e0: Expr.t): bool :=
+  match e0 with
+  | Expr.value (ValueT.const (const_int sz0 i0)) =>
+    negb (INTEGER.dec (INTEGER.of_Z (Size.to_Z sz0) 0%Z true) i0)
+  | _ => false
+  end
+.
+
+Definition is_known_nonzero_unary (inv: Invariant.unary) (denom: value): bool :=
+  ExprPairSet.exists_
+    (fun xy =>
+       (is_known_total_nonzero xy.(fst))
+         &&
+         Expr.eq_dec (xy.(snd)) (ValueT.lift Tag.physical denom))
+    (inv.(Invariant.lessdef))
+.
+
 Definition postcond_cmd_inject_event
            (src tgt:cmd)
            (inv:Invariant.t): bool :=
@@ -667,17 +736,19 @@ Definition postcond_cmd_inject_event
     (Invariant.inject_value
        inv (ValueT.lift Tag.physical v1) (ValueT.lift Tag.physical v2)) &&
     align_dec a1 a2
-  | insn_nop _, insn_load x t v a =>
-    (ExprPairSet.exists_
-        (fun e_pair =>
-           match e_pair with
-           | (e1, e2) =>
-             andb
-             (Expr.eq_dec e1 (Expr.value (ValueT.const (const_undef t))))
-             (Expr.eq_dec e2 (Expr.load (ValueT.lift Exprs.Tag.physical v) t a))
-           end) inv.(Invariant.src).(Invariant.lessdef))
-      &&
-      Invariant.not_in_maydiff inv (ValueT.lift Exprs.Tag.physical v)
+  (* | insn_nop _, insn_load x t v a => *)
+  (*   (ExprPairSet.exists_ *)
+  (*       (fun e_pair => *)
+  (*          match e_pair with *)
+  (*          | (e1, e2) => *)
+  (*            andb *)
+  (*            (Expr.eq_dec e1 (Expr.value (ValueT.const (const_undef t)))) *)
+  (*            (Expr.eq_dec e2 (Expr.load (ValueT.lift Exprs.Tag.physical v) t a)) *)
+  (*          end) inv.(Invariant.src).(Invariant.lessdef)) *)
+  (*     && *)
+  (*     Invariant.not_in_maydiff inv (ValueT.lift Exprs.Tag.physical v) *)
+  (* @alxest: For more info: Issue#426 *)
+
   | _, insn_load _ _ _ _ => false
 
   | insn_free _ t1 p1, insn_free _ t2 p2 =>
@@ -694,13 +765,31 @@ Definition postcond_cmd_inject_event
        inv (ValueT.lift Tag.physical v1) (ValueT.lift Tag.physical v2)) &&
     align_dec a1 a2
   | insn_alloca _ _ _ _, insn_nop _ => true
-  | insn_nop _, insn_alloca _ _ _ _ => true
+  (* | insn_nop _, insn_alloca _ _ _ _ => true *)
+
   (* | insn_alloca _ _ _ _, _ => false *)
-  (* | _, insn_alloca _ _ _ _ => false *)
+  | _, insn_alloca _ _ _ _ => false
+  (* This change is introduced by @alxest, when sanitizing semantics of alloca *)
+  (* We can allow nop-alloca case when arg is known to be int. *)
+  (* This will sufficiently allow register spilling to be validated. *)
+  (* We can also make new predicate (:= is defined && int) for more power *)
 
   | insn_malloc _ _ _ _, _ => false
   | _, insn_malloc _ _ _ _ => false
 
+  | insn_bop _ b0 sz0 va0 vb0, insn_bop _ b1 sz1 va1 vb1 =>
+    if (may_produce_UB b1)
+    then (bop_dec b0 b1)
+           && (sz_dec sz0 sz1)
+           && (Invariant.inject_value inv (ValueT.lift Tag.physical va0) (ValueT.lift Tag.physical va1))
+           && (Invariant.inject_value inv (ValueT.lift Tag.physical vb0) (ValueT.lift Tag.physical vb1))
+    else true
+  | _, insn_bop _ b1 sz1 va1 vb1 =>
+    if (may_produce_UB b1)
+    then (is_known_total_nonzero (ValueT.lift Tag.physical vb1))
+         || (is_known_nonzero_by_src inv vb1)
+         || (is_known_nonzero_unary inv.(Invariant.src) vb1)
+    else true
   | _, _ => true
   end.
 
@@ -734,10 +823,10 @@ Definition postcond_cmd_add_inject
         Invariant.update_src
           (Invariant.update_unique
              (AtomSetImpl.add aid_src)) inv0 in
-    let inv2 :=
-        Invariant.update_tgt
-          (Invariant.update_unique
-             (AtomSetImpl.add aid_tgt)) inv1 in
+    let inv2 := inv1 in
+        (* Invariant.update_tgt *)
+        (*   (Invariant.update_unique *)
+        (*      (AtomSetImpl.add aid_tgt)) inv1 in *)
     let inv3 := remove_def_from_maydiff aid_src aid_tgt inv2 in
     inv3
 
@@ -753,10 +842,10 @@ Definition postcond_cmd_add_inject
     inv2
 
   | insn_nop _, insn_alloca aid_tgt _ _ _ =>
-    let inv1 :=
-        Invariant.update_tgt
-          (Invariant.update_unique
-             (AtomSetImpl.add aid_tgt)) inv0 in
+    let inv1 := inv0 in
+        (* Invariant.update_tgt *)
+        (*   (Invariant.update_unique *)
+        (*      (AtomSetImpl.add aid_tgt)) inv0 in *)
     let inv2 :=
         Invariant.update_tgt
           (Invariant.update_private

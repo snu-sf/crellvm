@@ -29,8 +29,147 @@ Import Memory.
 Require Import opsem_wf.
 Require Import genericvalues_inject.
 Require Import memory_sim.
+Require Import MemAux.
 
 Set Implicit Arguments.
+
+
+Section SEM_VALID_PTR.
+
+
+  Lemma sem_id_preserves_valid_ptr
+        conf st invst0 invmem0 gmax pubs inv0
+        (STATE: InvState.Unary.sem conf st invst0 invmem0 gmax pubs inv0)
+        (MEM : InvMem.Unary.sem conf gmax pubs st.(Mem) invmem0)
+        idt0 gv0
+        (SEM: InvState.Unary.sem_idT st invst0 idt0 = Some gv0)
+  :
+    <<VALID: MemProps.valid_ptrs st.(Mem).(Mem.nextblock) gv0>>
+  .
+  Proof.
+    destruct idt0; ss.
+    destruct t; ss.
+    - inv STATE. eapply WF_LOCAL; eauto.
+    - inv STATE. eapply WF_PREVIOUS; eauto.
+    - inv STATE. eapply WF_GHOST; eauto.
+  Qed.
+
+  Lemma sem_value_preserves_valid_ptr
+        conf st invst0 invmem0 gmax pubs inv0
+        (STATE: InvState.Unary.sem conf st invst0 invmem0 gmax pubs inv0)
+        (MEM : InvMem.Unary.sem conf gmax pubs st.(Mem) invmem0)
+        v0 gv0
+        (SEM: InvState.Unary.sem_valueT conf st invst0 v0 = Some gv0)
+  :
+    <<VALID: MemProps.valid_ptrs st.(Mem).(Mem.nextblock) gv0>>
+  .
+  Proof.
+    destruct v0; ss.
+    - eapply sem_id_preserves_valid_ptr; eauto.
+    - exploit wf_globals_const2GV; try apply MEM; eauto.
+      i.
+      eapply MemProps.valid_ptrs__trans; eauto.
+      { inv MEM.
+        red in WF. des.
+        rewrite <- Pplus_one_succ_r.
+        eapply Pos.le_succ_l; eauto.
+      }
+  Qed.
+
+  Lemma sem_list_value_preserves_valid_ptr
+        conf st invst0 invmem0 gmax pubs inv0
+        (STATE: InvState.Unary.sem conf st invst0 invmem0 gmax pubs inv0)
+        (MEM : InvMem.Unary.sem conf gmax pubs st.(Mem) invmem0)
+        vs0 gvs0
+        (SEM: InvState.Unary.sem_list_valueT conf st invst0 vs0 = Some gvs0)
+  :
+    <<VALID: List.Forall (MemProps.valid_ptrs st.(Mem).(Mem.nextblock)) gvs0>>
+  .
+  Proof.
+    ginduction vs0; ii; ss; clarify.
+    des_ifs.
+    econs; eauto.
+    { eapply sem_value_preserves_valid_ptr; eauto. }
+    eapply IHvs0; eauto.
+  Qed.
+
+  Lemma gep_preserves_valid_ptrs
+        conf st invst0 invmem0 gmax pubs inv0
+        (STATE: InvState.Unary.sem conf st invst0 invmem0 gmax pubs inv0)
+        (MEM : InvMem.Unary.sem conf gmax pubs st.(Mem) invmem0)
+        v g
+        (SEM0: InvState.Unary.sem_valueT conf st invst0 v = Some g)
+        l0
+        lsv
+        (SEM1: InvState.Unary.sem_list_valueT conf st invst0 lsv = Some l0)
+        t ib u gv0
+        (GEP: gep (CurTargetData conf) t l0 ib u g = Some gv0)
+    :
+      <<VALID: MemProps.valid_ptrs (Mem.nextblock (Mem st)) gv0>>
+  .
+  Proof.
+    unfold gep in *. unfold genericvalues.LLVMgv.GEP in GEP.
+    des_ifs; try (by eapply MemProps.undef_valid_ptrs; eauto).
+    unfold GV2ptr in *. des_ifs.
+    unfold mgep in *. des_ifs.
+    exploit sem_value_preserves_valid_ptr; ss; eauto.
+  Qed.
+
+  Lemma mselect_preserves_valid_ptrs
+        conf st invst0 invmem0 gmax pubs inv0
+        (STATE: InvState.Unary.sem conf st invst0 invmem0 gmax pubs inv0)
+        (MEM : InvMem.Unary.sem conf gmax pubs st.(Mem) invmem0)
+        v w z g g0 g1
+        (SEM0: InvState.Unary.sem_valueT conf st invst0 v = Some g)
+        (SEM1: InvState.Unary.sem_valueT conf st invst0 w = Some g0)
+        (SEM2: InvState.Unary.sem_valueT conf st invst0 z = Some g1)
+        t gv0
+        (SELET: mselect (CurTargetData conf) t g g0 g1 = Some gv0)
+    :
+      <<VALID: MemProps.valid_ptrs (Mem.nextblock (Mem st)) gv0>>
+  .
+  Proof.
+    unfold mselect in *.
+    unfold fit_chunk_gv in *.
+    des_ifs; try (by eapply MemProps.undef_valid_ptrs; eauto).
+    - eapply sem_value_preserves_valid_ptr; eauto.
+    - eapply sem_value_preserves_valid_ptr; eauto.
+  Qed.
+
+  Lemma sem_expr_preserves_valid_ptr
+        conf st invst0 invmem0 gmax pubs inv0
+        (STATE: InvState.Unary.sem conf st invst0 invmem0 gmax pubs inv0)
+        (MEM : InvMem.Unary.sem conf gmax pubs st.(Mem) invmem0)
+        x0 gv0
+        (SEM: InvState.Unary.sem_expr conf st invst0 x0 = Some gv0)
+  :
+    <<VALID: MemProps.valid_ptrs st.(Mem).(Mem.nextblock) gv0>>
+  .
+  Proof.
+    red.
+    destruct x0; ss; des_ifs.
+    - eapply MemProps.mbop_preserves_valid_ptrs; eauto.
+    - eapply MemProps.mfbop_preserves_valid_ptrs; eauto.
+    - eapply MemProps.extractGenericValue_preserves_valid_ptrs; eauto.
+      eapply sem_value_preserves_valid_ptr; eauto.
+    - eapply MemProps.insertGenericValue_preserves_valid_ptrs; eauto.
+      + eapply sem_value_preserves_valid_ptr; eauto.
+      + eapply sem_value_preserves_valid_ptr; eauto.
+    - eapply gep_preserves_valid_ptrs; eauto.
+    - eapply MemProps.mtrunc_preserves_valid_ptrs; eauto.
+    - eapply MemProps.mext_preserves_valid_ptrs; eauto.
+    - eapply MemProps.mcast_preserves_valid_ptrs; eauto.
+      eapply sem_value_preserves_valid_ptr; eauto.
+    - eapply MemProps.micmp_preserves_valid_ptrs; eauto.
+    - eapply MemProps.mfcmp_preserves_valid_ptrs; eauto.
+    - eapply mselect_preserves_valid_ptrs; try exact SEM; eauto.
+    - eapply sem_value_preserves_valid_ptr; eauto.
+    - inv MEM.
+      eapply WF. eauto.
+  Qed.
+
+
+End SEM_VALID_PTR.
 
 
 (* TODO: position *)
@@ -179,19 +318,6 @@ Proof.
   inv x. inv x0. inv H4. inv H2. inv H0. inv H.
 Qed.
 
-Lemma inject_incr_fully_inject_allocas
-      (inv0 inv1 : InvMem.Rel.t)
-      (allocas_src allocas_tgt : list mblock)
-      (ALLOCAS: fully_inject_allocas inv0 allocas_src allocas_tgt)
-      (MEMINJ: memory_sim.MoreMem.inject_incr inv0.(InvMem.Rel.inject) inv1.(InvMem.Rel.inject))
-  : fully_inject_allocas inv1 allocas_src allocas_tgt.
-Proof.
-  unfold fully_inject_allocas in *.
-  eapply list_forall2_imply; eauto.
-Qed.
-
-(* inject_event_subset *)
-
 Ltac inject_clarify :=
   repeat
     match goal with
@@ -245,12 +371,75 @@ Lemma Subset_sem
 Proof.
   inv STATE. inv SUBSET.
   econs; try (eapply Subset_unary_sem; eauto).
+  - eapply AtomSetFacts.Empty_s_m_Proper; eauto. unfold flip. inv SUBSET_TGT. ss.
   - i. apply MAYDIFF.
     destruct (IdTSet.mem id0 (Hints.Invariant.maydiff inv1)) eqn:MEM1; ss.
     rewrite <- IdTSetFacts.not_mem_iff in *.
     rewrite <- IdTSetFacts.mem_iff in *.
     exploit SUBSET_MAYDIFF; eauto. i. congruence.
   - eauto.
+Qed.
+
+Lemma is_known_nonzero_by_src_Subset
+      inv0 inv1 v0
+      (NONZERO: Postcond.is_known_nonzero_by_src inv0 v0 = true)
+      (SUBSET: Hints.Invariant.Subset inv0 inv1)
+  :
+    <<NONZERO: Postcond.is_known_nonzero_by_src inv1 v0 = true>>
+.
+Proof.
+  red.
+  unfold Postcond.is_known_nonzero_by_src in *.
+  apply ExprPairSetFacts.exists_iff; try by solve_compat_bool.
+  apply ExprPairSetFacts.exists_iff in NONZERO; try by solve_compat_bool.
+  unfold ExprPairSet.Exists in *.
+  des. des_bool. des.
+  exists x.
+  split; ss.
+  - eapply ExprPairSetFacts.In_s_m; eauto.
+    apply SUBSET.
+  - des_ifs_safe. ss.
+    erewrite InvState.Subset.inject_value_Subset; eauto.
+Qed.
+
+Lemma is_known_nonzero_unary_Subset
+      inv0 inv1 v0
+      (NONZERO: Postcond.is_known_nonzero_unary inv0 v0 = true)
+      (SUBSET: Hints.Invariant.Subset_unary inv0 inv1)
+  :
+    <<NONZERO: Postcond.is_known_nonzero_unary inv1 v0 = true>>
+.
+Proof.
+  red.
+  unfold Postcond.is_known_nonzero_unary in *.
+  apply ExprPairSetFacts.exists_iff; try by solve_compat_bool.
+  apply ExprPairSetFacts.exists_iff in NONZERO; try by solve_compat_bool.
+  unfold ExprPairSet.Exists in *.
+  des. des_bool. des.
+  exists x.
+  split; ss.
+  - eapply ExprPairSetFacts.In_s_m; eauto.
+    apply SUBSET.
+  - des_ifs_safe.
+Qed.
+
+Lemma is_known_nonzero_Subset
+      inv0 inv1 value2
+      (NONZERO: Postcond.is_known_nonzero_by_src inv0 value2
+                || Postcond.is_known_nonzero_unary (Invariant.src inv0) value2)
+      (SUBSET: Invariant.Subset inv0 inv1)
+  :
+    <<NONZERO: Postcond.is_known_nonzero_by_src inv1 value2
+               || Postcond.is_known_nonzero_unary (Invariant.src inv1) value2>>
+.
+Proof.
+  red.
+  unfold is_true in *.
+  des_bool. des.
+  - erewrite is_known_nonzero_by_src_Subset; try eassumption; ss.
+  - erewrite is_known_nonzero_unary_Subset; try eassumption; ss.
+    + apply orb_true_r.
+    + apply SUBSET.
 Qed.
 
 Lemma postcond_cmd_inject_event_Subset cmd_src cmd_tgt inv0 inv1
@@ -261,43 +450,31 @@ Lemma postcond_cmd_inject_event_Subset cmd_src cmd_tgt inv0 inv1
 .
 Proof.
   red.
-  destruct cmd_src; destruct cmd_tgt; ss;
-    try by 
-      (unfold is_true in *; repeat (des_bool; des);
-       inject_clarify; try rewrite andb_true_r; try (rewrite andb_true_iff; split);
-       eapply InvState.Subset.inject_value_Subset; eauto).
-  - unfold is_true in *. des_bool; des.
-    apply andb_true_iff.
-    split; ss.
-    + apply Exprs.ExprPairSet.exists_2 in INJECT_EVENT; try by solve_compat_bool.
-      inv INJECT_EVENT. des.
-      exploit Exprs.ExprPairSet.exists_1; try by solve_compat_bool.
+  {
+    destruct cmd_src; destruct cmd_tgt; ss;
+      des_ifs; ss; try (by eapply is_known_nonzero_Subset; eauto);
+        unfold proj_sumbool, is_true in *; des_ifs; ss; des_bool; des;
+          try (eapply InvState.Subset.inject_value_Subset; eauto); ss.
+    - apply andb_true_iff.
+      split; eapply InvState.Subset.inject_value_Subset; eauto.
+    - unfold Hints.Invariant.is_private in *. des_ifs.
       inv SUBSET. inv SUBSET_SRC.
-      exploit SUBSET_LESSDEF; eauto. i.
-      econs; eauto.
-    + destruct value1; ss. des_bool. apply negb_true_iff.
-      apply IdTSetFacts.not_mem_iff.
-      apply IdTSetFacts.not_mem_iff in INJECT_EVENT0.
-      ii.
-      apply INJECT_EVENT0.
-      inv SUBSET.
-      expl SUBSET_MAYDIFF.
-  - unfold Hints.Invariant.is_private in *. des_ifs.
-    inv SUBSET. inv SUBSET_SRC.
-    unfold is_true in *.
-    InvState.Subset.conv_mem2In.
-    exploit SUBSET_PRIVATE; eauto.
-  - unfold is_true in *; repeat (des_bool; des).
-    inject_clarify.
-    rewrite andb_true_iff; split.
-    + eapply InvState.Subset.inject_value_Subset; eauto.
-    + eapply TODO.list_forallb2_implies; eauto.
-      i. ss.
-      repeat match goal with
-             | [a: ?t * ?s |- _] => destruct a
-             end.
-      des_bool; des. clarify. ss.
-      eapply InvState.Subset.inject_value_Subset; eauto.
+      unfold is_true in *.
+      InvState.Subset.conv_mem2In.
+      exploit SUBSET_PRIVATE; eauto.
+    - apply andb_true_iff. des_bool. des.
+      split; eapply InvState.Subset.inject_value_Subset; eauto.
+    - apply andb_true_iff.
+      split; ss.
+      + eapply InvState.Subset.inject_value_Subset; eauto.
+      + eapply TODO.list_forallb2_implies; eauto.
+        i. ss.
+        repeat match goal with
+               | [a: ?t * ?s |- _] => destruct a
+               end.
+        des_bool; des. clarify. ss.
+        eapply InvState.Subset.inject_value_Subset; eauto.
+  }
 Qed.
 
 (* tactics from yoonseung *)
@@ -633,21 +810,17 @@ Qed.
 
 Lemma invmem_lift
       conf_src mem_src uniqs_src privs_src
-      conf_tgt mem_tgt uniqs_tgt privs_tgt
+      conf_tgt mem_tgt privs_tgt
       inv
       (MEM: InvMem.Rel.sem conf_src conf_tgt mem_src mem_tgt inv)
       (UNIQS_SRC : forall (mptr : mptr) (typ : typ) (align : align) (val : GenericValue),
                      mload conf_src.(CurTargetData) mem_src mptr typ align = Some val ->
                      InvMem.gv_diffblock_with_blocks conf_src val uniqs_src)
       (UNIQS_GLOBALS_SRC: forall b, In b uniqs_src -> (inv.(InvMem.Rel.gmax) < b)%positive)
-      (UNIQS_TGT : forall (mptr : mptr) (typ : typ) (align : align) (val : GenericValue),
-                     mload conf_tgt.(CurTargetData) mem_tgt mptr typ align = Some val ->
-                     InvMem.gv_diffblock_with_blocks conf_tgt val uniqs_tgt)
-      (UNIQS_GLOBALS_TGT: forall b, In b uniqs_tgt -> (inv.(InvMem.Rel.gmax) < b)%positive)
       (PRIVS_SRC: forall b, In b privs_src -> InvMem.private_block mem_src (InvMem.Rel.public_src inv.(InvMem.Rel.inject)) b)
       (PRIVS_TGT: forall b, In b privs_tgt -> InvMem.private_block mem_tgt (InvMem.Rel.public_tgt inv.(InvMem.Rel.inject)) b)
   : InvMem.Rel.sem conf_src conf_tgt mem_src mem_tgt
-                   (InvMem.Rel.lift mem_src mem_tgt uniqs_src uniqs_tgt privs_src privs_tgt inv).
+                   (InvMem.Rel.lift mem_src mem_tgt uniqs_src [] (* uniqs_tgt *) privs_src privs_tgt inv).
 Proof.
   inv MEM.
   econs; eauto.
@@ -681,24 +854,22 @@ Proof.
        * apply PRIVS_TGT; eauto.
        * exploit PRIVATE_PARENT; eauto.
     + ii. apply in_app in INB. des.
-      * apply filter_In in INB. des.
-        exploit PRIVS_TGT; eauto. i. des.
-        exploit UNIQS_TGT; eauto.
-        rewrite existsb_exists in *. des.
-        destruct (Values.eq_block b x0); ss.
-        subst. eauto.
+      * apply filter_In in INB. des. ss.
       * exploit UNIQUE_PARENT_MEM; eauto.
     + inv WF0.
       i. apply in_app in IN_UNIQUE_PARENT. des.
       * apply filter_In in IN_UNIQUE_PARENT. des.
-        apply UNIQS_GLOBALS_TGT.
-        rewrite existsb_exists in *. des.
-        destruct (Values.eq_block b x); ss.
-        subst. eauto.
+        ss.
       * exploit UNIQUE_PARENT_GLOBALS; eauto.
     + apply sublist_app; eauto.
       apply filter_sublist.
     + reflexivity.
+  - ss. rewrite TGT_NOUNIQ. rewrite app_nil_r.
+    reductio_ad_absurdum.
+    destruct (filter (fun _ : positive => false) privs_tgt) eqn:T; ss.
+    assert(In p (filter (fun _ : positive => false) privs_tgt)).
+    { rewrite T. left; ss. }
+    apply filter_In in H. des; ss.
 Qed.
 
 Lemma positive_lt_plus_one
@@ -730,7 +901,7 @@ Lemma unique_const_diffblock
 .
 Proof.
   red.
-  eapply MemProps.wf_globals_const2GV in VAL2; eauto. des.
+  eapply MemAux.wf_globals_const2GV in VAL2; eauto. des.
 
   inv UNIQUE. clear LOCALS MEM. clarify.
 
@@ -862,17 +1033,24 @@ Lemma all_undef_lessdef_aux
       gv1 gv2
       (VUNDEFS : Forall (eq Values.Vundef) (List.map fst gv1))
       (CHUNKS : List.map snd gv1 = List.map snd gv2)
+      (UNDEF_OR_VALID: Forall (fun v => v.(fst) <> Values.Vundef -> Values.Val.has_chunkb v.(fst) v.(snd)) gv2)
   : GVs.lessdef gv1 gv2.
 Proof.
-  revert gv2 CHUNKS.
+  revert gv2 CHUNKS UNDEF_OR_VALID.
   induction gv1; i; ss.
   - destruct gv2; ss. econs.
   - destruct gv2; ss.
     inv CHUNKS. inv VUNDEFS.
     econs.
     { split; eauto.
-      rewrite <- H3. eauto. }
+      - rewrite <- H3. eauto.
+      - destruct a, p; ss. clarify.
+        split; ss.
+        i.
+        inv UNDEF_OR_VALID. ss. apply H5; ss.
+    }
     eapply IHgv1; eauto.
+    inv UNDEF_OR_VALID. ss.
 Qed.
 
 Lemma fit_gv_chunks_aux
@@ -999,31 +1177,6 @@ Next Obligation.
   expl H.
 Qed.
 
-
-Lemma fully_inject_allocas_cons_inv
-      a0 a1 Allocas0 Allocas1 inv
-      (ALLOCAS: fully_inject_allocas inv (a0 :: Allocas0) (a1 :: Allocas1))
-  :
-    <<ALLOCAS: fully_inject_allocas inv Allocas0 Allocas1 /\
-               InvMem.Rel.inject inv a0 = Some (a1, 0)>>
-.
-Proof.
-  inv ALLOCAS.
-  splits; ss.
-Qed.
-
-Lemma fully_inject_allocas_mem_le
-      Allocas0 Allocas1 inv inv'
-      (MEMLE: InvMem.Rel.le inv inv')
-      (ALLOCAS: fully_inject_allocas inv Allocas0 Allocas1)
-  :
-    <<ALLOCAS: fully_inject_allocas inv' Allocas0 Allocas1>>
-.
-Proof.
-  inv MEMLE.
-  eapply list_forall2_imply; eauto.
-Qed.
-
 (* Mem.nextblock_free *)
 Lemma unchecked_free_nextblock
       m0 b lo hi m1
@@ -1036,6 +1189,46 @@ Proof.
   destruct m0; ss. clarify.
 Qed.
 
+Lemma unchecked_free_block:
+   forall (m1 : mem) (bf : Values.block) 
+     (lo hi : Z) (m2 : mem),
+   Mem.unchecked_free m1 bf lo hi = m2 ->
+   forall b : Values.block,
+   Mem.valid_block m1 b -> Mem.valid_block m2 b.
+ Proof. 
+   intros. rewrite <- H. assumption. 
+ Qed.
+
+(*Mem.bounds_free_3 *)
+Lemma bounds_unchecked_free : 
+forall (m1 : mem) (bf : Values.block) (lo hi : Z) (m2 : mem), 
+  Mem.unchecked_free m1 bf lo hi = m2 -> 
+forall b : Values.block,
+Mem.bounds m2 b = Mem.bounds m1 b.
+Proof. 
+  intros. rewrite <- H. simpl. auto. 
+Qed.
+
+Lemma load_unchecked_free:  
+  forall (m1 : mem) (bf : Values.block) (lo hi : Z) (m2 : mem) (ofs : Z) (b : Values.block) (chunk : AST.memory_chunk),
+  m2 = Mem.unchecked_free m1 bf lo hi -> 
+   b <> bf  ->
+  Mem.load chunk m2 b ofs = Mem.load chunk m1 b ofs.
+Proof. 
+  intros. 
+  Transparent Mem.load.
+  unfold Mem.load.
+  destruct (Mem.valid_access_dec m2 chunk b ofs Readable). 
+  rewrite pred_dec_true. 
+  rewrite H. auto.
+  rewrite H in v.   
+  eapply MoreMem.valid_access_unchecked_free_before; eauto. 
+  rewrite pred_dec_false; auto. 
+  red; intros; elim n. 
+  rewrite H. apply MoreMem.valid_access_diffblock_free_after. auto. 
+  auto.
+Qed.
+
 (* Mem.load_free_2 *)
 Lemma load_unchecked_free2
       m0 bf lo hi m1
@@ -1046,7 +1239,53 @@ Lemma load_unchecked_free2
     <<LOAD: Mem.load mc m0 b ofs = Some v>>
 .
 Proof.
-Admitted.
+  destruct m0;ss. rewrite <- FREE in LOAD. 
+  Transparent Mem.load.
+  unfold Mem.load. rewrite pred_dec_true.   
+  rewrite (Mem.load_result _ _ _ _ _ LOAD ). auto. 
+  eapply MoreMem.valid_access_unchecked_free_before. 
+  apply Mem.load_valid_access in LOAD. eauto. 
+Qed.
+
+Lemma perm_unchecked_free_1
+     : forall (m1 : mem) (bf : Values.block)
+         (lo hi : Z) (m2 : mem),
+       Mem.unchecked_free m1 bf lo hi = m2 ->
+       forall (b : Values.block) 
+         (ofs : Z) (k : perm_kind)
+         (p : permission),
+       b <> bf \/ ofs < lo \/ hi <= ofs ->
+       Mem.perm m1 b ofs k p ->
+       Mem.perm m2 b ofs k p.
+Proof. 
+  intros. rewrite <- H.  
+  unfold Mem.perm, Mem.unchecked_free; simpl. 
+  rewrite Maps.PMap.gsspec.
+  destruct (peq b bf). subst b. 
+  destruct (zle lo ofs); simpl.
+  destruct (zlt ofs hi); simpl.
+  elimtype False; intuition.
+  auto. auto. auto.
+Qed.
+
+Lemma perm_unchecked_free_3 :
+  forall (m1 : mem) (bf : Values.block) (lo hi : Z) (m2 : mem),
+       Mem.unchecked_free m1 bf lo hi = m2 ->
+       forall (b : Values.block) 
+         (ofs : Z) (k : perm_kind)
+         (p : permission),
+       Mem.perm m2 b ofs k p ->
+       Mem.perm m1 b ofs k p.
+Proof.
+  intros until p. rewrite <- H. 
+  unfold Mem.perm, Mem.unchecked_free; simpl. 
+  rewrite Maps.PMap.gsspec.
+  destruct (peq b bf). 
+  subst b. 
+  destruct (zle lo ofs); simpl.
+  destruct (zlt ofs hi); simpl. tauto. 
+  auto. auto. auto.
+Qed.
 
 (* MemProps.free_preserves_mload_aux_inv *)
 Lemma unchecked_free_preserves_mload_aux_inv
@@ -1058,7 +1297,15 @@ Lemma unchecked_free_preserves_mload_aux_inv
     <<LOAD: mload_aux m0 mc b ofs = Some v>>
 .
 Proof.
-Admitted.
+  generalize dependent ofs.  generalize dependent v.  
+  induction mc; simpl; auto. 
+  intros. simpl in LOAD. guardH FREE.       
+  Vellvm.Vellvm.vellvm_tactics.inv_mbind'.  
+  symmetry in HeqR0. unguardH FREE. 
+  apply IHmc in HeqR0.
+  rewrite HeqR0. 
+  erewrite load_unchecked_free2; eauto. 
+Qed. 
 
 (* MemProps.free_preserves_mload_inv: *)
 Lemma unchecked_free_preserves_mload_inv
@@ -1087,7 +1334,17 @@ Lemma unchecked_free_preserves_mload_aux
     <<LOAD: mload_aux m1 mc b ofs = Some gv>>
 .
 Proof.
-Admitted.
+  generalize dependent ofs. generalize dependent gv. 
+  induction mc; simpl; intros;  auto. 
+  guardH FREE.  
+  Vellvm.Vellvm.vellvm_tactics.inv_mbind'.  
+  unguardH FREE. 
+  symmetry in HeqR0. 
+  apply IHmc in HeqR0. 
+  rewrite HeqR0. 
+  erewrite load_unchecked_free; eauto. rewrite <- HeqR. 
+  auto. 
+Qed.
 
 (* MemProps.free_preserves_mload *)
 Lemma unchecked_free_preserves_mload
@@ -1127,6 +1384,25 @@ Proof.
   unfold MemProps.valid_ptrs in *. des_ifs.
 Qed.
 
+(*MoreMem.free_left_nonmap_inj memory_sim *) 
+Lemma unchecked_free_left_nonmap_inj
+     : forall (f : MoreMem.meminj) (m1 m2 : Memory.mem) (b : Values.block) 
+         (lo hi : Z) (m1' : Memory.mem),
+       f b = None -> MoreMem.mem_inj f m1 m2 -> Mem.unchecked_free m1 b lo hi =  m1' -> MoreMem.mem_inj f m1' m2.
+Proof.  
+  intros. inversion H0. constructor. 
+  intros. eapply MoreMem.mi_access; eauto. 
+  rewrite <- H1 in H3.  
+  eapply MoreMem.valid_access_unchecked_free_before; eauto.  
+  intros. rewrite <- H1; simpl. 
+  assert (b=b1 /\ lo <= ofs < hi \/ (b<> b1 \/ ofs<lo \/ hi <= ofs))
+    by (assert (lo <= ofs < hi \/ ofs<lo \/ hi <= ofs) by omega; tauto). 
+  destruct H4. destruct H4. subst b1. 
+  Vellvm.Vellvm.vellvm_tactics.uniq_result. 
+  apply mi_memval; auto.
+  eapply perm_unchecked_free_3; eauto.
+Qed.
+
 (* mem_inj__pfree *)
 Lemma mem_inj__psrc_unchecked_free
       mi m_src0 m_tgt0 m_src1 mgb
@@ -1140,7 +1416,56 @@ Lemma mem_inj__psrc_unchecked_free
     <<WASABI: wf_sb_mi mgb mi m_src1 m_tgt0>> /\ <<MOREINJ: MoreMem.mem_inj mi m_src1 m_tgt0>>
 .
 Proof.
-Admitted.
+  split. 
+  SCase "wasabi".  
+  clear - PRIV_SRC FREE WASABI.
+  inversion_clear WASABI. 
+  split; eauto with mem. 
+  intros. erewrite unchecked_free_nextblock in H; eauto. 
+  intros.   
+  apply mi_freeblocks. eauto using unchecked_free_block. 
+  intros.  
+  apply mi_bounds in H. erewrite bounds_unchecked_free; eauto.   
+
+  SCase "moreinj".   
+  clear - MOREINJ WASABI FREE PRIV_SRC. 
+  guardH FREE. 
+  inv WASABI. 
+  unguardH FREE.  
+  apply  unchecked_free_left_nonmap_inj with m_src0 b lo hi; eauto. 
+Qed.
+
+Lemma unchecked_free_right_inj:
+      forall (f : Values.meminj) (m1 m2 : mem) (b : Values.block)
+         (lo hi : Z) (m2' : mem),
+       MoreMem.mem_inj f m1 m2 ->  Mem.unchecked_free m2 b lo hi = m2' ->
+       (forall (b' : Values.block) (delta ofs : Z) (k : perm_kind)
+          (p : permission),
+        f b' = Some (b, delta) -> Mem.perm m1 b' ofs k p ->
+        lo <= ofs + delta < hi -> False) ->
+       MoreMem.mem_inj f m1 m2'.
+Proof. 
+  intros. inversion H. constructor. 
+
+  intros. exploit MoreMem.mi_access; eauto. intros [RG AL].
+  split; auto. 
+  red; intros. eapply perm_unchecked_free_1; eauto. 
+  destruct (peq b2 b); auto. subst b. right.
+  destruct (zlt ofs0 lo); auto. destruct (zle hi ofs0); auto.
+  elimtype False. eapply H1 with (ofs := ofs0 - delta). eauto. 
+  apply H3. omega. omega.
+
+  intros. rewrite <- H0; simpl. 
+  specialize (mi_memval _ _ _ _ H2 H3).
+  assert (b=b2 /\ lo <= ofs+delta < hi \/ (b<>b2 \/ ofs+delta<lo \/ hi <= ofs+delta)).
+  {
+    assert (lo <= ofs+delta < hi \/ ofs + delta < lo \/ hi <= ofs + delta) by omega.
+    destruct (peq b b2); tauto.
+  }
+  destruct H4. destruct H4. subst b2.
+  specialize (H1 _ _ _ _ _ H2 H3). elimtype False; auto.
+  auto. 
+Qed.
 
 (* no matching here *)
 Lemma mem_inj__ptgt_unchecked_free
@@ -1155,7 +1480,29 @@ Lemma mem_inj__ptgt_unchecked_free
     <<WASABI: wf_sb_mi mgb mi m_src0 m_tgt1>> /\ <<MOREINJ: MoreMem.mem_inj mi m_src0 m_tgt1>>
 .
 Proof.
-Admitted.
+ split. 
+{
+  clear - PRIV_TGT FREE WASABI. 
+  inversion_clear WASABI.
+  split; eauto with mem.  
+  intros. apply Hmap2 in H. 
+  eapply unchecked_free_nextblock in FREE. rewrite FREE. auto. 
+  intros. apply mi_mappedblocks in H. 
+  eapply unchecked_free_block; eauto.  
+  intros. apply mi_bounds in H.
+  rewrite H. 
+  symmetry. 
+  erewrite bounds_unchecked_free; eauto. 
+}
+{
+  clear - MOREINJ WASABI FREE PRIV_TGT. 
+  guardH FREE. 
+  inv WASABI. 
+  unguardH FREE.
+  eapply unchecked_free_right_inj; eauto. 
+  intros. eapply PRIV_TGT. eapply H; eauto.
+} 
+Qed.
 
 Lemma unchecked_free_preserves_sem_unary
       conf_src gmax inv0 m0 pub
@@ -1243,14 +1590,210 @@ Proof.
   splits; apply MEMLE.
 Qed.
 
-Lemma fully_inject_allocas_inject_allocas
-      inv0 als_src als_tgt
-      (FULLY_INJECT: fully_inject_allocas inv0 als_src als_tgt)
+Lemma simulation__GV2ptr_tgt
+     : forall (mi : Values.meminj) (TD : TargetData) (gv1 gv1' : GenericValue) (v' : Values.val),
+       genericvalues_inject.gv_inject mi gv1 gv1' ->
+       GV2ptr TD (getPointerSize TD) gv1' = Some v' ->
+       option_map fst (List.hd_error gv1) <> Some Values.Vundef ->
+       exists v : Values.val, GV2ptr TD (getPointerSize TD) gv1 = Some v /\ memory_sim.MoreMem.val_inject mi v v'.
+Proof.
+  i.
+  unfold GV2ptr in *.
+  destruct gv1'; clarify.
+  destruct p. destruct v; clarify.
+  destruct gv1'; clarify.
+  destruct gv1; inv H.
+  destruct v1; inv H4.
+  - compute in H1. exploit H1; eauto. i; ss.
+  - inv H7. esplits; eauto.
+Qed.
+
+Lemma gv_inject_ptr_public_tgt
+      ptr
+      ptr_tgt conf_tgt b_tgt ofs_tgt
+      invmem
+      (PTR_INJECT : genericvalues_inject.gv_inject (InvMem.Rel.inject invmem) ptr ptr_tgt)
+      (PTR_TGT : GV2ptr (CurTargetData conf_tgt) (getPointerSize (CurTargetData conf_tgt)) ptr_tgt = Some (Values.Vptr b_tgt ofs_tgt))
+      (NOTUNDEF: option_map fst (hd_error ptr) <> Some Values.Vundef)
+  : InvMem.Rel.public_tgt (InvMem.Rel.inject invmem) b_tgt.
+Proof.
+  exploit simulation__GV2ptr_tgt; try exact PTR_TGT; eauto. i. des.
+  inv x1.
+  - unfold InvMem.Rel.public_tgt. esplits; eauto.
+  - compute in NOTUNDEF. des_ifs. ss. des_ifs.
+Qed.
+
+Lemma fit_gv_matches_typ
+      TD ty gv1 gv2
+      (FIT_GV: fit_gv TD ty gv1 = Some gv2)
   :
-    <<INJECT: InvState.Rel.inject_allocas inv0.(InvMem.Rel.inject) als_src als_tgt>>
+    <<MATCH_TYP: gv_chunks_match_typ TD gv2 ty>>
+    (* <<MATCH_TYP: exists l0, Forall2 vm_matches_typ gv1 l0>> *)
 .
 Proof.
-  ginduction FULLY_INJECT; ii; ss.
-  - econs; eauto.
-  - econs 4; eauto.
+  exploit genericvalues_props.fit_gv__matches_chunks; eauto.
+Qed.
+
+(* We can remove (fst v <> Values.Vundef in all *)
+Lemma vm_matches_typ_has_chunk
+      gv l0
+      (MATCH_TYP: Forall2 vm_matches_typ gv l0)
+  :
+  <<HAS_CHUNK: Forall (fun v => fst v <> Values.Vundef -> Values.Val.has_chunkb (fst v) (snd v)) gv>>
+.
+Proof.
+  red. ginduction gv; ii; ss. inv MATCH_TYP.
+  econs; eauto.
+  i; clarify. destruct a; ss.
+  red in H1. des; ss.
+  eapply genericvalues_inject.has_chunk__has_chunkb; eauto.
+Qed.
+
+Lemma matches_typ_has_chunk
+      TD gv ty
+      (MATCH_TYP: gv_chunks_match_typ TD gv ty)
+  :
+  <<HAS_CHUNK: Forall (fun v => fst v <> Values.Vundef -> Values.Val.has_chunkb (fst v) (snd v)) gv>>
+.
+Proof.
+  unfold gv_chunks_match_typ in *. des_ifs.
+  eapply vm_matches_typ_has_chunk; eauto.
+Qed.
+
+Lemma wf_gvs_has_chunk
+      TD gv ty
+      (WF_GVS: opsem_wf.OpsemPP.wf_GVs TD gv ty)
+  :
+    <<CHUNK: Forall (fun v => fst v <> Values.Vundef -> Values.Val.has_chunkb (fst v) (snd v)) gv>>
+.
+Proof.
+  inv WF_GVS. red.
+  eapply matches_typ_has_chunk; eauto.
+Qed.
+
+Lemma fit_gv_undef_or_has_chunkb
+      TD ty gv1 gv2
+    (FIT_GV: fit_gv TD ty gv1 = Some gv2)
+  :
+  <<UNDEF_OR_CHUNK: Forall (fun v => v.(fst) <> Values.Vundef -> Values.Val.has_chunkb v.(fst) v.(snd)) gv2>>
+.
+Proof.
+  red.
+  unfold fit_gv in *.
+  des_ifs.
+  - des_bool; des.
+    eapply matches_typ_has_chunk; eauto.
+    apply gv_chunks_match_typb__gv_chunks_match_typ; eauto.
+  - eapply matches_typ_has_chunk; eauto.
+    eapply genericvalues_props.gundef__matches_chunks; eauto.
+Qed.
+
+Lemma fit_gv_undef
+      TD gl ty gv1 gv2 gvu
+      (FIT_GV:fit_gv TD ty gv1 = Some gv2)
+      (UNDEF:const2GV TD gl (const_undef ty) = Some gvu)
+  : GVs.lessdef gvu gv2.
+Proof.
+  exploit const2GV_undef; eauto. i. des.
+  exploit fit_gv_chunks_aux; eauto. i. des.
+  apply all_undef_lessdef_aux; eauto. clarify.
+  {
+    clarify.
+    eapply fit_gv_undef_or_has_chunkb; eauto.
+  }
+Qed.
+
+Inductive valid_retvals (mem_src mem_tgt: mem): option GenericValue -> option GenericValue -> Prop :=
+| valid_retvals_none
+  : valid_retvals mem_src mem_tgt None None
+| valid_retvals_some
+    rv_src rv_tgt
+    (VALID_SRC: (memory_props.MemProps.valid_ptrs (Memory.Mem.nextblock mem_src)) rv_src)
+    (VALID_TGT: (memory_props.MemProps.valid_ptrs (Memory.Mem.nextblock mem_tgt)) rv_tgt)
+  : valid_retvals mem_src mem_tgt (Some rv_src) (Some rv_tgt)
+.
+
+Lemma free_allocas_preserves_valid_retvals
+      Mem0 Mem1 gv0 gv1
+      (VALID: valid_retvals Mem0 Mem1 (Some gv0) (Some gv1))
+      TD Als0 Als1 Mem0' Mem1'
+      (FREE0: free_allocas TD Mem0 Als0 = Some Mem0')
+      (FREE1: free_allocas TD Mem1 Als1 = Some Mem1')
+  :
+    <<VALID: valid_retvals Mem0' Mem1' (Some gv0) (Some gv1)>>
+.
+Proof.
+  inv VALID.
+  econs; eauto.
+  - clear FREE1 VALID_TGT. clear_tac.
+    ginduction Als0; ii; ss; clarify.
+    des_ifs.
+    eapply IHAls0; eauto.
+  - clear FREE0 VALID_SRC. clear_tac.
+    ginduction Als1; ii; ss; clarify.
+    des_ifs.
+    eapply IHAls1; eauto.
+Qed.
+
+Lemma get_operand_valid_ptr
+      Mem0 lc TD value gl gvs
+      (WF_LC: MemProps.wf_lc Mem0 lc)
+      (WF_CONST: True)
+      (GET_OPERAND: getOperandValue TD value lc gl = Some gvs)
+      gmax
+      (GLOBALS : genericvalues_inject.wf_globals gmax gl)
+      (WF : MemProps.wf_Mem gmax TD Mem0)
+  :
+    <<VALID_PTR: MemProps.valid_ptrs (Memory.Mem.nextblock Mem0) gvs>>
+.
+Proof.
+  destruct value.
+  - eapply WF_LC; eauto.
+  - ss.
+    exploit MemAux.wf_globals_const2GV; eauto; []; ii; des.
+    destruct WF as [_ WF_MEM].
+    eapply MemProps.valid_ptrs__trans; eauto.
+    apply Pos.lt_succ_r.
+    replace (gmax + 1)%positive with (Pos.succ gmax); cycle 1.
+    { destruct gmax; ss. }
+    rewrite <- Pos.succ_lt_mono.
+    ss.
+Qed.
+
+Lemma fit_gv_preserves_valid_ptrs
+      TD t gv0 gv1
+      (FIT: fit_gv TD t gv0 = Some gv1)
+      nb
+      (VALID: MemProps.valid_ptrs nb gv0)
+  :
+    <<VALID: MemProps.valid_ptrs nb gv1>>
+.
+Proof.
+  red.
+  unfold fit_gv in *. des_ifs.
+  eapply MemProps.undef_valid_ptrs; eauto.
+Qed.
+
+Lemma initLocals_preserves_valid_ptrs
+      Mem0 args argvs Locals0 TD
+      (VALID_TGT: Forall (memory_props.MemProps.valid_ptrs (Memory.Mem.nextblock Mem0)) argvs)
+      (INITLOCALS_TGT: initLocals TD args argvs = Some Locals0)
+  :
+    <<WF_LC: memory_props.MemProps.wf_lc Mem0 Locals0>>
+.
+Proof.
+  unfold initLocals in *. red.
+  ginduction argvs; i; ss.
+  - ginduction args0; ii; ss; clarify.
+    des_ifs.
+    des_lookupAL_updateAddAL.
+    + eapply MemProps.undef_valid_ptrs; eauto.
+    + eapply IHargs0; eauto.
+  - inv VALID_TGT.
+    destruct args0; ii; ss.
+    { clarify. }
+    des_ifs.
+    des_lookupAL_updateAddAL.
+    + eapply fit_gv_preserves_valid_ptrs; eauto.
+    + eapply IHargvs; eauto.
 Qed.

@@ -120,28 +120,7 @@ Lemma simulation__GV2ptr_tgt
        GV2ptr TD (getPointerSize TD) gv1' = Some v' ->
        exists v : Values.val, GV2ptr TD (getPointerSize TD) gv1 = Some v /\ memory_sim.MoreMem.val_inject mi v v'.
 Proof.
-  i.
-  unfold GV2ptr in *.
-  destruct gv1'; clarify.
-  destruct p. destruct v; clarify.
-  destruct gv1'; clarify.
-  destruct gv1; inv H.
-  destruct v1; inv H3.
-  inv H6.
-  esplits; eauto.
-Qed.
-
-Lemma gv_inject_ptr_public_tgt
-      ptr
-      ptr_tgt conf_tgt b_tgt ofs_tgt
-      invmem
-      (PTR_INJECT : genericvalues_inject.gv_inject (InvMem.Rel.inject invmem) ptr ptr_tgt)
-      (PTR_TGT : GV2ptr (CurTargetData conf_tgt) (getPointerSize (CurTargetData conf_tgt)) ptr_tgt = Some (Values.Vptr b_tgt ofs_tgt))
-  : InvMem.Rel.public_tgt (InvMem.Rel.inject invmem) b_tgt.
-Proof.
-  exploit simulation__GV2ptr_tgt; try exact PTR_TGT; eauto. i. des.
-  inv x1. unfold InvMem.Rel.public_tgt. esplits; eauto.
-Qed.
+Abort.
 
 (* Subset *)
 
@@ -262,8 +241,7 @@ Proof.
           destruct value1; ss.
           - eapply WF_LOCAL; eauto.
           - inv H10.
-            exploit MemProps.const2GV_valid_ptrs; eauto.
-            { eapply TODOProof.wf_globals_eq; eauto. }
+            exploit MemAux.wf_globals_const2GV; eauto.
             i. inv MEM. ss.
             inv WF0.
             eapply MemProps.valid_ptrs__trans; eauto.
@@ -418,7 +396,7 @@ Proof.
     clear_tac.
     dup ALLOCA_SRC.
     dup ALLOCA_TGT.
-    unfold alloca, Datatypes.option_map, flip in ALLOCA_SRC, ALLOCA_TGT. des_ifs_safe.
+    unfold alloca, option_map, flip in ALLOCA_SRC, ALLOCA_TGT. des_ifs_safe.
     expl alloca_result (try exact ALLOCA_SRC0; eauto). clarify.
     expl alloca_result (try exact ALLOCA_TGT0; eauto). clarify.
     expl Mem.alloc_result (try exact Heq1; eauto). clarify.
@@ -444,13 +422,18 @@ Proof.
       econs; ii; ss; des_ifs.
     + (* InvMem sem *)
       inv MEM; ss.
+      instantiate (3:= InvMem.Unary.mk _
+                                       invmem0.(InvMem.Rel.src).(InvMem.Unary.mem_parent)
+                                       invmem0.(InvMem.Rel.src).(InvMem.Unary.unique_parent)
+                                       mem1_src.(Mem.nextblock)).
+      instantiate (2:= InvMem.Unary.mk _
+                                       invmem0.(InvMem.Rel.tgt).(InvMem.Unary.mem_parent)
+                                       invmem0.(InvMem.Rel.tgt).(InvMem.Unary.unique_parent)
+                                       mem1_tgt.(Mem.nextblock)).
+
       econs; ss; eauto.
       { (* SRC *)
         inv SRC.
-        instantiate (1:= InvMem.Unary.mk _
-                                         invmem0.(InvMem.Rel.src).(InvMem.Unary.mem_parent)
-                                         invmem0.(InvMem.Rel.src).(InvMem.Unary.unique_parent)
-                                         mem1_src.(Mem.nextblock)).
         econs; eauto.
         - eapply MemProps.alloca_preserves_wf_Mem; eauto.
         - ss. i. exploit PRIVATE_PARENT; eauto. intros [NOT_PUBLIC_B NEXT_B].
@@ -474,10 +457,6 @@ Proof.
       }
       { (* TGT *)
         inv TGT.
-        instantiate (1:= InvMem.Unary.mk _
-                                         invmem0.(InvMem.Rel.tgt).(InvMem.Unary.mem_parent)
-                                         invmem0.(InvMem.Rel.tgt).(InvMem.Unary.unique_parent)
-                                         mem1_tgt.(Mem.nextblock)).
         econs; eauto.
         - eapply MemProps.alloca_preserves_wf_Mem; eauto.
         - ss. i. exploit PRIVATE_PARENT; eauto.
@@ -519,11 +498,12 @@ Proof.
           destruct (Values.eq_block _ _).
           - clarify.
             assert(Memtype.perm_order Memtype.Writable p).
-            { move Heq4 at bottom.
+            { move Heq6 at bottom.
               destruct p; try econs.
               eapply Mem.valid_access_perm in H0.
-              hexploit Mem.perm_drop_2; eauto.
-              des. split; ss.
+              des.
+              hexploit Mem.perm_drop_2; try apply H0; eauto.
+              split; ss.
               expl Memdata.size_chunk_pos. instantiate (1:= chunk) in size_chunk_pos.
               apply Z.gt_lt_iff in size_chunk_pos.
               eapply Z.lt_le_trans.
@@ -533,8 +513,11 @@ Proof.
             eapply valid_access_alloca_same; eauto.
             repeat rewrite Z.add_0_r.
             des. splits; eauto.
-            exploit genericvalues_inject.simulation__eq__GV2int; eauto. intro GV2INT_INJECT.
-            rewrite <- GV2INT_INJECT. eauto.
+            exploit genericvalues_inject.simulation__GV2int; eauto. intro GV2INT_INJECT.
+            assert(TD = TD0).
+            { inv CONF. inv INJECT. ss. }
+            subst.
+            rewrite <- GV2INT_INJECT in *. clarify.
           - exploit mi_access; eauto.
             eapply valid_access_alloca_other; eauto.
         }
@@ -552,9 +535,9 @@ Proof.
               rewrite DIFF_BLK_TGT.
               erewrite alloca_contents_other; eauto.
               apply mi_memval; eauto.
-              eapply Mem.perm_drop_4 in H0; [|try exact Heq4].
+              eapply Mem.perm_drop_4 in H0; [|try exact Heq6].
               exploit Mem.perm_alloc_inv.
-              { try exact Heq3. }
+              { try exact Heq5. }
               { eauto. }
               i. des_ifs.
             + ii.
@@ -627,8 +610,11 @@ Proof.
             { eauto. }
             apply injective_projections; ss.
             solve_match_bool. clarify.
-            exploit genericvalues_inject.simulation__eq__GV2int; eauto. intro GV2INT_INJECT.
-            rewrite <- GV2INT_INJECT. eauto.
+            exploit genericvalues_inject.simulation__GV2int; eauto. intro GV2INT_INJECT.
+            assert(TD = TD0).
+            { inv CONF. inv INJECT0. ss. }
+            subst.
+            rewrite GV2INT_INJECT in *. clarify.
           + erewrite Mem.bounds_drop; eauto.
             erewrite Mem.bounds_alloc_other with (b':=b); eauto; cycle 1.
             assert (NEQ_BLK_TGT: b' <> mem0_tgt.(Mem.nextblock)).
@@ -840,7 +826,7 @@ Proof.
             eapply Mem.perm_drop_4 in H0; revgoals; eauto.
             hexploit Mem.perm_alloc_inv; eauto; []; i.
             clear INJECT_EVENT.
-            des_ifs. eauto. ss.
+            des_ifs. eauto.
           }
           i. exploit alloca_contents_other; eauto.
           intro CONTENTS.
@@ -887,12 +873,12 @@ Proof.
       inv WF.
       apply Hmap1. psimpl.
     + inv STATE. inv SRC. ss.
-      clear - ALLOCAS_VALID ALLOCA_NEXT_SRC.
+      clear - ALLOCAS_VALID NEXT_BLOCK.
       econs; eauto.
-      * unfold Mem.valid_block. rewrite ALLOCA_NEXT_SRC. eapply Plt_succ.
+      * unfold Mem.valid_block. rewrite NEXT_BLOCK. eapply Plt_succ.
       * eapply Forall_harder; eauto.
         i.
-        unfold Mem.valid_block. rewrite ALLOCA_NEXT_SRC.
+        unfold Mem.valid_block. rewrite NEXT_BLOCK.
         eapply Pos.lt_le_trans; eauto.
         eapply Ple_succ.
     + assert(EQ_ALLOC: Allocas (EC st1_tgt) = Allocas (EC st0_tgt) /\ ECS st1_tgt = ECS st0_tgt).
@@ -1020,12 +1006,12 @@ Proof.
       inv STATE. inv SRC. ss.
       rewrite EQ_ALLOC. ss.
     + inv STATE. inv TGT. ss.
-      clear - ALLOCAS_VALID ALLOCA_NEXT_TGT.
+      clear - ALLOCAS_VALID NEXT_BLOCK.
       econs; eauto.
-      * unfold Mem.valid_block. rewrite ALLOCA_NEXT_TGT. eapply Plt_succ.
+      * unfold Mem.valid_block. rewrite NEXT_BLOCK. eapply Plt_succ.
       * eapply Forall_harder; eauto.
         i.
-        unfold Mem.valid_block. rewrite ALLOCA_NEXT_TGT.
+        unfold Mem.valid_block. rewrite NEXT_BLOCK.
         eapply Pos.lt_le_trans; eauto.
         eapply Ple_succ.
   - (* store - store *)
@@ -1102,7 +1088,9 @@ Proof.
             unfold InvMem.private_block in *. des.
             split; eauto.
             erewrite <- MemProps.nextblock_mstore_aux; eauto.
-          * i. hexploit gv_inject_ptr_public_tgt; try exact PTR_INJECT; eauto. i.
+          * i. hexploit gv_inject_ptr_public_tgt; try exact PTR_INJECT; eauto.
+            { compute in GV2PTR_SRC. des_ifs. }
+            i.
             exploit MEM_PARENT; eauto. intro MLOAD_EQ. rewrite MLOAD_EQ.
             eapply mstore_aux_preserves_mload_aux_eq; eauto.
             ii. subst.
@@ -1303,7 +1291,9 @@ Proof.
             unfold InvMem.private_block in *. des.
             split; eauto.
             erewrite Mem.nextblock_free; eauto.
-          * i. hexploit gv_inject_ptr_public_tgt; try exact PTR_INJECT; eauto. i.
+          * i. hexploit gv_inject_ptr_public_tgt; try exact PTR_INJECT; eauto.
+            { compute in GV2PTR_SRC. des_ifs. }
+            i.
             exploit MEM_PARENT; eauto. intro MLOAD_EQ. rewrite MLOAD_EQ.
             exploit free_preserves_mload_aux_eq; try exact FREE_TGT; eauto.
             exploit PRIVATE_PARENT; eauto. i.
@@ -1607,7 +1597,7 @@ Proof.
       { (* const case : need wf_const *)
         ss.
         rename g into __g__.
-        exploit MemProps.wf_globals_const2GV; eauto; []; intro VALID_PTR; des.
+        exploit MemAux.wf_globals_const2GV; eauto; []; intro VALID_PTR; des.
         destruct WF_MEM as [_ WF_MEM].
         clear - WF_MEM ALLOCA GV2PTR VALID_PTR.
         (* GV2ptr is a bit weird? it is artificially made from above destruct, *)
@@ -1892,6 +1882,14 @@ Proof.
   econs.
   - eapply forget_memory_sem_unary; try exact SRC; eauto.
   - eapply forget_memory_sem_unary; try exact TGT; eauto.
+  - ss.
+    eapply AtomSetFacts.Empty_s_m; eauto. red.
+    unfold ForgetMemory.unary.
+    des_ifs; ss.
+    + eapply AtomSetProperties.subset_remove_3; eauto.
+      eapply AtomSetFacts.Subset_refl.
+    + eapply AtomSetProperties.subset_remove_3; eauto.
+      eapply AtomSetFacts.Subset_refl.
   - eapply forget_memory_maydiff_preserved; eauto.
   - ss.
 Qed.
@@ -1919,7 +1917,7 @@ Lemma inv_state_sem_monotone_wrt_invmem
                                        st_src.(EC).(Allocas) st_tgt.(EC).(Allocas))
   : InvState.Rel.sem conf_src conf_tgt st_src st_tgt invst0 invmem1 inv1.
 Proof.
-  destruct STATE as [STATE_SRC STATE_TGT STATE_MAYDIFF].
+  destruct STATE as [STATE_SRC STATE_TGT TGT_NOUNIQ STATE_MAYDIFF].
   inv MEM_LE.
   econs.
   - inv SRC.
@@ -1934,6 +1932,7 @@ Proof.
     + rewrite <- GMAX. eauto.
     + rewrite <- PRIVATE_PARENT_EQ. ss.
     + rewrite <- UNIQUE_PARENT_EQ. eauto.
+  - ss.
   - i. hexploit STATE_MAYDIFF; eauto.
     intros SEM_INJECT.
     ii. exploit SEM_INJECT; eauto. i. des.

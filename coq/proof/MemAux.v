@@ -42,6 +42,76 @@ Set Implicit Arguments.
 
 (* not high priority for proof *)
 
+Theorem wf_globals_const2GV: forall
+    gmax gl TD cnst gv
+    (GLOBALS: genericvalues_inject.wf_globals gmax gl)
+    (C2G: const2GV TD gl cnst = Some gv)
+  ,
+    <<VALID_PTR: MemProps.valid_ptrs (gmax + 1)%positive gv>>
+.
+Proof.
+  ii.
+  unfold const2GV in *. des_ifs.
+  move cnst at top. revert_until cnst.
+  unfold cgv2gv.
+  induction cnst using Decs.const_ind_gen; ii; ss; des_ifs_safe ss; clarify.
+  - clear GLOBALS. clear_tac.
+    expl MemProps.zeroconst2GV_no_ptr.
+    clear Heq0.
+    ginduction g; ii; ss.
+    des_ifs; ss; eapply IHg; eauto.
+  - des_ifs.
+  - eapply MemProps.undef_valid_ptrs; eauto.
+  - {
+      clear Heq1.
+      ginduction l0; ii; ss; clarify.
+      inv IH. des_ifs.
+      expl H1.
+      expl IHl0.
+      eapply MemProps.valid_ptrs_app; eauto.
+      eapply MemProps.valid_ptrs_app; eauto.
+      eapply MemProps.uninits_valid_ptrs; eauto.
+    }
+  - abstr (p :: g1) gv.
+    clear Heq1.
+    ginduction l0; ii; ss; clarify.
+    des_ifs.
+    inv IH.
+    expl H1.
+    expl IHl0.
+    eapply MemProps.valid_ptrs_app; eauto.
+    eapply MemProps.valid_ptrs_app; eauto.
+    eapply MemProps.uninits_valid_ptrs; eauto.
+  - expl genericvalues_inject.wf_globals__wf_global.
+    clear - wf_globals__wf_global.
+    ginduction g; ii; ss.
+    des_ifs; ss; des; try eapply IHg; eauto.
+    split; ss.
+    + rewrite <- Pplus_one_succ_r.
+      eapply Pos.lt_succ_r; eauto.
+    + eapply IHg; eauto.
+  - eapply MemProps.mtrunc_preserves_valid_ptrs; eauto.
+  - eapply MemProps.mext_preserves_valid_ptrs; eauto.
+  - eapply MemProps.mcast_preserves_valid_ptrs; eauto.
+    eapply IHcnst; eauto.
+  - des_ifs; try (by eapply MemProps.undef_valid_ptrs; eauto).
+    eapply MemProps.mgep_preserves_valid_ptrs; eauto.
+    unfold GV2ptr in *. des_ifs.
+    ss. des_ifs. expl IHcnst.
+  - des_ifs.
+    + eapply IHcnst3; eauto.
+    + eapply IHcnst2; eauto.
+  - eapply MemProps.micmp_preserves_valid_ptrs; eauto.
+  - eapply MemProps.mfcmp_preserves_valid_ptrs; eauto.
+  - eapply MemProps.extractGenericValue_preserves_valid_ptrs; eauto.
+    eapply IHcnst; eauto.
+  - eapply MemProps.insertGenericValue_preserves_valid_ptrs; eauto.
+    + expl IHcnst1.
+    + expl IHcnst2.
+  - eapply MemProps.mbop_preserves_valid_ptrs; eauto.
+  - eapply MemProps.mfbop_preserves_valid_ptrs; eauto.
+Qed.
+
 Lemma mstore_never_produce_new_ptr
       TD mem0 mem1
       sptr sty val sa nptr
@@ -83,9 +153,7 @@ Proof.
     exploit UNIQUE_PARENT_GLOBALS; eauto. intro GT_GMAX.
     inv STATE. ss.
     inv WF_VALUE.
-    exploit MemProps.const2GV_valid_ptrs; eauto.
-    { eapply TODOProof.wf_globals_eq; eauto. }
-    { rewrite <- surjective_pairing. eauto. }
+    exploit wf_globals_const2GV; eauto.
     intro LT_GMAX_1.
     generalize ING LT_GMAX_1.
     generalize b GT_GMAX.
@@ -199,19 +267,17 @@ Lemma alloca_result
       TD mem mem' sz gn a mb
       (ALLOCA: alloca TD mem sz gn a = Some (mem', mb))
   : <<ALLOC_BLOCK: mb = mem.(Mem.nextblock)>> /\
-    <<NEXT_BLOCK: mem'.(Mem.nextblock) = Pos.succ mem.(Mem.nextblock)>>
+    <<NEXT_BLOCK: mem'.(Mem.nextblock) = Pos.succ mem.(Mem.nextblock)>> /\
+    <<GV2INT: exists z, GV2int TD Size.ThirtyTwo gn = Some z>>
 .
 Proof.
   unfold alloca in *.
-  abstr (match GV2int TD Size.ThirtyTwo gn with
-            | Some n => Size.to_Z sz * n
-            | None => 0
-            end) hi.
-  des_ifs. unfold Datatypes.option_map, flip in *. des_ifs.
+  des_ifs. unfold option_map, flip in *. des_ifs.
   expl Mem.alloc_result. clarify.
   splits; ss.
-  erewrite Mem.nextblock_drop; eauto.
-  eapply Mem.nextblock_alloc; eauto.
+  - erewrite Mem.nextblock_drop; eauto.
+    eapply Mem.nextblock_alloc; eauto.
+  - esplits; eauto.
 Qed.
 
 Ltac u_alloca := MemProps.u_alloca; des_ifs_safe.
@@ -220,10 +286,12 @@ Lemma valid_access_alloca_inv
       TD mem0 mem1 bsz gn a b mb p chunk ofs
       (ALLOCA: alloca TD mem0 bsz gn a = Some (mem1, mb))
       (VALID: Mem.valid_access mem1 chunk b ofs p)
+      z
+      (INT: GV2int TD Size.ThirtyTwo gn = Some z)
   : if Values.eq_block b mb
     then 0 <= ofs /\
          ofs + Memdata.size_chunk chunk <=
-         Size.to_Z bsz * get_or_else (GV2int TD Size.ThirtyTwo gn) 0 /\
+         (Size.to_Z bsz * z)%Z /\
          (Memdata.align_chunk chunk | ofs) /\
          Memtype.perm_order Memtype.Writable p
     else Mem.valid_access mem0 chunk b ofs p.
@@ -232,6 +300,7 @@ Proof.
   rename mem1 into mem2.
   rename m into mem1.
   dup VALID.
+  unfold option_map in *. des_ifs_safe.
   eapply Mem.valid_access_drop_2 in VALID; eauto.
   exploit Mem.valid_access_alloc_inv; eauto; []; i; des.
   destruct (Values.eq_block b mb); ss. clarify.
@@ -249,7 +318,6 @@ Proof.
     intro CONTR. inv CONTR.
   }
   des_ifs; des; esplits; ss.
-  rewrite Z.mul_0_r in *. eauto.
 Unshelve.
 { by econs. }
 { by econs. }
@@ -258,10 +326,11 @@ Qed.
 Lemma valid_access_alloca_same
       TD mem0 mem1 bsz gn a mb p chunk ofs
       (ALLOCA: alloca TD mem0 bsz gn a = Some (mem1, mb))
+      z
+      (INT: GV2int TD Size.ThirtyTwo gn = Some z)
       (OFS: 0 <= ofs /\
                ofs + Memdata.size_chunk chunk <=
-               Size.to_Z bsz *
-               (get_or_else (GV2int TD Size.ThirtyTwo gn) 0) /\
+               (Size.to_Z bsz * z)%Z /\
                (Memdata.align_chunk chunk | ofs) /\
                (Memtype.perm_order Memtype.Writable p))
   : Mem.valid_access mem1 chunk mb ofs p.
@@ -273,9 +342,6 @@ Proof.
     eapply Mem.valid_access_implies;
       try apply Memtype.perm_F_any.
     eapply Mem.valid_access_alloc_same; eauto.
-  - rewrite Z.mul_0_r in *.
-    specialize (Memdata.size_chunk_pos chunk). i.
-    omega.
 Qed.
 
 Lemma valid_access_alloca_other
@@ -290,7 +356,7 @@ Proof.
   { ii. clarify.
     eapply Mem.valid_access_implies in VALID; [
       apply Mem.valid_access_valid_block in VALID|econs]; [].
-    apply Mem.alloc_result in Heq. clarify.
+    apply Mem.alloc_result in Heq0. clarify.
     eapply Plt_irrefl; eauto.
   }
   eapply Mem.valid_access_drop_1; try eassumption.
@@ -348,7 +414,7 @@ Lemma alloca_preserves_mload_aux_other_eq
       (DIFFBLOCK: b <> mb)
   : mload_aux mem0 ch b ofs = mload_aux mem1 ch b ofs.
 Proof.
-  unfold alloca, Datatypes.option_map, flip in *. des_ifs_safe.
+  unfold alloca, option_map, flip in *. des_ifs_safe.
   destruct (mload_aux mem1 ch b ofs) eqn:LOAD1.
   - exploit MemProps.alloc_drop_preserves_mload_aux_inv; eauto; []; i; des; ss.
   - destruct (mload_aux mem0 ch b ofs) eqn:LOAD0; eauto.
@@ -554,9 +620,9 @@ Proof.
   { i. rewrite vellvm_no_alias_is_diffblock. eauto. }
   {
     clear_tac.
-    expl MemProps.wf_globals_const2GV.
+    expl wf_globals_const2GV.
     unfold MemProps.wf_lc in *.
-    clear - wf_globals_const2GV VAL GLOBALS.
+    clear - wf_globals_const2GV0 VAL GLOBALS.
     induction gv; ii; ss.
     - des_ifs; des; expl IHgv; clear IHgv.
       splits; ss.
@@ -571,7 +637,7 @@ Proof.
         * ii. clarify.
           apply_all_once Pos.le_succ_l.
           rewrite <- Pplus_one_succ_r in *.
-          apply Pos.succ_le_mono in wf_globals_const2GV.
+          apply Pos.succ_le_mono in wf_globals_const2GV0.
           hexploit Pos.le_trans.
           { apply x. }
           { eauto. }

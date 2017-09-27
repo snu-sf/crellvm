@@ -27,6 +27,8 @@ Require Import SoundBase.
 Require Import Inject. (* TODO: for simtac *)
 Require Import TODOProof.
 Require Import MemAux.
+Require Import memory_props.
+Import MemProps.
 
 Set Implicit Arguments.
 
@@ -134,7 +136,6 @@ Proof.
   destruct e; ss; simtac;
     try (solve_equiv_except_val st0; eauto).
   - erewrite sem_list_valueT_equiv_except; eauto.
-  - rewrite COND2. eauto.
   - inv EQUIV. rewrite <- MEM. eauto.
 Qed.
 
@@ -188,9 +189,6 @@ Inductive unique_preserved_except conf inv unique_parent st gmax except_for : Pr
     (UNIQUE_PRESERVED_PARENT_GLOBALS:
        forall b (IN: In b unique_parent), (gmax < b)%positive)
 .
-
-Require Import memory_props.
-Import MemProps.
 
 Lemma mbop_multiple_result_inv
       TD bop sz gvs1 gvs2 val1 val2 vals
@@ -249,7 +247,7 @@ Lemma getOperandValue_diffblock
 Proof.
   destruct valy; ss.
   - hexploit LOOKUP_DIFFBLOCK; eauto.
-  - eapply MemProps.wf_globals_const2GV in GET_OPERAND; eauto.
+  - eapply MemAux.wf_globals_const2GV in GET_OPERAND; eauto.
     des.
     eapply valid_ptr_globals_diffblock_with_blocks; eauto.
 Unshelve.
@@ -452,9 +450,8 @@ Lemma micmp_preserves_no_embedded_ptrs
     <<NO_PTR: no_embedded_ptrs vres>>
 .
 Proof.
-  unfold micmp in *. des_ifs.
+  unfold micmp in *. des_ifs; try (by eapply undef__no_embedded_ptrs; eauto).
   - eapply micmp_int_preserves_no_embedded_ptrs; eauto.
-  - eapply undef__no_embedded_ptrs; eauto.
 Qed.
 
 Lemma ICMP_diffblock_with_blocks
@@ -588,8 +585,8 @@ Proof.
         rename b into __b__.
         destruct TD; ss.
         apply TODOProof.wf_globals_eq in GLOBALS.
-        exploit const2GV_valid_ptrs; eauto.
-        { inv WF_INSN. inv H12. eauto. }
+        exploit MemAux.wf_globals_const2GV; eauto.
+        { eapply wf_globals_eq; eauto. }
         intro VALID_PTR; des. clear WF_INSN.
         ss.
         idtac.
@@ -927,7 +924,7 @@ Proof.
       * ss.
         rename g into __g__.
         rename val into __val__.
-        exploit MemProps.wf_globals_const2GV; eauto; []; i; des.
+        exploit MemAux.wf_globals_const2GV; eauto; []; i; des.
         eapply valid_ptr_globals_diffblock; eauto.
       * eapply LOCALS; try apply Heq; eauto.
         apply AtomSetFacts.not_mem_iff in NOT_LEAKED_U.
@@ -942,36 +939,27 @@ Proof.
   - (* select *)
     inv UNIQUE_BEF; narrow_down_unique.
     rename val into ___val___.
-    move gvs1 at bottom.
-    move gvs2 at bottom.
+    unfold SELECT in *. des_ifs.
+    unfold mselect in *.
+    move g0 at bottom.
+    move g1 at bottom.
     unfold getOperandValue in *.
-    destruct decision; ss.
-    { clear H1.
-      destruct value1; ss.
-      {
-        apply_all_once AtomSetFacts.not_mem_iff.
-        apply_all_once AtomSetImpl_from_list_spec2.
-        unfold Cmd.get_leaked_ids in *. ss.
-        eapply LOCALS; try apply H0; eauto.
-        {
-          ii. apply NOT_LEAKED_U. subst.
-          destruct value0; ss.
-          - right. left. ss.
-          - left. ss.
-        }
-      }
-      {
-        exploit MemProps.wf_globals_const2GV; eauto; []; intro VALID_PTR; des.
-        eapply valid_ptr_globals_diffblock; eauto.
-      }
-    }
-    { clear H0.
+    destruct (GV2int (l0, n) Size.One g) eqn:T; ss; cycle 1.
+    { eapply InvState.Unary.diffblock_comm; eauto.
+      eapply undef_implies_diffblock; eauto. }
+    abstr (zeq z 0) decision.
+    destruct decision; ss. 
+    { clear Heq0.
+      unfold fit_chunk_gv in *.
+      des_ifsH H; cycle 1.
+      { eapply InvState.Unary.diffblock_comm; eauto.
+        eapply undef_implies_diffblock; eauto. }
       destruct value2; ss.
       {
         apply_all_once AtomSetFacts.not_mem_iff.
         apply_all_once AtomSetImpl_from_list_spec2.
         unfold Cmd.get_leaked_ids in *. ss.
-        eapply LOCALS; try apply H1; eauto.
+        eapply LOCALS; try apply Heq1; eauto.
         {
           ii. apply NOT_LEAKED_U. subst.
           destruct value0; ss.
@@ -984,7 +972,30 @@ Proof.
         }
       }
       {
-        exploit MemProps.wf_globals_const2GV; eauto; []; intro VALID_PTR; des.
+        exploit MemAux.wf_globals_const2GV; eauto; []; intro VALID_PTR; des.
+        eapply valid_ptr_globals_diffblock; eauto.
+      }
+    }
+    { clear Heq1.
+      unfold fit_chunk_gv in *.
+      des_ifsH H; cycle 1.
+      { eapply InvState.Unary.diffblock_comm; eauto.
+        eapply undef_implies_diffblock; eauto. }
+      destruct value1; ss.
+      {
+        apply_all_once AtomSetFacts.not_mem_iff.
+        apply_all_once AtomSetImpl_from_list_spec2.
+        unfold Cmd.get_leaked_ids in *. ss.
+        eapply LOCALS; try apply Heq0; eauto.
+        {
+          ii. apply NOT_LEAKED_U. subst.
+          destruct value0; ss.
+          - right. left. ss.
+          - left. ss.
+        }
+      }
+      {
+        exploit MemAux.wf_globals_const2GV; eauto; []; intro VALID_PTR; des.
         eapply valid_ptr_globals_diffblock; eauto.
       }
     }
@@ -1099,11 +1110,12 @@ Proof.
                 CurProducts := Ps;
                 Globals := gl;
                 FunTable := fs |} as conf.
-    replace TD with conf.(CurTargetData) in H0, H1, H2; [|subst; ss].
-    replace gl with conf.(Globals) in H0, H1, H2; [|subst; ss].
-    destruct decision; ss.
-    + hexploit getOperandValue_diffblock; try exact H1; eauto; try apply MEM.
-    + hexploit getOperandValue_diffblock; try exact H2; eauto; try apply MEM.
+    { unfold SELECT in *. des_ifs.
+      unfold mselect, fit_chunk_gv in *.
+      des_ifs; try (by eapply undef_implies_diffblock_with_blocks; eauto).
+      - hexploit getOperandValue_diffblock; try apply MEM; ss; try exact Heq0; eauto.
+      - hexploit getOperandValue_diffblock; try apply MEM; ss; try exact Heq1; eauto.
+    }
 Unshelve.
 ss.
 Qed.
@@ -1271,6 +1283,8 @@ Proof.
     exploit sem_idT_equiv_except; eauto.
     { rewrite <- lift_physical_atoms_idtset_spec1. eauto. }
     i. des.
+    red in PRIVATE.
+    red in PRIVATE.
     exploit PRIVATE; eauto.
   - inv EQUIV. rewrite <- MEM. eauto.
   - inv EQUIV. rewrite <- MEM. eauto.
@@ -1319,6 +1333,9 @@ Proof.
   econs; ss.
   - eapply forget_stack_unary_sound; eauto.
   - eapply forget_stack_unary_sound; eauto.
+  - eapply AtomSetFacts.Empty_s_m_Proper; eauto. red.
+    ii.
+    apply AtomSetFacts.filter_iff in H; [|solve_compat_bool]. des. ss.
   - i. ss.
     rewrite IdTSetFacts.union_b in NOTIN.
     solve_des_bool.

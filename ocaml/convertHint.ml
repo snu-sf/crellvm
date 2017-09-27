@@ -15,6 +15,9 @@ open ConvertInfrule
 open Hints
 open Exprs
 open AddInfrule
+open PostPropagation
+open Printer
+open DomTreeUtil
 
 type atom = AtomImpl.atom
 
@@ -99,6 +102,32 @@ module EmptyHint = struct
                  in
                  stmts_hint bstmts incoming_blocks) blks
 
+  let stmts_hint_with (stmts: LLVMsyntax.stmts) (incoming_blocks: string list)
+      (inv: Hints.Invariant.t): ValidationHint.stmts =
+    let Coq_stmts_intro (phinodes, cmds, _) = stmts in
+
+    let phinodes = List.map (fun bid -> (bid, [])) incoming_blocks in
+
+    let cmds = List.map (fun _ -> ([], inv)) cmds in
+
+    { ValidationHint.phinodes = phinodes;
+      ValidationHint.invariant_after_phinodes = inv;
+      ValidationHint.cmds = cmds;
+    }
+
+  let fdef_hint_with (fdef:LLVMsyntax.fdef) (inv: Hints.Invariant.t) : ValidationHint.fdef =
+    let Coq_fdef_intro (Coq_fheader_intro (_, _, id, _, _), blks) = fdef in
+    TODO.mapiAL (fun bname bstmts ->
+                 let incoming_blocks =
+                   let cfg_pred = Cfg.predecessors fdef in
+                   let preds = Maps_ext.ATree.get bname cfg_pred in
+                   match preds with
+                   | None -> []
+                   | Some t -> t
+                 in
+                 (stmts_hint_with bstmts incoming_blocks inv)) blks
+
+
   let module_hint (m:LLVMsyntax.coq_module) : ValidationHint.coq_module =
     let Coq_module_intro (lo, nts, prods) = m in
     TODOCAML.filter_map
@@ -175,6 +204,7 @@ module ConvertAuto = struct
       match opt with
       | CoreHint_t.AUTO_GVN -> InfruleGen.AutoOpt.GVN
       | CoreHint_t.AUTO_SROA -> InfruleGen.AutoOpt.SROA
+      | CoreHint_t.AUTO_LICM -> InfruleGen.AutoOpt.LICM
       | CoreHint_t.AUTO_INSTCOMBINE -> InfruleGen.AutoOpt.INSTCOMBINE
       | _ -> InfruleGen.AutoOpt.DEFAULT
 
@@ -182,6 +212,21 @@ module ConvertAuto = struct
       let auto_opt = convert_auto_option opt in
       InfruleGen.AutoOpt.pass_option := auto_opt
   end
+
+module ConvertPostPropagation = struct
+    let convert_postprop_opt (opt:CoreHint_t.postprop_opt)
+        : PostPropagation.PostProp.t = 
+      match opt with
+      | CoreHint_t.POSTPROP_GVN -> PostProp.remove_inconsistent_gep
+      | _ -> PostProp.default
+  end
+
+let apply_post_propagation_func hint_fdef lfdef dtree_lfdef core_hint =
+  match core_hint.CoreHint_t.postprop_option.CoreHint_t.opt with
+  | CoreHint_t.POSTPROP_NONE -> hint_fdef
+  | k -> PostPropagation.update hint_fdef lfdef dtree_lfdef
+      (ConvertPostPropagation.convert_postprop_opt k) (core_hint.CoreHint_t.postprop_option.CoreHint_t.itrnum)
+
 
 let convert
       (lm:LLVMsyntax.coq_module)
@@ -197,11 +242,16 @@ let convert
 
   let nops = sort_nop core_hint.CoreHint_t.nop_positions in
 
-  let hint_fdef = EmptyHint.fdef_hint lfdef in
+  let (globals, others) = filter_global lfdef rfdef core_hint.CoreHint_t.commands in
+  let global_obj: Hints.Invariant.t =
+    List.fold_left (TODOCAML.flip InvariantObject.insert) EmptyHint.invariant_hint globals in
+
+  let hint_fdef = EmptyHint.fdef_hint_with lfdef global_obj in
   let hint_fdef = List.fold_left
                     (TODOCAML.flip (apply_corehint_command lfdef rfdef dtree_lfdef nops))
-                    hint_fdef core_hint.CoreHint_t.commands in
+                    hint_fdef others in
   let hint_fdef = add_false_to_dead_block hint_fdef lfdef in
+  let hint_fdef = apply_post_propagation_func hint_fdef lfdef dtree_lfdef core_hint in
 
   let hint_module = EmptyHint.module_hint lm in
   (* let hint_module = noret hint_module in *) (*TODO*)

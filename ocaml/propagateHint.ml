@@ -85,11 +85,13 @@ module Reachable = struct
 
   (* the set of nodes that is reachable to "t" without visiting "f" in "fd". *)
   let to_block (f:atom) (t:atom) (ids:AtomSetImpl.t) (fd:LLVMsyntax.fdef) : bool * AtomSetImpl.t =
-        if not (AtomSetImpl.mem t ids)
-        then (false, AtomSetImpl.empty)
-        else
-          let predecessors = Cfg.predecessors fd in
-          _filtered t f ids predecessors
+    if not (AtomSetImpl.mem t ids)
+    then (false, AtomSetImpl.empty)
+    else
+      let is_t_in_ids = AtomSetImpl.mem t ids in
+      let predecessors = Cfg.predecessors fd in
+      let res = _filtered t f ids predecessors in
+      if not is_t_in_ids then (fst res, AtomSetImpl.remove t (snd res)) else res
 
   (* the set of nodes that is reachable from "f". *)
   let from_block (block_id_from:atom) (fdef:LLVMsyntax.fdef) : AtomSetImpl.t =
@@ -102,7 +104,13 @@ module Reachable = struct
         (dtree:atom coq_DTree)
       : bool * AtomSetImpl.t =
     let dominated_by_from = dom_by bid_from dtree in
-    to_block bid_from bid_to dominated_by_from fdef
+    (* let _ = print_endline ("dom num: "^(string_of_int (AtomSetImpl.cardinal dominated_by_from))) in *)
+    (* let _ = print_endline (if (AtomSetImpl.is_empty dominated_by_from) then "empty" else "nonempty") in *)
+    let res = to_block bid_from bid_to dominated_by_from fdef in
+    (* let _ = print_endline (if (AtomSetImpl.is_empty (snd res)) then "empty2" else "nonempty2") in *)
+    (* let _ = print_endline ("res num: "^(string_of_int (AtomSetImpl.cardinal res))) in *)
+    res
+    (* to_block bid_from bid_to dominated_by_from fdef *)
 end
 
 (* object for propagation *)
@@ -245,6 +253,21 @@ let propagate_global
     (fun hint_stmts -> PropagateStmts.global invariant hint_stmts)
     hint_fdef
 
+(* return: fst is Global, snd is remaining *)
+let filter_global
+      (lfdef:LLVMsyntax.fdef) (rfdef:LLVMsyntax.fdef)
+      (hints: (CoreHint_t.hint_command * CoreHint_t.cpp_debug_info) list)
+    : InvariantObject.t list *
+        (CoreHint_t.hint_command * CoreHint_t.cpp_debug_info) list =
+  let f = (fun s i ->
+           match (fst i) with
+           | CoreHint_t.Propagate { propagate = prop ; propagate_range = CoreHint_t.Global } ->
+              let inv_obj = InvariantObject.convert prop lfdef rfdef in
+              (inv_obj :: fst s, snd s)
+           | _ -> (fst s, i :: snd s)) in
+  let (globals, others) = List.fold_left f ([], []) hints in
+  (globals, List.rev others) (* to preserve order of "others" *)
+
 let propagate_hint
       (lfdef:LLVMsyntax.fdef)
       (dtree_lfdef:atom coq_DTree)
@@ -270,15 +293,18 @@ let propagate_hint
        let (to_until_end, interm_bids) =
          Reachable.get_intermediate_block_ids bid_from bid_to lfdef dtree_lfdef
        in
+       (* let _ = print_endline ("from: "^bid_from); print_endline ("to: "^bid_to) in *)
+       let is_end_in_interm = AtomSetImpl.mem bid_to interm_bids in
        let interm_bids = AtomSetImpl.remove bid_from (AtomSetImpl.remove bid_to interm_bids) in
        
        let hint_stmts_from = TODOCAML.get (Alist.lookupAL hint_fdef bid_from) in
        let hint_stmts_from = PropagateStmts.bounds_from idx_from invariant hint_stmts_from in
        let hint_stmts_to = TODOCAML.get (Alist.lookupAL hint_fdef bid_to) in
        let hint_stmts_to =
-         if to_until_end
-         then PropagateStmts.global invariant hint_stmts_to
-         else PropagateStmts.bounds_to idx_to invariant hint_stmts_to
+         if not is_end_in_interm then hint_stmts_to
+         else (if to_until_end
+               then PropagateStmts.global invariant hint_stmts_to
+               else PropagateStmts.bounds_to idx_to invariant hint_stmts_to)
        in
        
        let hint_fdef = Alist.updateAL hint_fdef bid_from hint_stmts_from in

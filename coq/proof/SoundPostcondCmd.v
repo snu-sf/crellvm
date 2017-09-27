@@ -92,31 +92,6 @@ Proof.
     (etransitivity; [apply forget_stack_Subset | apply forget_memory_Subset]).
 Qed.
 
-Lemma get_operand_valid_ptr
-      Mem0 lc TD value gl gvs
-      (WF_LC: MemProps.wf_lc Mem0 lc)
-      (WF_CONST: True)
-      (GET_OPERAND: getOperandValue TD value lc gl = Some gvs)
-      gmax
-      (GLOBALS : genericvalues_inject.wf_globals gmax gl)
-      (WF : MemProps.wf_Mem gmax TD Mem0)
-  :
-    <<VALID_PTR: MemProps.valid_ptrs (Memory.Mem.nextblock Mem0) gvs>>
-.
-Proof.
-  destruct value.
-  - eapply WF_LC; eauto.
-  - ss.
-    exploit MemProps.wf_globals_const2GV; eauto; []; ii; des.
-    destruct WF as [_ WF_MEM].
-    eapply MemProps.valid_ptrs__trans; eauto.
-    apply Pos.lt_succ_r.
-    replace (gmax + 1)%positive with (Pos.succ gmax); cycle 1.
-    { destruct gmax; ss. }
-    rewrite <- Pos.succ_lt_mono.
-    ss.
-Qed.
-
 Lemma step_wf_lc
       conf st0 st1 evt
       cmd cmds
@@ -231,9 +206,10 @@ Proof.
     eapply opsem_props.OpsemProps.FCMP_inversion in H.
     des.
     eapply MemProps.mfcmp_preserves_valid_ptrs; eauto.
-  - destruct decision.
-    + eapply get_operand_valid_ptr; eauto.
-    + eapply get_operand_valid_ptr; eauto.
+  - unfold SELECT in *. des_ifs.
+    unfold mselect, fit_chunk_gv in *.
+    des_ifs; try (by eapply get_operand_valid_ptr; eauto);
+      try (by eapply MemProps.undef_valid_ptrs; eauto).
 Unshelve.
 ss.
 Qed.
@@ -335,6 +311,10 @@ Lemma postcond_cmd_sound
       m_tgt conf_tgt st0_tgt cmd_tgt cmds_tgt
       invst0 invmem0 inv0
       st1_tgt evt inv1
+      (WF_CONF_SRC: opsem_wf.OpsemPP.wf_Config conf_src)
+      (WF_CONF_TGT: opsem_wf.OpsemPP.wf_Config conf_tgt)
+      (WF_STATE_PREV_SRC: opsem_wf.OpsemPP.wf_State conf_src st0_src)
+      (WF_STATE_PREV_TGT: opsem_wf.OpsemPP.wf_State conf_tgt st0_tgt)
       (CONF: InvState.valid_conf m_src m_tgt conf_src conf_tgt)
       (POSTCOND: Postcond.postcond_cmd cmd_src cmd_tgt inv0 = Some inv1)
       (STATE: InvState.Rel.sem conf_src conf_tgt st0_src st0_tgt invst0 invmem0 inv0)
@@ -368,8 +348,8 @@ Proof.
     rename H into NONCALL_SRC
   end.
 
-  destruct (s_isFinialState conf_src st0_src) eqn:FINAL.
-  { unfold s_isFinialState in FINAL. simtac. }
+  destruct (s_isFinalState conf_src st0_src) eqn:FINAL.
+  { unfold s_isFinalState in FINAL. des_ifs. }
   exploit nerror_nfinal_nstuck; eauto. intros [st1_src [evt_src STEP_SRC]].
   replace evt_src with evt in *; cycle 1.
   { unfold postcond_cmd_check in COND. simtac.

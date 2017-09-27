@@ -22,6 +22,7 @@ Require Import program_sim.
 Require Import TODOProof.
 Import Vellvm.program_sim.
 Require Import OpsemAux.
+Require Import memory_props.
 
 Set Implicit Arguments.
 
@@ -68,7 +69,7 @@ Lemma progress
       (WF_CONF: wf_ConfigI conf)
       (WF_ST: wf_StateI conf st0)
   :
-    (<<IS_FINAL: s_isFinialState conf st0 <> merror>>) \/
+    (<<IS_FINAL: s_isFinalState conf st0 <> merror>>) \/
     (<<IS_UNDEFINED: OpsemPP.undefined_state conf st0>>) \/
     (<<PROGRESS: ~stuck_state conf st0>>)
 .
@@ -127,7 +128,8 @@ Section SimLocal.
            (RET_SRC: getOperandValue conf_src.(CurTargetData) ret2_src st2_src.(EC).(Locals) conf_src.(Globals) = Some retval2_src),
          exists retval1_tgt,
            <<RET_TGT: getOperandValue conf_tgt.(CurTargetData) ret1_tgt st1_tgt.(EC).(Locals) conf_tgt.(Globals) = Some retval1_tgt>> /\
-           <<INJECT: genericvalues_inject.gv_inject inv2.(InvMem.Rel.inject) retval2_src retval1_tgt>>)
+           <<INJECT: genericvalues_inject.gv_inject inv2.(InvMem.Rel.inject) retval2_src retval1_tgt>> /\
+           <<VALID: valid_retvals st2_src.(Mem) st1_tgt.(Mem) (Some retval2_src) (Some retval1_tgt)>>)
       (WF_SRC: wf_ConfigI conf_src /\ wf_StateI conf_src st1_src)
       (WF_TGT: wf_ConfigI conf_tgt /\ wf_StateI conf_tgt st1_tgt)
 
@@ -182,8 +184,12 @@ Section SimLocal.
          forall args2_src
            (ARGS_SRC: params2GVs conf_src.(CurTargetData) params2_src st2_src.(EC).(Locals) conf_src.(Globals) = Some args2_src),
          exists args1_tgt,
-           <<ARGS_TGT: params2GVs conf_tgt.(CurTargetData) params1_tgt st1_tgt.(EC).(Locals) conf_tgt.(Globals) = Some args1_tgt>> /\
-           <<INJECT: list_forall2 (genericvalues_inject.gv_inject inv2.(InvMem.Rel.inject)) args2_src args1_tgt>>)
+           (<<ARGS_TGT: params2GVs (conf_tgt.(CurTargetData)) params1_tgt
+                                   st1_tgt.(EC).(Locals) conf_tgt.(Globals) = Some args1_tgt>>) /\
+           (<<INJECT: list_forall2
+                        (genericvalues_inject.gv_inject inv2.(InvMem.Rel.inject)) args2_src args1_tgt>>) /\
+           (<<VALID_SRC: List.Forall (MemProps.valid_ptrs (Mem.nextblock st2_src.(Mem))) args2_src>>) /\
+           (<<VALID_TGT: List.Forall (MemProps.valid_ptrs (Mem.nextblock st1_tgt.(Mem))) args1_tgt>>))
       (MEM: InvMem.Rel.sem conf_src conf_tgt st2_src.(Mem) st1_tgt.(Mem) inv2)
       uniqs_src uniqs_tgt privs_src privs_tgt
       (UNIQS_SRC: forall mptr typ align val
@@ -193,6 +199,7 @@ Section SimLocal.
       (UNIQS_TGT: forall mptr typ align val
                          (LOAD: mload conf_tgt.(CurTargetData) st1_tgt.(Mem) mptr typ align = Some val),
           InvMem.gv_diffblock_with_blocks conf_tgt val uniqs_tgt)
+      (TGT_NOUNIQ: uniqs_tgt = [])
       (UNIQS_GLOBALS_TGT: forall b, In b uniqs_tgt -> (inv2.(InvMem.Rel.gmax) < b)%positive)
       (PRIVS_SRC: forall b (IN: In b privs_src),
           InvMem.private_block st2_src.(Mem) (InvMem.Rel.public_src inv2.(InvMem.Rel.inject)) b)
@@ -202,6 +209,7 @@ Section SimLocal.
                  (INCR: InvMem.Rel.le (InvMem.Rel.lift st2_src.(Mem) st1_tgt.(Mem) uniqs_src uniqs_tgt privs_src privs_tgt inv2) inv3)
                  (MEM: InvMem.Rel.sem conf_src conf_tgt mem3_src mem3_tgt inv3)
                  (RETVAL: TODO.lift2_option (genericvalues_inject.gv_inject inv3.(InvMem.Rel.inject)) retval3_src retval3_tgt)
+                 (VALID: valid_retvals mem3_src mem3_tgt retval3_src retval3_tgt)
                  (RETURN_SRC: return_locals
                                 conf_src.(CurTargetData)
                                 retval3_src id2_src noret2_src typ2_src
@@ -304,37 +312,6 @@ Hint Resolve _sim_local_mon: paco.
 (*     + eapply InvState.Rel.inject_allocas_preserved_aux; eauto. *)
 (* Qed. *)
 
-(* alxest: This lemma's proof is broken while adding WF_SRC *)
-(* However, this lemma is not used at all; so I comment this *)
-(* Lemma sop_star_sim_local *)
-(*       conf_src conf_tgt sim_local ecs0_src ecs0_tgt *)
-(*       inv idx *)
-(*       st1_src st2_src *)
-(*       st1_tgt *)
-(*       (TAU: sop_star conf_src st1_src st2_src events.E0) *)
-(*       (SIM: _sim_local conf_src conf_tgt sim_local ecs0_src ecs0_tgt inv idx st2_src st1_tgt): *)
-(*   _sim_local conf_src conf_tgt sim_local ecs0_src ecs0_tgt inv idx st1_src st1_tgt. *)
-(* Proof. *)
-(*   inv SIM. *)
-(*   - econs 1; try exact ERROR; eauto. *)
-(*     rewrite <- events.E0_left. *)
-(*     eapply opsem_props.OpsemProps.sop_star_trans; eauto. *)
-(*   - econs 2; try exact MEM; eauto.  *)
-(*     rewrite <- events.E0_left. *)
-(*     eapply opsem_props.OpsemProps.sop_star_trans; eauto. *)
-(*   - econs 3; try exact MEM; eauto. *)
-(*     rewrite <- events.E0_left. *)
-(*     eapply opsem_props.OpsemProps.sop_star_trans; eauto. *)
-(*   - econs 4; try exact MEM; eauto. *)
-(*     rewrite <- events.E0_left. *)
-(*     eapply opsem_props.OpsemProps.sop_star_trans; eauto. *)
-(*   - econs 5; eauto. *)
-(*     i. exploit STEP; eauto. i. des. *)
-(*     esplits; cycle 1; eauto. *)
-(*     rewrite <- events.E0_left. *)
-(*     eapply opsem_props.OpsemProps.sop_star_trans; eauto. *)
-(* Qed. *)
-
 Lemma _sim_local_src_error
       conf_src conf_tgt sim_local ecs_src ecs_tgt
       inv index
@@ -362,7 +339,6 @@ Inductive init_fdef (conf:Config) (f:fdef) (args:list GenericValue): forall (ec:
     (FDEF: f = fdef_intro (fheader_intro fa rt fid la va) lb)
     (ENTRY: getEntryBlock f = Some (l', stmts_intro ps' cs' tmn'))
     (LOCALS: initLocals conf.(CurTargetData) la args = Some lc')
-    (* (WF: wf_fdef conf.(CurSystem) conf f) *)
   :
     init_fdef conf f args (mkEC f (l', stmts_intro ps' cs' tmn') cs' tmn' lc' nil)
 .
@@ -377,6 +353,8 @@ Section SimLocalFdef.
       ec0_src
       (MEM: InvMem.Rel.sem conf_src conf_tgt mem0_src mem0_tgt inv0)
       (ARGS: list_forall2 (genericvalues_inject.gv_inject inv0.(InvMem.Rel.inject)) args_src args_tgt)
+      (VALID_SRC: List.Forall (MemProps.valid_ptrs (Mem.nextblock mem0_src)) args_src)
+      (VALID_TGT: List.Forall (MemProps.valid_ptrs (Mem.nextblock mem0_tgt)) args_tgt)
       (SRC: init_fdef conf_src fdef_src args_src ec0_src)
     ,
     exists ec0_tgt idx0,

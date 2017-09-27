@@ -25,6 +25,7 @@ Require InvState.
 Require Import TODOProof.
 Require Import Inject.
 Require Import SoundBase.
+Require Import memory_props.
 
 Set Implicit Arguments.
 
@@ -369,6 +370,17 @@ Proof.
   exploit INJECT; eauto.
 Qed.
 
+(* TODO: location *)
+Lemma filter_subset
+      f xs
+  :
+    <<SUBSET: AtomSetImpl.filter f xs [<=] xs>>
+.
+Proof.
+  ii.
+  apply AtomSetFacts.filter_iff in H; [| solve_compat_bool]. des; ss.
+Qed.
+
 Lemma forget_memory_call_sound
       conf_src st0_src id_src fun_src args_src cmds_src
       conf_tgt st0_tgt id_tgt fun_tgt args_tgt cmds_tgt
@@ -389,8 +401,12 @@ Lemma forget_memory_call_sound
          forall args2_src
                 (ARGS_SRC: params2GVs conf_src.(CurTargetData) args_src st0_src.(EC).(Locals) conf_src.(Globals) = Some args2_src),
          exists args1_tgt,
-           <<ARGS_TGT: params2GVs conf_tgt.(CurTargetData) args_tgt st0_tgt.(EC).(Locals) conf_tgt.(Globals) = Some args1_tgt>> /\
-           <<INJECT: list_forall2 (genericvalues_inject.gv_inject invmem0.(InvMem.Rel.inject)) args2_src args1_tgt>>)
+           (<<ARGS_TGT: params2GVs (conf_tgt.(CurTargetData))
+                                  args_tgt st0_tgt.(EC).(Locals) conf_tgt.(Globals) = Some args1_tgt>>) /\
+           (<<INJECT: list_forall2 (genericvalues_inject.gv_inject
+                                     invmem0.(InvMem.Rel.inject)) args2_src args1_tgt>>) /\
+           (<<VALID_SRC: List.Forall (MemProps.valid_ptrs (Memory.Mem.nextblock st0_src.(Mem))) args2_src>>) /\
+           (<<VALID_TGT: List.Forall (MemProps.valid_ptrs (Memory.Mem.nextblock st0_tgt.(Mem))) args1_tgt>>))
       (INCR: InvMem.Rel.le (InvMem.Rel.lift st0_src.(Mem) st0_tgt.(Mem)
                                             (memory_blocks_of conf_src st0_src.(EC).(Locals) inv0.(Invariant.src).(Invariant.unique))
                                             (memory_blocks_of conf_tgt st0_tgt.(EC).(Locals) inv0.(Invariant.tgt).(Invariant.unique))
@@ -440,7 +456,10 @@ Proof.
 
   esplits; eauto.
   - econs; ss.
-    + ii. exploit MAYDIFF; eauto. i.
+    + eapply AtomSetFacts.Empty_s_m_Proper; eauto. red.
+      eapply filter_subset; eauto.
+    +
+      ii. exploit MAYDIFF; eauto. i.
       erewrite sem_idT_eq_locals.
       { des. esplits; eauto.
         eapply genericvalues_inject.gv_inject_incr; eauto. }

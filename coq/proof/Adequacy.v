@@ -53,7 +53,7 @@ Proof.
   - inv MAT.
     + contradict PROGRESS. inv ERROR; ss.
     + contradict PROGRESS. ii. des.
-      destruct (s_isFinialState conf_tgt state) eqn:X; ss.
+      destruct (s_isFinalState conf_tgt state) eqn:X; ss.
       exfalso. eapply final_stuck; eauto.
     + exploit STEP; eauto. i. des.
       inv INF; [|done]. inv H1; [|done]. inv H0.

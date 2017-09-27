@@ -106,6 +106,25 @@ Module Invariant.
       invariant.(tgt)
       (f invariant.(maydiff)).
 
+  Definition clear_idt_alias (idt0: IdT.t) (t: aliasrel): aliasrel :=
+    mk_aliasrel (ValueTPairSet.clear_idt idt0 t.(diffblock))
+                (PtrPairSet.clear_idt idt0 t.(noalias))
+  .
+
+  Definition clear_idt_unary (idt0: IdT.t) (invst0: unary): unary :=
+    mk_unary
+      ((ExprPairSet.clear_idt idt0) invst0.(lessdef))
+      (clear_idt_alias idt0 invst0.(alias))
+      invst0.(unique)
+      (IdTSet.clear_idt idt0 invst0.(private))
+  .
+
+  Definition clear_idt (idt0: IdT.t) (invst0: t): t :=
+    mk (clear_idt_unary idt0 invst0.(src))
+       (clear_idt_unary idt0 invst0.(tgt))
+       (IdTSet.clear_idt idt0 invst0.(maydiff))
+  .
+
   Definition is_private (inv:unary) (value:ValueT.t): bool :=
     match value with
     | ValueT.id id => IdTSet.mem id inv.(private)
@@ -387,6 +406,7 @@ Module Infrule.
   | and_or_const2 (z:IdT.t) (y:IdT.t) (y':IdT.t) (x:ValueT.t) (c1:INTEGER.t) (c2:INTEGER.t) (c3:INTEGER.t) (sz:sz)
   | and_same (z:ValueT.t) (x:ValueT.t) (s:sz)
   | and_true_bool (x:ValueT.t) (y:ValueT.t)
+  | and_true_bool_tgt (x:ValueT.t) (y:ValueT.t)
   | and_undef (z:ValueT.t) (x:ValueT.t) (s:sz)
   | and_xor_const (z:IdT.t) (y:IdT.t) (y':IdT.t) (x:ValueT.t) (c1:INTEGER.t) (c2:INTEGER.t) (c3:INTEGER.t) (sz:sz)
   | and_zero (z:ValueT.t) (x:ValueT.t) (s:sz)
@@ -394,11 +414,17 @@ Module Infrule.
   | bop_associative (x:IdT.t) (y:IdT.t) (z:IdT.t) (opcode:bop) (c1:INTEGER.t) (c2:INTEGER.t) (c3:INTEGER.t) (s:sz)
   | bop_commutative (e:Expr.t) (opcode:bop) (x:ValueT.t) (y:ValueT.t) (s:sz)
   | bop_commutative_rev (e:Expr.t) (opcode:bop) (x:ValueT.t) (y:ValueT.t) (s:sz)
+  | bop_commutative_tgt (e:Expr.t) (opcode:bop) (x:ValueT.t) (y:ValueT.t) (s:sz)
+  | bop_commutative_rev_tgt (e:Expr.t) (opcode:bop) (x:ValueT.t) (y:ValueT.t) (s:sz)
   | fbop_commutative (e:Expr.t) (opcode:fbop) (x:ValueT.t) (y:ValueT.t) (fty:floating_point)
+  | fbop_commutative_rev (e:Expr.t) (opcode:fbop) (x:ValueT.t) (y:ValueT.t) (fty:floating_point)
+  | fbop_commutative_tgt (e:Expr.t) (opcode:fbop) (x:ValueT.t) (y:ValueT.t) (fty:floating_point)
+  | fbop_commutative_rev_tgt (e:Expr.t) (opcode:fbop) (x:ValueT.t) (y:ValueT.t) (fty:floating_point)
   | bop_distributive_over_selectinst (opcode:bop) (r:IdT.t) (s:IdT.t) (t':IdT.t) (t0:IdT.t) (x:ValueT.t) (y:ValueT.t) (z:ValueT.t) (c:ValueT.t) (bopsz:sz) (selty:typ)
   | bop_distributive_over_selectinst2 (opcode:bop) (r:IdT.t) (s:IdT.t) (t':IdT.t) (t0:IdT.t) (x:ValueT.t) (y:ValueT.t) (z:ValueT.t) (c:ValueT.t) (bopsz:sz) (selty:typ)
   | bitcastptr (v':ValueT.t) (bitcastinst:Expr.t)
   | bitcast_bitcast (src:ValueT.t) (mid:ValueT.t) (dst:ValueT.t) (srcty:typ) (midty:typ) (dstty:typ)
+  | bitcast_bitcast_rev_tgt (src:ValueT.t) (mid:ValueT.t) (dst:ValueT.t) (srcty:typ) (midty:typ) (dstty:typ)
   | bitcast_double_i64 (src:const) (tgt:INTEGER.t)
   | bitcast_load (ptr:ValueT.t) (ty:typ) (v1:ValueT.t) (ty2:typ) (v2:ValueT.t) (a:align)
   | bitcast_fpext (src:ValueT.t) (mid:ValueT.t) (dst:ValueT.t) (srcty:typ) (midty:typ) (dstty:typ)
@@ -432,6 +458,7 @@ Module Infrule.
   | fptrunc_fpext (src:ValueT.t) (mid:ValueT.t) (dst:ValueT.t) (srcty:typ) (midty:typ) (dstty:typ)
   | gepzero (v':ValueT.t) (gepinst:Expr.t)
   | gep_inbounds_remove (gepinst:Expr.t)
+  | gep_inbounds_remove_tgt (gepinst:Expr.t)
   | gep_inbounds_add (v:ValueT.t) (ptr:ValueT.t) (loadty:typ) (al:align) (e:Expr.t)
   | inttoptr_bitcast (src:ValueT.t) (mid:ValueT.t) (dst:ValueT.t) (srcty:typ) (midty:typ) (dstty:typ)
   | inttoptr_ptrtoint (src:ValueT.t) (mid:ValueT.t) (dst:ValueT.t) (srcty:typ) (midty:typ) (dstty:typ)
@@ -439,9 +466,6 @@ Module Infrule.
   | inttoptr_load (ptr:ValueT.t) (intty:typ) (v1:ValueT.t) (ptrty:typ) (v2:ValueT.t) (a:align)
   | lessthan_undef (ty:typ) (v:ValueT.t)
   | lessthan_undef_tgt (ty:typ) (v:ValueT.t)
-  | lessthan_undef_const (c:const)
-  | lessthan_undef_const_tgt (c:const)
-  | lessthan_undef_const_gep_or_cast (ty:typ) (ce:const)
   | mul_bool (z:IdT.t) (x:IdT.t) (y:IdT.t)
   | mul_mone (z:IdT.t) (x:ValueT.t) (sz:sz)
   | mul_neg (z:IdT.t) (mx:ValueT.t) (my:ValueT.t) (x:ValueT.t) (y:ValueT.t) (s:sz)  
@@ -451,6 +475,7 @@ Module Infrule.
   | or_and_xor (z:ValueT.t) (x:ValueT.t) (y:ValueT.t) (a:ValueT.t) (b:ValueT.t) (s:sz)
   | or_commutative_tgt (z:IdT.t) (x:ValueT.t) (y:ValueT.t) (sz:sz)
   | or_false (x:ValueT.t) (y:ValueT.t) (sz:sz)
+  | or_false_tgt (x:ValueT.t) (y:ValueT.t) (sz:sz)
   | or_mone (z:ValueT.t) (a:ValueT.t) (s:sz)
   | or_not (z:ValueT.t) (y:ValueT.t) (x:ValueT.t) (s:sz)
   | or_or  (z:ValueT.t) (x:ValueT.t) (y:ValueT.t) (a:ValueT.t) (b:ValueT.t) (sz:sz)
@@ -466,8 +491,6 @@ Module Infrule.
   | ptrtoint_inttoptr (src:ValueT.t) (mid:ValueT.t) (dst:ValueT.t) (srcty:typ) (midty:typ) (dstty:typ)
   | ptrtoint_load (ptr:ValueT.t) (ptrty:typ) (v1:ValueT.t) (intty:typ) (v2:ValueT.t) (a:align)
   | ptrtoint_zero (ptrty:typ) (intty:typ)
-  | replace_rhs (x:IdT.t) (y:ValueT.t) (e1:Expr.t) (e2:Expr.t) (e2':Expr.t)
-  | replace_rhs_opt	(x:IdT.t) (y:ValueT.t) (e1:Expr.t) (e2:Expr.t) (e2':Expr.t)
   | rem_neg (z:IdT.t) (my:ValueT.t) (x:ValueT.t) (y:ValueT.t) (sz:sz)
   | sdiv_mone (z:IdT.t) (x:ValueT.t) (sz:sz)
   | sdiv_sub_srem (z:IdT.t) (b:IdT.t) (a:IdT.t) (x:ValueT.t) (y:ValueT.t) (sz:sz)
@@ -517,9 +540,13 @@ Module Infrule.
   | trunc_bitcast (src:ValueT.t) (mid:ValueT.t) (dst:ValueT.t) (srcty:typ) (midty:typ) (dstty:typ)
   | trunc_ptrtoint (src:ValueT.t) (mid:ValueT.t) (dst:ValueT.t) (srcty:typ) (midty:typ) (dstty:typ)
   | trunc_trunc (src:ValueT.t) (mid:ValueT.t) (dst:ValueT.t) (srcty:typ) (midty:typ) (dstty:typ)
+  | trunc_trunc_rev_tgt (src:ValueT.t) (mid:ValueT.t) (dst:ValueT.t) (srcty:typ) (midty:typ) (dstty:typ)
+  | trunc_load_bitcast_rev_tgt (src:ValueT.t) (mid1:ValueT.t) (mid2:ValueT.t) (dst:ValueT.t) (srcty:typ) (midty:typ) (a:align)
+  | trunc_load_const_bitcast_rev_tgt (src:const) (mid:ValueT.t) (dst:ValueT.t) (srcty:typ) (midty:typ) (a:align)
   | substitute (x:IdT.t) (y:ValueT.t) (e:Expr.t)
   | substitute_rev (x:IdT.t) (y:ValueT.t) (e:Expr.t)
   | substitute_tgt (x:IdT.t) (y:ValueT.t) (e:Expr.t)
+  | substitute_rev_tgt (x:IdT.t) (y:ValueT.t) (e:Expr.t)
   | udiv_sub_urem (z:IdT.t) (b:IdT.t) (a:IdT.t) (x:ValueT.t) (y:ValueT.t) (sz:sz)
   | udiv_zext (z:IdT.t) (x:IdT.t) (y:IdT.t) (k:IdT.t) (a:ValueT.t) (b:ValueT.t) (sz1:sz) (sz2:sz)
   | udiv_zext_const (z:IdT.t) (x:IdT.t) (c:INTEGER.t) (k:IdT.t) (a:ValueT.t) (sz1:sz) (sz2:sz)
@@ -543,10 +570,19 @@ Module Infrule.
   | intro_eq_tgt (x:Expr.t)
   | icmp_inverse (c:cond) (ty:typ) (x:ValueT.t) (y:ValueT.t) (v:INTEGER.t)
   | icmp_inverse_rhs (c:cond) (ty:typ) (x:ValueT.t) (y:ValueT.t) (v:INTEGER.t)
+  | icmp_inverse_tgt (c:cond) (ty:typ) (x:ValueT.t) (y:ValueT.t) (v:INTEGER.t)
+  | icmp_inverse_rhs_tgt (c:cond) (ty:typ) (x:ValueT.t) (y:ValueT.t) (v:INTEGER.t)
   | icmp_swap_operands (c:cond) (ty:typ) (x:ValueT.t) (y:ValueT.t) (e:Expr.t)
+  | icmp_swap_operands_rev (c:cond) (ty:typ) (x:ValueT.t) (y:ValueT.t) (e:Expr.t)
+  | icmp_swap_operands_tgt (c:cond) (ty:typ) (x:ValueT.t) (y:ValueT.t) (e:Expr.t)
+  | icmp_swap_operands_rev_tgt (c:cond) (ty:typ) (x:ValueT.t) (y:ValueT.t) (e:Expr.t)
   | fcmp_swap_operands (c:fcond) (fty:floating_point) (x:ValueT.t) (y:ValueT.t) (e:Expr.t)
+  | fcmp_swap_operands_rev (c:fcond) (fty:floating_point) (x:ValueT.t) (y:ValueT.t) (e:Expr.t)
+  | fcmp_swap_operands_tgt (c:fcond) (fty:floating_point) (x:ValueT.t) (y:ValueT.t) (e:Expr.t)
+  | fcmp_swap_operands_rev_tgt (c:fcond) (fty:floating_point) (x:ValueT.t) (y:ValueT.t) (e:Expr.t)
   | icmp_eq_add_add (z:ValueT.t) (w:ValueT.t) (x:ValueT.t) (y:ValueT.t) (a:ValueT.t) (b:ValueT.t) (s:sz)
   | icmp_eq_same (ty:typ) (x:ValueT.t) (y:ValueT.t)
+  | icmp_eq_same_tgt (ty:typ) (x:ValueT.t) (y:ValueT.t)
   | icmp_eq_sub_sub (z:ValueT.t) (w:ValueT.t) (x:ValueT.t) (y:ValueT.t) (a:ValueT.t) (b:ValueT.t) (s:sz)
   | icmp_eq_xor_not (z:ValueT.t) (z':ValueT.t) (a:ValueT.t) (b:ValueT.t) (s:sz)
   | icmp_eq_xor_xor (z:ValueT.t) (w:ValueT.t) (x:ValueT.t) (y:ValueT.t) (a:ValueT.t) (b:ValueT.t) (s:sz)
@@ -559,6 +595,7 @@ Module Infrule.
   | icmp_ne_xor (z:ValueT.t) (a:ValueT.t) (b:ValueT.t) (s:sz)
   | icmp_ne_xor_xor (z:ValueT.t) (w:ValueT.t) (x:ValueT.t) (y:ValueT.t) (a:ValueT.t) (b:ValueT.t) (s:sz)
   | icmp_neq_same (ty:typ) (x:ValueT.t) (y:ValueT.t)
+  | icmp_neq_same_tgt (ty:typ) (x:ValueT.t) (y:ValueT.t)
   | icmp_sge_or_not (z:ValueT.t) (z':ValueT.t) (a:ValueT.t) (b:ValueT.t) (s:sz)
   | icmp_sgt_and_not (z:ValueT.t) (z':ValueT.t) (a:ValueT.t) (b:ValueT.t) (s:sz)
   | icmp_sle_or_not (z:ValueT.t) (z':ValueT.t) (a:ValueT.t) (b:ValueT.t) (s:sz)
@@ -569,27 +606,82 @@ Module Infrule.
   | icmp_ult_and_not (z:ValueT.t) (z':ValueT.t) (a:ValueT.t) (b:ValueT.t) (s:sz)  
   | implies_false (x:const) (y:const)
 
-(* Updated semantics of rules should be located above this line *)
-
-  | remove_maydiff (v:IdT.t) (e:Expr.t)
-  | remove_maydiff_rhs (v:IdT.t) (e:IdT.t)
-  | eq_generate_same_heap_value (x:IdT.t) (p:ValueT.t) (v:ValueT.t) (ty:typ) (a:align)
-  | stash_variable (z:IdT.t) (v:id)
-  | add_mul_fold (z:IdT.t) (y:IdT.t) (s:sz) (x:ValueT.t) (c1:INTEGER.t) (c2:INTEGER.t)
-  | add_distributive (z:IdT.t) (x:IdT.t) (y:IdT.t) (w:IdT.t) (s:sz) (a:ValueT.t) (b:ValueT.t) (c:ValueT.t)
-  | rem_neg2 (z:IdT.t) (sz:sz) (x:ValueT.t) (c1:INTEGER.t) (c2:INTEGER.t)
-  | select_trunc (z:IdT.t) (x:IdT.t) (y:IdT.t) (z':IdT.t) (sz1:sz) (sz2:sz) (a:ValueT.t) (b:ValueT.t) (c:ValueT.t)
-  | select_add (z:IdT.t) (x:IdT.t) (y:IdT.t) (z':IdT.t) (sz1:sz) (a:ValueT.t) (b:ValueT.t) (c:ValueT.t) (cond:ValueT.t)
-  | select_const_gt (z:IdT.t) (b:IdT.t) (sz1:sz) (x:ValueT.t) (c1:INTEGER.t) (c2:INTEGER.t)
-  | cmp_eq_sub (z:IdT.t) (y:IdT.t) (s:sz) (a:ValueT.t) (b:ValueT.t)
-  | cmp_ne_sub (z:IdT.t) (y:IdT.t) (s:sz) (a:ValueT.t) (b:ValueT.t)
-  | cmp_eq_srem (z:IdT.t) (y:IdT.t) (s:sz) (a:ValueT.t) (b:ValueT.t)
-  | cmp_eq_srem2 (z:IdT.t) (y:IdT.t) (s:sz) (a:ValueT.t) (b:ValueT.t)
-  | cmp_ne_srem (z:IdT.t) (y:IdT.t) (s:sz) (a:ValueT.t) (b:ValueT.t)
-  | cmp_ne_srem2 (z:IdT.t) (y:IdT.t) (s:sz) (a:ValueT.t) (b:ValueT.t)
-  | cmp_eq_xor (z:IdT.t) (x:IdT.t) (y:IdT.t) (s:sz) (a:ValueT.t) (b:ValueT.t) (c:ValueT.t)
-  | cmp_ne_xor (z:IdT.t) (x:IdT.t) (y:IdT.t) (s:sz) (a:ValueT.t) (b:ValueT.t) (c:ValueT.t)
+  (* Updated semantics of rules should be located above this line *)
   .
+
+  Definition is_arithmetic (infrule : t) : bool :=
+    match infrule with
+    | transitivity _ _ _ => false
+    | transitivity_tgt _ _ _ => false
+    | transitivity_pointer_lhs _ _ _ _ _ => false
+    | transitivity_pointer_rhs _ _ _ _ _ => false
+    | diffblock_unique _ _ => false
+    | diffblock_global_unique _ _ => false
+    | diffblock_global_global _ _ => false
+    | diffblock_lessthan _ _ _ _ => false
+    | diffblock_noalias _ _ _ _ => false
+    | substitute _ _ _ => false
+    | substitute_rev _ _ _ => false
+    | substitute_tgt _ _ _ => false
+    | intro_ghost_src _ _ => false
+    | intro_ghost _ _ => false
+    | intro_eq _ => false
+    | intro_eq_tgt _ => false
+    | implies_false _ _ => false
+    | _ => true
+    end.
+
+  Definition is_used_outside_instcombine (infrule : t) :bool :=
+    match infrule with
+    | intro_ghost _ _ => true
+    | transitivity _ _ _ => true
+    | transitivity_tgt _ _ _ => true
+    | intro_eq_tgt _ => true
+    | substitute _ _ _ => true
+    | substitute_rev _ _ _ => true
+    | substitute_tgt _ _ _ => true
+    | gep_inbounds_remove _ => true
+    | and_true_bool _ _ => true
+    | and_true_bool_tgt _ _ => true
+    | or_false _ _ _ => true
+    | or_false_tgt _ _ _ => true
+    | icmp_eq_same _ _ _ => true
+    | icmp_neq_same _ _ _ => true
+    | icmp_eq_same_tgt _ _ _ => true
+    | icmp_neq_same_tgt _ _ _ => true
+    | bop_commutative _ _ _ _ _ => true
+    | bop_commutative_tgt _ _ _ _ _ => true
+    | bop_commutative_rev _ _ _ _ _ => true
+    | bop_commutative_rev_tgt _ _ _ _ _ => true
+    | fbop_commutative _ _ _ _ _ => true
+    | fbop_commutative_tgt _ _ _ _ _ => true
+    | fbop_commutative_rev _ _ _ _ _ => true
+    | fbop_commutative_rev_tgt _ _ _ _ _ => true
+    | icmp_swap_operands _ _ _ _ _ => true
+    | icmp_swap_operands_tgt _ _ _ _ _ => true
+    | icmp_swap_operands_rev _ _ _ _ _ => true
+    | icmp_swap_operands_rev_tgt _ _ _ _ _ => true
+    | fcmp_swap_operands _ _ _ _ _ => true
+    | fcmp_swap_operands_tgt _ _ _ _ _ => true
+    | fcmp_swap_operands_rev _ _ _ _ _ => true
+    | fcmp_swap_operands_rev_tgt _ _ _ _ _ => true
+    | icmp_inverse _ _ _ _ _ => true
+    | icmp_inverse_tgt _ _ _ _ _ => true
+    | icmp_inverse_rhs _ _ _ _ _ => true
+    | icmp_inverse_rhs_tgt _ _ _ _ _ => true
+    | trunc_trunc_rev_tgt _ _ _ _ _ _ => true
+    | bitcast_bitcast_rev_tgt _ _ _ _ _ _ => true
+    | trunc_load_const_bitcast_rev_tgt _ _ _ _ _ _ => true
+    | trunc_load_bitcast_rev_tgt _ _ _ _ _ _ _ => true
+    | lessthan_undef _ _ => true
+    | lessthan_undef_tgt _ _ => true
+    | _ => false
+    end
+  .
+
+  Definition is_of_interest (infrule : t) : bool :=
+    (negb (is_arithmetic infrule)) && (is_used_outside_instcombine infrule).
+  
 End Infrule.
 
 Module ValidationHint.
@@ -602,4 +694,17 @@ Module ValidationHint.
   Definition fdef := AssocList stmts.
   Definition products := AssocList fdef.
   Definition module := products.
+
+  Definition update_invariant_after_phinodes (f:Invariant.t -> Invariant.t) (blockinv: stmts): stmts :=
+    mk_stmts
+      blockinv.(phinodes)
+      (f blockinv.(invariant_after_phinodes))
+      blockinv.(cmds).
+
+  Definition update_cmd_invariants (f:list Invariant.t -> list Invariant.t) (blockinv: stmts): stmts :=
+    mk_stmts
+      blockinv.(phinodes)
+      blockinv.(invariant_after_phinodes)
+      (combine (List.map fst blockinv.(cmds)) (f (List.map snd blockinv.(cmds)))).
+  
 End ValidationHint.

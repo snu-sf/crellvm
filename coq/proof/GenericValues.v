@@ -18,7 +18,8 @@ Module GVs.
     list_forall2
       (fun vc1 vc2 =>
          Val.lessdef vc1.(fst) vc2.(fst) /\
-         vc1.(snd) = vc2.(snd))
+         vc1.(snd) = vc2.(snd) /\
+         (vc1.(fst) = Vundef -> vc2.(fst) <> Vundef -> Val.has_chunkb vc2.(fst) vc2.(snd)))
       v1 v2.
 
   Definition inject (alpha:meminj) (v1 v2:GenericValue): Prop :=
@@ -31,8 +32,31 @@ Module GVs.
   Lemma lessdef_refl x:
         <<REFL: lessdef x x>>.
   Proof.
-    induction x; ii; ss; des; econs.
-    esplits; eauto. apply IHx.
+    induction x; ii; ss; des.
+    { econs. }
+    econs.
+    - esplits; eauto. i. ss.
+    - apply IHx.
+  Qed.
+
+  Lemma lessdef_trans
+        x y z
+        (LD01: lessdef x y)
+        (LD12: lessdef y z)
+    :
+      <<LD02: lessdef x z>>
+  .
+  Proof.
+    ginduction LD01; ii; ss.
+    inv LD12. des. destruct b0, b1, a1; ss. clarify.
+    econs; eauto.
+    - ss. splits; ss.
+      + eapply Val.lessdef_trans; eauto.
+      + i; clarify.
+        inv H2.
+        * eapply H5; eauto.
+        * eapply H1; eauto.
+    - eapply IHLD01; eauto.
   Qed.
 
   Lemma lessdef_inject_compose_single mij a b c
@@ -41,16 +65,6 @@ Module GVs.
     << INJECT: memory_sim.MoreMem.val_inject mij a c >>.
   Proof.
     inv LD; inv INJECT; ss; try (econs; eauto; fail).
-    - ADMIT "Vellvm undef inject
-Vellvm's inject definition (Vellvm.Vellvm.memory_sim.MoreMem.val_inject)
-does not provide ""forall v, Vundef >= v"".
-This should be provided, conceptually this is correct.
-FYI, look at (compcert.common.Values.val_inject).
-".
-    - ADMIT "Vellvm undef inject".
-    - ADMIT "Vellvm undef inject".
-    - ADMIT "Vellvm undef inject".
-    - ADMIT "Vellvm undef inject".
   Qed.
 
   Lemma inject_lessdef_compose_single mij a b c
@@ -59,7 +73,6 @@ FYI, look at (compcert.common.Values.val_inject).
     << INJECT: memory_sim.MoreMem.val_inject mij a c >>.
   Proof.
     inv LD; inv INJECT; ss; try (econs; eauto; fail).
-    - ADMIT "Vellvm undef inject".
   Qed.
 
   Lemma lessdef_inject_compose mij a b c
@@ -75,6 +88,13 @@ FYI, look at (compcert.common.Values.val_inject).
     inv INJECT.
     inv LD; ss. des. destruct a1; ss. clarify.
     econs; eauto.
+    { i. clarify. inv H4; ss.
+      - eapply CHUNK; eauto.
+      - destruct (classic (v1 = Vundef)).
+        + clarify.
+          inv H1. eapply CHUNK; eauto.
+        + inv H1; try eapply H2; ss.
+    }
     eapply lessdef_inject_compose_single; eauto.
   Qed.
 
@@ -91,7 +111,12 @@ FYI, look at (compcert.common.Values.val_inject).
     inv INJECT.
     inv LD; ss. des. destruct b1; ss. clarify.
     econs; eauto.
-    eapply inject_lessdef_compose_single; eauto.
+    - i. clarify.
+      destruct (classic (v2 = Vundef)).
+      + clarify. apply H4; ss.
+      + inv H1; ss.
+        apply CHUNK; ss.
+    - eapply inject_lessdef_compose_single; eauto.
   Qed.
 End GVs.
 
@@ -100,12 +125,12 @@ End GVs.
 Inductive error_state conf st: Prop :=
 | error_state_intro
     (STUCK: stuck_state conf st)
-    (NFINAL: s_isFinialState conf st = None)
+    (NFINAL: s_isFinalState conf st = None)
 .
 
 Lemma final_stuck
       conf st retval
-      (FINAL: s_isFinialState conf st = Some retval):
+      (FINAL: s_isFinalState conf st = Some retval):
   stuck_state conf st.
 Proof.
   ii. des. destruct st, EC0. ss.
@@ -118,16 +143,16 @@ Lemma nerror_stuck_final
       conf st
       (NERROR: ~ error_state conf st)
       (STUCK: stuck_state conf st):
-  exists retval, s_isFinialState conf st = Some retval.
+  exists retval, s_isFinalState conf st = Some retval.
 Proof.
-  destruct (s_isFinialState conf st) eqn:X; eauto.
+  destruct (s_isFinalState conf st) eqn:X; eauto.
   exfalso. apply NERROR. econs; ss.
 Qed.
 
 Lemma nerror_nfinal_nstuck
       conf st1
       (NERROR: ~ error_state conf st1)
-      (NFINAL: s_isFinialState conf st1 = None):
+      (NFINAL: s_isFinalState conf st1 = None):
   exists st2 e, sInsn conf st1 st2 e.
 Proof.
   destruct (classic (stuck_state conf st1)).
@@ -275,13 +300,13 @@ Qed.
 Lemma error_state_neg conf st
       (NERROR_SRC: ~error_state conf st)
   :
-    <<NERROR_SRC: ~(stuck_state conf st) \/ exists gv, s_isFinialState conf st = Some gv>>
+    <<NERROR_SRC: ~(stuck_state conf st) \/ exists retval, s_isFinalState conf st = Some retval>>
 .
 Proof.
   red. unfold not in NERROR_SRC.
   apply imply_to_or.
   i.
-  destruct (s_isFinialState conf st) eqn:T.
+  destruct (s_isFinalState conf st) eqn:T.
   { esplits; eauto. }
   exploit NERROR_SRC; eauto.
   { econs; eauto. }

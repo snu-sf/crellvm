@@ -131,89 +131,6 @@ Definition cond_signbit (s:sz) (v:ValueT.t) : bool :=
   end.
 
 
-(* cond_replace_value_lessdef x y v v' : 
-   Given x >= y, if all x in v1 are replaced into y(let the replaced value v2), is v2 >= v'? *)
-Definition cond_replace_lessdef_value (x:IdT.t) (y:ValueT.t) (v v':ValueT.t) : bool :=
-  match v, v' with
-  | ValueT.id a, _ =>
-    (IdT.eq_dec a x && ValueT.eq_dec v' y) || (ValueT.eq_dec v v')
-  | ValueT.const c1, ValueT.const c2 => const_eqb c1 c2 (* How about the case, c1 == undef? *)
-  | _,_ => false
-  end.
-
-
-(* cond_replace_lessdef x y e e' : 
-   Given x >= y, If all x in e are replaced into y(let the replaced expression e2), is e2 >= e'? *)
-Definition cond_replace_lessdef (x:IdT.t) (y:ValueT.t) (e e':Expr.t) : bool :=
-  match e, e' with
-  | Expr.bop b1 s1 v1 w1, Expr.bop b2 s2 v2 w2 =>
-    bop_dec b1 b2 &&
-    Size.dec s1 s2 &&
-    cond_replace_lessdef_value x y v1 v2 &&
-    cond_replace_lessdef_value x y w1 w2
-  | Expr.fbop fb1 fp1 v1 w1, Expr.fbop fb2 fp2 v2 w2 =>
-    fbop_dec fb1 fb2 &&
-    floating_point_dec fp1 fp2 &&
-    cond_replace_lessdef_value x y v1 v2 &&
-    cond_replace_lessdef_value x y w1 w2
-  | Expr.extractvalue t1 v1 lc1 u1, Expr.extractvalue t2 v2 lc2 u2 =>
-    typ_dec t1 t2 &&
-    cond_replace_lessdef_value x y v1 v2 &&
-    list_forallb2 const_eqb lc1 lc2 &&
-    typ_dec u1 u2
-  | Expr.insertvalue t1 v1 u1 w1 lc1, Expr.insertvalue t2 v2 u2 w2 lc2 =>
-    typ_dec t1 t2 &&
-    cond_replace_lessdef_value x y v1 v2 &&
-    typ_dec u1 u2 &&
-    cond_replace_lessdef_value x y w1 w2 &&
-    list_forallb2 const_eqb lc1 lc2
-  | Expr.gep ib1 t1 v1 lsv1 u1, Expr.gep ib2 t2 v2 lsv2 u2 =>
-    inbounds_dec ib1 ib2 &&
-    typ_dec t1 t2 &&
-    cond_replace_lessdef_value x y v1 v2 &&
-    beq_nat (List.length lsv1) (List.length lsv2) &&
-    List.forallb (fun k => match k with ((_, h1), (_, h2)) => cond_replace_lessdef_value x y h1 h2 end) (List.combine lsv1 lsv2) &&
-    typ_dec u1 u2
-  | Expr.trunc top1 t1 v1 u1, Expr.trunc top2 t2 v2 u2 =>
-    truncop_dec top1 top2 &&
-    typ_dec t1 t2 &&
-    cond_replace_lessdef_value x y v1 v2 &&
-    typ_dec u1 u2
-  | Expr.ext ex1 t1 v1 u1, Expr.ext ex2 t2 v2 u2 =>
-    extop_dec ex1 ex2 &&
-    typ_dec t1 t2 &&
-    cond_replace_lessdef_value x y v1 v2 &&
-    typ_dec u1 u2
-  | Expr.cast cop1 t1 v1 u1, Expr.cast cop2 t2 v2 u2 =>
-    castop_dec cop1 cop2 &&
-    typ_dec t1 t2 &&
-    cond_replace_lessdef_value x y v1 v2 &&
-    typ_dec u1 u2
-  | Expr.icmp con1 t1 v1 w1, Expr.icmp con2 t2 v2 w2 =>
-    cond_dec con1 con2 &&
-    typ_dec t1 t2 &&
-    cond_replace_lessdef_value x y v1 v2 &&
-    cond_replace_lessdef_value x y w1 w2
-  | Expr.fcmp fcon1 fp1 v1 w1, Expr.fcmp fcon2 fp2 v2 w2 =>
-    fcond_dec fcon1 fcon2 &&
-    floating_point_dec fp1 fp2 &&
-    cond_replace_lessdef_value x y v1 v2 &&
-    cond_replace_lessdef_value x y w1 w2
-  | Expr.select v1 t1 w1 z1, Expr.select v2 t2 w2 z2 =>
-    cond_replace_lessdef_value x y v1 v2 &&
-    typ_dec t1 t2 &&
-    cond_replace_lessdef_value x y w1 w2 &&
-    cond_replace_lessdef_value x y z1 z2
-  | Expr.value v1, Expr.value v2 =>
-    cond_replace_lessdef_value x y v1 v2
-  | Expr.load v1 t1 a1, Expr.load v2 t2 a2 => 
-    (* FIXME : Is this condition ok? *)
-    cond_replace_lessdef_value x y v1 v2 &&
-    typ_dec t1 t2 &&
-    Align.dec a1 a2
-  | _, _ => false
-  end.
-
 Definition cond_gep_zero (v':ValueT.t) (e:Expr.t) : bool :=
   match e with
   | Expr.gep inbound ty1 v idxlist ty2 =>
@@ -410,6 +327,13 @@ Definition is_commutative_fbop (opcode:fbop) :=
   | _ => false
   end.
 
+Definition load_realign (e1: Expr.t): Expr.t :=
+  match e1 with
+  | Expr.load v ty a => Expr.load v ty Align.One
+  | _ => e1
+  end
+.
+
 Notation "$$ inv |-src y >= rhs $$" := (Invariant.lessdef_expr (y, rhs) inv.(Invariant.src).(Invariant.lessdef)) (at level 41, inv, y, rhs at level 41).
 Notation "$$ inv |-tgt y >= rhs $$" := (Invariant.lessdef_expr (y, rhs) inv.(Invariant.tgt).(Invariant.lessdef)) (at level 41, inv, y, rhs at level 41).
 Notation "$$ inv |-src y 'unique' $$" :=
@@ -430,12 +354,13 @@ Notation "{{ inv +++src y _||_ x }}" := (Invariant.update_src (Invariant.update_
 Notation "{{ inv +++tgt y _||_ x }}" := (Invariant.update_tgt (Invariant.update_diffblock (ValueTPairSet.add (y, x))) inv) (at level 41, inv, y, x at level 41).
 Notation "{{ inv --- x }}" := (Invariant.update_maydiff (IdTSet.filter (fun y => negb (IdT.eq_dec x y))) inv) (at level 41, inv, x at level 41).
 
-(* TODO *)
 
-Definition is_defined inv0 expr :=
-  ExprPairSet.exists_
-    (fun xy => let (_, y) := xy in
-               Expr.eq_dec expr y) (Invariant.lessdef inv0).
+Definition load_align_one (e1: Expr.t): Expr.t :=
+  match e1 with
+  | Expr.load v ty a => Expr.load v ty Align.One
+  | _ => e1
+  end
+.
 
 Definition apply_infrule
            (m_src m_tgt:module)
@@ -568,6 +493,20 @@ Definition apply_infrule
                +++src (Expr.value y) >= true_expr
          }}
     else apply_fail tt
+  | Infrule.and_true_bool_tgt x y =>
+    let true_expr := Expr.value (ValueT.const (const_int Size.One (INTEGER.of_Z (Size.to_Z Size.One) (-1)%Z true))) in
+    if $$ inv0 |-tgt true_expr >= (Expr.bop bop_and Size.One x y) $$
+    then {{
+             {{
+                 {{
+                     {{inv0 +++tgt true_expr >= (Expr.value x)}}
+                       +++tgt (Expr.value x) >= true_expr
+                 }}
+                   +++tgt true_expr >= (Expr.value y)
+             }}
+               +++tgt (Expr.value y) >= true_expr
+         }}
+    else apply_fail tt
   | Infrule.and_undef z x s =>
     if $$ inv0 |-src (Expr.value z) >= (Expr.bop bop_and s x (ValueT.const (const_undef (typ_int s)))) $$
     then {{ inv0 +++src (Expr.value z) >= (Expr.value
@@ -594,6 +533,11 @@ Definition apply_infrule
     if $$ inv0 |-src (Expr.value mid) >= (Expr.cast castop_bitcast srcty src midty) $$ &&
        $$ inv0 |-src (Expr.value dst) >= (Expr.cast castop_bitcast midty mid dstty) $$
     then {{ inv0 +++src (Expr.value dst) >= (Expr.cast castop_bitcast srcty src dstty) }}
+    else apply_fail tt
+  | Infrule.bitcast_bitcast_rev_tgt src mid dst srcty midty dstty =>
+    if $$ inv0 |-tgt (Expr.cast castop_bitcast srcty src midty) >= (Expr.value mid) $$ &&
+       $$ inv0 |-tgt (Expr.cast castop_bitcast midty mid dstty) >= (Expr.value dst) $$
+    then {{ inv0 +++tgt (Expr.cast castop_bitcast srcty src dstty) >= (Expr.value dst) }}
     else apply_fail tt
   | Infrule.bitcast_double_i64 src tgt =>
     let s := Size.from_Z 64%Z in
@@ -733,10 +677,35 @@ Definition apply_infrule
       (is_commutative_bop opcode)
     then {{ inv0 +++src (Expr.bop opcode s y x) >= e }}
     else apply_fail tt
+  | Infrule.bop_commutative_tgt e opcode x y s =>
+    if $$ inv0 |-tgt e >= (Expr.bop opcode s x y) $$ &&
+      (is_commutative_bop opcode)
+    then {{ inv0 +++tgt e >= (Expr.bop opcode s y x) }}
+    else apply_fail tt
+  | Infrule.bop_commutative_rev_tgt e opcode x y s =>
+    if $$ inv0 |-tgt (Expr.bop opcode s x y) >= e $$ &&
+      (is_commutative_bop opcode)
+    then {{ inv0 +++tgt (Expr.bop opcode s y x) >= e }}
+    else apply_fail tt
   | Infrule.fbop_commutative e opcode x y fty =>
     if $$ inv0 |-src e >= (Expr.fbop opcode fty x y) $$ &&
       (is_commutative_fbop opcode)
     then {{ inv0 +++src e >= (Expr.fbop opcode fty y x) }}
+    else apply_fail tt
+  | Infrule.fbop_commutative_rev e opcode x y fty =>
+    if $$ inv0 |-src (Expr.fbop opcode fty x y) >= e $$ &&
+      (is_commutative_fbop opcode)
+    then {{ inv0 +++src (Expr.fbop opcode fty y x) >= e }}
+    else apply_fail tt
+  | Infrule.fbop_commutative_tgt e opcode x y fty =>
+    if $$ inv0 |-tgt e >= (Expr.fbop opcode fty x y) $$ &&
+      (is_commutative_fbop opcode)
+    then {{ inv0 +++tgt e >= (Expr.fbop opcode fty y x) }}
+    else apply_fail tt
+  | Infrule.fbop_commutative_rev_tgt e opcode x y fty =>
+    if $$ inv0 |-tgt (Expr.fbop opcode fty x y) >= e $$ &&
+      (is_commutative_fbop opcode)
+    then {{ inv0 +++tgt (Expr.fbop opcode fty y x) >= e }}
     else apply_fail tt
   | Infrule.fadd_commutative_tgt z x y fty =>
     if $$ inv0 |-tgt (Expr.fbop fbop_fadd fty x y) >= (Expr.value (ValueT.id z)) $$
@@ -817,6 +786,12 @@ Definition apply_infrule
       {{inv0 +++src (Expr.gep true t v lsv u) >= (Expr.gep false t v lsv u) }}
     | _ => apply_fail tt
     end
+  | Infrule.gep_inbounds_remove_tgt gepinst =>
+    match gepinst with
+    | Expr.gep _ t v lsv u =>
+      {{inv0 +++tgt (Expr.gep true t v lsv u) >= (Expr.gep false t v lsv u) }}
+    | _ => apply_fail tt
+    end
   | Infrule.gep_inbounds_add loadv ptr loadty al e =>
     match e with
     | Expr.gep _ t v lsv u =>
@@ -845,38 +820,11 @@ Definition apply_infrule
        cond_same_bitsize intty ptrty m_src
     then {{ inv0 +++src (Expr.load ptr ptrty a) >= (Expr.value v2) }}
     else apply_fail tt
+(* need to check that v's type is equal to ty and v do not invoke undefined behavior, but cannot  *)
   | Infrule.lessthan_undef ty v => 
     {{ inv0 +++src (Expr.value (ValueT.const (const_undef ty))) >= (Expr.value v) }}
   | Infrule.lessthan_undef_tgt ty v => 
     {{ inv0 +++tgt (Expr.value (ValueT.const (const_undef ty))) >= (Expr.value v) }}
-  | Infrule.lessthan_undef_const c =>
-    match (ValueT.const c) with
-    | const_int s v =>
-      {{ inv0 +++src (Expr.value (ValueT.const (const_undef (typ_int s)))) >= (Expr.value (const_int s v)) }}
-    | const_floatpoint fptyp fp =>
-      {{ inv0 +++src (Expr.value (ValueT.const (const_undef (typ_floatpoint fptyp)))) >= (Expr.value (const_floatpoint fptyp fp)) }}
-    | const_null typ =>
-      {{ inv0 +++src (Expr.value (ValueT.const (const_undef (typ_pointer typ)))) >= (Expr.value (const_null typ)) }}
-    | _ => apply_fail tt
-    end
-  | Infrule.lessthan_undef_const_tgt c =>
-    match (ValueT.const c) with
-    | const_int s v =>
-      {{ inv0 +++tgt (Expr.value (ValueT.const (const_undef (typ_int s)))) >= (Expr.value (const_int s v)) }}
-    | const_floatpoint fptyp fp =>
-      {{ inv0 +++tgt (Expr.value (ValueT.const (const_undef (typ_floatpoint fptyp)))) >= (Expr.value (const_floatpoint fptyp fp)) }}
-    | const_null typ =>
-      {{ inv0 +++tgt (Expr.value (ValueT.const (const_undef typ))) >= (Expr.value (const_null typ)) }}
-    | _ => apply_fail tt
-    end
-  | Infrule.lessthan_undef_const_gep_or_cast typ ce =>
-    match (typ, ce) with
-    | (typ_pointer t, const_gep inb c lc) =>
-      {{ inv0 +++src (Expr.value (ValueT.const (const_undef typ))) >= (Expr.value ce) }}
-    | (typ_pointer t, const_castop op c ty) =>
-      {{ inv0 +++src (Expr.value (ValueT.const (const_undef typ))) >= (Expr.value ce) }}
-    | _ => apply_fail tt
-    end
   | Infrule.sdiv_sub_srem z b a x y s =>
     if $$ inv0 |-src (Expr.value (ValueT.id b)) >= (Expr.bop bop_srem s x y) $$ &&
        $$ inv0 |-src (Expr.value (ValueT.id a)) >= (Expr.bop bop_sub s x (ValueT.id b)) $$ &&
@@ -983,6 +931,20 @@ Definition apply_infrule
                    +++src false_expr >= (Expr.value y)
              }}
                +++src (Expr.value y) >= false_expr
+         }}
+    else apply_fail tt
+  | Infrule.or_false_tgt x y sz =>
+    let false_expr := Expr.value (ValueT.const (const_int sz (INTEGER.of_Z (Size.to_Z sz) 0%Z true))) in
+    if $$ inv0 |-tgt false_expr >= (Expr.bop bop_or sz x y) $$
+    then {{
+             {{
+                 {{
+                     {{inv0 +++tgt false_expr >= (Expr.value x)}}
+                       +++tgt (Expr.value x) >= false_expr
+                 }}
+                   +++tgt false_expr >= (Expr.value y)
+             }}
+               +++tgt (Expr.value y) >= false_expr
          }}
     else apply_fail tt
   | Infrule.or_undef z a s =>
@@ -1286,7 +1248,8 @@ Definition apply_infrule
     if ($$ inv0 |-src (Expr.value z) >= (Expr.bop bop_shl s y vc) $$ ||
        $$ inv0 |-src (Expr.value z) >= (Expr.bop bop_ashr s y vc) $$ ||
        $$ inv0 |-src (Expr.value z) >= (Expr.bop bop_lshr s y vc) $$) &&
-       cond_le s (INTEGER.of_Z (Size.to_Z s) (Size.to_Z s) true) c
+       ((cond_le s (INTEGER.of_Z (Size.to_Z s) (Size.to_Z s) true) c) ||
+        (cond_le s c (INTEGER.of_Z (Size.to_Z s) (-1)%Z true)))
     then
       let inv1 := {{ inv0 +++src (Expr.value z) >= (Expr.value vundef) }} in
       {{ inv1 +++src (Expr.value vundef) >= (Expr.value z) }}
@@ -1376,21 +1339,9 @@ Definition apply_infrule
     then {{ inv0 +++src (Expr.value dst) >= (Expr.cast castop_sitofp srcty src dstty) }}
     else apply_fail tt
   | Infrule.transitivity e1 e2 e3 =>
-    let e1' :=
-      match e1 with
-      | Expr.load v ty a => Expr.load v ty Align.One
-      | _ => e1
-      end in
-    let e2' :=
-      match e2 with
-      | Expr.load v ty a => Expr.load v ty Align.One
-      | _ => e2
-      end in
-    let e3' :=
-      match e3 with
-      | Expr.load v ty a => Expr.load v ty Align.One
-      | _ => e3
-      end in
+    let e1' := load_realign e1 in
+    let e2' := load_realign e2 in
+    let e3' := load_realign e3 in
     if ($$ inv0 |-src e1 >= e2 $$ || $$ inv0 |-src e1 >= e2' $$ ||
         $$ inv0 |-src e1' >= e2 $$ || $$ inv0 |-src e1' >= e2' $$) &&
        ($$ inv0 |-src e2 >= e3 $$ || $$ inv0 |-src e2 >= e3' $$ ||
@@ -1398,21 +1349,9 @@ Definition apply_infrule
     then {{ inv0 +++src e1 >= e3 }}
     else apply_fail tt
   | Infrule.transitivity_tgt e1 e2 e3 =>
-    let e1' :=
-      match e1 with
-      | Expr.load v ty a => Expr.load v ty Align.One
-      | _ => e1
-      end in
-    let e2' :=
-      match e2 with
-      | Expr.load v ty a => Expr.load v ty Align.One
-      | _ => e2
-      end in
-    let e3' :=
-      match e3 with
-      | Expr.load v ty a => Expr.load v ty Align.One
-      | _ => e3
-      end in
+    let e1' := load_realign e1 in
+    let e2' := load_realign e2 in
+    let e3' := load_realign e3 in
     if ($$ inv0 |-tgt e1 >= e2 $$ || $$ inv0 |-tgt e1 >= e2' $$ ||
         $$ inv0 |-tgt e1' >= e2 $$ || $$ inv0 |-tgt e1' >= e2' $$) &&
        ($$ inv0 |-tgt e2 >= e3 $$ || $$ inv0 |-tgt e2 >= e3' $$ ||
@@ -1432,6 +1371,17 @@ Definition apply_infrule
        $$ inv0 |-src (Expr.value dst) >= (Expr.trunc truncop_int midty mid dstty) $$ &&
        cond_inttyp srcty
     then {{ inv0 +++src (Expr.value dst) >= (Expr.trunc truncop_int srcty src dstty) }}
+    else apply_fail tt
+  | Infrule.trunc_load_bitcast_rev_tgt src mid1 mid2 dst srcty midty a =>
+    if $$ inv0 |-tgt (Expr.cast castop_bitcast (typ_pointer srcty) src (typ_pointer midty)) >= (Expr.value mid1) $$ &&
+       $$ inv0 |-tgt (Expr.load mid1 midty a) >= (Expr.value mid2) $$ &&
+       $$ inv0 |-tgt (Expr.trunc truncop_int midty mid2 srcty) >= (Expr.value dst) $$
+    then {{ inv0 +++tgt (Expr.load src srcty a) >= (Expr.value dst) }}
+    else apply_fail tt
+  | Infrule.trunc_load_const_bitcast_rev_tgt src mid dst srcty midty a =>
+    if $$ inv0 |-tgt (Expr.load (ValueT.const (const_castop castop_bitcast src (typ_pointer midty))) midty a) >= (Expr.value mid) $$ &&
+       $$ inv0 |-tgt (Expr.trunc truncop_int midty mid srcty) >= (Expr.value dst) $$
+    then {{ inv0 +++tgt (Expr.load src srcty a) >= (Expr.value dst) }}
     else apply_fail tt
   | Infrule.trunc_ptrtoint src mid dst srcty midty dstty =>
     if $$ inv0 |-src (Expr.value mid) >= (Expr.cast castop_ptrtoint srcty src midty) $$ &&
@@ -1536,47 +1486,30 @@ Definition apply_infrule
        $$ inv0 |-src (Expr.value dst) >= (Expr.trunc truncop_int midty mid dstty) $$
     then {{inv0 +++src (Expr.value dst) >= (Expr.trunc truncop_int srcty src dstty)}}
     else apply_fail tt
+  | Infrule.trunc_trunc_rev_tgt src mid dst srcty midty dstty =>
+    if $$ inv0 |-tgt (Expr.trunc truncop_int srcty src midty) >= (Expr.value mid) $$ &&
+       $$ inv0 |-tgt (Expr.trunc truncop_int midty mid dstty) >= (Expr.value dst) $$
+    then {{inv0 +++tgt (Expr.trunc truncop_int srcty src dstty) >= (Expr.value dst) }}
+    else apply_fail tt
   | Infrule.substitute x y e =>
     if $$ inv0 |-src (Expr.value x) >= (Expr.value y) $$
     then
-      let x_to_y := (fun v =>
-                       match v with
-                       | ValueT.id i => if(IdT.eq_dec x i) then y else v
-                       | _ => v
-                       end) in
-      {{inv0 +++src e >= (Expr.map_valueTs e x_to_y)}}
+      {{inv0 +++src e >= (Expr.substitute x y e)}}
     else apply_fail tt
   | Infrule.substitute_rev x y e =>
     if $$ inv0 |-src (Expr.value y) >= (Expr.value x) $$
     then
-      let x_to_y := (fun v =>
-                       match v with
-                       | ValueT.id i => if(IdT.eq_dec x i) then y else v
-                       | _ => v
-                       end) in
-      {{inv0 +++src (Expr.map_valueTs e x_to_y) >= e}}
+      {{inv0 +++src (Expr.substitute x y e) >= e}}
     else apply_fail tt
   | Infrule.substitute_tgt x y e =>
+    if $$ inv0 |-tgt (Expr.value x) >= (Expr.value y) $$
+    then
+      {{inv0 +++tgt e >= (Expr.substitute x y e)}}
+    else apply_fail tt
+  | Infrule.substitute_rev_tgt x y e =>
     if $$ inv0 |-tgt (Expr.value y) >= (Expr.value x) $$
     then
-      let x_to_y := (fun v =>
-                       match v with
-                       | ValueT.id i => if(IdT.eq_dec x i) then y else v
-                       | _ => v
-                       end) in
-      {{inv0 +++tgt e >= (Expr.map_valueTs e x_to_y)}}
-    else apply_fail tt
-  | Infrule.replace_rhs x y e1 e2 e2' =>
-    if $$ inv0 |-src (Expr.value x) >= (Expr.value y) $$ &&
-       $$ inv0 |-src e1 >= e2 $$ &&
-       cond_replace_lessdef x y e2 e2'
-    then {{inv0 +++src e1 >= e2'}}
-    else apply_fail tt
-  | Infrule.replace_rhs_opt x y e1 e2 e2' =>
-    if $$ inv0 |-tgt (Expr.value x) >= (Expr.value y) $$ &&
-       $$ inv0 |-tgt e1 >= e2 $$ &&
-       cond_replace_lessdef x y e2 e2'
-    then {{inv0 +++tgt e1 >= e2'}}
+      {{inv0 +++tgt (Expr.substitute x y e) >= e}}
     else apply_fail tt
   | Infrule.sext_zext src mid dst srcty midty dstty =>
     if $$ inv0 |-src (Expr.value mid) >= (Expr.ext extop_z srcty src midty) $$ &&
@@ -1642,7 +1575,6 @@ Definition apply_infrule
     {{ inv0 +++tgt x >= x }}
   | Infrule.intro_ghost_src expr g =>
     if (match expr with | Expr.load _ _ _ => false | _ => true end)
-         && (is_defined inv0.(Invariant.src) expr)
     then
       let inv1 := (Invariant.update_src (Invariant.update_lessdef
         (ExprPairSet.filter
@@ -1655,19 +1587,12 @@ Definition apply_infrule
     else apply_fail tt
   | Infrule.intro_ghost expr g =>
     if List.forallb (fun x => Invariant.not_in_maydiff inv0 x) (Expr.get_valueTs expr) &&
-      (match expr with | Expr.load _ _ _ => false | _ => true end)
+                    negb (Expr.is_load expr)
     then 
-      let inv1 := (Invariant.update_src (Invariant.update_lessdef 
-        (ExprPairSet.filter
-          (fun (p: ExprPair.t) => negb (Expr.eq_dec (Expr.value (ValueT.id (Tag.ghost, g))) (snd p))))) 
-          inv0) in
-      let inv2 := (Invariant.update_tgt (Invariant.update_lessdef 
-        (ExprPairSet.filter
-          (fun (p: ExprPair.t) => negb (Expr.eq_dec (Expr.value (ValueT.id (Tag.ghost, g))) (fst p)))))
-          inv1) in
-      let inv3 := {{ inv2 +++src expr >= (Expr.value (ValueT.id (Tag.ghost, g))) }} in
-      let inv4 := {{ inv3 +++tgt (Expr.value (ValueT.id (Tag.ghost, g))) >= expr }} in
-      inv4
+      let inv1 := Invariant.clear_idt (Tag.ghost, g) inv0 in
+      let inv2 := {{ inv1 +++src expr >= (Expr.value (ValueT.id (Tag.ghost, g))) }} in
+      let inv3 := {{ inv2 +++tgt (Expr.value (ValueT.id (Tag.ghost, g))) >= expr }} in
+      inv3
     else apply_fail tt
   | Infrule.xor_commutative_tgt z x y s =>
     if $$ inv0 |-tgt (Expr.bop bop_xor s x y) >= (Expr.value z) $$
@@ -1686,8 +1611,7 @@ Definition apply_infrule
     else apply_fail tt
   | Infrule.xor_undef z a s =>
     if $$ inv0 |-src (Expr.value z) >= (Expr.bop bop_xor s a (ValueT.const (const_undef (typ_int s)))) $$
-    then {{ inv0 +++src (Expr.value z) >= (Expr.value 
-              (ValueT.const (const_int s (INTEGER.of_Z (Size.to_Z s) (0)%Z true)))) }}
+    then {{ inv0 +++src (Expr.value z) >= (Expr.value (ValueT.const (const_undef (typ_int s)))) }}
     else apply_fail tt
   | Infrule.xor_zero z a s =>
     if $$ inv0 |-src (Expr.value z) >= (Expr.bop bop_xor s a 
@@ -1760,17 +1684,69 @@ Definition apply_infrule
           {{inv0 +++src (Expr.value (ValueT.const (const_int Size.One b'))) >= (Expr.icmp c' ty x y)}}
       in {{inv1 +++src (Expr.icmp c' ty x y) >= (Expr.value (ValueT.const (const_int Size.One b')))}}
     else apply_fail tt
+  | Infrule.icmp_inverse_tgt c ty x y b =>
+    if $$ inv0 |-tgt (Expr.icmp c ty x y) >= (Expr.value (ValueT.const (const_int Size.One b))) $$
+    then
+      let c' := get_inverse_icmp_cond c in
+      let b' := get_inverse_boolean_Int b in
+      {{inv0 +++tgt (Expr.icmp c' ty x y) >= (Expr.value (ValueT.const (const_int Size.One b')))}}
+    else apply_fail tt
+  | Infrule.icmp_inverse_rhs_tgt c ty x y b =>
+    if $$ inv0 |-tgt (Expr.value (ValueT.const (const_int Size.One b))) >= (Expr.icmp c ty x y) $$
+    then
+      let c' := get_inverse_icmp_cond c in
+      let b' := get_inverse_boolean_Int b in
+      let inv1 :=
+          {{inv0 +++tgt (Expr.value (ValueT.const (const_int Size.One b'))) >= (Expr.icmp c' ty x y)}}
+      in {{inv1 +++tgt (Expr.icmp c' ty x y) >= (Expr.value (ValueT.const (const_int Size.One b')))}}
+    else apply_fail tt
   | Infrule.icmp_swap_operands c ty x y e =>
     if $$ inv0 |-src e >= (Expr.icmp c ty x y) $$
     then
       let c' := get_swapped_icmp_cond c in
       {{inv0 +++src e >= (Expr.icmp c' ty y x) }}
     else apply_fail tt
+  | Infrule.icmp_swap_operands_rev c ty x y e =>
+    if $$ inv0 |-src (Expr.icmp c ty x y) >= e $$
+    then
+      let c' := get_swapped_icmp_cond c in
+      {{inv0 +++src (Expr.icmp c' ty y x) >= e }}
+    else apply_fail tt
+  | Infrule.icmp_swap_operands_tgt c ty x y e =>
+    if $$ inv0 |-tgt e >= (Expr.icmp c ty x y) $$
+    then
+      let c' := get_swapped_icmp_cond c in
+      {{inv0 +++tgt e >= (Expr.icmp c' ty y x) }}
+    else apply_fail tt
+  | Infrule.icmp_swap_operands_rev_tgt c ty x y e =>
+    if $$ inv0 |-tgt (Expr.icmp c ty x y) >= e $$
+    then
+      let c' := get_swapped_icmp_cond c in
+      {{inv0 +++tgt (Expr.icmp c' ty y x) >= e }}
+    else apply_fail tt
   | Infrule.fcmp_swap_operands c fty x y e =>
     if $$ inv0 |-src e >= (Expr.fcmp c fty x y) $$
     then
       let c' := get_swapped_fcmp_cond c in
       {{inv0 +++src e >= (Expr.fcmp c' fty y x) }}
+    else apply_fail tt
+  | Infrule.fcmp_swap_operands_rev c fty x y e =>
+    if $$ inv0 |-src (Expr.fcmp c fty x y) >= e $$
+    then
+      let c' := get_swapped_fcmp_cond c in
+      {{inv0 +++src (Expr.fcmp c' fty y x) >= e }}
+    else apply_fail tt
+  | Infrule.fcmp_swap_operands_tgt c fty x y e =>
+    if $$ inv0 |-tgt e >= (Expr.fcmp c fty x y) $$
+    then
+      let c' := get_swapped_fcmp_cond c in
+      {{inv0 +++tgt e >= (Expr.fcmp c' fty y x) }}
+    else apply_fail tt
+  | Infrule.fcmp_swap_operands_rev_tgt c fty x y e =>
+    if $$ inv0 |-tgt (Expr.fcmp c fty x y) >= e $$
+    then
+      let c' := get_swapped_fcmp_cond c in
+      {{inv0 +++tgt (Expr.fcmp c' fty y x) >= e }}
     else apply_fail tt
   | Infrule.implies_false c1 c2 =>
     if $$ inv0 |-src (Expr.value c1) >= (Expr.value c2) $$
@@ -1790,6 +1766,14 @@ Definition apply_infrule
     then {{
              {{inv0 +++src (Expr.value x) >= (Expr.value y)}}
                +++src (Expr.value y) >= (Expr.value x)
+         }}
+    else apply_fail tt
+  | Infrule.icmp_eq_same_tgt ty x y =>
+    let Int_one := INTEGER.of_Z 1 1 true in
+    if $$ inv0 |-tgt (Expr.value (ValueT.const (const_int Size.One Int_one))) >= (Expr.icmp cond_eq ty x y) $$
+    then {{
+             {{inv0 +++tgt (Expr.value x) >= (Expr.value y)}}
+               +++tgt (Expr.value y) >= (Expr.value x)
          }}
     else apply_fail tt
   | Infrule.icmp_eq_srem z w x y s =>
@@ -1865,6 +1849,14 @@ Definition apply_infrule
     then {{
              {{inv0 +++src (Expr.value x) >= (Expr.value y)}}
                +++src (Expr.value y) >= (Expr.value x)
+         }}
+    else apply_fail tt
+  | Infrule.icmp_neq_same_tgt ty x y =>
+    let Int_zero := INTEGER.of_Z 1 0 true in
+    if $$ inv0 |-tgt (Expr.value (ValueT.const (const_int Size.One Int_zero))) >= (Expr.icmp cond_ne ty x y) $$
+    then {{
+             {{inv0 +++tgt (Expr.value x) >= (Expr.value y)}}
+               +++tgt (Expr.value y) >= (Expr.value x)
          }}
     else apply_fail tt
   | Infrule.icmp_sge_or_not z z' a b s =>

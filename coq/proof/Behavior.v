@@ -8,8 +8,8 @@ Import Opsem.
 
 
 (* TODO: obs_done should have the return value. *)
-CoInductive observation : Set :=
-| obs_done
+CoInductive observation : Type :=
+| obs_done (retval: val)
 | obs_inftau
 | obs_event (evt:event) (obs:observation)
 .
@@ -26,9 +26,9 @@ Inductive behmatch
     (ERROR: error_state conf s):
     behmatch conf behave s obs
 | beh_done
-    s
-    (FINAL: s_isFinialState conf s <> None):
-    behmatch conf behave s obs_done
+    s retval
+    (FINAL: s_isFinalState conf s = Some retval):
+    behmatch conf behave s (obs_done retval)
 | beh_inftau
     s s'
     (ST: sInsn conf s s' E0)
