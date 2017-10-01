@@ -334,11 +334,31 @@ Module AltFacts (E: OrdersAlt.OrderedTypeAlt).
 
 End AltFacts.
 
+Module Alt_from_AltUsual (E: AltUsual) <: OrdersAlt.OrderedTypeAlt := E.
 
+Module OT_from_AltUsual (E:AltUsual) <: Orders.OrderedType.
+  Module EAlt := Alt_from_AltUsual E.
+  Include OrdersAlt.OT_from_Alt EAlt.
+
+  Lemma eq_leibniz : forall x y, eq x y <-> x = y.
+  Proof.
+    i. split.
+    - apply E.compare_leibniz.
+    - i. hexploit (E.compare_sym x y). red. i.
+      subst. destruct (E.compare y y); ss.
+  Qed.
+
+  Lemma eql_dec : forall x y:t, {x = y} + {x <> y}.
+  Proof.
+    i. destruct (eq_dec x y).
+    - left. apply eq_leibniz. ss.
+    - right. ii. apply n. apply eq_leibniz. ss.
+  Qed.    
+End OT_from_AltUsual.
 
 
 (* Module Alt_from_AltUsual (E: AltUsual) <: OrdersAlt.OrderedTypeAlt := E. *)
-Module Alt_from_AltUsual (E: AltUsual) <: OrdersAlt.OrderedTypeAlt := E.
+
 
 Module AltUsualFacts (E: AltUsual). (* <: (AltFacts E). *)
 (* TODO: How to check subtype of these? forall E, AltUsualFacts E >= AltFacts E*)

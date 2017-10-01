@@ -237,10 +237,16 @@ End Tag.
 (* Hint Resolve Tag.eq_dec: EqDecDb. *)
 
 Module IdT_AU := (prod Tag id).
-Module IdT_A := Alt_from_AltUsual IdT_AU.
-Module IdT := OrdersAlt.OT_from_Alt IdT_A.
+(* Module IdT_A := Alt_from_AltUsual IdT_AU. *)
+Module IdT <: Orders.OrderedType.
+   Include OT_from_AltUsual IdT_AU.
+
+   Definition lift (tag:Tag.t) (i:id): t := (tag, i).
+
+End IdT.
 
 Hint Resolve IdT.eq_dec: EqDecDb.
+Hint Resolve IdT.eql_dec: EqDecDb.
 
 
 (* Module IdTSet : FSetExtra.WSfun IdT := FSetExtra.Make IdT. *)
@@ -252,7 +258,7 @@ Module IdTSet.
   Include MSetAVLExtra IdT.
 
   Definition clear_idt (idt0: IdT.t) (t0: t): t :=
-    filter (fun x => negb (IdT.eq_dec idt0 x)) t0
+    filter (fun x => negb (IdT.eql_dec idt0 x)) t0
   .
 
 End IdTSet.
@@ -278,33 +284,55 @@ Module Value.
 End Value.
 
 
-Module ValueT_AU <: Orders.OrderedType.
-End ValueT_AU.
-
-Module ValueT_A := Alt_from_AltUsual ValueT_AU.
-Module ValueT := OrdersAlt.OT_from_Alt ValueT_A.
-
-(* old *)
-
-
-Module ValueT <: Orders.OrderedType.
-
-Module ValueT <: UsualDecidableType.
-  Inductive t_: Set :=
+Module ValueT_AU <: AltUsual.
+  Inductive t_: Type :=
   | id (x:IdT.t)
   | const (c:const)
   .
   Definition t:= t_.
-  Definition eq := @eq t.
-  Definition eq_refl := @refl_equal t.
-  Definition eq_sym := @sym_eq t.
-  Definition eq_trans := @trans_eq t.
-  Definition eq_dec (x y:t): {x = y} + {x <> y}.
+
+  Definition case_order v : nat :=
+    match v with
+    | id _ => 0
+    | const _ => 1
+    end.
+
+  Definition compare (v1 v2:t) : comparison :=
+    match v1, v2 with
+    | id x1, id x2 => IdT.compare x1 x2
+    | const c1, const c2 => const.compare c1 c2
+    | _, _ => Nat.compare (case_order v1) (case_order v2)
+    end.
+
+    Lemma compare_sym
+        x y
+    : <<SYM: compare y x = CompOpp (compare x y)>>.
   Proof.
-    decide equality.
-    apply IdT.eq_dec.
-    apply const_dec.
-  Qed.
+  Admitted.
+
+  Lemma compare_trans
+        c x y z
+        (XY: compare x y = c)
+        (YZ: compare y z = c)
+    : <<XZ: compare x z = c>>.
+  Proof.
+  Admitted.
+
+  Lemma compare_leibniz
+        x y
+        (EQ: compare x y = Eq)
+    : x = y.
+  Proof.
+  Admitted.
+  
+End ValueT_AU.
+
+(* Module ValueT_A := Alt_from_AltUsual ValueT_AU. *)
+Module ValueT <: Orders.OrderedType.
+  Include OT_from_AltUsual ValueT_AU.
+
+  Definition id := ValueT_AU.id.
+  Definition const := ValueT_AU.const.
 
   Definition lift (tag:Tag.t) (v:value): t :=
     match v with
@@ -314,54 +342,220 @@ Module ValueT <: UsualDecidableType.
 
   Definition get_idTs (v: t): option IdT.t :=
     match v with
-      | id i => Some i
-      | const _ => None
+      | ValueT_AU.id i => Some i
+      | ValueT_AU.const _ => None
     end.
 
   Definition substitute (from: IdT.t) (to: ValueT.t) (body: ValueT.t): ValueT.t :=
     match body with
-    | ValueT.id i => if(IdT.eq_dec from i) then to else body
+    | ValueT_AU.id i => if(IdT.eq_dec from i) then to else body
     | _ => body
     end
   .
 
 End ValueT.
+  
+
+(* old *)
+
+
+(* Module ValueT <: Orders.OrderedType. *)
+
+(* Module ValueT <: UsualDecidableType. *)
+(*   Inductive t_: Set := *)
+(*   | id (x:IdT.t) *)
+(*   | const (c:const) *)
+(*   . *)
+(*   Definition t:= t_. *)
+(*   Definition eq := @eq t. *)
+(*   Definition eq_refl := @refl_equal t. *)
+(*   Definition eq_sym := @sym_eq t. *)
+(*   Definition eq_trans := @trans_eq t. *)
+(*   Definition eq_dec (x y:t): {x = y} + {x <> y}. *)
+(*   Proof. *)
+(*     decide equality. *)
+(*     apply IdT.eq_dec. *)
+(*     apply const_dec. *)
+(*   Qed. *)
+
+(*   Definition lift (tag:Tag.t) (v:value): t := *)
+(*     match v with *)
+(*     | value_id i => id (IdT.lift tag i) *)
+(*     | value_const c => const c *)
+(*     end. *)
+
+(*   Definition get_idTs (v: t): option IdT.t := *)
+(*     match v with *)
+(*       | id i => Some i *)
+(*       | const _ => None *)
+(*     end. *)
+
+(*   Definition substitute (from: IdT.t) (to: ValueT.t) (body: ValueT.t): ValueT.t := *)
+(*     match body with *)
+(*     | ValueT.id i => if(IdT.eq_dec from i) then to else body *)
+(*     | _ => body *)
+(*     end *)
+(*   . *)
+
+(* End ValueT. *)
 Hint Resolve ValueT.eq_dec: EqDecDb.
-Coercion ValueT.id: IdT.t >-> ValueT.t_.
-Coercion ValueT.const: const >-> ValueT.t_.
+Hint Resolve ValueT.eql_dec: EqDecDb.
+Coercion ValueT.id: IdT.t >-> ValueT_AU.t_.
+Coercion ValueT.const: const >-> ValueT_AU.t_.
 
-Module ValueTSet : FSetExtra.WSfun ValueT := FSetExtra.Make ValueT.
-Module ValueTSetFacts := WFacts_fun2 ValueT ValueTSet.
+(* Module ValueTSet : FSetExtra.WSfun ValueT := FSetExtra.Make ValueT. *)
+(* Module ValueTSetFacts := WFacts_fun2 ValueT ValueTSet. *)
 
-(* TODO: universal construction? *)
-Module ValueTPair <: UsualDecidableType.
-  Definition t := (ValueT.t * ValueT.t)%type.
-  Definition eq := @eq t.
-  Definition eq_refl := @refl_equal t.
-  Definition eq_sym := @sym_eq t.
-  Definition eq_trans := @trans_eq t.
-  Definition eq_dec (x y:t): {x = y} + {x <> y}.
-  Proof.
-    apply prod_dec;
-    apply ValueT.eq_dec.
-  Defined.
+Module ValueTSet.
+  Include MSetAVLExtra ValueT.
+
+  (* Definition clear_idt (idt0: IdT.t) (t0: t): t := *)
+  (*   filter (fun x => negb (IdT.eq_dec idt0 x)) t0 *)
+  (* . *)
+
+End ValueTSet.
+
+(* "MSetInterface.S with Module E := IdT" dosen't work *)
+Module ValueTSetFacts := MSetFactsExtra ValueT ValueTSet.
+
+Module ValueTPair_AU := prod ValueT_AU ValueT_AU.
+(* Module ValueTPair_A := Alt_from_AltUsual ValueTPair_AU. *)
+Module ValueTPair <: Orders.OrderedType.
+  Include OT_from_AltUsual ValueTPair_AU.
 
   Definition get_idTs (vp: t): list IdT.t :=
     (option_to_list (ValueT.get_idTs vp.(fst)))
       ++ (option_to_list (ValueT.get_idTs vp.(snd))).
 End ValueTPair.
-Hint Resolve ValueTPair.eq_dec: EqDecDb.
 
-Module ValueTPairSet <: FSetExtra.WSfun ValueTPair.
-  Include FSetExtra.Make ValueTPair.
+(* TODO: universal construction? *)
+(* Module ValueTPair <: UsualDecidableType. *)
+(*   Definition t := (ValueT.t * ValueT.t)%type. *)
+(*   Definition eq := @eq t. *)
+(*   Definition eq_refl := @refl_equal t. *)
+(*   Definition eq_sym := @sym_eq t. *)
+(*   Definition eq_trans := @trans_eq t. *)
+(*   Definition eq_dec (x y:t): {x = y} + {x <> y}. *)
+(*   Proof. *)
+(*     apply prod_dec; *)
+(*     apply ValueT.eq_dec. *)
+(*   Defined. *)
+
+(*   Definition get_idTs (vp: t): list IdT.t := *)
+(*     (option_to_list (ValueT.get_idTs vp.(fst))) *)
+(*       ++ (option_to_list (ValueT.get_idTs vp.(snd))). *)
+(* End ValueTPair. *)
+Hint Resolve ValueTPair.eq_dec: EqDecDb.
+Hint Resolve ValueTPair.eql_dec: EqDecDb.
+
+(* Module ValueTPairSet <: FSetExtra.WSfun ValueTPair. *)
+(*   Include FSetExtra.Make ValueTPair. *)
+
+(*   Definition clear_idt (idt: IdT.t) (t0: t): t := *)
+(*     filter (fun xy => negb (list_inb IdT.eq_dec (ValueTPair.get_idTs xy) idt)) t0 *)
+(*   . *)
+
+(* End ValueTPairSet. *)
+
+Module ValueTPairSet.
+  Include MSetAVLExtra ValueTPair.
 
   Definition clear_idt (idt: IdT.t) (t0: t): t :=
-    filter (fun xy => negb (list_inb IdT.eq_dec (ValueTPair.get_idTs xy) idt)) t0
+    filter (fun xy => negb (list_inb IdT.eql_dec (ValueTPair.get_idTs xy) idt)) t0
   .
-
 End ValueTPairSet.
 
-Module ValueTPairSetFacts := WFacts_fun2 ValueTPair ValueTPairSet.
+Module ValueTPairSetFacts := MSetFactsExtra ValueTPair ValueTPairSet.
+
+(* Module ValueTPairSetFacts := WFacts_fun2 ValueTPair ValueTPairSet. *)
+
+Module Nat_ValueT_AU := prod NatAltUsual ValueT_AU.
+Module Nat_ValueT := OT_from_AltUsual Nat_ValueT_AU.
+
+Module Expr_AU <: AltUsual.
+  Inductive t_: Type :=
+  | bop (b:bop) (s:sz) (v:ValueT.t) (w:ValueT.t)
+  | fbop (fb:fbop) (fp:floating_point) (v:ValueT.t) (w:ValueT.t)
+  | extractvalue (t:typ) (v:ValueT.t) (lc:list const) (u:typ)
+  | insertvalue (t:typ) (v:ValueT.t) (u:typ) (w:ValueT.t) (lc:list const)
+  | gep (ib:inbounds) (t:typ) (v:ValueT.t) (lsv:list (sz * ValueT.t)) (u:typ)
+  | trunc (top:truncop) (t:typ) (v:ValueT.t) (u:typ)
+  | ext (eop:extop) (t:typ) (v:ValueT.t) (u:typ)
+  | cast (cop:castop) (t:typ) (v:ValueT.t) (u:typ)
+  | icmp (c:cond) (t:typ) (v:ValueT.t) (w:ValueT.t)
+  | fcmp (fc:fcond) (fp:floating_point) (v:ValueT.t) (w:ValueT.t)
+  | select (v:ValueT.t) (t:typ) (w:ValueT.t) (z:ValueT.t)
+  | value (v:ValueT.t)
+  | load (v:ValueT.t) (t:typ) (a:align)
+  .
+
+  Definition t := t_.
+
+  Definition case_order e : nat :=
+    match e with
+    | bop _ _ _ _ => 0
+    | fbop _ _ _ _ => 1
+    | extractvalue _ _ _ _ => 2
+    | insertvalue _ _ _ _ _ => 3
+    | gep _ _ _ _ _ => 4
+    | trunc _ _ _ _ => 5
+    | ext _ _ _ _ => 6
+    | cast _ _ _ __ => 7
+    | icmp _ _ _ _ => 8
+    | fcmp _ _ _ _ => 9
+    | select _ _ _ _ => 10
+    | value _ => 11
+    | load _ _ _ => 12
+    end.
+
+  Definition compare (e1 e2:t): comparison :=
+    match e1, e2 with
+    | bop b1 s1 v1 w1, bop b2 s2 v2 w2 =>
+      lexico_order [bop.compare b1 b2 ; Nat.compare s1 s2 ;
+                      ValueT.compare v1 v2 ; ValueT.compare w1 w2]
+    | fbop fb1 fp1 v1 w1, fbop fb2 fp2 v2 w2 =>
+      lexico_order [fbop.compare fb1 fb2 ; floating_point.compare fp1 fp2 ;
+                      ValueT.compare v1 v2 ; ValueT.compare w1 w2]
+    | extractvalue t1 v1 lc1 u1, extractvalue t2 v2 lc2 u2 =>
+      lexico_order [typ.compare t1 t2 ; ValueT.compare v1 v2 ;
+                      compare_list const.compare lc1 lc2 ;
+                      typ.compare u1 u2]
+    | insertvalue t1 v1 u1 w1 lc1, insertvalue t2 v2 u2 w2 lc2 =>
+      lexico_order [typ.compare t1 t2 ; ValueT.compare v1 v2 ;
+                      typ.compare u1 u2 ; ValueT.compare w1 w2 ;
+                        compare_list const.compare lc1 lc2]
+    | gep ib1 t1 v1 lsv1 u1, gep ib2 t2 v2 lsv2 u2 =>
+      lexico_order [bool.compare ib1 ib2 ; typ.compare t1 t2 ;
+                      ValueT.compare v1 v2 ;
+                      compare_list Nat_ValueT.compare lsv1 lsv2 ;
+                      typ.compare u1 u2]
+    | trunc top1 t1 v1 u1, trunc top2 t2 v2 u2 =>
+      lexico_order [truncop.compare top1 top2 ; typ.compare t1 t2 ;
+                      ValueT.compare v1 v2 ; typ.compare u1 u2]
+    | ext eop1 t1 v1 u1, ext eop2 t2 v2 u2 =>
+      lexico_order [extop.compare eop1 eop2 ; typ.compare t1 t2 ;
+                      ValueT.compare v1 v2 ; typ.compare u1 u2]
+    | cast cop1 t1 v1 u1, cast cop2 t2 v2 u2 =>
+      lexico_order [castop.compare cop1 cop2 ; typ.compare t1 t2 ;
+                      ValueT.compare v1 v2 ; typ.compare u1 u2]
+    | icmp c1 t1 v1 w1, icmp c2 t2 v2 w2 =>
+      lexico_order [cond.compare c1 c2 ; typ.compare t1 t2 ;
+                      ValueT.compare v1 v2 ; ValueT.compare w1 w2]
+    | _, _ => Eq
+    end.
+
+
+
+    | gep (ib:inbounds) (t:typ) (v:ValueT.t) (lsv:list (sz * ValueT.t)) (u:typ)
+    | trunc (top:truncop) (t:typ) (v:ValueT.t) (u:typ)
+    | ext (eop:extop) (t:typ) (v:ValueT.t) (u:typ)
+    | cast (cop:castop) (t:typ) (v:ValueT.t) (u:typ)
+    | icmp (c:cond) (t:typ) (v:ValueT.t) (w:ValueT.t)
+    | fcmp (fc:fcond) (fp:floating_point) (v:ValueT.t) (w:ValueT.t)
+    | select (v:ValueT.t) (t:typ) (w:ValueT.t) (z:ValueT.t)
+    | value (v:ValueT.t)
+    | load (v:ValueT.t) (t:typ) (a:align)
+  
 
 Module Expr <: UsualDecidableType.
   Inductive t_: Set :=
