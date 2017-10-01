@@ -8,6 +8,7 @@ Import LLVMsyntax.
 Require Import sflib.
 
 Require Import TODO.
+Require Import Ords.
 
 Set Implicit Arguments.
 
@@ -112,13 +113,15 @@ End MSetFactsExtra.
 (* Default OrderedType is Structures.OrderedType *)
 (* https://coq.inria.fr/library/ *)
 (* ... OrderedType* are there only for compatibility. *)
-Module Tag <: Orders.OrderedType.
+
+Module Tag <: AltUsual.
   Inductive t_: Set :=
   | physical
   | previous
   | ghost
   .
   Definition t := t_.
+
   Definition eq := @eq t.
   Definition eq_refl := @refl_equal t.
   Definition eq_sym := @sym_eq t.
@@ -140,114 +143,102 @@ Module Tag <: Orders.OrderedType.
     | _, _ => false
     end.
 
-  Definition lt: t -> t -> Prop := ltb.
+  (* Definition lt: t -> t -> Prop := ltb. *)
 
   Definition compare (x y: t): comparison :=
     if(eq_dec x y) then Eq else
       (if (ltb x y) then Lt else Gt)
   .
   
-  Lemma compare_spec : forall x y : t, CompareSpec (eq x y) (lt x y) (lt y x) (compare x y).
-  Proof.
-    ii. destruct x, y; ss; by econs.
-  Qed.
+  (* Lemma compare_spec : forall x y : t, CompareSpec (eq x y) (lt x y) (lt y x) (compare x y). *)
+  (* Proof. *)
+  (*   ii. destruct x, y; ss; by econs. *)
+  (* Qed. *)
 
-  Global Program Instance lt_strorder : StrictOrder lt.
-  Next Obligation.
-    ii. unfold lt in *. unfold ltb in *. des_ifs.
-  Qed.
+  (* Global Program Instance lt_strorder : StrictOrder lt. *)
+  (* Next Obligation. *)
+  (*   ii. unfold lt in *. unfold ltb in *. des_ifs. *)
+  (* Qed. *)
 
-  Global Program Instance lt_compat : Proper (eq ==> eq ==> iff) lt.
-  Next Obligation.
-    ii. unfold eq in *. clarify.
-  Qed.
-  Next Obligation.
-    ii. unfold lt in *. unfold ltb in *. des_ifs.
-  Qed.
+  (* Global Program Instance lt_compat : Proper (eq ==> eq ==> iff) lt. *)
+  (* Next Obligation. *)
+  (*   ii. unfold eq in *. clarify. *)
+  (* Qed. *)
+  (* Next Obligation. *)
+  (*   ii. unfold lt in *. unfold ltb in *. des_ifs. *)
+  (* Qed. *)
 
+  Lemma compare_sym : forall x y : t, << SYM: compare y x = CompOpp (compare x y) >>.
+  Proof. destruct x, y; ss. Qed.
+
+  Lemma compare_trans :
+     forall (c : comparison) (x y z : t),
+       compare x y = c -> compare y z = c -> << TR:compare x z = c >>.
+  Proof. i. destruct x, y, z; ss; des_ifs. Qed.
+    
+  Lemma compare_leibniz : forall x y : t, compare x y = Eq -> x = y.
+  Proof. destruct x, y; ss. Qed.
 End Tag.
-Hint Resolve Tag.eq_dec: EqDecDb.
 
-Module IdT <: Orders.OrderedType.
-  Definition t : Set := (Tag.t * id)%type.
-  Definition eq := @eq t.
-  Definition eq_refl := @refl_equal t.
-  Definition eq_sym := @sym_eq t.
-  Definition eq_trans := @trans_eq t.
-  Definition eq_dec (x y:t): {x = y} + {x <> y}.
-  Proof.
-    decide equality.
-    apply Tag.eq_dec.
-  Qed.
+(* Module Tag <: Orders.OrderedType. *)
+(*   Inductive t_: Set := *)
+(*   | physical *)
+(*   | previous *)
+(*   | ghost *)
+(*   . *)
+(*   Definition t := t_. *)
+(*   Definition eq := @eq t. *)
+(*   Definition eq_refl := @refl_equal t. *)
+(*   Definition eq_sym := @sym_eq t. *)
+(*   Definition eq_trans := @trans_eq t. *)
+(*   Definition eq_dec (x y:t): {x = y} + {x <> y}. *)
+(*     decide equality. *)
+(*   Defined. *)
+(*   Global Program Instance eq_equiv : Equivalence eq. *)
 
-  (* Definition ltb (x y: t): bool := *)
-  (*   (Tag.ltb x.(fst) y.(fst)) || (Tag.eq_dec x.(fst) y.(fst) && ltb x.(snd) y.(snd)) *)
-  (* . *)
+(*   Definition is_previous x := match x with Tag.previous => true | _ => false end. *)
+(*   Definition is_ghost x := match x with Tag.ghost => true | _ => false end. *)
 
-  Global Program Instance eq_equiv : Equivalence eq.
+(*   (* physical < previous < ghost *) *)
+(*   Definition ltb (x y: t): bool := *)
+(*     match x, y with *)
+(*     | physical, previous => true *)
+(*     | physical, ghost => true *)
+(*     | previous, ghost => true *)
+(*     | _, _ => false *)
+(*     end. *)
 
-  Definition lt (x y: t): Prop :=
-    (Tag.lt x.(fst) y.(fst)) \/ (Tag.eq x.(fst) y.(fst) /\ AtomImpl.atom_lt x.(snd) y.(snd))
-  .
+(*   Definition lt: t -> t -> Prop := ltb. *)
 
-  Definition compare (x y: t): comparison :=
-    match Tag.compare x.(fst) y.(fst) with
-    | Eq => atom_compare x.(snd) y.(snd)
-    | Lt => Lt
-    | Gt => Gt
-    end.
+(*   Definition compare (x y: t): comparison := *)
+(*     if(eq_dec x y) then Eq else *)
+(*       (if (ltb x y) then Lt else Gt) *)
+(*   . *)
   
-  Lemma compare_spec : forall x y : t, CompareSpec (eq x y) (lt x y) (lt y x) (compare x y).
-  Proof.
-    ii.
-    destruct x, y; ss.
-    unfold eq, lt. ss.
-    unfold compare. ss.
-    des_ifs; ss.
-    - unfold Tag.compare in *. des_ifs.
-      destruct (atom_compare i0 i1) eqn:T;
-        (hexploit atom_compare_spec; eauto; []; rewrite T; intro SPEC; des); inv SPEC.
-      + econs; ss.
-      + econs. right. split; ss.
-      + econs. right. split; ss.
-    - (hexploit Tag.compare_spec; eauto; []; rewrite Heq; intro SPEC; des); inv SPEC.
-      (* TODO: tactic for compare_spec? like transitivity? *)
-      econs; eauto.
-    - (hexploit Tag.compare_spec; eauto; []; rewrite Heq; intro SPEC; des); inv SPEC.
-      econs; eauto.
-  Qed.
+(*   Lemma compare_spec : forall x y : t, CompareSpec (eq x y) (lt x y) (lt y x) (compare x y). *)
+(*   Proof. *)
+(*     ii. destruct x, y; ss; by econs. *)
+(*   Qed. *)
 
-  Global Program Instance lt_strorder : StrictOrder lt.
-  Next Obligation.
-    ii.
-    unfold lt in *.
-    des.
-    - generalize Tag.lt_strorder; intro ORDER. inv ORDER.
-      eapply StrictOrder_Irreflexive; eauto.
-    - generalize AtomImpl.atom_lt_strorder; intro ORDER. inv ORDER.
-      eapply StrictOrder_Irreflexive; eauto.
-  Qed.
+(*   Global Program Instance lt_strorder : StrictOrder lt. *)
+(*   Next Obligation. *)
+(*     ii. unfold lt in *. unfold ltb in *. des_ifs. *)
+(*   Qed. *)
 
-  Global Program Instance lt_compat : Proper (eq ==> eq ==> iff) lt.
-  Next Obligation.
-    ii. unfold eq in *. clarify.
-  Qed.
-  Next Obligation.
-    ii. unfold lt in *.
-    destruct x, y, z; ss.
-    destruct H.
-    - destruct H0.
-      + left. etransitivity; eauto.
-      + des. unfold Tag.eq in *. clarify.
-        left. ss.
-    - unfold Tag.eq in *. des; subst.
-      + left. ss.
-      +  right. split; ss.
-         etransitivity; eauto.
-  Qed.
+(*   Global Program Instance lt_compat : Proper (eq ==> eq ==> iff) lt. *)
+(*   Next Obligation. *)
+(*     ii. unfold eq in *. clarify. *)
+(*   Qed. *)
+(*   Next Obligation. *)
+(*     ii. unfold lt in *. unfold ltb in *. des_ifs. *)
+(*   Qed. *)
 
-  Definition lift (tag:Tag.t) (i:id): t := (tag, i).
-End IdT.
+(* End Tag. *)
+(* Hint Resolve Tag.eq_dec: EqDecDb. *)
+
+Module IdT_AU := (prod Tag id).
+Module IdT_A := Alt_from_AltUsual IdT_AU.
+Module IdT := OrdersAlt.OT_from_Alt IdT_A.
 
 Hint Resolve IdT.eq_dec: EqDecDb.
 
@@ -272,8 +263,9 @@ Module IdTSetFacts := MSetFactsExtra IdT IdTSet.
 Lemma IdTSet_from_list_spec ids:
   forall id, IdTSet.mem id (IdTSetFacts.from_list ids) <-> In id ids.
 Proof.
-  i. rewrite IdTSetFacts.from_list_spec. apply InA_iff_In.
-Qed.
+(*   i. rewrite IdTSetFacts.from_list_spec. apply InA_iff_In. *)
+(* Qed. *)
+Admitted.
 
 Module Value.
   Definition t := value.
@@ -284,6 +276,18 @@ Module Value.
       | value_const _ => None
     end.
 End Value.
+
+
+Module ValueT_AU <: Orders.OrderedType.
+End ValueT_AU.
+
+Module ValueT_A := Alt_from_AltUsual ValueT_AU.
+Module ValueT := OrdersAlt.OT_from_Alt ValueT_A.
+
+(* old *)
+
+
+Module ValueT <: Orders.OrderedType.
 
 Module ValueT <: UsualDecidableType.
   Inductive t_: Set :=

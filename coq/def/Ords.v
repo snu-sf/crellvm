@@ -532,6 +532,88 @@ End option.
 Module optionFacts (E: AltUsual) := AltUsualFacts E.
 
 
+(* prod *)
+Module prod (E1 E2: AltUsual) <: AltUsual.
+
+  Definition t : Type := E1.t * E2.t.
+
+  Definition compare (x y: t): comparison :=
+    lexico_order [E1.compare (fst x) (fst y) ; E2.compare (snd x) (snd y)].
+
+  Lemma compare_sym
+        x y
+    :
+      <<SYM: compare y x = CompOpp (compare x y)>>
+  .
+  Proof.
+    destruct x as [x1 x2], y as [y1 y2]. unfold compare. red.
+    specialize (E1.compare_sym x1 y1). intro SYM_E1.
+    specialize (E2.compare_sym x2 y2). intro SYM_E2.
+    ss. des_ifs.
+  Qed.
+
+  Lemma leibniz_compare_eq1 x
+    : E1.compare x x = Eq.
+  Proof.
+    specialize (E1.compare_sym x x). i.
+    destruct (E1.compare x x) eqn:COMP; ss.
+  Qed.
+
+  Lemma leibniz_compare_eq2 x
+    : E2.compare x x = Eq.
+  Proof.
+    specialize (E2.compare_sym x x). i.
+    destruct (E2.compare x x) eqn:COMP; ss.
+  Qed.
+
+  Lemma compare_trans: forall
+      c x y z (* for compatibility with Alt *)
+      (XY: compare x y = c)
+      (YZ: compare y z = c)
+    ,
+      <<XZ: compare x z = c>>
+  .
+  Proof.
+    i. destruct x as [x1 x2], y as [y1 y2], z as [z1 z2].
+    unfold compare in *. red.
+    specialize (@E1.compare_trans c x1 y1 z1). intro TR_E1.
+    specialize (@E2.compare_trans c x2 y2 z2). intro TR_E2.
+    ss. des_ifs;
+          try (by exploit TR_E1; eauto);
+          try (by exploit TR_E2; eauto);
+      repeat match goal with
+             | [H: E1.compare ?a ?b = Eq |- _] =>
+               specialize (E1.compare_leibniz H); i; []; subst; clear H
+             | [H: E2.compare ?a ?b = Eq |- _] =>
+               specialize (E2.compare_leibniz H); i; []; subst; clear H
+             | [H: E1.compare ?a ?a = Lt |- _] =>
+               rewrite leibniz_compare_eq1 in H
+             | [H: E1.compare ?a ?a = Gt |- _] =>
+               rewrite leibniz_compare_eq1 in H
+             | [H: E2.compare ?a ?a = Lt |- _] =>
+               rewrite leibniz_compare_eq2 in H
+             | [H: E2.compare ?a ?a = Gt |- _] =>
+               rewrite leibniz_compare_eq2 in H
+      end; try congruence.
+  Qed.      
+
+  Lemma compare_leibniz: forall
+      x y
+      (EQ: compare x y = Eq)
+    ,
+      x = y
+  .
+  Proof.
+    destruct x, y; ss. unfold compare. i. ss. des_ifs.
+    f_equal.
+    - apply E1.compare_leibniz; ss.
+    - apply E2.compare_leibniz; ss.
+  Qed.
+
+End prod.
+
+(* Module prodFacts (E1 E2: AltUsual) := AltUsualFacts E1 E2. *)
+
 
 
 
@@ -910,6 +992,7 @@ Module typ <: AltUsual.
 
 End typ.
 
+Module typFacts := AltUsualFacts typ.
 
 Module Float <: AltUsual.
 
@@ -947,6 +1030,390 @@ Module Float <: AltUsual.
   Proof. apply FLOAT.compare_trans; eauto. Qed.
  
 End Float.
+Module FloatFacts := AltUsualFacts Float.
+
+
+Module id <: AltUsual.
+  Definition t := id.
+
+  Definition compare : t -> t -> comparison :=
+    MetatheoryAtom.AtomImpl.atom_compare.
+
+  Lemma strictorder_not_reflexive
+        A R (SO:StrictOrder R)
+    : <<NOT_REFL: forall x:A, ~ R x x>>.
+  Proof.
+    ii. destruct SO.
+    unfold Irreflexive, Reflexive, complement in *; eauto.
+  Qed.
+
+  Lemma compare_sym
+        x y
+    : <<SYM: compare y x = CompOpp (compare x y)>>.
+  Proof.
+    hexploit strictorder_not_reflexive.
+    { apply MetatheoryAtom.AtomImpl.atom_lt_strorder. }
+    intro NREFL.
+
+    hexploit (@StrictOrder_Asymmetric).
+    { apply MetatheoryAtom.AtomImpl.atom_lt_strorder. }
+    intro ASYM.
+
+    unfold compare.
+    destruct (MetatheoryAtom.AtomImpl.atom_compare_spec x y);
+      destruct (MetatheoryAtom.AtomImpl.atom_compare_spec y x); eauto;
+        subst;
+        try (by exploit NREFL; eauto; i; contradiction);
+        try (by exploit ASYM; eauto; i; contradiction).
+  Qed.
+
+  Lemma compare_trans
+        c x y z
+        (XY: compare x y = c)
+        (YZ: compare y z = c)
+    : <<XZ: compare x z = c>>.
+  Proof.
+  Admitted.
+
+  Lemma compare_leibniz
+        x y
+        (EQ: compare x y = Eq)
+    : x = y.
+  Proof.
+  Admitted.
+End id.
+Module idFacts := AltUsualFacts id.
+
+
+Module truncop <: AltUsual.
+  Definition t := truncop.
+
+  Definition case_order (x:t):nat :=
+    match x with
+    | truncop_int => 0
+    | truncop_fp => 1
+    end.
+
+  Definition compare (x y:t) :=
+    Nat.compare (case_order x) (case_order y).
+
+    Lemma compare_sym
+        x y
+    : <<SYM: compare y x = CompOpp (compare x y)>>.
+  Proof.
+  Admitted.
+
+  Lemma compare_trans
+        c x y z
+        (XY: compare x y = c)
+        (YZ: compare y z = c)
+    : <<XZ: compare x z = c>>.
+  Proof.
+  Admitted.
+
+  Lemma compare_leibniz
+        x y
+        (EQ: compare x y = Eq)
+    : x = y.
+  Proof.
+  Admitted.
+End truncop.
+Module truncopFacts := AltUsualFacts truncop.
+
+
+Module castop <: AltUsual.
+  Definition t := castop.
+
+  Definition case_order (x:t):nat :=
+    match x with
+    | castop_fptoui => 0
+    | castop_fptosi => 1
+    | castop_uitofp => 2
+    | castop_sitofp => 3
+    | castop_ptrtoint => 4
+    | castop_inttoptr => 5
+    | castop_bitcast => 6
+    end.
+
+  Definition compare (x y:t) :=
+    Nat.compare (case_order x) (case_order y).
+
+  Lemma compare_sym
+        x y
+    : <<SYM: compare y x = CompOpp (compare x y)>>.
+  Proof.
+  Admitted.
+
+  Lemma compare_trans
+        c x y z
+        (XY: compare x y = c)
+        (YZ: compare y z = c)
+    : <<XZ: compare x z = c>>.
+  Proof.
+  Admitted.
+
+  Lemma compare_leibniz
+        x y
+        (EQ: compare x y = Eq)
+    : x = y.
+  Proof.
+  Admitted.
+End castop.
+Module castopFacts := AltUsualFacts castop.
+
+
+Module extop <: AltUsual.
+  Definition t := extop.
+
+  Definition case_order (x:t):nat :=
+    match x with
+    | extop_z => 0
+    | extop_s => 1
+    | extop_fp => 2
+    end.
+
+  Definition compare (x y:t) :=
+    Nat.compare (case_order x) (case_order y).
+
+    Lemma compare_sym
+        x y
+    : <<SYM: compare y x = CompOpp (compare x y)>>.
+  Proof.
+  Admitted.
+
+  Lemma compare_trans
+        c x y z
+        (XY: compare x y = c)
+        (YZ: compare y z = c)
+    : <<XZ: compare x z = c>>.
+  Proof.
+  Admitted.
+
+  Lemma compare_leibniz
+        x y
+        (EQ: compare x y = Eq)
+    : x = y.
+  Proof.
+  Admitted.
+End extop.
+Module extopFacts := AltUsualFacts extop.
+
+
+Module bool <: AltUsual.
+  Definition t := bool.
+
+  Definition case_order (x:t):nat :=
+    match x with
+    | true => 0
+    | false => 1
+    end.
+
+  Definition compare (x y:t) :=
+    Nat.compare (case_order x) (case_order y).
+
+    Lemma compare_sym
+        x y
+    : <<SYM: compare y x = CompOpp (compare x y)>>.
+  Proof.
+  Admitted.
+
+  Lemma compare_trans
+        c x y z
+        (XY: compare x y = c)
+        (YZ: compare y z = c)
+    : <<XZ: compare x z = c>>.
+  Proof.
+  Admitted.
+
+  Lemma compare_leibniz
+        x y
+        (EQ: compare x y = Eq)
+    : x = y.
+  Proof.
+  Admitted.
+End bool.
+Module boolFacts := AltUsualFacts bool.
+
+
+Module cond <: AltUsual.
+  Definition t := cond.
+
+  Definition case_order (x:t):nat :=
+    match x with
+    | cond_eq => 0
+    | cond_ne => 1
+    | cond_ugt => 2
+    | cond_uge => 3
+    | cond_ult => 4
+    | cond_ule => 5
+    | cond_sgt => 6
+    | cond_sge => 7
+    | cond_slt => 8
+    | cond_sle => 9
+    end.
+
+  Definition compare (x y:t) :=
+    Nat.compare (case_order x) (case_order y).
+
+    Lemma compare_sym
+        x y
+    : <<SYM: compare y x = CompOpp (compare x y)>>.
+  Proof.
+  Admitted.
+
+  Lemma compare_trans
+        c x y z
+        (XY: compare x y = c)
+        (YZ: compare y z = c)
+    : <<XZ: compare x z = c>>.
+  Proof.
+  Admitted.
+
+  Lemma compare_leibniz
+        x y
+        (EQ: compare x y = Eq)
+    : x = y.
+  Proof.
+  Admitted.
+End cond.
+Module condFacts := AltUsualFacts cond.
+
+
+Module fcond <: AltUsual.
+  Definition t := fcond.
+
+  Definition case_order (x:t):nat :=
+    match x with
+    | fcond_false => 0
+    | fcond_oeq => 1
+    | fcond_ogt => 2
+    | fcond_oge => 3
+    | fcond_olt => 4
+    | fcond_ole => 5
+    | fcond_one => 6
+    | fcond_ord => 7
+    | fcond_ueq => 8
+    | fcond_ugt => 9
+    | fcond_uge => 10
+    | fcond_ult => 11
+    | fcond_ule => 12
+    | fcond_une => 13
+    | fcond_uno => 14
+    | fcond_true => 15
+    end.
+
+  Definition compare (x y:t) :=
+    Nat.compare (case_order x) (case_order y).
+
+    Lemma compare_sym
+        x y
+    : <<SYM: compare y x = CompOpp (compare x y)>>.
+  Proof.
+  Admitted.
+
+  Lemma compare_trans
+        c x y z
+        (XY: compare x y = c)
+        (YZ: compare y z = c)
+    : <<XZ: compare x z = c>>.
+  Proof.
+  Admitted.
+
+  Lemma compare_leibniz
+        x y
+        (EQ: compare x y = Eq)
+    : x = y.
+  Proof.
+  Admitted.
+End fcond.
+Module fcondFacts := AltUsualFacts fcond.
+
+
+Module bop <: AltUsual.
+  Definition t := bop.
+
+  Definition case_order (x:t):nat :=
+    match x with
+    | bop_add => 0
+    | bop_sub => 1
+    | bop_mul => 2
+    | bop_udiv => 3
+    | bop_sdiv => 4
+    | bop_urem => 5
+    | bop_srem => 6
+    | bop_shl => 7
+    | bop_lshr => 8
+    | bop_ashr => 9
+    | bop_and => 10
+    | bop_or => 11
+    | bop_xor => 12
+    end.
+
+  Definition compare (x y:t) :=
+    Nat.compare (case_order x) (case_order y).
+
+  Lemma compare_sym
+        x y
+    : <<SYM: compare y x = CompOpp (compare x y)>>.
+  Proof.
+  Admitted.
+
+  Lemma compare_trans
+        c x y z
+        (XY: compare x y = c)
+        (YZ: compare y z = c)
+    : <<XZ: compare x z = c>>.
+  Proof.
+  Admitted.
+
+  Lemma compare_leibniz
+        x y
+        (EQ: compare x y = Eq)
+    : x = y.
+  Proof.
+  Admitted.
+End bop.
+Module bopFacts := AltUsualFacts bop.
+
+
+Module fbop <: AltUsual.
+  Definition t := fbop.
+
+  Definition case_order (x:t):nat :=
+    match x with
+    | fbop_fadd => 0
+    | fbop_fsub => 1
+    | fbop_fmul => 2
+    | fbop_fdiv => 3
+    | fbop_frem => 4
+    end.
+
+  Definition compare (x y:t) :=
+    Nat.compare (case_order x) (case_order y).
+
+  Lemma compare_sym
+        x y
+    : <<SYM: compare y x = CompOpp (compare x y)>>.
+  Proof.
+  Admitted.
+
+  Lemma compare_trans
+        c x y z
+        (XY: compare x y = c)
+        (YZ: compare y z = c)
+    : <<XZ: compare x z = c>>.
+  Proof.
+  Admitted.
+
+  Lemma compare_leibniz
+        x y
+        (EQ: compare x y = Eq)
+    : x = y.
+  Proof.
+  Admitted.
+End fbop.
+Module fbopFacts := AltUsualFacts fbop.
+
 
 Module const <: AltUsual.
 
@@ -982,477 +1449,60 @@ Module const <: AltUsual.
       lexico_order [Nat.compare sz0 sz1 ; Z.compare i0 i1]
     | const_floatpoint fp0 f0, const_floatpoint fp1 f1 =>
       lexico_order [floating_point.compare fp0 fp1 ; Float.compare f0 f1]
-    | const_undef ty0, const_undef ty1 => 3
-    | const_null ty0, const_null ty1 => 4
-    | const_arr ty0 cs0, const_arr ty1 cs1 => 5
-    | const_struct ty0 cs0, const_struct ty1 cs1 => 6
-    | const_gid ty0 i0, const_gid ty1 i1 => 7
-    | const_truncop trop0 c0 ty0, const_truncop trop1 c1 ty1 => 8
-    | const_extop extop0 c0 ty0, const_extop extop1 c1 ty1 => 9
-    | const_castop csop0 c0 ty0, const_castop csop1 c1 ty1 => 10
-    | const_gep inb0 c0 cs0, const_gep inb1 c1 cs1 => 11
-    | const_select cx0 cy0 cz0, const_select cx1 cy1 cz1 => 12
-    | const_icmp cx0 cy0 cz0, const_icmp cx1 cy1 cz1 => 13
-    | const_fcmp fc0 cx0 cy0, const_fcmp fc1 cx1 cy1 => 14
-    | const_extractvalue c0 cs0, const_extractvalue c1 cs1 => 15
-    | const_insertvalue cx0 cy0 cs0, const_insertvalue cx1 cy1 cs1 => 16
-    | const_bop bop0 cx0 cy0, const_bop bop1 cx1 cy1 => 17
-    | const_fbop fbop0 cx0 cy0, const_fbop fbop1 cx1 cy1 => 18
-
+    | const_undef ty0, const_undef ty1 => typ.compare ty0 ty1
+    | const_null ty0, const_null ty1 => typ.compare ty0 ty1
+    | const_arr ty0 cs0, const_arr ty1 cs1 =>
+      lexico_order [typ.compare ty0 ty1 ; compare_list compare cs0 cs1]
+    | const_struct ty0 cs0, const_struct ty1 cs1 =>
+      lexico_order [typ.compare ty0 ty1 ; compare_list compare cs0 cs1]
+    | const_gid ty0 i0, const_gid ty1 i1 =>
+      lexico_order [typ.compare ty0 ty1 ; id.compare i0 i1]
+    | const_truncop trop0 c0 ty0, const_truncop trop1 c1 ty1 =>
+      lexico_order [truncop.compare trop0 trop1 ; compare c0 c1 ; typ.compare ty0 ty1]
+    | const_extop extop0 c0 ty0, const_extop extop1 c1 ty1 =>
+      lexico_order [extop.compare extop0 extop1 ; compare c0 c1 ; typ.compare ty0 ty1]
+    | const_castop csop0 c0 ty0, const_castop csop1 c1 ty1 =>
+      lexico_order [castop.compare csop0 csop1 ; compare c0 c1 ; typ.compare ty0 ty1]
+    | const_gep inb0 c0 cs0, const_gep inb1 c1 cs1 =>
+      lexico_order [bool.compare  inb0 inb1 ; compare c0 c1 ; compare_list compare cs0 cs1]
+    | const_select cx0 cy0 cz0, const_select cx1 cy1 cz1 =>
+      lexico_order [compare cx0 cx1 ; compare cy0 cy1 ; compare cz0 cz1]
+    | const_icmp cx0 cy0 cz0, const_icmp cx1 cy1 cz1 =>
+      lexico_order [cond.compare cx0 cx1 ; compare cy0 cy1 ; compare cz0 cz1]
+    | const_fcmp fc0 cx0 cy0, const_fcmp fc1 cx1 cy1 =>
+      lexico_order [fcond.compare fc0 fc1; compare cx0 cx1 ; compare cy0 cy1]
+    | const_extractvalue c0 cs0, const_extractvalue c1 cs1 =>
+      lexico_order [compare c0 c1 ; compare_list compare cs0 cs1]
+    | const_insertvalue cx0 cy0 cs0, const_insertvalue cx1 cy1 cs1 =>
+      lexico_order [compare cx0 cx1 ; compare cy0 cy1 ; compare_list compare cs0 cs1]
+    | const_bop bop0 cx0 cy0, const_bop bop1 cx1 cy1 =>
+      lexico_order [bop.compare bop0 bop1; compare cx0 cx1 ; compare cy0 cy1]
+    | const_fbop fbop0 cx0 cy0, const_fbop fbop1 cx1 cy1 =>
+      lexico_order [fbop.compare fbop0 fbop1; compare cx0 cx1 ; compare cy0 cy1]
     | _, _ => Nat.compare (case_order x) (case_order y)
     end
   .
+
+  Lemma compare_sym
+        x y
+    : <<SYM: compare y x = CompOpp (compare x y)>>.
+  Proof.
+  Admitted.
+
+  Lemma compare_trans
+        c x y z
+        (XY: compare x y = c)
+        (YZ: compare y z = c)
+    : <<XZ: compare x z = c>>.
+  Proof.
+  Admitted.
+
+  Lemma compare_leibniz
+        x y
+        (EQ: compare x y = Eq)
+    : x = y.
+  Proof.
+  Admitted.
 
 End const.
-
-  Definition t := typ.
-
-  Definition eq := @eq t.
-  Global Program Instance eq_equiv : Equivalence eq.
-
-  Fail Fixpoint compare_list (a0 b0: list t): comparison :=
-    match a0, b0 with
-    | a :: a1, b :: b1 => lexico_order [(compare a b) ; (compare_list a1 b1)]
-    | [], [] => Eq
-    | [], _ => Lt
-    | _, [] => Gt
-    end
-    (* lexico_order (map2 compare x y) *)
-
-  with compare (x y: t): comparison :=
-    match x, y with
-    | typ_int sz0, typ_int sz1 => Nat.compare sz0 sz1
-    | typ_floatpoint fp0, typ_floatpoint fp1 => (floating_point.compare fp0 fp1)
-    | typ_void, typ_void => Eq
-    | typ_label, typ_label => Eq
-    | typ_metadata, typ_metadata => Eq
-    | typ_array sz0 ty0, typ_array sz1 ty1 =>
-      Eq
-      (* lexico_order [Nat.compare sz0 sz1; compare ty0 ty1] *)
-    | typ_function ty0 tys0 arg0, typ_function ty1 tys1 arg1 =>
-      (* Not in definition's order, but "singleton first, list later" *)
-      (* This is because I don't want to use "++" *)
-      (* lexico_order ((varg.compare arg0 arg1) *)
-      (*                 :: (compare ty0 ty1) :: (map2 compare tys0 tys1)) *)
-      Eq
-    | typ_struct tys0, typ_struct tys1 =>
-      compare_list tys0 tys1
-    | typ_pointer ty0, typ_pointer ty1 =>
-      compare ty0 ty1
-    | typ_namedt id0, typ_namedt id1 => Eq
-
-    | _, _ => Eq
-    end
-  .
-
-  Fixpoint compare_list (compare: t -> t -> comparison ) (a0 b0: list t): comparison :=
-    match a0, b0 with
-    | a :: a1, b :: b1 => lexico_order [(compare a b) ; (compare_list compare a1 b1)]
-    | [], [] => Eq
-    | [], _ => Lt
-    | _, [] => Gt
-    end
-  .
-
-  Fail Fixpoint compare (x y: t): comparison :=
-    match x, y with
-    | typ_int sz0, typ_int sz1 => Nat.compare sz0 sz1
-    | typ_floatpoint fp0, typ_floatpoint fp1 => (floating_point.compare fp0 fp1)
-    | typ_void, typ_void => Eq
-    | typ_label, typ_label => Eq
-    | typ_metadata, typ_metadata => Eq
-    | typ_array sz0 ty0, typ_array sz1 ty1 =>
-      Eq
-      (* lexico_order [Nat.compare sz0 sz1; compare ty0 ty1] *)
-    | typ_function ty0 tys0 arg0, typ_function ty1 tys1 arg1 =>
-      (* Not in definition's order, but "singleton first, list later" *)
-      (* This is because I don't want to use "++" *)
-      (* lexico_order ((varg.compare arg0 arg1) *)
-      (*                 :: (compare ty0 ty1) :: (map2 compare tys0 tys1)) *)
-      Eq
-    | typ_struct tys0, typ_struct tys1 =>
-      compare_list compare tys0 tys1
-    | typ_pointer ty0, typ_pointer ty1 =>
-      compare ty0 ty1
-    | typ_namedt id0, typ_namedt id1 => Eq
-
-    | _, _ => Eq
-    end
-  .
-  Reset compare_list.
-
-  (******* WHY????????? I tried exactly like Vellvm. What is the difference? *)
-
-  Fixpoint wf_order (x: t): nat :=
-    match x with
-    | typ_int _ => 0%nat
-    | typ_floatpoint _ => 0%nat
-    | typ_void => 0%nat
-    | typ_label => 0%nat
-    | typ_metadata => 0%nat
-    | typ_array _ ty0 => 1 + (wf_order ty0) + 1
-    | typ_function ty0 tys0 _ => (1 + (wf_order ty0) + 1 + length tys0)%nat
-    | typ_struct tys0 => length tys0
-    | typ_pointer ty0 => 1 + (wf_order ty0) + 1
-    | typ_namedt _ => 0%nat
-    end
-  .
-
-  Program Fixpoint compare (x y: t) {measure (wf_order x)}: comparison :=
-    match x, y with
-    | typ_int sz0, typ_int sz1 => Nat.compare sz0 sz1
-    | typ_floatpoint fp0, typ_floatpoint fp1 => (floating_point.compare fp0 fp1)
-    | typ_void, typ_void => Eq
-    | typ_label, typ_label => Eq
-    | typ_metadata, typ_metadata => Eq
-    | typ_array sz0 ty0, typ_array sz1 ty1 =>
-      Eq
-    (* lexico_order [Nat.compare sz0 sz1; compare ty0 ty1] *)
-    | typ_function ty0 tys0 arg0, typ_function ty1 tys1 arg1 =>
-      (* Not in definition's order, but "singleton first, list later" *)
-      (* This is because I don't want to use "++" *)
-      (* lexico_order ((varg.compare arg0 arg1) *)
-      (*                 :: (compare ty0 ty1) :: (map2 compare tys0 tys1)) *)
-      Eq
-    | typ_struct tys0, typ_struct tys1 =>
-      Eq
-    | typ_pointer ty0, typ_pointer ty1 =>
-      compare ty0 ty1
-    | typ_namedt id0, typ_namedt id1 => Eq
-
-    | _, _ => Eq
-    end
-  .
-  Reset compare. (* 92 oblications.... *) (* I want to use "all:" here... *)
-
-
-  Program Fixpoint compare (x y: t) {measure (wf_order x)}: comparison :=
-    match x, y with
-    | typ_int sz0, typ_int sz1 => Nat.compare sz0 sz1
-    | _, _ => Eq
-    end
-  .
-  Print compare_func.
-  Reset compare. (* Anyway, we cannot do reasoning on this *)
-
-
-  Fail Function compare (x y: t) {measure (wf_order x)}: comparison :=
-    match x, y with
-    | _, _ => Eq
-    end
-  .
-  (* Why error???????? *)
-  Reset wf_order.
-
-
-
-
-
-
-  Fixpoint compare_list_failing (compare: t -> t -> comparison) (a0 b0: list t): comparison :=
-    match a0, b0 with
-    | _, _ => Eq
-    end
-  .
-
-  Fail Fixpoint compare (x y: t): comparison :=
-    match x, y with
-    | typ_struct tys0, typ_struct tys1 =>
-      compare_list_failing compare tys0 tys1
-    | _, _ => Eq
-    end
-  .
-
-  Definition compare_list (compare: t -> t -> comparison) :=
-    fix compare_list_ (a0 b0: list t): comparison :=
-    match a0, b0 with
-    | _, _ => Eq
-    end
-  .
-
-  Fixpoint compare (x y: t): comparison :=
-    match x, y with
-    | typ_struct tys0, typ_struct tys1 =>
-      compare_list compare tys0 tys1
-    | _, _ => Eq
-    end
-  .
-
-  Reset compare_list_failing.
-
-  Definition case_order (x: t): nat :=
-    match x with
-    | typ_int _ => 0
-    | typ_floatpoint _ => 1
-    | typ_void => 2
-    | typ_label => 3
-    | typ_metadata => 4
-    | typ_array _ _ => 5
-    | typ_function _ _ _ => 6
-    | typ_struct _ => 7
-    | typ_pointer _ => 8
-    | typ_namedt _ => 9
-    end
-  .
-
-  Fixpoint compare (x y: t): comparison :=
-    match x, y with
-    | typ_int sz0, typ_int sz1 => Nat.compare sz0 sz1
-    | typ_floatpoint fp0, typ_floatpoint fp1 => (floating_point.compare fp0 fp1)
-    | typ_void, typ_void => Eq
-    | typ_label, typ_label => Eq
-    | typ_metadata, typ_metadata => Eq
-    | typ_array sz0 ty0, typ_array sz1 ty1 =>
-      lexico_order [Nat.compare sz0 sz1; compare ty0 ty1]
-    | typ_function ty0 tys0 arg0, typ_function ty1 tys1 arg1 =>
-      lexico_order
-        [(compare ty0 ty1) ; (compare_list compare tys0 tys1) ; (varg.compare arg0 arg1)]
-    | typ_struct tys0, typ_struct tys1 =>
-      compare_list compare tys0 tys1
-    | typ_pointer ty0, typ_pointer ty1 =>
-      compare ty0 ty1
-    | typ_namedt id0, typ_namedt id1 => Eq
-
-    | _, _ => Nat.compare (case_order x) (case_order y)
-    end
-  .
-
-  Definition lt (x y: t): Prop := compare x y = Lt.
-
-  Ltac nat_compare_tac :=
-    repeat
-      match goal with
-      | [H: Nat.compare ?a ?b = Eq |- _ ] => rewrite Nat.compare_eq_iff in H
-      | [H: Nat.compare ?a ?b = Lt |- _ ] => rewrite Nat.compare_lt_iff in H
-      | [H: Nat.compare ?a ?b = Gt |- _ ] => rewrite Nat.compare_gt_iff in H
-      | [ |- Nat.compare ?a ?b = Eq ] => rewrite Nat.compare_eq_iff
-      | [ |- Nat.compare ?a ?b = Lt ] => rewrite Nat.compare_lt_iff
-      | [ |- Nat.compare ?a ?b = Gt ] => rewrite Nat.compare_gt_iff
-      end
-  .
-
-  Ltac elim_compare :=
-    match goal with
-    | [ |- CompareSpec _ _ _ ?x ] => destruct x eqn:T; try econs; ss
-    end
-  .
-
-  Lemma typ_ind_gen2: forall P : typ -> typ -> Prop,
-      (forall X sz5, P (typ_int sz5) X /\ P X (typ_int sz5)) ->
-      (forall X floating_point5,
-          P (typ_floatpoint floating_point5) X /\ P X (typ_floatpoint floating_point5)) ->
-      (forall X, P typ_void X /\ P X typ_void) ->
-      (forall X, P typ_label X /\ P X typ_label) ->
-      (forall X, P typ_metadata X /\ P X typ_metadata) ->
-      (forall X (sz5 : sz) (typ5 : typ),
-          P typ5 X /\ P X typ5 -> P (typ_array sz5 typ5) X /\ P X (typ_array sz5 typ5)) ->
-      (forall X typ_5,
-          P typ_5 X /\ P X typ_5->
-          forall l varg5,
-            P (typ_function typ_5 l varg5) X /\ P X (typ_function typ_5 l varg5)) ->
-      (* (forall typ_5 : typ, *)
-      (*     P typ_5 -> *)
-      (*     forall (l : list typ) (varg5 : varg) (IH: Forall P l), P (typ_function typ_5 l varg5)) -> *)
-      (* (forall (l : list typ) (IH: Forall P l), P (typ_struct l)) -> *)
-      (* (forall typ5 : typ, P typ5 -> P (typ_pointer typ5)) -> *)
-      (* (forall id5 : id, P (typ_namedt id5)) -> *)
-      forall t0 t1 : typ, P t0 t1.
-  Proof.
-    intros; revert t0; revert t1; fix IH 1.
-    intros; destruct t0; try (by clear IH; eauto).
-    Guarded.
-    - clear IH. expl H. eauto.
-    - clear IH. expl H0. eauto.
-    - clear IH. expl H1. eauto.
-    - clear IH. expl H2. eauto.
-    - clear IH. expl H3. eauto.
-    - hexploit H4.
-      { instantiate (1:= t0). instantiate (1:= t1). split; ss. }
-      clear IH. Guarded.
-      i; des. eauto.
-  Abort.
-
-  Lemma compare_spec : forall x y : t, CompareSpec (eq x y) (lt x y) (lt y x) (compare x y).
-  Proof.
-    ii.
-    revert y.
-    induction x using typ_ind_gen; ii; ss; destruct y; ss; try by econs.
-    - Fail NatTacs.elim_compare sz5 sz0. (* TODO: WHY??? Because it is tactic notation?? *)
-      destruct (Nat.compare sz5 sz0) eqn:T; ss; try (by econs; ss).
-      + Fail NatCompare.compare_tac. (* TODO: WHY??????? *)
-        nat_compare_tac. Undo 1.
-        unfold Nat.compare in *.
-        Fail NatCompare.compare_tac. (* TODO: WHY??????? *)
-        Fail progress nat_compare_tac.
-        Undo 4.
-        nat_compare_tac. clarify. econs; eauto. ss.
-      + econs; ss. unfold lt. ss. nat_compare_tac. ss.
-    -  elim_compare.
-       + compute in T. des_ifs.
-       + apply floating_pointFacts.compare_gt_iff in T.
-         compute in T. des_ifs.
-    - assert(SPEC:= (IHx y)).
-      des_ifs; try nat_compare_tac; subst; econs.
-      + inv SPEC.
-        unfold eq in *. clarify.
-      + inv SPEC.
-        unfold lt. ss. des_ifs. nat_compare_tac. omega.
-      + inv SPEC.
-        unfold lt. ss. des_ifs.
-        * Abort.
-
-  Ltac fp_compare_tac :=
-    repeat
-      match goal with
-      | [H: floating_point.compare ?a ?b = Eq |- _ ] =>
-        rewrite floating_pointFacts.compare_eq_iff in H
-      | [H: floating_point.compare ?a ?b = Lt |- _ ] =>
-        rewrite floating_pointFacts.compare_lt_iff in H
-      | [H: floating_point.compare ?a ?b = Gt |- _ ] =>
-        rewrite floating_pointFacts.compare_gt_iff in H
-      | [ |- floating_point.compare ?a ?b = Eq ] =>
-        rewrite floating_pointFacts.compare_eq_iff
-      | [ |- floating_point.compare ?a ?b = Lt ] =>
-        rewrite floating_pointFacts.compare_lt_iff
-      | [ |- floating_point.compare ?a ?b = Gt ] =>
-        rewrite floating_pointFacts.compare_gt_iff
-      end
-  .
-
-  Ltac varg_compare_tac :=
-    repeat
-      match goal with
-      | [H: varg.compare ?a ?b = Eq |- _ ] =>
-        rewrite vargFacts.compare_eq_iff in H
-      | [H: varg.compare ?a ?b = Lt |- _ ] =>
-        rewrite vargFacts.compare_lt_iff in H
-      | [H: varg.compare ?a ?b = Gt |- _ ] =>
-        rewrite vargFacts.compare_gt_iff in H
-      | [ |- varg.compare ?a ?b = Eq ] =>
-        rewrite vargFacts.compare_eq_iff
-      | [ |- varg.compare ?a ?b = Lt ] =>
-        rewrite vargFacts.compare_lt_iff
-      | [ |- varg.compare ?a ?b = Gt ] =>
-        rewrite vargFacts.compare_gt_iff
-      end
-  .
-
-
-  Global Program Instance lt_strorder : StrictOrder lt.
-  Next Obligation.
-    ii. unfold lt in *.
-    revert H.
-    induction x using typ_ind_gen; ii; ss;
-      fp_compare_tac;
-      unfold floating_point.ltb in *;
-      nat_compare_tac;
-      try omega.
-    - destruct floating_point5; ss.
-    - des_ifs; nat_compare_tac; subst; ss. omega.
-    - des_ifs; varg_compare_tac; subst; ss.
-      + clear - Heq1. unfold varg.compare in *.
-        rewrite vargFacts.compare_lt_iff in Heq1.
-        Undo 2.
-        unfold varg.compare in *. des_ifs.
-        Fail progress nat_compare_tac.
-        rewrite Nat.compare_lt_iff in *. omega.
-      + clear - Heq0 IH.
-        ginduction l0; ii; ss.
-        inv IH.
-        des_ifs.
-        apply IHl0; ss.
-    - ginduction l0; ii; ss.
-      inv IH.
-      des_ifs.
-      apply IHl0; eauto.
-  Qed.
-
-  Global Program Instance lt_compat : Proper (eq ==> eq ==> iff) lt.
-  Next Obligation.
-    ii. unfold eq in *. clarify.
-  Qed.
-  Next Obligation.
-    ii. unfold lt in *.
-    revert_until x.
-    induction x using typ_ind_gen; ii; ss; destruct y, z; ss; nat_compare_tac.
-    - omega.
-    - fp_compare_tac.
-      destruct floating_point0, floating_point1, floating_point5; ss.
-    - des_ifs; nat_compare_tac; subst; ss; try omega; clear_tac.
-      + expl IHx. eq_closure_tac. ss.
-      + expl IHx. eq_closure_tac. ss.
-    - des_ifs; nat_compare_tac; varg_compare_tac; subst; ss; try omega; clear_tac.
-  Abort.
-
-
-  Lemma compare_spec_aux x y:
-    (CompareSpec (eq x y) (lt x y) (lt y x) (compare x y)) /\
-    (CompareSpec (eq y x) (lt y x) (lt x y) (compare y x))
-  .
-  Proof.
-    ii.
-    revert y.
-    induction x using typ_ind_gen; ii; ss; destruct y; ss; try by (split; ss; econs).
-    - split; ss.
-      + elim_compare; nat_compare_tac; subst; ss.
-        unfold lt. unfold compare. nat_compare_tac. ss.
-      + elim_compare; nat_compare_tac; subst; ss.
-        unfold lt. unfold compare. nat_compare_tac. ss.
-    - split; ss.
-      + elim_compare; fp_compare_tac; subst; ss.
-        unfold lt. unfold compare. fp_compare_tac. ss.
-      + elim_compare; fp_compare_tac; subst; ss.
-        unfold lt. unfold compare. fp_compare_tac. ss.
-    - assert(SPEC:= (IHx y)). des.
-      split; ss.
-      + destruct (sz5 ?= sz0) eqn: COMP0; ss; try nat_compare_tac; subst; try econs.
-        * inv SPEC; econs.
-          { unfold eq in *. clarify. }
-          { unfold lt. ss. des_ifs. nat_compare_tac. omega. }
-          { unfold lt. ss.
-            des_ifs; ss; [| |].
-            { inv SPEC0; ss; unfold eq in *; clarify.
-              eq_closure_tac. ss. }
-            { unfold lt in *. eq_closure_tac. ss. }
-            { nat_compare_tac. omega. } }
-        * unfold lt. ss.
-          des_ifs; nat_compare_tac; try omega.
-        * unfold lt. ss.
-          des_ifs; nat_compare_tac; try omega.
-      + destruct (sz0 ?= sz5) eqn: COMP0; ss; try nat_compare_tac; subst; try econs.
-        * inv SPEC0; econs.
-          { unfold eq in *. clarify. }
-          { unfold lt. ss. des_ifs. nat_compare_tac. omega. }
-          { unfold lt. ss.
-            des_ifs; ss; [| |].
-            { inv SPEC; ss; unfold eq in *; clarify.
-              eq_closure_tac. ss. }
-            { unfold lt in *. eq_closure_tac. ss. }
-            { nat_compare_tac. omega. } }
-        * unfold lt. ss.
-          des_ifs; nat_compare_tac; try omega.
-        * unfold lt. ss.
-          des_ifs; nat_compare_tac; try omega.
-    - split; ss.
-      + elim_compare.
-        * des_ifs. compute.
-          assert(SPEC:= (IHx y)). des.
-          rewrite Heq in *. inv SPEC; ss.
-          varg_compare_tac. subst.
-          unfold eq in *. subst. clear_tac.
-          f_equal; ss.
-          clear - Heq0 IH IHx.
-          ginduction l0; ii; ss.
-          { des_ifs. }
-          { des_ifs. clear_tac.
-            inv IH.
-            f_equal.
-            - specialize (H1 t0). des. rewrite Heq in *. inv H1. ss.
-            - eapply IHl0; ss.
-          }
-        *
-  Qed.
-
-
-End typ.
-
+Module constFacts := AltUsualFacts const.
