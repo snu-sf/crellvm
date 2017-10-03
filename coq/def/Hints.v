@@ -150,7 +150,7 @@ Module Invariant.
     end.
 
   Definition diffblock_by_unique (inv0:unary) (v1 v2:ValueT.t): bool :=
-    (negb (ValueT.eq_dec v1 v2)) &&
+    (negb (ValueTFacts.eq_dec_l v1 v2)) &&
     ((is_unique_value inv0 v1 && values_diffblock_from_unique v2) ||
      (is_unique_value inv0 v2 && values_diffblock_from_unique v1)).
 
@@ -172,7 +172,7 @@ Module Invariant.
 
   Definition implies_lessdef (inv0 inv:ExprPairSet.t): bool :=
     flip ExprPairSet.for_all inv
-         (fun p => flip ExprPairSet.exists_ inv0 (ExprPair.eq_dec p))
+         (fun p => flip ExprPairSet.exists_ inv0 (ExprPairFacts.eq_dec_l p))
   .
 
   Definition implies_unary (inv0 inv:unary): bool :=
@@ -194,15 +194,15 @@ Module Invariant.
     flip PtrPairSet.exists_
          inv.(alias).(noalias)
       (fun pp =>
-           (Ptr.eq_dec p1 pp.(fst) && Ptr.eq_dec p2 pp.(snd)) ||
-           (Ptr.eq_dec p1 pp.(snd) && Ptr.eq_dec p2 pp.(fst))).
+           (PtrFacts.eq_dec_l p1 pp.(fst) && PtrFacts.eq_dec_l p2 pp.(snd)) ||
+           (PtrFacts.eq_dec_l p1 pp.(snd) && PtrFacts.eq_dec_l p2 pp.(fst))).
 
   Definition is_diffblock (inv:unary) (p1:Ptr.t) (p2:Ptr.t) :=
     flip ValueTPairSet.exists_
          inv.(alias).(diffblock)
       (fun vp =>
-         (ValueT.eq_dec p1.(fst) vp.(fst) && ValueT.eq_dec p2.(fst) vp.(snd)) ||
-         (ValueT.eq_dec p1.(fst) vp.(snd) && ValueT.eq_dec p2.(fst) vp.(fst))).
+         (ValueTFacts.eq_dec_l p1.(fst) vp.(fst) && ValueTFacts.eq_dec_l p2.(fst) vp.(snd)) ||
+         (ValueTFacts.eq_dec_l p1.(fst) vp.(snd) && ValueTFacts.eq_dec_l p2.(fst) vp.(fst))).
 
   Definition not_in_maydiff (inv:t) (value:ValueT.t): bool :=
     match value with
@@ -216,14 +216,14 @@ Module Invariant.
 
   Definition get_lhs (inv:ExprPairSet.t) (rhs:Expr.t): ExprPairSet.t :=
     flip ExprPairSet.filter inv
-         (fun (p: ExprPair.t) => Expr.eq_dec rhs p.(snd)).
+         (fun (p: ExprPair.t) => ExprFacts.eq_dec_l rhs p.(snd)).
       
   Definition get_rhs (inv:ExprPairSet.t) (lhs:Expr.t): ExprPairSet.t :=
     flip ExprPairSet.filter inv
-       (fun (p: ExprPair.t) => Expr.eq_dec lhs p.(fst)).
+       (fun (p: ExprPair.t) => ExprFacts.eq_dec_l lhs p.(fst)).
 
   Definition inject_value (inv:t) (value_src value_tgt:ValueT.t): bool :=
-    (ValueT.eq_dec value_src value_tgt && not_in_maydiff inv value_src) ||
+    (ValueTFacts.eq_dec_l value_src value_tgt && not_in_maydiff inv value_src) ||
     (ExprPairSet.mem (Expr.value value_src, Expr.value value_tgt) inv.(tgt).(lessdef) && not_in_maydiff inv value_src) ||
     (ExprPairSet.mem (Expr.value value_src, Expr.value value_tgt) inv.(src).(lessdef) && not_in_maydiff inv value_tgt) ||
     (ExprPairSet.exists_

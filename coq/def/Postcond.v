@@ -313,15 +313,16 @@ Proof.
   rewrite IdTSetFacts.add_b, IHl0. f_equal.
   unfold IdT.lift, IdTSetFacts.eqb, AtomSetFacts.eqb.
   repeat (des_if; ss).
-  - by inv e.
-  - contradict n. by subst.
+  - apply IdT.compare_leibniz in e. by inv e.
+  - contradict n.
+    subst. apply IdTFacts.compare_refl.
 Qed.
 
 Module ForgetMemory.
   Definition is_noalias_Ptr
              (inv:Invariant.unary) (ps:Ptr.t) (p:Ptr.t): bool :=
-    ((negb (ValueT.eq_dec ps.(fst) p.(fst))) && Invariant.is_unique_ptr inv p && Invariant.values_diffblock_from_unique (fst ps)) ||
-    ((negb (ValueT.eq_dec ps.(fst) p.(fst))) && Invariant.is_unique_ptr inv ps && Invariant.values_diffblock_from_unique (fst p)) ||
+    ((negb (ValueTFacts.eq_dec_l ps.(fst) p.(fst))) && Invariant.is_unique_ptr inv p && Invariant.values_diffblock_from_unique (fst ps)) ||
+    ((negb (ValueTFacts.eq_dec_l ps.(fst) p.(fst))) && Invariant.is_unique_ptr inv ps && Invariant.values_diffblock_from_unique (fst p)) ||
     Invariant.is_noalias inv p ps ||
     Invariant.is_diffblock inv p ps.
 
@@ -427,7 +428,7 @@ Definition reduce_maydiff_preserved (inv0: Invariant.t) :=
   let used_ids := (Invariant.get_idTs_unary inv0.(Invariant.src))
                     ++ (Invariant.get_idTs_unary inv0.(Invariant.tgt))
   in
-  (fun idt => (Tag.eq_dec (fst idt) Tag.physical) || (List.find (IdT.eq_dec idt) used_ids)).
+  (fun idt => (Tag.eq_dec (fst idt) Tag.physical) || (List.find (IdTFacts.eq_dec_l idt) used_ids)).
 
 Definition reduce_maydiff_non_physical (inv0: Invariant.t): Invariant.t :=
   Invariant.update_maydiff (IdTSet.filter (reduce_maydiff_preserved inv0)) inv0.
@@ -462,7 +463,7 @@ Definition reduce_maydiff (inv0:Invariant.t): Invariant.t :=
 (*                    (fun id => *)
 (*                       negb (ExprPairSet.exists_ *)
 (*                               (fun ep => *)
-(*                                  ((Expr.eq_dec (fst ep) *)
+(*                                  ((ExprFacts.eq_dec_l (fst ep) *)
 (*                                                (Expr.value (ValueT.id id))) *)
 (*                                     && Invariant.not_in_maydiff_expr inv0 (snd ep))) *)
 (*                               equations))) *)
@@ -690,7 +691,7 @@ Definition is_known_nonzero_unary (inv: Invariant.unary) (denom: value): bool :=
     (fun xy =>
        (is_known_total_nonzero xy.(fst))
          &&
-         Expr.eq_dec (xy.(snd)) (ValueT.lift Tag.physical denom))
+         ExprFacts.eq_dec_l (xy.(snd)) (ValueT.lift Tag.physical denom))
     (inv.(Invariant.lessdef))
 .
 
@@ -742,8 +743,8 @@ Definition postcond_cmd_inject_event
   (*          match e_pair with *)
   (*          | (e1, e2) => *)
   (*            andb *)
-  (*            (Expr.eq_dec e1 (Expr.value (ValueT.const (const_undef t)))) *)
-  (*            (Expr.eq_dec e2 (Expr.load (ValueT.lift Exprs.Tag.physical v) t a)) *)
+  (*            (ExprFacts.eq_dec_l e1 (Expr.value (ValueT.const (const_undef t)))) *)
+  (*            (ExprFacts.eq_dec_l e2 (Expr.load (ValueT.lift Exprs.Tag.physical v) t a)) *)
   (*          end) inv.(Invariant.src).(Invariant.lessdef)) *)
   (*     && *)
   (*     Invariant.not_in_maydiff inv (ValueT.lift Exprs.Tag.physical v) *)

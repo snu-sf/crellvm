@@ -280,6 +280,11 @@ Module Type AltUsual.
       x = y
   .
 
+  (* Parameter eq_dec : forall *)
+  (*     (x y:t) *)
+  (*   , *)
+  (*     {x = y} + {x <> y}. *)
+
 End AltUsual.
 
 
@@ -348,12 +353,12 @@ Module OT_from_AltUsual (E:AltUsual) <: Orders.OrderedType.
       subst. destruct (E.compare y y); ss.
   Qed.
 
-  Lemma eql_dec : forall x y:t, {x = y} + {x <> y}.
+  Lemma eq_dec_l : forall x y:t, {x = y} + {x <> y}.
   Proof.
     i. destruct (eq_dec x y).
     - left. apply eq_leibniz. ss.
     - right. ii. apply n. apply eq_leibniz. ss.
-  Qed.    
+  Qed.
 End OT_from_AltUsual.
 
 
@@ -363,10 +368,19 @@ End OT_from_AltUsual.
 Module AltUsualFacts (E: AltUsual). (* <: (AltFacts E). *)
 (* TODO: How to check subtype of these? forall E, AltUsualFacts E >= AltFacts E*)
 
-  Module EAlt <: OrdersAlt.OrderedTypeAlt := Alt_from_AltUsual E.
-  Module EAltFacts := (AltFacts EAlt).
-  Include EAlt.
-  Include EAltFacts.
+  (* Module EAlt <: OrdersAlt.OrderedTypeAlt := Alt_from_AltUsual E. *)
+  (* Module EAltFacts := (AltFacts E). *)
+  (* Include EAlt. *)
+  (* Include EAltFacts. *)
+  Include E.
+  Include AltFacts E.
+
+  (* Lemma compare_refl_eq x *)
+  (*   : compare x x = Eq. *)
+  (* Proof. *)
+  (*   hexploit (compare_sym x x). *)
+  (*   i. destruct (compare x x); ss. *)
+  (* Qed. *)
 
   Lemma eq_repl_l
         x y
@@ -397,6 +411,16 @@ Module AltUsualFacts (E: AltUsual). (* <: (AltFacts E). *)
   .
   Proof.
     destruct (compare z y) eqn:T; eapply compare_trans; eauto.
+  Qed.
+
+  Lemma eq_dec_l
+        (x y : t)
+    : {x = y} + {x <> y}.
+  Proof.
+    destruct (eq_dec x y).
+    - eauto using compare_leibniz.
+    - right. ii. subst.
+      eauto using (compare_refl y).
   Qed.
 
 End AltUsualFacts.
@@ -552,7 +576,7 @@ End option.
 Module optionFacts (E: AltUsual) := AltUsualFacts E.
 
 
-(* prod *)
+
 Module prod (E1 E2: AltUsual) <: AltUsual.
 
   Definition t : Type := E1.t * E2.t.
@@ -615,7 +639,7 @@ Module prod (E1 E2: AltUsual) <: AltUsual.
              | [H: E2.compare ?a ?a = Gt |- _] =>
                rewrite leibniz_compare_eq2 in H
       end; try congruence.
-  Qed.      
+  Qed.
 
   Lemma compare_leibniz: forall
       x y
@@ -632,8 +656,36 @@ Module prod (E1 E2: AltUsual) <: AltUsual.
 
 End prod.
 
-(* Module prodFacts (E1 E2: AltUsual) := AltUsualFacts E1 E2. *)
+(* Module prod_ord (E1 E2: Orders.OrderedType). *)
+(*   Definition t : Type := E1.t * E2.t. *)
+(*   Definition eq v1 v2 := *)
+(*     E1.eq (fst v1) (fst v2) /\ E2.eq (snd v1) (snd v2). *)
 
+(*   Lemma eq_equiv : Equivalence eq. *)
+(*   Proof. *)
+(*     unfold eq. *)
+(*     split; ii. *)
+(*     - split; try apply Equivalence_Reflexive. *)
+(*     - des. split; apply Equivalence_Symmetric; eauto. *)
+(*     - des. split; eapply Equivalence_Transitive; eauto. *)
+(*   Qed. *)
+
+(*   Definition lt (x y:t) : Prop := *)
+(*     E1.lt (fst x) (fst y) \/ *)
+(*     (E1.eq (fst x) (fst y) /\ E2.lt (snd x) (snd y)). *)
+
+(*   Lemma lt_strorder : StrictOrder lt. *)
+(*   Proof. *)
+(*     unfold lt. constructor. *)
+(*     - ii. des. *)
+(*       + eapply (@StrictOrder_Irreflexive _ _ E1.lt_strorder); eauto. *)
+(*       + eapply (@StrictOrder_Irreflexive _ _ E2.lt_strorder); eauto. *)
+(*     - ii. des. *)
+(*       + left. eapply (@StrictOrder_Transitive _ _ E1.lt_strorder); eauto. *)
+(*       + left.  *)
+(*         apply StrictOrder_Irreflexive. *)
+
+(*     Orders.OrderedType *)
 
 
 
@@ -874,7 +926,7 @@ Module typ <: AltUsual.
       to_nat_alt_compare.
       destruct (NatAltUsual.compare sz5 sz0) eqn:SZ0;
         destruct (NatAltUsual.compare sz0 sz1) eqn:SZ1; ss;
-          try (expl NatAltUsualFacts.EAlt.compare_leibniz; clarify); ss;
+          try (expl NatAltUsualFacts.compare_leibniz; clarify); ss;
             try rewrite SZ0; try rewrite SZ1; des_ifs_safe; ss;
               try (erewrite NatAltUsual.compare_trans; eauto; []); ss.
       destruct (compare x y) eqn:CMP0;
@@ -949,7 +1001,7 @@ Module typ <: AltUsual.
         destruct (Nat.compare sz5 sz0) eqn:SZ0;
           destruct (Nat.compare sz0 sz1) eqn:SZ1;
           ss; to_nat_alt_compare;
-            try (expl NatAltUsualFacts.EAlt.compare_leibniz; clarify); ss;
+            try (expl NatAltUsualFacts.compare_leibniz; clarify); ss;
               try rewrite SZ0; try rewrite SZ1; des_ifs_safe; ss;
                 try (erewrite NatAltUsual.compare_trans; eauto; ss).
         des_ifs; expl NatAltUsual.compare_trans.
