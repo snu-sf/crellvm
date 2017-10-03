@@ -1,5 +1,6 @@
 Require Import syntax.
 Require Import extract_defs.
+Require Import Ords.
 Require Import Validator.
 Require Import Infrules.
 Require Import Hints.
@@ -39,6 +40,12 @@ Extract Constant gen_infrules_from_insns =>
 Extract Constant gen_infrules_next_inv =>
 "InfruleGen.gen_infrules_next_inv".
 
+Extract Constant sz.compare => "fun x y -> if x < y then Lt else if x > y then Gt else Eq".
+Extract Constant Int.compare =>
+"fun x y ->
+let res = Llvm.APInt.compare_ord x y in
+if res < 0 then Lt else if res > 0 then Gt else Eq".
+
 Extract Constant power_sz => "(fun x ->
   if x = 0 then Coq_xH else Coq_xO (power_sz (x-1)))".
 Extract Constant signbit_of => "(fun x ->
@@ -60,6 +67,7 @@ Extract Constant signbit_of => "(fun x ->
 Extraction Library FMapWeakList.
 Extraction Library extract_defs.
 Extraction Library TODO.
+Extraction Library Ords.
 Extraction Library Exprs.
 Extraction Library Hints.
 Extraction Library Postcond.

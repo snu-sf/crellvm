@@ -781,9 +781,42 @@ Ltac to_nat_alt_compare :=
          end.
 (* I Really want to remove this tactic ... *)
 
+Module sz <: AltUsual.
+  Definition t := sz.
+
+  Definition compare (x y:t) : comparison := Nat.compare x y.
+
+  Lemma compare_sym
+        x y
+    :
+      <<SYM: compare y x = CompOpp (compare x y)>>
+  .
+  Proof.
+  Admitted.
+
+  Lemma compare_leibniz: forall
+      x y
+      (EQ: compare x y = Eq)
+    ,
+      x = y
+  .
+  Admitted.
+
+  Lemma compare_trans: forall
+      c x y z (* for compatibility with Alt *)
+      (XY: compare x y = c)
+      (YZ: compare y z = c)
+    ,
+      <<XZ: compare x z = c>>
+  .
+  Proof.
+  Admitted.
+End sz.
 
 
-Module varg <: AltUsual := option NatAltUsual.
+
+
+Module varg <: AltUsual := option sz.
 (* Module vargFacts := AltFacts varg. *)
 Module vargFacts := optionFacts varg. (* or AltUsualFacts varg directly? *)
 
@@ -822,7 +855,6 @@ Module vargFacts := optionFacts varg. (* or AltUsualFacts varg directly? *)
 
 
 
-
 Module typ <: AltUsual.
 
   Definition t := typ.
@@ -844,13 +876,13 @@ Module typ <: AltUsual.
 
   Fixpoint compare (x y: t): comparison :=
     match x, y with
-    | typ_int sz0, typ_int sz1 => Nat.compare sz0 sz1
+    | typ_int sz0, typ_int sz1 => sz.compare sz0 sz1
     | typ_floatpoint fp0, typ_floatpoint fp1 => (floating_point.compare fp0 fp1)
     | typ_void, typ_void => Eq
     | typ_label, typ_label => Eq
     | typ_metadata, typ_metadata => Eq
     | typ_array sz0 ty0, typ_array sz1 ty1 =>
-      lexico_order [Nat.compare sz0 sz1; compare ty0 ty1]
+      lexico_order [sz.compare sz0 sz1; compare ty0 ty1]
     | typ_function ty0 tys0 arg0, typ_function ty1 tys1 arg1 =>
       lexico_order
         [(compare ty0 ty1) ; (compare_list compare tys0 tys1) ; (varg.compare arg0 arg1)]
@@ -876,24 +908,24 @@ Module typ <: AltUsual.
   Proof.
     red.
     (* unfold CompOpp. *)
-    revert y.
-    induction x using typ_ind_gen; ii; ss; des_ifs_safe; ss.
-    - apply Nat.compare_antisym.
-    - apply floating_point.compare_sym.
-    - des_ifs.
-    - des_ifs.
-    - des_ifs.
-    - erewrite IHx. abstr (compare x t0) X. clear IHx.
-      rewrite Nat.compare_antisym. abstr (sz5 ?= sz0) Y.
-      unfold CompOpp. des_ifs.
-    - erewrite IHx. abstr (compare x t0) X. clear IHx.
-      rewrite varg.compare_sym. abstr (varg.compare varg5 varg0) Y.
-      (* TODO: Nat is anti_sym, varg is _sym ... *)
-      (* I want to use NatALt.compare_sym instead of Nat.compare_antisym *)
-      erewrite compare_list_sym; ss. abstr (compare_list compare l0 l1) Z. clear IH.
-      des_ifs.
-    - erewrite compare_list_sym; ss.
-    - admit.
+    (* revert y. *)
+    (* induction x using typ_ind_gen; ii; ss; des_ifs_safe; ss. *)
+    (* - apply Nat.compare_antisym. *)
+    (* - apply floating_point.compare_sym. *)
+    (* - des_ifs. *)
+    (* - des_ifs. *)
+    (* - des_ifs. *)
+    (* - erewrite IHx. abstr (compare x t0) X. clear IHx. *)
+    (*   rewrite Nat.compare_antisym. abstr (sz5 ?= sz0) Y. *)
+    (*   unfold CompOpp. des_ifs. *)
+    (* - erewrite IHx. abstr (compare x t0) X. clear IHx. *)
+    (*   rewrite varg.compare_sym. abstr (varg.compare varg5 varg0) Y. *)
+    (*   (* TODO: Nat is anti_sym, varg is _sym ... *) *)
+    (*   (* I want to use NatALt.compare_sym instead of Nat.compare_antisym *) *)
+    (*   erewrite compare_list_sym; ss. abstr (compare_list compare l0 l1) Z. clear IH. *)
+    (*   des_ifs. *)
+    (* - erewrite compare_list_sym; ss. *)
+    (* - admit. *)
   Admitted.
 
   Lemma compare_leibniz: forall
@@ -922,25 +954,25 @@ Module typ <: AltUsual.
     - destruct y, z; ss; clarify.
     - destruct y, z; ss; clarify.
     - destruct y, z; ss; clarify.
-    - destruct y, z; ss; clarify; [].
-      to_nat_alt_compare.
-      destruct (NatAltUsual.compare sz5 sz0) eqn:SZ0;
-        destruct (NatAltUsual.compare sz0 sz1) eqn:SZ1; ss;
-          try (expl NatAltUsualFacts.compare_leibniz; clarify); ss;
-            try rewrite SZ0; try rewrite SZ1; des_ifs_safe; ss;
-              try (erewrite NatAltUsual.compare_trans; eauto; []); ss.
-      destruct (compare x y) eqn:CMP0;
-        destruct (compare y z) eqn:CMP1; ss;
-          try (expl compare_leibniz; clarify); ss;
-            try rewrite CMP0; try rewrite CMP1; des_ifs_safe; ss;
-              try (erewrite IHx; eauto; []); ss.
-    - destruct y, z; ss; clarify; [].
-      destruct (compare x y) eqn:CMP0;
-        destruct (compare y z) eqn:CMP1; ss;
-          try (expl compare_leibniz; clarify); ss;
-            try rewrite CMP0; try rewrite CMP1; des_ifs_safe; ss;
-              try (erewrite IHx; eauto; []); ss.
-      admit.
+    (* - destruct y, z; ss; clarify; []. *)
+    (*   to_nat_alt_compare. *)
+    (*   destruct (NatAltUsual.compare sz5 sz0) eqn:SZ0; *)
+    (*     destruct (NatAltUsual.compare sz0 sz1) eqn:SZ1; ss; *)
+    (*       try (expl NatAltUsualFacts.compare_leibniz; clarify); ss; *)
+    (*         try rewrite SZ0; try rewrite SZ1; des_ifs_safe; ss; *)
+    (*           try (erewrite NatAltUsual.compare_trans; eauto; []); ss. *)
+    (*   destruct (compare x y) eqn:CMP0; *)
+    (*     destruct (compare y z) eqn:CMP1; ss; *)
+    (*       try (expl compare_leibniz; clarify); ss; *)
+    (*         try rewrite CMP0; try rewrite CMP1; des_ifs_safe; ss; *)
+    (*           try (erewrite IHx; eauto; []); ss. *)
+    (* - destruct y, z; ss; clarify; []. *)
+    (*   destruct (compare x y) eqn:CMP0; *)
+    (*     destruct (compare y z) eqn:CMP1; ss; *)
+    (*       try (expl compare_leibniz; clarify); ss; *)
+    (*         try rewrite CMP0; try rewrite CMP1; des_ifs_safe; ss; *)
+    (*           try (erewrite IHx; eauto; []); ss. *)
+      (* admit. *)
   Admitted.
 
 
@@ -981,85 +1013,85 @@ Module typ <: AltUsual.
     - apply comparison_trans_spec in TRANS. des; ss; des_ifs.
     - apply comparison_trans_spec in TRANS. des; ss; des_ifs.
     - apply comparison_trans_spec in TRANS. des; ss; des_ifs.
-    - apply comparison_trans_spec in TRANS. des; ss.
-      + destruct y, z; ss; [].
-        all_once des_outest_ifs; []. des_ifs_safe. clear_tac.
-        erewrite NatAltUsualFacts.eq_repl_l; eauto.
-        Fail rewrite XY in IHx. (* TODO: I only want to specialize "y" in IHx... *)
-        destruct (compare y z) eqn:T;
-          (exploit IHx; [rewrite Heq0; rewrite T; ss; eauto|]; intro XZ; des);
-          rewrite XZ; des_ifs.
-      + destruct y, z; ss; [].
-        all_once des_outest_ifs; []. des_ifs_safe. clear_tac.
-        erewrite NatAltUsualFacts.eq_repl_r; eauto.
-        rename Heq0 into YZ.
-        destruct (compare x y) eqn:T;
-          (exploit IHx; [rewrite YZ; rewrite T; ss; eauto|]; intro XZ; des);
-          rewrite XZ; des_ifs.
-      + destruct y, z; ss; clarify; [].
-        specialize (IHx z y).
-        destruct (Nat.compare sz5 sz0) eqn:SZ0;
-          destruct (Nat.compare sz0 sz1) eqn:SZ1;
-          ss; to_nat_alt_compare;
-            try (expl NatAltUsualFacts.compare_leibniz; clarify); ss;
-              try rewrite SZ0; try rewrite SZ1; des_ifs_safe; ss;
-                try (erewrite NatAltUsual.compare_trans; eauto; ss).
-        des_ifs; expl NatAltUsual.compare_trans.
-    - apply compare_list_trans in IH. des.
-      apply comparison_trans_spec in TRANS. des; ss.
-      + destruct y, z; ss; [].
-        all_once des_outest_ifs; []. des_ifs_safe. clear_tac.
-        erewrite vargFacts.eq_repl_l; eauto.
-        rename Heq into XY.
-        destruct (compare y z) eqn:T;
-          (exploit IHx; [rewrite XY; rewrite T; ss; eauto|]; intro XZ; des);
-          rewrite XZ; ss.
-        rename Heq0 into CMPL0.
-        destruct (compare_list compare l1 l2) eqn: CMPL1; ss;
-          (erewrite IH; [|rewrite CMPL0; rewrite CMPL1]; ss; eauto).
-      + destruct y, z; ss; [].
-        all_once des_outest_ifs; []. des_ifs_safe. clear_tac.
-        erewrite vargFacts.eq_repl_r; eauto.
-        rename Heq into YZ.
-        destruct (compare x y) eqn:T;
-          (exploit IHx; [rewrite YZ; rewrite T; ss; eauto|]; intro XZ; des);
-          rewrite XZ; ss.
-        rename Heq0 into CMPL1.
-        destruct (compare_list compare l0 l1) eqn: CMPL0; ss;
-          (erewrite IH; [|rewrite CMPL0; rewrite CMPL1]; ss; eauto).
-      + destruct y, z; ss; clarify; [].
-        all_once des_outest_ifs; []. des_ifs_safe. clear_tac.
-        specialize (IHx z y).
-        destruct (compare x y) eqn:CMP0;
-          destruct (compare y z) eqn:CMP1;
-          try (expl IHx (ss; eauto)); try rewrite IHx0; ss.
-        destruct (compare_list compare l0 l1) eqn:CMPL0;
-          destruct (compare_list compare l1 l2) eqn:CMPL1; ss;
-            (erewrite IH; [|rewrite CMPL0; rewrite CMPL1]; ss; eauto); [].
-        ss.
-        destruct (varg.compare varg5 varg0) eqn:CMPV0;
-          destruct (varg.compare varg0 varg1) eqn:CMPV1; ss;
-            (erewrite vargFacts.compare_trans; eauto; []); ss.
-    - apply compare_list_trans in IH. des.
-      apply comparison_trans_spec in TRANS. des; ss.
-      + destruct y, z; ss; [].
-        eapply IH; eauto. rewrite TRANS. rewrite TRANS0. ss. des_ifs.
-      + destruct y, z; ss; [].
-        eapply IH; eauto. rewrite TRANS. rewrite TRANS0.
-        rewrite comparison_trans_spec; ss. right; left; ss.
-      + destruct y, z; ss; clarify; ss; [].
-        eapply IH; eauto. rewrite TRANS0.
-        rewrite comparison_trans_spec; ss. right; right; ss.
-    - apply comparison_trans_spec in TRANS. des; ss; des_ifs; ss.
-      + erewrite IHx; eauto. rewrite TRANS.
-        rewrite comparison_trans_spec. left; ss.
-      + erewrite IHx; eauto. rewrite TRANS0.
-        rewrite comparison_trans_spec. right; left; ss.
-      + erewrite IHx; eauto. rewrite TRANS0.
-        rewrite comparison_trans_spec. right; right; ss.
-    - apply comparison_trans_spec in TRANS. des; ss; des_ifs; ss.
-  Unshelve.
-    all: ss.
+  (*   - apply comparison_trans_spec in TRANS. des; ss. *)
+  (*     + destruct y, z; ss; []. *)
+  (*       all_once des_outest_ifs; []. des_ifs_safe. clear_tac. *)
+  (*       erewrite NatAltUsualFacts.eq_repl_l; eauto. *)
+  (*       Fail rewrite XY in IHx. (* TODO: I only want to specialize "y" in IHx... *) *)
+  (*       destruct (compare y z) eqn:T; *)
+  (*         (exploit IHx; [rewrite Heq0; rewrite T; ss; eauto|]; intro XZ; des); *)
+  (*         rewrite XZ; des_ifs. *)
+  (*     + destruct y, z; ss; []. *)
+  (*       all_once des_outest_ifs; []. des_ifs_safe. clear_tac. *)
+  (*       erewrite NatAltUsualFacts.eq_repl_r; eauto. *)
+  (*       rename Heq0 into YZ. *)
+  (*       destruct (compare x y) eqn:T; *)
+  (*         (exploit IHx; [rewrite YZ; rewrite T; ss; eauto|]; intro XZ; des); *)
+  (*         rewrite XZ; des_ifs. *)
+  (*     + destruct y, z; ss; clarify; []. *)
+  (*       specialize (IHx z y). *)
+  (*       destruct (Nat.compare sz5 sz0) eqn:SZ0; *)
+  (*         destruct (Nat.compare sz0 sz1) eqn:SZ1; *)
+  (*         ss; to_nat_alt_compare; *)
+  (*           try (expl NatAltUsualFacts.compare_leibniz; clarify); ss; *)
+  (*             try rewrite SZ0; try rewrite SZ1; des_ifs_safe; ss; *)
+  (*               try (erewrite NatAltUsual.compare_trans; eauto; ss). *)
+  (*       des_ifs; expl NatAltUsual.compare_trans. *)
+  (*   - apply compare_list_trans in IH. des. *)
+  (*     apply comparison_trans_spec in TRANS. des; ss. *)
+  (*     + destruct y, z; ss; []. *)
+  (*       all_once des_outest_ifs; []. des_ifs_safe. clear_tac. *)
+  (*       erewrite vargFacts.eq_repl_l; eauto. *)
+  (*       rename Heq into XY. *)
+  (*       destruct (compare y z) eqn:T; *)
+  (*         (exploit IHx; [rewrite XY; rewrite T; ss; eauto|]; intro XZ; des); *)
+  (*         rewrite XZ; ss. *)
+  (*       rename Heq0 into CMPL0. *)
+  (*       destruct (compare_list compare l1 l2) eqn: CMPL1; ss; *)
+  (*         (erewrite IH; [|rewrite CMPL0; rewrite CMPL1]; ss; eauto). *)
+  (*     + destruct y, z; ss; []. *)
+  (*       all_once des_outest_ifs; []. des_ifs_safe. clear_tac. *)
+  (*       erewrite vargFacts.eq_repl_r; eauto. *)
+  (*       rename Heq into YZ. *)
+  (*       destruct (compare x y) eqn:T; *)
+  (*         (exploit IHx; [rewrite YZ; rewrite T; ss; eauto|]; intro XZ; des); *)
+  (*         rewrite XZ; ss. *)
+  (*       rename Heq0 into CMPL1. *)
+  (*       destruct (compare_list compare l0 l1) eqn: CMPL0; ss; *)
+  (*         (erewrite IH; [|rewrite CMPL0; rewrite CMPL1]; ss; eauto). *)
+  (*     + destruct y, z; ss; clarify; []. *)
+  (*       all_once des_outest_ifs; []. des_ifs_safe. clear_tac. *)
+  (*       specialize (IHx z y). *)
+  (*       destruct (compare x y) eqn:CMP0; *)
+  (*         destruct (compare y z) eqn:CMP1; *)
+  (*         try (expl IHx (ss; eauto)); try rewrite IHx0; ss. *)
+  (*       destruct (compare_list compare l0 l1) eqn:CMPL0; *)
+  (*         destruct (compare_list compare l1 l2) eqn:CMPL1; ss; *)
+  (*           (erewrite IH; [|rewrite CMPL0; rewrite CMPL1]; ss; eauto); []. *)
+  (*       ss. *)
+  (*       destruct (varg.compare varg5 varg0) eqn:CMPV0; *)
+  (*         destruct (varg.compare varg0 varg1) eqn:CMPV1; ss; *)
+  (*           (erewrite vargFacts.compare_trans; eauto; []); ss. *)
+  (*   - apply compare_list_trans in IH. des. *)
+  (*     apply comparison_trans_spec in TRANS. des; ss. *)
+  (*     + destruct y, z; ss; []. *)
+  (*       eapply IH; eauto. rewrite TRANS. rewrite TRANS0. ss. des_ifs. *)
+  (*     + destruct y, z; ss; []. *)
+  (*       eapply IH; eauto. rewrite TRANS. rewrite TRANS0. *)
+  (*       rewrite comparison_trans_spec; ss. right; left; ss. *)
+  (*     + destruct y, z; ss; clarify; ss; []. *)
+  (*       eapply IH; eauto. rewrite TRANS0. *)
+  (*       rewrite comparison_trans_spec; ss. right; right; ss. *)
+  (*   - apply comparison_trans_spec in TRANS. des; ss; des_ifs; ss. *)
+  (*     + erewrite IHx; eauto. rewrite TRANS. *)
+  (*       rewrite comparison_trans_spec. left; ss. *)
+  (*     + erewrite IHx; eauto. rewrite TRANS0. *)
+  (*       rewrite comparison_trans_spec. right; left; ss. *)
+  (*     + erewrite IHx; eauto. rewrite TRANS0. *)
+  (*       rewrite comparison_trans_spec. right; right; ss. *)
+  (*   - apply comparison_trans_spec in TRANS. des; ss; des_ifs; ss. *)
+  (* Unshelve. *)
+  (*   all: ss. *)
   Admitted.
 
 End typ.
@@ -1103,6 +1135,47 @@ Module Float <: AltUsual.
  
 End Float.
 Module FloatFacts := AltUsualFacts Float.
+
+Module Int <: AltUsual.
+
+  (* Floats.float *)
+  Definition t := Int.
+  (* Integers.Int.int *)
+  (* Floats.Float.to_bits *)
+  (* Floats.Float *)
+  (* Floats.Float.cmp *)
+
+  Definition compare (x y: t): comparison := Z.compare x y.
+
+  Lemma compare_leibniz: forall
+      x y
+      (EQ: compare x y = Eq)
+    ,
+      x = y
+  .
+  Proof.
+  Admitted.
+
+  Lemma compare_sym
+        x y
+    :
+      <<SYM: compare y x = CompOpp (compare x y)>>
+  .
+  Proof.
+  Admitted.
+
+  Lemma compare_trans: forall
+      c x y z
+      (XY: compare x y = c)
+      (YZ: compare y z = c)
+    ,
+      <<XZ: compare x z = c>>
+  .
+  Proof.
+  Admitted.
+ 
+End Int.
+Module IntFacts := AltUsualFacts Int.
 
 
 Module id <: AltUsual.
@@ -1518,7 +1591,7 @@ Module const <: AltUsual.
     match x, y with
     | const_zeroinitializer ty0, const_zeroinitializer ty1 => typ.compare ty0 ty1
     | const_int sz0 i0, const_int sz1 i1 =>
-      lexico_order [Nat.compare sz0 sz1 ; Z.compare i0 i1]
+      lexico_order [sz.compare sz0 sz1 ; Int.compare i0 i1]
     | const_floatpoint fp0 f0, const_floatpoint fp1 f1 =>
       lexico_order [floating_point.compare fp0 fp1 ; Float.compare f0 f1]
     | const_undef ty0, const_undef ty1 => typ.compare ty0 ty1
