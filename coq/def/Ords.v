@@ -114,14 +114,19 @@ Local Close Scope nat_scope.
 Definition wrap_compare A (f: A -> A -> comparison): A -> A -> comparison := f.
 Hint Unfold wrap_compare.
 
+Definition lazy_comparison := unit -> comparison.
+
 Section LISTS.
 
-  Fixpoint lexico_order (x0: list comparison): comparison :=
+  Fixpoint lexico_order (x0: list lazy_comparison): comparison :=
     match x0 with
     | [] => Eq
-    | Eq :: x1 => lexico_order x1
-    | Lt :: _ => Lt
-    | Gt :: _ => Gt
+    | hd :: tl =>
+      match (hd tt) with
+      | Eq => lexico_order tl
+      | Lt => Lt
+      | Gt => Gt
+      end
     end
   .
   Definition comparison_trans (a b: comparison): option comparison :=
@@ -205,7 +210,7 @@ Section LISTS.
   Definition compare_list X (compare: X -> X -> comparison) :=
     fix compare_list_ (a0 b0: list X): comparison :=
       match a0, b0 with
-      | a :: a1, b :: b1 => lexico_order [(compare a b) ; (compare_list_ a1 b1)]
+      | a :: a1, b :: b1 => lexico_order [fun _ => (compare a b) ; fun _ => (compare_list_ a1 b1)]
       | [], [] => Eq
       | [], _ => Lt
       | _, [] => Gt
@@ -862,10 +867,10 @@ Module typ <: AltUsual.
     | typ_label, typ_label => Eq
     | typ_metadata, typ_metadata => Eq
     | typ_array sz0 ty0, typ_array sz1 ty1 =>
-      lexico_order [sz.compare sz0 sz1; compare' ty0 ty1]
+      lexico_order [fun _ => sz.compare sz0 sz1; fun _ => compare' ty0 ty1]
     | typ_function ty0 tys0 arg0, typ_function ty1 tys1 arg1 =>
       lexico_order
-        [(compare' ty0 ty1) ; (compare_list compare' tys0 tys1) ; (varg.compare arg0 arg1)]
+        [fun _ => (compare' ty0 ty1) ; fun _ => (compare_list compare' tys0 tys1) ; fun _ => (varg.compare arg0 arg1)]
     | typ_struct tys0, typ_struct tys1 =>
       compare_list compare' tys0 tys1
     | typ_pointer ty0, typ_pointer ty1 =>
@@ -1573,39 +1578,39 @@ Module const <: AltUsual.
     match x, y with
     | const_zeroinitializer ty0, const_zeroinitializer ty1 => typ.compare ty0 ty1
     | const_int sz0 i0, const_int sz1 i1 =>
-      lexico_order [sz.compare sz0 sz1 ; Int.compare i0 i1]
+      lexico_order [fun _ => sz.compare sz0 sz1 ; fun _ => Int.compare i0 i1]
     | const_floatpoint fp0 f0, const_floatpoint fp1 f1 =>
-      lexico_order [floating_point.compare fp0 fp1 ; Float.compare f0 f1]
+      lexico_order [fun _ => floating_point.compare fp0 fp1 ; fun _ => Float.compare f0 f1]
     | const_undef ty0, const_undef ty1 => typ.compare ty0 ty1
     | const_null ty0, const_null ty1 => typ.compare ty0 ty1
     | const_arr ty0 cs0, const_arr ty1 cs1 =>
-      lexico_order [typ.compare ty0 ty1 ; compare_list compare' cs0 cs1]
+      lexico_order [fun _ => typ.compare ty0 ty1 ; fun _ => compare_list compare' cs0 cs1]
     | const_struct ty0 cs0, const_struct ty1 cs1 =>
-      lexico_order [typ.compare ty0 ty1 ; compare_list compare' cs0 cs1]
+      lexico_order [fun _ => typ.compare ty0 ty1 ; fun _ => compare_list compare' cs0 cs1]
     | const_gid ty0 i0, const_gid ty1 i1 =>
-      lexico_order [typ.compare ty0 ty1 ; id.compare i0 i1]
+      lexico_order [fun _ => typ.compare ty0 ty1 ; fun _ => id.compare i0 i1]
     | const_truncop trop0 c0 ty0, const_truncop trop1 c1 ty1 =>
-      lexico_order [truncop.compare trop0 trop1 ; compare' c0 c1 ; typ.compare ty0 ty1]
+      lexico_order [fun _ => truncop.compare trop0 trop1 ; fun _ => compare' c0 c1 ; fun _ => typ.compare ty0 ty1]
     | const_extop extop0 c0 ty0, const_extop extop1 c1 ty1 =>
-      lexico_order [extop.compare extop0 extop1 ; compare' c0 c1 ; typ.compare ty0 ty1]
+      lexico_order [fun _ => extop.compare extop0 extop1 ; fun _ => compare' c0 c1 ; fun _ => typ.compare ty0 ty1]
     | const_castop csop0 c0 ty0, const_castop csop1 c1 ty1 =>
-      lexico_order [castop.compare csop0 csop1 ; compare' c0 c1 ; typ.compare ty0 ty1]
+      lexico_order [fun _ => castop.compare csop0 csop1 ; fun _ => compare' c0 c1 ; fun _ => typ.compare ty0 ty1]
     | const_gep inb0 c0 cs0, const_gep inb1 c1 cs1 =>
-      lexico_order [bool.compare  inb0 inb1 ; compare' c0 c1 ; compare_list compare' cs0 cs1]
+      lexico_order [fun _ => bool.compare  inb0 inb1 ; fun _ => compare' c0 c1 ; fun _ => compare_list compare' cs0 cs1]
     | const_select cx0 cy0 cz0, const_select cx1 cy1 cz1 =>
-      lexico_order [compare' cx0 cx1 ; compare' cy0 cy1 ; compare' cz0 cz1]
+      lexico_order [fun _ => compare' cx0 cx1 ; fun _ => compare' cy0 cy1 ; fun _ => compare' cz0 cz1]
     | const_icmp cx0 cy0 cz0, const_icmp cx1 cy1 cz1 =>
-      lexico_order [cond.compare cx0 cx1 ; compare' cy0 cy1 ; compare' cz0 cz1]
+      lexico_order [fun _ => cond.compare cx0 cx1 ; fun _ => compare' cy0 cy1 ; fun _ => compare' cz0 cz1]
     | const_fcmp fc0 cx0 cy0, const_fcmp fc1 cx1 cy1 =>
-      lexico_order [fcond.compare fc0 fc1; compare' cx0 cx1 ; compare' cy0 cy1]
+      lexico_order [fun _ => fcond.compare fc0 fc1; fun _ => compare' cx0 cx1 ; fun _ => compare' cy0 cy1]
     | const_extractvalue c0 cs0, const_extractvalue c1 cs1 =>
-      lexico_order [compare' c0 c1 ; compare_list compare' cs0 cs1]
+      lexico_order [fun _ => compare' c0 c1 ; fun _ => compare_list compare' cs0 cs1]
     | const_insertvalue cx0 cy0 cs0, const_insertvalue cx1 cy1 cs1 =>
-      lexico_order [compare' cx0 cx1 ; compare' cy0 cy1 ; compare_list compare' cs0 cs1]
+      lexico_order [fun _ => compare' cx0 cx1 ; fun _ => compare' cy0 cy1 ; fun _ => compare_list compare' cs0 cs1]
     | const_bop bop0 cx0 cy0, const_bop bop1 cx1 cy1 =>
-      lexico_order [bop.compare bop0 bop1; compare' cx0 cx1 ; compare' cy0 cy1]
+      lexico_order [fun _ => bop.compare bop0 bop1; fun _ => compare' cx0 cx1 ; fun _ => compare' cy0 cy1]
     | const_fbop fbop0 cx0 cy0, const_fbop fbop1 cx1 cy1 =>
-      lexico_order [fbop.compare fbop0 fbop1; compare' cx0 cx1 ; compare' cy0 cy1]
+      lexico_order [fun _ => fbop.compare fbop0 fbop1; fun _ => compare' cx0 cx1 ; fun _ => compare' cy0 cy1]
     | _, _ => OrdIdx.compare (case_order x) (case_order y)
     end
   .

@@ -256,7 +256,7 @@ Module prod (E1 E2: AltUsual) <: AltUsual.
   Definition t : Type := E1.t * E2.t.
 
   Definition compare (x y: t): comparison :=
-    lexico_order [E1.compare (fst x) (fst y) ; E2.compare (snd x) (snd y)].
+    lexico_order [fun _ => E1.compare (fst x) (fst y) ; fun _ => E2.compare (snd x) (snd y)].
 
   Lemma compare_sym
         x y
@@ -614,51 +614,53 @@ Module Expr <: AltUsual.
     | load _ _ _ => 12
     end.
 
-  Definition compare (e1 e2:t): comparison :=
+  Definition compare' (e1 e2:t): comparison :=
     match e1, e2 with
     | bop b1 s1 v1 w1, bop b2 s2 v2 w2 =>
-      lexico_order [bop.compare b1 b2 ; sz.compare s1 s2 ;
-                      ValueT.compare v1 v2 ; ValueT.compare w1 w2]
+      lexico_order [fun _ => bop.compare b1 b2 ; fun _ => sz.compare s1 s2 ;
+                      fun _ => ValueT.compare v1 v2 ; fun _ => ValueT.compare w1 w2]
     | fbop fb1 fp1 v1 w1, fbop fb2 fp2 v2 w2 =>
-      lexico_order [fbop.compare fb1 fb2 ; floating_point.compare fp1 fp2 ;
-                      ValueT.compare v1 v2 ; ValueT.compare w1 w2]
+      lexico_order [fun _ => fbop.compare fb1 fb2 ; fun _ => floating_point.compare fp1 fp2 ;
+                      fun _ => ValueT.compare v1 v2 ; fun _ => ValueT.compare w1 w2]
     | extractvalue t1 v1 lc1 u1, extractvalue t2 v2 lc2 u2 =>
-      lexico_order [typ.compare t1 t2 ; ValueT.compare v1 v2 ;
-                      compare_list const.compare lc1 lc2 ;
-                      typ.compare u1 u2]
+      lexico_order [fun _ => typ.compare t1 t2 ; fun _ => ValueT.compare v1 v2 ;
+                      fun _ => compare_list const.compare lc1 lc2 ;
+                      fun _ => typ.compare u1 u2]
     | insertvalue t1 v1 u1 w1 lc1, insertvalue t2 v2 u2 w2 lc2 =>
-      lexico_order [typ.compare t1 t2 ; ValueT.compare v1 v2 ;
-                      typ.compare u1 u2 ; ValueT.compare w1 w2 ;
-                        compare_list const.compare lc1 lc2]
+      lexico_order [fun _ => typ.compare t1 t2 ; fun _ => ValueT.compare v1 v2 ;
+                      fun _ => typ.compare u1 u2 ; fun _ => ValueT.compare w1 w2 ;
+                        fun _ => compare_list const.compare lc1 lc2]
     | gep ib1 t1 v1 lsv1 u1, gep ib2 t2 v2 lsv2 u2 =>
-      lexico_order [bool.compare ib1 ib2 ; typ.compare t1 t2 ;
-                      ValueT.compare v1 v2 ;
-                      compare_list sz_ValueT.compare lsv1 lsv2 ;
-                      typ.compare u1 u2]
+      lexico_order [fun _ => bool.compare ib1 ib2 ; fun _ => typ.compare t1 t2 ;
+                      fun _ => ValueT.compare v1 v2 ;
+                      fun _ => compare_list sz_ValueT.compare lsv1 lsv2 ;
+                      fun _ => typ.compare u1 u2]
     | trunc top1 t1 v1 u1, trunc top2 t2 v2 u2 =>
-      lexico_order [truncop.compare top1 top2 ; typ.compare t1 t2 ;
-                      ValueT.compare v1 v2 ; typ.compare u1 u2]
+      lexico_order [fun _ => truncop.compare top1 top2 ; fun _ => typ.compare t1 t2 ;
+                      fun _ => ValueT.compare v1 v2 ; fun _ => typ.compare u1 u2]
     | ext eop1 t1 v1 u1, ext eop2 t2 v2 u2 =>
-      lexico_order [extop.compare eop1 eop2 ; typ.compare t1 t2 ;
-                      ValueT.compare v1 v2 ; typ.compare u1 u2]
+      lexico_order [fun _ => extop.compare eop1 eop2 ; fun _ => typ.compare t1 t2 ;
+                      fun _ => ValueT.compare v1 v2 ; fun _ => typ.compare u1 u2]
     | cast cop1 t1 v1 u1, cast cop2 t2 v2 u2 =>
-      lexico_order [castop.compare cop1 cop2 ; typ.compare t1 t2 ;
-                      ValueT.compare v1 v2 ; typ.compare u1 u2]
+      lexico_order [fun _ => castop.compare cop1 cop2 ; fun _ => typ.compare t1 t2 ;
+                      fun _ => ValueT.compare v1 v2 ; fun _ => typ.compare u1 u2]
     | icmp c1 t1 v1 w1, icmp c2 t2 v2 w2 =>
-      lexico_order [cond.compare c1 c2 ; typ.compare t1 t2 ;
-                      ValueT.compare v1 v2 ; ValueT.compare w1 w2]
+      lexico_order [fun _ => cond.compare c1 c2 ; fun _ => typ.compare t1 t2 ;
+                      fun _ => ValueT.compare v1 v2 ; fun _ => ValueT.compare w1 w2]
     | fcmp c1 t1 v1 w1, fcmp c2 t2 v2 w2 =>
-      lexico_order [fcond.compare c1 c2 ; floating_point.compare t1 t2 ;
-                      ValueT.compare v1 v2 ; ValueT.compare w1 w2]
+      lexico_order [fun _ => fcond.compare c1 c2 ; fun _ => floating_point.compare t1 t2 ;
+                      fun _ => ValueT.compare v1 v2 ; fun _ => ValueT.compare w1 w2]
     | select v1 t1 w1 z1, select v2 t2 w2 z2 =>
-      lexico_order [ValueT.compare v1 v2 ; typ.compare t1 t2 ;
-                      ValueT.compare w1 w2 ; ValueT.compare z1 z2]
+      lexico_order [fun _ => ValueT.compare v1 v2 ; fun _ => typ.compare t1 t2 ;
+                      fun _ => ValueT.compare w1 w2 ; fun _ => ValueT.compare z1 z2]
     | value v1, value v2 => ValueT.compare v1 v2
     | load v1 t1 a1, load v2 t2 a2 =>
-      lexico_order [ValueT.compare v1 v2 ; typ.compare t1 t2 ;
-                      sz.compare a1 a2]
+      lexico_order [fun _ => ValueT.compare v1 v2 ; fun _ => typ.compare t1 t2 ;
+                      fun _ => sz.compare a1 a2]
     | _, _ => OrdIdx.compare (case_order e1) (case_order e2)
     end.
+
+  Definition compare := wrap_compare compare'.
 
   Lemma compare_sym
         x y
