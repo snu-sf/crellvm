@@ -54,6 +54,65 @@ Require Import Recdef.
 
 Local Open Scope nat.
 
+Module OrdIdx.
+
+  Definition t := nat.
+
+  Definition zero: t := 0.
+  Definition one: t := 1.
+  Definition two: t := 2.
+  Definition three: t := 3.
+  Definition four: t := 4.
+  Definition five: t := 5.
+  Definition six: t := 6.
+  Definition seven: t := 7.
+  Definition eight: t := 8.
+  Definition nine: t := 9.
+  Definition onezero: t := 10.
+  Definition oneone: t := 11.
+  Definition onetwo: t := 12.
+  Definition onethree: t := 13.
+  Definition onefour: t := 14.
+  Definition onefive: t := 15.
+  Definition onesix: t := 16.
+  Definition oneseven: t := 17.
+  Definition oneeight: t := 18.
+  Definition onenine: t := 19.
+
+  Definition compare: t -> t -> comparison := Nat.compare.
+
+End OrdIdx.
+
+Notation "0" := OrdIdx.zero : OrdIdx_scope.
+Notation "1" := OrdIdx.one : OrdIdx_scope.
+Notation "2" := OrdIdx.two : OrdIdx_scope.
+Notation "3" := OrdIdx.three : OrdIdx_scope.
+Notation "4" := OrdIdx.four : OrdIdx_scope.
+Notation "5" := OrdIdx.five : OrdIdx_scope.
+Notation "6" := OrdIdx.six : OrdIdx_scope.
+Notation "7" := OrdIdx.seven : OrdIdx_scope.
+Notation "8" := OrdIdx.eight : OrdIdx_scope.
+Notation "9" := OrdIdx.nine : OrdIdx_scope.
+Notation "10" := OrdIdx.onezero : OrdIdx_scope.
+Notation "11" := OrdIdx.oneone : OrdIdx_scope.
+Notation "12" := OrdIdx.onetwo : OrdIdx_scope.
+Notation "13" := OrdIdx.onethree : OrdIdx_scope.
+Notation "14" := OrdIdx.onefour : OrdIdx_scope.
+Notation "15" := OrdIdx.onefive : OrdIdx_scope.
+Notation "16" := OrdIdx.onesix : OrdIdx_scope.
+Notation "17" := OrdIdx.oneseven : OrdIdx_scope.
+Notation "18" := OrdIdx.oneeight : OrdIdx_scope.
+Notation "19" := OrdIdx.onenine : OrdIdx_scope.
+
+Local Open Scope OrdIdx_scope.
+Local Close Scope Z_scope.
+Local Close Scope nat_scope.
+
+(* Axiom addr_compare: forall A, A -> A -> bool. *)
+(* Axiom addr_compare_spec: forall A (a0 a1: A), addr_compare a0 a1 = true -> a0 = a1. *)
+(* Axiom wrap_compare: forall A (f: A -> A -> comparison), A -> A -> comparison. *)
+Definition wrap_compare A (f: A -> A -> comparison): A -> A -> comparison := f.
+Hint Unfold wrap_compare.
 
 Section LISTS.
 
@@ -577,85 +636,6 @@ Module optionFacts (E: AltUsual) := AltUsualFacts E.
 
 
 
-Module prod (E1 E2: AltUsual) <: AltUsual.
-
-  Definition t : Type := E1.t * E2.t.
-
-  Definition compare (x y: t): comparison :=
-    lexico_order [E1.compare (fst x) (fst y) ; E2.compare (snd x) (snd y)].
-
-  Lemma compare_sym
-        x y
-    :
-      <<SYM: compare y x = CompOpp (compare x y)>>
-  .
-  Proof.
-    destruct x as [x1 x2], y as [y1 y2]. unfold compare. red.
-    specialize (E1.compare_sym x1 y1). intro SYM_E1.
-    specialize (E2.compare_sym x2 y2). intro SYM_E2.
-    ss. des_ifs.
-  Qed.
-
-  Lemma leibniz_compare_eq1 x
-    : E1.compare x x = Eq.
-  Proof.
-    specialize (E1.compare_sym x x). i.
-    destruct (E1.compare x x) eqn:COMP; ss.
-  Qed.
-
-  Lemma leibniz_compare_eq2 x
-    : E2.compare x x = Eq.
-  Proof.
-    specialize (E2.compare_sym x x). i.
-    destruct (E2.compare x x) eqn:COMP; ss.
-  Qed.
-
-  Lemma compare_trans: forall
-      c x y z (* for compatibility with Alt *)
-      (XY: compare x y = c)
-      (YZ: compare y z = c)
-    ,
-      <<XZ: compare x z = c>>
-  .
-  Proof.
-    i. destruct x as [x1 x2], y as [y1 y2], z as [z1 z2].
-    unfold compare in *. red.
-    specialize (@E1.compare_trans c x1 y1 z1). intro TR_E1.
-    specialize (@E2.compare_trans c x2 y2 z2). intro TR_E2.
-    ss. des_ifs;
-          try (by exploit TR_E1; eauto);
-          try (by exploit TR_E2; eauto);
-      repeat match goal with
-             | [H: E1.compare ?a ?b = Eq |- _] =>
-               specialize (E1.compare_leibniz H); i; []; subst; clear H
-             | [H: E2.compare ?a ?b = Eq |- _] =>
-               specialize (E2.compare_leibniz H); i; []; subst; clear H
-             | [H: E1.compare ?a ?a = Lt |- _] =>
-               rewrite leibniz_compare_eq1 in H
-             | [H: E1.compare ?a ?a = Gt |- _] =>
-               rewrite leibniz_compare_eq1 in H
-             | [H: E2.compare ?a ?a = Lt |- _] =>
-               rewrite leibniz_compare_eq2 in H
-             | [H: E2.compare ?a ?a = Gt |- _] =>
-               rewrite leibniz_compare_eq2 in H
-      end; try congruence.
-  Qed.
-
-  Lemma compare_leibniz: forall
-      x y
-      (EQ: compare x y = Eq)
-    ,
-      x = y
-  .
-  Proof.
-    destruct x, y; ss. unfold compare. i. ss. des_ifs.
-    f_equal.
-    - apply E1.compare_leibniz; ss.
-    - apply E2.compare_leibniz; ss.
-  Qed.
-
-End prod.
-
 (* Module prod_ord (E1 E2: Orders.OrderedType). *)
 (*   Definition t : Type := E1.t * E2.t. *)
 (*   Definition eq v1 v2 := *)
@@ -700,7 +680,7 @@ Module floating_point <: AltUsual.
 
   Definition t := floating_point.
 
-  Definition case_ord(x: t): nat :=
+  Definition case_ord(x: t): OrdIdx.t :=
     match x with
     | fp_float => 0
     | fp_double => 1
@@ -710,7 +690,7 @@ Module floating_point <: AltUsual.
     end
   .
 
-  Definition compare (x y: t): comparison := Nat.compare (case_ord x) (case_ord y).
+  Definition compare (x y: t): comparison := OrdIdx.compare (case_ord x) (case_ord y).
 
   Lemma compare_sym
         x y
@@ -774,17 +754,17 @@ Module NatAltUsualFacts := AltUsualFacts NatAltUsual.
 
 Ltac to_nat_alt_compare :=
   repeat match goal with
-         | [ H: context[Nat.compare ?a ?b] |- _ ] =>
-           replace (Nat.compare a b) with (NatAltUsual.compare a b) in H by ss
-         | [ |- context[Nat.compare ?a ?b] ] =>
-           replace (Nat.compare a b) with (NatAltUsual.compare a b) by ss
+         | [ H: context[OrdIdx.compare ?a ?b] |- _ ] =>
+           replace (OrdIdx.compare a b) with (NatAltUsual.compare a b) in H by ss
+         | [ |- context[OrdIdx.compare ?a ?b] ] =>
+           replace (OrdIdx.compare a b) with (NatAltUsual.compare a b) by ss
          end.
 (* I Really want to remove this tactic ... *)
 
 Module sz <: AltUsual.
   Definition t := sz.
 
-  Definition compare (x y:t) : comparison := Nat.compare x y.
+  Definition compare (x y:t) : comparison := OrdIdx.compare x y.
 
   Lemma compare_sym
         x y
@@ -859,7 +839,7 @@ Module typ <: AltUsual.
 
   Definition t := typ.
 
-  Definition case_order (x: t): nat :=
+  Definition case_order (x: t): OrdIdx.t :=
     match x with
     | typ_int _ => 0
     | typ_floatpoint _ => 1
@@ -874,7 +854,7 @@ Module typ <: AltUsual.
     end
   .
 
-  Fixpoint compare (x y: t): comparison :=
+  Fixpoint compare' (x y: t): comparison :=
     match x, y with
     | typ_int sz0, typ_int sz1 => sz.compare sz0 sz1
     | typ_floatpoint fp0, typ_floatpoint fp1 => (floating_point.compare fp0 fp1)
@@ -882,19 +862,21 @@ Module typ <: AltUsual.
     | typ_label, typ_label => Eq
     | typ_metadata, typ_metadata => Eq
     | typ_array sz0 ty0, typ_array sz1 ty1 =>
-      lexico_order [sz.compare sz0 sz1; compare ty0 ty1]
+      lexico_order [sz.compare sz0 sz1; compare' ty0 ty1]
     | typ_function ty0 tys0 arg0, typ_function ty1 tys1 arg1 =>
       lexico_order
-        [(compare ty0 ty1) ; (compare_list compare tys0 tys1) ; (varg.compare arg0 arg1)]
+        [(compare' ty0 ty1) ; (compare_list compare' tys0 tys1) ; (varg.compare arg0 arg1)]
     | typ_struct tys0, typ_struct tys1 =>
-      compare_list compare tys0 tys1
+      compare_list compare' tys0 tys1
     | typ_pointer ty0, typ_pointer ty1 =>
-      compare ty0 ty1
+      compare' ty0 ty1
     | typ_namedt id0, typ_namedt id1 => MetatheoryAtom.AtomImpl.atom_compare id0 id1
 
-    | _, _ => Nat.compare (case_order x) (case_order y)
+    | _, _ => OrdIdx.compare (case_order x) (case_order y)
     end
   .
+
+  Definition compare := wrap_compare compare'.
 
 
 
@@ -910,18 +892,18 @@ Module typ <: AltUsual.
     (* unfold CompOpp. *)
     (* revert y. *)
     (* induction x using typ_ind_gen; ii; ss; des_ifs_safe; ss. *)
-    (* - apply Nat.compare_antisym. *)
+    (* - apply OrdIdx.compare_antisym. *)
     (* - apply floating_point.compare_sym. *)
     (* - des_ifs. *)
     (* - des_ifs. *)
     (* - des_ifs. *)
     (* - erewrite IHx. abstr (compare x t0) X. clear IHx. *)
-    (*   rewrite Nat.compare_antisym. abstr (sz5 ?= sz0) Y. *)
+    (*   rewrite OrdIdx.compare_antisym. abstr (sz5 ?= sz0) Y. *)
     (*   unfold CompOpp. des_ifs. *)
     (* - erewrite IHx. abstr (compare x t0) X. clear IHx. *)
     (*   rewrite varg.compare_sym. abstr (varg.compare varg5 varg0) Y. *)
     (*   (* TODO: Nat is anti_sym, varg is _sym ... *) *)
-    (*   (* I want to use NatALt.compare_sym instead of Nat.compare_antisym *) *)
+    (*   (* I want to use NatALt.compare_sym instead of OrdIdx.compare_antisym *) *)
     (*   erewrite compare_list_sym; ss. abstr (compare_list compare l0 l1) Z. clear IH. *)
     (*   des_ifs. *)
     (* - erewrite compare_list_sym; ss. *)
@@ -1030,8 +1012,8 @@ Module typ <: AltUsual.
   (*         rewrite XZ; des_ifs. *)
   (*     + destruct y, z; ss; clarify; []. *)
   (*       specialize (IHx z y). *)
-  (*       destruct (Nat.compare sz5 sz0) eqn:SZ0; *)
-  (*         destruct (Nat.compare sz0 sz1) eqn:SZ1; *)
+  (*       destruct (OrdIdx.compare sz5 sz0) eqn:SZ0; *)
+  (*         destruct (OrdIdx.compare sz0 sz1) eqn:SZ1; *)
   (*         ss; to_nat_alt_compare; *)
   (*           try (expl NatAltUsualFacts.compare_leibniz; clarify); ss; *)
   (*             try rewrite SZ0; try rewrite SZ1; des_ifs_safe; ss; *)
@@ -1107,7 +1089,7 @@ Module Float <: AltUsual.
   (* Floats.Float *)
   (* Floats.Float.cmp *)
 
-  Definition compare (x y: t): comparison := FLOAT.compare x y.
+  Definition compare (x y: t): comparison := wrap_compare (FLOAT.compare) x y.
 
   Lemma compare_leibniz: forall
       x y
@@ -1233,14 +1215,14 @@ Module idFacts := AltUsualFacts id.
 Module truncop <: AltUsual.
   Definition t := truncop.
 
-  Definition case_order (x:t):nat :=
+  Definition case_order (x:t): OrdIdx.t :=
     match x with
     | truncop_int => 0
     | truncop_fp => 1
     end.
 
   Definition compare (x y:t) :=
-    Nat.compare (case_order x) (case_order y).
+    OrdIdx.compare (case_order x) (case_order y).
 
     Lemma compare_sym
         x y
@@ -1269,7 +1251,7 @@ Module truncopFacts := AltUsualFacts truncop.
 Module castop <: AltUsual.
   Definition t := castop.
 
-  Definition case_order (x:t):nat :=
+  Definition case_order (x:t): OrdIdx.t :=
     match x with
     | castop_fptoui => 0
     | castop_fptosi => 1
@@ -1281,7 +1263,7 @@ Module castop <: AltUsual.
     end.
 
   Definition compare (x y:t) :=
-    Nat.compare (case_order x) (case_order y).
+    OrdIdx.compare (case_order x) (case_order y).
 
   Lemma compare_sym
         x y
@@ -1310,7 +1292,7 @@ Module castopFacts := AltUsualFacts castop.
 Module extop <: AltUsual.
   Definition t := extop.
 
-  Definition case_order (x:t):nat :=
+  Definition case_order (x:t): OrdIdx.t :=
     match x with
     | extop_z => 0
     | extop_s => 1
@@ -1318,7 +1300,7 @@ Module extop <: AltUsual.
     end.
 
   Definition compare (x y:t) :=
-    Nat.compare (case_order x) (case_order y).
+    OrdIdx.compare (case_order x) (case_order y).
 
     Lemma compare_sym
         x y
@@ -1347,14 +1329,14 @@ Module extopFacts := AltUsualFacts extop.
 Module bool <: AltUsual.
   Definition t := bool.
 
-  Definition case_order (x:t):nat :=
+  Definition case_order (x:t): OrdIdx.t :=
     match x with
     | true => 0
     | false => 1
     end.
 
   Definition compare (x y:t) :=
-    Nat.compare (case_order x) (case_order y).
+    OrdIdx.compare (case_order x) (case_order y).
 
     Lemma compare_sym
         x y
@@ -1383,7 +1365,7 @@ Module boolFacts := AltUsualFacts bool.
 Module cond <: AltUsual.
   Definition t := cond.
 
-  Definition case_order (x:t):nat :=
+  Definition case_order (x:t): OrdIdx.t :=
     match x with
     | cond_eq => 0
     | cond_ne => 1
@@ -1398,7 +1380,7 @@ Module cond <: AltUsual.
     end.
 
   Definition compare (x y:t) :=
-    Nat.compare (case_order x) (case_order y).
+    OrdIdx.compare (case_order x) (case_order y).
 
     Lemma compare_sym
         x y
@@ -1427,7 +1409,7 @@ Module condFacts := AltUsualFacts cond.
 Module fcond <: AltUsual.
   Definition t := fcond.
 
-  Definition case_order (x:t):nat :=
+  Definition case_order (x:t): OrdIdx.t :=
     match x with
     | fcond_false => 0
     | fcond_oeq => 1
@@ -1448,7 +1430,7 @@ Module fcond <: AltUsual.
     end.
 
   Definition compare (x y:t) :=
-    Nat.compare (case_order x) (case_order y).
+    OrdIdx.compare (case_order x) (case_order y).
 
     Lemma compare_sym
         x y
@@ -1477,7 +1459,7 @@ Module fcondFacts := AltUsualFacts fcond.
 Module bop <: AltUsual.
   Definition t := bop.
 
-  Definition case_order (x:t):nat :=
+  Definition case_order (x:t): OrdIdx.t :=
     match x with
     | bop_add => 0
     | bop_sub => 1
@@ -1495,7 +1477,7 @@ Module bop <: AltUsual.
     end.
 
   Definition compare (x y:t) :=
-    Nat.compare (case_order x) (case_order y).
+    OrdIdx.compare (case_order x) (case_order y).
 
   Lemma compare_sym
         x y
@@ -1524,7 +1506,7 @@ Module bopFacts := AltUsualFacts bop.
 Module fbop <: AltUsual.
   Definition t := fbop.
 
-  Definition case_order (x:t):nat :=
+  Definition case_order (x:t): OrdIdx.t :=
     match x with
     | fbop_fadd => 0
     | fbop_fsub => 1
@@ -1534,7 +1516,7 @@ Module fbop <: AltUsual.
     end.
 
   Definition compare (x y:t) :=
-    Nat.compare (case_order x) (case_order y).
+    OrdIdx.compare (case_order x) (case_order y).
 
   Lemma compare_sym
         x y
@@ -1564,7 +1546,7 @@ Module const <: AltUsual.
 
   Definition t := const.
 
-  Definition case_order (x: t): nat :=
+  Definition case_order (x: t): OrdIdx.t :=
     match x with
     | const_zeroinitializer _ => 0
     | const_int _ _ => 1
@@ -1587,7 +1569,7 @@ Module const <: AltUsual.
     | const_fbop _ _ _ => 18
     end.
 
-  Fixpoint compare (x y: t): comparison :=
+  Fixpoint compare' (x y: t): comparison :=
     match x, y with
     | const_zeroinitializer ty0, const_zeroinitializer ty1 => typ.compare ty0 ty1
     | const_int sz0 i0, const_int sz1 i1 =>
@@ -1597,36 +1579,38 @@ Module const <: AltUsual.
     | const_undef ty0, const_undef ty1 => typ.compare ty0 ty1
     | const_null ty0, const_null ty1 => typ.compare ty0 ty1
     | const_arr ty0 cs0, const_arr ty1 cs1 =>
-      lexico_order [typ.compare ty0 ty1 ; compare_list compare cs0 cs1]
+      lexico_order [typ.compare ty0 ty1 ; compare_list compare' cs0 cs1]
     | const_struct ty0 cs0, const_struct ty1 cs1 =>
-      lexico_order [typ.compare ty0 ty1 ; compare_list compare cs0 cs1]
+      lexico_order [typ.compare ty0 ty1 ; compare_list compare' cs0 cs1]
     | const_gid ty0 i0, const_gid ty1 i1 =>
       lexico_order [typ.compare ty0 ty1 ; id.compare i0 i1]
     | const_truncop trop0 c0 ty0, const_truncop trop1 c1 ty1 =>
-      lexico_order [truncop.compare trop0 trop1 ; compare c0 c1 ; typ.compare ty0 ty1]
+      lexico_order [truncop.compare trop0 trop1 ; compare' c0 c1 ; typ.compare ty0 ty1]
     | const_extop extop0 c0 ty0, const_extop extop1 c1 ty1 =>
-      lexico_order [extop.compare extop0 extop1 ; compare c0 c1 ; typ.compare ty0 ty1]
+      lexico_order [extop.compare extop0 extop1 ; compare' c0 c1 ; typ.compare ty0 ty1]
     | const_castop csop0 c0 ty0, const_castop csop1 c1 ty1 =>
-      lexico_order [castop.compare csop0 csop1 ; compare c0 c1 ; typ.compare ty0 ty1]
+      lexico_order [castop.compare csop0 csop1 ; compare' c0 c1 ; typ.compare ty0 ty1]
     | const_gep inb0 c0 cs0, const_gep inb1 c1 cs1 =>
-      lexico_order [bool.compare  inb0 inb1 ; compare c0 c1 ; compare_list compare cs0 cs1]
+      lexico_order [bool.compare  inb0 inb1 ; compare' c0 c1 ; compare_list compare' cs0 cs1]
     | const_select cx0 cy0 cz0, const_select cx1 cy1 cz1 =>
-      lexico_order [compare cx0 cx1 ; compare cy0 cy1 ; compare cz0 cz1]
+      lexico_order [compare' cx0 cx1 ; compare' cy0 cy1 ; compare' cz0 cz1]
     | const_icmp cx0 cy0 cz0, const_icmp cx1 cy1 cz1 =>
-      lexico_order [cond.compare cx0 cx1 ; compare cy0 cy1 ; compare cz0 cz1]
+      lexico_order [cond.compare cx0 cx1 ; compare' cy0 cy1 ; compare' cz0 cz1]
     | const_fcmp fc0 cx0 cy0, const_fcmp fc1 cx1 cy1 =>
-      lexico_order [fcond.compare fc0 fc1; compare cx0 cx1 ; compare cy0 cy1]
+      lexico_order [fcond.compare fc0 fc1; compare' cx0 cx1 ; compare' cy0 cy1]
     | const_extractvalue c0 cs0, const_extractvalue c1 cs1 =>
-      lexico_order [compare c0 c1 ; compare_list compare cs0 cs1]
+      lexico_order [compare' c0 c1 ; compare_list compare' cs0 cs1]
     | const_insertvalue cx0 cy0 cs0, const_insertvalue cx1 cy1 cs1 =>
-      lexico_order [compare cx0 cx1 ; compare cy0 cy1 ; compare_list compare cs0 cs1]
+      lexico_order [compare' cx0 cx1 ; compare' cy0 cy1 ; compare_list compare' cs0 cs1]
     | const_bop bop0 cx0 cy0, const_bop bop1 cx1 cy1 =>
-      lexico_order [bop.compare bop0 bop1; compare cx0 cx1 ; compare cy0 cy1]
+      lexico_order [bop.compare bop0 bop1; compare' cx0 cx1 ; compare' cy0 cy1]
     | const_fbop fbop0 cx0 cy0, const_fbop fbop1 cx1 cy1 =>
-      lexico_order [fbop.compare fbop0 fbop1; compare cx0 cx1 ; compare cy0 cy1]
-    | _, _ => Nat.compare (case_order x) (case_order y)
+      lexico_order [fbop.compare fbop0 fbop1; compare' cx0 cx1 ; compare' cy0 cy1]
+    | _, _ => OrdIdx.compare (case_order x) (case_order y)
     end
   .
+
+  Definition compare := wrap_compare compare'.
 
   Lemma compare_sym
         x y

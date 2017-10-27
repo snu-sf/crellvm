@@ -251,6 +251,86 @@ End Tag.
 (* End Tag. *)
 (* Hint Resolve Tag.eq_dec: EqDecDb. *)
 
+Module prod (E1 E2: AltUsual) <: AltUsual.
+
+  Definition t : Type := E1.t * E2.t.
+
+  Definition compare (x y: t): comparison :=
+    lexico_order [E1.compare (fst x) (fst y) ; E2.compare (snd x) (snd y)].
+
+  Lemma compare_sym
+        x y
+    :
+      <<SYM: compare y x = CompOpp (compare x y)>>
+  .
+  Proof.
+    destruct x as [x1 x2], y as [y1 y2]. unfold compare. red.
+    specialize (E1.compare_sym x1 y1). intro SYM_E1.
+    specialize (E2.compare_sym x2 y2). intro SYM_E2.
+    ss. des_ifs.
+  Qed.
+
+  Lemma leibniz_compare_eq1 x
+    : E1.compare x x = Eq.
+  Proof.
+    specialize (E1.compare_sym x x). i.
+    destruct (E1.compare x x) eqn:COMP; ss.
+  Qed.
+
+  Lemma leibniz_compare_eq2 x
+    : E2.compare x x = Eq.
+  Proof.
+    specialize (E2.compare_sym x x). i.
+    destruct (E2.compare x x) eqn:COMP; ss.
+  Qed.
+
+  Lemma compare_trans: forall
+      c x y z (* for compatibility with Alt *)
+      (XY: compare x y = c)
+      (YZ: compare y z = c)
+    ,
+      <<XZ: compare x z = c>>
+  .
+  Proof.
+    i. destruct x as [x1 x2], y as [y1 y2], z as [z1 z2].
+    unfold compare in *. red.
+    specialize (@E1.compare_trans c x1 y1 z1). intro TR_E1.
+    specialize (@E2.compare_trans c x2 y2 z2). intro TR_E2.
+    ss. des_ifs;
+          try (by exploit TR_E1; eauto);
+          try (by exploit TR_E2; eauto);
+      repeat match goal with
+             | [H: E1.compare ?a ?b = Eq |- _] =>
+               specialize (E1.compare_leibniz H); i; []; subst; clear H
+             | [H: E2.compare ?a ?b = Eq |- _] =>
+               specialize (E2.compare_leibniz H); i; []; subst; clear H
+             | [H: E1.compare ?a ?a = Lt |- _] =>
+               rewrite leibniz_compare_eq1 in H
+             | [H: E1.compare ?a ?a = Gt |- _] =>
+               rewrite leibniz_compare_eq1 in H
+             | [H: E2.compare ?a ?a = Lt |- _] =>
+               rewrite leibniz_compare_eq2 in H
+             | [H: E2.compare ?a ?a = Gt |- _] =>
+               rewrite leibniz_compare_eq2 in H
+      end; try congruence.
+  Qed.
+
+  Lemma compare_leibniz: forall
+      x y
+      (EQ: compare x y = Eq)
+    ,
+      x = y
+  .
+  Proof.
+    destruct x, y; ss. unfold compare. i. ss. des_ifs.
+    f_equal.
+    - apply E1.compare_leibniz; ss.
+    - apply E2.compare_leibniz; ss.
+  Qed.
+
+End prod.
+
+
 Module IdT <: AltUsual.
   Include (prod Tag id).
 
@@ -306,6 +386,8 @@ Module Value.
 End Value.
 
 
+Local Open Scope OrdIdx_scope.
+
 Module ValueT <: AltUsual.
   Inductive t_: Type :=
   | id (x:IdT.t)
@@ -313,7 +395,7 @@ Module ValueT <: AltUsual.
   .
   Definition t:= t_.
 
-  Definition case_order v : nat :=
+  Definition case_order v : OrdIdx.t :=
     match v with
     | id _ => 0
     | const _ => 1
@@ -323,7 +405,7 @@ Module ValueT <: AltUsual.
     match v1, v2 with
     | id x1, id x2 => IdT.compare x1 x2
     | const c1, const c2 => const.compare c1 c2
-    | _, _ => Nat.compare (case_order v1) (case_order v2)
+    | _, _ => OrdIdx.compare (case_order v1) (case_order v2)
     end.
 
   Lemma compare_sym
@@ -515,7 +597,7 @@ Module Expr <: AltUsual.
 
   Definition t := t_.
 
-  Definition case_order e : nat :=
+  Definition case_order e : OrdIdx.t :=
     match e with
     | bop _ _ _ _ => 0
     | fbop _ _ _ _ => 1
@@ -575,7 +657,7 @@ Module Expr <: AltUsual.
     | load v1 t1 a1, load v2 t2 a2 =>
       lexico_order [ValueT.compare v1 v2 ; typ.compare t1 t2 ;
                       sz.compare a1 a2]
-    | _, _ => Nat.compare (case_order e1) (case_order e2)
+    | _, _ => OrdIdx.compare (case_order e1) (case_order e2)
     end.
 
   Lemma compare_sym

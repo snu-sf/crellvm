@@ -16,6 +16,39 @@ Require Import extraction_dom.
 
 Require Import ExtrOcamlString.
 
+Extract Constant wrap_compare => "fun f x y ->
+  if (x == y)
+  then Eq
+  else (f x y)
+".
+
+Extract Constant OrdIdx.t => "int".
+Extract Constant OrdIdx.zero => "0".
+Extract Constant OrdIdx.one => "1".
+Extract Constant OrdIdx.two => "2".
+Extract Constant OrdIdx.three => "3".
+Extract Constant OrdIdx.four => "4".
+Extract Constant OrdIdx.five => "5".
+Extract Constant OrdIdx.six => "6".
+Extract Constant OrdIdx.seven => "7".
+Extract Constant OrdIdx.eight => "8".
+Extract Constant OrdIdx.nine => "9".
+Extract Constant OrdIdx.onezero => "10".
+Extract Constant OrdIdx.oneone => "11".
+Extract Constant OrdIdx.onetwo => "12".
+Extract Constant OrdIdx.onethree => "13".
+Extract Constant OrdIdx.onefour => "14".
+Extract Constant OrdIdx.onefive => "15".
+Extract Constant OrdIdx.onesix => "16".
+Extract Constant OrdIdx.oneseven => "17".
+Extract Constant OrdIdx.oneeight => "18".
+Extract Constant OrdIdx.onenine => "19".
+Extract Constant OrdIdx.compare => "fun x y ->
+    let comp = x - y in
+    if(comp < 0) then Lt
+    else if (comp > 0) then Gt
+    else Eq".
+
 Extract Constant INTEGER_OPERATION.add => "Coq2ml.llapint_add".
 Extract Constant INTEGER_OPERATION.sub => "Coq2ml.llapint_sub".
 
@@ -40,7 +73,11 @@ Extract Constant gen_infrules_from_insns =>
 Extract Constant gen_infrules_next_inv =>
 "InfruleGen.gen_infrules_next_inv".
 
-Extract Constant sz.compare => "fun x y -> if x < y then Lt else if x > y then Gt else Eq".
+Extract Constant sz.compare => "fun x y ->
+    let comp = x - y in
+    if(comp < 0) then Lt
+    else if (comp > 0) then Gt
+    else Eq".
 Extract Constant Int.compare =>
 "fun x y ->
 let res = Llvm.APInt.compare_ord x y in
