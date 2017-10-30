@@ -424,14 +424,14 @@ Module ForgetStackCall.
 End ForgetStackCall.
 
 (* Non-physical that is only in maydiff is safe to remove *)
-Definition reduce_maydiff_preserved (inv0: Invariant.t) :=
-  let used_ids := (Invariant.get_idTs_unary inv0.(Invariant.src))
-                    ++ (Invariant.get_idTs_unary inv0.(Invariant.tgt))
-  in
+Definition reduce_maydiff_preserved (used_ids: list IdT.t) :=
   (fun idt => (Tag.eq_dec (fst idt) Tag.physical) || (List.find (IdTFacts.eq_dec_l idt) used_ids)).
 
 Definition reduce_maydiff_non_physical (inv0: Invariant.t): Invariant.t :=
-  Invariant.update_maydiff (IdTSet.filter (reduce_maydiff_preserved inv0)) inv0.
+  let used_ids := (Invariant.get_idTs_unary inv0.(Invariant.src))
+                    ++ (Invariant.get_idTs_unary inv0.(Invariant.tgt))
+  in
+  Invariant.update_maydiff (IdTSet.filter (reduce_maydiff_preserved used_ids)) inv0.
 
 Definition reduce_maydiff_lessdef (inv0:Invariant.t): Invariant.t :=
   let lessdef_src := inv0.(Invariant.src).(Invariant.lessdef) in
