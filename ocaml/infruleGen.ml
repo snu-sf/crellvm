@@ -763,11 +763,20 @@ module AutoInjectValues (GEN:InjectValueGenerator): AutoInjVal = struct
       run_intl inv [] [] vpl
   end
 
+(* Instances of AutoNextInv*)
+
 module AutoUnaryLD_Trans : AutoNextInv =
   AutoUnaryLD
     (struct
         let f = AutoTransHelper.run_unary
       end)
+
+module AutoSROAModule : AutoNextInv = struct
+    let run b inv inv_g =
+      let inv1 = old_reduce_maydiff_fun inv in
+      let (infrs, inv2) = AutoUnaryLD_Trans.run b inv1 inv_g in
+      (Infrule.Coq_old_reduce_maydiff::infrs, inv2)
+  end
 
 module AutoInstCombineModule : AutoNextInv = struct
     let _apply_commutativities (scp:Auto.scope_t) (lessdefs:ExprPairSet.t)
@@ -832,7 +841,7 @@ module Auto_Default2 : AutoInjVal = struct
 (** candidates *)
 
 let autoGVN : Auto.t = (AutoGVNModule.new_auto1, Auto_Default2.run)
-let autoSROA : Auto.t = (AutoUnaryLD_Trans.run, AutoInjectValues_Trans.run)
+let autoSROA : Auto.t = (AutoSROAModule.run, AutoInjectValues_Trans.run)
 let autoLICM : Auto.t = (AutoUnaryLD_Trans.run, AutoInjectValues_Trans.run)
 let autoInstCombine : Auto.t = (AutoInstCombineModule.run, Auto_Default2.run)
 let autoDflt : Auto.t = (Auto_Default1.run, Auto_Default2.run)

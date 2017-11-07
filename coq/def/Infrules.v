@@ -362,6 +362,19 @@ Definition load_align_one (e1: Expr.t): Expr.t :=
   end
 .
 
+Definition old_reduce_maydiff_fun (inv0:Invariant.t): Invariant.t :=
+    let lessdef_src := inv0.(Invariant.src).(Invariant.lessdef) in
+    let lessdef_tgt := inv0.(Invariant.tgt).(Invariant.lessdef) in
+  Invariant.update_maydiff
+    (IdTSet.filter
+       (fun id =>
+          negb (ExprPairSet.exists_
+                  (fun p => ExprPairSet.exists_
+                           (fun q => Invariant.inject_expr inv0 (snd p) (fst q))
+                           (Invariant.get_lhs lessdef_tgt (fst p)))
+                  (Invariant.get_rhs lessdef_src
+                                     (Expr.value (ValueT.id id)))))) inv0.
+
 Definition apply_infrule
            (m_src m_tgt:module)
            (infrule:Infrule.t)
@@ -1915,6 +1928,9 @@ Definition apply_infrule
     then
       {{ inv0 +++tgt (Expr.icmp cond_ugt (typ_int s) a b) >= (Expr.value z) }}
     else apply_fail tt
+  | Infrule.old_reduce_maydiff =>
+    old_reduce_maydiff_fun inv0
+
   | _ => no_match_fail tt (* TODO *)
   end.
 
