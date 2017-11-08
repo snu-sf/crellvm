@@ -384,9 +384,9 @@ Definition reduce_maydiff_lessdef_old (inv0:Invariant.t): Invariant.t :=
                   (Invariant.get_rhs lessdef_src
                                      (Expr.value (ValueT.id id)))))) inv0.
 
-Definition reduce_maydiff_old_fun (inv0:Invariant.t): Invariant.t :=
-  let inv1 := reduce_maydiff_non_physical_old inv0 in
-  reduce_maydiff_lessdef_old inv1.
+(* Definition reduce_maydiff_old_fun (inv0:Invariant.t): Invariant.t := *)
+(*   let inv1 := reduce_maydiff_non_physical_old inv0 in *)
+(*   reduce_maydiff_lessdef_old inv1. *)
 
 Definition apply_infrule
            (m_src m_tgt:module)
@@ -1942,7 +1942,9 @@ Definition apply_infrule
       {{ inv0 +++tgt (Expr.icmp cond_ugt (typ_int s) a b) >= (Expr.value z) }}
     else apply_fail tt
   | Infrule.old_reduce_maydiff =>
-    reduce_maydiff_old_fun inv0
+    reduce_maydiff_lessdef_old inv0
+  | Infrule.old_reduce_maydiff_non_physical =>
+    reduce_maydiff_non_physical_old inv0
 
   | _ => no_match_fail tt (* TODO *)
   end.

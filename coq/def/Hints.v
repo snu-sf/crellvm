@@ -607,6 +607,7 @@ Module Infrule.
   | implies_false (x:const) (y:const)
   (* temporary *)
   | old_reduce_maydiff
+  | old_reduce_maydiff_non_physical
 
   (* Updated semantics of rules should be located above this line *)
   .

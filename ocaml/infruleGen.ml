@@ -268,6 +268,31 @@ module AutoCommHelper = struct
        | _ -> None
   end
 
+module AutoRedMdOldHelper = struct
+    let exist_non_physical (md:IdTSet.t) : bool =
+      IdTSet.exists_ (fun idt -> match (fst idt) with
+                                | Tag.Coq_physical -> false
+                                | _ -> true) md
+
+    let exist_physical (md:IdTSet.t) : bool =
+      IdTSet.exists_ (fun idt -> match (fst idt) with
+                                | Tag.Coq_physical -> true
+                                | _ -> false) md
+
+    let gen_infrs inv inv_g : Infrule.t list =
+      (* if b then ([], inv_g) else *)
+      let md = inv.Invariant.maydiff in
+      let md_g = inv_g.Invariant.maydiff in
+      let md_interest = IdTSet.diff md md_g in
+      let infrs1 = if exist_non_physical md_interest then
+                     [Infrule.Coq_old_reduce_maydiff_non_physical]
+                   else [] in
+      let infrs2 = if exist_physical md_interest then
+                     [Infrule.Coq_old_reduce_maydiff]
+                   else [] in
+      (infrs1@infrs2)
+  end
+
 module AutoSubstTransHelper = struct
     let max_depth : int = 5
 
@@ -638,7 +663,8 @@ module AutoGVNModule = struct
     let auto1 : Auto.t1 =
       fun b inv inv_g ->
       if b then ([], inv_g) else
-      let inv = reduce_maydiff_old_fun inv in
+      let infrs_md = AutoRedMdOldHelper.gen_infrs inv inv_g in
+
       let intros = IntroGhostHelper.find_to_intro inv inv_g in
       let infrs_intros = IntroGhostHelper.gen_infrule intros in
       let intros_e = List.map (fun (x, e) -> (Expr.Coq_value (ValueT.Coq_id (Tag.Coq_ghost, x)), e)) intros in
@@ -650,7 +676,7 @@ module AutoGVNModule = struct
       let infrs_load = process_load inv.Invariant.tgt.Invariant.lessdef inv_g.Invariant.tgt.Invariant.lessdef in
 
       let (infrs_st, inv_g) = AutoSubstTransHelper.auto1 b inv inv_g in
-      (Infrule.Coq_old_reduce_maydiff::infrs_intros@infrs_ii@infrs_load@infrs_st, inv_g)
+      (infrs_md@infrs_intros@infrs_ii@infrs_load@infrs_st, inv_g)
   end
 
 (** Framework 1. AutoNextInvariant *)
@@ -774,9 +800,9 @@ module AutoUnaryLD_Trans : AutoNextInv =
 
 module AutoSROAModule : AutoNextInv = struct
     let run b inv inv_g =
-      let inv1 = reduce_maydiff_old_fun inv in
-      let (infrs, inv2) = AutoUnaryLD_Trans.run b inv1 inv_g in
-      (Infrule.Coq_old_reduce_maydiff::infrs, inv2)
+      let infrs_md = AutoRedMdOldHelper.gen_infrs inv inv_g in
+      let (infrs, inv1) = AutoUnaryLD_Trans.run b inv inv_g in
+      (infrs_md@infrs, inv1)
   end
 
 module AutoInstCombineModule : AutoNextInv = struct
@@ -796,7 +822,8 @@ module AutoInstCombineModule : AutoNextInv = struct
       (infrules, ExprPairSet.union lessdefs newlessdefs)
 
     let run : Auto.t1 = fun (isfirst:bool) (inv:Invariant.t) (inv_goal:Invariant.t) ->
-      let inv = reduce_maydiff_old_fun inv in
+      let infrs_md = AutoRedMdOldHelper.gen_infrs inv inv_goal in
+
       let lessdefs_src = inv.src.lessdef in
       let (infrules_src1, lessdefs_added) = _apply_commutativities
               Auto.Src lessdefs_src (AutoCommHelper.find_commrules_on_e1) in
@@ -820,7 +847,7 @@ module AutoInstCombineModule : AutoNextInv = struct
                   inv) in
 
       let (infrules_trans, inv_goal) = AutoUnaryLD_Trans.run false newinv inv_goal in
-      (Infrule.Coq_old_reduce_maydiff::infrules_src1@infrules_src2@infrules_src3@infrules_src4@infrules_trans,
+      (infrs_md@infrules_src1@infrules_src2@infrules_src3@infrules_src4@infrules_trans,
           inv_goal)
   end
 
