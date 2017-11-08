@@ -362,7 +362,16 @@ Definition load_align_one (e1: Expr.t): Expr.t :=
   end
 .
 
-Definition old_reduce_maydiff_fun (inv0:Invariant.t): Invariant.t :=
+Definition reduce_maydiff_preserved (used_ids: list IdT.t) :=
+  (fun idt => (Tag.eq_dec (fst idt) Tag.physical) || (List.find (IdTFacts.eq_dec_l idt) used_ids)).
+
+Definition reduce_maydiff_non_physical_old (inv0: Invariant.t): Invariant.t :=
+  let used_ids := (Invariant.get_idTs_unary inv0.(Invariant.src))
+                    ++ (Invariant.get_idTs_unary inv0.(Invariant.tgt))
+  in
+  Invariant.update_maydiff (IdTSet.filter (reduce_maydiff_preserved used_ids)) inv0.
+
+Definition reduce_maydiff_lessdef_old (inv0:Invariant.t): Invariant.t :=
     let lessdef_src := inv0.(Invariant.src).(Invariant.lessdef) in
     let lessdef_tgt := inv0.(Invariant.tgt).(Invariant.lessdef) in
   Invariant.update_maydiff
@@ -374,6 +383,10 @@ Definition old_reduce_maydiff_fun (inv0:Invariant.t): Invariant.t :=
                            (Invariant.get_lhs lessdef_tgt (fst p)))
                   (Invariant.get_rhs lessdef_src
                                      (Expr.value (ValueT.id id)))))) inv0.
+
+Definition reduce_maydiff_old_fun (inv0:Invariant.t): Invariant.t :=
+  let inv1 := reduce_maydiff_non_physical_old inv0 in
+  reduce_maydiff_lessdef_old inv1.
 
 Definition apply_infrule
            (m_src m_tgt:module)
@@ -1929,7 +1942,7 @@ Definition apply_infrule
       {{ inv0 +++tgt (Expr.icmp cond_ugt (typ_int s) a b) >= (Expr.value z) }}
     else apply_fail tt
   | Infrule.old_reduce_maydiff =>
-    old_reduce_maydiff_fun inv0
+    reduce_maydiff_old_fun inv0
 
   | _ => no_match_fail tt (* TODO *)
   end.

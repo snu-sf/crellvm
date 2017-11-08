@@ -773,7 +773,7 @@ module AutoUnaryLD_Trans : AutoNextInv =
 
 module AutoSROAModule : AutoNextInv = struct
     let run b inv inv_g =
-      let inv1 = old_reduce_maydiff_fun inv in
+      let inv1 = reduce_maydiff_old_fun inv in
       let (infrs, inv2) = AutoUnaryLD_Trans.run b inv1 inv_g in
       (Infrule.Coq_old_reduce_maydiff::infrs, inv2)
   end
