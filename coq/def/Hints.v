@@ -277,38 +277,42 @@ Module Invariant.
     is_empty_unary inv.(tgt) &&
     IdTSet.is_empty inv.(maydiff).
 
-  Definition get_idTs_lessdef (ld: ExprPairSet.t): list IdT.t :=
-    List.concat (List.map
-                   (fun (p: ExprPair.t) =>
-                      Expr.get_idTs p.(fst) ++ Expr.get_idTs p.(snd))
-                   (ExprPairSet.elements ld)).
+  Local Notation "x [++] y" := (IdTSet.union x y) (at level 70, no associativity).
 
-  Definition get_idTs_noalias (noal: PtrPairSet.t): list IdT.t :=
-    List.concat (List.map PtrPair.get_idTs (PtrPairSet.elements noal)).
+  Definition get_idTs_lessdef (ld: ExprPairSet.t): IdTSet.t :=
+    ExprPairSet.fold (fun i s => IdTSet.add_list (ExprPair.get_idTs i) s) ld IdTSet.empty
+  .
 
-  Definition get_idTs_diffblock (db: ValueTPairSet.t): list IdT.t :=
-    List.concat (List.map ValueTPair.get_idTs (ValueTPairSet.elements db)).
+  Definition get_idTs_noalias (noal: PtrPairSet.t): IdTSet.t :=
+    PtrPairSet.fold (fun i s => IdTSet.add_list (PtrPair.get_idTs i) s) noal IdTSet.empty
+  .
 
-  Definition get_idTs_alias (ar: aliasrel): list IdT.t :=
-    (get_idTs_noalias ar.(noalias))
-      ++ (get_idTs_diffblock ar.(diffblock)).
+  Definition get_idTs_diffblock (db: ValueTPairSet.t): IdTSet.t :=
+    ValueTPairSet.fold (fun i s => IdTSet.add_list (ValueTPair.get_idTs i) s) db IdTSet.empty
+  .
 
-  Definition get_idTs_unique (uniq: atoms): list IdT.t :=
-    (List.map (IdT.lift Tag.physical) (AtomSetImpl.elements uniq)).
+  Definition get_idTs_alias (ar: aliasrel): IdTSet.t :=
+    (get_idTs_noalias ar.(noalias)) [++] (get_idTs_diffblock ar.(diffblock))
+  .
 
-  Definition get_idTs_private (prvt: IdTSet.t): list IdT.t :=
-    IdTSet.elements prvt.
+  Definition get_idTs_unique (uniq: atoms): IdTSet.t :=
+    AtomSetImpl.fold (fun i s => IdTSet.add (IdT.lift Tag.physical i) s) uniq IdTSet.empty
+  .
 
-  Definition get_idTs_unary (u: unary): list IdT.t :=
+  Definition get_idTs_private (prvt: IdTSet.t): IdTSet.t :=
+    prvt
+  .
+
+  Definition get_idTs_unary (u: unary): IdTSet.t :=
     (get_idTs_lessdef u.(lessdef))
-      ++ (get_idTs_alias u.(alias))
-      ++ (get_idTs_unique u.(unique))
-      ++ (get_idTs_private u.(private)).
+      [++] (get_idTs_alias u.(alias))
+      [++] (get_idTs_unique u.(unique))
+      [++] (get_idTs_private u.(private)).
 
-  Definition get_idTs (inv: t): list IdT.t :=
+  Definition get_idTs (inv: t): IdTSet.t :=
     (get_idTs_unary inv.(src))
-      ++ (get_idTs_unary inv.(tgt))
-      ++ (IdTSet.elements inv.(maydiff)).
+      [++] (get_idTs_unary inv.(tgt))
+      [++] (inv.(maydiff)).
 
   (* Subset predicates *)
 

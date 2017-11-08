@@ -30,6 +30,9 @@ Module MSetAVLExtra (E: Orders.OrderedType).
 
   Include MSetAVL.Make E.
   Definition notin x L := ~ In x L.
+  Definition add_list (xs: list E.t) (base: t): t :=
+    List.fold_left (fun s i => add i s) xs base
+  .
 
 End MSetAVLExtra.
 
