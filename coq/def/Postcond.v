@@ -423,16 +423,6 @@ Module ForgetStackCall.
     ForgetStack.t defs_src defs_tgt AtomSetImpl.empty AtomSetImpl.empty inv0.
 End ForgetStackCall.
 
-(* Non-physical that is only in maydiff is safe to remove *)
-Definition reduce_maydiff_preserved (used_ids: IdTSet.t) :=
-  (fun idt => (Tag.eq_dec (fst idt) Tag.physical) || IdTSet.mem idt used_ids).
-
-Definition reduce_maydiff_non_physical (inv0: Invariant.t): Invariant.t :=
-  let used_ids := IdTSet.union (Invariant.get_idTs_unary inv0.(Invariant.src))
-                               (Invariant.get_idTs_unary inv0.(Invariant.tgt))
-  in
-  Invariant.update_maydiff (IdTSet.filter (reduce_maydiff_preserved used_ids)) inv0.
-
 Definition reduce_maydiff_lessdef_old (inv0:Invariant.t): Invariant.t :=
   let lessdef_src := inv0.(Invariant.src).(Invariant.lessdef) in
   let lessdef_tgt := inv0.(Invariant.tgt).(Invariant.lessdef) in
@@ -503,7 +493,8 @@ Definition project_into_IdTSet (ld: ExprPairSet.t): IdTSet.t :=
   (* Invariant.update_maydiff (IdTSet.filter (negb <*> indirect_inject_id)) inv0 *)
 (* Time: |MD| * |LD| * log |MD| *)
 
-Definition reduce_maydiff_lessdef (inv0: Invariant.t): Invariant.t :=
+(* Definition reduce_maydiff_lessdef (inv0: Invariant.t): Invariant.t := *)
+Definition reduce_maydiff (inv0: Invariant.t): Invariant.t :=
   let ld_src := inv0.(Invariant.src).(Invariant.lessdef) in
   let ld_tgt := inv0.(Invariant.src).(Invariant.lessdef) in
   let ld_src_outer_idt :=
@@ -526,10 +517,10 @@ Definition reduce_maydiff_lessdef (inv0: Invariant.t): Invariant.t :=
   (* Time: |MD| + |LD| *)
 .
 
-Definition reduce_maydiff (inv0:Invariant.t): Invariant.t :=
-  let inv1 := reduce_maydiff_lessdef inv0 in
-  let inv2 := reduce_maydiff_non_physical inv1 in
-  inv2.
+(* Definition reduce_maydiff (inv0:Invariant.t): Invariant.t := *)
+  (* let inv1 := reduce_maydiff_lessdef inv0 in *)
+  (* let inv2 := reduce_maydiff_non_physical inv1 in *)
+  (* inv2. *)
 
 (* TODO: unused. remove? *)
 (* Definition reduce_maydiff_default (inv0:Invariant.t): Invariant.t := *)

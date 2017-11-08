@@ -609,6 +609,9 @@ Module Infrule.
   | icmp_ule_or_not (z:ValueT.t) (z':ValueT.t) (a:ValueT.t) (b:ValueT.t) (s:sz)
   | icmp_ult_and_not (z:ValueT.t) (z':ValueT.t) (a:ValueT.t) (b:ValueT.t) (s:sz)  
   | implies_false (x:const) (y:const)
+  (* temporary *)
+  | old_reduce_maydiff
+  | old_reduce_maydiff_non_physical
 
   (* Updated semantics of rules should be located above this line *)
   .
