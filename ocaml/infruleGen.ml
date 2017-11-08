@@ -635,9 +635,10 @@ module AutoGVNModule = struct
                           | _ -> acc)
                       | _ -> acc) ([], ld) (ExprPairSet.elements ld)
 
-    let new_auto1 : Auto.t1 =
+    let auto1 : Auto.t1 =
       fun b inv inv_g ->
       if b then ([], inv_g) else
+      let inv = reduce_maydiff_old_fun inv in
       let intros = IntroGhostHelper.find_to_intro inv inv_g in
       let infrs_intros = IntroGhostHelper.gen_infrule intros in
       let intros_e = List.map (fun (x, e) -> (Expr.Coq_value (ValueT.Coq_id (Tag.Coq_ghost, x)), e)) intros in
@@ -649,7 +650,7 @@ module AutoGVNModule = struct
       let infrs_load = process_load inv.Invariant.tgt.Invariant.lessdef inv_g.Invariant.tgt.Invariant.lessdef in
 
       let (infrs_st, inv_g) = AutoSubstTransHelper.auto1 b inv inv_g in
-      (infrs_intros@infrs_ii@infrs_load@infrs_st, inv_g)
+      (Infrule.Coq_old_reduce_maydiff::infrs_intros@infrs_ii@infrs_load@infrs_st, inv_g)
   end
 
 (** Framework 1. AutoNextInvariant *)
@@ -840,7 +841,7 @@ module Auto_Default2 : AutoInjVal = struct
 
 (** candidates *)
 
-let autoGVN : Auto.t = (AutoGVNModule.new_auto1, Auto_Default2.run)
+let autoGVN : Auto.t = (AutoGVNModule.auto1, Auto_Default2.run)
 let autoSROA : Auto.t = (AutoSROAModule.run, AutoInjectValues_Trans.run)
 let autoLICM : Auto.t = (AutoUnaryLD_Trans.run, AutoInjectValues_Trans.run)
 let autoInstCombine : Auto.t = (AutoInstCombineModule.run, Auto_Default2.run)
