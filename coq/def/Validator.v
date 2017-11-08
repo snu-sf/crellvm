@@ -227,7 +227,22 @@ Definition valid_stmts
            (bid:l) (src tgt:stmts): bool :=
   let '(stmts_intro phinodes_src cmds_src terminator_src) := src in
   let '(stmts_intro phinodes_tgt cmds_tgt terminator_tgt) := tgt in
-  match valid_cmds m_src m_tgt cmds_src cmds_tgt hint.(ValidationHint.cmds) hint.(ValidationHint.invariant_after_phinodes) with
+  let last_inv := (List.hd_error (List.rev (hint.(ValidationHint.cmds)))) in
+  let valid_cmds_inv :=
+      if (TODO.list_forallb2 cmdEqB cmds_src cmds_tgt)
+           && (hint.(ValidationHint.invariant_after_phinodes)
+               .(Invariant.maydiff).(IdTSet.is_empty))
+           && (match last_inv with
+               | None => false
+               (* any value will be ok. let's just do it stupid & strict way; *)
+               (* anyhow it will take O(1) time *)
+               | Some (_, inv) => inv.(Invariant.is_empty)
+               end)
+      then option_map snd last_inv
+      else valid_cmds m_src m_tgt cmds_src cmds_tgt
+                      hint.(ValidationHint.cmds) hint.(ValidationHint.invariant_after_phinodes)
+  in
+  match valid_cmds_inv with
   | None => failwith_false "valid_stmts: valid_cmds failed at block" [bid]
   | Some inv =>
     (if (valid_terminator hint_fdef inv m_src m_tgt blocks_src blocks_tgt bid terminator_src terminator_tgt)
