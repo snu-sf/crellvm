@@ -796,6 +796,7 @@ module AutoInstCombineModule : AutoNextInv = struct
       (infrules, ExprPairSet.union lessdefs newlessdefs)
 
     let run : Auto.t1 = fun (isfirst:bool) (inv:Invariant.t) (inv_goal:Invariant.t) ->
+      let inv = reduce_maydiff_old_fun inv in
       let lessdefs_src = inv.src.lessdef in
       let (infrules_src1, lessdefs_added) = _apply_commutativities
               Auto.Src lessdefs_src (AutoCommHelper.find_commrules_on_e1) in
@@ -819,7 +820,7 @@ module AutoInstCombineModule : AutoNextInv = struct
                   inv) in
 
       let (infrules_trans, inv_goal) = AutoUnaryLD_Trans.run false newinv inv_goal in
-      (infrules_src1@infrules_src2@infrules_src3@infrules_src4@infrules_trans,
+      (Infrule.Coq_old_reduce_maydiff::infrules_src1@infrules_src2@infrules_src3@infrules_src4@infrules_trans,
           inv_goal)
   end
 
@@ -843,7 +844,7 @@ module Auto_Default2 : AutoInjVal = struct
 
 let autoGVN : Auto.t = (AutoGVNModule.auto1, Auto_Default2.run)
 let autoSROA : Auto.t = (AutoSROAModule.run, AutoInjectValues_Trans.run)
-let autoLICM : Auto.t = (AutoUnaryLD_Trans.run, AutoInjectValues_Trans.run)
+let autoLICM : Auto.t = (AutoSROAModule.run, AutoInjectValues_Trans.run) (* Share same auto with SROA *)
 let autoInstCombine : Auto.t = (AutoInstCombineModule.run, Auto_Default2.run)
 let autoDflt : Auto.t = (Auto_Default1.run, Auto_Default2.run)
 
