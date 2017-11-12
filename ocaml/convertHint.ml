@@ -92,9 +92,9 @@ module EmptyHint = struct
 
   let fdef_hint (fdef:LLVMsyntax.fdef) : ValidationHint.fdef =
     let Coq_fdef_intro (Coq_fheader_intro (_, _, id, _, _), blks) = fdef in
+    let cfg_pred = Cfg.predecessors fdef in
     TODO.mapiAL (fun bname bstmts ->
                  let incoming_blocks =
-                   let cfg_pred = Cfg.predecessors fdef in
                    let preds = Maps_ext.ATree.get bname cfg_pred in
                    match preds with
                    | None -> []
@@ -117,9 +117,9 @@ module EmptyHint = struct
 
   let fdef_hint_with (fdef:LLVMsyntax.fdef) (inv: Hints.Invariant.t) : ValidationHint.fdef =
     let Coq_fdef_intro (Coq_fheader_intro (_, _, id, _, _), blks) = fdef in
+    let cfg_pred = Cfg.predecessors fdef in
     TODO.mapiAL (fun bname bstmts ->
                  let incoming_blocks =
-                   let cfg_pred = Cfg.predecessors fdef in
                    let preds = Maps_ext.ATree.get bname cfg_pred in
                    match preds with
                    | None -> []
