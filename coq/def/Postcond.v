@@ -270,7 +270,7 @@ Module Snapshot.
     inv2.
 
   Definition physical_previous_lessdef (inv:Invariant.unary): ExprPairSet.t :=
-    let idt_set := Invariant.get_idTs_unary inv in
+    let idt_set := IdTSetFacts.from_list (Invariant.get_idTs_unary inv) in
     let prev_idt_set := IdTSet.filter IdT idt_set in
     IdTSet.fold
       (fun idt eps =>
