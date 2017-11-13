@@ -100,10 +100,10 @@ Lemma implies_lessdef_sound
     <<LESSDEF: ExprPairSet.For_all (InvState.Unary.sem_lessdef conf st invst) ld1>>.
 Proof.
   ii. apply ExprPairSet.for_all_2 in IMPLIES_LESSDEF; eauto; cycle 1.
-  { ii. subst. ss. }
+  { ii. apply ExprPair.compare_leibniz in H0. subst. ss. }
   specialize (IMPLIES_LESSDEF x H). ss.
   apply ExprPairSet.exists_2 in IMPLIES_LESSDEF; eauto; cycle 1.
-  { ii. subst. ss. }
+  { ii. apply ExprPair.compare_leibniz in H0. subst. ss. }
   inv IMPLIES_LESSDEF. des. solve_bool_true.
   expl LESSDEF.
 Qed.
@@ -141,7 +141,7 @@ Proof.
       clarify.
 
       exploit UNIQUE; eauto; []; ii; des.
-      eapply LOCALS with (reg := i1); eauto.
+      eapply LOCALS with (reg := t1); eauto.
       {
         des_sumbool.
         ii.
@@ -153,7 +153,7 @@ Proof.
     * (* const *)
       unfold AtomSetImpl.For_all in *.
       eapply AtomSetFacts.mem_iff in IMPLIES_ALIAS2.
-      specialize (UNIQUE i0 IMPLIES_ALIAS2). clear IMPLIES_ALIAS2.
+      specialize (UNIQUE t0 IMPLIES_ALIAS2). clear IMPLIES_ALIAS2.
 
       eapply unique_const_diffblock; eauto.
   + (* exactly copied from above *)
@@ -170,7 +170,7 @@ Proof.
       clarify.
 
       exploit UNIQUE; eauto; []; ii; des.
-      eapply LOCALS with (reg := i1); eauto.
+      eapply LOCALS with (reg := t1); eauto.
       {
         des_sumbool.
         ii.
@@ -182,7 +182,7 @@ Proof.
     * (* const *)
       unfold AtomSetImpl.For_all in *.
       eapply AtomSetFacts.mem_iff in IMPLIES_ALIAS2.
-      specialize (UNIQUE i0 IMPLIES_ALIAS2). clear IMPLIES_ALIAS2.
+      specialize (UNIQUE t0 IMPLIES_ALIAS2). clear IMPLIES_ALIAS2.
 
       eapply InvState.Unary.diffblock_comm.
       eapply unique_const_diffblock; eauto.
@@ -209,7 +209,7 @@ Proof.
   - clear IMPLIES_ALIAS NOALIAS.
     unfold Invariant.implies_diffblock, flip in *.
     i. apply ValueTPairSet.for_all_2 in IMPLIES_ALIAS0; cycle 1.
-    { solve_compat_bool. }
+    { solve_compat_bool. solve_leibniz. ss. }
     apply ValueTPairSet.mem_2 in MEM.
     specialize (IMPLIES_ALIAS0 (val1, val2) MEM). ss.
     des_bool.
@@ -220,7 +220,7 @@ Proof.
   - clear IMPLIES_ALIAS0 DIFFBLOCK.
     unfold Invariant.implies_noalias, flip in *.
     i. apply PtrPairSet.for_all_2 in IMPLIES_ALIAS; cycle 1.
-    { solve_compat_bool. }
+    { solve_compat_bool. solve_leibniz. ss. }
     apply PtrPairSet.mem_2 in MEM.
     specialize (IMPLIES_ALIAS (ptr1, ptr2) MEM). ss.
     des_bool.
@@ -325,10 +325,10 @@ Next Obligation.
   ii.
   unfold Invariant.implies_lessdef. unfold flip.
   apply Exprs.ExprPairSetFacts.for_all_iff.
-  { solve_compat_bool. }
+  { solve_compat_bool. solve_leibniz. ss. }
   ii.
   apply Exprs.ExprPairSetFacts.exists_iff.
-  { solve_compat_bool. }
+  { solve_compat_bool. solve_leibniz. ss. }
   unfold Exprs.ExprPairSet.Exists.
   esplits; eauto.
   (* TODO: enhance des_bool *)
@@ -342,18 +342,18 @@ Next Obligation.
   rename z into invc.
   unfold Invariant.implies_lessdef in *. unfold flip in *.
   apply Exprs.ExprPairSetFacts.for_all_iff.
-  { solve_compat_bool. }
+  { solve_compat_bool. solve_leibniz. ss. }
   apply Exprs.ExprPairSetFacts.for_all_iff in H; cycle 1.
   (* TODO: why compat_bool appears late in this case? *)
-  { solve_compat_bool. }
+  { solve_compat_bool. solve_leibniz. ss. }
   apply Exprs.ExprPairSetFacts.for_all_iff in H0; cycle 1.
-  { solve_compat_bool. }
+  { solve_compat_bool. solve_leibniz. ss. }
   (* TODO: I want to write solve_compat_bool only once. *)
   (* push subgoal as premise of original goal when "apply"ing? *)
   ii.
   expl H0.
   erewrite <- ExprPairSetFacts.exists_iff in H2; cycle 1.
-  { solve_compat_bool. }
+  { solve_compat_bool. solve_leibniz. ss. }
   unfold ExprPairSet.Exists in *.
   des. des_sumbool. clarify.
   expl H.
@@ -432,14 +432,14 @@ Next Obligation.
   - unfold Invariant.implies_noalias.
     unfold flip.
     apply Exprs.PtrPairSetFacts.for_all_iff.
-    { solve_compat_bool. }
+    { solve_compat_bool. solve_leibniz. ss. }
     ii.
     destruct x0; ss. destruct t, t0; ss.
     apply orb_true_iff. right.
     apply Exprs.PtrPairSetFacts.mem_iff. ss.
   - unfold Invariant.implies_diffblock. unfold flip.
     apply Exprs.ValueTPairSetFacts.for_all_iff.
-    { solve_compat_bool. }
+    { solve_compat_bool. solve_leibniz. ss. }
     ii.
     apply orb_true_iff. right.
     apply Exprs.ValueTPairSetFacts.mem_iff.
@@ -460,11 +460,11 @@ Next Obligation.
     unfold Invariant.implies_noalias in *.
     unfold flip in *.
     apply Exprs.PtrPairSetFacts.for_all_iff.
-    { solve_compat_bool. }
+    { solve_compat_bool. solve_leibniz. ss. }
     apply Exprs.PtrPairSetFacts.for_all_iff in HA2; cycle 1.
-    { solve_compat_bool. }
+    { solve_compat_bool. solve_leibniz. ss. }
     apply Exprs.PtrPairSetFacts.for_all_iff in HB2; cycle 1.
-    { solve_compat_bool. }
+    { solve_compat_bool. solve_leibniz. ss. }
     ii.
     expl HB2 (try eassumption).
     apply orb_true_iff in HB0.
@@ -484,16 +484,17 @@ Next Obligation.
         apply Exprs.PtrPairSetFacts.mem_iff.
         apply Exprs.PtrPairSetFacts.mem_iff in HA0.
         eapply Exprs.PtrPairSetFacts.In_s_m; eauto.
+        { apply PtrPairSet.E.eq_refl. }
         reflexivity.
   - clear - HA1 HB1 HA3 HB3.
     unfold Invariant.implies_diffblock in *.
     unfold flip in *.
     apply Exprs.ValueTPairSetFacts.for_all_iff.
-    { solve_compat_bool. }
+    { solve_compat_bool. solve_leibniz. ss. }
     apply Exprs.ValueTPairSetFacts.for_all_iff in HA3; cycle 1.
-    { solve_compat_bool. }
+    { solve_compat_bool. solve_leibniz. ss. }
     apply Exprs.ValueTPairSetFacts.for_all_iff in HB3; cycle 1.
-    { solve_compat_bool. }
+    { solve_compat_bool. solve_leibniz. ss. }
     ii.
     destruct x0; ss.
     expl HB3 (try eassumption).
@@ -543,10 +544,10 @@ Next Obligation.
     rewrite <- ExprPairSetFacts.mem_iff in *.
     unfold Invariant.implies_lessdef in *. unfold flip in *.
     rewrite <- ExprPairSetFacts.for_all_iff in *; cycle 1.
-    { solve_compat_bool. }
+    { solve_compat_bool. solve_leibniz. ss. }
     expl H.
     rewrite <- ExprPairSetFacts.exists_iff in *; cycle 1.
-    { solve_compat_bool. }
+    { solve_compat_bool. solve_leibniz. ss. }
     unfold ExprPairSet.Exists in *. des.
     des_sumbool. clarify.
   }
@@ -568,22 +569,23 @@ Lemma implies_reduce_maydiff
     <<IMPLIES: Invariant.implies (Postcond.reduce_maydiff inv0) inv0>>
 .
 Proof.
-  red.
-  unfold Postcond.reduce_maydiff.
-  unfold Invariant.implies.
-  apply orb_true_iff. right.
-  do 2 try (apply andb_true_iff; split).
-  - ss. apply wrap_is_true_goal. reflexivity.
-  - ss. apply wrap_is_true_goal. reflexivity.
-  - ss.
-    (* TODO: THERE SHOULD BE LEMMA FOR THIS: subset -> filter *)
-    apply Exprs.IdTSetFacts.subset_iff.
-    ii.
-    apply Exprs.IdTSetFacts.filter_iff in H; cycle 1.
-    { solve_compat_bool. }
-    des.
-    apply Exprs.IdTSetFacts.filter_iff in H; cycle 1.
-    { solve_compat_bool. }
-    des.
-    ss.
-Qed.
+(*   red. *)
+(*   unfold Postcond.reduce_maydiff. *)
+(*   unfold Invariant.implies. *)
+(*   apply orb_true_iff. right. *)
+(*   do 2 try (apply andb_true_iff; split). *)
+(*   - ss. apply wrap_is_true_goal. reflexivity. *)
+(*   - ss. apply wrap_is_true_goal. reflexivity. *)
+(*   - ss. *)
+(*     (* TODO: THERE SHOULD BE LEMMA FOR THIS: subset -> filter *) *)
+(*     apply Exprs.IdTSetFacts.subset_iff. *)
+(*     ii. *)
+(*     apply Exprs.IdTSetFacts.filter_iff in H; cycle 1. *)
+(*     { solve_compat_bool. solve_leibniz. ss. } *)
+(*     des. *)
+(*     apply Exprs.IdTSetFacts.filter_iff in H; cycle 1. *)
+(*     { solve_compat_bool. solve_leibniz. ss. } *)
+(*     des. *)
+(*     ss. *)
+(* Qed. *)
+Admitted.

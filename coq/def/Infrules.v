@@ -134,7 +134,7 @@ Definition cond_signbit (s:sz) (v:ValueT.t) : bool :=
 Definition cond_gep_zero (v':ValueT.t) (e:Expr.t) : bool :=
   match e with
   | Expr.gep inbound ty1 v idxlist ty2 =>
-    ValueTFacts.eq_dec_l v v' &&
+    ValueT.eq_dec v v' &&
     (List.forallb 
       (fun itm => 
         match itm with
@@ -174,7 +174,7 @@ Definition cond_bitcast_ptr (v':ValueT.t) (e:Expr.t) : bool :=
     (match eop with 
     | castop_bitcast => 
       (match fromty, toty with
-      | typ_pointer _, typ_pointer _ => ValueTFacts.eq_dec_l v v'
+      | typ_pointer _, typ_pointer _ => ValueT.eq_dec v v'
       | _, _ => false
       end)
     | _ => false
@@ -352,7 +352,7 @@ Notation "{{ inv +++src y _|_ x }}" := (Invariant.update_src (Invariant.update_n
 Notation "{{ inv +++tgt y _|_ x }}" := (Invariant.update_tgt (Invariant.update_noalias (PtrPairSet.add (y, x))) inv) (at level 41, inv, y, x at level 41).
 Notation "{{ inv +++src y _||_ x }}" := (Invariant.update_src (Invariant.update_diffblock (ValueTPairSet.add (y, x))) inv) (at level 41, inv, y, x at level 41).
 Notation "{{ inv +++tgt y _||_ x }}" := (Invariant.update_tgt (Invariant.update_diffblock (ValueTPairSet.add (y, x))) inv) (at level 41, inv, y, x at level 41).
-Notation "{{ inv --- x }}" := (Invariant.update_maydiff (IdTSet.filter (fun y => negb (IdTFacts.eq_dec_l x y))) inv) (at level 41, inv, x at level 41).
+Notation "{{ inv --- x }}" := (Invariant.update_maydiff (IdTSet.filter (fun y => negb (IdT.eq_dec x y))) inv) (at level 41, inv, x at level 41).
 
 
 Definition load_align_one (e1: Expr.t): Expr.t :=
@@ -1495,7 +1495,7 @@ Definition apply_infrule
     else apply_fail tt
   | Infrule.diffblock_noalias x y (x', x_type') (y', y_type') =>
     if $$ inv0 |-src x _||_ y $$ &&
-       ValueTFacts.eq_dec_l x x' && ValueTFacts.eq_dec_l y y'
+       ValueT.eq_dec x x' && ValueT.eq_dec y y'
     then {{inv0 +++src (x', x_type') _|_ (y', y_type')}}
     else apply_fail tt
   | Infrule.transitivity_pointer_lhs p q v ty a =>
@@ -1605,8 +1605,8 @@ Definition apply_infrule
     then
       let inv1 := (Invariant.update_src (Invariant.update_lessdef
         (ExprPairSet.filter
-          (fun (p: ExprPair.t) => negb (ExprFacts.eq_dec_l (Expr.value (ValueT.id (Tag.ghost, g))) (snd p)) &&
-                                        negb (ExprFacts.eq_dec_l (Expr.value (ValueT.id (Tag.ghost, g))) (fst p)))))
+          (fun (p: ExprPair.t) => negb (Expr.eq_dec (Expr.value (ValueT.id (Tag.ghost, g))) (snd p)) &&
+                                        negb (Expr.eq_dec (Expr.value (ValueT.id (Tag.ghost, g))) (fst p)))))
           inv0) in
       let inv2 := {{ inv1 +++src (Expr.value (ValueT.id (Tag.ghost, g))) >= expr }} in
       let inv3 := {{ inv2 +++src  expr >= (Expr.value (ValueT.id (Tag.ghost, g))) }} in

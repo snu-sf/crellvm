@@ -315,14 +315,14 @@ Proof.
   repeat (des_if; ss).
   - apply IdT.compare_leibniz in e. by inv e.
   - contradict n.
-    subst. apply IdTFacts.compare_refl.
+    subst. apply IdTSet.E.eq_refl.
 Qed.
 
 Module ForgetMemory.
   Definition is_noalias_Ptr
              (inv:Invariant.unary) (ps:Ptr.t) (p:Ptr.t): bool :=
-    ((negb (ValueTFacts.eq_dec_l ps.(fst) p.(fst))) && Invariant.is_unique_ptr inv p && Invariant.values_diffblock_from_unique (fst ps)) ||
-    ((negb (ValueTFacts.eq_dec_l ps.(fst) p.(fst))) && Invariant.is_unique_ptr inv ps && Invariant.values_diffblock_from_unique (fst p)) ||
+    ((negb (ValueT.eq_dec ps.(fst) p.(fst))) && Invariant.is_unique_ptr inv p && Invariant.values_diffblock_from_unique (fst ps)) ||
+    ((negb (ValueT.eq_dec ps.(fst) p.(fst))) && Invariant.is_unique_ptr inv ps && Invariant.values_diffblock_from_unique (fst p)) ||
     Invariant.is_noalias inv p ps ||
     Invariant.is_diffblock inv p ps.
 
@@ -762,7 +762,7 @@ Definition is_known_nonzero_unary (inv: Invariant.unary) (denom: value): bool :=
     (fun xy =>
        (is_known_total_nonzero xy.(fst))
          &&
-         ExprFacts.eq_dec_l (xy.(snd)) (ValueT.lift Tag.physical denom))
+         Expr.eq_dec (xy.(snd)) (ValueT.lift Tag.physical denom))
     (inv.(Invariant.lessdef))
 .
 

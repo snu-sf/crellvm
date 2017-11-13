@@ -122,7 +122,7 @@ module Auto = struct
       | None -> None
 
     let repl_value e v1 v2 : Expr.t =
-      Expr.map_valueTs e (fun v -> if ValueTFacts.eq_dec_l v1 v then v2 else v)
+      Expr.map_valueTs e (fun v -> if ValueT.eq_dec v1 v then v2 else v)
 
     let is_boolean e : bool option =
       match e with
@@ -180,7 +180,7 @@ module AutoTransHelper = struct
     let rec get_path (acc:Expr.t list) (gr:ExprPairSet.t)
                      (e_from:Expr.t) (e_to:Expr.t)
         : Expr.t list =
-      if ExprFacts.eq_dec_l e_from e_to then e_to::acc
+      if Expr.eq_dec e_from e_to then e_to::acc
       else match Auto.get_lhs_list gr e_to with
            | e_l::_ -> get_path (e_to::acc) gr e_from e_l
            | _ -> []
@@ -308,17 +308,17 @@ module AutoSubstTransHelper = struct
       match vpl with
       | [] -> Some acc_infrs
       | (v1, v2)::vplt ->
-         if ValueTFacts.eq_dec_l v1 v2 then do_subst scp e1 vplt acc_infrs
+         if ValueT.eq_dec v1 v2 then do_subst scp e1 vplt acc_infrs
          else match v1 with
               | ValueT.Coq_id (x) ->
                  let e_n = Expr.map_valueTs e1 (fun v0 ->
-                                                if ValueTFacts.eq_dec_l v0 (ValueT.Coq_id (x))
+                                                if ValueT.eq_dec v0 (ValueT.Coq_id (x))
                                                 then v2 else v0) in
                  do_subst scp e_n vplt (Auto.substitute scp x v2 e1::acc_infrs)
               | _ -> match v2 with
                      | ValueT.Coq_id (y) ->
                         let e_n = Expr.map_valueTs e1 (fun v0 ->
-                                                       if ValueTFacts.eq_dec_l v0 v1
+                                                       if ValueT.eq_dec v0 v1
                                                        then v2 else v0) in
                         do_subst scp e_n vplt (Auto.substitute_rev scp y v1 e_n::acc_infrs)
                      | _ -> None
@@ -328,7 +328,7 @@ module AutoSubstTransHelper = struct
     (* If e1 = e2 and oe1=oe2=None, do nothing. *)
     let rec run depth scp ld oel e1 e2 oer : (Infrule.t list) option =
       if depth > max_depth then None
-      else if (ExprFacts.eq_dec_l e1 e2)
+      else if (Expr.eq_dec e1 e2)
       then match oel, oer with
            | Some el, Some er -> Some [Auto.transitivity scp el e1 er]
            | _ -> Some []
@@ -413,7 +413,7 @@ module AutoSubstTransHelper = struct
                      | (None, _) -> a
                      | (Some acc_infrs, e_stk) ->
                         let (v1, v2) = vp in
-                        if (ValueTFacts.eq_dec_l v1 v2) then a else
+                        if (ValueT.eq_dec v1 v2) then a else
                           let e_m = match e_stk with h::_ -> h | [] -> e1 in
                           let e_m_n = Auto.repl_value e_m v1 v2 in
                           let oinfrs = (run (depth+1) scp ld None (Expr.Coq_value v1) (Expr.Coq_value v2) None) in
@@ -485,13 +485,13 @@ module IntroGhostHelper = struct
 
     let find_unique_v (g:id) (is_src:bool) (ld:ExprPairSet.t) : Expr.t option =
       let filtered_ld =
-        ExprPairSet.filter (fun (e1, e2) -> List.exists (fun idt -> IdTFacts.eq_dec_l idt (Tag.Coq_ghost, g))
+        ExprPairSet.filter (fun (e1, e2) -> List.exists (fun idt -> IdT.eq_dec idt (Tag.Coq_ghost, g))
                                                         ((Expr.get_idTs e1)@(Expr.get_idTs e2))) ld in
       match (ExprPairSet.elements filtered_ld) with
       | (e1, e2)::[] ->
          let ge = Expr.Coq_value (ValueT.Coq_id (Tag.Coq_ghost, g)) in
-         if ExprFacts.eq_dec_l e1 ge then Some e2 else
-           if ExprFacts.eq_dec_l e2 ge then Some e1 else None
+         if Expr.eq_dec e1 ge then Some e2 else
+           if Expr.eq_dec e2 ge then Some e1 else None
       | _ -> None
 
     let is_prev_pair (e:Expr.t) (inv:Invariant.t) : bool =
@@ -503,14 +503,14 @@ module IntroGhostHelper = struct
     let simple_phi (g:id) (inv:Invariant.t) (inv_g:Invariant.t) : Expr.t option =
       match find_unique_v g true inv_g.Invariant.src.Invariant.lessdef,
             find_unique_v g false inv_g.Invariant.tgt.Invariant.lessdef with
-      | Some e1, Some e2 when ExprFacts.eq_dec_l e1 e2 -> (* Some e1 *)
+      | Some e1, Some e2 when Expr.eq_dec e1 e2 -> (* Some e1 *)
          if (is_prev_pair e1 inv) || (unique_ld inv_g.Invariant.src.Invariant.lessdef &&
                                         unique_ld inv_g.Invariant.tgt.Invariant.lessdef)
          then Some e1 else None
       | _ -> None
 
     let is_indep (x:id * Expr.t) (l:(id * Expr.t) list) : bool =
-      not (List.exists (fun (_, e) -> List.exists (IdTFacts.eq_dec_l (Tag.Coq_ghost, fst x)) (Expr.get_idTs e)) l)
+      not (List.exists (fun (_, e) -> List.exists (IdT.eq_dec (Tag.Coq_ghost, fst x)) (Expr.get_idTs e)) l)
 
     let rec find_indep l_todo l_seen : ((id * Expr.t) * ((id * Expr.t) list)) option =
       match l_todo with
@@ -603,7 +603,7 @@ module AutoGVNModule = struct
          | (e_g, Expr.Coq_load (v1, ty1, a), Expr.Coq_value y) ->
             (match Auto.find_first_match (fun ep -> match ep with
                                                     | (Expr.Coq_load (v, ty, a), Expr.Coq_value z) ->
-                                                       if (ValueTFacts.eq_dec_l v1 v) then None else Some(v, ty, z)
+                                                       if (ValueT.eq_dec v1 v) then None else Some(v, ty, z)
                                                     | _ -> None) (ExprPairSet.elements ld) with
              | Some (_, (v2, ty2, z)) ->
                 let infrs1 = make_trunc scp ld ty2 z ty1 y in
@@ -627,7 +627,7 @@ module AutoGVNModule = struct
                       Expr.Coq_load (_, _, _) ->
                        Auto.find_first_match
                          (fun (ea, eb) ->
-                          if ExprFacts.eq_dec_l e1 ea then
+                          if Expr.eq_dec e1 ea then
                             (match eb with
                              | Expr.Coq_value (ValueT.Coq_id (Tag.Coq_physical, x)) ->
                                 hintgenLoad Auto.Tgt ld_t e1 e2 eb
@@ -648,7 +648,7 @@ module AutoGVNModule = struct
                                            Expr.Coq_value (ValueT.Coq_const (Coq_const_int (sz, get_inverse_boolean_Int b)))) (snd acc))
                       | (e1, Expr.Coq_icmp (c, t, v1, v2)) ->
                          (match Auto.find_first_match
-                                  (fun (ex, ey) -> if (ExprFacts.eq_dec_l ey e1 &&
+                                  (fun (ex, ey) -> if (Expr.eq_dec ey e1 &&
                                                          match Auto.is_boolean ex with
                                                          | Some true -> true
                                                          | _ -> false) then Some () else None)
@@ -712,7 +712,7 @@ module AutoRemMD (GEN:InjectValueGenerator) : AutoNextInv = struct
       let md_goal : IdT.t list =
         IdTSet.elements inv_goal.Invariant.maydiff in
       let md_remain : IdT.t list =
-        List.filter (fun x -> not (List.exists (IdTFacts.eq_dec_l x) md_goal)) md in
+        List.filter (fun x -> not (List.exists (IdT.eq_dec x) md_goal)) md in
       run_intl inv inv_goal [] md_remain
   end
 
@@ -747,7 +747,7 @@ module AutoUnaryLD (ULDG:UnaryLDGenerator): AutoNextInv = struct
       let ld_goal : ExprPair.t list =
         ExprPairSet.elements inv_u_goal.Invariant.lessdef in
       let ld_remain : ExprPair.t list =
-        List.filter (fun x -> not (List.exists (ExprPairFacts.eq_dec_l x) ld)) ld_goal in
+        List.filter (fun x -> not (List.exists (ExprPair.eq_dec x) ld)) ld_goal in
       run_intl scp inv_u inv_u_goal [] ld_remain
 
     let run (isfirst:bool) (inv:Invariant.t) (inv_goal:Invariant.t)
