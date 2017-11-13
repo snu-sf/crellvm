@@ -52,7 +52,7 @@ Lemma get_lhs_in_spec
 Proof.
   unfold Invariant.get_lhs, flip in *.
   rewrite ExprPairSetFacts.filter_iff in LHS; cycle 1.
-  { solve_compat_bool. }
+  { solve_compat_bool. solve_leibniz. ss. }
   des. des_sumbool. ss.
 Qed.
 
@@ -63,7 +63,7 @@ Lemma get_rhs_in_spec
 Proof.
   unfold Invariant.get_rhs, flip in *.
   rewrite ExprPairSetFacts.filter_iff in RHS; cycle 1.
-  { solve_compat_bool. }
+  { solve_compat_bool. solve_leibniz. ss. }
   des. des_sumbool. ss.
 Qed.
 
@@ -75,10 +75,14 @@ Lemma get_rhs_in_spec2
 Proof.
   i. des.
   unfold Invariant.get_rhs, flip.
-  apply ExprPairSet.filter_3; try by solve_compat_bool.
-  subst.
-  unfold proj_sumbool.
-  des_ifs.
+  apply ExprPairSet.filter_3.
+  { solve_compat_bool. solve_leibniz. ss. }
+  - subst.
+    unfold proj_sumbool.
+    des_ifs.
+  - subst.
+    unfold proj_sumbool.
+    des_ifs.
 Qed.
 
 Module Unary.
@@ -1291,7 +1295,7 @@ Module Rel.
       <<INJECT: genericvalues_inject.gv_inject invmem.(InvMem.Rel.inject) gval_src gval_tgt>>.
   Proof.
     inversion CONF. inv INJECT0.
-    unfold Invariant.inject_value in INJECT. solve_bool_true.
+    unfold Invariant.inject_value in INJECT. solve_bool_true; try des_sumbool; clarify.
     - inv STATE.
       eapply not_in_maydiff_value_spec; eauto.
     - inv STATE.
@@ -1313,6 +1317,7 @@ Module Rel.
       esplits; eauto.
       eapply GVs.lessdef_inject_compose; eauto.
       eapply GVs.inject_lessdef_compose; eauto.
+      solve_leibniz. ss.
   Qed.
 
   Lemma eqb_forallb2 {X} x_eqb (xs: list X) xs2
@@ -1556,7 +1561,7 @@ Module Subset.
       conv_mem2In.
       exploit SUBSET_LESSDEF; eauto.
     - right.
-      rewrite <- ExprPairSetFacts.exists_iff in *;try by solve_compat_bool.
+      rewrite <- ExprPairSetFacts.exists_iff in *; try by (solve_compat_bool; solve_leibniz; ss).
       unfold ExprPairSet.Exists in *. des.
       apply get_rhs_in_spec in INJECT. des.
       esplits.

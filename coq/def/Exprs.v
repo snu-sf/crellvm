@@ -660,7 +660,11 @@ Ltac solve_leibniz_ cmp CL :=
          end; subst.
 
 Ltac solve_leibniz :=
-  solve_leibniz_ ExprPair.compare ExprPair.compare_leibniz;
+  solve_leibniz_ ValueT.compare ValueT.compare_leibniz;
+  solve_leibniz_ IdT.compare IdT.compare_leibniz;
   solve_leibniz_ ValueTPair.compare ValueTPair.compare_leibniz;
   solve_leibniz_ PtrPair.compare PtrPair.compare_leibniz
+  solve_leibniz_ ExprPair.compare ExprPair.compare_leibniz;
 .
+
+Ltac solve_compat_bool := repeat red; ii; solve_leibniz; subst; eauto; ss.

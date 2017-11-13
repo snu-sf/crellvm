@@ -51,10 +51,10 @@ Proof.
   exploit IHl; eauto. i.
   destruct x as [IN1 | IN2].
   - apply ExprPairSetFacts.add_iff in IN1. des.
-    { destruct a. ss. inv IN1.
+    { destruct a. ss. solve_leibniz; clarify.
       right. esplits; eauto. }
     apply ExprPairSetFacts.add_iff in IN1. des.
-    { destruct a. ss. inv IN1.
+    { destruct a. ss. solve_leibniz; clarify.
       right. esplits; eauto. }
     eauto.
   - right. des; esplits; eauto.
@@ -79,6 +79,8 @@ Proof.
   { apply ExprPairSetFacts.empty_iff in IN. contradiction. }
   destruct IN as [x [IN_X EXPRS]]. red in IN_X.
   apply InA_iff_In in IN_X.
+  replace (eq) with (fun x0 y : IdT.t => IdT.compare x0 y = Eq) in IN_X; cycle 1.
+  { ttttttttttttttttttttttttttt }
   apply IdTSet.elements_2 in IN_X.
   apply IdTSetFacts.filter_iff in IN_X; try by solve_compat_bool.
   desH IN_X.

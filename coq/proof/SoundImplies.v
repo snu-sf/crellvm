@@ -209,7 +209,7 @@ Proof.
   - clear IMPLIES_ALIAS NOALIAS.
     unfold Invariant.implies_diffblock, flip in *.
     i. apply ValueTPairSet.for_all_2 in IMPLIES_ALIAS0; cycle 1.
-    { solve_compat_bool. solve_leibniz. ss. }
+    { solve_compat_bool. }
     apply ValueTPairSet.mem_2 in MEM.
     specialize (IMPLIES_ALIAS0 (val1, val2) MEM). ss.
     des_bool.
@@ -220,7 +220,7 @@ Proof.
   - clear IMPLIES_ALIAS0 DIFFBLOCK.
     unfold Invariant.implies_noalias, flip in *.
     i. apply PtrPairSet.for_all_2 in IMPLIES_ALIAS; cycle 1.
-    { solve_compat_bool. solve_leibniz. ss. }
+    { solve_compat_bool. }
     apply PtrPairSet.mem_2 in MEM.
     specialize (IMPLIES_ALIAS (ptr1, ptr2) MEM). ss.
     des_bool.
@@ -325,10 +325,10 @@ Next Obligation.
   ii.
   unfold Invariant.implies_lessdef. unfold flip.
   apply Exprs.ExprPairSetFacts.for_all_iff.
-  { solve_compat_bool. solve_leibniz. ss. }
+  { solve_compat_bool. }
   ii.
   apply Exprs.ExprPairSetFacts.exists_iff.
-  { solve_compat_bool. solve_leibniz. ss. }
+  { solve_compat_bool. }
   unfold Exprs.ExprPairSet.Exists.
   esplits; eauto.
   (* TODO: enhance des_bool *)
@@ -342,18 +342,18 @@ Next Obligation.
   rename z into invc.
   unfold Invariant.implies_lessdef in *. unfold flip in *.
   apply Exprs.ExprPairSetFacts.for_all_iff.
-  { solve_compat_bool. solve_leibniz. ss. }
+  { solve_compat_bool. }
   apply Exprs.ExprPairSetFacts.for_all_iff in H; cycle 1.
   (* TODO: why compat_bool appears late in this case? *)
-  { solve_compat_bool. solve_leibniz. ss. }
+  { solve_compat_bool. }
   apply Exprs.ExprPairSetFacts.for_all_iff in H0; cycle 1.
-  { solve_compat_bool. solve_leibniz. ss. }
+  { solve_compat_bool. }
   (* TODO: I want to write solve_compat_bool only once. *)
   (* push subgoal as premise of original goal when "apply"ing? *)
   ii.
   expl H0.
   erewrite <- ExprPairSetFacts.exists_iff in H2; cycle 1.
-  { solve_compat_bool. solve_leibniz. ss. }
+  { solve_compat_bool. }
   unfold ExprPairSet.Exists in *.
   des. des_sumbool. clarify.
   expl H.
@@ -432,14 +432,14 @@ Next Obligation.
   - unfold Invariant.implies_noalias.
     unfold flip.
     apply Exprs.PtrPairSetFacts.for_all_iff.
-    { solve_compat_bool. solve_leibniz. ss. }
+    { solve_compat_bool. }
     ii.
     destruct x0; ss. destruct t, t0; ss.
     apply orb_true_iff. right.
     apply Exprs.PtrPairSetFacts.mem_iff. ss.
   - unfold Invariant.implies_diffblock. unfold flip.
     apply Exprs.ValueTPairSetFacts.for_all_iff.
-    { solve_compat_bool. solve_leibniz. ss. }
+    { solve_compat_bool. }
     ii.
     apply orb_true_iff. right.
     apply Exprs.ValueTPairSetFacts.mem_iff.
@@ -460,11 +460,11 @@ Next Obligation.
     unfold Invariant.implies_noalias in *.
     unfold flip in *.
     apply Exprs.PtrPairSetFacts.for_all_iff.
-    { solve_compat_bool. solve_leibniz. ss. }
+    { solve_compat_bool. }
     apply Exprs.PtrPairSetFacts.for_all_iff in HA2; cycle 1.
-    { solve_compat_bool. solve_leibniz. ss. }
+    { solve_compat_bool. }
     apply Exprs.PtrPairSetFacts.for_all_iff in HB2; cycle 1.
-    { solve_compat_bool. solve_leibniz. ss. }
+    { solve_compat_bool. }
     ii.
     expl HB2 (try eassumption).
     apply orb_true_iff in HB0.
@@ -490,11 +490,11 @@ Next Obligation.
     unfold Invariant.implies_diffblock in *.
     unfold flip in *.
     apply Exprs.ValueTPairSetFacts.for_all_iff.
-    { solve_compat_bool. solve_leibniz. ss. }
+    { solve_compat_bool. }
     apply Exprs.ValueTPairSetFacts.for_all_iff in HA3; cycle 1.
-    { solve_compat_bool. solve_leibniz. ss. }
+    { solve_compat_bool. }
     apply Exprs.ValueTPairSetFacts.for_all_iff in HB3; cycle 1.
-    { solve_compat_bool. solve_leibniz. ss. }
+    { solve_compat_bool. }
     ii.
     destruct x0; ss.
     expl HB3 (try eassumption).
@@ -544,10 +544,10 @@ Next Obligation.
     rewrite <- ExprPairSetFacts.mem_iff in *.
     unfold Invariant.implies_lessdef in *. unfold flip in *.
     rewrite <- ExprPairSetFacts.for_all_iff in *; cycle 1.
-    { solve_compat_bool. solve_leibniz. ss. }
+    { solve_compat_bool. }
     expl H.
     rewrite <- ExprPairSetFacts.exists_iff in *; cycle 1.
-    { solve_compat_bool. solve_leibniz. ss. }
+    { solve_compat_bool. }
     unfold ExprPairSet.Exists in *. des.
     des_sumbool. clarify.
   }

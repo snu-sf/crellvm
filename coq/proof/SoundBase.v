@@ -397,6 +397,7 @@ Proof.
   exists x.
   split; ss.
   - eapply ExprPairSetFacts.In_s_m; eauto.
+    apply ExprPairSet.E.eq_refl.
     apply SUBSET.
   - des_ifs_safe. ss.
     erewrite InvState.Subset.inject_value_Subset; eauto.
@@ -419,6 +420,7 @@ Proof.
   exists x.
   split; ss.
   - eapply ExprPairSetFacts.In_s_m; eauto.
+    apply ExprPairSet.E.eq_refl.
     apply SUBSET.
   - des_ifs_safe.
 Qed.

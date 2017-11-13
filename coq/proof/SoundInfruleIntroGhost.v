@@ -87,13 +87,13 @@ Qed.
 
 Lemma list_inb_single
       x0 idt0 dec
-      (INB: list_inb IdTSetFacts.eq_dec [x0] idt0 = dec)
+      (INB: list_inb IdT.eq_dec [x0] idt0 = dec)
   :
     <<DEC: proj_sumbool (IdTSetFacts.eq_dec idt0 x0) = dec>>
 .
 Proof.
   unfold list_inb, is_some in *. ss.
-  des_ifs.
+  red. unfold proj_sumbool in *; solve_leibniz; des_ifs; ss.
 Qed.
 
 Lemma list_inb_filter_map_cons
