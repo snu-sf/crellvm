@@ -574,3 +574,25 @@ Proof.
   rewrite -> DEF_Z_ofs.
   apply Int.repr_unsigned.
 Qed.
+
+(* TODO: can we do this with setoid? *)
+Lemma InA_iff_In
+      A
+      (myeq: A -> A -> Prop)
+      (MYEQ_EQ: forall x y, myeq x y <-> x = y)
+  :
+    forall x xs, InA myeq x xs <-> In x xs.
+Proof.
+  i.
+  split; i.
+  - ginduction xs; ii; ss.
+    { inv H. }
+    inv H; ss.
+    + apply MYEQ_EQ in H1. subst. left; ss.
+    + right. eauto.
+  - ginduction xs; ii; ss.
+    des; ss.
+    + subst. econs; eauto.
+      eapply MYEQ_EQ; eauto.
+    + eapply InA_cons_tl; eauto.
+Qed.

@@ -93,17 +93,19 @@ Lemma list_inb_single
 .
 Proof.
   unfold list_inb, is_some in *. ss.
-  red. unfold proj_sumbool in *; solve_leibniz; des_ifs; ss.
+  red. unfold proj_sumbool in *; des_ifs; solve_leibniz; ss.
+  contradict n.
+  finish_by_refl.
 Qed.
 
 Lemma list_inb_filter_map_cons
       X (v: X) (vs: list X) (f: X -> option IdT.t)
       idt0
-      (INB0: list_inb IdTSetFacts.eq_dec (f v) idt0 = false)
-      (INB1: list_inb IdTSetFacts.eq_dec
+      (INB0: list_inb IdT.eq_dec (f v) idt0 = false)
+      (INB1: list_inb IdT.eq_dec
                       (filter_map f vs) idt0 = false)
   :
-    <<INB: list_inb IdTSetFacts.eq_dec
+    <<INB: list_inb IdT.eq_dec
                     (filter_map f (v :: vs)) idt0 = false>>
 .
 Proof.
@@ -116,10 +118,10 @@ Qed.
 
 Corollary list_inb_filter_map_cons_one
       X (v w: X) (f: X -> option IdT.t) idt0
-      (INB0: list_inb IdTSetFacts.eq_dec (f v) idt0 = false)
-      (INB1: list_inb IdTSetFacts.eq_dec (f w) idt0 = false)
+      (INB0: list_inb IdT.eq_dec (f v) idt0 = false)
+      (INB1: list_inb IdT.eq_dec (f w) idt0 = false)
   :
-    <<INB: list_inb IdTSetFacts.eq_dec (filter_map f [v; w]) idt0 = false>>
+    <<INB: list_inb IdT.eq_dec (filter_map f [v; w]) idt0 = false>>
 .
 Proof.
   eapply list_inb_filter_map_cons; eauto.
@@ -130,7 +132,7 @@ Section CLEAR_IDTS.
 
   Lemma clear_idt_spec_id
         i0 idt0
-        (CLEAR: proj_sumbool (IdTSetFacts.eq_dec i0 idt0) = false)
+        (CLEAR: proj_sumbool (IdT.eq_dec i0 idt0) = false)
         st invst0
   :
     <<EQ: InvState.Unary.sem_idT st invst0 i0 =
@@ -156,7 +158,7 @@ Section CLEAR_IDTS.
 
   Lemma clear_idt_spec_value
         v0 idt0
-        (CLEAR: list_inb IdTSetFacts.eq_dec (ValueT.get_idTs v0) idt0 = false)
+        (CLEAR: list_inb IdT.eq_dec (ValueT.get_idTs v0) idt0 = false)
         conf st invst0
     :
       <<EQ: InvState.Unary.sem_valueT conf st invst0 v0 =
@@ -167,11 +169,12 @@ Section CLEAR_IDTS.
     erewrite clear_idt_spec_id; eauto.
     apply list_inb_single in CLEAR. des. des_sumbool.
     unfold proj_sumbool. des_ifs.
+    contradict CLEAR. finish_by_refl.
   Qed.
 
   Lemma clear_idt_spec_list_value
         vs0 idt0
-        (CLEAR: list_inb IdTSetFacts.eq_dec (filter_map ValueT.get_idTs (List.map snd vs0)) idt0 = false)
+        (CLEAR: list_inb IdT.eq_dec (filter_map ValueT.get_idTs (List.map snd vs0)) idt0 = false)
         conf st invst0
     :
       <<EQ: InvState.Unary.sem_list_valueT conf st invst0 vs0 =
@@ -199,7 +202,7 @@ Section CLEAR_IDTS.
 
   Lemma clear_idt_spec_expr
         x idt0
-        (CLEAR: list_inb IdTSetFacts.eq_dec (Expr.get_idTs x) idt0 = false)
+        (CLEAR: list_inb IdT.eq_dec (Expr.get_idTs x) idt0 = false)
         conf st invst0
     :
       <<EQ: InvState.Unary.sem_expr conf st invst0 x =
@@ -368,7 +371,7 @@ Section CLEAR_IDTS.
       clear SRC TGT TGT_NOUNIQ ALLOCAS.
       ii.
       unfold InvState.Rel.clear_idt. ss.
-      destruct (IdTSetFacts.eq_dec id0 (Tag.ghost, i0)).
+      destruct (IdT.eq_dec id0 (Tag.ghost, t0)).
       + clarify. exfalso.
         clear - VAL_SRC.
         Local Transparent InvState.Unary.clear_idt.
@@ -405,7 +408,7 @@ Section CLEAR_IDTS_INV.
                = Some gv)
         (NOTPHYSICAL: idt0.(fst) <> Tag.physical)
     :
-      <<CLEAR: proj_sumbool (IdTSetFacts.eq_dec i0 idt0) = false>>
+      <<CLEAR: proj_sumbool (IdT.eq_dec i0 idt0) = false>>
   .
   Proof.
     red.
@@ -425,7 +428,7 @@ Section CLEAR_IDTS_INV.
                = Some gv)
         (NOTPHYSICAL: idt0.(fst) <> Tag.physical)
     :
-      <<CLEAR: list_inb IdTSetFacts.eq_dec (ValueT.get_idTs v0) idt0 = false>>
+      <<CLEAR: list_inb IdT.eq_dec (ValueT.get_idTs v0) idt0 = false>>
   .
   Proof.
     destruct v0; ss.
@@ -441,7 +444,7 @@ Section CLEAR_IDTS_INV.
                = Some gv)
         (NOTPHYSICAL: idt0.(fst) <> Tag.physical)
     :
-      <<CLEAR: list_inb IdTSetFacts.eq_dec (filter_map ValueT.get_idTs (List.map snd vs0))
+      <<CLEAR: list_inb IdT.eq_dec (filter_map ValueT.get_idTs (List.map snd vs0))
                         idt0 = false>>
   .
   Proof.
@@ -451,7 +454,7 @@ Section CLEAR_IDTS_INV.
     des_ifs_safe. ss.
     abstr (filter_map ValueT.get_idTs (List.map snd vs0)) tt.
     exploit clear_idt_inv_spec_value; try eassumption. i.
-    destruct t0; ss; cycle 1.
+    destruct t1; ss; cycle 1.
     { eapply IHvs0; eauto. }
     replace (x :: tt) with ([x] ++ tt) by ss.
     apply list_inb_false_app; cycle 1.
@@ -466,7 +469,7 @@ Section CLEAR_IDTS_INV.
                = Some gv)
         (NOTPHYSICAL: idt0.(fst) <> Tag.physical)
     :
-      <<CLEAR: list_inb IdTSetFacts.eq_dec (Expr.get_idTs x) idt0 = false>>
+      <<CLEAR: list_inb IdT.eq_dec (Expr.get_idTs x) idt0 = false>>
   .
   Proof.
     Local Opaque filter_map.
@@ -548,7 +551,7 @@ Section CONS_IDT.
 
   Lemma cons_idt_spec_id
         i0 idt0
-        (CLEAR: proj_sumbool (IdTSetFacts.eq_dec i0 idt0) = false)
+        (CLEAR: proj_sumbool (IdT.eq_dec i0 idt0) = false)
         st invst0
         gv0
   :
@@ -563,7 +566,7 @@ Section CONS_IDT.
     unfold InvState.Unary.sem_tag.
     destruct i0; ss.
     des_sumbool.
-    destruct t, t0; ss; des_ifs.
+    destruct t, t1; ss; des_ifs.
   Qed.
 
   (* Lemma clear_idt_spec_inv_id *)
@@ -574,12 +577,12 @@ Section CONS_IDT.
   (*       (NOTPHYSICAL: idt0.(fst) <> Tag.physical) *)
   (*   : *)
   (*     (* <<NOTIN: idt0 <> i0>> *) *)
-  (*     <<CLEAR: proj_sumbool (IdTSetFacts.eq_dec i0 idt0) = false>> *)
+  (*     <<CLEAR: proj_sumbool (IdT.eq_dec i0 idt0) = false>> *)
   (* . *)
 
   Lemma cons_idt_spec_value
         v0 idt0
-        (CLEAR: list_inb IdTSetFacts.eq_dec (ValueT.get_idTs v0) idt0 = false)
+        (CLEAR: list_inb IdT.eq_dec (ValueT.get_idTs v0) idt0 = false)
         st conf invst0
         gv0
   :
@@ -591,11 +594,12 @@ Section CONS_IDT.
     erewrite cons_idt_spec_id; eauto.
     apply list_inb_single in CLEAR. des. des_sumbool.
     unfold proj_sumbool. des_ifs.
+    contradict CLEAR. finish_by_refl.
   Qed.
 
   Lemma cons_idt_spec_list_value
         vs0 idt0
-        (CLEAR: list_inb IdTSetFacts.eq_dec
+        (CLEAR: list_inb IdT.eq_dec
                          (filter_map ValueT.get_idTs (List.map snd vs0)) idt0 = false)
         st conf invst0
         gv0
@@ -624,7 +628,7 @@ Section CONS_IDT.
 
   Lemma cons_idt_spec_expr
         x idt0
-        (CLEAR: list_inb IdTSetFacts.eq_dec (Expr.get_idTs x) idt0 = false)
+        (CLEAR: list_inb IdT.eq_dec (Expr.get_idTs x) idt0 = false)
         st conf invst0
         gv0
   :
@@ -709,8 +713,8 @@ Section SET_INV.
                             (ExprPairSet.clear_idt idt0 eps))
         (NOTPHYS: idt0.(fst) <> Tag.physical)
   :
-    <<CLEAR0: list_inb IdTSetFacts.eq_dec (Expr.get_idTs e0) idt0 = false>> /\
-    <<CLEAR1: list_inb IdTSetFacts.eq_dec (Expr.get_idTs e1) idt0 = false>>
+    <<CLEAR0: list_inb IdT.eq_dec (Expr.get_idTs e0) idt0 = false>> /\
+    <<CLEAR1: list_inb IdT.eq_dec (Expr.get_idTs e1) idt0 = false>>
   .
   Proof.
     unfold ExprPairSet.clear_idt in IN.
@@ -726,8 +730,8 @@ Section SET_INV.
                             (ValueTPairSet.clear_idt idt0 vps))
         (NOTPHYS: idt0.(fst) <> Tag.physical)
   :
-    <<CLEAR0: list_inb IdTSetFacts.eq_dec (ValueT.get_idTs e0) idt0 = false>> /\
-    <<CLEAR1: list_inb IdTSetFacts.eq_dec (ValueT.get_idTs e1) idt0 = false>>
+    <<CLEAR0: list_inb IdT.eq_dec (ValueT.get_idTs e0) idt0 = false>> /\
+    <<CLEAR1: list_inb IdT.eq_dec (ValueT.get_idTs e1) idt0 = false>>
   .
   Proof.
     unfold ValueTPairSet.clear_idt in IN.
@@ -743,8 +747,8 @@ Section SET_INV.
                             (PtrPairSet.clear_idt idt0 vps))
         (NOTPHYS: idt0.(fst) <> Tag.physical)
   :
-    <<CLEAR0: list_inb IdTSetFacts.eq_dec (Ptr.get_idTs e0) idt0 = false>> /\
-    <<CLEAR1: list_inb IdTSetFacts.eq_dec (Ptr.get_idTs e1) idt0 = false>>
+    <<CLEAR0: list_inb IdT.eq_dec (Ptr.get_idTs e0) idt0 = false>> /\
+    <<CLEAR1: list_inb IdT.eq_dec (Ptr.get_idTs e1) idt0 = false>>
   .
   Proof.
     unfold PtrPairSet.clear_idt in IN.
@@ -759,7 +763,7 @@ Section SET_INV.
         (IN: IdTSet.In e0 (IdTSet.clear_idt idt0 vps))
         (NOTPHYS: idt0.(fst) <> Tag.physical)
     :
-      <<CLEAR: proj_sumbool (IdTSetFacts.eq_dec e0 idt0) = false>>
+      <<CLEAR: proj_sumbool (IdT.eq_dec e0 idt0) = false>>
   .
   Proof.
     unfold IdTSet.clear_idt in IN.
@@ -801,8 +805,9 @@ Proof.
   econs; eauto; try apply SEM.
   - inv SEM. clear - GV LESSDEF.
     ii. ss.
-    apply ExprPairSetFacts.add_iff in H. des.
-    { clarify. ss.
+    apply ExprPairSetFacts.add_iff in H.
+    des.
+    { solve_leibniz. clarify. ss.
       compute in VAL1. des_ifs.
       erewrite cons_idt_expr_sim; eauto.
       esplits; eauto.
@@ -810,6 +815,7 @@ Proof.
     }
     apply ExprPairSetFacts.add_iff in H. des.
     { clarify. ss.
+      solve_leibniz. ss.
       erewrite cons_idt_expr_sim in VAL1; eauto. rewrite VAL1 in *. clarify.
       exists gv; splits; ss.
       - compute. des_ifs.

@@ -327,7 +327,7 @@ Section SOME.
   :
     exists val1 : GenericValue,
       <<SEM: InvState.Unary.sem_valueT conf st invst0
-                                       (if IdTSetFacts.eq_dec from idt0 then to else idt0) = Some val1>>
+                                       (if IdT.eq_dec from idt0 then to else idt0) = Some val1>>
              /\ <<LD: GVs.lessdef val0 val1 >>
   .
   Proof.
@@ -423,11 +423,13 @@ Proof.
   ss.
   destruct (InvState.Unary.sem_idT st invst0 x) eqn:T; cycle 1.
   { clear LD.
+    solve_leibniz.
     clear - VAL1 T.
     erewrite subst_none_expr; eauto. esplits; eauto. eapply GVs.lessdef_refl.
   }
   specialize (LD g eq_refl). des.
   clear_tac.
+  solve_leibniz.
   eapply substitute_some_expr; eauto.
 Qed.
 
@@ -456,11 +458,13 @@ Proof.
   ss.
   destruct (InvState.Unary.sem_valueT conf st invst0 y) eqn:T; cycle 1.
   { clear LD.
+    solve_leibniz.
     clear - VAL1 T.
     erewrite subst_none_expr_rev in VAL1; eauto. esplits; eauto. eapply GVs.lessdef_refl.
   }
   specialize (LD g eq_refl). des.
   clear_tac.
+  solve_leibniz.
   eapply substitute_some_expr_rev; eauto.
 Qed.
 

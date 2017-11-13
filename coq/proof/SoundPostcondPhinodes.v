@@ -95,6 +95,7 @@ Proof.
 
   do 2 rewrite ExprPairSetFacts.add_iff in *. des.
   - ss. clarify. ss.
+    solve_leibniz. clarify. ss.
     rewrite InvState.Unary.sem_valueT_physical in VAL1. clarify.
 
     unfold intConst2Z in *. des_ifs.
@@ -118,6 +119,7 @@ Proof.
         - chunk_simpl.
       }
   - ss. clarify. ss.
+    solve_leibniz. clarify. ss.
     rewrite InvState.Unary.sem_valueT_physical. clarify.
 
     unfold intConst2Z in *. des_ifs.
@@ -233,6 +235,7 @@ Proof.
   do 2 rewrite ExprPairSetFacts.add_iff in *.
   des.
   - clarify. ss.
+    solve_leibniz. clarify. ss.
     rewrite InvState.Unary.sem_valueT_physical in VAL1.
     unfold ite in *.
     unfold GV2int in INT.
@@ -259,6 +262,7 @@ Proof.
          des; subst; unfold Integers.Int.repr; ss. }
        { split; ss. }
   - clarify. ss.
+    solve_leibniz. clarify. ss.
     rewrite InvState.Unary.sem_valueT_physical.
     unfold ite in *.
     unfold GV2int in INT.
@@ -366,8 +370,10 @@ Proof.
     { apply ExprPairSetFacts.empty_iff in IN. done. }
     destruct a. ss.
     repeat rewrite -> ExprPairSetFacts.add_iff in IN. des.
-    - esplits; eauto. right. left. eauto.
-    - esplits; eauto. right. right. eauto.
+    - solve_leibniz.
+      esplits; eauto. right. left. eauto.
+    - solve_leibniz.
+      esplits; eauto. right. right. eauto.
     - exploit IHl0; eauto. i. des. esplits; eauto.
   }
   { (* definedness *)
@@ -375,7 +381,7 @@ Proof.
     { apply ExprPairSetFacts.empty_iff in IN. done. }
     destruct a. ss.
     repeat rewrite -> ExprPairSetFacts.add_iff in IN. des.
-    - esplits; eauto. left. eauto.
+    - solve_leibniz. esplits; eauto. left. eauto.
     - exploit IHl0; eauto. i. des. esplits; eauto.
   }
 Qed.
