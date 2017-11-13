@@ -116,6 +116,33 @@ Hint Unfold wrap_compare.
 
 Definition lazy_comparison := unit -> comparison.
 
+(* tactics *)
+
+Ltac solve_leibniz_ cmp CL :=
+  repeat match goal with
+         | [H:cmp ?a ?b = Eq |- _] => apply CL in H
+         end; subst.
+
+Ltac finish_refl_ cmp REFL:=
+  try match goal with
+      | [H: cmp ?a ?a = Lt |- _] =>
+        rewrite REFL in H; congruence
+
+      | [H: cmp ?a ?a = Gt |- _] =>
+        rewrite REFL in H; congruence
+      end.
+
+Ltac apply_trans_ cmp TRANS :=
+  try match goal with
+      | [H1: cmp ?x ?y = ?c, H2: cmp ?y ?x = ?c |- _] =>
+        exploit (TRANS c x y x); eauto; (idtac; []; i);
+        exploit (TRANS c y x y); eauto; (idtac; []; i)
+      end;
+  try match goal with
+      | [H1: cmp ?x ?y = ?c, H2: cmp ?y ?z = ?c |- _] =>
+        exploit (TRANS c x y z); eauto; (idtac; []; i)
+      end.
+
 Section LISTS.
 
   Fixpoint lexico_order (x0: list lazy_comparison): comparison :=
@@ -293,6 +320,92 @@ Section LISTS.
     all: ss.
   Qed.
 
+  Lemma compare_list_leibniz
+        X
+        (compare: X -> X -> comparison)
+        (CMP_LEIBNIZ: forall a b, compare a b = Eq -> a = b)
+        l1 l2
+        (CMPL_EQ: compare_list compare l1 l2 = Eq)
+    : l1 = l2.
+  Proof.
+    generalize dependent l2.
+    induction l1.
+    - intros. simpl in *. des_ifs.
+    - intros. simpl in *. des_ifs.
+      exploit CMP_LEIBNIZ; eauto. i. subst.
+      exploit IHl1; eauto. i. subst.
+      eauto.
+  Qed.
+  
+  Lemma compare_list_leibniz'
+        X l1 l2
+        (compare: X -> X -> comparison)
+        (CMP_LEIBNIZ: Forall (fun a => forall b,  compare a b = Eq -> a = b) l1)
+        (CMPL_EQ: compare_list compare l1 l2 = Eq)
+    : l1 = l2.
+  Proof.
+    generalize dependent l2.
+    induction l1.
+    - intros. simpl in *. des_ifs.
+    - intros. simpl in *. des_ifs.
+      inversion CMP_LEIBNIZ. subst.
+      match goal with
+      | [H: forall b, compare a b = Eq -> a = b |- _] =>
+        exploit H; eauto; i; subst
+      end.
+      exploit IHl1; eauto. i. subst.
+      eauto.
+  Qed.
+
+  Lemma compare_list_trans'
+        X compare
+        (COMP_LEIBNIZ: forall x y, compare x y = Eq -> x = y)
+        (COMP_REFL: forall x, compare x x = Eq)
+        (COMP_TRANS: forall c (x y z:X), compare x y = c -> compare y z = c -> compare x z = c)
+    : forall c l1 l2 l3, compare_list compare l1 l2 = c ->
+                    compare_list compare l2 l3 = c ->
+                    compare_list compare l1 l3 = c.
+  Proof.
+    intros c' l1. revert c'.
+    induction l1.
+    { simpl. intros. des_ifs. }
+    simpl. intros.
+    des_ifs; simpl in *; des_ifs;
+      try by (solve_leibniz_ compare COMP_LEIBNIZ;
+              apply_trans_ (compare_list compare) (fun c (x y z:list X) => @IHl1 c y z);
+              apply_trans_ compare COMP_TRANS;
+              finish_refl_ compare COMP_REFL; congruence).
+  Qed.
+
+
+
+  Lemma compare_list_trans''
+        X
+        (compare: X -> X -> comparison)
+        (COMP_LEIBNIZ: forall x y, compare x y = Eq -> x = y)
+        (COMP_REFL: forall x, compare x x = Eq)
+        c l0 l1 l2
+        (IHLIST:
+           Forall
+             (fun x => forall c y z,
+                  compare x y = c -> compare y z = c -> compare x z = c) l0)
+    :
+      <<TRANS:
+        compare_list compare l0 l1 = c -> compare_list compare l1 l2 = c ->
+        compare_list compare l0 l2 = c>>
+  .
+  Proof.
+    revert c l1 l2.
+    induction l0; ii.
+    { simpl in *. des_ifs. }
+    destruct l1, l2; simpl in *; try congruence.
+    inv IHLIST.
+    des_ifs;
+      try by (solve_leibniz_ compare COMP_LEIBNIZ;
+              apply_trans_ (compare_list compare) (fun c (x y z:list X) => @IHl0 H4 c y z);
+              apply_trans_ compare (fun c (x y z:X) => H3 c y z);
+              finish_refl_ compare COMP_REFL; try congruence).
+  Qed.
 End LISTS.
 
 
@@ -776,8 +889,7 @@ Module sz <: AltUsual.
     :
       <<SYM: compare y x = CompOpp (compare x y)>>
   .
-  Proof.
-  Admitted.
+  Proof. apply Nat.compare_antisym. Qed.
 
   Lemma compare_leibniz: forall
       x y
@@ -785,7 +897,7 @@ Module sz <: AltUsual.
     ,
       x = y
   .
-  Admitted.
+  Proof. apply Nat.compare_eq. Qed.
 
   Lemma compare_trans: forall
       c x y z (* for compatibility with Alt *)
@@ -795,7 +907,16 @@ Module sz <: AltUsual.
       <<XZ: compare x z = c>>
   .
   Proof.
-  Admitted.
+    intros.
+    destruct c.
+    - apply nat_compare_eq in XY.
+      apply nat_compare_eq in YZ.
+      subst. apply Nat.compare_refl.
+    - rewrite <- nat_compare_lt in *.
+      red. rewrite <- nat_compare_lt. omega.
+    - rewrite <- nat_compare_gt in *.
+      red. rewrite <- nat_compare_gt. omega.
+  Qed.      
 End sz.
 
 
@@ -835,14 +956,141 @@ Module vargFacts := optionFacts varg. (* or AltUsualFacts varg directly? *)
 (* Module NatFacts := OrdersFacts.OrderedTypeFacts Nat. *)
 
 
+Module AtomCompare.
+  Definition t := MetatheoryAtom.AtomImpl.atom.
+  Definition compare := MetatheoryAtom.AtomImpl.atom_compare.
 
+  (* Lemma atom_lt_irrefl x: *)
+  (*   ~ MetatheoryAtom.AtomImpl.atom_lt x x. *)
+  (* Proof. *)
+  (*   apply StrictOrder_Irreflexive. *)
+  (* Qed. *)
 
+  (* Lemma atom_lt_trans x y z: *)
+  (*   MetatheoryAtom.AtomImpl.atom_lt x y -> *)
+  (*   MetatheoryAtom.AtomImpl.atom_lt y z -> *)
+  (*   MetatheoryAtom.AtomImpl.atom_lt x z. *)
+  (* Proof. apply StrictOrder_Transitive. Qed. *)
 
+  Lemma compare_eq x y
+    : compare x y = Eq <-> x = y.
+  Proof.
+    unfold compare.
+    generalize (MetatheoryAtom.AtomImpl.atom_compare_spec x y).
+    intros SPEC.
+    split; intro EQ.
+    - rewrite EQ in SPEC. inversion SPEC. auto.
+    - destruct (MetatheoryAtom.AtomImpl.atom_compare x y) eqn:ACMP; auto;
+        inversion SPEC; subst;
+          apply StrictOrder_Irreflexive in H; contradiction.
+  Qed.
+
+  Lemma compare_refl x
+    : compare x x = Eq.
+  Proof. apply (compare_eq x x). eauto. Qed.
+
+  Lemma atom_lt_LT x y
+    : MetatheoryAtom.AtomImpl.atom_lt x y <-> compare x y = Lt.
+  Proof.
+  Admitted.
+
+  Lemma atom_lt_GT x y
+    : MetatheoryAtom.AtomImpl.atom_lt x y <-> compare y x = Gt.
+  Proof.
+  Admitted.
+
+  Lemma compare_lt x y
+    : compare x y = Lt <-> compare y x = Gt.
+  Proof.
+    rewrite <- atom_lt_LT. rewrite <- atom_lt_GT. eauto.
+  Qed.
+
+  Lemma compare_lt_trans x y z
+    : compare x y = Lt -> compare y z = Lt -> compare x z = Lt.
+  Proof.
+    intros CXY CYZ.
+    rewrite <- atom_lt_LT in *.
+    eapply StrictOrder_Transitive; eauto.
+    (* eapply atom_lt_trans; eauto. *)
+  Qed.
+
+  Lemma compare_sym
+        x y
+    :
+      <<SYM: compare y x = CompOpp (compare x y)>>
+  .
+  Proof.
+    red.
+    destruct (compare y x) eqn:CYX.
+    - rewrite compare_eq in CYX. subst.
+      rewrite compare_refl. reflexivity.
+    - apply compare_lt in CYX. rewrite CYX. reflexivity.
+    - apply compare_lt in CYX. rewrite CYX. reflexivity.
+  Qed.
+
+  Lemma compare_leibniz: forall
+      x y
+      (EQ: compare x y = Eq)
+    ,
+      x = y
+  .
+  Proof. apply compare_eq. Qed.
+
+  Lemma compare_trans: forall
+      c x y z (* for compatibility with Alt *)
+      (XY: compare x y = c)
+      (YZ: compare y z = c)
+    ,
+      <<XZ: compare x z = c>>
+  .
+  Proof.
+    red. intros. destruct c.
+    - rewrite compare_eq in *. congruence.
+    - eapply compare_lt_trans; eauto.
+    - rewrite <- compare_lt in *.
+      eapply compare_lt_trans; eauto.
+  Qed.
+End AtomCompare.
 
 
 Module typ <: AltUsual.
 
   Definition t := typ.
+
+  Section t_ind.
+    Variable P : t -> Prop.
+    (* Variable Pl : list t -> Prop. *)
+
+    (* Hypothesis P_Pl : forall l, Forall P l -> Pl l. *)
+
+    Hypothesis P_int : forall sz, P (typ_int sz).
+    Hypothesis P_floatpoint : forall fp, P (typ_floatpoint fp).
+    Hypothesis P_void : P (typ_void).
+    Hypothesis P_typ_label : P (typ_label).
+    Hypothesis P_typ_metadata : P typ_metadata.
+    Hypothesis P_typ_array : forall sz t, P t -> P (typ_array sz t).
+    Hypothesis P_typ_function : forall t tl va, P t -> Forall P tl -> P (typ_function t tl va).
+    Hypothesis P_typ_struct : forall tl, Forall P tl -> P (typ_struct tl).
+    Hypothesis P_typ_pointer : forall t, P t -> P (typ_pointer t).
+    Hypothesis P_typ_namedt : forall x, P (typ_namedt x).
+
+    Theorem t_ind :
+      forall x, P x.
+    Proof.
+      refine (fix F x :=
+                match x with
+                | typ_int sz => _
+                | _ => _
+                end); try (by clear F; eauto).
+      - apply P_typ_array. apply F.
+      - apply P_typ_function.
+        + apply F.
+        + induction l; eauto.
+      - apply P_typ_struct.
+        induction l; eauto.
+      - apply P_typ_pointer. apply F.
+    Qed.
+  End t_ind.
 
   Definition case_order (x: t): OrdIdx.t :=
     match x with
@@ -887,33 +1135,39 @@ Module typ <: AltUsual.
 
   Hint Unfold NatAltUsual.compare.
 
+
   Lemma compare_sym
         x y
     :
       <<SYM: compare y x = CompOpp (compare x y)>>
   .
   Proof.
-    red.
-    (* unfold CompOpp. *)
-    (* revert y. *)
-    (* induction x using typ_ind_gen; ii; ss; des_ifs_safe; ss. *)
-    (* - apply OrdIdx.compare_antisym. *)
-    (* - apply floating_point.compare_sym. *)
-    (* - des_ifs. *)
-    (* - des_ifs. *)
-    (* - des_ifs. *)
-    (* - erewrite IHx. abstr (compare x t0) X. clear IHx. *)
-    (*   rewrite OrdIdx.compare_antisym. abstr (sz5 ?= sz0) Y. *)
-    (*   unfold CompOpp. des_ifs. *)
-    (* - erewrite IHx. abstr (compare x t0) X. clear IHx. *)
-    (*   rewrite varg.compare_sym. abstr (varg.compare varg5 varg0) Y. *)
-    (*   (* TODO: Nat is anti_sym, varg is _sym ... *) *)
-    (*   (* I want to use NatALt.compare_sym instead of OrdIdx.compare_antisym *) *)
-    (*   erewrite compare_list_sym; ss. abstr (compare_list compare l0 l1) Z. clear IH. *)
-    (*   des_ifs. *)
-    (* - erewrite compare_list_sym; ss. *)
-    (* - admit. *)
-  Admitted.
+    red. unfold compare, wrap_compare in *. revert y.
+    induction x using typ_ind_gen;
+      intros; destruct y; eauto; simpl.
+    - by apply sz.compare_sym.
+    - by apply floating_point.compare_sym.
+    - rewrite (IHx y); eauto.
+      Ltac comp_sym comp sym :=
+        match goal with
+        | [ |- context[match comp ?a ?b with _ => _ end]] =>
+          rewrite (sym a b); destruct (comp a b)
+        end.
+      comp_sym sz.compare sz.compare_sym; eauto; des_ifs.
+    - rewrite (IHx y); eauto.
+      rewrite (compare_list_sym compare' IH).
+      comp_sym varg.compare varg.compare_sym; eauto; des_ifs.
+    - exploit compare_list_sym; eauto.
+    - by apply AtomCompare.compare_sym.
+  Qed.
+
+  Corollary compare_refl z:
+    compare z z = Eq.
+  Proof.
+    assert (compare z z = CompOpp (compare z z)).
+    { apply compare_sym. }
+    destruct (compare z z); simpl in *; congruence.
+  Qed.
 
   Lemma compare_leibniz: forall
       x y
@@ -921,7 +1175,260 @@ Module typ <: AltUsual.
     ,
       x = y
   .
-  Admitted.
+  Proof.
+    unfold compare, wrap_compare.
+    induction x using typ_ind_gen;
+      destruct y; try discriminate; subst; eauto;
+        simpl; intros.
+    - exploit sz.compare_leibniz; eauto.
+    - exploit floating_point.compare_leibniz; eauto.
+      i. subst. eauto.
+    - inversion EQ. des_ifs.
+      exploit sz.compare_leibniz; eauto. i. subst.
+      exploit IHx; eauto. i. subst. eauto.
+    - des_ifs.
+      exploit varg.compare_leibniz; eauto. i. subst.
+      exploit compare_list_leibniz'; eauto. i. subst.
+      exploit IHx; eauto. i. subst. eauto.
+    - exploit compare_list_leibniz'; eauto. i. subst. eauto.
+    - exploit IHx; eauto. i. subst. eauto.
+    - apply AtomCompare.compare_eq in EQ. subst. eauto.
+  Qed.
+
+  (* Lemma lt_gt a b *)
+  (*   : compare a b = Lt <-> compare b a = Gt. *)
+  (* Proof. *)
+  (* Admitted. *)
+
+  (* Lemma compare_lt_trans *)
+  (*   : forall a b c *)
+  (*       (AB: compare a b = Lt) *)
+  (*       (BC: compare b c = Lt) *)
+  (*   , compare a c = Lt. *)
+  (* Proof. *)
+  (*   induction a using typ_ind_gen; *)
+  (*     destruct b; try discriminate; *)
+  (*       destruct c; try discriminate; eauto. *)
+  (*   - simpl. apply sz.compare_trans. *)
+  (*   - simpl. apply floating_point.compare_trans. *)
+  (*   - simpl. intros. des_ifs. *)
+  (*     + exploit IHa; eauto. congruence. *)
+  (*     + repeat match goal with *)
+  (*              | [H: sz.compare ?a ?b = Eq |- _] => *)
+  (*                apply sz.compare_leibniz in H *)
+  (*              end; subst. *)
+
+  (*       Lemma sz_compare_refl s: *)
+  (*         sz.compare s s = Eq. *)
+  (*       Proof. *)
+  (*         induction s; eauto. *)
+  (*       Qed. *)
+  (*       rewrite sz_compare_refl in *. discriminate. *)
+  (*     + repeat match goal with *)
+  (*              | [H: sz.compare ?a ?b = Eq |- _] => *)
+  (*                apply sz.compare_leibniz in H *)
+  (*              end; subst. *)
+  (*       rewrite sz_compare_refl in *. discriminate. *)
+  (*     + repeat match goal with *)
+  (*              | [H: sz.compare ?a ?b = Eq |- _] => *)
+  (*                apply sz.compare_leibniz in H *)
+  (*              end; subst. *)
+  (*       exploit sz.compare_trans; eauto. i. *)
+  (*       rewrite sz_compare_refl in *. discriminate. *)
+  (*     + exploit IHa; eauto. congruence. *)
+  (*     + repeat match goal with *)
+  (*              | [H: sz.compare ?a ?b = Eq |- _] => *)
+  (*                apply sz.compare_leibniz in H *)
+  (*              end; subst. *)
+  (*       exploit sz.compare_trans; eauto. i. *)
+  (*       rewrite sz_compare_refl in *. discriminate. *)
+  (*     + repeat match goal with *)
+  (*              | [H: sz.compare ?a ?b = Eq |- _] => *)
+  (*                apply sz.compare_leibniz in H *)
+  (*              end; subst. *)
+  (*       exploit sz.compare_trans; eauto. i. *)
+  (*       rewrite sz_compare_refl in *. discriminate. *)
+  (*     + repeat match goal with *)
+  (*              | [H: sz.compare ?a ?b = Eq |- _] => *)
+  (*                apply sz.compare_leibniz in H *)
+  (*              end; subst. *)
+  (*       exploit sz.compare_trans; eauto. i. *)
+  (*       rewrite sz_compare_refl in *. discriminate. *)
+  (*     + repeat match goal with *)
+  (*              | [H: sz.compare ?a ?b = Eq |- _] => *)
+  (*                apply sz.compare_leibniz in H *)
+  (*              end; subst. *)
+  (*       exploit sz.compare_trans; eauto. i. *)
+  (*       rewrite sz_compare_refl in *. discriminate. *)
+  (*     + repeat match goal with *)
+  (*              | [H: sz.compare ?a ?b = Eq |- _] => *)
+  (*                apply sz.compare_leibniz in H *)
+  (*              end; subst. congruence. *)
+  (*       (* exploit sz.compare_trans; eauto. i. *) *)
+  (*   (* rewrite sz_compare_refl in *. discriminate. *) *)
+  (*     + repeat match goal with *)
+  (*              | [H: sz.compare ?a ?b = Eq |- _] => *)
+  (*                apply sz.compare_leibniz in H *)
+  (*              end; subst. congruence. *)
+  (*       (* exploit sz.compare_trans; eauto. i. *) *)
+  (*   (* rewrite sz_compare_refl in *. discriminate. *) *)
+  (*     + exploit (@sz.compare_trans Lt sz5 sz0 sz1); eauto. *)
+  (*       i. congruence. *)
+
+      
+      
+  (*   - simpl. intros. *)
+  (*     Lemma compare_list_refl *)
+  (*           X compare *)
+  (*           (COMP_REFL: forall (x:X), compare x x = Eq) *)
+  (*       : forall l, compare_list compare l l = Eq. *)
+  (*     Proof. *)
+  (*     Admitted. *)
+  (*     Ltac leibniz_tac := *)
+  (*       repeat *)
+  (*         match goal with *)
+  (*         | [H: compare_list compare ?l1 ?l2 = Eq |- _] => *)
+  (*           apply compare_list_leibniz in H; try apply compare_leibniz; eauto *)
+  (*         | [H: compare ?a ?b = Eq |- _] => *)
+  (*           apply compare_leibniz in H; eauto *)
+  (*         end; subst *)
+  (*     . *)
+  (*     Ltac finish_refl := *)
+  (*       try match goal with *)
+  (*           | [H: compare ?a ?a = Lt |- _] => *)
+  (*             rewrite compare_refl in H *)
+  (*           | [H: compare_list compare ?l ?l = Lt |- _] => *)
+  (*             rewrite (compare_list_refl compare compare_refl) in * *)
+  (*           end; congruence. *)
+  (*     Ltac apply_trans := *)
+  (*       try match goal with *)
+  (*           | [H1: varg.compare ?v1 ?v2 = ?c, *)
+  (*                  H2: varg.compare ?v2 ?v3 = ?c |- _] => *)
+  (*             exploit (@varg.compare_trans c v1 v2 v3); eauto; []; i *)
+  (*           end. *)
+
+      
+  (*     des_ifs; *)
+  (*       try by leibniz_tac; apply_trans; finish_refl. *)
+  (*     + leibniz_tac. *)
+
+  (*         (* Lemma compare_list_trans' *) *)
+  (*         (* X compare *) *)
+  (*         (* (COMP_TRANS: forall c (x y z:X), compare x y = c -> compare y z = c -> *) *)
+  (*         (*                         compare x z = c) *) *)
+  (*         (* : forall c l1 l2 l3, compare_list compare l1 l2 = c -> *) *)
+  (*         (*               compare_list compare l2 l3 = c -> *) *)
+  (*         (*               compare_list compare l1 l3 = c. *) *)
+  (*       exploit (@compare_list_trans typ l2 compare). *)
+  (*       match goal with *)
+  (*       | [H1: compare_list compare ?v1 ?v2 = ?c, *)
+  (*              H2: compare_list compare ?v2 ?v3 = ?c |- _] => *)
+  (*         exploit (compare_list_trans v1 compare) *)
+  (*                                       (* exploit (@compare_list_trans compare IH v1); eauto; []; i *) *)
+  (*       end. *)
+
+
+  (*       apply_trans. *)
+
+  (*       ; apply_trans; finish_refl. *)
+          
+  (*         | [H1: compare ?a ?b = Lt; H2:compare ?b ?c = Lt |- _] => *)
+  (*           apply IHa *)
+        
+          
+
+
+  (*       erewrite -> varg.compare_trans in Heq1; eauto. *)
+  (*     + repeat *)
+  (*         match goal with *)
+  (*         | [ H: compare_list compare ?l1 ?l2 = Eq |- _ ] => *)
+  (*           apply compare_list_leibniz in H; try apply compare_leibniz; eauto *)
+  (*         end; subst. *)
+        
+
+  (*       rewrite (compare_list_refl compare compare_refl) in *; congruence. *)
+  (*     + repeat *)
+  (*         match goal with *)
+  (*         | [H: compare ?a ?b = Eq |- _] => *)
+  (*           apply compare_leibniz in H; eauto *)
+  (*         end; subst. *)
+  (*       rewrite compare_refl in *; congruence. *)
+  (*     + repeat *)
+  (*         match goal with *)
+  (*         | [ H: compare_list compare ?l1 ?l2 = Eq |- _ ] => *)
+  (*           apply compare_list_leibniz in H; try apply compare_leibniz; eauto *)
+  (*         end; subst. *)
+  (*       rewrite (compare_list_refl compare compare_refl) in *; congruence. *)
+  (*     + *)
+              
+  (*       exploit (compare_list_leibniz compare compare_leibniz); eauto. *)
+  (*       i. subst. *)
+  (*       exploit (compare_list_leibniz compare compare_leibniz); eauto. *)
+
+
+
+  (*     admit. (* ftn *) *)
+  (*   - admit. *)
+  (*   - simpl. eauto. *)
+  (*   - simpl. apply AtomCompare.compare_lt_trans. *)
+
+
+
+
+  Lemma sz_compare_refl s:
+    sz.compare s s = Eq.
+  Proof.
+    induction s; eauto.
+  Qed.
+
+  Lemma varg_compare_refl v:
+    varg.compare v v = Eq.
+  Proof.
+    destruct v; eauto.
+    simpl. apply sz_compare_refl.
+  Qed.
+
+  Lemma compare_list_refl
+        X compare
+        (COMP_REFL: forall (x:X), compare x x = Eq)
+    : forall l, compare_list compare l l = Eq.
+  Proof.
+    intros l. induction l.
+    - eauto.
+    - simpl. rewrite COMP_REFL.
+      rewrite IHl. eauto.
+  Qed.
+
+  Ltac solve_leibniz :=
+    solve_leibniz_ sz.compare sz.compare_leibniz;
+    solve_leibniz_ varg.compare varg.compare_leibniz;
+    solve_leibniz_ compare compare_leibniz;
+    solve_leibniz_ (compare_list compare)
+                   (compare_list_leibniz compare compare_leibniz)
+  .
+
+  Ltac finish_by_refl :=
+    unfold t, NW in *;
+    finish_refl_ sz.compare sz_compare_refl;
+    finish_refl_ varg.compare varg_compare_refl;
+    finish_refl_ compare compare_refl;
+    finish_refl_ (@compare_list typ compare)
+                 (@compare_list_refl typ compare compare_refl);
+    finish_refl_ (@compare_list t compare)
+                 (@compare_list_refl t compare compare_refl);
+    try apply compare_refl;
+    try apply (compare_list_refl compare compare_refl);
+    try congruence
+  .
+
+  Ltac apply_trans IHx :=
+    apply_trans_ sz.compare @sz.compare_trans;
+    apply_trans_ varg.compare @varg.compare_trans;
+    apply_trans_ compare (fun c (x:typ) => @IHx c);
+    apply_trans_ MetatheoryAtom.AtomImpl.atom_compare AtomCompare.compare_trans;
+    apply_trans_ (compare_list compare)
+                 (@compare_list_trans'' typ compare compare_leibniz compare_refl)
+  .
 
   Lemma compare_trans: forall
       c x y z (* for compatibility with Alt *)
@@ -931,37 +1438,16 @@ Module typ <: AltUsual.
       <<XZ: compare x z = c>>
   .
   Proof.
-    do 2 intro.
-    revert c.
-    induction x using typ_ind_gen; ii; ss.
-    - destruct y, z; ss; clarify; [].
-      eapply NatAltUsual.compare_trans; eauto.
-    - destruct y, z; ss; clarify; [].
-      eapply floating_point.compare_trans; eauto.
-    - destruct y, z; ss; clarify.
-    - destruct y, z; ss; clarify.
-    - destruct y, z; ss; clarify.
-    (* - destruct y, z; ss; clarify; []. *)
-    (*   to_nat_alt_compare. *)
-    (*   destruct (NatAltUsual.compare sz5 sz0) eqn:SZ0; *)
-    (*     destruct (NatAltUsual.compare sz0 sz1) eqn:SZ1; ss; *)
-    (*       try (expl NatAltUsualFacts.compare_leibniz; clarify); ss; *)
-    (*         try rewrite SZ0; try rewrite SZ1; des_ifs_safe; ss; *)
-    (*           try (erewrite NatAltUsual.compare_trans; eauto; []); ss. *)
-    (*   destruct (compare x y) eqn:CMP0; *)
-    (*     destruct (compare y z) eqn:CMP1; ss; *)
-    (*       try (expl compare_leibniz; clarify); ss; *)
-    (*         try rewrite CMP0; try rewrite CMP1; des_ifs_safe; ss; *)
-    (*           try (erewrite IHx; eauto; []); ss. *)
-    (* - destruct y, z; ss; clarify; []. *)
-    (*   destruct (compare x y) eqn:CMP0; *)
-    (*     destruct (compare y z) eqn:CMP1; ss; *)
-    (*       try (expl compare_leibniz; clarify); ss; *)
-    (*         try rewrite CMP0; try rewrite CMP1; des_ifs_safe; ss; *)
-    (*           try (erewrite IHx; eauto; []); ss. *)
-      (* admit. *)
-  Admitted.
-
+    intros c x. revert c.
+    induction x using typ_ind_gen;
+      destruct c;
+      destruct y; try discriminate; eauto;
+        destruct z; try discriminate; eauto;
+          try (by simpl; apply sz.compare_trans);
+          simpl; intros;
+            try (by des_ifs; solve_leibniz; apply_trans IHx; finish_by_refl);
+            try (by des_ifs; solve_leibniz; apply_trans (fun (c:comparison) (x y z:typ) => False); finish_by_refl).
+  Qed.
 
   (* Ltac comparison_trans_tac := *)
   (*   repeat match goal with *)
@@ -969,117 +1455,117 @@ Module typ <: AltUsual.
   (*            exploit comparison_trans_any_lt_result; try exact H; eauto. *)
   (*          end *)
   (* . *)
-  Lemma compare_strong_trans: forall
-      x y z c
-      (TRANS: comparison_trans (compare x y) (compare y z) = Some c)
-    ,
-      <<XZ: compare x z = c>>
-  .
-  Proof.
-    ii.
-    red.
-    generalize dependent c.
-    (* C should be generalized first, to make "specialize" on y, z easy *)
-    revert y.
-    revert z.
-    induction x using typ_ind_gen; ii; ss.
-    - apply comparison_trans_spec in TRANS. des; ss.
-      + des_ifs; []. ss.
-        eapply NatAltUsualFacts.eq_repl_l; ss.
-      + des_ifs; []. ss.
-        eapply NatAltUsualFacts.eq_repl_r; ss.
-      + des_ifs; []. ss.
-        apply NatAltUsualFacts.weird_lemma; ss.
-    - apply comparison_trans_spec in TRANS. des; ss.
-      + des_ifs; []. ss.
-        eapply NatAltUsualFacts.eq_repl_l; ss.
-      + des_ifs; []. ss.
-        eapply NatAltUsualFacts.eq_repl_r; ss.
-      + des_ifs; []. ss.
-        apply NatAltUsualFacts.weird_lemma; ss.
-    - apply comparison_trans_spec in TRANS. des; ss; des_ifs.
-    - apply comparison_trans_spec in TRANS. des; ss; des_ifs.
-    - apply comparison_trans_spec in TRANS. des; ss; des_ifs.
+  (* Lemma compare_strong_trans: forall *)
+  (*     x y z c *)
+  (*     (TRANS: comparison_trans (compare x y) (compare y z) = Some c) *)
+  (*   , *)
+  (*     <<XZ: compare x z = c>> *)
+  (* . *)
+  (* Proof. *)
+  (*   ii. *)
+  (*   red. *)
+  (*   generalize dependent c. *)
+  (*   (* C should be generalized first, to make "specialize" on y, z easy *) *)
+  (*   revert y. *)
+  (*   revert z. *)
+  (*   induction x using typ_ind_gen; ii; ss. *)
   (*   - apply comparison_trans_spec in TRANS. des; ss. *)
-  (*     + destruct y, z; ss; []. *)
-  (*       all_once des_outest_ifs; []. des_ifs_safe. clear_tac. *)
-  (*       erewrite NatAltUsualFacts.eq_repl_l; eauto. *)
-  (*       Fail rewrite XY in IHx. (* TODO: I only want to specialize "y" in IHx... *) *)
-  (*       destruct (compare y z) eqn:T; *)
-  (*         (exploit IHx; [rewrite Heq0; rewrite T; ss; eauto|]; intro XZ; des); *)
-  (*         rewrite XZ; des_ifs. *)
-  (*     + destruct y, z; ss; []. *)
-  (*       all_once des_outest_ifs; []. des_ifs_safe. clear_tac. *)
-  (*       erewrite NatAltUsualFacts.eq_repl_r; eauto. *)
-  (*       rename Heq0 into YZ. *)
-  (*       destruct (compare x y) eqn:T; *)
-  (*         (exploit IHx; [rewrite YZ; rewrite T; ss; eauto|]; intro XZ; des); *)
-  (*         rewrite XZ; des_ifs. *)
-  (*     + destruct y, z; ss; clarify; []. *)
-  (*       specialize (IHx z y). *)
-  (*       destruct (OrdIdx.compare sz5 sz0) eqn:SZ0; *)
-  (*         destruct (OrdIdx.compare sz0 sz1) eqn:SZ1; *)
-  (*         ss; to_nat_alt_compare; *)
-  (*           try (expl NatAltUsualFacts.compare_leibniz; clarify); ss; *)
-  (*             try rewrite SZ0; try rewrite SZ1; des_ifs_safe; ss; *)
-  (*               try (erewrite NatAltUsual.compare_trans; eauto; ss). *)
-  (*       des_ifs; expl NatAltUsual.compare_trans. *)
-  (*   - apply compare_list_trans in IH. des. *)
-  (*     apply comparison_trans_spec in TRANS. des; ss. *)
-  (*     + destruct y, z; ss; []. *)
-  (*       all_once des_outest_ifs; []. des_ifs_safe. clear_tac. *)
-  (*       erewrite vargFacts.eq_repl_l; eauto. *)
-  (*       rename Heq into XY. *)
-  (*       destruct (compare y z) eqn:T; *)
-  (*         (exploit IHx; [rewrite XY; rewrite T; ss; eauto|]; intro XZ; des); *)
-  (*         rewrite XZ; ss. *)
-  (*       rename Heq0 into CMPL0. *)
-  (*       destruct (compare_list compare l1 l2) eqn: CMPL1; ss; *)
-  (*         (erewrite IH; [|rewrite CMPL0; rewrite CMPL1]; ss; eauto). *)
-  (*     + destruct y, z; ss; []. *)
-  (*       all_once des_outest_ifs; []. des_ifs_safe. clear_tac. *)
-  (*       erewrite vargFacts.eq_repl_r; eauto. *)
-  (*       rename Heq into YZ. *)
-  (*       destruct (compare x y) eqn:T; *)
-  (*         (exploit IHx; [rewrite YZ; rewrite T; ss; eauto|]; intro XZ; des); *)
-  (*         rewrite XZ; ss. *)
-  (*       rename Heq0 into CMPL1. *)
-  (*       destruct (compare_list compare l0 l1) eqn: CMPL0; ss; *)
-  (*         (erewrite IH; [|rewrite CMPL0; rewrite CMPL1]; ss; eauto). *)
-  (*     + destruct y, z; ss; clarify; []. *)
-  (*       all_once des_outest_ifs; []. des_ifs_safe. clear_tac. *)
-  (*       specialize (IHx z y). *)
-  (*       destruct (compare x y) eqn:CMP0; *)
-  (*         destruct (compare y z) eqn:CMP1; *)
-  (*         try (expl IHx (ss; eauto)); try rewrite IHx0; ss. *)
-  (*       destruct (compare_list compare l0 l1) eqn:CMPL0; *)
-  (*         destruct (compare_list compare l1 l2) eqn:CMPL1; ss; *)
-  (*           (erewrite IH; [|rewrite CMPL0; rewrite CMPL1]; ss; eauto); []. *)
-  (*       ss. *)
-  (*       destruct (varg.compare varg5 varg0) eqn:CMPV0; *)
-  (*         destruct (varg.compare varg0 varg1) eqn:CMPV1; ss; *)
-  (*           (erewrite vargFacts.compare_trans; eauto; []); ss. *)
-  (*   - apply compare_list_trans in IH. des. *)
-  (*     apply comparison_trans_spec in TRANS. des; ss. *)
-  (*     + destruct y, z; ss; []. *)
-  (*       eapply IH; eauto. rewrite TRANS. rewrite TRANS0. ss. des_ifs. *)
-  (*     + destruct y, z; ss; []. *)
-  (*       eapply IH; eauto. rewrite TRANS. rewrite TRANS0. *)
-  (*       rewrite comparison_trans_spec; ss. right; left; ss. *)
-  (*     + destruct y, z; ss; clarify; ss; []. *)
-  (*       eapply IH; eauto. rewrite TRANS0. *)
-  (*       rewrite comparison_trans_spec; ss. right; right; ss. *)
-  (*   - apply comparison_trans_spec in TRANS. des; ss; des_ifs; ss. *)
-  (*     + erewrite IHx; eauto. rewrite TRANS. *)
-  (*       rewrite comparison_trans_spec. left; ss. *)
-  (*     + erewrite IHx; eauto. rewrite TRANS0. *)
-  (*       rewrite comparison_trans_spec. right; left; ss. *)
-  (*     + erewrite IHx; eauto. rewrite TRANS0. *)
-  (*       rewrite comparison_trans_spec. right; right; ss. *)
-  (*   - apply comparison_trans_spec in TRANS. des; ss; des_ifs; ss. *)
-  (* Unshelve. *)
-  (*   all: ss. *)
-  Admitted.
+  (*     + des_ifs; []. ss. *)
+  (*       eapply NatAltUsualFacts.eq_repl_l; ss. *)
+  (*     + des_ifs; []. ss. *)
+  (*       eapply NatAltUsualFacts.eq_repl_r; ss. *)
+  (*     + des_ifs; []. ss. *)
+  (*       apply NatAltUsualFacts.weird_lemma; ss. *)
+  (*   - apply comparison_trans_spec in TRANS. des; ss. *)
+  (*     + des_ifs; []. ss. *)
+  (*       eapply NatAltUsualFacts.eq_repl_l; ss. *)
+  (*     + des_ifs; []. ss. *)
+  (*       eapply NatAltUsualFacts.eq_repl_r; ss. *)
+  (*     + des_ifs; []. ss. *)
+  (*       apply NatAltUsualFacts.weird_lemma; ss. *)
+  (*   - apply comparison_trans_spec in TRANS. des; ss; des_ifs. *)
+  (*   - apply comparison_trans_spec in TRANS. des; ss; des_ifs. *)
+  (*   - apply comparison_trans_spec in TRANS. des; ss; des_ifs. *)
+  (* (*   - apply comparison_trans_spec in TRANS. des; ss. *) *)
+  (* (*     + destruct y, z; ss; []. *) *)
+  (* (*       all_once des_outest_ifs; []. des_ifs_safe. clear_tac. *) *)
+  (* (*       erewrite NatAltUsualFacts.eq_repl_l; eauto. *) *)
+  (* (*       Fail rewrite XY in IHx. (* TODO: I only want to specialize "y" in IHx... *) *) *)
+  (* (*       destruct (compare y z) eqn:T; *) *)
+  (* (*         (exploit IHx; [rewrite Heq0; rewrite T; ss; eauto|]; intro XZ; des); *) *)
+  (* (*         rewrite XZ; des_ifs. *) *)
+  (* (*     + destruct y, z; ss; []. *) *)
+  (* (*       all_once des_outest_ifs; []. des_ifs_safe. clear_tac. *) *)
+  (* (*       erewrite NatAltUsualFacts.eq_repl_r; eauto. *) *)
+  (* (*       rename Heq0 into YZ. *) *)
+  (* (*       destruct (compare x y) eqn:T; *) *)
+  (* (*         (exploit IHx; [rewrite YZ; rewrite T; ss; eauto|]; intro XZ; des); *) *)
+  (* (*         rewrite XZ; des_ifs. *) *)
+  (* (*     + destruct y, z; ss; clarify; []. *) *)
+  (* (*       specialize (IHx z y). *) *)
+  (* (*       destruct (OrdIdx.compare sz5 sz0) eqn:SZ0; *) *)
+  (* (*         destruct (OrdIdx.compare sz0 sz1) eqn:SZ1; *) *)
+  (* (*         ss; to_nat_alt_compare; *) *)
+  (* (*           try (expl NatAltUsualFacts.compare_leibniz; clarify); ss; *) *)
+  (* (*             try rewrite SZ0; try rewrite SZ1; des_ifs_safe; ss; *) *)
+  (* (*               try (erewrite NatAltUsual.compare_trans; eauto; ss). *) *)
+  (* (*       des_ifs; expl NatAltUsual.compare_trans. *) *)
+  (* (*   - apply compare_list_trans in IH. des. *) *)
+  (* (*     apply comparison_trans_spec in TRANS. des; ss. *) *)
+  (* (*     + destruct y, z; ss; []. *) *)
+  (* (*       all_once des_outest_ifs; []. des_ifs_safe. clear_tac. *) *)
+  (* (*       erewrite vargFacts.eq_repl_l; eauto. *) *)
+  (* (*       rename Heq into XY. *) *)
+  (* (*       destruct (compare y z) eqn:T; *) *)
+  (* (*         (exploit IHx; [rewrite XY; rewrite T; ss; eauto|]; intro XZ; des); *) *)
+  (* (*         rewrite XZ; ss. *) *)
+  (* (*       rename Heq0 into CMPL0. *) *)
+  (* (*       destruct (compare_list compare l1 l2) eqn: CMPL1; ss; *) *)
+  (* (*         (erewrite IH; [|rewrite CMPL0; rewrite CMPL1]; ss; eauto). *) *)
+  (* (*     + destruct y, z; ss; []. *) *)
+  (* (*       all_once des_outest_ifs; []. des_ifs_safe. clear_tac. *) *)
+  (* (*       erewrite vargFacts.eq_repl_r; eauto. *) *)
+  (* (*       rename Heq into YZ. *) *)
+  (* (*       destruct (compare x y) eqn:T; *) *)
+  (* (*         (exploit IHx; [rewrite YZ; rewrite T; ss; eauto|]; intro XZ; des); *) *)
+  (* (*         rewrite XZ; ss. *) *)
+  (* (*       rename Heq0 into CMPL1. *) *)
+  (* (*       destruct (compare_list compare l0 l1) eqn: CMPL0; ss; *) *)
+  (* (*         (erewrite IH; [|rewrite CMPL0; rewrite CMPL1]; ss; eauto). *) *)
+  (* (*     + destruct y, z; ss; clarify; []. *) *)
+  (* (*       all_once des_outest_ifs; []. des_ifs_safe. clear_tac. *) *)
+  (* (*       specialize (IHx z y). *) *)
+  (* (*       destruct (compare x y) eqn:CMP0; *) *)
+  (* (*         destruct (compare y z) eqn:CMP1; *) *)
+  (* (*         try (expl IHx (ss; eauto)); try rewrite IHx0; ss. *) *)
+  (* (*       destruct (compare_list compare l0 l1) eqn:CMPL0; *) *)
+  (* (*         destruct (compare_list compare l1 l2) eqn:CMPL1; ss; *) *)
+  (* (*           (erewrite IH; [|rewrite CMPL0; rewrite CMPL1]; ss; eauto); []. *) *)
+  (* (*       ss. *) *)
+  (* (*       destruct (varg.compare varg5 varg0) eqn:CMPV0; *) *)
+  (* (*         destruct (varg.compare varg0 varg1) eqn:CMPV1; ss; *) *)
+  (* (*           (erewrite vargFacts.compare_trans; eauto; []); ss. *) *)
+  (* (*   - apply compare_list_trans in IH. des. *) *)
+  (* (*     apply comparison_trans_spec in TRANS. des; ss. *) *)
+  (* (*     + destruct y, z; ss; []. *) *)
+  (* (*       eapply IH; eauto. rewrite TRANS. rewrite TRANS0. ss. des_ifs. *) *)
+  (* (*     + destruct y, z; ss; []. *) *)
+  (* (*       eapply IH; eauto. rewrite TRANS. rewrite TRANS0. *) *)
+  (* (*       rewrite comparison_trans_spec; ss. right; left; ss. *) *)
+  (* (*     + destruct y, z; ss; clarify; ss; []. *) *)
+  (* (*       eapply IH; eauto. rewrite TRANS0. *) *)
+  (* (*       rewrite comparison_trans_spec; ss. right; right; ss. *) *)
+  (* (*   - apply comparison_trans_spec in TRANS. des; ss; des_ifs; ss. *) *)
+  (* (*     + erewrite IHx; eauto. rewrite TRANS. *) *)
+  (* (*       rewrite comparison_trans_spec. left; ss. *) *)
+  (* (*     + erewrite IHx; eauto. rewrite TRANS0. *) *)
+  (* (*       rewrite comparison_trans_spec. right; left; ss. *) *)
+  (* (*     + erewrite IHx; eauto. rewrite TRANS0. *) *)
+  (* (*       rewrite comparison_trans_spec. right; right; ss. *) *)
+  (* (*   - apply comparison_trans_spec in TRANS. des; ss; des_ifs; ss. *) *)
+  (* (* Unshelve. *) *)
+  (* (*   all: ss. *) *)
+  (* Admitted. *)
 
 End typ.
 
@@ -1140,16 +1626,14 @@ Module Int <: AltUsual.
     ,
       x = y
   .
-  Proof.
-  Admitted.
+  Proof. exact Z.compare_eq. Qed.
 
   Lemma compare_sym
         x y
     :
       <<SYM: compare y x = CompOpp (compare x y)>>
   .
-  Proof.
-  Admitted.
+  Proof. rewrite Zcompare_antisym. reflexivity. Qed.
 
   Lemma compare_trans: forall
       c x y z
@@ -1159,7 +1643,13 @@ Module Int <: AltUsual.
       <<XZ: compare x z = c>>
   .
   Proof.
-  Admitted.
+    destruct c; intros.
+    - apply Z.compare_eq in XY.
+      apply Z.compare_eq in YZ.
+      subst. apply Z.compare_refl.
+    - eapply Zcompare_Lt_trans; eauto.
+    - eapply Zcompare_Gt_trans; eauto.
+  Qed.
  
 End Int.
 Module IntFacts := AltUsualFacts Int.
@@ -1204,16 +1694,15 @@ Module id <: AltUsual.
         (XY: compare x y = c)
         (YZ: compare y z = c)
     : <<XZ: compare x z = c>>.
-  Proof.
-  Admitted.
+  Proof. eapply AtomCompare.compare_trans; eauto. Qed.
 
   Lemma compare_leibniz
         x y
         (EQ: compare x y = Eq)
     : x = y.
-  Proof.
-  Admitted.
+  Proof. apply AtomCompare.compare_leibniz; auto. Qed.
 End id.
+
 Module idFacts := AltUsualFacts id.
 
 
@@ -1229,26 +1718,23 @@ Module truncop <: AltUsual.
   Definition compare (x y:t) :=
     OrdIdx.compare (case_order x) (case_order y).
 
-    Lemma compare_sym
+  Lemma compare_sym
         x y
     : <<SYM: compare y x = CompOpp (compare x y)>>.
-  Proof.
-  Admitted.
+  Proof. destruct x, y; ss. Qed.
 
   Lemma compare_trans
         c x y z
         (XY: compare x y = c)
         (YZ: compare y z = c)
     : <<XZ: compare x z = c>>.
-  Proof.
-  Admitted.
+  Proof. destruct c, x, y, z; ss. Qed.
 
   Lemma compare_leibniz
         x y
         (EQ: compare x y = Eq)
     : x = y.
-  Proof.
-  Admitted.
+  Proof. destruct x, y; ss. Qed.
 End truncop.
 Module truncopFacts := AltUsualFacts truncop.
 
@@ -1273,23 +1759,20 @@ Module castop <: AltUsual.
   Lemma compare_sym
         x y
     : <<SYM: compare y x = CompOpp (compare x y)>>.
-  Proof.
-  Admitted.
+  Proof. destruct x, y; ss. Qed.
 
   Lemma compare_trans
         c x y z
         (XY: compare x y = c)
         (YZ: compare y z = c)
     : <<XZ: compare x z = c>>.
-  Proof.
-  Admitted.
+  Proof. destruct c, x, y, z; ss. Qed.
 
   Lemma compare_leibniz
         x y
         (EQ: compare x y = Eq)
     : x = y.
-  Proof.
-  Admitted.
+  Proof. destruct x, y; ss. Qed.
 End castop.
 Module castopFacts := AltUsualFacts castop.
 
@@ -1307,26 +1790,23 @@ Module extop <: AltUsual.
   Definition compare (x y:t) :=
     OrdIdx.compare (case_order x) (case_order y).
 
-    Lemma compare_sym
+  Lemma compare_sym
         x y
     : <<SYM: compare y x = CompOpp (compare x y)>>.
-  Proof.
-  Admitted.
+  Proof. destruct x, y; ss. Qed.
 
   Lemma compare_trans
         c x y z
         (XY: compare x y = c)
         (YZ: compare y z = c)
     : <<XZ: compare x z = c>>.
-  Proof.
-  Admitted.
+  Proof. destruct c, x, y, z; ss. Qed.
 
   Lemma compare_leibniz
         x y
         (EQ: compare x y = Eq)
     : x = y.
-  Proof.
-  Admitted.
+  Proof. destruct x, y; ss. Qed.
 End extop.
 Module extopFacts := AltUsualFacts extop.
 
@@ -1343,26 +1823,23 @@ Module bool <: AltUsual.
   Definition compare (x y:t) :=
     OrdIdx.compare (case_order x) (case_order y).
 
-    Lemma compare_sym
+  Lemma compare_sym
         x y
     : <<SYM: compare y x = CompOpp (compare x y)>>.
-  Proof.
-  Admitted.
+  Proof. destruct x, y; ss. Qed.
 
   Lemma compare_trans
         c x y z
         (XY: compare x y = c)
         (YZ: compare y z = c)
     : <<XZ: compare x z = c>>.
-  Proof.
-  Admitted.
+  Proof. destruct c, x, y, z; ss. Qed.
 
   Lemma compare_leibniz
         x y
         (EQ: compare x y = Eq)
     : x = y.
-  Proof.
-  Admitted.
+  Proof. destruct x, y; ss. Qed.
 End bool.
 Module boolFacts := AltUsualFacts bool.
 
@@ -1387,26 +1864,23 @@ Module cond <: AltUsual.
   Definition compare (x y:t) :=
     OrdIdx.compare (case_order x) (case_order y).
 
-    Lemma compare_sym
+  Lemma compare_sym
         x y
     : <<SYM: compare y x = CompOpp (compare x y)>>.
-  Proof.
-  Admitted.
+  Proof. destruct x, y; ss. Qed.
 
   Lemma compare_trans
         c x y z
         (XY: compare x y = c)
         (YZ: compare y z = c)
     : <<XZ: compare x z = c>>.
-  Proof.
-  Admitted.
+  Proof. destruct c, x, y, z; ss. Qed.
 
   Lemma compare_leibniz
         x y
         (EQ: compare x y = Eq)
     : x = y.
-  Proof.
-  Admitted.
+  Proof. destruct x, y; ss. Qed.
 End cond.
 Module condFacts := AltUsualFacts cond.
 
@@ -1437,26 +1911,23 @@ Module fcond <: AltUsual.
   Definition compare (x y:t) :=
     OrdIdx.compare (case_order x) (case_order y).
 
-    Lemma compare_sym
+  Lemma compare_sym
         x y
     : <<SYM: compare y x = CompOpp (compare x y)>>.
-  Proof.
-  Admitted.
+  Proof. destruct x, y; ss. Qed.
 
   Lemma compare_trans
         c x y z
         (XY: compare x y = c)
         (YZ: compare y z = c)
     : <<XZ: compare x z = c>>.
-  Proof.
-  Admitted.
+  Proof. destruct c, x, y; ss; destruct z; ss. Qed.
 
   Lemma compare_leibniz
         x y
         (EQ: compare x y = Eq)
     : x = y.
-  Proof.
-  Admitted.
+  Proof. destruct x, y; ss. Qed.
 End fcond.
 Module fcondFacts := AltUsualFacts fcond.
 
@@ -1487,23 +1958,20 @@ Module bop <: AltUsual.
   Lemma compare_sym
         x y
     : <<SYM: compare y x = CompOpp (compare x y)>>.
-  Proof.
-  Admitted.
+  Proof. destruct x, y; ss. Qed.
 
   Lemma compare_trans
         c x y z
         (XY: compare x y = c)
         (YZ: compare y z = c)
     : <<XZ: compare x z = c>>.
-  Proof.
-  Admitted.
+  Proof. destruct c, x, y; ss; destruct z; ss. Qed.
 
   Lemma compare_leibniz
         x y
         (EQ: compare x y = Eq)
     : x = y.
-  Proof.
-  Admitted.
+  Proof. destruct x, y; ss. Qed.
 End bop.
 Module bopFacts := AltUsualFacts bop.
 
@@ -1526,23 +1994,20 @@ Module fbop <: AltUsual.
   Lemma compare_sym
         x y
     : <<SYM: compare y x = CompOpp (compare x y)>>.
-  Proof.
-  Admitted.
+  Proof. destruct x, y; ss. Qed.
 
   Lemma compare_trans
         c x y z
         (XY: compare x y = c)
         (YZ: compare y z = c)
     : <<XZ: compare x z = c>>.
-  Proof.
-  Admitted.
+  Proof. destruct c, x, y, z; ss. Qed.
 
   Lemma compare_leibniz
         x y
         (EQ: compare x y = Eq)
     : x = y.
-  Proof.
-  Admitted.
+  Proof. destruct x, y; ss. Qed.
 End fbop.
 Module fbopFacts := AltUsualFacts fbop.
 
@@ -1617,26 +2082,330 @@ Module const <: AltUsual.
 
   Definition compare := wrap_compare compare'.
 
+  (* TODO: merge *)
+  Ltac comp_sym comp sym :=
+    match goal with
+    | [ |- context[match comp ?a ?b with _ => _ end]] =>
+      rewrite (sym a b); destruct (comp a b)
+    end; ss.
+
   Lemma compare_sym
         x y
     : <<SYM: compare y x = CompOpp (compare x y)>>.
   Proof.
-  Admitted.
+    red. unfold compare, wrap_compare in *. revert y.
+    Ltac comp_sym_list :=
+      match goal with
+      | [ |- context[match compare_list compare' ?a ?b with _ => _ end]] =>
+        rewrite (@compare_list_sym t b); destruct (compare_list compare' b a)
+      end; ss.
+    induction x using const_ind_gen;
+      intros; destruct y; ss;
+        try (by apply typ.compare_sym);
+        repeat (try comp_sym Int.compare Int.compare_sym;
+                try comp_sym Float.compare Float.compare_sym;
+                try comp_sym sz.compare sz.compare_sym;
+                try comp_sym floating_point.compare floating_point.compare_sym;
+                try comp_sym typ.compare typ.compare_sym;
+                try comp_sym compare' (fun (x:t) => IHx);
+                try comp_sym compare' (fun (x:t) => IHx1);
+                try comp_sym compare' (fun (x:t) => IHx2);
+                try comp_sym compare' (fun (x:t) => IHx3);
+                try comp_sym id.compare id.compare_sym;
+                try comp_sym truncop.compare truncop.compare_sym;
+                try comp_sym extop.compare extop.compare_sym;
+                try comp_sym castop.compare castop.compare_sym;
+                try comp_sym cond.compare cond.compare_sym;
+                try comp_sym fcond.compare fcond.compare_sym;
+                try comp_sym bool.compare bool.compare_sym;
+                try comp_sym bop.compare bop.compare_sym;
+                try comp_sym fbop.compare fbop.compare_sym;
+                try comp_sym_list).
+  Qed.
 
-  Lemma compare_trans
-        c x y z
-        (XY: compare x y = c)
-        (YZ: compare y z = c)
-    : <<XZ: compare x z = c>>.
+  Corollary compare_refl z:
+    compare z z = Eq.
   Proof.
-  Admitted.
+    assert (compare z z = CompOpp (compare z z)).
+    { apply compare_sym. }
+    destruct (compare z z); ss.
+  Qed.
+
+  Ltac solve_leibniz'_IH cmp :=
+    repeat match goal with
+           | [IH: forall y, cmp ?a y = Eq -> ?a = y,
+                H: cmp ?a ?b = Eq |- _ ] => apply IH in H
+           end; subst.
+
+  Ltac solve_leibniz'_list cmp :=
+    repeat match goal with
+           | [H: compare_list cmp ?l1 ?l2 = Eq |- _] =>
+             apply compare_list_leibniz' in H; eauto
+           end; subst.
+
+  Ltac solve_leibniz_base :=
+    solve_leibniz_ sz.compare sz.compare_leibniz;
+    solve_leibniz_ Int.compare Int.compare_leibniz;
+    solve_leibniz_ varg.compare varg.compare_leibniz;
+    solve_leibniz_ typ.compare typ.compare_leibniz;
+    solve_leibniz_ Float.compare Float.compare_leibniz;
+    solve_leibniz_ sz.compare sz.compare_leibniz;
+    solve_leibniz_ floating_point.compare floating_point.compare_leibniz;
+
+    solve_leibniz_ id.compare id.compare_leibniz;
+    solve_leibniz_ truncop.compare truncop.compare_leibniz;
+    solve_leibniz_ extop.compare extop.compare_leibniz;
+    solve_leibniz_ castop.compare castop.compare_leibniz;
+    solve_leibniz_ cond.compare cond.compare_leibniz;
+    solve_leibniz_ fcond.compare fcond.compare_leibniz;
+    solve_leibniz_ bool.compare bool.compare_leibniz;
+    solve_leibniz_ bop.compare bop.compare_leibniz;
+    solve_leibniz_ fbop.compare fbop.compare_leibniz
+  .
+
+  Ltac solve_leibniz' :=
+    solve_leibniz_base;
+
+    solve_leibniz'_IH compare';
+    solve_leibniz'_list compare';
+    eauto
+  .
 
   Lemma compare_leibniz
         x y
         (EQ: compare x y = Eq)
     : x = y.
   Proof.
-  Admitted.
+    unfold compare, wrap_compare in *. revert y EQ.
+    induction x using const_ind_gen;
+      intros; destruct y; ss;
+        try by des_ifs; solve_leibniz'.
+  Qed.
+
+  Lemma compare_trans: forall
+        c x y z
+        (XY: compare x y = c)
+        (YZ: compare y z = c)
+    , <<XZ: compare x z = c>>.
+  Proof.
+    intros c x. revert c.
+    Time
+    induction x using const_ind_gen;
+      intros; destruct c;
+        destruct y; try discriminate; (* 399 *)
+          destruct z; try discriminate; eauto. (* 57, 80 sec *)
+
+    Ltac solve_leibniz_list :=
+      repeat match goal with
+             | [H: compare_list compare ?l1 ?l2 = Eq |- _] =>
+               apply (@compare_list_leibniz t compare compare_leibniz) in H; eauto
+             end; subst.
+
+    Ltac solve_leibniz :=
+      solve_leibniz_base;
+      solve_leibniz_ compare compare_leibniz;
+
+      solve_leibniz_list;
+      eauto
+    .
+
+    Ltac finish_refl_2 cmp REFL:=
+      try match goal with
+          | [H: cmp ?a ?a = Lt |- _] =>
+            rewrite REFL in H; congruence
+
+          | [H: cmp ?a ?a = Gt |- _] =>
+            rewrite REFL in H; congruence
+          end;
+      try by apply REFL.
+
+    (* Lemma Int_compare_refl v: *)
+    (*   Int.compare v v = Eq. *)
+    (* Proof. *)
+    (*   destruct v; ss. *)
+    (*   - apply Pos.compare_refl. *)
+    (*   - rewrite <- Pos.compare_antisym. *)
+    (*     apply Pos.compare_refl. *)
+    (* Qed. *)
+
+    (* Lemma Float_compare_refl f: *)
+    (*   Float.compare f f = Eq. *)
+    (* Proof. *)
+    (*   apply FloatFacts.EOrigFacts.compare_refl. *)
+    (* Qed. *)
+
+    (* Lemma  *)
+    (* floating_pointFacts.EOrigFacts.order *)
+
+    Ltac finish_refl_list :=
+      try
+        (unfold t in *;
+         match goal with
+         | [H: compare_list compare ?a ?a = Lt |- _] =>
+           rewrite (@typ.compare_list_refl const compare compare_refl) in H; congruence
+
+         | [H: compare_list compare ?a ?a = Gt |- _] =>
+           rewrite (@typ.compare_list_refl const compare compare_refl) in H; congruence
+         end);
+      try by apply (@typ.compare_list_refl const compare compare_refl).
+
+    Ltac finish_by_refl :=
+      unfold t, NW in *;
+      finish_refl_2 floating_point.compare floating_pointFacts.EOrigFacts.compare_refl;
+      finish_refl_2 sz.compare typ.sz_compare_refl;
+      finish_refl_2 varg.compare typ.varg_compare_refl;
+      finish_refl_2 typ.compare typ.compare_refl;
+      finish_refl_2 Float.compare FloatFacts.EOrigFacts.compare_refl;
+      finish_refl_2 Int.compare IntFacts.EOrigFacts.compare_refl;
+      finish_refl_2 id.compare idFacts.EOrigFacts.compare_refl;
+
+      finish_refl_2 truncop.compare truncopFacts.EOrigFacts.compare_refl;
+      finish_refl_2 castop.compare castopFacts.EOrigFacts.compare_refl;
+      finish_refl_2 extop.compare extopFacts.EOrigFacts.compare_refl;
+      finish_refl_2 bool.compare boolFacts.EOrigFacts.compare_refl;
+      finish_refl_2 cond.compare condFacts.EOrigFacts.compare_refl;
+      finish_refl_2 fcond.compare fcondFacts.EOrigFacts.compare_refl;
+      finish_refl_2 bop.compare bopFacts.EOrigFacts.compare_refl;
+      finish_refl_2 fbop.compare fbopFacts.EOrigFacts.compare_refl;
+      finish_refl_2 compare compare_refl;
+
+      finish_refl_list;
+
+      (* finish_refl_2 (@compare_list const compare) *)
+      (*              (@typ.compare_list_refl const compare compare_refl); *)
+      (* finish_refl_2 (@compare_list t compare) *)
+      (*              (@typ.compare_list_refl t compare compare_refl); *)
+      (* try apply compare_refl; *)
+      (* try apply (typ.compare_list_refl compare compare_refl); *)
+      try congruence
+    .
+
+    Ltac apply_trans_ cmp TRANS :=
+      try match goal with
+          | [H1: cmp ?x ?y = ?c, H2: cmp ?y ?x = ?c |- _] =>
+            exploit (TRANS c x y x); eauto; (idtac; []; i);
+            exploit (TRANS c y x y); eauto; (idtac; []; i)
+          end;
+      try match goal with
+          | [H1: cmp ?x ?y = ?c, H2: cmp ?y ?z = ?c |- _] =>
+            exploit (TRANS c x y z); eauto; (idtac; []; i)
+          end.
+
+    Ltac apply_trans_IH :=
+      try match goal with
+          | [IH: forall c y z, compare ?x y = c -> compare y z = c -> compare ?x z = c,
+               H1: compare ?x ?y = ?c, H2: compare ?y ?z = ?c |- _] =>
+            unfold t in IH;
+            exploit (@IH c y z); eauto; (idtac; []; i)
+          end.
+
+    Ltac apply_trans :=
+      unfold NW in *;
+      apply_trans_ floating_point.compare @floating_point.compare_trans;
+      apply_trans_ sz.compare @sz.compare_trans;
+      apply_trans_ varg.compare @varg.compare_trans;
+      apply_trans_ typ.compare @typ.compare_trans;
+      apply_trans_ Float.compare @Float.compare_trans;
+      apply_trans_ Int.compare @Int.compare_trans;
+      apply_trans_ id.compare @id.compare_trans;
+
+      apply_trans_ truncop.compare @truncop.compare_trans;
+      apply_trans_ castop.compare @castop.compare_trans;
+      apply_trans_ extop.compare @extop.compare_trans;
+      apply_trans_ bool.compare @bool.compare_trans;
+      apply_trans_ cond.compare @cond.compare_trans;
+      apply_trans_ fcond.compare @fcond.compare_trans;
+      apply_trans_ bop.compare @bop.compare_trans;
+      apply_trans_ fbop.compare @fbop.compare_trans;
+
+
+      (* apply_trans_ compare (fun c (x:typ) => @IHx c); *)
+      apply_trans_IH;
+
+      (* apply_trans_ MetatheoryAtom.AtomImpl.atom_compare AtomCompare.compare_trans; *)
+      apply_trans_ (compare_list compare)
+                   (@compare_list_trans'' const compare compare_leibniz compare_refl)
+    .
+      
+
+    - simpl in *; des_ifs; solve_leibniz; apply_trans; finish_by_refl.
+    - simpl in *; des_ifs; solve_leibniz; apply_trans; finish_by_refl.
+    - simpl in *; des_ifs; solve_leibniz; apply_trans; finish_by_refl.
+    - simpl in *; des_ifs; solve_leibniz; apply_trans; finish_by_refl.
+    - simpl in *; des_ifs; solve_leibniz; apply_trans; finish_by_refl.
+    - simpl in *; des_ifs; solve_leibniz; apply_trans; finish_by_refl.
+    - simpl in *; des_ifs; solve_leibniz; apply_trans; finish_by_refl.
+    - simpl in *; des_ifs; solve_leibniz; apply_trans; finish_by_refl.
+    - simpl in *; des_ifs; solve_leibniz; apply_trans; finish_by_refl.
+    - simpl in *; des_ifs; solve_leibniz; apply_trans; finish_by_refl.
+    - simpl in *; des_ifs; solve_leibniz; apply_trans; finish_by_refl.
+    - simpl in *; des_ifs; solve_leibniz; apply_trans; finish_by_refl.
+    - simpl in *; des_ifs; solve_leibniz; apply_trans; finish_by_refl.
+    - simpl in *; des_ifs; solve_leibniz; apply_trans; finish_by_refl.
+
+    - simpl in *; des_ifs; solve_leibniz; apply_trans; finish_by_refl.
+      
+    - simpl in *; des_ifs; solve_leibniz; apply_trans; finish_by_refl.
+    - simpl in *; des_ifs; solve_leibniz; apply_trans; finish_by_refl.
+
+    - simpl in *; des_ifs; solve_leibniz; apply_trans; finish_by_refl.
+    - simpl in *; des_ifs; solve_leibniz; apply_trans; finish_by_refl.
+    - simpl in *; des_ifs; solve_leibniz; apply_trans; finish_by_refl.
+    - simpl in *; des_ifs; solve_leibniz; apply_trans; finish_by_refl.
+    - simpl in *; des_ifs; solve_leibniz; apply_trans; finish_by_refl.
+    - simpl in *; des_ifs; solve_leibniz; apply_trans; finish_by_refl.
+    - simpl in *; des_ifs; solve_leibniz; apply_trans; finish_by_refl.
+    (* - simpl in *; des_ifs; solve_leibniz; try by (apply_trans; finish_by_refl). *)
+    (*   + Set Printing All. *)
+
+    (*     unfold t, NW in *. *)
+        
+    (*     apply_trans_IH. *)
+
+
+    (*     ; finish_by_refl *)
+
+    (*   ; apply_trans; finish_by_refl. *)
+    (*   + apply_trans. *)
+    (* - simpl in *; des_ifs; solve_leibniz; apply_trans; finish_by_refl. *)
+
+
+    - simpl in *; des_ifs; solve_leibniz; apply_trans; finish_by_refl.
+    - simpl in *; des_ifs; solve_leibniz; apply_trans; finish_by_refl.
+    - simpl in *; des_ifs; solve_leibniz; apply_trans; finish_by_refl.
+    - simpl in *; des_ifs; solve_leibniz; apply_trans; finish_by_refl.
+    - simpl in *; des_ifs; solve_leibniz; apply_trans; finish_by_refl.
+    - simpl in *; des_ifs; solve_leibniz; apply_trans; finish_by_refl.
+    - simpl in *; des_ifs; solve_leibniz; apply_trans; finish_by_refl.
+    - simpl in *; des_ifs; solve_leibniz; apply_trans; finish_by_refl.
+    - simpl in *; des_ifs; solve_leibniz; apply_trans; finish_by_refl.
+    - simpl in *; des_ifs; solve_leibniz; apply_trans; finish_by_refl.
+    - simpl in *; des_ifs; solve_leibniz; apply_trans; finish_by_refl.
+    - simpl in *; des_ifs; solve_leibniz; apply_trans; finish_by_refl.
+    - simpl in *; des_ifs; solve_leibniz; apply_trans; finish_by_refl.
+    - simpl in *; des_ifs; solve_leibniz; apply_trans; finish_by_refl.
+    - simpl in *; des_ifs; solve_leibniz; apply_trans; finish_by_refl.
+
+
+    - simpl in *; des_ifs; solve_leibniz; apply_trans; finish_by_refl.
+    - simpl in *; des_ifs; solve_leibniz; apply_trans; finish_by_refl.
+    - simpl in *; des_ifs; solve_leibniz; apply_trans; finish_by_refl.
+    - simpl in *; des_ifs; solve_leibniz; apply_trans; finish_by_refl.
+    - simpl in *; des_ifs; solve_leibniz; apply_trans; finish_by_refl.
+    - simpl in *; des_ifs; solve_leibniz; apply_trans; finish_by_refl.
+    - simpl in *; des_ifs; solve_leibniz; apply_trans; finish_by_refl.
+    - simpl in *; des_ifs; solve_leibniz; apply_trans; finish_by_refl.
+    - simpl in *; des_ifs; solve_leibniz; apply_trans; finish_by_refl.
+    - simpl in *; des_ifs; solve_leibniz; apply_trans; finish_by_refl.
+    - simpl in *; des_ifs; solve_leibniz; apply_trans; finish_by_refl.
+    - simpl in *; des_ifs; solve_leibniz; apply_trans; finish_by_refl.
+    - simpl in *; des_ifs; solve_leibniz; apply_trans; finish_by_refl.
+    - simpl in *; des_ifs; solve_leibniz; apply_trans; finish_by_refl.
+    - simpl in *; des_ifs; solve_leibniz; apply_trans; finish_by_refl.
+    - simpl in *; des_ifs; solve_leibniz; apply_trans; finish_by_refl.
+    - simpl in *; des_ifs; solve_leibniz; apply_trans; finish_by_refl.
+    - simpl in *; des_ifs; solve_leibniz; apply_trans; finish_by_refl.
+Qed.
 
 End const.
 Module constFacts := AltUsualFacts const.
