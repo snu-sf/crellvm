@@ -24,6 +24,7 @@ Require Import TODOProof.
 Require Import SoundInfruleIntroGhost.
 Require Import SoundInfruleSubstitute.
 Require Import SoundInfruleTransitivity.
+Require Import SoundInfruleReduceMaydiff.
 Require Import Exprs.
 
 Set Implicit Arguments.
@@ -312,7 +313,12 @@ Proof.
     ii. apply Exprs.ExprPairSetFacts.add_iff in H. des.
     + subst. solve_leibniz. clarify. esplits; eauto. apply GVs.lessdef_refl.
     + eapply LESSDEF; eauto.
+  - exploit reduce_maydiff_lessdef_sound; eauto. i.
+    esplits; eauto. reflexivity.
+  - exploit reduce_maydiff_non_physical_sound; eauto. i. des.
+    esplits; eauto. reflexivity.
 Qed.
+
 
 Lemma apply_infrule_sound
       m_src m_tgt
