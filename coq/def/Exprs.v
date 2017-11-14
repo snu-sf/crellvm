@@ -153,6 +153,7 @@ End Tag.
 
 Hint Resolve Tag.eq_dec: EqDecDb.
 
+
 Module IdT <: AltUsual.
   Include (prod Tag id).
 
@@ -167,6 +168,9 @@ Module IdT <: AltUsual.
 End IdT.
 Hint Resolve IdT.eq_dec: EqDecDb.
 
+Module IdTFacts := AltUsualFacts IdT.
+
+
 Module IdT_OT := Backport_Alt IdT.
 
 Module IdTSet.
@@ -180,13 +184,14 @@ End IdTSet.
 
 Module IdTSetFacts := FSetFactsExtra IdT_OT IdTSet.
 
-Lemma IdT_equiv_compare_leibniz:
-  forall x y, IdT.compare x y = Eq <-> x = y.
-Proof.
-  intros. split.
-  - apply IdT.compare_leibniz.
-  - i. subst. apply IdTFacts.compare_refl.
-Qed.
+
+(* Lemma IdT_equiv_compare_leibniz: *)
+(*   forall x y, IdT.compare x y = Eq <-> x = y. *)
+(* Proof. *)
+(*   intros. split. *)
+(*   - apply IdT.compare_leibniz. *)
+(*   - i. subst. apply IdTFacts.compare_refl. *)
+(* Qed. *)
 
 Lemma InA_equiv:
   forall X (eqA eqB: X -> X -> Prop)
@@ -208,15 +213,10 @@ Lemma IdTSet_from_list_spec ids:
 Proof.
   i. rewrite IdTSetFacts.from_list_spec.
   etransitivity; try apply InA_iff_In.
-  split; i.
-Admitted.
-
-(*   rewrite <- InA_iff_In. *)
-(*   apply InA_equiv. *)
-(*   split. *)
-(*   - apply IdT.compare_leibniz. *)
-(*   - i. subst. apply IdTFacts.compare_refl. *)
-(* Qed. *)
+  apply InA_equiv. split.
+  - apply IdT.compare_leibniz.
+  - i. subst. apply IdTFacts.compare_refl.
+Qed.
 
 
 Module Value.
@@ -228,6 +228,7 @@ Module Value.
       | value_const _ => None
     end.
 End Value.
+
 
 Module ValueT <: AltUsual.
   Inductive t_: Type :=
@@ -315,36 +316,19 @@ Module ValueT <: AltUsual.
 
 End ValueT.
 
-(* TODO: prev *)
-
-(* Hint Resolve ValueT.eq_dec: EqDecDb. *)
-(* Coercion ValueT.id: IdT.t >-> ValueT.t_. *)
-(* Coercion ValueT.const: const >-> ValueT.t_. *)
-
-(* Module ValueT_OT := Backport_Alt ValueT. *)
-
-(* Module ValueTSet := FSetAVLExtra ValueT_OT. *)
-(* Module ValueTSetFacts := FSetFactsExtra ValueT_OT ValueTSet. *)
-
-(* Module ValueTPair <: AltUsual. *)
-
 Module ValueTFacts := AltUsualFacts ValueT.
 
-Hint Resolve ValueTFacts.eq_dec_l: EqDecDb.
+
+Hint Resolve ValueT.eq_dec: EqDecDb.
 Coercion ValueT.id: IdT.t >-> ValueT.t_.
 Coercion ValueT.const: const >-> ValueT.t_.
 
-Module ValueT_OT := OT_from_AltUsual ValueT.
+Module ValueT_OT := Backport_Alt ValueT.
 
+Module ValueTSet := FSetAVLExtra ValueT_OT.
+Module ValueTSetFacts := FSetFactsExtra ValueT_OT ValueTSet.
 
-Module ValueTSet.
-  Include MSetAVLExtra ValueT_OT.
-End ValueTSet.
-
-Module ValueTSetFacts := MSetFactsExtra ValueT_OT ValueTSet.
-
-
-Module ValueTPair.
+Module ValueTPair <: AltUsual.
   Include prod ValueT ValueT.
 
   Definition eq_dec (x y:t): {x = y} + {x <> y}.
@@ -357,20 +341,11 @@ Module ValueTPair.
     (option_to_list (ValueT.get_idTs vp.(fst)))
       ++ (option_to_list (ValueT.get_idTs vp.(snd))).
 
-(* TODO: prev *)
-(* End ValueTPair. *)
-(* Hint Resolve ValueTPair.eq_dec: EqDecDb. *)
-
-(* Module ValueTPair_OT := Backport_Alt ValueTPair. *)
-
 End ValueTPair.
+Hint Resolve ValueTPair.eq_dec: EqDecDb.
 
-Module ValueTPairFacts := AltUsualFacts ValueTPair.
-
-Hint Resolve ValueTPairFacts.eq_dec_l: EqDecDb.
-
-Module ValueTPair_OT := OT_from_AltUsual ValueTPair.
-
+Module ValueTPairFacts := AltUsualFacts ValueTPair. (* TODO: required? *)
+Module ValueTPair_OT := Backport_Alt ValueTPair.
 
 
 Module ValueTPairSet.
@@ -382,11 +357,9 @@ Module ValueTPairSet.
 
 End ValueTPairSet.
 
+Module ValueTPairSetFacts := FSetFactsExtra ValueTPair_OT ValueTPairSet.
 
-(* TODO: prev *)
-(* Module ValueTPairSetFacts := FSetFactsExtra ValueTPair_OT ValueTPairSet. *)
 
-(* Module sz_ValueT := prod sz ValueT. *)
 Module sz_ValueT := prod sz ValueT.
 Module sz_ValueTFacts := AltUsualFacts sz_ValueT.
 
@@ -523,9 +496,7 @@ Module Expr <: AltUsual.
        try comp_sym_list ValueT.compare ValueT.compare_sym;
        try comp_sym_list' const.compare const.compare_sym;
        try comp_sym_list' bool.compare bool.compare_sym;
-       try comp_sym_list' sz_ValueT.compare sz_ValueT.compare_sym
-      ).
-
+       try comp_sym_list' sz_ValueT.compare sz_ValueT.compare_sym).
   
 
   Lemma compare_sym
@@ -557,10 +528,8 @@ Module Expr <: AltUsual.
     solve_leibniz_ typ.compare typ.compare_leibniz;
     solve_leibniz_ const.compare const.compare_leibniz;
     solve_leibniz_ ValueT.compare ValueT.compare_leibniz;
-    (* solve_leibniz_IH compare'; *)
     solve_leibniz_list' const.compare const.compare_leibniz;
     solve_leibniz_list' sz_ValueT.compare sz_ValueT.compare_leibniz
-    (* solve_leibniz_list' compare' *)
   .
 
   Ltac finish_refl :=
@@ -569,7 +538,6 @@ Module Expr <: AltUsual.
     finish_refl_ typ.compare typFacts.EOrigFacts.compare_refl;
     finish_refl_ const.compare constFacts.EOrigFacts.compare_refl;
     finish_refl_ ValueT.compare ValueTFacts.EOrigFacts.compare_refl;
-
     finish_refl_ compare' compare_refl;
     finish_refl_list t const const.compare const.compare_refl;
     finish_refl_list t sz_ValueT.t sz_ValueT.compare sz_ValueTFacts.EOrigFacts.compare_refl;
@@ -633,50 +601,9 @@ Module Expr <: AltUsual.
     : <<XZ: compare x z = c>>.
   Proof.
     unfold compare, wrap_compare in *.
-    destruct c, x, y; try discriminate;
-      destruct z; try discriminate; eauto.
-    - Time simpl in *; des_ifs; solve_leibniz; apply_trans; finish_refl.
-    - Time simpl in *; des_ifs; solve_leibniz; apply_trans; finish_refl.
-    - Time simpl in *; des_ifs; solve_leibniz; apply_trans; finish_refl.
-    - Time simpl in *; des_ifs; solve_leibniz; apply_trans; finish_refl.
-    - Time simpl in *; des_ifs; solve_leibniz; apply_trans; finish_refl.
-    - Time simpl in *; des_ifs; solve_leibniz; apply_trans; finish_refl.
-    - Time simpl in *; des_ifs; solve_leibniz; apply_trans; finish_refl.
-    - Time simpl in *; des_ifs; solve_leibniz; apply_trans; finish_refl.
-    - Time simpl in *; des_ifs; solve_leibniz; apply_trans; finish_refl.
-    - Time simpl in *; des_ifs; solve_leibniz; apply_trans; finish_refl.
-
-    - Time simpl in *; des_ifs; solve_leibniz; apply_trans; finish_refl.
-    - Time simpl in *; des_ifs; solve_leibniz; apply_trans; finish_refl.
-    - Time simpl in *; des_ifs; solve_leibniz; apply_trans; finish_refl.
-    - Time simpl in *; des_ifs; solve_leibniz; apply_trans; finish_refl.
-    - Time simpl in *; des_ifs; solve_leibniz; apply_trans; finish_refl.
-    - Time simpl in *; des_ifs; solve_leibniz; apply_trans; finish_refl.
-    - Time simpl in *; des_ifs; solve_leibniz; apply_trans; finish_refl.
-    - Time simpl in *; des_ifs; solve_leibniz; apply_trans; finish_refl.
-    - Time simpl in *; des_ifs; solve_leibniz; apply_trans; finish_refl.
-    - Time simpl in *; des_ifs; solve_leibniz; apply_trans; finish_refl.
-
-    - Time simpl in *; des_ifs; solve_leibniz; apply_trans; finish_refl.
-    - Time simpl in *; des_ifs; solve_leibniz; apply_trans; finish_refl.
-    - Time simpl in *; des_ifs; solve_leibniz; apply_trans; finish_refl.
-    - Time simpl in *; des_ifs; solve_leibniz; apply_trans; finish_refl.
-    - Time simpl in *; des_ifs; solve_leibniz; apply_trans; finish_refl.
-    - Time simpl in *; des_ifs; solve_leibniz; apply_trans; finish_refl.
-    - Time simpl in *; des_ifs; solve_leibniz; apply_trans; finish_refl.
-    - Time simpl in *; des_ifs; solve_leibniz; apply_trans; finish_refl.
-    - Time simpl in *; des_ifs; solve_leibniz; apply_trans; finish_refl.
-    - Time simpl in *; des_ifs; solve_leibniz; apply_trans; finish_refl.
-
-    - Time simpl in *; des_ifs; solve_leibniz; apply_trans; finish_refl.
-    - Time simpl in *; des_ifs; solve_leibniz; apply_trans; finish_refl.
-    - Time simpl in *; des_ifs; solve_leibniz; apply_trans; finish_refl.
-    - Time simpl in *; des_ifs; solve_leibniz; apply_trans; finish_refl.
-    - Time simpl in *; des_ifs; solve_leibniz; apply_trans; finish_refl.
-    - Time simpl in *; des_ifs; solve_leibniz; apply_trans; finish_refl.
-    - Time simpl in *; des_ifs; solve_leibniz; apply_trans; finish_refl.
-    - Time simpl in *; des_ifs; solve_leibniz; apply_trans; finish_refl.
-    - Time simpl in *; des_ifs; solve_leibniz; apply_trans; finish_refl.
+    Time (destruct c, x, y; try discriminate;
+            destruct z; try discriminate; eauto);
+      abstract (simpl in *; des_ifs; solve_leibniz; apply_trans; finish_refl). (* 142 sec*)
   Qed.
 
   Definition get_valueTs (e: t): list ValueT.t :=

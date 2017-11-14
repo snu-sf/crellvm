@@ -173,19 +173,6 @@ Section LISTS.
     | _, _ => None
     end.
 
-  (* Lemma comparison_trans_spec *)
-  (*       x y c *)
-  (*       (TRANS: comparison_trans x y = Some c) *)
-  (*   : *)
-  (*     <<INV: (x = Eq /\ y = c) *)
-  (*            \/ (x = c /\ y = Eq) *)
-  (*            \/ (x = c /\ y = c)>> *)
-  (* . *)
-  (* Proof. *)
-  (*   destruct x, y; ss; clarify; *)
-  (*     try (by left; ss); right; try (by left; ss); right; ss. *)
-  (* Qed. *)
-
   Lemma comparison_trans_spec
         x y c
     :
@@ -940,103 +927,6 @@ Module varg <: AltUsual := option sz.
 
 Module vargFacts := optionFacts varg. (* or AltUsualFacts varg directly? *)
 
-(* TODO: remove this *)
-Module AtomCompare.
-  Definition t := MetatheoryAtom.AtomImpl.atom.
-  Definition compare := MetatheoryAtom.AtomImpl.atom_compare.
-
-  (* Lemma atom_lt_irrefl x: *)
-  (*   ~ MetatheoryAtom.AtomImpl.atom_lt x x. *)
-  (* Proof. *)
-  (*   apply StrictOrder_Irreflexive. *)
-  (* Qed. *)
-
-  (* Lemma atom_lt_trans x y z: *)
-  (*   MetatheoryAtom.AtomImpl.atom_lt x y -> *)
-  (*   MetatheoryAtom.AtomImpl.atom_lt y z -> *)
-  (*   MetatheoryAtom.AtomImpl.atom_lt x z. *)
-  (* Proof. apply StrictOrder_Transitive. Qed. *)
-
-  Lemma compare_eq x y
-    : compare x y = Eq <-> x = y.
-  Proof.
-    unfold compare.
-    generalize (MetatheoryAtom.AtomImpl.atom_compare_spec x y).
-    intros SPEC.
-    split; intro EQ.
-    - rewrite EQ in SPEC. inversion SPEC. auto.
-    - destruct (MetatheoryAtom.AtomImpl.atom_compare x y) eqn:ACMP; auto;
-        inversion SPEC; subst;
-          apply StrictOrder_Irreflexive in H; contradiction.
-  Qed.
-
-  Lemma compare_refl x
-    : compare x x = Eq.
-  Proof. apply (compare_eq x x). eauto. Qed.
-
-  Lemma atom_lt_LT x y
-    : MetatheoryAtom.AtomImpl.atom_lt x y <-> compare x y = Lt.
-  Proof.
-  Admitted.
-
-  Lemma atom_lt_GT x y
-    : MetatheoryAtom.AtomImpl.atom_lt x y <-> compare y x = Gt.
-  Proof.
-  Admitted.
-
-  Lemma compare_lt x y
-    : compare x y = Lt <-> compare y x = Gt.
-  Proof.
-    rewrite <- atom_lt_LT. rewrite <- atom_lt_GT. eauto.
-  Qed.
-
-  Lemma compare_lt_trans x y z
-    : compare x y = Lt -> compare y z = Lt -> compare x z = Lt.
-  Proof.
-    intros CXY CYZ.
-    rewrite <- atom_lt_LT in *.
-    eapply StrictOrder_Transitive; eauto.
-    (* eapply atom_lt_trans; eauto. *)
-  Qed.
-
-  Lemma compare_sym
-        x y
-    :
-      <<SYM: compare y x = CompOpp (compare x y)>>
-  .
-  Proof.
-    red.
-    destruct (compare y x) eqn:CYX.
-    - rewrite compare_eq in CYX. subst.
-      rewrite compare_refl. reflexivity.
-    - apply compare_lt in CYX. rewrite CYX. reflexivity.
-    - apply compare_lt in CYX. rewrite CYX. reflexivity.
-  Qed.
-
-  Lemma compare_leibniz: forall
-      x y
-      (EQ: compare x y = Eq)
-    ,
-      x = y
-  .
-  Proof. apply compare_eq. Qed.
-
-  Lemma compare_trans: forall
-      c x y z (* for compatibility with Alt *)
-      (XY: compare x y = c)
-      (YZ: compare y z = c)
-    ,
-      <<XZ: compare x z = c>>
-  .
-  Proof.
-    red. intros. destruct c.
-    - rewrite compare_eq in *. congruence.
-    - eapply compare_lt_trans; eauto.
-    - rewrite <- compare_lt in *.
-      eapply compare_lt_trans; eauto.
-  Qed.
-End AtomCompare.
-
 
 Module Float <: AltUsual.
 
@@ -1156,18 +1046,78 @@ Module id <: AltUsual.
         try (by exploit ASYM; eauto; i; contradiction).
   Qed.
 
+  Lemma compare_leibniz
+        x y
+        (EQ: compare x y = Eq)
+    : x = y.
+  Proof.
+    unfold compare in EQ.
+    generalize (MetatheoryAtom.AtomImpl.atom_compare_spec x y).
+    inversion 1; congruence.
+  Qed.
+
+  Corollary compare_refl x
+    : compare x x = Eq.
+  Proof.
+    generalize (compare_sym x x).
+    destruct (compare x x); simpl; i; congruence.
+  Qed.
+
+  Lemma atom_lt_irrefl x:
+    ~ MetatheoryAtom.AtomImpl.atom_lt x x.
+  Proof. apply StrictOrder_Irreflexive. Qed.
+
+  Lemma atom_lt_trans x y z:
+    MetatheoryAtom.AtomImpl.atom_lt x y ->
+    MetatheoryAtom.AtomImpl.atom_lt y z ->
+    MetatheoryAtom.AtomImpl.atom_lt x z.
+  Proof. apply StrictOrder_Transitive. Qed.
+
+  Lemma atom_lt_LT x y
+    : compare x y = Lt <-> MetatheoryAtom.AtomImpl.atom_lt x y.
+  Proof.
+    unfold compare.
+    split; i.
+    - generalize (MetatheoryAtom.AtomImpl.atom_compare_spec x y).
+      inversion 1; congruence.
+    - generalize (MetatheoryAtom.AtomImpl.atom_compare_spec x y).
+      inversion 1; subst; eauto.
+      + exploit atom_lt_irrefl; eauto. by inversion 1.
+      + exploit atom_lt_trans; eauto. i.
+        exploit atom_lt_irrefl; eauto. by inversion 1.
+  Qed.
+
+  Lemma atom_lt_GT x y
+    : compare x y = Gt <-> MetatheoryAtom.AtomImpl.atom_lt y x.
+  Proof.
+    unfold compare.
+    split; i.
+    - generalize (MetatheoryAtom.AtomImpl.atom_compare_spec x y).
+      inversion 1; congruence.
+    - generalize (MetatheoryAtom.AtomImpl.atom_compare_spec x y).
+      inversion 1; subst; eauto.
+      + exploit atom_lt_irrefl; eauto. by inversion 1.
+      + exploit atom_lt_trans; eauto. i.
+        exploit atom_lt_irrefl; eauto. by inversion 1.
+  Qed.
+
   Lemma compare_trans
         c x y z
         (XY: compare x y = c)
         (YZ: compare y z = c)
     : <<XZ: compare x z = c>>.
-  Proof. eapply AtomCompare.compare_trans; eauto. Qed.
-
-  Lemma compare_leibniz
-        x y
-        (EQ: compare x y = Eq)
-    : x = y.
-  Proof. apply AtomCompare.compare_leibniz; auto. Qed.
+  Proof.
+    red. intros. destruct c.
+    - apply compare_leibniz in XY.
+      apply compare_leibniz in YZ.
+      subst. apply compare_refl.
+    - rewrite atom_lt_LT in *.
+      revert XY YZ.
+      apply StrictOrder_Transitive.
+    - rewrite atom_lt_GT in *.
+      revert YZ XY.
+      apply StrictOrder_Transitive.
+  Qed.
 End id.
 
 Module idFacts := AltUsualFacts id.
@@ -1631,7 +1581,7 @@ Module typ <: AltUsual.
       rewrite (compare_list_sym compare' IH).
       comp_sym varg.compare varg.compare_sym; eauto; des_ifs.
     - exploit compare_list_sym; eauto.
-    - by apply AtomCompare.compare_sym.
+    - by apply id.compare_sym.
   Qed.
 
   Corollary compare_refl z:
@@ -1883,7 +1833,7 @@ Module const <: AltUsual.
       intros; destruct c;
         destruct y; try discriminate; (* 399 *)
           destruct z; try discriminate; eauto; (* 57, 60 ~ 80 sec *)
-            by (simpl in *; des_ifs; solve_leibniz; apply_trans; finish_refl). (* 440 sec *)
+            abstract (simpl in *; des_ifs; solve_leibniz; apply_trans; finish_refl). (* 90 sec *)
   Qed.
 
 End const.
