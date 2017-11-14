@@ -496,7 +496,7 @@ Definition project_into_IdTSet (ld: ExprPairSet.t): IdTSet.t :=
 (* Definition reduce_maydiff_lessdef (inv0: Invariant.t): Invariant.t := *)
 Definition reduce_maydiff (inv0: Invariant.t): Invariant.t :=
   let ld_src := inv0.(Invariant.src).(Invariant.lessdef) in
-  let ld_tgt := inv0.(Invariant.src).(Invariant.lessdef) in
+  let ld_tgt := inv0.(Invariant.tgt).(Invariant.lessdef) in
   let ld_src_outer_idt :=
       ExprPairSet.filter (fun xy => project_into_IdT xy.(fst)) ld_src in
   (* Time: |LD| *)
