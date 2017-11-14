@@ -607,8 +607,8 @@ Module Infrule.
   | implies_false (x:const) (y:const)
 
   (* temporary *)
-  | old_reduce_maydiff
-  | old_reduce_maydiff_non_physical 
+  | reduce_maydiff_lessdef
+  | reduce_maydiff_non_physical
 
   (* Updated semantics of rules should be located above this line *)
   .
@@ -632,6 +632,8 @@ Module Infrule.
     | intro_eq _ => false
     | intro_eq_tgt _ => false
     | implies_false _ _ => false
+    | reduce_maydiff_lessdef => false
+    | reduce_maydiff_non_physical => false
     | _ => true
     end.
 
@@ -679,6 +681,8 @@ Module Infrule.
     | trunc_load_bitcast_rev_tgt _ _ _ _ _ _ _ => true
     | lessthan_undef _ _ => true
     | lessthan_undef_tgt _ _ => true
+    | reduce_maydiff_lessdef => true
+    | reduce_maydiff_non_physical => true
     | _ => false
     end
   .

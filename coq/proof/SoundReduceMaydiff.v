@@ -151,18 +151,6 @@ Section Filter.
           (all_once exploit_filter_preserved_with); clarify.
   Qed.
 
-  (* Lemma incl_implies_preserved *)
-  (*       conf st invst0 expr val inv *)
-  (*       (preserved: _ -> bool) *)
-  (*       (PRESERVED: forall id (ID: In id (Invariant.get_idTs_unary inv)), preserved id) *)
-  (*       (VAL: InvState.Unary.sem_expr conf st invst0 expr = Some val) *)
-  (*       (INCL: incl (Exprs.Expr.get_idTs expr) (Invariant.get_idTs_unary inv)): *)
-  (*   <<PRESERVED: InvState.Unary.sem_expr conf st (filter preserved invst0) expr = Some val>>. *)
-  (* Proof. *)
-  (*   eapply filter_preserved_expr; eauto. apply forallb_forall. i. *)
-  (*   apply PRESERVED. apply INCL. ss. *)
-  (* Qed. *)
-
   Lemma In_map_incl {A} (f: Exprs.ExprPair.t -> list A) x xs
         (IN: Exprs.ExprPairSet.In x xs):
     <<IN: List.incl (f x) (List.concat (List.map f (Exprs.ExprPairSet.elements xs)))>>.
@@ -181,172 +169,95 @@ Section Filter.
     i. exploit WF_LOCAL; eauto.
     eapply lookup_AL_filter_some; eauto.
   Qed.
-
-  (* Lemma filter_spec *)
-  (*       conf st invst invmem inv gmax public *)
-  (*       (preserved: _ -> bool) *)
-  (*       (PRESERVED: forall id (ID: In id (Invariant.get_idTs_unary inv)), preserved id) *)
-  (*       (STATE: InvState.Unary.sem conf st invst invmem gmax public inv): *)
-  (*   InvState.Unary.sem conf st (filter preserved invst) invmem gmax public inv. *)
-  (* Proof. *)
-  (*   inv STATE. econs; eauto. *)
-  (*   - ii. *)
-  (*     exploit filter_subset_expr; eauto. i. des. *)
-  (*     exploit LESSDEF; eauto. i. des. *)
-  (*     exploit incl_implies_preserved; eauto. *)
-  (*     eapply incl_tran; [|eapply incl_tran]; swap 2 3. *)
-  (*     + apply incl_appr. apply incl_refl. *)
-  (*     + unfold Invariant.get_idTs_unary. *)
-  (*       apply incl_appl. apply incl_refl. *)
-  (*     + eapply In_map_incl in H. des. refine H. *)
-  (*   - inv NOALIAS. econs; i. *)
-  (*     + eapply DIFFBLOCK; eauto. *)
-  (*       * eapply filter_subset_valueT; eauto. *)
-  (*       * eapply filter_subset_valueT; eauto. *)
-  (*     + eapply NOALIAS0; eauto. *)
-  (*       * eapply filter_subset_valueT; eauto. *)
-  (*       * eapply filter_subset_valueT; eauto. *)
-  (*   - ii. exploit PRIVATE; eauto. *)
-  (*     eapply filter_subset_idT; eauto. *)
-  (*   - apply filter_AL_atom_preserves_wf_lc. eauto. *)
-  (*   - apply filter_AL_atom_preserves_wf_lc. eauto. *)
-  (* Qed. *)
 End Filter.
 
-(* Lemma reduce_maydiff_lessdef_sound *)
-(*       m_src m_tgt *)
-(*       conf_src st_src *)
-(*       conf_tgt st_tgt *)
-(*       invst invmem inv *)
-(*       (CONF: InvState.valid_conf m_src m_tgt conf_src conf_tgt) *)
-(*       (STATE: InvState.Rel.sem conf_src conf_tgt st_src st_tgt invst invmem inv) *)
-(*       (MEM: InvMem.Rel.sem conf_src conf_tgt st_src.(Mem) st_tgt.(Mem) invmem): *)
-(*   <<STATE: InvState.Rel.sem conf_src conf_tgt st_src st_tgt invst invmem *)
-(*                             (reduce_maydiff_lessdef inv)>>. *)
-(* Proof. *)
-(*   inversion STATE. econs; eauto. ii. *)
-(*   ss. rewrite IdTSetFacts.filter_b in NOTIN; [|solve_compat_bool]. *)
-(*   repeat (des_bool; des); ss; cycle 2. *)
-(*   { exploit MAYDIFF; eauto. } clear MAYDIFF. *)
-(*   apply ExprPairSetFacts.exists_iff in NOTIN; [|solve_compat_bool]. *)
-(*   red in NOTIN; des. *)
-(*   apply ExprPairSetFacts.exists_iff in NOTIN0; [|solve_compat_bool]. *)
-(*   red in NOTIN0; des. *)
-(*   apply InvState.get_lhs_in_spec in NOTIN0. *)
-(*   apply InvState.get_rhs_in_spec in NOTIN. *)
-(*   destruct x, x0. ss. des. subst. *)
-(*   rename id0 into idt. *)
 
-(*   (* src lessdef x, t0 --> t0's result exists *) *)
-(*   inv SRC. clear NOALIAS UNIQUE PRIVATE. *)
-(*   exploit LESSDEF; eauto; []; ii; des. clear LESSDEF. *)
+Lemma project_into_IdT_spec e x:
+  project_into_IdT e = Some x <-> e = Expr.value (ValueT.id x).
+Proof.
+  destruct e; ss. des_ifs.
+  split; inversion 1; auto.
+Qed.
 
-(*   (* inject_expr t0, t1 --> t1's result exists *) *)
-(*   exploit InvState.Rel.inject_expr_spec; eauto; []; ii; des. *)
+Lemma project_into_IdTSet_In s x:
+  IdTSet.In x (project_into_IdTSet s) ->
+  exists e, ExprPairSet.In (Expr.value (ValueT.id x), e) s.
+Proof.
+  unfold project_into_IdTSet. i.
+  rewrite ExprPairSet.fold_1 in *.
+  rewrite <- fold_left_rev_right in *.
+  remember (rev (ExprPairSet.elements s)) as s_elem.
 
-(*   (* tgt t1, x --> x's result exists *) *)
-(*   inv TGT. clear NOALIAS UNIQUE PRIVATE. *)
-(*   exploit LESSDEF; eauto; []; ii; des. clear LESSDEF. *)
+  assert (incl s_elem (rev (ExprPairSet.elements s))).
+  { subst. apply incl_refl. }
+  clear Heqs_elem.
 
-(*   (* val_src >= val_a >= val_tgt >= val_b *) *)
-(*   esplits; eauto. *)
-(*   exploit GVs.inject_lessdef_compose; eauto; []; ii; des. *)
-(*   exploit GVs.lessdef_inject_compose; try exact x0; eauto. *)
-(* Qed. *)
+  induction s_elem; i.
+  { ss. inversion H. }
 
-(* Lemma reduce_maydiff_preserved_sem_idT st_src st_tgt *)
-(*       invst inv id val_src val_tgt *)
-(*   (VAL_SRC: InvState.Unary.sem_idT st_src *)
-(*               (filter (reduce_maydiff_preserved inv) (InvState.Rel.src invst)) id = *)
-(*             Some val_src) *)
-(*   (VAL_TGT: InvState.Unary.sem_idT st_tgt (InvState.Rel.tgt invst) id = Some val_tgt): *)
-(*   <<VAL_TGT: InvState.Unary.sem_idT st_tgt *)
-(*     (filter (reduce_maydiff_preserved inv) (InvState.Rel.tgt invst)) id = Some val_tgt>>. *)
-(* Proof. *)
-(*   destruct id. rename i0 into id. *)
-(*   unfold InvState.Unary.sem_idT in *. ss. *)
-(*   unfold InvState.Unary.sem_tag in *. ss. *)
-(*   unfold compose in *. *)
-(*   destruct t; ss. *)
-(*   - rewrite <- VAL_TGT. *)
-(*     rewrite lookup_AL_filter_spec in *. *)
-(*     rewrite lookup_AL_filter_spec in VAL_SRC. (* WHY SHOULD I WRITE IT ONCE AGAIN?? *) *)
-(*     des_ifs. *)
-(*   - rewrite <- VAL_TGT. *)
-(*     rewrite lookup_AL_filter_spec in *. *)
-(*     rewrite lookup_AL_filter_spec in VAL_SRC. (* WHY SHOULD I WRITE IT ONCE AGAIN?? *) *)
-(*     des_ifs. *)
-(* Qed. *)
-
-(* Lemma reduce_maydiff_non_physical_sound *)
-(*       m_src m_tgt *)
-(*       conf_src st_src *)
-(*       conf_tgt st_tgt *)
-(*       invst0 invmem inv *)
-(*       (CONF: InvState.valid_conf m_src m_tgt conf_src conf_tgt) *)
-(*       (STATE: InvState.Rel.sem conf_src conf_tgt st_src st_tgt invst0 invmem inv) *)
-(*       (MEM: InvMem.Rel.sem conf_src conf_tgt st_src.(Mem) st_tgt.(Mem) invmem): *)
-(*   exists invst1, *)
-(*     <<STATE: InvState.Rel.sem conf_src conf_tgt st_src st_tgt invst1 invmem *)
-(*                               (reduce_maydiff_non_physical inv)>>. *)
-(* Proof. *)
-(*   exists (InvState.Rel.update_both (filter (reduce_maydiff_preserved inv)) invst0). red. *)
-(*   inv STATE. *)
-(*   econs; ss; cycle 2. *)
-(*   - ii. ss. *)
-(*     rewrite IdTSetFacts.filter_b in NOTIN; [|solve_compat_bool]. *)
-(*     des_bool. des. *)
-(*     + exploit MAYDIFF; eauto. *)
-(*       { exploit filter_subset_idT; eauto. } *)
-(*       i. des. esplits; eauto. *)
-(*       eapply reduce_maydiff_preserved_sem_idT; eauto. *)
-(*     + destruct id0. *)
-(*       rename t into __t__, i0 into __i__. *)
-(*       unfold InvState.Unary.sem_idT in VAL_SRC. ss. *)
-(*       unfold InvState.Unary.sem_tag in VAL_SRC. ss. *)
-(*       unfold compose in *. *)
-(*       destruct __t__; inv NOTIN. *)
-(*       * rewrite lookup_AL_filter_spec in VAL_SRC. *)
-(*         unfold Tag.t in *. rewrite H0 in VAL_SRC. ss. *)
-(*       * rewrite lookup_AL_filter_spec in VAL_SRC. *)
-(*         unfold Tag.t in *. rewrite H0 in VAL_SRC. ss. *)
-(*   - apply filter_spec; ss. i. *)
-(*     unfold reduce_maydiff_preserved. apply orb_true_iff. right. *)
-(*     rewrite find_app. *)
-(*     match goal with *)
-(*     | [|- context[match ?g with | Some _ => _ | None => _ end]] => *)
-(*       let COND := fresh "COND" in *)
-(*       destruct g eqn:COND *)
-(*     end; ss. *)
-(*     eapply find_none in COND; [|eauto]. *)
-(*     destruct (IdT.eq_dec id0 id0); ss. *)
-(*   - apply filter_spec; ss. i. *)
-(*     unfold reduce_maydiff_preserved. apply orb_true_iff. right. *)
-(*     rewrite find_app. *)
-(*     match goal with *)
-(*     | [|- context[match ?g with | Some _ => _ | None => _ end]] => *)
-(*       let COND := fresh "COND" in *)
-(*       destruct g eqn:COND *)
-(*     end; ss. *)
-(*     apply In_eq_find. ss. *)
-(* Grab Existential Variables. *)
-(*   { eauto. } *)
-(* Qed. *)
+  destruct a as [a1 a2]. ss.
+  des_ifs.
+  - rewrite IdTSetFacts.add_iff in *. des.
+    + rewrite project_into_IdT_spec in *. subst.
+      exploit IdT.compare_leibniz; eauto. i. subst.
+      exists a2.
+      rewrite ExprPairSetFacts.elements_iff.
+      eapply InA_equiv with (eqB:=eq).
+      { split.
+        - apply ExprPair.compare_leibniz.
+        - inversion 1. apply ExprPairFacts.compare_refl.
+      }
+      apply InA_iff_In.
+      apply in_rev.
+      unfold ExprPairSet.elt in *.
+      exploit elim_incl_cons; eauto. i. des. eauto.
+    + exploit IHs_elem; eauto.
+      exploit elim_incl_cons; eauto. i. des. eauto.
+  - exploit IHs_elem; eauto.
+    exploit elim_incl_cons; eauto. i. des. eauto.
+Qed.
 
 Lemma reduce_maydiff_sound
       m_src m_tgt
       conf_src st_src
       conf_tgt st_tgt
-      invst0 invmem inv
+      invst invmem inv
       (CONF: InvState.valid_conf m_src m_tgt conf_src conf_tgt)
-      (STATE: InvState.Rel.sem conf_src conf_tgt st_src st_tgt invst0 invmem inv)
+      (STATE: InvState.Rel.sem conf_src conf_tgt st_src st_tgt invst invmem inv)
       (MEM: InvMem.Rel.sem conf_src conf_tgt st_src.(Mem) st_tgt.(Mem) invmem):
   exists invst1,
     <<STATE: InvState.Rel.sem conf_src conf_tgt st_src st_tgt invst1 invmem
                               (reduce_maydiff inv)>>.
 Proof.
-  unfold reduce_maydiff.
-(*   exploit reduce_maydiff_lessdef_sound; eauto. i. des. *)
-(*   exploit reduce_maydiff_non_physical_sound; eauto. *)
-(* Qed. *)
-Admitted.
+  exists invst.
+  unfold reduce_maydiff. red.
+  inv STATE.
+  econs; ss. intro x. i.
+
+  rewrite IdTSetFacts.diff_b in NOTIN. des_bool. des.
+  { apply MAYDIFF. auto. }
+
+  des_bool.
+  rewrite <- IdTSetFacts.mem_iff in NOTIN.
+  apply project_into_IdTSet_In in NOTIN. des.
+
+  rewrite ExprPairSetFacts.filter_iff in NOTIN; [|solve_compat_bool].
+  rewrite ExprPairSetFacts.filter_iff in NOTIN; [|solve_compat_bool].
+  rewrite ExprPairSetFacts.filter_iff in NOTIN; [|solve_compat_bool].
+  des. unfold swap_pair in *. ss.
+  rewrite <- ExprPairSetFacts.mem_iff in *.
+
+  ii.
+  inv SRC. rename LESSDEF into LESSDEF_SRC.
+  exploit LESSDEF_SRC; eauto. i. des. ss.
+
+  exploit InvState.Rel.not_in_maydiff_expr_spec; eauto.
+  i. des.
+
+  inv TGT. rename LESSDEF into LESSDEF_TGT.
+  exploit LESSDEF_TGT; eauto. i. des. ss.
+  esplits; eauto.
+  
+  eapply GVs.inject_lessdef_compose; eauto.
+  eapply GVs.lessdef_inject_compose; eauto.
+Qed.

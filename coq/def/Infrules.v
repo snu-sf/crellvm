@@ -366,13 +366,13 @@ Definition reduce_maydiff_preserved (used_ids: list IdT.t) :=
   (fun idt => (Tag.eq_dec (fst idt) Tag.physical) || (List.find (IdT.eq_dec idt) used_ids)).
 
 (* Non-physical that is only in maydiff is safe to remove *)
-Definition reduce_maydiff_non_physical_old (inv0: Invariant.t): Invariant.t :=
+Definition reduce_maydiff_non_physical (inv0: Invariant.t): Invariant.t :=
   let used_ids := (Invariant.get_idTs_unary inv0.(Invariant.src))
                     ++ (Invariant.get_idTs_unary inv0.(Invariant.tgt))
   in
   Invariant.update_maydiff (IdTSet.filter (reduce_maydiff_preserved used_ids)) inv0.
 
-Definition reduce_maydiff_lessdef_old (inv0:Invariant.t): Invariant.t :=
+Definition reduce_maydiff_lessdef (inv0:Invariant.t): Invariant.t :=
     let lessdef_src := inv0.(Invariant.src).(Invariant.lessdef) in
     let lessdef_tgt := inv0.(Invariant.tgt).(Invariant.lessdef) in
   Invariant.update_maydiff
@@ -1942,10 +1942,10 @@ Definition apply_infrule
     then
       {{ inv0 +++tgt (Expr.icmp cond_ugt (typ_int s) a b) >= (Expr.value z) }}
     else apply_fail tt
-  | Infrule.old_reduce_maydiff =>
-    reduce_maydiff_lessdef_old inv0
-  | Infrule.old_reduce_maydiff_non_physical =>
-    reduce_maydiff_non_physical_old inv0
+  | Infrule.reduce_maydiff_lessdef =>
+    reduce_maydiff_lessdef inv0
+  | Infrule.reduce_maydiff_non_physical =>
+    reduce_maydiff_non_physical inv0
 
   | _ => no_match_fail tt (* TODO *)
   end.

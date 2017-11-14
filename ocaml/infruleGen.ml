@@ -285,10 +285,10 @@ module AutoRedMdOldHelper = struct
       let md_g = inv_g.Invariant.maydiff in
       let md_interest = IdTSet.diff md md_g in
       let infrs1 = if exist_non_physical md_interest then
-                     [Infrule.Coq_old_reduce_maydiff_non_physical]
+                     [Infrule.Coq_reduce_maydiff_non_physical]
                    else [] in
       let infrs2 = if exist_physical md_interest then
-                     [Infrule.Coq_old_reduce_maydiff]
+                     [Infrule.Coq_reduce_maydiff_lessdef]
                    else [] in
       (infrs1@infrs2)
   end

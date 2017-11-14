@@ -423,20 +423,20 @@ Module ForgetStackCall.
     ForgetStack.t defs_src defs_tgt AtomSetImpl.empty AtomSetImpl.empty inv0.
 End ForgetStackCall.
 
-Definition reduce_maydiff_lessdef_old (inv0:Invariant.t): Invariant.t :=
-  let lessdef_src := inv0.(Invariant.src).(Invariant.lessdef) in
-  let lessdef_tgt := inv0.(Invariant.tgt).(Invariant.lessdef) in
-  let inject_id id := Invariant.inject_value inv0 (ValueT.id id) (ValueT.id id)
-      (* negb (ExprPairSet.exists_ *)
-      (*         (fun p => ExprPairSet.exists_ *)
-      (*                     (fun q => Invariant.not_in_maydiff_expr inv0 (snd p)) *)
-      (*                     (ExprPairSet.filter (fun q => ExprFacts.eq_dec_l (snd p) (fst q)) *)
-      (*                                         (Invariant.get_lhs lessdef_tgt (fst p)))) *)
-      (*         (Invariant.get_rhs lessdef_src *)
-      (*                            (Expr.value (ValueT.id id)))) *)
-  in
-  (* O(|MD| * |LD| * log|LD|) *)
-  Invariant.update_maydiff (IdTSet.filter (negb <*> inject_id)) inv0.
+(* Definition reduce_maydiff_lessdef_old (inv0:Invariant.t): Invariant.t := *)
+(*   let lessdef_src := inv0.(Invariant.src).(Invariant.lessdef) in *)
+(*   let lessdef_tgt := inv0.(Invariant.tgt).(Invariant.lessdef) in *)
+(*   let inject_id id := Invariant.inject_value inv0 (ValueT.id id) (ValueT.id id) *)
+(*       (* negb (ExprPairSet.exists_ *) *)
+(*       (*         (fun p => ExprPairSet.exists_ *) *)
+(*       (*                     (fun q => Invariant.not_in_maydiff_expr inv0 (snd p)) *) *)
+(*       (*                     (ExprPairSet.filter (fun q => ExprFacts.eq_dec_l (snd p) (fst q)) *) *)
+(*       (*                                         (Invariant.get_lhs lessdef_tgt (fst p)))) *) *)
+(*       (*         (Invariant.get_rhs lessdef_src *) *)
+(*       (*                            (Expr.value (ValueT.id id)))) *) *)
+(*   in *)
+(*   (* O(|MD| * |LD| * log|LD|) *) *)
+(*   Invariant.update_maydiff (IdTSet.filter (negb <*> inject_id)) inv0. *)
 
 (*
 swap: |LD|

@@ -569,23 +569,15 @@ Lemma implies_reduce_maydiff
     <<IMPLIES: Invariant.implies (Postcond.reduce_maydiff inv0) inv0>>
 .
 Proof.
-(*   red. *)
-(*   unfold Postcond.reduce_maydiff. *)
-(*   unfold Invariant.implies. *)
-(*   apply orb_true_iff. right. *)
-(*   do 2 try (apply andb_true_iff; split). *)
-(*   - ss. apply wrap_is_true_goal. reflexivity. *)
-(*   - ss. apply wrap_is_true_goal. reflexivity. *)
-(*   - ss. *)
-(*     (* TODO: THERE SHOULD BE LEMMA FOR THIS: subset -> filter *) *)
-(*     apply Exprs.IdTSetFacts.subset_iff. *)
-(*     ii. *)
-(*     apply Exprs.IdTSetFacts.filter_iff in H; cycle 1. *)
-(*     { solve_compat_bool. solve_leibniz. ss. } *)
-(*     des. *)
-(*     apply Exprs.IdTSetFacts.filter_iff in H; cycle 1. *)
-(*     { solve_compat_bool. solve_leibniz. ss. } *)
-(*     des. *)
-(*     ss. *)
-(* Qed. *)
-Admitted.
+  red.
+  unfold Postcond.reduce_maydiff.
+  unfold Invariant.implies.
+  apply orb_true_iff. right.
+  do 2 try (apply andb_true_iff; split).
+  - ss. apply wrap_is_true_goal. reflexivity.
+  - ss. apply wrap_is_true_goal. reflexivity.
+  - ss.
+    (* TODO: THERE SHOULD BE LEMMA FOR THIS: subset -> filter *)
+    apply Exprs.IdTSetFacts.subset_iff. ii.
+    rewrite IdTSetFacts.diff_iff in *. des. ss.
+Qed.

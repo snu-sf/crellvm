@@ -739,6 +739,8 @@ Module ExprPair <: AltUsual.
       ++ (Expr.get_idTs ep.(snd)).
 End ExprPair.
 
+Module ExprPairFacts := AltUsualFacts ExprPair.
+
 Module ExprPair_OT := Backport_Alt ExprPair.
 Module ExprPairSet.
   Include FSetAVLExtra ExprPair_OT.
