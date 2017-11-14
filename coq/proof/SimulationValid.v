@@ -1061,7 +1061,7 @@ Proof.
         des.
         des_ifs.
         exploit UNIQUE.
-        { apply AtomSetFacts.elements_iff, InA_iff_In. eauto. }
+        { apply AtomSetFacts.elements_iff, InA_iff_In; eauto. }
         intro UNIQUE_A. inv UNIQUE_A. ss. clarify.
         (* TODO: name clash on "MEM". Chnage sem_unqiue? smarter way? *)
         exploit MEM; eauto.
@@ -1073,7 +1073,7 @@ Proof.
         des.
         des_ifs.
         exploit UNIQUE.
-        { apply AtomSetFacts.elements_iff, InA_iff_In. eauto. }
+        { apply AtomSetFacts.elements_iff, InA_iff_In; eauto. }
         intro UNIQUE_A. inv UNIQUE_A. ss. clarify.
         exploit GLOBALS; eauto.
         (* NEED TO STRENGTHEN GLOBALS *)
@@ -1086,7 +1086,7 @@ Proof.
         des.
         des_ifs.
         exploit UNIQUE.
-        { apply AtomSetFacts.elements_iff, InA_iff_In. eauto. }
+        { apply AtomSetFacts.elements_iff, InA_iff_In; eauto. }
         intro UNIQUE_A. inv UNIQUE_A. ss. clarify.
         exploit MEM; eauto.
       }
@@ -1112,7 +1112,12 @@ Proof.
         des_ifs.
         exploit PRIVATE; eauto.
         { apply Exprs.IdTSetFacts.elements_iff.
-          apply In_InA; eauto. }
+          (* apply In_InA; eauto. *)
+          apply InA_iff_In; eauto.
+          split.
+          - apply Exprs.IdT.compare_leibniz.
+          - i. subst. apply Exprs.IdTFacts.compare_refl.
+        }
         ss. i. des. clarify.
       }
       { inv STATE1. inv TGT. ss.
@@ -1123,7 +1128,12 @@ Proof.
         des_ifs.
         exploit PRIVATE; eauto.
         { apply Exprs.IdTSetFacts.elements_iff.
-          apply In_InA; eauto. }
+          (* apply In_InA; eauto. *)
+          apply InA_iff_In; eauto.
+          split.
+          - apply Exprs.IdT.compare_leibniz.
+          - i. subst. apply Exprs.IdTFacts.compare_refl.
+        }
         ss. i. des. clarify.
       }
 
@@ -1226,7 +1236,9 @@ Proof.
   - apply Exprs.ExprPairSetFacts.empty_iff in IN. contradiction.
   - destruct (lookupTypViaIDFromArgs args a) eqn:ARGTY.
     + apply Exprs.ExprPairSetFacts.add_iff in IN. des.
-      * inv IN. esplits; eauto.
+      * inv IN.
+        exploit Exprs.ExprPair.compare_leibniz; eauto. inversion 1.
+        esplits; eauto.
       * apply IHal in IN. des. esplits; eauto.
     + apply IHal in IN. des. esplits; eauto.
 Qed.
@@ -1252,7 +1264,8 @@ Proof.
   - destruct (lookupTypViaGIDFromProducts prods g) as [ty|] eqn:ARGTY.
     + destruct ty; try by apply IHgl; eauto; i; apply GVARS_SPEC; intuition.
       apply Exprs.ExprPairSetFacts.add_iff in IN. des.
-      * exploit (GVARS_SPEC g); eauto.
+      * exploit Exprs.ExprPair.compare_leibniz; eauto. inversion 1.
+        exploit (GVARS_SPEC g); eauto.
         i. des. clarify. esplits; eauto.
       * apply IHgl; eauto.
     + apply IHgl; eauto.
