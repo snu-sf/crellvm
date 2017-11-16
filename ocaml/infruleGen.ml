@@ -134,7 +134,7 @@ module Auto = struct
   end
 
 module AutoTransHelper = struct
-    module ExprSet = FSetExtra.Make(Expr)
+    (* module ExprSet = FSetExtra.Make(Expr) *)
 
     let string_of_exprlist (el:Expr.t list): string =
       let sl = List.map Printer.ExprsToString.of_expr el in
@@ -266,6 +266,31 @@ module AutoCommHelper = struct
           Some ( (Auto.fcmp_swap_operands_rev scp c1 ty1 a1 b1 e2),
                   (Expr.Coq_fcmp (get_swapped_fcmp_cond c1, ty1, b1, a1), e2) )
        | _ -> None
+  end
+
+module AutoRedMdOldHelper = struct
+    let exist_non_physical (md:IdTSet.t) : bool =
+      IdTSet.exists_ (fun idt -> match (fst idt) with
+                                | Tag.Coq_physical -> false
+                                | _ -> true) md
+
+    let exist_physical (md:IdTSet.t) : bool =
+      IdTSet.exists_ (fun idt -> match (fst idt) with
+                                | Tag.Coq_physical -> true
+                                | _ -> false) md
+
+    let gen_infrs inv inv_g : Infrule.t list =
+      (* if b then ([], inv_g) else *)
+      let md = inv.Invariant.maydiff in
+      let md_g = inv_g.Invariant.maydiff in
+      let md_interest = IdTSet.diff md md_g in
+      let infrs1 = if exist_non_physical md_interest then
+                     [Infrule.Coq_reduce_maydiff_non_physical]
+                   else [] in
+      let infrs2 = if exist_physical md_interest then
+                     [Infrule.Coq_reduce_maydiff_lessdef]
+                   else [] in
+      (infrs1@infrs2)
   end
 
 module AutoSubstTransHelper = struct
@@ -635,9 +660,11 @@ module AutoGVNModule = struct
                           | _ -> acc)
                       | _ -> acc) ([], ld) (ExprPairSet.elements ld)
 
-    let new_auto1 : Auto.t1 =
+    let auto1 : Auto.t1 =
       fun b inv inv_g ->
       if b then ([], inv_g) else
+      let infrs_md = AutoRedMdOldHelper.gen_infrs inv inv_g in
+
       let intros = IntroGhostHelper.find_to_intro inv inv_g in
       let infrs_intros = IntroGhostHelper.gen_infrule intros in
       let intros_e = List.map (fun (x, e) -> (Expr.Coq_value (ValueT.Coq_id (Tag.Coq_ghost, x)), e)) intros in
@@ -649,7 +676,7 @@ module AutoGVNModule = struct
       let infrs_load = process_load inv.Invariant.tgt.Invariant.lessdef inv_g.Invariant.tgt.Invariant.lessdef in
 
       let (infrs_st, inv_g) = AutoSubstTransHelper.auto1 b inv inv_g in
-      (infrs_intros@infrs_ii@infrs_load@infrs_st, inv_g)
+      (infrs_md@infrs_intros@infrs_ii@infrs_load@infrs_st, inv_g)
   end
 
 (** Framework 1. AutoNextInvariant *)
@@ -763,11 +790,20 @@ module AutoInjectValues (GEN:InjectValueGenerator): AutoInjVal = struct
       run_intl inv [] [] vpl
   end
 
+(* Instances of AutoNextInv*)
+
 module AutoUnaryLD_Trans : AutoNextInv =
   AutoUnaryLD
     (struct
         let f = AutoTransHelper.run_unary
       end)
+
+module AutoSROAModule : AutoNextInv = struct
+    let run b inv inv_g =
+      let infrs_md = AutoRedMdOldHelper.gen_infrs inv inv_g in
+      let (infrs, inv1) = AutoUnaryLD_Trans.run b inv inv_g in
+      (infrs_md@infrs, inv1)
+  end
 
 module AutoInstCombineModule : AutoNextInv = struct
     let _apply_commutativities (scp:Auto.scope_t) (lessdefs:ExprPairSet.t)
@@ -786,6 +822,8 @@ module AutoInstCombineModule : AutoNextInv = struct
       (infrules, ExprPairSet.union lessdefs newlessdefs)
 
     let run : Auto.t1 = fun (isfirst:bool) (inv:Invariant.t) (inv_goal:Invariant.t) ->
+      let infrs_md = AutoRedMdOldHelper.gen_infrs inv inv_goal in
+
       let lessdefs_src = inv.src.lessdef in
       let (infrules_src1, lessdefs_added) = _apply_commutativities
               Auto.Src lessdefs_src (AutoCommHelper.find_commrules_on_e1) in
@@ -809,7 +847,7 @@ module AutoInstCombineModule : AutoNextInv = struct
                   inv) in
 
       let (infrules_trans, inv_goal) = AutoUnaryLD_Trans.run false newinv inv_goal in
-      (infrules_src1@infrules_src2@infrules_src3@infrules_src4@infrules_trans,
+      (infrs_md@infrules_src1@infrules_src2@infrules_src3@infrules_src4@infrules_trans,
           inv_goal)
   end
 
@@ -831,9 +869,9 @@ module Auto_Default2 : AutoInjVal = struct
 
 (** candidates *)
 
-let autoGVN : Auto.t = (AutoGVNModule.new_auto1, Auto_Default2.run)
-let autoSROA : Auto.t = (AutoUnaryLD_Trans.run, AutoInjectValues_Trans.run)
-let autoLICM : Auto.t = (AutoUnaryLD_Trans.run, AutoInjectValues_Trans.run)
+let autoGVN : Auto.t = (AutoGVNModule.auto1, Auto_Default2.run)
+let autoSROA : Auto.t = (AutoSROAModule.run, AutoInjectValues_Trans.run)
+let autoLICM : Auto.t = (AutoSROAModule.run, AutoInjectValues_Trans.run) (* Share same auto with SROA *)
 let autoInstCombine : Auto.t = (AutoInstCombineModule.run, Auto_Default2.run)
 let autoDflt : Auto.t = (Auto_Default1.run, Auto_Default2.run)
 

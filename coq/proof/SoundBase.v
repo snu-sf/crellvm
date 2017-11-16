@@ -397,6 +397,7 @@ Proof.
   exists x.
   split; ss.
   - eapply ExprPairSetFacts.In_s_m; eauto.
+    apply ExprPairSet.E.eq_refl.
     apply SUBSET.
   - des_ifs_safe. ss.
     erewrite InvState.Subset.inject_value_Subset; eauto.
@@ -419,6 +420,7 @@ Proof.
   exists x.
   split; ss.
   - eapply ExprPairSetFacts.In_s_m; eauto.
+    apply ExprPairSet.E.eq_refl.
     apply SUBSET.
   - des_ifs_safe.
 Qed.
@@ -539,7 +541,7 @@ Ltac solve_in_filter :=
   | [H: Exprs.ExprPairSet.In _ (Exprs.ExprPairSet.filter _ _) |- _] =>
     let IN := fresh "IN" in
     let FILTER := fresh "FILTER" in
-    apply Exprs.ExprPairSetFacts.filter_iff in H; try (ii;subst;ss;fail); destruct H as [IN FILTER]
+    apply Exprs.ExprPairSetFacts.filter_iff in H; try (solve_compat_bool; fail); destruct H as [IN FILTER]
   end.
 
 Ltac solve_negb_liftpred :=

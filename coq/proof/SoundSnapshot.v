@@ -51,10 +51,10 @@ Proof.
   exploit IHl; eauto. i.
   destruct x as [IN1 | IN2].
   - apply ExprPairSetFacts.add_iff in IN1. des.
-    { destruct a. ss. inv IN1.
+    { destruct a. ss. solve_leibniz; clarify.
       right. esplits; eauto. }
     apply ExprPairSetFacts.add_iff in IN1. des.
-    { destruct a. ss. inv IN1.
+    { destruct a. ss. solve_leibniz; clarify.
       right. esplits; eauto. }
     eauto.
   - right. des; esplits; eauto.
@@ -78,7 +78,10 @@ Proof.
   destruct IN as [IN | IN].
   { apply ExprPairSetFacts.empty_iff in IN. contradiction. }
   destruct IN as [x [IN_X EXPRS]]. red in IN_X.
-  apply InA_iff_In in IN_X.
+  apply TODOProof.InA_iff_In with (myeq := fun x y => IdT.compare x y = Eq) in IN_X; cycle 1.
+  { i. split; i.
+    - apply IdT.compare_leibniz in H0. ss.
+    - subst. finish_by_refl. }
   apply IdTSet.elements_2 in IN_X.
   apply IdTSetFacts.filter_iff in IN_X; try by solve_compat_bool.
   desH IN_X.
@@ -143,6 +146,7 @@ Lemma IdTSet_map_spec
     IdTSet.exists_ (IdTSetFacts.eqb ty <*> f) s.
 Proof.
   apply IdTSetFacts.map_spec. ii. subst. ss.
+  solve_leibniz. finish_by_refl.
 Qed.
 
 Lemma PtrSet_map_spec
@@ -151,6 +155,7 @@ Lemma PtrSet_map_spec
     PtrSet.exists_ (compose (PtrSetFacts.eqb p) map) ps.
 Proof.
   apply PtrSetFacts.map_spec. ii. subst. ss.
+  solve_leibniz. finish_by_refl.
 Qed.
 
 Lemma PtrPairSet_map_spec
@@ -159,6 +164,7 @@ Lemma PtrPairSet_map_spec
     PtrPairSet.exists_ (compose (PtrPairSetFacts.eqb pp) map) pps.
 Proof.
   apply PtrPairSetFacts.map_spec. ii. subst. ss.
+  solve_leibniz. finish_by_refl.
 Qed.
 
 Lemma ValueTPairSet_map_spec
@@ -167,6 +173,7 @@ Lemma ValueTPairSet_map_spec
     ValueTPairSet.exists_ (compose (ValueTPairSetFacts.eqb vp) map) vps.
 Proof.
   apply ValueTPairSetFacts.map_spec. ii. subst. ss.
+  solve_leibniz. finish_by_refl.
 Qed.
 
 Lemma ExprPairSet_map_spec
@@ -175,6 +182,7 @@ Lemma ExprPairSet_map_spec
     ExprPairSet.exists_ (compose (ExprPairSetFacts.eqb ep) map) eps.
 Proof.
   apply ExprPairSetFacts.map_spec. ii. subst. ss.
+  solve_leibniz. finish_by_refl.
 Qed.
 
 Lemma IdTSet_exists_filter
@@ -321,6 +329,7 @@ Proof.
         solve_negb_liftpred.
         unfold compose, ExprPairSetFacts.eqb, Previousify.ExprPair in *.
         des_ifs.
+        solve_leibniz. clarify.
         rewrite <- previousified_sem_expr_in_new_invst in *; eauto.
         exploit LESSDEF; eauto.
       }
@@ -348,6 +357,7 @@ Proof.
         solve_negb_liftpred.
         unfold compose, ValueTPairSetFacts.eqb, Previousify.ValueTPair in *.
         des_ifs.
+        solve_leibniz. clarify.
         rewrite <- previousified_sem_valueT_in_new_invst in *; eauto.
       }
     + i. ss.
@@ -371,6 +381,7 @@ Proof.
         solve_negb_liftpred.
         unfold compose, PtrPairSetFacts.eqb, Previousify.PtrPair in *.
         des_ifs. ss.
+        solve_leibniz. clarify. ss.
         rewrite <- previousified_sem_valueT_in_new_invst in *; eauto.
       }
   - ii.
@@ -408,7 +419,9 @@ Proof.
       simtac. clear COND COND0.
       destruct xtag; ss.
       - exploit PRIVATE; eauto.
+        solve_leibniz. clarify.
       - exploit PRIVATE; eauto.
+        solve_leibniz. clarify.
     }
 Qed.
 
@@ -450,13 +463,15 @@ Proof.
       { apply IdTSetFacts.mem_iff; eauto. }
       ss. unfold Previousify.IdT, IdTSetFacts.eqb. ss.
       des_ifs.
-    + assert (NONEXIST: ~ IdTSet.Exists (fun x => IdTSetFacts.eqb (Tag.previous, i0) (Previousify.IdT x) && negb (Snapshot.IdT x)) md).
+      contradict n. finish_by_refl.
+    + assert (NONEXIST: ~ IdTSet.Exists (fun x => IdTSetFacts.eqb (Tag.previous, t0) (Previousify.IdT x) && negb (Snapshot.IdT x)) md).
       { ii. unfold IdTSet.Exists in *. des.
         destruct x as [xtag x].
         unfold is_true, IdTSetFacts.eqb, Previousify.IdT in *.
         simtac.
         destruct xtag; ss.
         inversion e. subst.
+        solve_leibniz.
         apply IdTSetFacts.mem_iff in H. clarify.
       }
       match goal with
@@ -473,6 +488,7 @@ Proof.
       inv LHS2. destruct x as [xtag x]. des. simtac.
       unfold Previousify.IdT, IdTSetFacts.eqb, Previousify.Tag, Snapshot.IdT in *. ss.
       des_ifs.
+      solve_leibniz. clarify.
       apply IdTSetFacts.mem_iff in H. rewrite -> H. eauto.
     + rewrite orb_false_r. eauto.
 Qed.

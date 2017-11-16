@@ -8,10 +8,102 @@ Import LLVMsyntax.
 Require Import sflib.
 
 Require Import TODO.
+Require Import Ords.
 
 Set Implicit Arguments.
 
-Module Tag <: UsualDecidableType.
+Local Open Scope OrdIdx_scope.
+
+(* TODO: Move to Ords.v *)
+Module Backport_Alt (E: OrdersAlt.OrderedTypeAlt) <: OrderedType.OrderedType.
+  Module OT := (OrdersAlt.OT_from_Alt E).
+  Include (OrdersAlt.Backport_OT OT).
+End Backport_Alt.
+
+(* TODO: move to Ords.v *)
+Module prod (E1 E2: AltUsual) <: AltUsual.
+
+  Definition t : Type := E1.t * E2.t.
+
+  Definition compare (x y: t): comparison :=
+    lexico_order [fun _ => E1.compare (fst x) (fst y) ; fun _ => E2.compare (snd x) (snd y)].
+
+  Lemma compare_sym
+        x y
+    :
+      <<SYM: compare y x = CompOpp (compare x y)>>
+  .
+  Proof.
+    destruct x as [x1 x2], y as [y1 y2]. unfold compare. red.
+    specialize (E1.compare_sym x1 y1). intro SYM_E1.
+    specialize (E2.compare_sym x2 y2). intro SYM_E2.
+    ss. des_ifs.
+  Qed.
+
+  Lemma leibniz_compare_eq1 x
+    : E1.compare x x = Eq.
+  Proof.
+    specialize (E1.compare_sym x x). i.
+    destruct (E1.compare x x) eqn:COMP; ss.
+  Qed.
+
+  Lemma leibniz_compare_eq2 x
+    : E2.compare x x = Eq.
+  Proof.
+    specialize (E2.compare_sym x x). i.
+    destruct (E2.compare x x) eqn:COMP; ss.
+  Qed.
+
+  Lemma compare_trans: forall
+      c x y z (* for compatibility with Alt *)
+      (XY: compare x y = c)
+      (YZ: compare y z = c)
+    ,
+      <<XZ: compare x z = c>>
+  .
+  Proof.
+    i. destruct x as [x1 x2], y as [y1 y2], z as [z1 z2].
+    unfold compare in *. red.
+    specialize (@E1.compare_trans c x1 y1 z1). intro TR_E1.
+    specialize (@E2.compare_trans c x2 y2 z2). intro TR_E2.
+    ss. des_ifs;
+          try (by exploit TR_E1; eauto);
+          try (by exploit TR_E2; eauto);
+      repeat match goal with
+             | [H: E1.compare ?a ?b = Eq |- _] =>
+               specialize (E1.compare_leibniz H); i; []; subst; clear H
+             | [H: E2.compare ?a ?b = Eq |- _] =>
+               specialize (E2.compare_leibniz H); i; []; subst; clear H
+             | [H: E1.compare ?a ?a = Lt |- _] =>
+               rewrite leibniz_compare_eq1 in H
+             | [H: E1.compare ?a ?a = Gt |- _] =>
+               rewrite leibniz_compare_eq1 in H
+             | [H: E2.compare ?a ?a = Lt |- _] =>
+               rewrite leibniz_compare_eq2 in H
+             | [H: E2.compare ?a ?a = Gt |- _] =>
+               rewrite leibniz_compare_eq2 in H
+      end; try congruence.
+  Qed.
+
+  Lemma compare_leibniz: forall
+      x y
+      (EQ: compare x y = Eq)
+    ,
+      x = y
+  .
+  Proof.
+    destruct x, y; ss. unfold compare. i. ss. des_ifs.
+    f_equal.
+    - apply E1.compare_leibniz; ss.
+    - apply E2.compare_leibniz; ss.
+  Qed.
+
+End prod.
+
+
+
+
+Module Tag <: AltUsual.
   Inductive t_: Set :=
   | physical
   | previous
@@ -25,18 +117,46 @@ Module Tag <: UsualDecidableType.
   Definition eq_dec (x y:t): {x = y} + {x <> y}.
     decide equality.
   Defined.
+  Global Program Instance eq_equiv : Equivalence eq.
 
   Definition is_previous x := match x with Tag.previous => true | _ => false end.
   Definition is_ghost x := match x with Tag.ghost => true | _ => false end.
+
+  (* physical < previous < ghost *)
+  Definition ltb (x y: t): bool :=
+    match x, y with
+    | physical, previous => true
+    | physical, ghost => true
+    | previous, ghost => true
+    | _, _ => false
+    end.
+
+  (* Definition lt: t -> t -> Prop := ltb. *)
+
+  Definition compare (x y: t): comparison :=
+    if(eq_dec x y) then Eq else
+      (if (ltb x y) then Lt else Gt)
+  .
+
+  Lemma compare_sym : forall x y : t, << SYM: compare y x = CompOpp (compare x y) >>.
+  Proof. destruct x, y; ss. Qed.
+
+  Lemma compare_trans :
+     forall (c : comparison) (x y z : t),
+       compare x y = c -> compare y z = c -> << TR:compare x z = c >>.
+  Proof. i. destruct x, y, z; ss; des_ifs. Qed.
+
+  Lemma compare_leibniz : forall x y : t, compare x y = Eq -> x = y.
+  Proof. destruct x, y; ss. Qed.
+
 End Tag.
+
 Hint Resolve Tag.eq_dec: EqDecDb.
 
-Module IdT <: UsualDecidableType.
-  Definition t : Set := (Tag.t * id)%type.
-  Definition eq := @eq t.
-  Definition eq_refl := @refl_equal t.
-  Definition eq_sym := @sym_eq t.
-  Definition eq_trans := @trans_eq t.
+
+Module IdT <: AltUsual.
+  Include (prod Tag id).
+
   Definition eq_dec (x y:t): {x = y} + {x <> y}.
   Proof.
     decide equality.
@@ -44,24 +164,60 @@ Module IdT <: UsualDecidableType.
   Qed.
 
   Definition lift (tag:Tag.t) (i:id): t := (tag, i).
+
 End IdT.
 Hint Resolve IdT.eq_dec: EqDecDb.
 
-Module IdTSet <: FSetExtra.WSfun IdT.
-  Include FSetExtra.Make IdT.
+Module IdTFacts := AltUsualFacts IdT.
+
+
+Module IdT_OT := Backport_Alt IdT.
+
+Module IdTSet.
+  Include FSetAVLExtra IdT_OT.
 
   Definition clear_idt (idt0: IdT.t) (t0: t): t :=
     filter (fun x => negb (IdT.eq_dec idt0 x)) t0
   .
 
 End IdTSet.
-Module IdTSetFacts := WFacts_fun2 IdT IdTSet.
+
+Module IdTSetFacts := FSetFactsExtra IdT_OT IdTSet.
+
+
+(* Lemma IdT_equiv_compare_leibniz: *)
+(*   forall x y, IdT.compare x y = Eq <-> x = y. *)
+(* Proof. *)
+(*   intros. split. *)
+(*   - apply IdT.compare_leibniz. *)
+(*   - i. subst. apply IdTFacts.compare_refl. *)
+(* Qed. *)
+
+Lemma InA_equiv:
+  forall X (eqA eqB: X -> X -> Prop)
+    (EQUIV: forall x y, eqA x y <-> eqB x y),
+  forall x l, InA eqA x l <-> InA eqB x l.
+Proof.
+  intros.
+  induction l0.
+  { split; i; inv H. }
+  split; i; inv H.
+  - econs. apply EQUIV; auto.
+  - econs 2. apply IHl0; eauto.
+  - econs. apply EQUIV; auto.
+  - econs 2. apply IHl0; eauto.
+Qed.
 
 Lemma IdTSet_from_list_spec ids:
   forall id, IdTSet.mem id (IdTSetFacts.from_list ids) <-> In id ids.
 Proof.
-  i. rewrite IdTSetFacts.from_list_spec. apply InA_iff_In.
+  i. rewrite IdTSetFacts.from_list_spec.
+  etransitivity; try apply InA_iff_In.
+  apply InA_equiv. split.
+  - apply IdT.compare_leibniz.
+  - i. subst. apply IdTFacts.compare_refl.
 Qed.
+
 
 Module Value.
   Definition t := value.
@@ -73,21 +229,70 @@ Module Value.
     end.
 End Value.
 
-Module ValueT <: UsualDecidableType.
-  Inductive t_: Set :=
+
+Module ValueT <: AltUsual.
+  Inductive t_: Type :=
   | id (x:IdT.t)
   | const (c:const)
   .
   Definition t:= t_.
-  Definition eq := @eq t.
-  Definition eq_refl := @refl_equal t.
-  Definition eq_sym := @sym_eq t.
-  Definition eq_trans := @trans_eq t.
   Definition eq_dec (x y:t): {x = y} + {x <> y}.
   Proof.
     decide equality.
     apply IdT.eq_dec.
     apply const_dec.
+  Qed.
+
+  Definition case_order v : OrdIdx.t :=
+    match v with
+    | id _ => 0
+    | const _ => 1
+    end.
+
+  Definition compare (v1 v2:t) : comparison :=
+    match v1, v2 with
+    | id x1, id x2 => IdT.compare x1 x2
+    | const c1, const c2 => const.compare c1 c2
+    | _, _ => OrdIdx.compare (case_order v1) (case_order v2)
+    end.
+
+  Lemma compare_sym
+        x y
+    : <<SYM: compare y x = CompOpp (compare x y)>>.
+  Proof.
+    destruct x, y; ss.
+    - apply IdT.compare_sym.
+    - apply const.compare_sym.
+  Qed.
+
+  Lemma compare_leibniz
+        x y
+        (EQ: compare x y = Eq)
+    : x = y.
+  Proof.
+    destruct x, y; ss.
+    - apply IdT.compare_leibniz in EQ. subst. eauto.
+    - apply const.compare_leibniz in EQ. subst. eauto.
+  Qed.
+
+  (* Ltac apply_trans := *)
+  (*   unfold NW in *; *)
+  (*   apply_trans_base; *)
+  (*   apply_trans_ typ.compare typ.compare_trans; *)
+  (*   apply_trans_IH t compare'; *)
+  (*   apply_trans_ (compare_list compare') *)
+  (*                (@compare_list_trans'' const compare' compare_leibniz compare_refl) *)
+  (* . *)
+
+  Lemma compare_trans
+        c x y z
+        (XY: compare x y = c)
+        (YZ: compare y z = c)
+    : <<XZ: compare x z = c>>.
+  Proof.
+    destruct c, x, y, z; ss;
+      try (by eapply IdT.compare_trans; eauto);
+      try (by eapply const.compare_trans; eauto).
   Qed.
 
   Definition lift (tag:Tag.t) (v:value): t :=
@@ -110,20 +315,22 @@ Module ValueT <: UsualDecidableType.
   .
 
 End ValueT.
+
+Module ValueTFacts := AltUsualFacts ValueT.
+
+
 Hint Resolve ValueT.eq_dec: EqDecDb.
 Coercion ValueT.id: IdT.t >-> ValueT.t_.
 Coercion ValueT.const: const >-> ValueT.t_.
 
-Module ValueTSet : FSetExtra.WSfun ValueT := FSetExtra.Make ValueT.
-Module ValueTSetFacts := WFacts_fun2 ValueT ValueTSet.
+Module ValueT_OT := Backport_Alt ValueT.
 
-(* TODO: universal construction? *)
-Module ValueTPair <: UsualDecidableType.
-  Definition t := (ValueT.t * ValueT.t)%type.
-  Definition eq := @eq t.
-  Definition eq_refl := @refl_equal t.
-  Definition eq_sym := @sym_eq t.
-  Definition eq_trans := @trans_eq t.
+Module ValueTSet := FSetAVLExtra ValueT_OT.
+Module ValueTSetFacts := FSetFactsExtra ValueT_OT ValueTSet.
+
+Module ValueTPair <: AltUsual.
+  Include prod ValueT ValueT.
+
   Definition eq_dec (x y:t): {x = y} + {x <> y}.
   Proof.
     apply prod_dec;
@@ -133,11 +340,16 @@ Module ValueTPair <: UsualDecidableType.
   Definition get_idTs (vp: t): list IdT.t :=
     (option_to_list (ValueT.get_idTs vp.(fst)))
       ++ (option_to_list (ValueT.get_idTs vp.(snd))).
+
 End ValueTPair.
 Hint Resolve ValueTPair.eq_dec: EqDecDb.
 
-Module ValueTPairSet <: FSetExtra.WSfun ValueTPair.
-  Include FSetExtra.Make ValueTPair.
+Module ValueTPairFacts := AltUsualFacts ValueTPair. (* TODO: required? *)
+Module ValueTPair_OT := Backport_Alt ValueTPair.
+
+
+Module ValueTPairSet.
+  Include FSetAVLExtra ValueTPair_OT.
 
   Definition clear_idt (idt: IdT.t) (t0: t): t :=
     filter (fun xy => negb (list_inb IdT.eq_dec (ValueTPair.get_idTs xy) idt)) t0
@@ -145,10 +357,14 @@ Module ValueTPairSet <: FSetExtra.WSfun ValueTPair.
 
 End ValueTPairSet.
 
-Module ValueTPairSetFacts := WFacts_fun2 ValueTPair ValueTPairSet.
+Module ValueTPairSetFacts := FSetFactsExtra ValueTPair_OT ValueTPairSet.
 
-Module Expr <: UsualDecidableType.
-  Inductive t_: Set :=
+
+Module sz_ValueT := prod sz ValueT.
+Module sz_ValueTFacts := AltUsualFacts sz_ValueT.
+
+Module Expr <: AltUsual.
+  Inductive t_: Type :=
   | bop (b:bop) (s:sz) (v:ValueT.t) (w:ValueT.t)
   | fbop (fb:fbop) (fp:floating_point) (v:ValueT.t) (w:ValueT.t)
   | extractvalue (t:typ) (v:ValueT.t) (lc:list const) (u:typ)
@@ -163,11 +379,8 @@ Module Expr <: UsualDecidableType.
   | value (v:ValueT.t)
   | load (v:ValueT.t) (t:typ) (a:align)
   .
+
   Definition t := t_.
-  Definition eq := @eq t.
-  Definition eq_refl := @refl_equal t.
-  Definition eq_sym := @sym_eq t.
-  Definition eq_trans := @trans_eq t.
   Definition eq_dec (x y:t): {x = y} + {x <> y}.
   Proof.
     decide equality;
@@ -190,6 +403,208 @@ Module Expr <: UsualDecidableType.
       try (apply cond_dec);
       try (apply fcond_dec).
   Defined.
+
+  Definition case_order e : OrdIdx.t :=
+    match e with
+    | bop _ _ _ _ => 0
+    | fbop _ _ _ _ => 1
+    | extractvalue _ _ _ _ => 2
+    | insertvalue _ _ _ _ _ => 3
+    | gep _ _ _ _ _ => 4
+    | trunc _ _ _ _ => 5
+    | ext _ _ _ _ => 6
+    | cast _ _ _ __ => 7
+    | icmp _ _ _ _ => 8
+    | fcmp _ _ _ _ => 9
+    | select _ _ _ _ => 10
+    | value _ => 11
+    | load _ _ _ => 12
+    end.
+
+  Definition compare' (e1 e2:t): comparison :=
+    match e1, e2 with
+    | bop b1 s1 v1 w1, bop b2 s2 v2 w2 =>
+      lexico_order [fun _ => bop.compare b1 b2 ; fun _ => sz.compare s1 s2 ;
+                      fun _ => ValueT.compare v1 v2 ; fun _ => ValueT.compare w1 w2]
+    | fbop fb1 fp1 v1 w1, fbop fb2 fp2 v2 w2 =>
+      lexico_order [fun _ => fbop.compare fb1 fb2 ; fun _ => floating_point.compare fp1 fp2 ;
+                      fun _ => ValueT.compare v1 v2 ; fun _ => ValueT.compare w1 w2]
+    | extractvalue t1 v1 lc1 u1, extractvalue t2 v2 lc2 u2 =>
+      lexico_order [fun _ => typ.compare t1 t2 ; fun _ => ValueT.compare v1 v2 ;
+                      fun _ => compare_list const.compare lc1 lc2 ;
+                      fun _ => typ.compare u1 u2]
+    | insertvalue t1 v1 u1 w1 lc1, insertvalue t2 v2 u2 w2 lc2 =>
+      lexico_order [fun _ => typ.compare t1 t2 ; fun _ => ValueT.compare v1 v2 ;
+                      fun _ => typ.compare u1 u2 ; fun _ => ValueT.compare w1 w2 ;
+                        fun _ => compare_list const.compare lc1 lc2]
+    | gep ib1 t1 v1 lsv1 u1, gep ib2 t2 v2 lsv2 u2 =>
+      lexico_order [fun _ => bool.compare ib1 ib2 ; fun _ => typ.compare t1 t2 ;
+                      fun _ => ValueT.compare v1 v2 ;
+                      fun _ => compare_list sz_ValueT.compare lsv1 lsv2 ;
+                      fun _ => typ.compare u1 u2]
+    | trunc top1 t1 v1 u1, trunc top2 t2 v2 u2 =>
+      lexico_order [fun _ => truncop.compare top1 top2 ; fun _ => typ.compare t1 t2 ;
+                      fun _ => ValueT.compare v1 v2 ; fun _ => typ.compare u1 u2]
+    | ext eop1 t1 v1 u1, ext eop2 t2 v2 u2 =>
+      lexico_order [fun _ => extop.compare eop1 eop2 ; fun _ => typ.compare t1 t2 ;
+                      fun _ => ValueT.compare v1 v2 ; fun _ => typ.compare u1 u2]
+    | cast cop1 t1 v1 u1, cast cop2 t2 v2 u2 =>
+      lexico_order [fun _ => castop.compare cop1 cop2 ; fun _ => typ.compare t1 t2 ;
+                      fun _ => ValueT.compare v1 v2 ; fun _ => typ.compare u1 u2]
+    | icmp c1 t1 v1 w1, icmp c2 t2 v2 w2 =>
+      lexico_order [fun _ => cond.compare c1 c2 ; fun _ => typ.compare t1 t2 ;
+                      fun _ => ValueT.compare v1 v2 ; fun _ => ValueT.compare w1 w2]
+    | fcmp c1 t1 v1 w1, fcmp c2 t2 v2 w2 =>
+      lexico_order [fun _ => fcond.compare c1 c2 ; fun _ => floating_point.compare t1 t2 ;
+                      fun _ => ValueT.compare v1 v2 ; fun _ => ValueT.compare w1 w2]
+    | select v1 t1 w1 z1, select v2 t2 w2 z2 =>
+      lexico_order [fun _ => ValueT.compare v1 v2 ; fun _ => typ.compare t1 t2 ;
+                      fun _ => ValueT.compare w1 w2 ; fun _ => ValueT.compare z1 z2]
+    | value v1, value v2 => ValueT.compare v1 v2
+    | load v1 t1 a1, load v2 t2 a2 =>
+      lexico_order [fun _ => ValueT.compare v1 v2 ; fun _ => typ.compare t1 t2 ;
+                      fun _ => sz.compare a1 a2]
+    | _, _ => OrdIdx.compare (case_order e1) (case_order e2)
+    end.
+
+  Definition compare := wrap_compare compare'.
+
+  Ltac comp_sym_list' cmp cmp_sym :=
+      match goal with
+      | [ |- context[match @compare_list ?X cmp ?a ?b with _ => _ end]] =>
+        rewrite (@compare_list_sym' X b a cmp cmp_sym); destruct (compare_list cmp b a)
+      end; ss.
+
+  Ltac comp_sym_tac :=
+    repeat
+      (try comp_sym floating_point.compare floating_point.compare_sym;
+       try comp_sym bop.compare bop.compare_sym;
+       try comp_sym fbop.compare fbop.compare_sym;
+       try comp_sym sz.compare sz.compare_sym;
+       try comp_sym ValueT.compare ValueT.compare_sym;
+       try comp_sym typ.compare typ.compare_sym;
+       try comp_sym bool.compare bool.compare_sym;
+
+       try comp_sym truncop.compare truncop.compare_sym;
+       try comp_sym extop.compare extop.compare_sym;
+       try comp_sym castop.compare castop.compare_sym;
+       try comp_sym bop.compare bop.compare_sym;
+       try comp_sym fbop.compare fbop.compare_sym;
+       try comp_sym cond.compare cond.compare_sym;
+       try comp_sym fcond.compare fcond.compare_sym;
+
+       try comp_sym_list ValueT.compare ValueT.compare_sym;
+       try comp_sym_list' const.compare const.compare_sym;
+       try comp_sym_list' bool.compare bool.compare_sym;
+       try comp_sym_list' sz_ValueT.compare sz_ValueT.compare_sym).
+  
+
+  Lemma compare_sym
+        x y
+    : <<SYM: compare y x = CompOpp (compare x y)>>.
+  Proof.
+    unfold compare, wrap_compare.
+    destruct x, y; simpl;
+      try (comp_sym_tac; congruence).
+    apply ValueT.compare_sym.
+  Qed.
+
+  Corollary compare_refl z:
+    compare z z = Eq.
+  Proof.
+    assert (compare z z = CompOpp (compare z z)).
+    { apply compare_sym. }
+    destruct (compare z z); ss.
+  Qed.
+
+  Ltac solve_leibniz_list' cmp cmp_l :=
+    repeat match goal with
+           | [H: compare_list cmp ?l1 ?l2 = Eq |- _] =>
+             apply (@compare_list_leibniz _ cmp cmp_l) in H; eauto
+           end; subst.
+
+  Ltac solve_leibniz' :=
+    solve_leibniz_base;
+    solve_leibniz_ typ.compare typ.compare_leibniz;
+    solve_leibniz_ const.compare const.compare_leibniz;
+    solve_leibniz_ ValueT.compare ValueT.compare_leibniz;
+    solve_leibniz_list' const.compare const.compare_leibniz;
+    solve_leibniz_list' sz_ValueT.compare sz_ValueT.compare_leibniz
+  .
+
+  Ltac finish_refl :=
+    unfold t, NW in *;
+    finish_refl_base;
+    finish_refl_ typ.compare typFacts.EOrigFacts.compare_refl;
+    finish_refl_ const.compare constFacts.EOrigFacts.compare_refl;
+    finish_refl_ ValueT.compare ValueTFacts.EOrigFacts.compare_refl;
+    finish_refl_ compare' compare_refl;
+    finish_refl_list t const const.compare const.compare_refl;
+    finish_refl_list t sz_ValueT.t sz_ValueT.compare sz_ValueTFacts.EOrigFacts.compare_refl;
+    try congruence
+  .
+
+  Lemma compare_leibniz
+        x y
+        (EQ: compare x y = Eq)
+    : x = y.
+  Proof.
+    unfold compare, wrap_compare in *.
+    destruct x; destruct y; ss;
+      try by des_ifs; solve_leibniz'.
+  Qed.
+
+  Ltac solve_leibniz :=
+    solve_leibniz';
+    
+    solve_leibniz_ compare' compare_leibniz;
+    solve_leibniz_list' compare' compare_leibniz
+  .
+
+  Ltac apply_trans_list cmp cmp_l cmp_r cmp_t :=
+    try match goal with
+        | [H1: compare_list cmp ?x ?y = ?c, H2: compare_list cmp ?y ?x = ?c |- _] =>
+          exploit (@compare_list_trans' _ cmp cmp_l cmp_r cmp_t c x y x); eauto; (idtac; []; i)
+        end;
+    try match goal with
+        | [H1: compare_list cmp ?x ?y = ?c, H2: compare_list cmp ?y ?z = ?c |- _] =>
+          exploit (@compare_list_trans' _ cmp cmp_l cmp_r cmp_t c x y z); eauto; (idtac; []; i)
+        end.
+
+  Ltac apply_trans :=
+    unfold NW in *;
+    apply_trans_base;
+    apply_trans_ typ.compare typ.compare_trans;
+    apply_trans_ const.compare const.compare_trans;
+    apply_trans_ ValueT.compare ValueT.compare_trans;
+
+    apply_trans_list const.compare const.compare_leibniz constFacts.EOrigFacts.compare_refl const.compare_trans;
+    apply_trans_list sz_ValueT.compare sz_ValueT.compare_leibniz sz_ValueTFacts.EOrigFacts.compare_refl sz_ValueT.compare_trans
+  .
+
+  Ltac l_des_ifs :=
+    clarify;
+    repeat 
+      (match goal with 
+       | |- context[match ?x with _ => _ end] =>
+         let H := fresh "Heq" in
+         destruct x as [] eqn:H; clarify
+       | H: context[ match ?x with _ => _ end ] |- _ =>
+         let H := fresh "Heq" in
+         destruct x as [] eqn:H; clarify
+       end; try congruence).
+
+  Lemma compare_trans
+        c x y z
+        (XY: compare x y = c)
+        (YZ: compare y z = c)
+    : <<XZ: compare x z = c>>.
+  Proof.
+    unfold compare, wrap_compare in *.
+    Time (destruct c, x, y; try discriminate;
+            destruct z; try discriminate; eauto);
+      abstract (simpl in *; des_ifs; solve_leibniz; apply_trans; finish_refl). (* 142 sec*)
+  Qed.
 
   Definition get_valueTs (e: t): list ValueT.t :=
     match e with
@@ -308,13 +723,11 @@ End Expr.
 Hint Resolve Expr.eq_dec: EqDecDb.
 Coercion Expr.value: ValueT.t >-> Expr.t_.
 
-(* TODO: universal construction? *)
-Module ExprPair <: UsualDecidableType.
-  Definition t := (Expr.t * Expr.t)%type.
-  Definition eq := @eq t.
-  Definition eq_refl := @refl_equal t.
-  Definition eq_sym := @sym_eq t.
-  Definition eq_trans := @trans_eq t.
+Module Expr_OT := Backport_Alt Expr.
+Module ExprSet := FSetAVLExtra Expr_OT.
+
+Module ExprPair <: AltUsual.
+  Include prod Expr Expr.
   Definition eq_dec (x y:t): {x = y} + {x <> y}.
   Proof.
     apply prod_dec;
@@ -325,57 +738,72 @@ Module ExprPair <: UsualDecidableType.
     (Expr.get_idTs ep.(fst))
       ++ (Expr.get_idTs ep.(snd)).
 End ExprPair.
-Hint Resolve ExprPair.eq_dec: EqDecDb.
 
-Module ExprPairSet <: FSetExtra.WSfun ExprPair.
-  Include FSetExtra.Make ExprPair.
+Module ExprPairFacts := AltUsualFacts ExprPair.
+
+Module ExprPair_OT := Backport_Alt ExprPair.
+Module ExprPairSet.
+  Include FSetAVLExtra ExprPair_OT.
 
   Definition clear_idt (idt: IdT.t) (t0: t): t :=
     filter (fun xy => negb (list_inb IdT.eq_dec (ExprPair.get_idTs xy) idt)) t0
   .
-
 End ExprPairSet.
 
-Module ExprPairSetFacts := WFacts_fun2 ExprPair ExprPairSet.
+Module ExprPairSetFacts := FSetFactsExtra ExprPair_OT ExprPairSet.
 
 (* Ptr: alias related values *)
-Module Ptr <: UsualDecidableType.
+Module Ptr <: AltUsual.
   (* typ has the type of the 'pointer', not the type of the 'object'.
      ex: %x = load i32* %y, align 4 <- (id y, typ_pointer (typ_int 32))
                    ^^^^
   *)
-  Definition t := (ValueT.t * typ)%type.
-  Definition eq := @eq t.
-  Definition eq_refl := @refl_equal t.
-  Definition eq_sym := @sym_eq t.
-  Definition eq_trans := @trans_eq t.
+  Include prod ValueT typ.
+
   Definition eq_dec (x y:t): {x = y} + {x <> y}.
   Proof.
     apply prod_dec.
     apply ValueT.eq_dec.
     apply typ_dec.
   Defined.
+
   Definition get_idTs (p: t): option IdT.t :=
     match p with
     | (v,_) => ValueT.get_idTs v
     end.
+
 End Ptr.
 
-Module PtrSet : FSetExtra.WSfun Ptr := FSetExtra.Make Ptr.
-Module PtrSetFacts := WFacts_fun2 Ptr PtrSet.
+Module Ptr_OT := Backport_Alt Ptr.
+Module PtrSet := FSetAVLExtra Ptr_OT.
+Module PtrSetFacts := FSetFactsExtra Ptr_OT PtrSet.
+
+Lemma InA_equiv_eqs
+      X (eqa eqb : X -> X -> Prop)
+      (EQS_EQ: forall x y, eqa x y <-> eqb x y)
+  : forall a l, InA eqa a l <-> InA eqb a l.
+Proof.
+  intros a l.
+  induction l; split; intro HIn; inv HIn;
+    try (by left; apply EQS_EQ; eauto);
+    try (by right; apply IHl; eauto).
+Qed.
 
 Lemma PtrSet_from_list_spec ps:
   forall p, PtrSet.mem p (PtrSetFacts.from_list ps) <-> In p ps.
 Proof.
-  i. rewrite PtrSetFacts.from_list_spec. apply InA_iff_In.
+  i. rewrite PtrSetFacts.from_list_spec.
+  cut (InA (fun x y : Ptr.t => Ptr.compare x y = Eq) p ps
+       <-> InA eq p ps).
+  { intro EQUIV. rewrite EQUIV. apply InA_iff_In. }
+  apply InA_equiv_eqs.
+  i. split.
+  - apply Ptr.compare_leibniz.
+  - i. subst. apply PtrSet.E.eq_refl.
 Qed.
 
-Module PtrPair <: UsualDecidableType.
-  Definition t := (Ptr.t * Ptr.t)%type.
-  Definition eq := @eq t.
-  Definition eq_refl := @refl_equal t.
-  Definition eq_sym := @sym_eq t.
-  Definition eq_trans := @trans_eq t.
+Module PtrPair <: AltUsual.
+  Include prod Ptr Ptr.
   Definition eq_dec (x y:t): {x = y} + {x <> y}.
   Proof.
     apply prod_dec; apply Ptr.eq_dec.
@@ -387,12 +815,44 @@ Module PtrPair <: UsualDecidableType.
 End PtrPair.
 Hint Resolve PtrPair.eq_dec: EqDecDb.
 
-Module PtrPairSet <: FSetExtra.WSfun PtrPair.
-  Include FSetExtra.Make PtrPair.
+Module PtrPair_OT := Backport_Alt PtrPair.
 
+Module PtrPairSet.
+  Include FSetAVLExtra PtrPair_OT.
   Definition clear_idt (idt: IdT.t) (t0: t): t :=
     filter (fun xy => negb (list_inb IdT.eq_dec (PtrPair.get_idTs xy) idt)) t0
   .
 
 End PtrPairSet.
-Module PtrPairSetFacts := WFacts_fun2 PtrPair PtrPairSet.
+
+Module PtrPairSetFacts := FSetFactsExtra PtrPair_OT PtrPairSet.
+
+
+
+(* TODO: Remove this after migrating yoonseung's Ords.v *)
+Ltac solve_leibniz_ cmp CL :=
+  repeat match goal with
+         | [H:cmp ?a ?b = Eq |- _] => apply CL in H
+         end; subst.
+
+Ltac solve_leibniz :=
+  solve_leibniz_ IdT.compare IdT.compare_leibniz;
+  solve_leibniz_ ValueT.compare ValueT.compare_leibniz;
+  solve_leibniz_ Ptr.compare Ptr.compare_leibniz;
+  solve_leibniz_ Expr.compare Expr.compare_leibniz;
+  solve_leibniz_ ValueTPair.compare ValueTPair.compare_leibniz;
+  solve_leibniz_ PtrPair.compare PtrPair.compare_leibniz;
+  solve_leibniz_ ExprPair.compare ExprPair.compare_leibniz
+.
+
+Ltac solve_compat_bool := repeat red; ii; solve_leibniz; subst; eauto; ss.
+
+Ltac finish_by_refl :=
+  try apply IdTSet.E.eq_refl;
+  try apply ValueTSet.E.eq_refl;
+  try apply PtrSet.E.eq_refl;
+  try apply ExprSet.E.eq_refl;
+  try apply ValueTPairSet.E.eq_refl;
+  try apply PtrPairSet.E.eq_refl;
+  try apply ExprPairSet.E.eq_refl
+.

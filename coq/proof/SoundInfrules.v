@@ -24,6 +24,8 @@ Require Import TODOProof.
 Require Import SoundInfruleIntroGhost.
 Require Import SoundInfruleSubstitute.
 Require Import SoundInfruleTransitivity.
+Require Import SoundInfruleReduceMaydiff.
+Require Import Exprs.
 
 Set Implicit Arguments.
 
@@ -85,6 +87,7 @@ Proof.
     abstr (InvState.Rel.src invst0) invst.
     (* abstr (Hints.Invariant.lessdef (Hints.Invariant.src inv0)) LD. *)
     clear MEM CONF. clear_tac.
+    solve_leibniz. clarify.
     assert(LD01: InvState.Unary.sem_lessdef conf_src st_src invst (__e0__, __e1__)).
     { clear C0. repeat (des_bool; des).
       - eapply InvState.Rel.lessdef_expr_spec2; eauto.
@@ -125,6 +128,7 @@ Proof.
     rename t into __e0__.
     rename e2 into __e1__.
     rename t0 into __e2__.
+    solve_leibniz. clarify.
     assert(LD01: InvState.Unary.sem_lessdef conf_tgt st_tgt invst (__e0__, __e1__)).
     { clear C0. repeat (des_bool; des).
       - eapply InvState.Rel.lessdef_expr_spec2; eauto.
@@ -200,7 +204,7 @@ Proof.
 
         ii.
         apply Exprs.ExprPairSetFacts.add_iff in H. des.
-        * clarify. ss. rewrite T0 in *. clarify.
+        * solve_leibniz. clarify. ss. rewrite T0 in *. clarify.
         * eapply LESSDEF; eauto.
       + ss.
         inv STATE_CLEAR. clear - TGT T0.
@@ -224,6 +228,7 @@ Proof.
             Local Opaque InvState.Unary.clear_idt.
           }
           unfold InvState.Rel.clear_idt in *. ss.
+          solve_leibniz. clarify. ss.
           rewrite NONE in *. clarify.
         * ss. eapply LESSDEF; eauto.
     }
@@ -306,9 +311,14 @@ Proof.
     inv STATE. econs; eauto. ss.
     inv TGT. econs; eauto. ss.
     ii. apply Exprs.ExprPairSetFacts.add_iff in H. des.
-    + subst. esplits; eauto. apply GVs.lessdef_refl.
+    + subst. solve_leibniz. clarify. esplits; eauto. apply GVs.lessdef_refl.
     + eapply LESSDEF; eauto.
+  - exploit reduce_maydiff_lessdef_sound; eauto. i.
+    esplits; eauto. reflexivity.
+  - exploit reduce_maydiff_non_physical_sound; eauto. i. des.
+    esplits; eauto. reflexivity.
 Qed.
+
 
 Lemma apply_infrule_sound
       m_src m_tgt

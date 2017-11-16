@@ -28,6 +28,7 @@ Require Import SoundForgetMemoryCall.
 Require Import SoundPostcondCmdAdd.
 Require Import opsem_wf.
 Require Import memory_props.
+Require Import Exprs.
 Import OpsemPP.
 
 Set Implicit Arguments.
@@ -177,7 +178,8 @@ Lemma updateAddAL_lessdef_undef
 Proof.
   inv STATE. econs; eauto.
   ii. ss. simpl_ep_set.
-  - ss. esplits.
+  - solve_leibniz.
+    ss. esplits.
     { unfold InvState.Unary.sem_idT. ss.
       rewrite <- LOCALS. apply lookupAL_updateAddAL_eq. }
     exploit const2GV_undef; eauto. i. des.
@@ -224,6 +226,7 @@ Proof.
       * simtac. unfold Exprs.IdTSetFacts.eqb in *.
         des_ifs.
         unfold Exprs.IdT.lift in *. clarify.
+        solve_leibniz. clarify.
         econs.
         esplits.
         { unfold InvState.Unary.sem_idT. ss.

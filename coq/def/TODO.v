@@ -472,8 +472,19 @@ Proof.
     right; ss.
 Qed.
 
-Module WFacts_fun2 (E:DecidableType) (M:(WSfun E)).
-  Include (WFacts_fun E M).
+Module FSetAVLExtra (E: OrderedType.OrderedType).
+
+  Include FSetAVL.Make E.
+  Definition notin x L := ~ In x L.
+  Definition add_list (xs: list E.t) (base: t): t :=
+    List.fold_left (fun s i => add i s) xs base
+  .
+
+End FSetAVLExtra.
+
+Module FSetFactsExtra (E: OrderedType.OrderedType) (M: FSetInterface.S with Module E := E).
+
+  Include FSetFacts.Facts M.
 
   Definition map f s := M.fold (compose M.add f) s M.empty.
 
@@ -518,14 +529,14 @@ Module WFacts_fun2 (E:DecidableType) (M:(WSfun E)).
     rewrite exists_b; cycle 1.
     { ii. unfold eqb, compose.
       destruct (eq_dec ty (f x)), (eq_dec ty (f y)); ss.
-      - contradict n. eauto.
-      - contradict n. eauto.
+      - contradict n. etransitivity; eauto.
+      - contradict n. etransitivity; eauto.
     }
     rewrite existsb_rev.
     induction (rev (M.elements s)); ss.
     - destruct (M.mem ty M.empty) eqn:X; ss.
       apply M.mem_2 in X. exfalso. eapply M.empty_1. eauto.
-    - unfold compose in *. rewrite add_b, IHl0.
+    - unfold compose, flip in *. rewrite add_b, IHl0.
       f_equal. unfold eqb. destruct (eq_dec (f a) ty), (eq_dec ty (f a)); ss.
       + contradict n. symmetry. ss.
       + contradict n. symmetry. ss.
@@ -554,7 +565,8 @@ Module WFacts_fun2 (E:DecidableType) (M:(WSfun E)).
         * destruct (eq_dec a id0); auto.
         * right. apply IHl0. auto.
   Qed.
-End WFacts_fun2.
+
+End FSetFactsExtra.
 
 Definition isMallocInst(c: cmd): bool :=
   match c with

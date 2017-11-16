@@ -100,10 +100,10 @@ Lemma implies_lessdef_sound
     <<LESSDEF: ExprPairSet.For_all (InvState.Unary.sem_lessdef conf st invst) ld1>>.
 Proof.
   ii. apply ExprPairSet.for_all_2 in IMPLIES_LESSDEF; eauto; cycle 1.
-  { ii. subst. ss. }
+  { ii. apply ExprPair.compare_leibniz in H0. subst. ss. }
   specialize (IMPLIES_LESSDEF x H). ss.
   apply ExprPairSet.exists_2 in IMPLIES_LESSDEF; eauto; cycle 1.
-  { ii. subst. ss. }
+  { ii. apply ExprPair.compare_leibniz in H0. subst. ss. }
   inv IMPLIES_LESSDEF. des. solve_bool_true.
   expl LESSDEF.
 Qed.
@@ -141,7 +141,7 @@ Proof.
       clarify.
 
       exploit UNIQUE; eauto; []; ii; des.
-      eapply LOCALS with (reg := i1); eauto.
+      eapply LOCALS with (reg := t1); eauto.
       {
         des_sumbool.
         ii.
@@ -153,7 +153,7 @@ Proof.
     * (* const *)
       unfold AtomSetImpl.For_all in *.
       eapply AtomSetFacts.mem_iff in IMPLIES_ALIAS2.
-      specialize (UNIQUE i0 IMPLIES_ALIAS2). clear IMPLIES_ALIAS2.
+      specialize (UNIQUE t0 IMPLIES_ALIAS2). clear IMPLIES_ALIAS2.
 
       eapply unique_const_diffblock; eauto.
   + (* exactly copied from above *)
@@ -170,7 +170,7 @@ Proof.
       clarify.
 
       exploit UNIQUE; eauto; []; ii; des.
-      eapply LOCALS with (reg := i1); eauto.
+      eapply LOCALS with (reg := t1); eauto.
       {
         des_sumbool.
         ii.
@@ -182,7 +182,7 @@ Proof.
     * (* const *)
       unfold AtomSetImpl.For_all in *.
       eapply AtomSetFacts.mem_iff in IMPLIES_ALIAS2.
-      specialize (UNIQUE i0 IMPLIES_ALIAS2). clear IMPLIES_ALIAS2.
+      specialize (UNIQUE t0 IMPLIES_ALIAS2). clear IMPLIES_ALIAS2.
 
       eapply InvState.Unary.diffblock_comm.
       eapply unique_const_diffblock; eauto.
@@ -484,6 +484,7 @@ Next Obligation.
         apply Exprs.PtrPairSetFacts.mem_iff.
         apply Exprs.PtrPairSetFacts.mem_iff in HA0.
         eapply Exprs.PtrPairSetFacts.In_s_m; eauto.
+        { apply PtrPairSet.E.eq_refl. }
         reflexivity.
   - clear - HA1 HB1 HA3 HB3.
     unfold Invariant.implies_diffblock in *.
@@ -577,13 +578,6 @@ Proof.
   - ss. apply wrap_is_true_goal. reflexivity.
   - ss.
     (* TODO: THERE SHOULD BE LEMMA FOR THIS: subset -> filter *)
-    apply Exprs.IdTSetFacts.subset_iff.
-    ii.
-    apply Exprs.IdTSetFacts.filter_iff in H; cycle 1.
-    { solve_compat_bool. }
-    des.
-    apply Exprs.IdTSetFacts.filter_iff in H; cycle 1.
-    { solve_compat_bool. }
-    des.
-    ss.
+    apply Exprs.IdTSetFacts.subset_iff. ii.
+    rewrite IdTSetFacts.diff_iff in *. des. ss.
 Qed.

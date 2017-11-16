@@ -409,7 +409,7 @@ Proof.
       { (* x is alloca *)
         destruct x as [[] x]; ss.
         unfold IdT.lift, InvState.Unary.sem_idT in *. ss. clarify.
-        exploit ALLOC_PRIVATE0; eauto. }
+        exploit ALLOC_PRIVATE0; eauto. solve_leibniz. clarify. }
       { exploit PRIVATE; eauto. }
   - (* alloca, alloca *)
     (*    
@@ -502,6 +502,7 @@ Proof.
         unfold IdTSetFacts.eqb in NOTIN.
         destruct (IdTSetFacts.eq_dec (IdT.lift Tag.physical id0) id1); [|ss].
         clear_true. clarify.
+        solve_leibniz. clarify.
         u. ss.
 
         des_lookupAL_updateAddAL.
@@ -637,7 +638,8 @@ Lemma lessdef_add_definedness
 Proof.
   ii. simpl_ep_set; ss; cycle 1.
   - apply FORALL; ss.
-  - exploit lessdef_definedness; eauto.
+  - solve_leibniz. clarify.
+    exploit lessdef_definedness; eauto.
 Qed.
 
 Lemma lessdef_add
@@ -652,8 +654,10 @@ Lemma lessdef_add
 Proof.
   ii. simpl_ep_set; ss; cycle 2.
   - apply FORALL; ss.
-  - rewrite <- EQ. esplits; eauto. apply GVs.lessdef_refl. (* TODO: reflexivity *)
-  - rewrite EQ. esplits; eauto. apply GVs.lessdef_refl. (* TODO: reflexivity *)
+  - solve_leibniz. clarify. ss.
+    rewrite <- EQ. esplits; eauto. apply GVs.lessdef_refl. (* TODO: reflexivity *)
+  - solve_leibniz. clarify. ss.
+    rewrite EQ. esplits; eauto. apply GVs.lessdef_refl. (* TODO: reflexivity *)
 Qed.
 
 (* TODO Move to InvState? Unity with InvState.Unary.sem_valueT_physical? *)

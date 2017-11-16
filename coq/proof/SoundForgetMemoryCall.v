@@ -114,7 +114,10 @@ Proof.
     esplits; eauto; cycle 1.
     + rewrite Heq.
       eapply GV2ptr_In_GV2blocks; eauto.
-    + apply InA_In.
+    + apply InA_iff_In with (myeq := (fun x0 y : IdT.t => IdT.compare x0 y = Eq)).
+      { split; i.
+        - solve_leibniz; ss.
+        - subst. finish_by_refl; ss. }
       apply IdTSetFacts.elements_iff.
       eapply IdTSetFacts.mem_iff.
       eauto.
@@ -124,7 +127,10 @@ Proof.
     esplits; eauto; cycle 1.
     + rewrite Heq.
       eapply GV2ptr_In_GV2blocks; eauto.
-    + apply InA_In.
+    + apply InA_iff_In with (myeq := (fun x0 y : IdT.t => IdT.compare x0 y = Eq)).
+      { split; i.
+        - solve_leibniz; ss.
+        - subst. finish_by_refl; ss. }
       apply IdTSetFacts.elements_iff.
       eapply IdTSetFacts.mem_iff.
       eauto.
@@ -251,7 +257,10 @@ Proof.
           apply in_flat_map.
           esplits; eauto.
           + eapply IdTSetFacts.mem_iff in MEM_PRIVATE.
-            eapply InA_In.
+            eapply InA_iff_In with (myeq := (fun x0 y : IdT.t => IdT.compare x0 y = Eq)).
+            { split; i.
+              - solve_leibniz. ss.
+              - subst. finish_by_refl. }
             eapply IdTSetFacts.elements_iff; eauto.
           + unfold InvState.Unary.sem_idT. ss.
             rewrite VAL. ss.
@@ -273,8 +282,10 @@ Proof.
       { unfold memory_blocks_of_t.
         eapply in_flat_map.
         esplits; eauto.
-        -
-          apply InA_In.
+        - eapply InA_iff_In with (myeq := (fun x0 y : IdT.t => IdT.compare x0 y = Eq)).
+          { split; i.
+            - solve_leibniz. ss.
+            - subst. finish_by_refl. }
           apply IdTSetFacts.elements_iff.
           apply H.
         - erewrite sem_idT_eq_locals. rewrite VAL.

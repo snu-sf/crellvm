@@ -313,8 +313,9 @@ Proof.
   rewrite IdTSetFacts.add_b, IHl0. f_equal.
   unfold IdT.lift, IdTSetFacts.eqb, AtomSetFacts.eqb.
   repeat (des_if; ss).
-  - by inv e.
-  - contradict n. by subst.
+  - apply IdT.compare_leibniz in e. by inv e.
+  - contradict n.
+    subst. apply IdTSet.E.eq_refl.
 Qed.
 
 Module ForgetMemory.
@@ -422,33 +423,104 @@ Module ForgetStackCall.
     ForgetStack.t defs_src defs_tgt AtomSetImpl.empty AtomSetImpl.empty inv0.
 End ForgetStackCall.
 
-(* Non-physical that is only in maydiff is safe to remove *)
-Definition reduce_maydiff_preserved (inv0: Invariant.t) :=
-  let used_ids := (Invariant.get_idTs_unary inv0.(Invariant.src))
-                    ++ (Invariant.get_idTs_unary inv0.(Invariant.tgt))
-  in
-  (fun idt => (Tag.eq_dec (fst idt) Tag.physical) || (List.find (IdT.eq_dec idt) used_ids)).
+(* Definition reduce_maydiff_lessdef_old (inv0:Invariant.t): Invariant.t := *)
+(*   let lessdef_src := inv0.(Invariant.src).(Invariant.lessdef) in *)
+(*   let lessdef_tgt := inv0.(Invariant.tgt).(Invariant.lessdef) in *)
+(*   let inject_id id := Invariant.inject_value inv0 (ValueT.id id) (ValueT.id id) *)
+(*       (* negb (ExprPairSet.exists_ *) *)
+(*       (*         (fun p => ExprPairSet.exists_ *) *)
+(*       (*                     (fun q => Invariant.not_in_maydiff_expr inv0 (snd p)) *) *)
+(*       (*                     (ExprPairSet.filter (fun q => ExprFacts.eq_dec_l (snd p) (fst q)) *) *)
+(*       (*                                         (Invariant.get_lhs lessdef_tgt (fst p)))) *) *)
+(*       (*         (Invariant.get_rhs lessdef_src *) *)
+(*       (*                            (Expr.value (ValueT.id id)))) *) *)
+(*   in *)
+(*   (* O(|MD| * |LD| * log|LD|) *) *)
+(*   Invariant.update_maydiff (IdTSet.filter (negb <*> inject_id)) inv0. *)
 
-Definition reduce_maydiff_non_physical (inv0: Invariant.t): Invariant.t :=
-  Invariant.update_maydiff (IdTSet.filter (reduce_maydiff_preserved inv0)) inv0.
+(*
+swap: |LD|
+intersection: |LD| * log |LD|
+not_in_maydiff check: |LD| * log |MD|
+*)
 
-Definition reduce_maydiff_lessdef (inv0:Invariant.t): Invariant.t :=
-  let lessdef_src := inv0.(Invariant.src).(Invariant.lessdef) in
-  let lessdef_tgt := inv0.(Invariant.tgt).(Invariant.lessdef) in
-  Invariant.update_maydiff
-    (IdTSet.filter
-       (fun id =>
-          negb (ExprPairSet.exists_
-                  (fun p => ExprPairSet.exists_
-                           (fun q => Invariant.inject_expr inv0 (snd p) (fst q))
-                           (Invariant.get_lhs lessdef_tgt (fst p)))
-                  (Invariant.get_rhs lessdef_src
-                                     (Expr.value (ValueT.id id)))))) inv0.
+Definition swap_pair A (aa: A * A): A * A := (aa.(snd), aa.(fst)).
 
-Definition reduce_maydiff (inv0:Invariant.t): Invariant.t :=
-  let inv1 := reduce_maydiff_lessdef inv0 in
-  let inv2 := reduce_maydiff_non_physical inv1 in
-  inv2.
+(* Definition swap_ExprPairSet (ld: ExprPairSet.t): ExprPairSet.t := *)
+(*   ExprPairSet.fold (fun i s => ExprPairSet.add (swap_pair i) s) ld ExprPairSet.empty *)
+(* . *)
+
+(* get_IdT is already used in different meaning.. *)
+(* it seems original get_IdT should be "collect_IdT", and this should be get_IdT *)
+Definition project_into_IdT (e: Expr.t): option IdT.t :=
+  match e with
+  | Expr.value (ValueT.id i) => Some i
+  | _ => None
+  end
+.
+
+Definition project_into_IdTSet (ld: ExprPairSet.t): IdTSet.t :=
+  ExprPairSet.fold (fun e s => match project_into_IdT e.(fst) with
+                               | Some i => IdTSet.add i s
+                               | None => s
+                               end) ld IdTSet.empty
+.
+
+(* Definition reduce_maydiff_lessdef (inv0: Invariant.t): Invariant.t := *)
+(*   let lessdef_src := inv0.(Invariant.src).(Invariant.lessdef) in *)
+(*   let lessdef_tgt := inv0.(Invariant.tgt).(Invariant.lessdef) in *)
+(*   let lessdef_tgt_swapped := swap_ExprPairSet lessdef_tgt in *)
+(*   (* Time: |LD| * log |LD| *) *)
+(*   let intersection := ExprPairSet.inter lessdef_src lessdef_tgt_swapped in *)
+(*   (* Time: |LD| * log |LD| *) *)
+(*   (* Size: |LD| *) *)
+(*   let injected_intersection := *)
+(*       ExprPairSet.filter (fun xy => Invariant.not_in_maydiff_expr inv0 xy.(snd)) intersection in *)
+(*   (* Time: |LD| * log |MD| *) *)
+(*   (* Size: |LD| *) *)
+(*   let injected_idt := project_into_IdTSet injected_intersection in *)
+(*   (* Time: |LD| * log |LD| *) *)
+(*   (* Size: |LD| *) *)
+(*   Invariant.update_maydiff (fun md => IdTSet.diff md injected_idt) inv0 *)
+(*   (* Time: |MD| * log |MD| *) *)
+(* . *)
+
+  (* let indirect_inject_id (id: IdT.t) := *)
+  (*     ExprPairSet.exists_ *)
+  (*       (fun xy => (ExprFacts.eq_dec_l (Expr.value (ValueT.id id)) xy.(fst)) *)
+  (*                    && Invariant.not_in_maydiff_expr inv0 xy.(snd)) intersection in *)
+(* Time: |LD| * log |MD| *)
+  (* Invariant.update_maydiff (IdTSet.filter (negb <*> indirect_inject_id)) inv0 *)
+(* Time: |MD| * |LD| * log |MD| *)
+
+(* Definition reduce_maydiff_lessdef (inv0: Invariant.t): Invariant.t := *)
+Definition reduce_maydiff (inv0: Invariant.t): Invariant.t :=
+  let ld_src := inv0.(Invariant.src).(Invariant.lessdef) in
+  let ld_tgt := inv0.(Invariant.tgt).(Invariant.lessdef) in
+  let ld_src_outer_idt :=
+      ExprPairSet.filter (fun xy => project_into_IdT xy.(fst)) ld_src in
+  (* Time: |LD| *)
+  (* Size: |LD| *)
+  let ld_src_mirrored_outer_idt :=
+      ExprPairSet.filter (fun xy => let yx := (swap_pair xy) in
+                                    ExprPairSet.mem yx ld_tgt) ld_src_outer_idt in
+  (* Time: |LD| * log |LD| *)
+  (* Size: |LD| *)
+  let ld_src_mirrored_outer_idt_inner_injected :=
+      ExprPairSet.filter (fun xy => Invariant.not_in_maydiff_expr inv0 xy.(snd)) ld_src_mirrored_outer_idt in
+  (* Time: |LD| * log |MD| *)
+  (* Size: |LD| *)
+  let idts_of_interest := project_into_IdTSet ld_src_mirrored_outer_idt_inner_injected in
+  (* Time: |LD| * log |LD| *)
+  (* Size: |LD| *)
+  Invariant.update_maydiff (fun md => IdTSet.diff md idts_of_interest) inv0
+  (* Time: |MD| + |LD| *)
+.
+
+(* Definition reduce_maydiff (inv0:Invariant.t): Invariant.t := *)
+  (* let inv1 := reduce_maydiff_lessdef inv0 in *)
+  (* let inv2 := reduce_maydiff_non_physical inv1 in *)
+  (* inv2. *)
 
 (* TODO: unused. remove? *)
 (* Definition reduce_maydiff_default (inv0:Invariant.t): Invariant.t := *)
@@ -462,7 +534,7 @@ Definition reduce_maydiff (inv0:Invariant.t): Invariant.t :=
 (*                    (fun id => *)
 (*                       negb (ExprPairSet.exists_ *)
 (*                               (fun ep => *)
-(*                                  ((Expr.eq_dec (fst ep) *)
+(*                                  ((ExprFacts.eq_dec_l (fst ep) *)
 (*                                                (Expr.value (ValueT.id id))) *)
 (*                                     && Invariant.not_in_maydiff_expr inv0 (snd ep))) *)
 (*                               equations))) *)
@@ -742,8 +814,8 @@ Definition postcond_cmd_inject_event
   (*          match e_pair with *)
   (*          | (e1, e2) => *)
   (*            andb *)
-  (*            (Expr.eq_dec e1 (Expr.value (ValueT.const (const_undef t)))) *)
-  (*            (Expr.eq_dec e2 (Expr.load (ValueT.lift Exprs.Tag.physical v) t a)) *)
+  (*            (ExprFacts.eq_dec_l e1 (Expr.value (ValueT.const (const_undef t)))) *)
+  (*            (ExprFacts.eq_dec_l e2 (Expr.load (ValueT.lift Exprs.Tag.physical v) t a)) *)
   (*          end) inv.(Invariant.src).(Invariant.lessdef)) *)
   (*     && *)
   (*     Invariant.not_in_maydiff inv (ValueT.lift Exprs.Tag.physical v) *)
