@@ -1613,8 +1613,7 @@ Definition apply_infrule
       inv3
     else apply_fail tt
   | Infrule.intro_ghost expr g =>
-    if List.forallb (fun x => Invariant.not_in_maydiff inv0 x) (Expr.get_valueTs expr) &&
-                    negb (Expr.is_load expr)
+    if List.forallb (fun x => Invariant.not_in_maydiff inv0 x) (Expr.get_valueTs expr)
     then 
       let inv1 := Invariant.clear_idt (Tag.ghost, g) inv0 in
       let inv2 := {{ inv1 +++src expr >= (Expr.value (ValueT.id (Tag.ghost, g))) }} in
