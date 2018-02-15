@@ -53,30 +53,6 @@ Proof.
   inv STEP; ss. inv CMDS. ss.
 Qed.
 
-(* TODO Add To Metatheory?? *)
-(* Lemma AtomSetImpl_from_list_inter {X: Type} x l1 l2 *)
-(*       (IN1: List.In x l1) *)
-(*       (IN2: List.In x l2) *)
-(*   : *)
-(*     AtomSetImpl.mem x (AtomSetImpl.inter (AtomSetImpl_from_list l1) *)
-(*                                          (AtomSetImpl_from_list l2)). *)
-(* Proof. *)
-(*   apply AtomSetImpl_from_list_spec in IN1. *)
-(*   apply AtomSetImpl_from_list_spec in IN2. *)
-(*   rewrite AtomSetFacts.inter_b. *)
-(*   rewrite IN1. rewrite IN2. ss. *)
-(* Qed. *)
-
-(* Lemma AtomSetImpl_mem_is_empty x s: *)
-(*   AtomSetImpl.mem x s -> *)
-(*   ~(AtomSetImpl.is_empty s). *)
-(* Proof. *)
-(*   ii. *)
-(*   apply AtomSetFacts.is_empty_iff in H0. *)
-(*   apply AtomSetFacts.mem_iff in H. *)
-(*   exploit H0; eauto. *)
-(* Qed. *)
-
 Lemma AtomSetImpl_inter_empty
       a l1 l2
       (EMPTY: AtomSetImpl.Empty (AtomSetImpl.inter l1 l2))
@@ -94,7 +70,6 @@ Lemma AtomSetImpl_from_list_inter_is_empty
                                          (AtomSetImpl_from_list l2)) = true)
   :
     List.Forall (fun x => List.Forall (fun y => x <> y) l2) l1
-    (* List.forallb (fun x => List.forallb (fun y => negb (AtomSetFacts.eqb x y)) l2) l1 *)
 .
 Proof.
   revert l2 INTER_EMPTY. induction l1; ss. i.

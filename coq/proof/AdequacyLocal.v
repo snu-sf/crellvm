@@ -331,7 +331,7 @@ Proof.
         (* SRC_STEP is needed for preservation, to get WF_SRC_NEXT, which is needed to exploit LOCAL1 *)
         (* TODO: Can we do this in more smart way? *)
 
-        (* Anyway, I will state how I get the above statement soley by tactic: *)
+        (* Anyway, I will state how I get the above statement solely by tactic: *)
         (* do 3 eexists. *)
         (* split; [econs|]. apply dependent_split. *)
         (* { econs 1. econs; eauto. *)
@@ -593,7 +593,7 @@ Proof.
         move H21 at bottom. rename H21 into SRC_LOCALS.
         assert(exists Locals1', exCallUpdateLocals CurTargetData0 typ1_tgt noret1_tgt id1_tgt
                                                    oresult1 Locals1 = ret Locals1').
-        { (* rewrite exCallUpdateLocals_spec in *. *)
+        {
           destruct noret1_tgt; ss.
           - esplits; eauto.
           - inv VAL_INJECT.
@@ -723,6 +723,4 @@ Proof.
 Unshelve.
 { by econs; eauto. }
 { by econs; eauto. }
-(* { by econs; eauto. } *)
-(* { by econs; eauto. } *)
 Qed.

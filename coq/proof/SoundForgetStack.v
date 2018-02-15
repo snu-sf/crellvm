@@ -620,63 +620,6 @@ Proof.
     try (apply mbitcast_inv in H0; clarify; []; hexploit getOperand_diffblock; eauto).
 Qed.
 
-(* Definition leaks_diffblock_with conf st cmd ptr: Prop := *)
-(*   forall v gv *)
-(*     (IN_LEAK: In v (Cmd.get_leaked_values cmd)) *)
-(*     (VAL: getOperandValue conf.(CurTargetData) v st.(EC).(Locals) conf.(Globals) = Some gv), *)
-(*     InvState.Unary.sem_diffblock conf ptr gv. *)
-
-(* Lemma operands_diffblock *)
-(*       conf st gmax cmd *)
-(*       u uptr *)
-(*       (UNIQUE_U: InvState.Unary.sem_unique conf st gmax u) *)
-(*       (NOT_LEAKED: AtomSetImpl.mem u (AtomSetImpl_from_list *)
-(*                                         (Cmd.get_leaked_ids cmd)) = false) *)
-(*       (U_VALUE : lookupAL GenericValue st.(EC).(Locals) u = Some uptr) *)
-(*   : leaks_diffblock_with conf st cmd uptr. *)
-(* Proof. *)
-(*   unfold leaks_diffblock_with. *)
-(*   ii. *)
-(*   unfold Cmd.get_leaked_values in *. *)
-(*   unfold Cmd.get_leaked_ids in *. *)
-(*   inv UNIQUE_U. *)
-(*   remember cmd as CCC. *)
-(*   rewrite HeqCCC in IN_LEAK. *)
-(*   destruct cmd; ss; des. (* ; subst *) *)
-(*   - subst. *)
-(*     rename v into vvvv. *)
-(*     rename vvvv into v. *)
-(*     destruct v; ss. *)
-(*     + *)
-(*       clarify. rename u into uuu. *)
-(*       eapply LOCALS; eauto. *)
-(*       apply_all_once AtomSetFacts.not_mem_iff. *)
-(*       apply_all_once AtomSetImpl_from_list_spec2. *)
-(*       ii. subst. apply NOT_LEAKED. econs. ss. *)
-(*     + ad-mit. *)
-(*       (* may need some wf coditions *) *)
-(*       (* const2GV_disjoint_with_runtime_alloca *) *)
-(* Adm-itted. *)
-
-(* Lemma extractGenericValue_diffblock *)
-(*       conf st cmd *)
-(*       x ty1 v lc ty2 *)
-(*       ptr gv l0 val *)
-(*       (CMD: cmd = insn_extractvalue x ty1 v lc ty2) *)
-(*       (VAL : getOperandValue conf.(CurTargetData) v st.(EC).(Locals) conf.(Globals) = Some gv) *)
-(*       (OPERANDS_DIFFBLOCK: leaks_diffblock_with conf st cmd ptr) *)
-(*       (RES: extractGenericValue conf.(CurTargetData) ty1 gv l0 = Some val) *)
-(*   : InvState.Unary.sem_diffblock conf ptr val. *)
-(* Proof. *)
-(*   subst. *)
-(*   unfold leaks_diffblock_with in *. *)
-(*   unfold Cmd.get_leaked_values in *. *)
-(*   eapply OPERANDS_DIFFBLOCK; try econs; eauto. clear OPERANDS_DIFFBLOCK. *)
-(*   rewrite VAL. clear VAL. *)
-(*   unfold extractGenericValue in *. *)
-(*   des_ifs. *)
-(* Adm-itted. *)
-
 Lemma extractValue_sub
       TD typ5 gvs l0 val'
       (EXTRACT: extractGenericValue TD typ5 gvs l0 = Some val')
@@ -763,13 +706,6 @@ Proof.
   intros UNIQUE_BEF.
   clear UNIQUE MEM_U.
 
-  (* Ltac solve_unique_not_def := *)
-  (*   try by match goal with *)
-  (*          | [H: AtomSetImpl.mem ?u (AtomSetImpl_from_list [?x]) = false |- *)
-  (*             lookupAL _ (updateAddAL _ ?lc ?x _) ?u = Some _ ] => *)
-  (*            rewrite <- lookupAL_updateAddAL_neq; eauto; *)
-  (*            apply AtomSetImpl_singleton_mem_false; eauto *)
-  (*          end. *)
   Ltac clarify_not_def :=
     match goal with
     | [H: AtomSetImpl.mem ?u (AtomSetImpl_from_list [?x]) = false |- _] =>
@@ -794,7 +730,6 @@ Proof.
   - inv UNIQUE_BEF; narrow_down_unique.
     eapply FBOP_diffblock; eauto.
   -
-    (* inv UNIQUE_BEF; narrow_down_unique. *)
     inversion UNIQUE_BEF; subst; narrow_down_unique.
     ii.
     rename val into __val__.
@@ -827,8 +762,6 @@ Proof.
     inversion UNIQUE_BEF; subst; narrow_down_unique.
     ii.
     rename val into __val__.
-    (* move value5 at bottom. *)
-    (* destruct value5; ss. *)
     apply insertValue_sub in H1.
     des; cycle 1.
     { exploit undef_implies_diffblock; eauto. ii; ss. }
@@ -1146,70 +1079,6 @@ Proof.
 Qed.
 
 
-(* Ltac rename_id_res x:= *)
-(*   match goal with *)
-(*   | [H: lookupAL _ (updateAddAL _ _ ?id _) ?reg = Some _ |- _] => *)
-(*     rename id into x *)
-(*   end. *)
-(* inv STEP; ss; destruct cmd; ss; inv CMDS. *)
-(* - (* nop *) *)
-(*   ii. apply AtomSetFacts.mem_iff in MEM. *)
-(*   specialize (STATE _ MEM). *)
-(*   inv STATE. ss. *)
-(*   econs; ss; eauto. *)
-(* - (* bop *) *)
-(*   ii. rewrite AtomSetFacts.union_b in NO_LEAK. ss. *)
-(*   solve_des_bool. *)
-(*   apply AtomSetImpl_singleton_mem_false in NO_LEAK. *)
-(*   apply AtomSetFacts.mem_iff in MEM. *)
-(*   specialize (STATE _ MEM). *)
-(*   inv STATE. *)
-
-(*   econs; ss; eauto. *)
-(*   + rewrite <- lookupAL_updateAddAL_neq; eauto. *)
-(*   + i. rename_id_res id_res. *)
-(*     destruct (id_dec id_res reg). *)
-(*     * ad-mit. (* bop: operand not unique => result not unique *) *)
-(*       (* TODO: result of inst not containing unique *) *)
-(*       (* can believe it even without proofs *) *)
-(*     * exploit LOCALS; eauto. *)
-(*       rewrite <- lookupAL_updateAddAL_neq in *; eauto. *)
-(* - (* fbop *) *)
-(*   ii. rewrite AtomSetFacts.union_b in NO_LEAK. ss. *)
-(*   solve_des_bool. *)
-(*   apply AtomSetImpl_singleton_mem_false in NO_LEAK. *)
-(*   apply AtomSetFacts.mem_iff in MEM. *)
-(*   specialize (STATE _ MEM). *)
-(*   inv STATE. *)
-
-(*   econs; ss; eauto. *)
-(*   + rewrite <- lookupAL_updateAddAL_neq; eauto. *)
-(*   + i. rename_id_res id_res. *)
-(*     destruct (id_dec id_res reg). *)
-(*     * ad-mit. (* fbop: operand not unique => result not unique *) *)
-(*       (* TODO: result of inst not containing unique *) *)
-(*       (* can believe it even without proofs *) *)
-(*     * exploit LOCALS; eauto. *)
-(*       rewrite <- lookupAL_updateAddAL_neq in *; eauto. *)
-(* - (* extractvalue *) *)
-(*   ii. rewrite AtomSetFacts.union_b in NO_LEAK. ss. *)
-(*   solve_des_bool. *)
-(*   apply AtomSetImpl_singleton_mem_false in NO_LEAK. *)
-(*   apply AtomSetFacts.mem_iff in MEM. *)
-(*   specialize (STATE _ MEM). *)
-(*   inv STATE. *)
-
-(*   econs; ss; eauto. *)
-(*   + rewrite <- lookupAL_updateAddAL_neq; eauto. *)
-(*   + i. rename_id_res id_res. *)
-(*     destruct (id_dec id_res reg). *)
-(*     * ad-mit. (* bop: operand not unique => result not unique *) *)
-(*       (* TODO: result of inst not containing unique *) *)
-(*       (* can believe it even without proofs *) *)
-(*     * exploit LOCALS; eauto. *)
-(*       rewrite <- lookupAL_updateAddAL_neq in *; eauto. *)
-(* - (* insertvalue *) *)
-(*   (* TODO: fill rest *) *)
 
 
 Lemma step_state_equiv_except

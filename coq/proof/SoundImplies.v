@@ -26,29 +26,17 @@ Require Import SoundBase.
 
 Set Implicit Arguments.
 
+Ltac solve_bool_true := InvState.solve_bool_true.
 
-(* TODO: move to somewhere *)
-Ltac solve_bool_true :=
-  repeat
-    (try match goal with
-         | [H: andb ?a ?b = true |- _] =>
-           apply andb_true_iff in H; des
-         | [H: orb ?a ?b = true |- _] =>
-           apply orb_true_iff in H; des
-         | [H: proj_sumbool (?dec ?a ?b) = true |- _] =>
-           destruct (dec a b)
-         end;
-     try subst; ss; unfold is_true in *; unfold sflib.is_true in *).
-
-Ltac solve_match_bool :=
-  repeat (match goal with
-          | [H:match ?c with _ => _ end = true |- _] =>
-            let MATCH := fresh "MATCH" in
-            destruct c eqn:MATCH; try done
-          | [H:match ?c with _ => _ end = false |- _] =>
-            let MATCH := fresh "MATCH" in
-            destruct c eqn:MATCH; try done
-          end).
+(* Ltac solve_match_bool := *)
+(*   repeat (match goal with *)
+(*           | [H:match ?c with _ => _ end = true |- _] => *)
+(*             let MATCH := fresh "MATCH" in *)
+(*             destruct c eqn:MATCH; try done *)
+(*           | [H:match ?c with _ => _ end = false |- _] => *)
+(*             let MATCH := fresh "MATCH" in *)
+(*             destruct c eqn:MATCH; try done *)
+(*           end). *)
 
 Lemma list_forall2_refl
       X P (l: list X)
@@ -361,18 +349,12 @@ Qed.
 
 Lemma wrap_is_true_goal
       A
-  (*     (WRAPPED: is_true A) *)
-  (* : *)
-  (*   <<GOAL: A = true>> *)
   :
     is_true A -> A = true
 .
 Proof. ss. Qed.
 Lemma wrap_is_true_hyp
       A
-  (*     (WRAPPED: is_true A) *)
-  (* : *)
-  (*   <<GOAL: A = true>> *)
   :
     A = true -> is_true A
 .
@@ -427,7 +409,7 @@ Next Obligation.
   ii.
   unfold Invariant.implies_unary.
   repeat (apply andb_true_iff; split); try apply wrap_is_true_goal.
-  (* TODO: wrap_is_true. Can we do this without lemma? soley by tactic? *)
+  (* TODO: wrap_is_true. Can we do this without lemma? solely by tactic? *)
   - reflexivity.
   - unfold Invariant.implies_noalias.
     unfold flip.
@@ -562,7 +544,6 @@ Next Obligation.
     etransitivity; eauto.
 Qed.
 
-(* TODO: move to SoundImpiles.v *)
 Lemma implies_reduce_maydiff
       inv0
   :

@@ -23,7 +23,6 @@ Require Import OpsemAux.
 Set Implicit Arguments.
 
 
-(* TODO: m_src, m_tgt, conf_src, conf_tgt *)
 Inductive valid_conf
           (m_src m_tgt:module)
           (conf_src conf_tgt:Config): Prop :=
@@ -31,8 +30,6 @@ Inductive valid_conf
     (INJECT: inject_conf conf_src conf_tgt)
 .
 
-(* TODO: move to somewhere *)
-(* in this file and SoundImplies.v *)
 Ltac solve_bool_true :=
   repeat
     (try match goal with
@@ -40,8 +37,8 @@ Ltac solve_bool_true :=
            apply andb_true_iff in H; des
          | [H: orb ?a ?b = true |- _] =>
            apply orb_true_iff in H; des
-         | [H: proj_sumbool (ValueTSetFacts.eq_dec ?a ?b) = true |- _] =>
-           destruct (ValueTSetFacts.eq_dec a b)
+         | [H: proj_sumbool (?dec ?a ?b) = true |- _] =>
+           destruct (dec a b)
          end;
      try subst; ss; unfold is_true in *; unfold sflib.is_true in *).
 
@@ -243,21 +240,6 @@ Module Unary.
 
   Definition sem_noalias (conf:Config) (val1 val2:GenericValue) (ty1 ty2:typ): Prop :=
     list_disjoint (GV2blocks val1) (GV2blocks val2).
-    (* TODO *)
-    (* match GV2ptr conf.(CurTargetData) (getPointerSize conf.(CurTargetData)) val1, *)
-    (*       GV2ptr conf.(CurTargetData) (getPointerSize conf.(CurTargetData)) val2 with *)
-    (* | Some (Vptr b1 ofs1), Some (Vptr b2 ofs2) => b1 <> b2 *)
-    (*   (* forall *) *)
-    (*   (*   size1 size2 *) *)
-    (*   (*   (BLOCK: b1 = b2) *) *)
-    (*   (*   (* TODO: getTypeSizeInBits, storesize, or allocsize for size? *) *) *)
-    (*   (*   (SIZE1: getTypeSizeInBits conf.(CurTargetData) ty1 = Some size1) *) *)
-    (*   (*   (SIZE2: getTypeSizeInBits conf.(CurTargetData) ty2 = Some size2), *) *)
-    (*   (*   .. *) *)
-    (*   (*   (* [Int.signed (31%nat) ofs1, Int.signed (31%nat) ofs1 + size1) disjoint *) *) *)
-    (*   (*   (* [Int.signed (31%nat) ofs2, Int.signed (31%nat) ofs2 + size2) *) *) *)
-    (* | _, _ => True *)
-    (* end. *)
 
   Lemma diffblock_comm
         conf gv1 gv2

@@ -93,7 +93,6 @@ Lemma valid_sim_term
       (CONF : InvState.valid_conf m_src m_tgt conf_src conf_tgt)
       (FDEF : valid_fdef m_src m_tgt CurFunction0 CurFunction1 fdef_hint)
       (LABEL : fst CurBB0 = fst CurBB1)
-      (* (ALLOCAS: inject_allocas inv0 Allocas0 Allocas1) *)
       (TERM: exists infrules,
           valid_terminator fdef_hint (Infrules.apply_infrules m_src m_tgt infrules inv_term)
                            m_src m_tgt (get_blocks CurFunction0)
@@ -534,7 +533,6 @@ Proof.
         { econs 1. econs; eauto. rewrite lookupBlockViaLabelFromFdef_spec. ss. }
         {
           econs; eauto; ss.
-          (* - eapply inject_allocas_inj_incr; eauto. *)
           - eapply implies_sound; eauto.
             { ss. }
           - split; ss.
@@ -656,7 +654,6 @@ Lemma valid_progress
       conf_src conf_tgt stack0_src stack0_tgt inv0 idx0 st_src st_tgt
       (VALID: valid_state_sim conf_src conf_tgt stack0_src stack0_tgt inv0 idx0 st_src st_tgt)
       (ERROR_SRC: ~ error_state conf_src st_src)
-      (* (NOTCALL: option_Forall (fun c => Instruction.isCallInst c = false ) (hd_error st_src.(EC).(CurCmds))) *)
       c_src cs_src
       (CMDSRC: st_src.(EC).(CurCmds) = c_src :: cs_src)
       (NOTCALL: Instruction.isCallInst c_src = false)
@@ -1373,22 +1370,6 @@ Proof.
       (* However, this logic no longer holds in tgt, so validitiy condition of args became needed *)
       (* This is current proof, same logic as tgt *)
       eapply initLocals_preserves_valid_ptrs; eauto.
-      (* Below is old proof, it still works. I just choose above way in order to unify & simplify *)
-      (* { *)
-      (*   ii. ss. *)
-      (*   expl fully_inject_locals_spec. *)
-      (*   rewrite H in *. unfold lift2_option in *. des_ifs. *)
-      (*   clear - fully_inject_locals_spec mi_freeblocks. *)
-      (*   ginduction gvs; ii; ss. *)
-      (*   - inv fully_inject_locals_spec. *)
-      (*     expl IHgvs. *)
-      (*     des_ifs; eauto. *)
-      (*     split; ss. *)
-      (*     inv H1. *)
-      (*     reductio_ad_absurdum. *)
-      (*     expl mi_freeblocks. *)
-      (*     clarify. *)
-      (* } *)
     + (* diffblock unique parent *)
       inv MEM. clear TGT INJECT FUNTABLE.
       inv SRC.
@@ -1528,9 +1509,6 @@ Proof.
   - intros INIT_TGT ? ? ? ? . des.
     expl init_fdef_wf_EC. rename init_fdef_wf_EC0 into WF_EC_TGT. clear INIT_TGT.
     econs; eauto.
-  (* esplits. *)
-  (* - econs; eauto; ss. *)
-  (* - econs; eauto. *)
     { ss.
       repeat
         (try match goal with

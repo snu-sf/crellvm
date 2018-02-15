@@ -618,30 +618,6 @@ Proof.
     + i. ss. right. eauto.
 Qed.
 
-(* Lemma Phinode_get_use_spec *)
-(*       l_from phinodes passign passigns x *)
-(*       (RESOLVE : forallb_map (Phinode.resolve l_from) phinodes = Some passigns) *)
-(*       (IN: In passign passigns) *)
-(*       (GET_USE: Phinode.get_use passign = Some x) *)
-(*   : exists p ty vls, *)
-(*     <<IN_PHI: In (insn_phi p ty vls) phinodes>> /\ *)
-(*               <<IN_PHI_USE: In (value_id x, l_from) vls>>. *)
-(* Proof. *)
-(*   revert dependent passigns. *)
-(*   induction phinodes. *)
-(*   - ss. i. inv RESOLVE. inv IN. *)
-(*   - i. ss. des_ifs. *)
-(*     inv IN. *)
-(*     + destruct a. *)
-(*       ss. des_ifs. *)
-(*       esplits; eauto. *)
-(*       unfold Phinode.get_use in *. des_ifs. *)
-(*       unfold Phinode.get_rhs in *. subst.       *)
-(*       apply lookupAL_reverse_aux. eauto. *)
-(*     + exploit IHphinodes; eauto. i. des. *)
-(*       esplits; eauto. *)
-(* Qed. *)
-
 Lemma wf_const_valid_ptr
       conf st0 invmem phinodes gmax public
   (MEM : InvMem.Unary.sem conf gmax public (Mem st0) invmem)

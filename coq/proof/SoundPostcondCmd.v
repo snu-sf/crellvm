@@ -158,9 +158,6 @@ Proof.
     *
       ii.
       apply mload_inv in H1. des. clarify.
-      (* destruct (Pos.eqb b0 b) eqn:T. *)
-      (* { apply Peqb_true_eq in T. subst. *)
-      (*   des_sumbool. } *)
       exploit MemProps.mstore_aux_preserves_mload_aux_inv; eauto; []; ii; des.
       eapply MemProps.valid_ptrs_overlap; eauto.
       { eapply get_operand_valid_ptr; eauto.
@@ -256,7 +253,6 @@ Proof.
   - ss. (* call *)
 Qed.
 
-(* Proving "sublist_In"'s inverse is hard... is it possible? *)
 Lemma sublist_app_inv
       A
       (xs ys zs: list A)

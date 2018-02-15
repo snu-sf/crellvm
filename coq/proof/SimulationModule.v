@@ -25,8 +25,9 @@ Require Import Simulation.
 Require Import TODOProof.
 Require Import program_sim.
 Import Vellvm.program_sim.
-(* Print program_sim.program_sim. *)
-(* Print Vellvm.program_sim. *)
+
+
+
 
 Inductive transl_product m_src m_tgt
   : forall (prod_src prod_tgt: product), Prop :=

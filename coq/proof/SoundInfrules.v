@@ -45,8 +45,8 @@ Lemma apply_not_interesting_infrule_sound
     <<MEM: InvMem.Rel.sem conf_src conf_tgt st_src.(Mem) st_tgt.(Mem) invmem1>> /\
     <<MEMLE: InvMem.Rel.le invmem0 invmem1>>.
 Proof.
-  ADMIT "We will not prove soundness of arithmetic infrules as Alive (SMT solver) can prove them.
-Also, we haven't prove soundness of infrules that are only used inside instcombine pass.".
+  ADMIT "We will not prove the soundness of arithmetic infrules as Alive (SMT solver) can prove them.
+Also, we will not prove the soundness of infrules that are only used inside instcombine pass.".
 Qed.
 
 Lemma apply_interesting_infrule_sound
@@ -73,8 +73,6 @@ Proof.
     | [|- context[if ?c then _ else _]] => destruct c eqn:C
     end; ss.
     inv STATE. econs; eauto. ss. clear TGT MAYDIFF ALLOCAS.
-    (* inv SRC. econs; eauto. ss. clear NOALIAS UNIQUE PRIVATE ALLOCAS_PARENT ALLOCAS_VALID *)
-    (*                                  WF_LOCAL WF_PREVIOUS WF_GHOST UNIQUE_PARENT_LOCAL WF_FDEF WF_EC. *)
     econs; try apply SRC; eauto; ss.
     red. i. apply Exprs.ExprPairSetFacts.add_iff in H.
     des; cycle 1.
@@ -85,7 +83,6 @@ Proof.
     rename t0 into __e2__.
     des_bool; des.
     abstr (InvState.Rel.src invst0) invst.
-    (* abstr (Hints.Invariant.lessdef (Hints.Invariant.src inv0)) LD. *)
     clear MEM CONF. clear_tac.
     solve_leibniz. clarify.
     assert(LD01: InvState.Unary.sem_lessdef conf_src st_src invst (__e0__, __e1__)).

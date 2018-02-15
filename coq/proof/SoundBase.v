@@ -752,10 +752,6 @@ Proof.
     inv CALLEE_SRC. inv CALLER_SRC.
     econs; eauto; ss.
     + rewrite GMAX. eauto.
-    (* + i. apply PRIVATE_PARENT. *)
-    (*   inv LE_SRC. *)
-    (*   rewrite <- PRIVATE_PARENT_EQ. ss. *)
-    (*   apply in_app. left. eauto. *)
     + i. apply PRIVATE_PARENT.
       inv LE_SRC.
       rewrite <- PRIVATE_PARENT_EQ. ss.
@@ -782,10 +778,6 @@ Proof.
     inv CALLEE_TGT. inv CALLER_TGT.
     econs; eauto; ss.
     + rewrite GMAX. eauto.
-    (* + i. apply PRIVATE_PARENT. *)
-    (*   inv LE_TGT. *)
-    (*   rewrite <- PRIVATE_PARENT_EQ. ss. *)
-    (*   apply in_app. left. eauto. *)
     + i. apply PRIVATE_PARENT.
       inv LE_TGT.
       rewrite <- PRIVATE_PARENT_EQ. ss.

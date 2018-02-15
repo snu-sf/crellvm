@@ -29,18 +29,8 @@ Import Memory.
 
 Set Implicit Arguments.
 
-(* Lemma getOperandValue_wf_lc_valid_ptrs *)
-(*       TD lc gl *)
-(*       mem v gv *)
-(*       (VAL : getOperandValue TD v lc gl = Some gv) *)
-(*       (WF_LOCAL : MemProps.wf_lc mem lc) *)
-(*   : MemProps.valid_ptrs mem.(Mem.nextblock) gv. *)
-(* Proof. *)
-(*   apply WF_LOCAL in VAL. *)
-(* (* hope MemProps.operand__lt_nextblock helps *) *)
-(* Adm-itted. *)
 
-(* not high priority for proof *)
+
 
 Theorem wf_globals_const2GV: forall
     gmax gl TD cnst gv
@@ -145,9 +135,7 @@ Lemma getOperandValue_not_unique_parent
 Proof.
   ii.
   destruct v as [x | c]; ss.
-  - (* inv MEM. *)
-    (* exploit sublist_In; eauto. intro IN_PRIV. *)
-    inv STATE.
+  - inv STATE.
     exploit UNIQUE_PARENT_LOCAL; eauto.
   - inv MEM.
     exploit UNIQUE_PARENT_GLOBALS; eauto. intro GT_GMAX.

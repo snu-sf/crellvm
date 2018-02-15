@@ -23,7 +23,6 @@ Definition gv_diffblock_with_blocks (conf: Config) gv blocks : Prop :=
          (ING: In b (GV2blocks gv))
          (INB: In b blocks),
     False.
-  (* ~exists b, In b (GV2blocks gv) /\ In b blocks. *)
 
 Definition private_block m public b : Prop :=
   ~ public b /\ (b < m.(Mem.nextblock))%positive.
@@ -38,7 +37,6 @@ Module Unary.
     nextblock: Values.block
   }.
 
-  (* TODO: not sure if MEM_PARENT is correct *)
   Inductive sem (conf:Config) (gmax:positive) (public:mblock -> Prop) (m:mem) (inv:t): Prop :=
   | sem_intro
       (GLOBALS: wf_globals gmax conf.(Globals))
