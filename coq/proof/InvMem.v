@@ -136,7 +136,7 @@ Module Rel.
   .
 
   (* TODO: not sure if inject_incr is enough.
-   * cf. https://github.com/snu-sf/llvmberry/blob/before_refact/coq/hint/hint_sem.v#L284
+   * cf. https://github.com/snu-sf/crellvm/blob/before_refact/coq/hint/hint_sem.v#L284
    *)
   Inductive le (lhs rhs:t): Prop :=
   | le_intro

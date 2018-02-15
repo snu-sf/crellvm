@@ -234,7 +234,7 @@ Module Invariant.
 
   (* On the definition of Expr.same_modulo_value *)
   (* There was a debate between @alxest and @jeehoonkang *)
-  (* [here](https://github.com/snu-sf/llvmberry/pull/295#discussion_r76530070). *)
+  (* [here](https://github.com/snu-sf/crellvm/pull/295#discussion_r76530070). *)
   (* I, @alxest, insist current form is much more readable. *)
   (* Expr.same_modulo_value only requires expr, and reader do not need to care *)
   (* about what f or data is and how it appears inside definition. *)

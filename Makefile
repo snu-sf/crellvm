@@ -1,4 +1,4 @@
-COQMODULE     := LLVMBerry
+COQMODULE     := CRELLVM
 COQDEF := $(wildcard coq/def/*.v)
 COQEXTRACT    := $(wildcard coq/extract/*.v)
 COQPROOF      := $(filter-out $(COQEXTRACT), $(filter-out $(COQDEF), $(wildcard coq/*/*.v)))
@@ -18,7 +18,7 @@ quick: llvm exec-rsync proof-quick
 
 init:
 	opam install menhir ott batteries biniou atdgen cppo easy-format ctypes coq.8.6
-	git clone git@github.com:snu-sf/llvmberry-tests.git llvmberry-tests
+	git clone git@github.com:snu-sf/crellvm-tests.git crellvm-tests
 	git clone git@github.com:snu-sf/llvm.git lib/llvm
 	git clone git@github.com:snu-sf/cereal.git lib/llvm/include/llvm/cereal
 	git clone git@github.com:snu-sf/paco.git lib/paco
@@ -91,9 +91,9 @@ proof-quick: def-quick $(COQPROOF)
 
 test:
 	rm -rf results-opt
-	python ./llvmberry-tests/test.py -e ./.build/llvm-obj/bin/opt -v ./ocaml/main.native -r "-O2" -o -i "./llvmberry-tests/inputs_full"
-	python ./llvmberry-tests/listfails.py -f results-opt
-	python ./llvmberry-tests/statistics.py -f results-opt -o
+	python ./crellvm-tests/test.py -e ./.build/llvm-obj/bin/opt -v ./ocaml/main.native -r "-O2" -o -i "./crellvm-tests/inputs_full"
+	python ./crellvm-tests/listfails.py -f results-opt
+	python ./crellvm-tests/statistics.py -f results-opt -o
 
 clean: Makefile.coq
 	$(MAKE) -f Makefile.coq clean

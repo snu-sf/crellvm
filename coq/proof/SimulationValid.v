@@ -882,7 +882,7 @@ Proof.
 (*                                             Some val). *)
 (*                 { AD-MIT " *)
 (* Issue on encoding definedness with undef. *)
-(* More explanation on: https://github.com/snu-sf/llvmberry/issues/426". } *)
+(* More explanation on: https://github.com/snu-sf/crellvm/issues/426". } *)
 (*                 des. *)
 (*                 exploit InvState.Rel.lessdef_expr_spec; eauto. *)
 (*                 { apply STATE1. } *)
@@ -1342,7 +1342,7 @@ Lemma function_entry_inv_sound
 .
 Proof.
   (* inject_locals is reduced from below *)
-  (* LLVMBerry.proof.Inject.locals_init *)
+  (* proof.Inject.locals_init *)
   destruct st_src, st_tgt; ss.
   destruct EC0, EC1; ss.
   des; clarify.
