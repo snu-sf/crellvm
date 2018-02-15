@@ -12,9 +12,9 @@ LLVM_OBJDIR=${ROOT}/.build/llvm-obj
 
 .PHONY: all init Makefile.coq opt llvm lib def extract exec proof test clean
 
-all: exec proof
+all: llvm exec proof
 
-quick: exec-rsync proof-quick
+quick: llvm exec-rsync proof-quick
 
 init:
 	opam install menhir ott batteries biniou atdgen cppo easy-format ctypes coq.8.6
