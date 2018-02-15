@@ -1,4 +1,4 @@
-COQMODULE     := CRELLVM
+COQMODULE     := Crellvm
 COQDEF := $(wildcard coq/def/*.v)
 COQEXTRACT    := $(wildcard coq/extract/*.v)
 COQPROOF      := $(filter-out $(COQEXTRACT), $(filter-out $(COQDEF), $(wildcard coq/*/*.v)))

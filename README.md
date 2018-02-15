@@ -1,4 +1,4 @@
-# CRELLVM #
+# Crellvm #
 
 ## Development ##
 
