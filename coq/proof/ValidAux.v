@@ -23,8 +23,8 @@ Require Import OpsemAux.
 Require Import SimulationLocal.
 Require Import Simulation.
 Require Import Inject.
-Require InvMem.
-Require InvState.
+Require AssnMem.
+Require AssnState.
 Require Import SoundBase.
 
 Set Implicit Arguments.
@@ -42,7 +42,7 @@ Lemma valid_fdef_valid_stmts
   exists inv_term infrules,
     <<CMDS: valid_cmds m_src m_tgt cmds_src cmds_tgt
                        stmts_hint.(Hints.ValidationHint.cmds)
-                       stmts_hint.(ValidationHint.invariant_after_phinodes) =
+                       stmts_hint.(ValidationHint.assertion_after_phinodes) =
             Some inv_term>> /\
     <<TERM: valid_terminator fdef_hint
                              (Infrules.apply_infrules m_src m_tgt infrules inv_term)

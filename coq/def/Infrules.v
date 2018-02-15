@@ -334,25 +334,25 @@ Definition load_realign (e1: Expr.t): Expr.t :=
   end
 .
 
-Notation "$$ inv |-src y >= rhs $$" := (Invariant.lessdef_expr (y, rhs) inv.(Invariant.src).(Invariant.lessdef)) (at level 41, inv, y, rhs at level 41).
-Notation "$$ inv |-tgt y >= rhs $$" := (Invariant.lessdef_expr (y, rhs) inv.(Invariant.tgt).(Invariant.lessdef)) (at level 41, inv, y, rhs at level 41).
+Notation "$$ inv |-src y >= rhs $$" := (Assertion.lessdef_expr (y, rhs) inv.(Assertion.src).(Assertion.lessdef)) (at level 41, inv, y, rhs at level 41).
+Notation "$$ inv |-tgt y >= rhs $$" := (Assertion.lessdef_expr (y, rhs) inv.(Assertion.tgt).(Assertion.lessdef)) (at level 41, inv, y, rhs at level 41).
 Notation "$$ inv |-src y 'unique' $$" :=
   ((Tag.eq_dec (fst y) Tag.physical) &&
-   (AtomSetImpl.mem (snd y) inv.(Invariant.src).(Invariant.unique))) (at level 41, inv, y at level 41).
+   (AtomSetImpl.mem (snd y) inv.(Assertion.src).(Assertion.unique))) (at level 41, inv, y at level 41).
 Notation "$$ inv |-tgt y 'unique' $$" :=
   ((Tag.eq_dec (fst y) Tag.physical) &&
-   (AtomSetImpl.mem (snd y) inv.(Invariant.tgt).(Invariant.unique))) (at level 41, inv, y at level 41).
-Notation "$$ inv |-src x _|_ y $$" := ((PtrPairSet.mem (x, y) inv.(Invariant.src).(Invariant.alias).(Invariant.noalias)) || (PtrPairSet.mem (y, x) inv.(Invariant.src).(Invariant.alias).(Invariant.noalias))) (at level 41, inv, x, y at level 41).
-Notation "$$ inv |-tgt x _|_ y $$" := ((PtrPairSet.mem (x, y) inv.(Invariant.tgt).(Invariant.alias).(Invariant.noalias)) || (PtrPairSet.mem (y, x) inv.(Invariant.tgt).(Invariant.alias).(Invariant.noalias))) (at level 41, inv, x, y at level 41).
-Notation "$$ inv |-src x _||_ y $$" := ((ValueTPairSet.mem (x, y) inv.(Invariant.src).(Invariant.alias).(Invariant.diffblock)) || (ValueTPairSet.mem (y, x) inv.(Invariant.src).(Invariant.alias).(Invariant.diffblock))) (at level 41, inv, x, y at level 41).
-Notation "$$ inv |-tgt x _||_ y $$" := ((ValueTPairSet.mem (x, y) inv.(Invariant.tgt).(Invariant.alias).(Invariant.diffblock)) || (ValueTPairSet.mem (y, x) inv.(Invariant.tgt).(Invariant.alias).(Invariant.diffblock))) (at level 41, inv, x, y at level 41).
-Notation "{{ inv +++src y >= rhs }}" := (Invariant.update_src (Invariant.update_lessdef (ExprPairSet.add (y, rhs))) inv) (at level 41, inv, y, rhs at level 41).
-Notation "{{ inv +++tgt y >= rhs }}" := (Invariant.update_tgt (Invariant.update_lessdef (ExprPairSet.add (y, rhs))) inv) (at level 41, inv, y, rhs at level 41).
-Notation "{{ inv +++src y _|_ x }}" := (Invariant.update_src (Invariant.update_noalias (PtrPairSet.add (y, x))) inv) (at level 41, inv, y, x at level 41).
-Notation "{{ inv +++tgt y _|_ x }}" := (Invariant.update_tgt (Invariant.update_noalias (PtrPairSet.add (y, x))) inv) (at level 41, inv, y, x at level 41).
-Notation "{{ inv +++src y _||_ x }}" := (Invariant.update_src (Invariant.update_diffblock (ValueTPairSet.add (y, x))) inv) (at level 41, inv, y, x at level 41).
-Notation "{{ inv +++tgt y _||_ x }}" := (Invariant.update_tgt (Invariant.update_diffblock (ValueTPairSet.add (y, x))) inv) (at level 41, inv, y, x at level 41).
-Notation "{{ inv --- x }}" := (Invariant.update_maydiff (IdTSet.filter (fun y => negb (IdT.eq_dec x y))) inv) (at level 41, inv, x at level 41).
+   (AtomSetImpl.mem (snd y) inv.(Assertion.tgt).(Assertion.unique))) (at level 41, inv, y at level 41).
+Notation "$$ inv |-src x _|_ y $$" := ((PtrPairSet.mem (x, y) inv.(Assertion.src).(Assertion.alias).(Assertion.noalias)) || (PtrPairSet.mem (y, x) inv.(Assertion.src).(Assertion.alias).(Assertion.noalias))) (at level 41, inv, x, y at level 41).
+Notation "$$ inv |-tgt x _|_ y $$" := ((PtrPairSet.mem (x, y) inv.(Assertion.tgt).(Assertion.alias).(Assertion.noalias)) || (PtrPairSet.mem (y, x) inv.(Assertion.tgt).(Assertion.alias).(Assertion.noalias))) (at level 41, inv, x, y at level 41).
+Notation "$$ inv |-src x _||_ y $$" := ((ValueTPairSet.mem (x, y) inv.(Assertion.src).(Assertion.alias).(Assertion.diffblock)) || (ValueTPairSet.mem (y, x) inv.(Assertion.src).(Assertion.alias).(Assertion.diffblock))) (at level 41, inv, x, y at level 41).
+Notation "$$ inv |-tgt x _||_ y $$" := ((ValueTPairSet.mem (x, y) inv.(Assertion.tgt).(Assertion.alias).(Assertion.diffblock)) || (ValueTPairSet.mem (y, x) inv.(Assertion.tgt).(Assertion.alias).(Assertion.diffblock))) (at level 41, inv, x, y at level 41).
+Notation "{{ inv +++src y >= rhs }}" := (Assertion.update_src (Assertion.update_lessdef (ExprPairSet.add (y, rhs))) inv) (at level 41, inv, y, rhs at level 41).
+Notation "{{ inv +++tgt y >= rhs }}" := (Assertion.update_tgt (Assertion.update_lessdef (ExprPairSet.add (y, rhs))) inv) (at level 41, inv, y, rhs at level 41).
+Notation "{{ inv +++src y _|_ x }}" := (Assertion.update_src (Assertion.update_noalias (PtrPairSet.add (y, x))) inv) (at level 41, inv, y, x at level 41).
+Notation "{{ inv +++tgt y _|_ x }}" := (Assertion.update_tgt (Assertion.update_noalias (PtrPairSet.add (y, x))) inv) (at level 41, inv, y, x at level 41).
+Notation "{{ inv +++src y _||_ x }}" := (Assertion.update_src (Assertion.update_diffblock (ValueTPairSet.add (y, x))) inv) (at level 41, inv, y, x at level 41).
+Notation "{{ inv +++tgt y _||_ x }}" := (Assertion.update_tgt (Assertion.update_diffblock (ValueTPairSet.add (y, x))) inv) (at level 41, inv, y, x at level 41).
+Notation "{{ inv --- x }}" := (Assertion.update_maydiff (IdTSet.filter (fun y => negb (IdT.eq_dec x y))) inv) (at level 41, inv, x at level 41).
 
 
 Definition load_align_one (e1: Expr.t): Expr.t :=
@@ -366,33 +366,33 @@ Definition reduce_maydiff_preserved (used_ids: list IdT.t) :=
   (fun idt => (Tag.eq_dec (fst idt) Tag.physical) || (List.find (IdT.eq_dec idt) used_ids)).
 
 (* Non-physical that is only in maydiff is safe to remove *)
-Definition reduce_maydiff_non_physical (inv0: Invariant.t): Invariant.t :=
-  let used_ids := (Invariant.get_idTs_unary inv0.(Invariant.src))
-                    ++ (Invariant.get_idTs_unary inv0.(Invariant.tgt))
+Definition reduce_maydiff_non_physical (inv0: Assertion.t): Assertion.t :=
+  let used_ids := (Assertion.get_idTs_unary inv0.(Assertion.src))
+                    ++ (Assertion.get_idTs_unary inv0.(Assertion.tgt))
   in
-  Invariant.update_maydiff (IdTSet.filter (reduce_maydiff_preserved used_ids)) inv0.
+  Assertion.update_maydiff (IdTSet.filter (reduce_maydiff_preserved used_ids)) inv0.
 
-Definition reduce_maydiff_lessdef (inv0:Invariant.t): Invariant.t :=
-    let lessdef_src := inv0.(Invariant.src).(Invariant.lessdef) in
-    let lessdef_tgt := inv0.(Invariant.tgt).(Invariant.lessdef) in
-  Invariant.update_maydiff
+Definition reduce_maydiff_lessdef (inv0:Assertion.t): Assertion.t :=
+    let lessdef_src := inv0.(Assertion.src).(Assertion.lessdef) in
+    let lessdef_tgt := inv0.(Assertion.tgt).(Assertion.lessdef) in
+  Assertion.update_maydiff
     (IdTSet.filter
        (fun id =>
           negb (ExprPairSet.exists_
                   (fun p => ExprPairSet.exists_
-                           (fun q => Invariant.inject_expr inv0 (snd p) (fst q))
-                           (Invariant.get_lhs lessdef_tgt (fst p)))
-                  (Invariant.get_rhs lessdef_src
+                           (fun q => Assertion.inject_expr inv0 (snd p) (fst q))
+                           (Assertion.get_lhs lessdef_tgt (fst p)))
+                  (Assertion.get_rhs lessdef_src
                                      (Expr.value (ValueT.id id)))))) inv0.
 
-(* Definition reduce_maydiff_old_fun (inv0:Invariant.t): Invariant.t := *)
+(* Definition reduce_maydiff_old_fun (inv0:Assertion.t): Assertion.t := *)
 (*   let inv1 := reduce_maydiff_non_physical_old inv0 in *)
 (*   reduce_maydiff_lessdef_old inv1. *)
 
 Definition apply_infrule
            (m_src m_tgt:module)
            (infrule:Infrule.t)
-           (inv0:Invariant.t): Invariant.t :=
+           (inv0:Assertion.t): Assertion.t :=
   let apply_fail := (fun _: unit => (debug_print2 infrule_printer infrule
                                                   (debug_string "Infrule application failed!" inv0))) in
   let no_match_fail := (fun _: unit => debug_string "Infrule match failed!"
@@ -1603,7 +1603,7 @@ Definition apply_infrule
   | Infrule.intro_ghost_src expr g =>
     if (match expr with | Expr.load _ _ _ => false | _ => true end)
     then
-      let inv1 := (Invariant.update_src (Invariant.update_lessdef
+      let inv1 := (Assertion.update_src (Assertion.update_lessdef
         (ExprPairSet.filter
           (fun (p: ExprPair.t) => negb (Expr.eq_dec (Expr.value (ValueT.id (Tag.ghost, g))) (snd p)) &&
                                         negb (Expr.eq_dec (Expr.value (ValueT.id (Tag.ghost, g))) (fst p)))))
@@ -1613,10 +1613,10 @@ Definition apply_infrule
       inv3
     else apply_fail tt
   | Infrule.intro_ghost expr g =>
-    if List.forallb (fun x => Invariant.not_in_maydiff inv0 x) (Expr.get_valueTs expr) &&
+    if List.forallb (fun x => Assertion.not_in_maydiff inv0 x) (Expr.get_valueTs expr) &&
                     negb (Expr.is_load expr)
     then 
-      let inv1 := Invariant.clear_idt (Tag.ghost, g) inv0 in
+      let inv1 := Assertion.clear_idt (Tag.ghost, g) inv0 in
       let inv2 := {{ inv1 +++src expr >= (Expr.value (ValueT.id (Tag.ghost, g))) }} in
       let inv3 := {{ inv2 +++tgt (Expr.value (ValueT.id (Tag.ghost, g))) >= expr }} in
       inv3
@@ -1778,8 +1778,8 @@ Definition apply_infrule
   | Infrule.implies_false c1 c2 =>
     if $$ inv0 |-src (Expr.value c1) >= (Expr.value c2) $$
        && (negb (const_eqb c1 c2))
-    then {{inv0 +++src fst (Invariant.false_encoding) >=
-           snd (Invariant.false_encoding)}}
+    then {{inv0 +++src fst (Assertion.false_encoding) >=
+           snd (Assertion.false_encoding)}}
     else apply_fail tt
   | Infrule.icmp_eq_add_add z w x y a b s =>
     if $$ inv0 |-src (Expr.value w) >= (Expr.bop bop_add s a x) $$ &&
@@ -1954,5 +1954,5 @@ Definition apply_infrule
 Definition apply_infrules
            (m_src m_tgt:module)
            (infrules:list Infrule.t)
-           (inv0:Invariant.t): Invariant.t :=
+           (inv0:Assertion.t): Assertion.t :=
   fold_left (fun i r => apply_infrule m_src m_tgt r i) infrules inv0.

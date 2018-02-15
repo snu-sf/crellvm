@@ -21,8 +21,8 @@ Require Import Hints.
 Require Import Postcond.
 Require Import Validator.
 Require Import GenericValues.
-Require InvMem.
-Require InvState.
+Require AssnMem.
+Require AssnState.
 Require Import Inject.
 Require Import TODOProof.
 Import Memory.
@@ -121,17 +121,17 @@ Proof.
 Qed.
 
 Lemma getOperandValue_not_unique_parent
-      conf st invst invmem gmax public inv v gv
+      conf st invst assnmem gmax public inv v gv
       sys fdef ty
-      (STATE: InvState.Unary.sem conf st invst invmem gmax public inv)
-      (MEM: InvMem.Unary.sem conf gmax public st.(Mem) invmem)
+      (STATE: AssnState.Unary.sem conf st invst assnmem gmax public inv)
+      (MEM: AssnMem.Unary.sem conf gmax public st.(Mem) assnmem)
       (WF_VALUE: wf_value sys
                           (module_intro conf.(CurTargetData).(fst)
                                         conf.(CurTargetData).(snd)
                                         conf.(CurProducts))
                           fdef v ty)
       (GETOP: getOperandValue conf.(CurTargetData) v st.(EC).(Locals) conf.(Globals) = Some gv)
-  : InvMem.gv_diffblock_with_blocks conf gv invmem.(InvMem.Unary.unique_parent).
+  : AssnMem.gv_diffblock_with_blocks conf gv assnmem.(AssnMem.Unary.unique_parent).
 Proof.
   ii.
   destruct v as [x | c]; ss.
@@ -167,7 +167,7 @@ Qed.
 Lemma vellvm_no_alias_is_diffblock
       conf gv1 gv2
   : MemProps.no_alias gv1 gv2 <->
-    InvState.Unary.sem_diffblock conf gv1 gv2.
+    AssnState.Unary.sem_diffblock conf gv1 gv2.
 Proof.
   assert (NOALIAS_BLK_AUX:
             forall gv b,
@@ -185,7 +185,7 @@ Proof.
       + rewrite IHgv. eauto.
   }
   split; i.
-  { unfold InvState.Unary.sem_diffblock.
+  { unfold AssnState.Unary.sem_diffblock.
     revert dependent gv1.
     induction gv2; i; ss.
     destruct a. unfold GV2blocks in *.
@@ -204,7 +204,7 @@ Proof.
     split; eauto.
     apply NOALIAS_BLK_AUX. eauto.
   }
-  { unfold InvState.Unary.sem_diffblock in *.
+  { unfold AssnState.Unary.sem_diffblock in *.
     revert dependent gv1.
     induction gv2; i; ss.
     destruct a.
@@ -245,7 +245,7 @@ Proof.
     ii. ss. des; eauto.
     subst. eauto. }
   ii. rewrite (vellvm_no_alias_is_diffblock conf) in *.
-  unfold InvState.Unary.sem_diffblock in *.
+  unfold AssnState.Unary.sem_diffblock in *.
   unfold list_disjoint in *.
   eapply H0; eauto. ss. eauto.
 Qed.
@@ -508,22 +508,22 @@ Lemma mstore_noalias_mload
       sptr sty gv sa
       lptr lty la
       (STORE: Some mem1 = mstore TD mem0 sptr sty gv sa)
-      (NOALIAS: InvState.Unary.sem_noalias conf sptr lptr sty lty)
+      (NOALIAS: AssnState.Unary.sem_noalias conf sptr lptr sty lty)
   : mload TD mem1 lptr lty la = mload TD mem0 lptr lty la.
 Proof.
   destruct (mload TD mem1 lptr lty la) eqn:LOAD1.
   - exploit MemProps.mstore_preserves_mload_inv'; eauto.
     rewrite vellvm_no_alias_is_diffblock.
     instantiate (1:=conf).
-    unfold InvState.Unary.sem_noalias in *.
-    unfold InvState.Unary.sem_diffblock.
+    unfold AssnState.Unary.sem_noalias in *.
+    unfold AssnState.Unary.sem_diffblock.
     eauto.
   - destruct (mload TD mem0 lptr lty la) eqn:LOAD0; eauto.
     exploit MemProps.mstore_preserves_mload; eauto; try congruence.
     rewrite vellvm_no_alias_is_diffblock.
     instantiate (1:=conf).
-    unfold InvState.Unary.sem_noalias in *.
-    unfold InvState.Unary.sem_diffblock.
+    unfold AssnState.Unary.sem_noalias in *.
+    unfold AssnState.Unary.sem_diffblock.
     eauto.
 Qed.
 
@@ -531,7 +531,7 @@ Lemma mfree_noalias_mload
       conf mem0 mem1 TD
       ptr ty lptr lty la
       (FREE: free TD mem0 ptr = Some mem1)
-      (NOALIAS: InvState.Unary.sem_noalias conf ptr lptr ty lty)
+      (NOALIAS: AssnState.Unary.sem_noalias conf ptr lptr ty lty)
   : mload TD mem1 lptr lty la = mload TD mem0 lptr lty la.
 Proof.
   destruct (mload TD mem1 lptr lty la) eqn:LOAD1.
@@ -540,8 +540,8 @@ Proof.
     exploit MemProps.free_preserves_mload; eauto; try congruence.
     rewrite vellvm_no_alias_is_diffblock.
     instantiate (1 := conf).
-    unfold InvState.Unary.sem_noalias in *.
-    unfold InvState.Unary.sem_diffblock.
+    unfold AssnState.Unary.sem_noalias in *.
+    unfold AssnState.Unary.sem_diffblock.
     eauto.
 Qed.
 
@@ -596,11 +596,11 @@ Lemma mstore_const_leak_no_unique
       conf st0 gmax u
       c gv
       ptr ty a mem1
-      (UNIQUE_U : InvState.Unary.sem_unique conf st0 gmax u)
+      (UNIQUE_U : AssnState.Unary.sem_unique conf st0 gmax u)
       (PTR: const2GV conf.(CurTargetData) conf.(Globals) c = Some gv)
       (STORE : mstore conf.(CurTargetData) st0.(Mem) ptr ty gv a = Some mem1)
       (WF_GLOBALS: genericvalues_inject.wf_globals gmax conf.(Globals))
-  : InvState.Unary.sem_unique conf (mkState st0.(EC) st0.(ECS) mem1) gmax u.
+  : AssnState.Unary.sem_unique conf (mkState st0.(EC) st0.(ECS) mem1) gmax u.
 Proof.
   inv UNIQUE_U.
   econs; eauto. ss.
@@ -641,11 +641,11 @@ Lemma mstore_register_leak_no_unique
       conf st0 gmax u
       x gv
       ptr ty a mem1
-      (UNIQUE_U : InvState.Unary.sem_unique conf st0 gmax u)
+      (UNIQUE_U : AssnState.Unary.sem_unique conf st0 gmax u)
       (DIFF_ID: x <> u)
       (PTR: lookupAL GenericValue st0.(EC).(Locals) x = Some gv)
       (STORE : mstore conf.(CurTargetData) st0.(Mem) ptr ty gv a = Some mem1)
-  : InvState.Unary.sem_unique conf (mkState st0.(EC) st0.(ECS) mem1) gmax u.
+  : AssnState.Unary.sem_unique conf (mkState st0.(EC) st0.(ECS) mem1) gmax u.
 Proof.
   inv UNIQUE_U.
   econs; eauto. ss.
@@ -656,7 +656,7 @@ Proof.
   rewrite <- vellvm_no_alias_is_diffblock. eauto.
 Qed.
 
-(* invmem *)
+(* assnmem *)
 
 (* tactic for positive. TODO: can we use Hint instead of this? *)
 Ltac psimpl :=
@@ -698,17 +698,17 @@ Ltac psimpl :=
       by generalize H; apply Pos.lt_nle; apply Plt_succ'
   end.
 
-Lemma invmem_unary_alloca_sem
-      conf invmem0 mem0 mem1
+Lemma assnmem_unary_alloca_sem
+      conf assnmem0 mem0 mem1
       gmax public mb
       gsz gn a
-      (STATE : InvMem.Unary.sem conf gmax public mem0 invmem0)
+      (STATE : AssnMem.Unary.sem conf gmax public mem0 assnmem0)
       (ALLOCA: alloca (CurTargetData conf) mem0 gsz gn a = Some (mem1, mb))
       (PUBLIC: ~ public mb)
-  : InvMem.Unary.sem conf gmax public mem1 (InvMem.Unary.mk
-                                              invmem0.(InvMem.Unary.private_parent)
-                                              invmem0.(InvMem.Unary.mem_parent)
-                                              invmem0.(InvMem.Unary.unique_parent)
+  : AssnMem.Unary.sem conf gmax public mem1 (AssnMem.Unary.mk
+                                              assnmem0.(AssnMem.Unary.private_parent)
+                                              assnmem0.(AssnMem.Unary.mem_parent)
+                                              assnmem0.(AssnMem.Unary.unique_parent)
                                               mem1.(Memory.Mem.nextblock)).
 Proof.
   exploit alloca_result; eauto. i. des.
@@ -717,14 +717,14 @@ Proof.
   - eapply MemProps.alloca_preserves_wf_Mem; eauto.
   - ss. i.
     exploit PRIVATE_PARENT; eauto. i.
-    unfold InvMem.private_block in *. des.
+    unfold AssnMem.private_block in *. des.
     split; eauto.
     psimpl.
   - i. exploit MEM_PARENT; eauto. intro LOAD_AUX.
     rewrite LOAD_AUX.
     eapply alloca_preserves_mload_aux_other_eq; eauto.
     ii. exploit PRIVATE_PARENT; eauto. i.
-    unfold InvMem.private_block in *. des. psimpl.
+    unfold AssnMem.private_block in *. des. psimpl.
   - ss. i.
     unfold mload in LOAD. des_ifs.
     destruct (Values.eq_block b (Memory.Mem.nextblock mem0)); cycle 1.
@@ -741,7 +741,7 @@ Proof.
       { congruence. }
       ii. exploit external_intrinsics.GV2ptr_inv; eauto. i. des.
       subst. ss. clarify.
-      eapply InvState.Unary.undef_diffblock; eauto.
+      eapply AssnState.Unary.undef_diffblock; eauto.
   - ss. rewrite NEXT_BLOCK. etransitivity; [|eapply Ple_succ]. eauto.
 Qed.
 
@@ -749,7 +749,7 @@ Qed.
 (* TODO: better position? *)
 Lemma inject_allocas_enhance
       f0 als_src als_tgt
-      (INJ: InvState.Rel.inject_allocas f0 als_src als_tgt)
+      (INJ: AssnState.Rel.inject_allocas f0 als_src als_tgt)
       P Q
       (PROP_SRC: Forall P als_src)
       (PROP_TGT: Forall Q als_tgt)
@@ -757,7 +757,7 @@ Lemma inject_allocas_enhance
       (EQ_UNDER_PROP_SRC: forall b, P b -> f0 b = f1 b)
       (EQ_UNDER_PROP_TGT: forall b b_tgt delta (H: f1 b = Some (b_tgt, delta)), Q b_tgt -> f0 b = f1 b)
   :
-    <<INJ: InvState.Rel.inject_allocas f1 als_src als_tgt>>
+    <<INJ: AssnState.Rel.inject_allocas f1 als_src als_tgt>>
 .
 Proof.
   ginduction INJ; ii; ss.
@@ -818,13 +818,13 @@ Definition alloc_inject_unary conf st1 x b :=
   Some (Values.Vptr b (Integers.Int.zero 31)).
 
 Definition alloc_inject conf_src conf_tgt st0_src st0_tgt
-           st1_src st1_tgt cmd_src cmd_tgt invmem1 : Prop :=
+           st1_src st1_tgt cmd_src cmd_tgt assnmem1 : Prop :=
   forall x ty v_src v_tgt a
          (ALLOCA_SRC: cmd_src = insn_alloca x ty v_src a)
          (ALLOCA_TGT: cmd_tgt = insn_alloca x ty v_tgt a),
     alloc_inject_unary conf_src st1_src x st0_src.(Mem).(Mem.nextblock) /\
     alloc_inject_unary conf_tgt st1_tgt x st0_tgt.(Mem).(Mem.nextblock) /\
-    invmem1.(InvMem.Rel.inject) st0_src.(Mem).(Mem.nextblock) =
+    assnmem1.(AssnMem.Rel.inject) st0_src.(Mem).(Mem.nextblock) =
     Some (st0_tgt.(Mem).(Mem.nextblock), 0).
 
 Definition alloc_private_unary (conf: Config) conf' cmd cmd' st public private_parent: Prop :=
@@ -834,19 +834,19 @@ Definition alloc_private_unary (conf: Config) conf' cmd cmd' st public private_p
   exists gptr,
     <<PTR: lookupAL _ st.(EC).(Locals) x = Some gptr>> /\
     (forall b (IN: In b (GV2blocks gptr)),
-        <<PRIVATE_BLOCK: InvMem.private_block (Mem st) public b >> /\
+        <<PRIVATE_BLOCK: AssnMem.private_block (Mem st) public b >> /\
         <<PARENT_DISJOINT: ~ In b private_parent >>).
 
 Definition alloc_private conf_src conf_tgt cmd_src cmd_tgt
-           (st0_src st0_tgt: State) st1_src st1_tgt invmem : Prop :=
+           (st0_src st0_tgt: State) st1_src st1_tgt assnmem : Prop :=
   alloc_private_unary
     conf_src conf_tgt cmd_src cmd_tgt st1_src
-    (InvMem.Rel.public_src invmem.(InvMem.Rel.inject))
-    invmem.(InvMem.Rel.src).(InvMem.Unary.private_parent) /\
+    (AssnMem.Rel.public_src assnmem.(AssnMem.Rel.inject))
+    assnmem.(AssnMem.Rel.src).(AssnMem.Unary.private_parent) /\
   alloc_private_unary
     conf_tgt conf_src cmd_tgt cmd_src st1_tgt
-    (InvMem.Rel.public_tgt invmem.(InvMem.Rel.inject))
-    invmem.(InvMem.Rel.tgt).(InvMem.Unary.private_parent).
+    (AssnMem.Rel.public_tgt assnmem.(AssnMem.Rel.inject))
+    assnmem.(AssnMem.Rel.tgt).(AssnMem.Unary.private_parent).
 
 Lemma valid_ptr_alloca_diffblock
       SRC_MEM val'
@@ -855,7 +855,7 @@ Lemma valid_ptr_alloca_diffblock
       (ALLOCA: alloca TD SRC_MEM tsz gn align0 = Some (SRC_MEM_STEP, mb))
       conf_src
   :
-    <<DIFFBLOCK: InvState.Unary.sem_diffblock conf_src (blk2GV TD mb) val'>>
+    <<DIFFBLOCK: AssnState.Unary.sem_diffblock conf_src (blk2GV TD mb) val'>>
 .
 Proof.
   exploit MemProps.nextblock_alloca; try apply ALLOCA; []; ii; des.
@@ -879,7 +879,7 @@ Lemma locals_alloca_diffblock
       (VAL: lookupAL GenericValue locals reg = Some val)
       (WF_LOCAL: MemProps.wf_lc mem locals)
   :
-  <<DIFFBLOCK: InvState.Unary.sem_diffblock conf_src (blk2GV TD mb) val>>
+  <<DIFFBLOCK: AssnState.Unary.sem_diffblock conf_src (blk2GV TD mb) val>>
 .
 Proof.
   exploit WF_LOCAL; eauto; []; intro WF; des.
@@ -908,7 +908,7 @@ Lemma mload_alloca_diffblock
   gmax
   (WF: MemProps.wf_Mem gmax (CurTargetData conf_src) SRC_MEM)
   :
-  <<DIFFBLOCK: InvState.Unary.sem_diffblock conf_src (blk2GV TD mb) val'>>
+  <<DIFFBLOCK: AssnState.Unary.sem_diffblock conf_src (blk2GV TD mb) val'>>
 .
 Proof.
   inversion WF as [WF_A WF_B]. clear WF.
@@ -923,8 +923,8 @@ if read from SRC_MEM_STEP - SRC_MEM -> undef
   des.
   - exploit WF_A; try apply LOAD; eauto; []; clear WF_A; intros WF_A; des.
     eapply valid_ptr_alloca_diffblock; eauto.
-  - eapply InvState.Unary.diffblock_comm.
-    eapply InvState.Unary.undef_diffblock; eauto.
+  - eapply AssnState.Unary.diffblock_comm.
+    eapply AssnState.Unary.undef_diffblock; eauto.
 Unshelve.
 eauto.
 eauto.

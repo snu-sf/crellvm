@@ -119,8 +119,8 @@ Proof.
       eauto.
 Qed.
 
-Definition empty_invmem : InvMem.Rel.t.
-  assert(UNARY: InvMem.Unary.t).
+Definition empty_assnmem : AssnMem.Rel.t.
+  assert(UNARY: AssnMem.Unary.t).
   { econs; eauto.
     - apply nil.
     - apply Memory.Mem.empty.
@@ -238,9 +238,9 @@ Proof.
     esplits; eauto.
 Qed.
 
-Definition init_invmem (m0: mem): InvMem.Rel.t :=
-  InvMem.Rel.mk (InvMem.Unary.mk [] Mem.empty [] m0.(Mem.nextblock))
-                (InvMem.Unary.mk [] Mem.empty [] m0.(Mem.nextblock))
+Definition init_assnmem (m0: mem): AssnMem.Rel.t :=
+  AssnMem.Rel.mk (AssnMem.Unary.mk [] Mem.empty [] m0.(Mem.nextblock))
+                (AssnMem.Unary.mk [] Mem.empty [] m0.(Mem.nextblock))
                 (Mem.nextblock m0 - 1)
                 (memory_props.MemProps.inject_init (Mem.nextblock m0 - 1))
 .
@@ -254,10 +254,10 @@ Lemma init_mem_sem
       (INIT_LOCALS: initLocals (l, ndts) args params = ret lc)
       sys_src sys_tgt
   :
-      <<SEM: InvMem.Rel.sem
+      <<SEM: AssnMem.Rel.sem
                (mkCfg sys_src (l, ndts) prods_src gl fs)
                (mkCfg sys_tgt (l, ndts) prods_tgt gl fs)
-               m0 m0 (init_invmem m0)>>
+               m0 m0 (init_assnmem m0)>>
 .
 Proof.
   hexploit genGlobalAndInitMem__wf_globals_Mem; eauto; intro WF; des.

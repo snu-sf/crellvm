@@ -22,8 +22,8 @@ Require Import Simulation.
 Require Import SimulationLocal.
 Require Import Inject.
 Require Import SoundBase.
-Require InvMem.
-Require InvState.
+Require AssnMem.
+Require AssnState.
 
 Set Implicit Arguments.
 

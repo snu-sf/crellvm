@@ -62,20 +62,20 @@ let insert_nop (f_id : string) (m : LLVMsyntax.coq_module)
 
 module EmptyHint = struct
   (* TODO(@youngju.song): in Coq *)
-  let unary_hint : Invariant.unary =
-    { Invariant.lessdef = ExprPairSet.empty;
-      Invariant.alias =
-        { Invariant.noalias = PtrPairSet.empty;
-          Invariant.diffblock = ValueTPairSet.empty;
+  let unary_hint : Assertion.unary =
+    { Assertion.lessdef = ExprPairSet.empty;
+      Assertion.alias =
+        { Assertion.noalias = PtrPairSet.empty;
+          Assertion.diffblock = ValueTPairSet.empty;
         };
-      Invariant.unique = AtomSetImpl.empty;
-      Invariant.coq_private = IdTSet.empty;
+      Assertion.unique = AtomSetImpl.empty;
+      Assertion.coq_private = IdTSet.empty;
     }
 
-  let invariant_hint : Invariant.t =
-    { Invariant.src = unary_hint;
-      Invariant.tgt = unary_hint;
-      Invariant.maydiff = IdTSet.empty;
+  let assertion_hint : Assertion.t =
+    { Assertion.src = unary_hint;
+      Assertion.tgt = unary_hint;
+      Assertion.maydiff = IdTSet.empty;
     }
 
   let stmts_hint (stmts: LLVMsyntax.stmts) (incoming_blocks: string list) : ValidationHint.stmts =
@@ -83,10 +83,10 @@ module EmptyHint = struct
 
     let phinodes = List.map (fun bid -> (bid, [])) incoming_blocks in
 
-    let cmds = List.map (fun _ -> ([], invariant_hint)) cmds in
+    let cmds = List.map (fun _ -> ([], assertion_hint)) cmds in
 
     { ValidationHint.phinodes = phinodes;
-      ValidationHint.invariant_after_phinodes = invariant_hint;
+      ValidationHint.assertion_after_phinodes = assertion_hint;
       ValidationHint.cmds = cmds;
     }
 
@@ -103,7 +103,7 @@ module EmptyHint = struct
                  stmts_hint bstmts incoming_blocks) blks
 
   let stmts_hint_with (stmts: LLVMsyntax.stmts) (incoming_blocks: string list)
-      (inv: Hints.Invariant.t): ValidationHint.stmts =
+      (inv: Hints.Assertion.t): ValidationHint.stmts =
     let Coq_stmts_intro (phinodes, cmds, _) = stmts in
 
     let phinodes = List.map (fun bid -> (bid, [])) incoming_blocks in
@@ -111,11 +111,11 @@ module EmptyHint = struct
     let cmds = List.map (fun _ -> ([], inv)) cmds in
 
     { ValidationHint.phinodes = phinodes;
-      ValidationHint.invariant_after_phinodes = inv;
+      ValidationHint.assertion_after_phinodes = inv;
       ValidationHint.cmds = cmds;
     }
 
-  let fdef_hint_with (fdef:LLVMsyntax.fdef) (inv: Hints.Invariant.t) : ValidationHint.fdef =
+  let fdef_hint_with (fdef:LLVMsyntax.fdef) (inv: Hints.Assertion.t) : ValidationHint.fdef =
     let Coq_fdef_intro (Coq_fheader_intro (_, _, id, _, _), blks) = fdef in
     let cfg_pred = Cfg.predecessors fdef in
     TODO.mapiAL (fun bname bstmts ->
@@ -153,9 +153,9 @@ let apply_corehint_command
   let (command, d) = cmd_d in
   match command with
   | CoreHint_t.Propagate prop ->
-     let invariant = PropagateHint.InvariantObject.convert prop.propagate lfdef rfdef in
+     let assertion = PropagateHint.AssertionObject.convert prop.propagate lfdef rfdef in
      let range = Position.convert_range prop.propagate_range nops lfdef rfdef in
-     propagate_hint lfdef dtree_lfdef invariant range hint_fdef
+     propagate_hint lfdef dtree_lfdef assertion range hint_fdef
   | CoreHint_t.Infrule (pos, infrule) ->
      let pos = Position.convert pos nops lfdef rfdef in
      let infrule = convert_infrule infrule lfdef rfdef in
@@ -175,18 +175,18 @@ let add_false_to_dead_block hint_fdef lfdef =
     (Dfs.coq_PO_a2p po) in
 
   let fill_with_false { ValidationHint.phinodes = phis;
-                        ValidationHint.invariant_after_phinodes = iphis;
+                        ValidationHint.assertion_after_phinodes = iphis;
                         ValidationHint.cmds = cs } =
     let update_src_lessdef =
-      TODOCAML.compose Invariant.update_src Invariant.update_lessdef in
+      TODOCAML.compose Assertion.update_src Assertion.update_lessdef in
     let insert_false =
-      (fun y -> ExprPairSet.add Invariant.false_encoding y) in
+      (fun y -> ExprPairSet.add Assertion.false_encoding y) in
     { ValidationHint.phinodes = phis ;
-      ValidationHint.invariant_after_phinodes =
+      ValidationHint.assertion_after_phinodes =
         update_src_lessdef insert_false iphis ;
       ValidationHint.cmds =
         List.map
-          (fun (x, invariant) -> (x, update_src_lessdef insert_false invariant))
+          (fun (x, assertion) -> (x, update_src_lessdef insert_false assertion))
           cs } in
 
   let hint_fdef: Hints.ValidationHint.fdef =
@@ -243,8 +243,8 @@ let convert
   let nops = sort_nop core_hint.CoreHint_t.nop_positions in
 
   let (globals, others) = filter_global lfdef rfdef core_hint.CoreHint_t.commands in
-  let global_obj: Hints.Invariant.t =
-    List.fold_left (TODOCAML.flip InvariantObject.insert) EmptyHint.invariant_hint globals in
+  let global_obj: Hints.Assertion.t =
+    List.fold_left (TODOCAML.flip AssertionObject.insert) EmptyHint.assertion_hint globals in
 
   let hint_fdef = EmptyHint.fdef_hint_with lfdef global_obj in
   let hint_fdef = List.fold_left

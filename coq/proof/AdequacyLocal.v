@@ -14,8 +14,8 @@ Require Import paco.
 
 Require Import GenericValues.
 Require Import Nop.
-Require InvMem.
-Require InvState.
+Require AssnMem.
+Require AssnState.
 Require Import Inject.
 Require Import SoundBase.
 Require Import Simulation.
@@ -29,7 +29,7 @@ Set Implicit Arguments.
 
 Inductive sim_local_stack
           (conf_src conf_tgt:Config):
-  forall (ecs_src ecs_tgt: ECStack) (inv:InvMem.Rel.t), Prop :=
+  forall (ecs_src ecs_tgt: ECStack) (inv:AssnMem.Rel.t), Prop :=
 | sim_local_stack_nil
     inv:
     sim_local_stack conf_src conf_tgt nil nil inv
@@ -39,27 +39,27 @@ Inductive sim_local_stack
     func_src b_src id_src noret_src clattrs_src typ_src varg_src fun_src params_src cmds_src term_src locals_src allocas_src ecs_src mem_src uniqs_src privs_src
     func_tgt b_tgt id_tgt noret_tgt clattrs_tgt typ_tgt varg_tgt fun_tgt params_tgt cmds_tgt term_tgt locals_tgt allocas_tgt ecs_tgt mem_tgt uniqs_tgt privs_tgt
     (STACK: sim_local_stack conf_src conf_tgt ecs0_src ecs0_tgt inv0)
-    (LE0: InvMem.Rel.le inv0 inv1)
+    (LE0: AssnMem.Rel.le inv0 inv1)
     (NORET: noret_src = noret_tgt)
     (CLATTRS: clattrs_src = clattrs_tgt)
     (TYP: typ_src = typ_tgt)
     (VARG: varg_src = varg_tgt)
     (UNIQS_SRC: forall mptr typ align val
                   (LOAD: mload conf_src.(CurTargetData) mem_src mptr typ align = Some val),
-        InvMem.gv_diffblock_with_blocks conf_src val uniqs_src)
-    (UNIQS_GLOBALS_SRC: forall b, In b uniqs_src -> (inv1.(InvMem.Rel.gmax) < b)%positive)
+        AssnMem.gv_diffblock_with_blocks conf_src val uniqs_src)
+    (UNIQS_GLOBALS_SRC: forall b, In b uniqs_src -> (inv1.(AssnMem.Rel.gmax) < b)%positive)
     (UNIQS_TGT: forall mptr typ align val
                   (LOAD: mload conf_tgt.(CurTargetData) mem_tgt mptr typ align = Some val),
-        InvMem.gv_diffblock_with_blocks conf_tgt val uniqs_tgt)
+        AssnMem.gv_diffblock_with_blocks conf_tgt val uniqs_tgt)
     (TGT_NOUNIQ: uniqs_tgt = [])
-    (UNIQS_GLOBALS_TGT: forall b, In b uniqs_tgt -> (inv1.(InvMem.Rel.gmax) < b)%positive)
-    (PRIVS_SRC: forall b, In b privs_src -> InvMem.private_block mem_src (InvMem.Rel.public_src inv1.(InvMem.Rel.inject)) b)
-    (PRIVS_TGT: forall b, In b privs_tgt -> InvMem.private_block mem_tgt (InvMem.Rel.public_tgt inv1.(InvMem.Rel.inject)) b)
+    (UNIQS_GLOBALS_TGT: forall b, In b uniqs_tgt -> (inv1.(AssnMem.Rel.gmax) < b)%positive)
+    (PRIVS_SRC: forall b, In b privs_src -> AssnMem.private_block mem_src (AssnMem.Rel.public_src inv1.(AssnMem.Rel.inject)) b)
+    (PRIVS_TGT: forall b, In b privs_tgt -> AssnMem.private_block mem_tgt (AssnMem.Rel.public_tgt inv1.(AssnMem.Rel.inject)) b)
     (LOCAL:
        forall inv' mem'_src mem'_tgt retval'_src retval'_tgt locals'_src
-         (INCR: InvMem.Rel.le (InvMem.Rel.lift mem_src mem_tgt uniqs_src uniqs_tgt privs_src privs_tgt inv1) inv')
-         (MEM: InvMem.Rel.sem conf_src conf_tgt mem'_src mem'_tgt inv')
-         (RETVAL: TODO.lift2_option (genericvalues_inject.gv_inject inv'.(InvMem.Rel.inject)) retval'_src retval'_tgt)
+         (INCR: AssnMem.Rel.le (AssnMem.Rel.lift mem_src mem_tgt uniqs_src uniqs_tgt privs_src privs_tgt inv1) inv')
+         (MEM: AssnMem.Rel.sem conf_src conf_tgt mem'_src mem'_tgt inv')
+         (RETVAL: TODO.lift2_option (genericvalues_inject.gv_inject inv'.(AssnMem.Rel.inject)) retval'_src retval'_tgt)
          (VALID: valid_retvals mem'_src mem'_tgt retval'_src retval'_tgt)
          (RETURN_SRC: return_locals
                         conf_src.(CurTargetData)
@@ -71,7 +71,7 @@ Inductive sim_local_stack
                          conf_tgt.(CurTargetData)
                          retval'_tgt id_tgt noret_tgt typ_tgt
                          locals_tgt = Some locals'_tgt>> /\
-         <<MEMLE: InvMem.Rel.le inv1 inv''>> /\
+         <<MEMLE: AssnMem.Rel.le inv1 inv''>> /\
          forall
            (WF_SRC: wf_StateI conf_src
                               (mkState
@@ -94,7 +94,7 @@ Inductive sim_local_stack
                 ecs_tgt
                 mem'_tgt)>>)
     inv2
-    (LE1: InvMem.Rel.le (InvMem.Rel.lift mem_src mem_tgt uniqs_src uniqs_tgt privs_src privs_tgt inv1) inv2)
+    (LE1: AssnMem.Rel.le (AssnMem.Rel.lift mem_src mem_tgt uniqs_src uniqs_tgt privs_src privs_tgt inv1) inv2)
   :
     sim_local_stack
       conf_src conf_tgt
@@ -113,7 +113,7 @@ Inductive sim_local_lift
     (STACK: sim_local_stack conf_src conf_tgt ecs0_src ecs0_tgt inv0)
     (LOCAL: sim_local conf_src conf_tgt ecs0_src ecs0_tgt
                       inv idx st_src st_tgt)
-    (LE0: InvMem.Rel.le inv0 inv)
+    (LE0: AssnMem.Rel.le inv0 inv)
 .
 
 Inductive sim_products (conf_src conf_tgt:Config) (prod_src prod_tgt:products): Prop :=
@@ -140,7 +140,7 @@ Inductive sim_conf (conf_src conf_tgt:Config): Prop :=
 (* fid_same *)
 Lemma lookupFdefViaPtr_inject_eq
       S TD Ps gl fs S0 TD0 Ps0 gl0 fs0 Mem1 inv_curr Mem0
-      (MEM: InvMem.Rel.sem
+      (MEM: AssnMem.Rel.sem
               (mkCfg S TD Ps gl fs)
               (mkCfg S0 TD0 Ps0 gl0 fs0)
               Mem0 Mem1 inv_curr)
@@ -148,7 +148,7 @@ Lemma lookupFdefViaPtr_inject_eq
       (LOOKUP0: lookupFdefViaPtr Ps fs fptr = ret fdef_intro (fheader_intro fa rt fid la va) lb)
       fptr0 fid0 rt0 la0 va0 lb0 fa0
       (LOOKUP1: lookupFdefViaPtr Ps0 fs0 fptr0 = ret fdef_intro (fheader_intro fa0 rt0 fid0 la0 va0) lb0)
-      (INJECT : genericvalues_inject.gv_inject (InvMem.Rel.inject inv_curr) fptr fptr0)
+      (INJECT : genericvalues_inject.gv_inject (AssnMem.Rel.inject inv_curr) fptr fptr0)
   :
     <<EQID: fid = fid0>>
 .
@@ -178,28 +178,28 @@ Axiom callExternalOrIntrinsics_inject: forall
   TD Gs
   S0 S1 Ps0 Ps1 Fs0 Fs1
   Mem0 fid rt la dck oresult0 tr Mem0' args0 args1
-  invmem0 Mem1
+  assnmem0 Mem1
   (SRC_CALL: callExternalOrIntrinsics TD Gs Mem0 fid rt (args2Typs la) dck args0
              = ret (oresult0, tr, Mem0'))
-  (ARGS_INJECT: list_forall2 (genericvalues_inject.gv_inject (InvMem.Rel.inject invmem0)) args0 args1)
-  (MEM: InvMem.Rel.sem (mkCfg S0 TD Ps0 Gs Fs0) (mkCfg S1 TD Ps1 Gs Fs1) Mem0 Mem1 invmem0)
+  (ARGS_INJECT: list_forall2 (genericvalues_inject.gv_inject (AssnMem.Rel.inject assnmem0)) args0 args1)
+  (MEM: AssnMem.Rel.sem (mkCfg S0 TD Ps0 Gs Fs0) (mkCfg S1 TD Ps1 Gs Fs1) Mem0 Mem1 assnmem0)
   ,
     exists oresult1 Mem1',
       (<<TGT_CALL: callExternalOrIntrinsics TD Gs Mem1 fid rt (args2Typs la) dck args1
                    = ret (oresult1, tr, Mem1')>>)
-      /\ (exists invmem1,
-             (<<MEM: InvMem.Rel.sem (mkCfg S0 TD Ps0 Gs Fs0) (mkCfg S1 TD Ps1 Gs Fs1) Mem0' Mem1' invmem1>>)
-             /\ (<<MEMLE: InvMem.Rel.le invmem0 invmem1>>)
-             /\ (<<VAL_INJECT: option_f2 (genericvalues_inject.gv_inject (InvMem.Rel.inject invmem1))
+      /\ (exists assnmem1,
+             (<<MEM: AssnMem.Rel.sem (mkCfg S0 TD Ps0 Gs Fs0) (mkCfg S1 TD Ps1 Gs Fs1) Mem0' Mem1' assnmem1>>)
+             /\ (<<MEMLE: AssnMem.Rel.le assnmem0 assnmem1>>)
+             /\ (<<VAL_INJECT: option_f2 (genericvalues_inject.gv_inject (AssnMem.Rel.inject assnmem1))
                                  oresult0 oresult1>>)
              /\ (<<VALID: valid_retvals Mem0' Mem1' oresult0 oresult1>>))
 .
 
-Lemma sim_local_stack_invmem_le
+Lemma sim_local_stack_assnmem_le
       conf_src conf_tgt ecs0_src ecs0_tgt inv0
       (STACK: sim_local_stack conf_src conf_tgt ecs0_src ecs0_tgt inv0)
       inv1
-      (LE: InvMem.Rel.le inv0 inv1)
+      (LE: AssnMem.Rel.le inv0 inv1)
   :
     <<STACK: sim_local_stack conf_src conf_tgt ecs0_src ecs0_tgt inv1>>
 .
@@ -297,7 +297,7 @@ Proof.
       i. expl preservation. rename preservation into WF_TGT_NEXT.
       inv STEP0. ss. rewrite returnUpdateLocals_spec in *. ss.
       inv CONF. ss. clarify.
-      expl invmem_free_allocas_invmem_rel. rename invmem_free_allocas_invmem_rel into MEMFREE.
+      expl assnmem_free_allocas_assnmem_rel. rename assnmem_free_allocas_assnmem_rel into MEMFREE.
       des_ifs.
       * exploit LOCAL; try exact MEMFREE; eauto.
         { etransitivity; eauto. etransitivity; eauto. }
@@ -416,7 +416,7 @@ Proof.
       i. expl preservation. rename preservation into WF_TGT_NEXT.
       inv STEP0. ss.
       inv CONF. ss. clarify.
-      expl invmem_free_allocas_invmem_rel. rename invmem_free_allocas_invmem_rel into MEMFREE.
+      expl assnmem_free_allocas_assnmem_rel. rename assnmem_free_allocas_assnmem_rel into MEMFREE.
       des_ifs.
       * exploit LOCAL; try exact MEMFREE; eauto.
         { etransitivity; eauto. }
@@ -509,7 +509,7 @@ Proof.
       exploit SIM_SOME; eauto.
       i. des.
       unfold sim_fdef in SIM.
-      hexploit SIM; try apply invmem_lift; eauto.
+      hexploit SIM; try apply assnmem_lift; eauto.
       { econs; eauto. }
       clear SIM. intro SIM; des.
 
@@ -539,7 +539,7 @@ Proof.
       * right. apply CIH.
         {
           eapply sim_local_lift_intro with
-              (inv := (InvMem.Rel.lift Mem0 Mem1 uniqs_src [] privs_src privs_tgt inv2)); ss.
+              (inv := (AssnMem.Rel.lift Mem0 Mem1 uniqs_src [] privs_src privs_tgt inv2)); ss.
           {
             econstructor 2 with (inv1 := inv2); [..|reflexivity]; ss; try eassumption.
             { etransitivity; eauto. }
@@ -572,7 +572,7 @@ Proof.
       exploit ARGS; eauto. i. des.
       inv CONF; ss; clarify.
       destruct conf_tgt; ss.
-      exploit callExternalOrIntrinsics_inject; try apply invmem_lift; eauto.
+      exploit callExternalOrIntrinsics_inject; try apply assnmem_lift; eauto.
       { instantiate (1:= args1_tgt). ss. }
       i; des.
 
@@ -709,7 +709,7 @@ Proof.
             inv SIM; eauto; ss.
           }
           {
-            eapply sim_local_stack_invmem_le; eauto.
+            eapply sim_local_stack_assnmem_le; eauto.
             etransitivity; eauto. etransitivity; eauto.
           }
       }

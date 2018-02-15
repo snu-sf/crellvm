@@ -22,7 +22,7 @@ Require Import Debug.
 Require Import Decs.
 Require Import GenericValues.
 Require Import Nop.
-Require InvMem.
+Require AssnMem.
 
 Set Implicit Arguments.
 
@@ -338,12 +338,12 @@ Qed.
 
 (* TODO: name *)
 Definition inject_locals
-           (inv:InvMem.Rel.t)
+           (inv:AssnMem.Rel.t)
            (locals_src locals_tgt:GVsMap): Prop :=
   forall (i:id) (gv_src:GenericValue) (LU_SRC: lookupAL _ locals_src i = Some gv_src),
   exists gv_tgt,
     <<LU_TGT: lookupAL _ locals_tgt i = Some gv_tgt>> /\
-              <<INJECT: genericvalues_inject.gv_inject inv.(InvMem.Rel.inject) gv_src gv_tgt>>.
+              <<INJECT: genericvalues_inject.gv_inject inv.(AssnMem.Rel.inject) gv_src gv_tgt>>.
 
 Inductive inject_conf (conf_src conf_tgt:Config): Prop :=
 | inject_conf_intro
@@ -357,11 +357,11 @@ Lemma inject_locals_getOperandValue
       conf_tgt mem_tgt locals_tgt
       (CONF: inject_conf conf_src conf_tgt)
       (LOCALS: inject_locals inv locals_src locals_tgt)
-      (MEM: InvMem.Rel.sem conf_src conf_tgt mem_src mem_tgt inv)
+      (MEM: AssnMem.Rel.sem conf_src conf_tgt mem_src mem_tgt inv)
       (SRC: getOperandValue conf_src.(CurTargetData) val locals_src (Globals conf_src) = Some gval_src):
   exists gval_tgt,
     <<TGT: getOperandValue conf_tgt.(CurTargetData) val locals_tgt (Globals conf_tgt) = Some gval_tgt>> /\
-           <<INJECT: genericvalues_inject.gv_inject inv.(InvMem.Rel.inject) gval_src gval_tgt>>.
+           <<INJECT: genericvalues_inject.gv_inject inv.(AssnMem.Rel.inject) gval_src gval_tgt>>.
 Proof.
   destruct val; ss.
   - exploit LOCALS; eauto.
@@ -377,11 +377,11 @@ Lemma inject_locals_params2GVs
       conf_tgt mem_tgt locals_tgt
       (CONF: inject_conf conf_src conf_tgt)
       (LOCALS: inject_locals inv0 locals_src locals_tgt)
-      (MEM: InvMem.Rel.sem conf_src conf_tgt mem_src mem_tgt inv0)
+      (MEM: AssnMem.Rel.sem conf_src conf_tgt mem_src mem_tgt inv0)
       (PARAM_SRC:params2GVs (CurTargetData conf_src) args0 locals_src (Globals conf_src) = Some gvs_param_src):
   exists gvs_param_tgt,
     <<PARAM_TGT:params2GVs (CurTargetData conf_tgt) args0 locals_tgt (Globals conf_tgt) = Some gvs_param_tgt>> /\
-                <<INJECT: list_forall2 (genericvalues_inject.gv_inject (InvMem.Rel.inject inv0)) gvs_param_src gvs_param_tgt>>.
+                <<INJECT: list_forall2 (genericvalues_inject.gv_inject (AssnMem.Rel.inject inv0)) gvs_param_src gvs_param_tgt>>.
 Proof.
   revert gvs_param_src PARAM_SRC.
   induction args0; ss.
@@ -499,7 +499,7 @@ Qed.
 
 Lemma fully_inject_locals_inject_locals
       inv lc_src lc_tgt
-      (FULLY: fully_inject_locals inv.(InvMem.Rel.inject) lc_src lc_tgt)
+      (FULLY: fully_inject_locals inv.(AssnMem.Rel.inject) lc_src lc_tgt)
   :
     <<INJECT: inject_locals inv lc_src lc_tgt>>
 .
@@ -521,14 +521,14 @@ Lemma locals_init
       args_src args_tgt
       conf_src conf_tgt
       (CONF: inject_conf conf_src conf_tgt)
-      (ARGS: list_forall2 (genericvalues_inject.gv_inject inv.(InvMem.Rel.inject)) args_src args_tgt)
+      (ARGS: list_forall2 (genericvalues_inject.gv_inject inv.(AssnMem.Rel.inject)) args_src args_tgt)
       (LOCALS_SRC : initLocals (CurTargetData conf_src) la args_src = Some gvs_src)
       mem_src mem_tgt
-      (WASABI: wf_sb_mi inv.(InvMem.Rel.gmax) inv.(InvMem.Rel.inject) mem_src mem_tgt)
+      (WASABI: wf_sb_mi inv.(AssnMem.Rel.gmax) inv.(AssnMem.Rel.inject) mem_src mem_tgt)
   :
   exists gvs_tgt,
     << LOCALS_TGT : initLocals (CurTargetData conf_tgt) la args_tgt = Some gvs_tgt >> /\
-                    << LOCALS: fully_inject_locals inv.(InvMem.Rel.inject) gvs_src gvs_tgt >>.
+                    << LOCALS: fully_inject_locals inv.(AssnMem.Rel.inject) gvs_src gvs_tgt >>.
 Proof.
   unfold initLocals in *.
   ginduction ARGS; ii; ss.
@@ -559,7 +559,7 @@ Lemma updateAddAL_inject_locals
       id inv
       retval_src locals_src
       retval_tgt locals_tgt
-      (RETVAL: genericvalues_inject.gv_inject inv.(InvMem.Rel.inject) retval_src retval_tgt)
+      (RETVAL: genericvalues_inject.gv_inject inv.(AssnMem.Rel.inject) retval_src retval_tgt)
       (LOCAL: inject_locals inv locals_src locals_tgt):
   <<LOCAL: inject_locals inv
                          (updateAddAL _ locals_src id retval_src)
@@ -575,7 +575,7 @@ Lemma inject_locals_inj_incr
       inv0 inv1
       locals_src locals_tgt
       (LOCALS: inject_locals inv0 locals_src locals_tgt)
-      (INCR: InvMem.Rel.le inv0 inv1):
+      (INCR: AssnMem.Rel.le inv0 inv1):
   inject_locals inv1 locals_src locals_tgt.
 Proof.
   ii. exploit LOCALS; eauto. i. des.

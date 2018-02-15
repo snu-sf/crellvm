@@ -21,8 +21,8 @@ Require Import Exprs.
 Require Import Validator.
 Require Import GenericValues.
 Require Import Inject.
-Require InvMem.
-Require InvState.
+Require AssnMem.
+Require AssnState.
 Require Import Hints.
 Require Import memory_props.
 Import Memory.
@@ -38,11 +38,11 @@ Section SEM_VALID_PTR.
 
 
   Lemma sem_id_preserves_valid_ptr
-        conf st invst0 invmem0 gmax pubs inv0
-        (STATE: InvState.Unary.sem conf st invst0 invmem0 gmax pubs inv0)
-        (MEM : InvMem.Unary.sem conf gmax pubs st.(Mem) invmem0)
+        conf st invst0 assnmem0 gmax pubs inv0
+        (STATE: AssnState.Unary.sem conf st invst0 assnmem0 gmax pubs inv0)
+        (MEM : AssnMem.Unary.sem conf gmax pubs st.(Mem) assnmem0)
         idt0 gv0
-        (SEM: InvState.Unary.sem_idT st invst0 idt0 = Some gv0)
+        (SEM: AssnState.Unary.sem_idT st invst0 idt0 = Some gv0)
   :
     <<VALID: MemProps.valid_ptrs st.(Mem).(Mem.nextblock) gv0>>
   .
@@ -55,11 +55,11 @@ Section SEM_VALID_PTR.
   Qed.
 
   Lemma sem_value_preserves_valid_ptr
-        conf st invst0 invmem0 gmax pubs inv0
-        (STATE: InvState.Unary.sem conf st invst0 invmem0 gmax pubs inv0)
-        (MEM : InvMem.Unary.sem conf gmax pubs st.(Mem) invmem0)
+        conf st invst0 assnmem0 gmax pubs inv0
+        (STATE: AssnState.Unary.sem conf st invst0 assnmem0 gmax pubs inv0)
+        (MEM : AssnMem.Unary.sem conf gmax pubs st.(Mem) assnmem0)
         v0 gv0
-        (SEM: InvState.Unary.sem_valueT conf st invst0 v0 = Some gv0)
+        (SEM: AssnState.Unary.sem_valueT conf st invst0 v0 = Some gv0)
   :
     <<VALID: MemProps.valid_ptrs st.(Mem).(Mem.nextblock) gv0>>
   .
@@ -77,11 +77,11 @@ Section SEM_VALID_PTR.
   Qed.
 
   Lemma sem_list_value_preserves_valid_ptr
-        conf st invst0 invmem0 gmax pubs inv0
-        (STATE: InvState.Unary.sem conf st invst0 invmem0 gmax pubs inv0)
-        (MEM : InvMem.Unary.sem conf gmax pubs st.(Mem) invmem0)
+        conf st invst0 assnmem0 gmax pubs inv0
+        (STATE: AssnState.Unary.sem conf st invst0 assnmem0 gmax pubs inv0)
+        (MEM : AssnMem.Unary.sem conf gmax pubs st.(Mem) assnmem0)
         vs0 gvs0
-        (SEM: InvState.Unary.sem_list_valueT conf st invst0 vs0 = Some gvs0)
+        (SEM: AssnState.Unary.sem_list_valueT conf st invst0 vs0 = Some gvs0)
   :
     <<VALID: List.Forall (MemProps.valid_ptrs st.(Mem).(Mem.nextblock)) gvs0>>
   .
@@ -94,14 +94,14 @@ Section SEM_VALID_PTR.
   Qed.
 
   Lemma gep_preserves_valid_ptrs
-        conf st invst0 invmem0 gmax pubs inv0
-        (STATE: InvState.Unary.sem conf st invst0 invmem0 gmax pubs inv0)
-        (MEM : InvMem.Unary.sem conf gmax pubs st.(Mem) invmem0)
+        conf st invst0 assnmem0 gmax pubs inv0
+        (STATE: AssnState.Unary.sem conf st invst0 assnmem0 gmax pubs inv0)
+        (MEM : AssnMem.Unary.sem conf gmax pubs st.(Mem) assnmem0)
         v g
-        (SEM0: InvState.Unary.sem_valueT conf st invst0 v = Some g)
+        (SEM0: AssnState.Unary.sem_valueT conf st invst0 v = Some g)
         l0
         lsv
-        (SEM1: InvState.Unary.sem_list_valueT conf st invst0 lsv = Some l0)
+        (SEM1: AssnState.Unary.sem_list_valueT conf st invst0 lsv = Some l0)
         t ib u gv0
         (GEP: gep (CurTargetData conf) t l0 ib u g = Some gv0)
     :
@@ -116,13 +116,13 @@ Section SEM_VALID_PTR.
   Qed.
 
   Lemma mselect_preserves_valid_ptrs
-        conf st invst0 invmem0 gmax pubs inv0
-        (STATE: InvState.Unary.sem conf st invst0 invmem0 gmax pubs inv0)
-        (MEM : InvMem.Unary.sem conf gmax pubs st.(Mem) invmem0)
+        conf st invst0 assnmem0 gmax pubs inv0
+        (STATE: AssnState.Unary.sem conf st invst0 assnmem0 gmax pubs inv0)
+        (MEM : AssnMem.Unary.sem conf gmax pubs st.(Mem) assnmem0)
         v w z g g0 g1
-        (SEM0: InvState.Unary.sem_valueT conf st invst0 v = Some g)
-        (SEM1: InvState.Unary.sem_valueT conf st invst0 w = Some g0)
-        (SEM2: InvState.Unary.sem_valueT conf st invst0 z = Some g1)
+        (SEM0: AssnState.Unary.sem_valueT conf st invst0 v = Some g)
+        (SEM1: AssnState.Unary.sem_valueT conf st invst0 w = Some g0)
+        (SEM2: AssnState.Unary.sem_valueT conf st invst0 z = Some g1)
         t gv0
         (SELET: mselect (CurTargetData conf) t g g0 g1 = Some gv0)
     :
@@ -137,11 +137,11 @@ Section SEM_VALID_PTR.
   Qed.
 
   Lemma sem_expr_preserves_valid_ptr
-        conf st invst0 invmem0 gmax pubs inv0
-        (STATE: InvState.Unary.sem conf st invst0 invmem0 gmax pubs inv0)
-        (MEM : InvMem.Unary.sem conf gmax pubs st.(Mem) invmem0)
+        conf st invst0 assnmem0 gmax pubs inv0
+        (STATE: AssnState.Unary.sem conf st invst0 assnmem0 gmax pubs inv0)
+        (MEM : AssnMem.Unary.sem conf gmax pubs st.(Mem) assnmem0)
         x0 gv0
-        (SEM: InvState.Unary.sem_expr conf st invst0 x0 = Some gv0)
+        (SEM: AssnState.Unary.sem_expr conf st invst0 x0 = Some gv0)
   :
     <<VALID: MemProps.valid_ptrs st.(Mem).(Mem.nextblock) gv0>>
   .
@@ -225,13 +225,13 @@ Lemma return_locals_fully_inject_locals
       retval_src locals1_src locals2_src
       retval_tgt locals1_tgt
       conf_src conf_tgt mem_src mem_tgt
-      (RETVAL: lift2_option (genericvalues_inject.gv_inject inv.(InvMem.Rel.inject)) retval_src retval_tgt)
-      (LOCAL: fully_inject_locals inv.(InvMem.Rel.inject) locals1_src locals1_tgt)
-      (MEM: InvMem.Rel.sem conf_src conf_tgt mem_src mem_tgt inv)
+      (RETVAL: lift2_option (genericvalues_inject.gv_inject inv.(AssnMem.Rel.inject)) retval_src retval_tgt)
+      (LOCAL: fully_inject_locals inv.(AssnMem.Rel.inject) locals1_src locals1_tgt)
+      (MEM: AssnMem.Rel.sem conf_src conf_tgt mem_src mem_tgt inv)
       (SRC: return_locals TD retval_src id noret ty locals1_src = Some locals2_src):
   exists locals2_tgt,
     <<TGT: return_locals TD retval_tgt id noret ty locals1_tgt = Some locals2_tgt>> /\
-    <<LOCAL: fully_inject_locals inv.(InvMem.Rel.inject) locals2_src locals2_tgt>>
+    <<LOCAL: fully_inject_locals inv.(AssnMem.Rel.inject) locals2_src locals2_tgt>>
 .
 Proof.
   unfold return_locals in *.
@@ -255,9 +255,9 @@ Lemma return_locals_inject_locals
       retval_src locals1_src locals2_src
       retval_tgt locals1_tgt
       conf_src conf_tgt mem_src mem_tgt
-      (RETVAL: lift2_option (genericvalues_inject.gv_inject inv.(InvMem.Rel.inject)) retval_src retval_tgt)
+      (RETVAL: lift2_option (genericvalues_inject.gv_inject inv.(AssnMem.Rel.inject)) retval_src retval_tgt)
       (LOCAL: inject_locals inv locals1_src locals1_tgt)
-      (MEM: InvMem.Rel.sem conf_src conf_tgt mem_src mem_tgt inv)
+      (MEM: AssnMem.Rel.sem conf_src conf_tgt mem_src mem_tgt inv)
       (SRC: return_locals TD retval_src id noret ty locals1_src = Some locals2_src):
   exists locals2_tgt,
     <<TGT: return_locals TD retval_tgt id noret ty locals1_tgt = Some locals2_tgt>> /\
@@ -274,7 +274,7 @@ Qed.
 Lemma meminj_eq_inject_locals
       inv0 inv1 locals_src locals_tgt
       (LOCALS: inject_locals inv0 locals_src locals_tgt)
-      (MEMINJ: inv0.(InvMem.Rel.inject) = inv1.(InvMem.Rel.inject))
+      (MEMINJ: inv0.(AssnMem.Rel.inject) = inv1.(AssnMem.Rel.inject))
   : inject_locals inv1 locals_src locals_tgt.
 Proof.
   unfold inject_locals in *.
@@ -301,18 +301,18 @@ Lemma exCallUpdateLocals_spec
 Proof. destruct oResult; ss. Qed.
 
 Lemma has_false_False
-      conf_src conf_tgt st_src st_tgt invst invmem inv
-      (HAS_FALSE: Hints.Invariant.has_false inv)
-      (SEM: InvState.Rel.sem conf_src conf_tgt st_src st_tgt invst invmem inv):
+      conf_src conf_tgt st_src st_tgt invst assnmem inv
+      (HAS_FALSE: Hints.Assertion.has_false inv)
+      (SEM: AssnState.Rel.sem conf_src conf_tgt st_src st_tgt invst assnmem inv):
   False.
 Proof.
-  unfold Hints.Invariant.has_false in *.
-  unfold Hints.Invariant.false_encoding in *.
+  unfold Hints.Assertion.has_false in *.
+  unfold Hints.Assertion.false_encoding in *.
   inv SEM. inv SRC.
   apply Exprs.ExprPairSet.mem_2 in HAS_FALSE.
   specialize (LESSDEF _ HAS_FALSE).
   clear -LESSDEF.
-  unfold InvState.Unary.sem_lessdef in *. ss.
+  unfold AssnState.Unary.sem_lessdef in *. ss.
   compute in LESSDEF.
   exploit LESSDEF; eauto; []; ii; des.
   inv x. inv x0. inv H4. inv H2. inv H0. inv H.
@@ -327,26 +327,26 @@ Ltac inject_clarify :=
     | [H: proj_sumbool ?dec = true |- _] =>
       destruct dec; ss; subst
     | [H1: getOperandValue (CurTargetData ?conf) ?v (Locals (EC ?st)) ?GL = Some ?gv1,
-           H2: InvState.Unary.sem_valueT ?conf ?st ?invst (Exprs.ValueT.lift Exprs.Tag.physical ?v) =
+           H2: AssnState.Unary.sem_valueT ?conf ?st ?invst (Exprs.ValueT.lift Exprs.Tag.physical ?v) =
                Some ?gv2 |- _] =>
       let Hnew := fresh in
-      assert (Hnew: InvState.Unary.sem_valueT conf st invst (Exprs.ValueT.lift Exprs.Tag.physical v) = Some gv1);
-      [ destruct v; [ss; unfold Exprs.IdT.lift; unfold InvState.Unary.sem_idT in *; eauto | ss] | ];
+      assert (Hnew: AssnState.Unary.sem_valueT conf st invst (Exprs.ValueT.lift Exprs.Tag.physical v) = Some gv1);
+      [ destruct v; [ss; unfold Exprs.IdT.lift; unfold AssnState.Unary.sem_idT in *; eauto | ss] | ];
       rewrite Hnew in H2; clear Hnew; inv H2
     | [H1: getOperandValue (CurTargetData ?conf) (value_id ?x) (Locals (EC ?st)) ?GL = Some ?gv1 |-
-       InvState.Unary.sem_idT ?st ?invst (Exprs.Tag.physical, ?x) = Some ?gv2] =>
+       AssnState.Unary.sem_idT ?st ?invst (Exprs.Tag.physical, ?x) = Some ?gv2] =>
       let Hnew := fresh in
-      assert (Hnew: InvState.Unary.sem_idT st invst (Exprs.Tag.physical, x) = Some gv1); [ss|];
+      assert (Hnew: AssnState.Unary.sem_idT st invst (Exprs.Tag.physical, x) = Some gv1); [ss|];
       apply Hnew; clear Hnew
     end.
 
 Lemma Subset_unary_sem
       conf st
-      invst invmem gmax public
+      invst assnmem gmax public
       inv0 inv1
-      (STATE: InvState.Unary.sem conf st invst invmem gmax public inv1)
-      (SUBSET: Hints.Invariant.Subset_unary inv0 inv1)
-  : InvState.Unary.sem conf st invst invmem gmax public inv0.
+      (STATE: AssnState.Unary.sem conf st invst assnmem gmax public inv1)
+      (SUBSET: Hints.Assertion.Subset_unary inv0 inv1)
+  : AssnState.Unary.sem conf st invst assnmem gmax public inv0.
 Proof.
   inv STATE. inv SUBSET.
   econs; eauto.
@@ -364,16 +364,16 @@ Qed.
 Lemma Subset_sem
       conf_src st_src
       conf_tgt st_tgt
-      invst invmem inv0 inv1
-      (STATE: InvState.Rel.sem conf_src conf_tgt st_src st_tgt invst invmem inv1)
-      (SUBSET: Hints.Invariant.Subset inv0 inv1)
-  : InvState.Rel.sem conf_src conf_tgt st_src st_tgt invst invmem inv0.
+      invst assnmem inv0 inv1
+      (STATE: AssnState.Rel.sem conf_src conf_tgt st_src st_tgt invst assnmem inv1)
+      (SUBSET: Hints.Assertion.Subset inv0 inv1)
+  : AssnState.Rel.sem conf_src conf_tgt st_src st_tgt invst assnmem inv0.
 Proof.
   inv STATE. inv SUBSET.
   econs; try (eapply Subset_unary_sem; eauto).
   - eapply AtomSetFacts.Empty_s_m_Proper; eauto. unfold flip. inv SUBSET_TGT. ss.
   - i. apply MAYDIFF.
-    destruct (IdTSet.mem id0 (Hints.Invariant.maydiff inv1)) eqn:MEM1; ss.
+    destruct (IdTSet.mem id0 (Hints.Assertion.maydiff inv1)) eqn:MEM1; ss.
     rewrite <- IdTSetFacts.not_mem_iff in *.
     rewrite <- IdTSetFacts.mem_iff in *.
     exploit SUBSET_MAYDIFF; eauto. i. congruence.
@@ -383,7 +383,7 @@ Qed.
 Lemma is_known_nonzero_by_src_Subset
       inv0 inv1 v0
       (NONZERO: Postcond.is_known_nonzero_by_src inv0 v0 = true)
-      (SUBSET: Hints.Invariant.Subset inv0 inv1)
+      (SUBSET: Hints.Assertion.Subset inv0 inv1)
   :
     <<NONZERO: Postcond.is_known_nonzero_by_src inv1 v0 = true>>
 .
@@ -400,13 +400,13 @@ Proof.
     apply ExprPairSet.E.eq_refl.
     apply SUBSET.
   - des_ifs_safe. ss.
-    erewrite InvState.Subset.inject_value_Subset; eauto.
+    erewrite AssnState.Subset.inject_value_Subset; eauto.
 Qed.
 
 Lemma is_known_nonzero_unary_Subset
       inv0 inv1 v0
       (NONZERO: Postcond.is_known_nonzero_unary inv0 v0 = true)
-      (SUBSET: Hints.Invariant.Subset_unary inv0 inv1)
+      (SUBSET: Hints.Assertion.Subset_unary inv0 inv1)
   :
     <<NONZERO: Postcond.is_known_nonzero_unary inv1 v0 = true>>
 .
@@ -428,11 +428,11 @@ Qed.
 Lemma is_known_nonzero_Subset
       inv0 inv1 value2
       (NONZERO: Postcond.is_known_nonzero_by_src inv0 value2
-                || Postcond.is_known_nonzero_unary (Invariant.src inv0) value2)
-      (SUBSET: Invariant.Subset inv0 inv1)
+                || Postcond.is_known_nonzero_unary (Assertion.src inv0) value2)
+      (SUBSET: Assertion.Subset inv0 inv1)
   :
     <<NONZERO: Postcond.is_known_nonzero_by_src inv1 value2
-               || Postcond.is_known_nonzero_unary (Invariant.src inv1) value2>>
+               || Postcond.is_known_nonzero_unary (Assertion.src inv1) value2>>
 .
 Proof.
   red.
@@ -446,7 +446,7 @@ Qed.
 
 Lemma postcond_cmd_inject_event_Subset cmd_src cmd_tgt inv0 inv1
       (INJECT_EVENT: Postcond.postcond_cmd_inject_event cmd_src cmd_tgt inv0)
-      (SUBSET: Hints.Invariant.Subset inv0 inv1)
+      (SUBSET: Hints.Assertion.Subset inv0 inv1)
   :
     <<INJECT_EVENT: Postcond.postcond_cmd_inject_event cmd_src cmd_tgt inv1>>
 .
@@ -456,26 +456,26 @@ Proof.
     destruct cmd_src; destruct cmd_tgt; ss;
       des_ifs; ss; try (by eapply is_known_nonzero_Subset; eauto);
         unfold proj_sumbool, is_true in *; des_ifs; ss; des_bool; des;
-          try (eapply InvState.Subset.inject_value_Subset; eauto); ss.
+          try (eapply AssnState.Subset.inject_value_Subset; eauto); ss.
     - apply andb_true_iff.
-      split; eapply InvState.Subset.inject_value_Subset; eauto.
-    - unfold Hints.Invariant.is_private in *. des_ifs.
+      split; eapply AssnState.Subset.inject_value_Subset; eauto.
+    - unfold Hints.Assertion.is_private in *. des_ifs.
       inv SUBSET. inv SUBSET_SRC.
       unfold is_true in *.
-      InvState.Subset.conv_mem2In.
+      AssnState.Subset.conv_mem2In.
       exploit SUBSET_PRIVATE; eauto.
     - apply andb_true_iff. des_bool. des.
-      split; eapply InvState.Subset.inject_value_Subset; eauto.
+      split; eapply AssnState.Subset.inject_value_Subset; eauto.
     - apply andb_true_iff.
       split; ss.
-      + eapply InvState.Subset.inject_value_Subset; eauto.
+      + eapply AssnState.Subset.inject_value_Subset; eauto.
       + eapply TODO.list_forallb2_implies; eauto.
         i. ss.
         repeat match goal with
                | [a: ?t * ?s |- _] => destruct a
                end.
         des_bool; des. clarify. ss.
-        eapply InvState.Subset.inject_value_Subset; eauto.
+        eapply AssnState.Subset.inject_value_Subset; eauto.
   }
 Qed.
 
@@ -530,10 +530,10 @@ Ltac solve_set_union :=
 
 Ltac solve_sem_idT :=
   try match goal with
-  | [H: InvState.Unary.sem_idT _ _ (_, _) = _ |- _] =>
-    unfold InvState.Unary.sem_idT in *; ss
-  | [_:_ |- InvState.Unary.sem_idT _ _ (_, _) = _] =>
-    unfold InvState.Unary.sem_idT in *; ss
+  | [H: AssnState.Unary.sem_idT _ _ (_, _) = _ |- _] =>
+    unfold AssnState.Unary.sem_idT in *; ss
+  | [_:_ |- AssnState.Unary.sem_idT _ _ (_, _) = _] =>
+    unfold AssnState.Unary.sem_idT in *; ss
   end.
 
 Ltac solve_in_filter :=
@@ -558,7 +558,7 @@ Ltac solve_sem_valueT :=
   repeat match goal with
          | [v: Exprs.ValueT.t |- _] =>
            match goal with
-           | [Hv: InvState.Unary.sem_valueT _ _ _ v = _ |- _] =>
+           | [Hv: AssnState.Unary.sem_valueT _ _ _ v = _ |- _] =>
              destruct v
            end
          end;
@@ -623,16 +623,16 @@ Qed.
 Lemma sem_idT_eq_locals
       st0 st1 invst0 x
       (LOCALS_EQ : Locals (EC st0) = Locals (EC st1))
-  : InvState.Unary.sem_idT st0 invst0 x = InvState.Unary.sem_idT st1 invst0 x.
+  : AssnState.Unary.sem_idT st0 invst0 x = AssnState.Unary.sem_idT st1 invst0 x.
 Proof.
-  destruct x as [[] x]; unfold InvState.Unary.sem_idT in *; ss.
+  destruct x as [[] x]; unfold AssnState.Unary.sem_idT in *; ss.
   rewrite LOCALS_EQ; eauto.
 Qed.
 
 Lemma sem_valueT_eq_locals
       conf st0 st1 invst0 v
       (LOCALS_EQ: Locals (EC st0) = Locals (EC st1))
-  : InvState.Unary.sem_valueT conf st1 invst0 v = InvState.Unary.sem_valueT conf st0 invst0 v.
+  : AssnState.Unary.sem_valueT conf st1 invst0 v = AssnState.Unary.sem_valueT conf st0 invst0 v.
 Proof.
   destruct v; eauto.
   eapply sem_idT_eq_locals; eauto.
@@ -641,7 +641,7 @@ Qed.
 Lemma sem_list_valueT_eq_locals
       conf st0 st1 invst0 lsv
       (LOCALS_EQ: Locals (EC st0) = Locals (EC st1))
-  : InvState.Unary.sem_list_valueT conf st1 invst0 lsv = InvState.Unary.sem_list_valueT conf st0 invst0 lsv.
+  : AssnState.Unary.sem_list_valueT conf st1 invst0 lsv = AssnState.Unary.sem_list_valueT conf st0 invst0 lsv.
 Proof.
   induction lsv; ss; i.
   destruct a as [s v].
@@ -653,18 +653,18 @@ Lemma sem_expr_eq_locals_mem
       conf st0 st1 invst0 e
       (LOCALS_EQ: Locals (EC st0) = Locals (EC st1))
       (MEM_EQ: Mem st0 = Mem st1)
-  : InvState.Unary.sem_expr conf st1 invst0 e = InvState.Unary.sem_expr conf st0 invst0 e.
+  : AssnState.Unary.sem_expr conf st1 invst0 e = AssnState.Unary.sem_expr conf st0 invst0 e.
 Proof.
   Ltac sem_value_st :=
       let H' := fresh in
       repeat
         match goal with
         | [LOCALS_EQ: Locals (EC ?st0) = Locals (EC ?st1) |-
-           context[ InvState.Unary.sem_valueT ?conf ?st1 ?invst0 ?v ] ] =>
+           context[ AssnState.Unary.sem_valueT ?conf ?st1 ?invst0 ?v ] ] =>
           exploit sem_valueT_eq_locals; try exact LOCALS_EQ; intro H';
           rewrite H'; clear H'
         | [LOCALS_EQ: Locals (EC ?st0) = Locals (EC ?st1) |-
-           context[ InvState.Unary.sem_list_valueT ?conf ?st1 ?invst0 ?lsv ] ] =>
+           context[ AssnState.Unary.sem_list_valueT ?conf ?st1 ?invst0 ?lsv ] ] =>
           exploit sem_list_valueT_eq_locals; try exact LOCALS_EQ; intro H';
           rewrite H'; clear H'
         end.
@@ -681,46 +681,46 @@ Definition memory_blocks_of (conf: Config) lc ids : list mblock :=
 
 Definition memory_blocks_of_t (conf: Config) st invst idts : list mblock :=
   (List.flat_map (fun x =>
-                    match InvState.Unary.sem_idT st invst x with
+                    match AssnState.Unary.sem_idT st invst x with
                     | Some gv => GV2blocks gv
                     | _ => []
                     end)
                  (IdTSet.elements idts)).
 
 Definition unique_is_private_unary inv : Prop :=
-  forall x (UNIQUE: AtomSetImpl.mem x inv.(Hints.Invariant.unique) = true),
-    IdTSet.mem (Tag.physical, x) inv.(Hints.Invariant.private) = true.
+  forall x (UNIQUE: AtomSetImpl.mem x inv.(Hints.Assertion.unique) = true),
+    IdTSet.mem (Tag.physical, x) inv.(Hints.Assertion.private) = true.
 
 Lemma lift_unlift_le_unary
       inv0 inv1 mem
       uniqs privs
-      (LE: InvMem.Unary.le (InvMem.Unary.lift mem uniqs privs inv0) inv1)
+      (LE: AssnMem.Unary.le (AssnMem.Unary.lift mem uniqs privs inv0) inv1)
   :
-    InvMem.Unary.le inv0 (InvMem.Unary.unlift inv0 inv1)
+    AssnMem.Unary.le inv0 (AssnMem.Unary.unlift inv0 inv1)
 .
 Proof.
   inv LE.
   econs; eauto.
 Qed.
 
-(* "InvMem.Rel" is repeated a lot; how about moving this into InvMem? *)
+(* "AssnMem.Rel" is repeated a lot; how about moving this into AssnMem? *)
 Lemma lift_unlift_le
       inv0 inv1
       mem_src uniqs_src privs_src
       mem_tgt uniqs_tgt privs_tgt
-      (NB_LE_SRC: (Mem.nextblock (InvMem.Unary.mem_parent inv0.(InvMem.Rel.src)) <=
+      (NB_LE_SRC: (Mem.nextblock (AssnMem.Unary.mem_parent inv0.(AssnMem.Rel.src)) <=
                    Mem.nextblock mem_src)%positive)
-      (NB_LE_TGT: (Mem.nextblock (InvMem.Unary.mem_parent inv0.(InvMem.Rel.tgt)) <=
+      (NB_LE_TGT: (Mem.nextblock (AssnMem.Unary.mem_parent inv0.(AssnMem.Rel.tgt)) <=
                    Mem.nextblock mem_tgt)%positive)
-      (* above two can be achieved from InvMem.Unary.sem NEXTBLOCK_PARENT *)
-      (LE: InvMem.Rel.le (InvMem.Rel.lift mem_src mem_tgt uniqs_src uniqs_tgt privs_src privs_tgt inv0) inv1)
-  : InvMem.Rel.le inv0 (InvMem.Rel.unlift inv0 inv1).
+      (* above two can be achieved from AssnMem.Unary.sem NEXTBLOCK_PARENT *)
+      (LE: AssnMem.Rel.le (AssnMem.Rel.lift mem_src mem_tgt uniqs_src uniqs_tgt privs_src privs_tgt inv0) inv1)
+  : AssnMem.Rel.le inv0 (AssnMem.Rel.unlift inv0 inv1).
 Proof.
   inv LE. ss.
   econs; eauto.
   - eapply lift_unlift_le_unary; eauto.
   - eapply lift_unlift_le_unary; eauto.
-  - eapply InvMem.Rel.frozen_shortened; eauto.
+  - eapply AssnMem.Rel.frozen_shortened; eauto.
 Qed.
 
 Ltac des_matchH H :=
@@ -729,14 +729,14 @@ Ltac des_matchH H :=
     | [ H' : context[match ?X with _ => _ end] |- _ ] => check_equal H' H; destruct X
     end.
 
-Lemma invmem_unlift
+Lemma assnmem_unlift
       conf_src mem_src uniqs_src privs_src mem1_src
       conf_tgt mem_tgt uniqs_tgt privs_tgt mem1_tgt
       inv0 inv1
-      (MEM_CALLER : InvMem.Rel.sem conf_src conf_tgt mem_src mem_tgt inv0)
-      (LIFT : InvMem.Rel.le (InvMem.Rel.lift mem_src mem_tgt uniqs_src uniqs_tgt privs_src privs_tgt inv0) inv1)
-      (MEM_CALLEE : InvMem.Rel.sem conf_src conf_tgt mem1_src mem1_tgt inv1)
-  : InvMem.Rel.sem conf_src conf_tgt mem1_src mem1_tgt (InvMem.Rel.unlift inv0 inv1).
+      (MEM_CALLER : AssnMem.Rel.sem conf_src conf_tgt mem_src mem_tgt inv0)
+      (LIFT : AssnMem.Rel.le (AssnMem.Rel.lift mem_src mem_tgt uniqs_src uniqs_tgt privs_src privs_tgt inv0) inv1)
+      (MEM_CALLEE : AssnMem.Rel.sem conf_src conf_tgt mem1_src mem1_tgt inv1)
+  : AssnMem.Rel.sem conf_src conf_tgt mem1_src mem1_tgt (AssnMem.Rel.unlift inv0 inv1).
 Proof.
   inv MEM_CALLEE.
   rename SRC into CALLEE_SRC. rename TGT into CALLEE_TGT.
@@ -802,19 +802,19 @@ Proof.
     eauto.
 Qed.
 
-Lemma invmem_lift
+Lemma assnmem_lift
       conf_src mem_src uniqs_src privs_src
       conf_tgt mem_tgt privs_tgt
       inv
-      (MEM: InvMem.Rel.sem conf_src conf_tgt mem_src mem_tgt inv)
+      (MEM: AssnMem.Rel.sem conf_src conf_tgt mem_src mem_tgt inv)
       (UNIQS_SRC : forall (mptr : mptr) (typ : typ) (align : align) (val : GenericValue),
                      mload conf_src.(CurTargetData) mem_src mptr typ align = Some val ->
-                     InvMem.gv_diffblock_with_blocks conf_src val uniqs_src)
-      (UNIQS_GLOBALS_SRC: forall b, In b uniqs_src -> (inv.(InvMem.Rel.gmax) < b)%positive)
-      (PRIVS_SRC: forall b, In b privs_src -> InvMem.private_block mem_src (InvMem.Rel.public_src inv.(InvMem.Rel.inject)) b)
-      (PRIVS_TGT: forall b, In b privs_tgt -> InvMem.private_block mem_tgt (InvMem.Rel.public_tgt inv.(InvMem.Rel.inject)) b)
-  : InvMem.Rel.sem conf_src conf_tgt mem_src mem_tgt
-                   (InvMem.Rel.lift mem_src mem_tgt uniqs_src [] (* uniqs_tgt *) privs_src privs_tgt inv).
+                     AssnMem.gv_diffblock_with_blocks conf_src val uniqs_src)
+      (UNIQS_GLOBALS_SRC: forall b, In b uniqs_src -> (inv.(AssnMem.Rel.gmax) < b)%positive)
+      (PRIVS_SRC: forall b, In b privs_src -> AssnMem.private_block mem_src (AssnMem.Rel.public_src inv.(AssnMem.Rel.inject)) b)
+      (PRIVS_TGT: forall b, In b privs_tgt -> AssnMem.private_block mem_tgt (AssnMem.Rel.public_tgt inv.(AssnMem.Rel.inject)) b)
+  : AssnMem.Rel.sem conf_src conf_tgt mem_src mem_tgt
+                   (AssnMem.Rel.lift mem_src mem_tgt uniqs_src [] (* uniqs_tgt *) privs_src privs_tgt inv).
 Proof.
   inv MEM.
   econs; eauto.
@@ -886,12 +886,12 @@ Qed.
 
 Lemma unique_const_diffblock
       gval1 gval2 conf gmax st i0 cnst
-      (UNIQUE: InvState.Unary.sem_unique conf st gmax i0)
+      (UNIQUE: AssnState.Unary.sem_unique conf st gmax i0)
       (GLOBALS: genericvalues_inject.wf_globals gmax (Globals conf))
       (VAL1: lookupAL GenericValue (Locals (EC st)) i0 = Some gval1)
       (VAL2: const2GV (CurTargetData conf) (Globals conf) cnst = Some gval2)
       :
-  <<DIFFBLOCK: InvState.Unary.sem_diffblock conf gval1 gval2>>
+  <<DIFFBLOCK: AssnState.Unary.sem_diffblock conf gval1 gval2>>
 .
 Proof.
   red.
@@ -920,7 +920,7 @@ Lemma valid_ptr_globals_diffblock
   (GLOBALS : forall b : Values.block, In b (GV2blocks val) -> (gmax < b)%positive)
   (VALID_PTR : memory_props.MemProps.valid_ptrs (gmax + 1)%positive val')
   :
-  <<DIFFBLOCK: InvState.Unary.sem_diffblock conf val val' >>
+  <<DIFFBLOCK: AssnState.Unary.sem_diffblock conf val val' >>
 .
 Proof.
   ii.
@@ -943,7 +943,7 @@ Lemma valid_ptr_globals_diffblock2
   (GLOBALS : forall b : Values.block, In b (GV2blocks val') -> (gmax < b)%positive)
   (VALID_PTR : memory_props.MemProps.valid_ptrs (gmax + 1)%positive val')
   :
-  <<DIFFBLOCK: InvState.Unary.sem_diffblock conf val val' >>
+  <<DIFFBLOCK: AssnState.Unary.sem_diffblock conf val val' >>
 .
 Proof.
   ii.
@@ -963,7 +963,7 @@ Lemma valid_ptr_globals_diffblock_with_blocks
   (GLOBALS : forall b : Values.block, In b blocks -> (gmax < b)%positive)
   (VALID_PTR : memory_props.MemProps.valid_ptrs (gmax + 1)%positive val)
   :
-  <<DIFFBLOCK: InvMem.gv_diffblock_with_blocks conf val blocks>>
+  <<DIFFBLOCK: AssnMem.gv_diffblock_with_blocks conf val blocks>>
 .
 Proof.
   ii.
@@ -1068,15 +1068,15 @@ Proof.
   i. congruence.
 Qed.
 
-Lemma invmem_free_invmem_unary
+Lemma assnmem_free_assnmem_unary
       conf_src inv m x lo hi m' TD inv_unary
       (BOUNDS: Mem.bounds m x = (lo, hi))
       (FREE: free TD m (blk2GV TD x) = Some m')
-      (PARENT: list_disjoint [x] inv_unary.(InvMem.Unary.private_parent))
+      (PARENT: list_disjoint [x] inv_unary.(AssnMem.Unary.private_parent))
       (pub_unary: mblock -> Prop)
-      (UNARY: InvMem.Unary.sem conf_src (InvMem.Rel.gmax inv) pub_unary m inv_unary)
+      (UNARY: AssnMem.Unary.sem conf_src (AssnMem.Rel.gmax inv) pub_unary m inv_unary)
   :
-    <<INVMEM: InvMem.Unary.sem conf_src (InvMem.Rel.gmax inv) pub_unary m' inv_unary>>
+    <<INVMEM: AssnMem.Unary.sem conf_src (AssnMem.Rel.gmax inv) pub_unary m' inv_unary>>
 .
 Proof.
   inv UNARY.
@@ -1097,7 +1097,7 @@ Proof.
     rewrite MEM_PARENT0.
     rename b into __b__.
     clear - FREE IN PARENT.
-    abstr (InvMem.Unary.private_parent inv_unary) private_parent.
+    abstr (AssnMem.Unary.private_parent inv_unary) private_parent.
     move mc at top.
     revert_until mc.
     induction mc; ii; ss.
@@ -1129,34 +1129,34 @@ Proof.
   + rewrite NEXTBLOCK_EQ in *. ss.
 Qed.
 
-Lemma invmem_free_invmem_rel
+Lemma assnmem_free_assnmem_rel
       conf_src conf_tgt inv
       m0 m1
-      (MEM: InvMem.Rel.sem conf_src conf_tgt m0 m1 inv)
+      (MEM: AssnMem.Rel.sem conf_src conf_tgt m0 m1 inv)
       x0 x1 lo hi
       (BOUNDS0: Mem.bounds m0 x0 = (lo, hi))
       (BOUNDS1: Mem.bounds m1 x1 = (lo, hi))
       m0' m1'
       TD
       (FREE0 : free TD m0 (blk2GV TD x0) = Some m0')
-      (INJECT: inv.(InvMem.Rel.inject) x0 = Some (x1, 0))
+      (INJECT: inv.(AssnMem.Rel.inject) x0 = Some (x1, 0))
       (FREE1 : free TD m1 (blk2GV TD x1) = Some m1')
-      (PARENT_SRC: list_disjoint [x0] inv.(InvMem.Rel.src).(InvMem.Unary.private_parent))
-      (PARENT_TGT: list_disjoint [x1] inv.(InvMem.Rel.tgt).(InvMem.Unary.private_parent))
+      (PARENT_SRC: list_disjoint [x0] inv.(AssnMem.Rel.src).(AssnMem.Unary.private_parent))
+      (PARENT_TGT: list_disjoint [x1] inv.(AssnMem.Rel.tgt).(AssnMem.Unary.private_parent))
   :
-    <<MEM: InvMem.Rel.sem conf_src conf_tgt m0' m1' inv>>
+    <<MEM: AssnMem.Rel.sem conf_src conf_tgt m0' m1' inv>>
 .
 Proof.
   inv MEM.
   econs; eauto.
   - clear INJECT INJECT0 WF TGT PARENT_TGT BOUNDS1 FREE1. clear_tac.
-    abstr (InvMem.Rel.src inv) inv_unary.
-    abstr (InvMem.Rel.public_src (InvMem.Rel.inject inv)) pub_unary.
-    eapply invmem_free_invmem_unary; try eassumption.
+    abstr (AssnMem.Rel.src inv) inv_unary.
+    abstr (AssnMem.Rel.public_src (AssnMem.Rel.inject inv)) pub_unary.
+    eapply assnmem_free_assnmem_unary; try eassumption.
   - clear INJECT INJECT0 WF SRC PARENT_SRC BOUNDS0 FREE0. clear_tac.
-    abstr (InvMem.Rel.tgt inv) inv_unary.
-    abstr (InvMem.Rel.public_tgt (InvMem.Rel.inject inv)) pub_unary.
-    eapply invmem_free_invmem_unary; try eassumption.
+    abstr (AssnMem.Rel.tgt inv) inv_unary.
+    abstr (AssnMem.Rel.public_tgt (AssnMem.Rel.inject inv)) pub_unary.
+    eapply assnmem_free_assnmem_unary; try eassumption.
   - cbn in *. des_ifs.
     expl genericvalues_inject.mem_inj__free.
     repeat rewrite Z.add_0_r in *. clarify.
@@ -1500,12 +1500,12 @@ Qed.
 
 Lemma unchecked_free_preserves_sem_unary
       conf_src gmax inv0 m0 pub
-      (SEM: InvMem.Unary.sem conf_src gmax pub m0 inv0)
+      (SEM: AssnMem.Unary.sem conf_src gmax pub m0 inv0)
       b lo hi m1
       (FREE: Mem.unchecked_free m0 b lo hi = m1)
-      (DISJOINT: list_disjoint [b] (InvMem.Unary.private_parent inv0))
+      (DISJOINT: list_disjoint [b] (AssnMem.Unary.private_parent inv0))
   :
-    <<SEM: InvMem.Unary.sem conf_src gmax pub m1 inv0>>
+    <<SEM: AssnMem.Unary.sem conf_src gmax pub m1 inv0>>
 .
 Proof.
   econs; ss; eauto; try apply SEM.
@@ -1531,17 +1531,17 @@ Proof.
     clarify.
 Qed.
 
-Lemma invmem_free_allocas_invmem_rel
+Lemma assnmem_free_allocas_assnmem_rel
   TD Allocas1 m_tgt0 Allocas0 m_src0 inv m_src1 m_tgt1
-  (ALLOCAS_DISJOINT_SRC: list_disjoint Allocas0 (InvMem.Unary.private_parent (InvMem.Rel.src inv)))
-  (ALLOCAS_DISJOINT_TGT: list_disjoint Allocas1 (InvMem.Unary.private_parent (InvMem.Rel.tgt inv)))
+  (ALLOCAS_DISJOINT_SRC: list_disjoint Allocas0 (AssnMem.Unary.private_parent (AssnMem.Rel.src inv)))
+  (ALLOCAS_DISJOINT_TGT: list_disjoint Allocas1 (AssnMem.Unary.private_parent (AssnMem.Rel.tgt inv)))
   (ALLOC_SRC: free_allocas TD m_src0 Allocas0 = Some m_src1)
   (ALLOC_TGT: free_allocas TD m_tgt0 Allocas1 = Some m_tgt1)
   conf_src conf_tgt
-  (MEM: InvMem.Rel.sem conf_src conf_tgt m_src0 m_tgt0 inv)
-  (INJECT_ALLOCAS: InvState.Rel.inject_allocas inv.(InvMem.Rel.inject) Allocas0 Allocas1)
+  (MEM: AssnMem.Rel.sem conf_src conf_tgt m_src0 m_tgt0 inv)
+  (INJECT_ALLOCAS: AssnState.Rel.inject_allocas inv.(AssnMem.Rel.inject) Allocas0 Allocas1)
   :
-    <<INVMEM: InvMem.Rel.sem conf_src conf_tgt m_src1 m_tgt1 inv>>
+    <<INVMEM: AssnMem.Rel.sem conf_src conf_tgt m_src1 m_tgt1 inv>>
 .
 (* Note that TD is not used at all *)
 (* It can even be different from conf_src/conf_tgt's CurTargetData *)
@@ -1573,12 +1573,12 @@ Qed.
 
 Lemma mem_le_private_parent
       inv0 inv1
-      (MEMLE: InvMem.Rel.le inv0 inv1)
+      (MEMLE: AssnMem.Rel.le inv0 inv1)
   :
     <<PRIVATE_PARENT_EQ:
-    InvMem.Unary.private_parent (InvMem.Rel.src inv0) = InvMem.Unary.private_parent (InvMem.Rel.src inv1)
+    AssnMem.Unary.private_parent (AssnMem.Rel.src inv0) = AssnMem.Unary.private_parent (AssnMem.Rel.src inv1)
     /\
-    InvMem.Unary.private_parent (InvMem.Rel.tgt inv0) = InvMem.Unary.private_parent (InvMem.Rel.tgt inv1)>>
+    AssnMem.Unary.private_parent (AssnMem.Rel.tgt inv0) = AssnMem.Unary.private_parent (AssnMem.Rel.tgt inv1)>>
 .
 Proof.
   splits; apply MEMLE.
@@ -1605,15 +1605,15 @@ Qed.
 Lemma gv_inject_ptr_public_tgt
       ptr
       ptr_tgt conf_tgt b_tgt ofs_tgt
-      invmem
-      (PTR_INJECT : genericvalues_inject.gv_inject (InvMem.Rel.inject invmem) ptr ptr_tgt)
+      assnmem
+      (PTR_INJECT : genericvalues_inject.gv_inject (AssnMem.Rel.inject assnmem) ptr ptr_tgt)
       (PTR_TGT : GV2ptr (CurTargetData conf_tgt) (getPointerSize (CurTargetData conf_tgt)) ptr_tgt = Some (Values.Vptr b_tgt ofs_tgt))
       (NOTUNDEF: option_map fst (hd_error ptr) <> Some Values.Vundef)
-  : InvMem.Rel.public_tgt (InvMem.Rel.inject invmem) b_tgt.
+  : AssnMem.Rel.public_tgt (AssnMem.Rel.inject assnmem) b_tgt.
 Proof.
   exploit simulation__GV2ptr_tgt; try exact PTR_TGT; eauto. i. des.
   inv x1.
-  - unfold InvMem.Rel.public_tgt. esplits; eauto.
+  - unfold AssnMem.Rel.public_tgt. esplits; eauto.
   - compute in NOTUNDEF. des_ifs. ss. des_ifs.
 Qed.
 

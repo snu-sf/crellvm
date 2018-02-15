@@ -22,12 +22,12 @@ Parameter cmd_printer : cmd -> unit.
 Parameter cmd_pair_printer : (cmd * cmd) -> unit.
 Parameter idT_printer : IdT.t -> unit.
 Parameter infrule_printer : Infrule.t -> unit.
-Parameter invariant_printer : Invariant.t -> unit.
+Parameter assertion_printer : Assertion.t -> unit.
 Parameter expr_printer : Expr.t -> unit.
 
 Definition debug_print_validation_process
            (infrules: list Infrule.t)
-           (inv0 inv1 inv2 inv3 inv: Invariant.t): Invariant.t := inv.
+           (inv0 inv1 inv2 inv3 inv: Assertion.t): Assertion.t := inv.
 
 Definition debug_print_auto (infrules: list Infrule.t)
-           (inv: Invariant.t): Invariant.t := inv.
+           (inv: Assertion.t): Assertion.t := inv.

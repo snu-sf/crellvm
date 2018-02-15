@@ -264,13 +264,13 @@ Module Snapshot.
         ValueTPairSet.union inv1 (ValueTPairSetFacts.map Previousify.ValueTPair inv1) in
     inv2.
 
-  Definition alias (inv0: Invariant.aliasrel): Invariant.aliasrel :=
-    let inv1 := Invariant.update_noalias_rel noalias inv0 in
-    let inv2 := Invariant.update_diffblock_rel diffblock inv1 in
+  Definition alias (inv0: Assertion.aliasrel): Assertion.aliasrel :=
+    let inv1 := Assertion.update_noalias_rel noalias inv0 in
+    let inv2 := Assertion.update_diffblock_rel diffblock inv1 in
     inv2.
 
-  Definition physical_previous_lessdef (inv:Invariant.unary): ExprPairSet.t :=
-    let idt_set := IdTSetFacts.from_list (Invariant.get_idTs_unary inv) in
+  Definition physical_previous_lessdef (inv:Assertion.unary): ExprPairSet.t :=
+    let idt_set := IdTSetFacts.from_list (Assertion.get_idTs_unary inv) in
     let prev_idt_set := IdTSet.filter IdT idt_set in
     IdTSet.fold
       (fun idt eps =>
@@ -280,19 +280,19 @@ Module Snapshot.
                           (ExprPairSet.add (id_expr_prev, id_expr_phys) eps)))
       prev_idt_set ExprPairSet.empty.
 
-  Definition unary (inv0:Invariant.unary): Invariant.unary :=
-    let inv1 := Invariant.update_lessdef ExprPairSet inv0 in
-    let inv2 := Invariant.update_alias alias inv1 in
-    let inv3 := Invariant.update_private IdTSet inv2 in
-    let inv4 := Invariant.update_lessdef
+  Definition unary (inv0:Assertion.unary): Assertion.unary :=
+    let inv1 := Assertion.update_lessdef ExprPairSet inv0 in
+    let inv2 := Assertion.update_alias alias inv1 in
+    let inv3 := Assertion.update_private IdTSet inv2 in
+    let inv4 := Assertion.update_lessdef
                   (ExprPairSet.union
                      (physical_previous_lessdef inv3)) inv3 in
     inv4.
 
-  Definition t (inv0:Invariant.t): Invariant.t :=
-    let inv1 := Invariant.update_src unary inv0 in
-    let inv2 := Invariant.update_tgt unary inv1 in
-    let inv3 := Invariant.update_maydiff IdTSet inv2 in
+  Definition t (inv0:Assertion.t): Assertion.t :=
+    let inv1 := Assertion.update_src unary inv0 in
+    let inv2 := Assertion.update_tgt unary inv1 in
+    let inv3 := Assertion.update_maydiff IdTSet inv2 in
     inv3.
 End Snapshot.
 
@@ -320,123 +320,123 @@ Qed.
 
 Module ForgetMemory.
   Definition is_noalias_Ptr
-             (inv:Invariant.unary) (ps:Ptr.t) (p:Ptr.t): bool :=
-    ((negb (ValueT.eq_dec ps.(fst) p.(fst))) && Invariant.is_unique_ptr inv p && Invariant.values_diffblock_from_unique (fst ps)) ||
-    ((negb (ValueT.eq_dec ps.(fst) p.(fst))) && Invariant.is_unique_ptr inv ps && Invariant.values_diffblock_from_unique (fst p)) ||
-    Invariant.is_noalias inv p ps ||
-    Invariant.is_diffblock inv p ps.
+             (inv:Assertion.unary) (ps:Ptr.t) (p:Ptr.t): bool :=
+    ((negb (ValueT.eq_dec ps.(fst) p.(fst))) && Assertion.is_unique_ptr inv p && Assertion.values_diffblock_from_unique (fst ps)) ||
+    ((negb (ValueT.eq_dec ps.(fst) p.(fst))) && Assertion.is_unique_ptr inv ps && Assertion.values_diffblock_from_unique (fst p)) ||
+    Assertion.is_noalias inv p ps ||
+    Assertion.is_diffblock inv p ps.
 
   Definition is_noalias_Expr
-             (inv:Invariant.unary) (ps:Ptr.t) (e:Expr.t): bool :=
+             (inv:Assertion.unary) (ps:Ptr.t) (e:Expr.t): bool :=
     match e with
       | Expr.load v ty al => is_noalias_Ptr inv ps (v, ty)
       | _ => true
     end.
 
   Definition is_noalias_ExprPair
-             (inv:Invariant.unary) (ps:Ptr.t) (ep:ExprPair.t): bool :=
+             (inv:Assertion.unary) (ps:Ptr.t) (ep:ExprPair.t): bool :=
     is_noalias_Expr inv ps ep.(fst) && is_noalias_Expr inv ps ep.(snd).
 
-  Definition unary (def_mem:option Ptr.t) (leak_mem:option id) (inv0:Invariant.unary): Invariant.unary :=
+  Definition unary (def_mem:option Ptr.t) (leak_mem:option id) (inv0:Assertion.unary): Assertion.unary :=
     let inv1 :=
         match def_mem with
-        | Some def_mem => Invariant.update_lessdef (ExprPairSet.filter (is_noalias_ExprPair inv0 def_mem)) inv0
+        | Some def_mem => Assertion.update_lessdef (ExprPairSet.filter (is_noalias_ExprPair inv0 def_mem)) inv0
         | None => inv0
         end
     in
     let inv2 :=
         match leak_mem with
-        | Some leak_mem => Invariant.update_unique (AtomSetImpl.remove leak_mem) inv1
+        | Some leak_mem => Assertion.update_unique (AtomSetImpl.remove leak_mem) inv1
         | None => inv1
         end
     in
     inv2.
 
-  Definition t (def_mem_src def_mem_tgt:option Ptr.t) (leak_mem_src leak_mem_tgt:option id) (inv0:Invariant.t): Invariant.t :=
-    let inv1 := Invariant.update_src (unary def_mem_src leak_mem_src) inv0 in
-    let inv2 := Invariant.update_tgt (unary def_mem_tgt leak_mem_tgt) inv1 in
+  Definition t (def_mem_src def_mem_tgt:option Ptr.t) (leak_mem_src leak_mem_tgt:option id) (inv0:Assertion.t): Assertion.t :=
+    let inv1 := Assertion.update_src (unary def_mem_src leak_mem_src) inv0 in
+    let inv2 := Assertion.update_tgt (unary def_mem_tgt leak_mem_tgt) inv1 in
     inv2.
 End ForgetMemory.
 
 Module ForgetStack.
-  Definition alias (ids:AtomSetImpl.t) (inv0:Invariant.aliasrel): Invariant.aliasrel :=
+  Definition alias (ids:AtomSetImpl.t) (inv0:Assertion.aliasrel): Assertion.aliasrel :=
     let inv1 :=
-        Invariant.update_diffblock_rel
+        Assertion.update_diffblock_rel
           (ValueTPairSet.filter
              (compose negb (LiftPred.ValueTPair ((flip IdTSet.mem (lift_physical_atoms_idtset ids)))))) inv0 in
     let inv2 :=
-        Invariant.update_noalias_rel
+        Assertion.update_noalias_rel
           (PtrPairSet.filter
              (compose negb (LiftPred.PtrPair (flip IdTSet.mem (lift_physical_atoms_idtset ids))))) inv1 in
     inv2.
 
-  Definition unary (defs leaks:AtomSetImpl.t) (inv0:Invariant.unary): Invariant.unary :=
+  Definition unary (defs leaks:AtomSetImpl.t) (inv0:Assertion.unary): Assertion.unary :=
     let inv1 :=
-        Invariant.update_lessdef
+        Assertion.update_lessdef
           (ExprPairSet.filter
              (negb <*> (LiftPred.ExprPair (flip IdTSet.mem (lift_physical_atoms_idtset defs))))) inv0 in
-    let inv2 := Invariant.update_alias (alias defs) inv1 in
-    let inv3 := Invariant.update_unique (AtomSetImpl.filter
+    let inv2 := Assertion.update_alias (alias defs) inv1 in
+    let inv3 := Assertion.update_unique (AtomSetImpl.filter
          (fun i => negb (AtomSetImpl.mem i (AtomSetImpl.union defs leaks)))) inv2 in
     let inv4 :=
-        Invariant.update_private
+        Assertion.update_private
           (IdTSet.filter (compose negb (flip IdTSet.mem (lift_physical_atoms_idtset defs)))) inv3 in
     inv4.
 
-  Definition t (defs_src defs_tgt leaks_src leaks_tgt :AtomSetImpl.t) (inv0:Invariant.t): Invariant.t :=
-    let inv1 := Invariant.update_src (unary defs_src leaks_src) inv0 in
-    let inv2 := Invariant.update_tgt (unary defs_tgt leaks_tgt) inv1 in
-    let inv3 := Invariant.update_maydiff (IdTSet.union (lift_physical_atoms_idtset (AtomSetImpl.union defs_src defs_tgt))) inv2 in
+  Definition t (defs_src defs_tgt leaks_src leaks_tgt :AtomSetImpl.t) (inv0:Assertion.t): Assertion.t :=
+    let inv1 := Assertion.update_src (unary defs_src leaks_src) inv0 in
+    let inv2 := Assertion.update_tgt (unary defs_tgt leaks_tgt) inv1 in
+    let inv3 := Assertion.update_maydiff (IdTSet.union (lift_physical_atoms_idtset (AtomSetImpl.union defs_src defs_tgt))) inv2 in
     inv3.
 End ForgetStack.
 
 Module ForgetMemoryCall.
-  Definition is_private_Expr (inv:Invariant.unary) (e:Expr.t): bool :=
+  Definition is_private_Expr (inv:Assertion.unary) (e:Expr.t): bool :=
     match e with
     | Expr.load v ty al =>
       match v with
       | ValueT.id idt =>
-        IdTSet.mem idt inv.(Invariant.private)
+        IdTSet.mem idt inv.(Assertion.private)
       | _ => false
       end
     | _ => true
     end.
 
-  Definition is_private_ExprPair (inv:Invariant.unary) (ep:ExprPair.t): bool :=
+  Definition is_private_ExprPair (inv:Assertion.unary) (ep:ExprPair.t): bool :=
     is_private_Expr inv ep.(fst) && is_private_Expr inv ep.(snd).
 
-  Definition unary (inv0:Invariant.unary): Invariant.unary :=
-    let inv1 := Invariant.update_lessdef
+  Definition unary (inv0:Assertion.unary): Assertion.unary :=
+    let inv1 := Assertion.update_lessdef
                   (ExprPairSet.filter (is_private_ExprPair inv0)) inv0 in
-    let inv2 := Invariant.update_unique
-                  (AtomSetImpl.filter (fun x => IdTSet.mem (Tag.physical, x) inv1.(Invariant.private))) inv1 in
+    let inv2 := Assertion.update_unique
+                  (AtomSetImpl.filter (fun x => IdTSet.mem (Tag.physical, x) inv1.(Assertion.private))) inv1 in
     inv2.
 
-  Definition t (inv0:Invariant.t): Invariant.t :=
-    let inv1 := Invariant.update_src unary inv0 in
-    let inv2 := Invariant.update_tgt unary inv1 in
+  Definition t (inv0:Assertion.t): Assertion.t :=
+    let inv1 := Assertion.update_src unary inv0 in
+    let inv2 := Assertion.update_tgt unary inv1 in
     inv2.
 End ForgetMemoryCall.
 
 Module ForgetStackCall.
-  Definition t (defs_src defs_tgt :AtomSetImpl.t) (inv0:Invariant.t): Invariant.t :=
+  Definition t (defs_src defs_tgt :AtomSetImpl.t) (inv0:Assertion.t): Assertion.t :=
     ForgetStack.t defs_src defs_tgt AtomSetImpl.empty AtomSetImpl.empty inv0.
 End ForgetStackCall.
 
-(* Definition reduce_maydiff_lessdef_old (inv0:Invariant.t): Invariant.t := *)
-(*   let lessdef_src := inv0.(Invariant.src).(Invariant.lessdef) in *)
-(*   let lessdef_tgt := inv0.(Invariant.tgt).(Invariant.lessdef) in *)
-(*   let inject_id id := Invariant.inject_value inv0 (ValueT.id id) (ValueT.id id) *)
+(* Definition reduce_maydiff_lessdef_old (inv0:Assertion.t): Assertion.t := *)
+(*   let lessdef_src := inv0.(Assertion.src).(Assertion.lessdef) in *)
+(*   let lessdef_tgt := inv0.(Assertion.tgt).(Assertion.lessdef) in *)
+(*   let inject_id id := Assertion.inject_value inv0 (ValueT.id id) (ValueT.id id) *)
 (*       (* negb (ExprPairSet.exists_ *) *)
 (*       (*         (fun p => ExprPairSet.exists_ *) *)
-(*       (*                     (fun q => Invariant.not_in_maydiff_expr inv0 (snd p)) *) *)
+(*       (*                     (fun q => Assertion.not_in_maydiff_expr inv0 (snd p)) *) *)
 (*       (*                     (ExprPairSet.filter (fun q => ExprFacts.eq_dec_l (snd p) (fst q)) *) *)
-(*       (*                                         (Invariant.get_lhs lessdef_tgt (fst p)))) *) *)
-(*       (*         (Invariant.get_rhs lessdef_src *) *)
+(*       (*                                         (Assertion.get_lhs lessdef_tgt (fst p)))) *) *)
+(*       (*         (Assertion.get_rhs lessdef_src *) *)
 (*       (*                            (Expr.value (ValueT.id id)))) *) *)
 (*   in *)
 (*   (* O(|MD| * |LD| * log|LD|) *) *)
-(*   Invariant.update_maydiff (IdTSet.filter (negb <*> inject_id)) inv0. *)
+(*   Assertion.update_maydiff (IdTSet.filter (negb <*> inject_id)) inv0. *)
 
 (*
 swap: |LD|
@@ -466,37 +466,37 @@ Definition project_into_IdTSet (ld: ExprPairSet.t): IdTSet.t :=
                                end) ld IdTSet.empty
 .
 
-(* Definition reduce_maydiff_lessdef (inv0: Invariant.t): Invariant.t := *)
-(*   let lessdef_src := inv0.(Invariant.src).(Invariant.lessdef) in *)
-(*   let lessdef_tgt := inv0.(Invariant.tgt).(Invariant.lessdef) in *)
+(* Definition reduce_maydiff_lessdef (inv0: Assertion.t): Assertion.t := *)
+(*   let lessdef_src := inv0.(Assertion.src).(Assertion.lessdef) in *)
+(*   let lessdef_tgt := inv0.(Assertion.tgt).(Assertion.lessdef) in *)
 (*   let lessdef_tgt_swapped := swap_ExprPairSet lessdef_tgt in *)
 (*   (* Time: |LD| * log |LD| *) *)
 (*   let intersection := ExprPairSet.inter lessdef_src lessdef_tgt_swapped in *)
 (*   (* Time: |LD| * log |LD| *) *)
 (*   (* Size: |LD| *) *)
 (*   let injected_intersection := *)
-(*       ExprPairSet.filter (fun xy => Invariant.not_in_maydiff_expr inv0 xy.(snd)) intersection in *)
+(*       ExprPairSet.filter (fun xy => Assertion.not_in_maydiff_expr inv0 xy.(snd)) intersection in *)
 (*   (* Time: |LD| * log |MD| *) *)
 (*   (* Size: |LD| *) *)
 (*   let injected_idt := project_into_IdTSet injected_intersection in *)
 (*   (* Time: |LD| * log |LD| *) *)
 (*   (* Size: |LD| *) *)
-(*   Invariant.update_maydiff (fun md => IdTSet.diff md injected_idt) inv0 *)
+(*   Assertion.update_maydiff (fun md => IdTSet.diff md injected_idt) inv0 *)
 (*   (* Time: |MD| * log |MD| *) *)
 (* . *)
 
   (* let indirect_inject_id (id: IdT.t) := *)
   (*     ExprPairSet.exists_ *)
   (*       (fun xy => (ExprFacts.eq_dec_l (Expr.value (ValueT.id id)) xy.(fst)) *)
-  (*                    && Invariant.not_in_maydiff_expr inv0 xy.(snd)) intersection in *)
+  (*                    && Assertion.not_in_maydiff_expr inv0 xy.(snd)) intersection in *)
 (* Time: |LD| * log |MD| *)
-  (* Invariant.update_maydiff (IdTSet.filter (negb <*> indirect_inject_id)) inv0 *)
+  (* Assertion.update_maydiff (IdTSet.filter (negb <*> indirect_inject_id)) inv0 *)
 (* Time: |MD| * |LD| * log |MD| *)
 
-(* Definition reduce_maydiff_lessdef (inv0: Invariant.t): Invariant.t := *)
-Definition reduce_maydiff (inv0: Invariant.t): Invariant.t :=
-  let ld_src := inv0.(Invariant.src).(Invariant.lessdef) in
-  let ld_tgt := inv0.(Invariant.tgt).(Invariant.lessdef) in
+(* Definition reduce_maydiff_lessdef (inv0: Assertion.t): Assertion.t := *)
+Definition reduce_maydiff (inv0: Assertion.t): Assertion.t :=
+  let ld_src := inv0.(Assertion.src).(Assertion.lessdef) in
+  let ld_tgt := inv0.(Assertion.tgt).(Assertion.lessdef) in
   let ld_src_outer_idt :=
       ExprPairSet.filter (fun xy => project_into_IdT xy.(fst)) ld_src in
   (* Time: |LD| *)
@@ -507,36 +507,36 @@ Definition reduce_maydiff (inv0: Invariant.t): Invariant.t :=
   (* Time: |LD| * log |LD| *)
   (* Size: |LD| *)
   let ld_src_mirrored_outer_idt_inner_injected :=
-      ExprPairSet.filter (fun xy => Invariant.not_in_maydiff_expr inv0 xy.(snd)) ld_src_mirrored_outer_idt in
+      ExprPairSet.filter (fun xy => Assertion.not_in_maydiff_expr inv0 xy.(snd)) ld_src_mirrored_outer_idt in
   (* Time: |LD| * log |MD| *)
   (* Size: |LD| *)
   let idts_of_interest := project_into_IdTSet ld_src_mirrored_outer_idt_inner_injected in
   (* Time: |LD| * log |LD| *)
   (* Size: |LD| *)
-  Invariant.update_maydiff (fun md => IdTSet.diff md idts_of_interest) inv0
+  Assertion.update_maydiff (fun md => IdTSet.diff md idts_of_interest) inv0
   (* Time: |MD| + |LD| *)
 .
 
-(* Definition reduce_maydiff (inv0:Invariant.t): Invariant.t := *)
+(* Definition reduce_maydiff (inv0:Assertion.t): Assertion.t := *)
   (* let inv1 := reduce_maydiff_lessdef inv0 in *)
   (* let inv2 := reduce_maydiff_non_physical inv1 in *)
   (* inv2. *)
 
 (* TODO: unused. remove? *)
-(* Definition reduce_maydiff_default (inv0:Invariant.t): Invariant.t := *)
-(*   let lessdef_src := inv0.(Invariant.src).(Invariant.lessdef) in *)
-(*   let lessdef_tgt := inv0.(Invariant.tgt).(Invariant.lessdef) in *)
+(* Definition reduce_maydiff_default (inv0:Assertion.t): Assertion.t := *)
+(*   let lessdef_src := inv0.(Assertion.src).(Assertion.lessdef) in *)
+(*   let lessdef_tgt := inv0.(Assertion.tgt).(Assertion.lessdef) in *)
 (*   let equations := ExprPairSet.filter *)
 (*                      (fun elt => ExprPairSet.mem (snd elt, fst elt) lessdef_tgt) *)
 (*                      lessdef_src in *)
-(*   let inv1 := Invariant.update_maydiff *)
+(*   let inv1 := Assertion.update_maydiff *)
 (*                 (IdTSet.filter *)
 (*                    (fun id => *)
 (*                       negb (ExprPairSet.exists_ *)
 (*                               (fun ep => *)
 (*                                  ((ExprFacts.eq_dec_l (fst ep) *)
 (*                                                (Expr.value (ValueT.id id))) *)
-(*                                     && Invariant.not_in_maydiff_expr inv0 (snd ep))) *)
+(*                                     && Assertion.not_in_maydiff_expr inv0 (snd ep))) *)
 (*                               equations))) *)
 (*                 inv0 in *)
 (*   let inv2 := reduce_maydiff_non_physical inv1 in *)
@@ -636,18 +636,18 @@ Definition add_terminator_cond_lessdef
   end.
 
 Definition add_terminator_cond
-           (inv0:Invariant.t)
+           (inv0:Assertion.t)
            (term_src term_tgt:terminator)
-           (l_to:l): Invariant.t :=
+           (l_to:l): Assertion.t :=
   let inv1 :=
-      Invariant.update_src
-        (Invariant.update_lessdef
+      Assertion.update_src
+        (Assertion.update_lessdef
            (add_terminator_cond_lessdef term_src l_to))
         inv0
   in
   let inv2 :=
-      Invariant.update_tgt
-        (Invariant.update_lessdef
+      Assertion.update_tgt
+        (Assertion.update_lessdef
            (add_terminator_cond_lessdef term_tgt l_to))
         inv1
   in
@@ -660,7 +660,7 @@ Definition postcond_phinodes_add_lessdef
 
 Definition postcond_phinodes_assigns
            (assigns_src assigns_tgt:list Phinode.assign)
-           (inv0:Invariant.t): option Invariant.t :=
+           (inv0:Assertion.t): option Assertion.t :=
   let defs_src := List.map Phinode.get_def assigns_src in
   let defs_tgt := List.map Phinode.get_def assigns_tgt in
   let uses_src := filter_map Phinode.get_use assigns_src in
@@ -678,18 +678,18 @@ Definition postcond_phinodes_assigns
                        inv1
   in
   let inv3 :=
-      Invariant.update_src
-        (Invariant.update_lessdef (postcond_phinodes_add_lessdef assigns_src)) inv2 in
+      Assertion.update_src
+        (Assertion.update_lessdef (postcond_phinodes_add_lessdef assigns_src)) inv2 in
   let inv4 :=
-      Invariant.update_tgt
-        (Invariant.update_lessdef (postcond_phinodes_add_lessdef assigns_tgt)) inv3 in
+      Assertion.update_tgt
+        (Assertion.update_lessdef (postcond_phinodes_add_lessdef assigns_tgt)) inv3 in
   let inv5 := reduce_maydiff inv4 in
   Some inv5.
 
 Definition postcond_phinodes
            (l_from:l)
            (phinodes_src phinodes_tgt:phinodes)
-           (inv0:Invariant.t): option Invariant.t :=
+           (inv0:Assertion.t): option Assertion.t :=
   match forallb_map (Phinode.resolve l_from) phinodes_src,
         forallb_map (Phinode.resolve l_from) phinodes_tgt with
   | Some assigns_src, Some assigns_tgt =>
@@ -736,17 +736,17 @@ Definition get_dangerous_denom (e0: Expr.t): option ValueT.t :=
 (* 4. by def of injection, denom_tgt is nonzero (if it was zero, src too) *)
 
 (* Note that, 1. this reasoning holds for non-int case *)
-(* 2. Even if it does not hold, we can add type-checking on our invariant *)
-Definition is_known_nonzero_by_src (inv: Invariant.t) (denom_tgt: value): bool :=
+(* 2. Even if it does not hold, we can add type-checking on our assertion *)
+Definition is_known_nonzero_by_src (inv: Assertion.t) (denom_tgt: value): bool :=
   ExprPairSet.exists_
     (fun xy =>
        (is_known_total (xy.(fst)))
          &&
          (match (get_dangerous_denom (xy.(snd))) with
-          | Some y => (Invariant.inject_value inv y (ValueT.lift Tag.physical denom_tgt))
+          | Some y => (Assertion.inject_value inv y (ValueT.lift Tag.physical denom_tgt))
           | None => false
           end))
-    (inv.(Invariant.src).(Invariant.lessdef))
+    (inv.(Assertion.src).(Assertion.lessdef))
 .
 
 Definition is_known_total_nonzero (e0: Expr.t): bool :=
@@ -757,18 +757,18 @@ Definition is_known_total_nonzero (e0: Expr.t): bool :=
   end
 .
 
-Definition is_known_nonzero_unary (inv: Invariant.unary) (denom: value): bool :=
+Definition is_known_nonzero_unary (inv: Assertion.unary) (denom: value): bool :=
   ExprPairSet.exists_
     (fun xy =>
        (is_known_total_nonzero xy.(fst))
          &&
          Expr.eq_dec (xy.(snd)) (ValueT.lift Tag.physical denom))
-    (inv.(Invariant.lessdef))
+    (inv.(Assertion.lessdef))
 .
 
 Definition postcond_cmd_inject_event
            (src tgt:cmd)
-           (inv:Invariant.t): bool :=
+           (inv:Assertion.t): bool :=
   match src, tgt with
   | insn_call x1 nr1 cl1 t1 va1 v1 p1,
     insn_call x2 nr2 cl2 t2 va2 v2 p2 =>
@@ -776,7 +776,7 @@ Definition postcond_cmd_inject_event
     clattrs_dec cl1 cl2 &&
     typ_dec t1 t2 &&
     varg_dec va1 va2 &&
-    (Invariant.inject_value
+    (Assertion.inject_value
        inv (ValueT.lift Tag.physical v1) (ValueT.lift Tag.physical v2)) &&
     list_forallb2
       (fun p1 p2 =>
@@ -784,7 +784,7 @@ Definition postcond_cmd_inject_event
          let '(ty2, attr2, v2) := p2 in
          typ_dec ty1 ty2 &&
          attributes_dec attr1 attr2 &&
-         (Invariant.inject_value
+         (Assertion.inject_value
             inv (ValueT.lift Tag.physical v1) (ValueT.lift Tag.physical v2)))
       p1 p2
   | insn_call _ _ _ _ _ _ _, _
@@ -793,19 +793,19 @@ Definition postcond_cmd_inject_event
   | insn_store _ t1 v1 p1 a1,
     insn_store _ t2 v2 p2 a2 =>
     typ_dec t1 t2 &&
-    (Invariant.inject_value
+    (Assertion.inject_value
        inv (ValueT.lift Tag.physical v1) (ValueT.lift Tag.physical v2)) &&
-    (Invariant.inject_value
+    (Assertion.inject_value
        inv (ValueT.lift Tag.physical p1) (ValueT.lift Tag.physical p2)) &&
     align_dec a1 a2
   | insn_store _ t1 v1 p1 a1, insn_nop _ =>
-    Invariant.is_private inv.(Invariant.src) (ValueT.lift Tag.physical p1)
+    Assertion.is_private inv.(Assertion.src) (ValueT.lift Tag.physical p1)
   | insn_store _ _ _ _ _, _
   | _, insn_store _ _ _ _ _ => false
 
   | insn_load x1 t1 v1 a1, insn_load x2 t2 v2 a2 =>
     typ_dec t1 t2 &&
-    (Invariant.inject_value
+    (Assertion.inject_value
        inv (ValueT.lift Tag.physical v1) (ValueT.lift Tag.physical v2)) &&
     align_dec a1 a2
   (* | insn_nop _, insn_load x t v a => *)
@@ -816,16 +816,16 @@ Definition postcond_cmd_inject_event
   (*            andb *)
   (*            (ExprFacts.eq_dec_l e1 (Expr.value (ValueT.const (const_undef t)))) *)
   (*            (ExprFacts.eq_dec_l e2 (Expr.load (ValueT.lift Exprs.Tag.physical v) t a)) *)
-  (*          end) inv.(Invariant.src).(Invariant.lessdef)) *)
+  (*          end) inv.(Assertion.src).(Assertion.lessdef)) *)
   (*     && *)
-  (*     Invariant.not_in_maydiff inv (ValueT.lift Exprs.Tag.physical v) *)
+  (*     Assertion.not_in_maydiff inv (ValueT.lift Exprs.Tag.physical v) *)
   (* @alxest: For more info: Issue#426 *)
 
   | _, insn_load _ _ _ _ => false
 
   | insn_free _ t1 p1, insn_free _ t2 p2 =>
     typ_dec t1 t2 &&
-    (Invariant.inject_value
+    (Assertion.inject_value
        inv (ValueT.lift Tag.physical p1) (ValueT.lift Tag.physical p2))
   | insn_free _ _ _, _
   | _, insn_free _ _ _ => false
@@ -833,7 +833,7 @@ Definition postcond_cmd_inject_event
   | insn_alloca x1 t1 v1 a1, insn_alloca x2 t2 v2 a2 =>
     id_dec x1 x2 &&
     typ_dec t1 t2 &&
-    (Invariant.inject_value
+    (Assertion.inject_value
        inv (ValueT.lift Tag.physical v1) (ValueT.lift Tag.physical v2)) &&
     align_dec a1 a2
   | insn_alloca _ _ _ _, insn_nop _ => true
@@ -853,14 +853,14 @@ Definition postcond_cmd_inject_event
     if (may_produce_UB b1)
     then (bop_dec b0 b1)
            && (sz_dec sz0 sz1)
-           && (Invariant.inject_value inv (ValueT.lift Tag.physical va0) (ValueT.lift Tag.physical va1))
-           && (Invariant.inject_value inv (ValueT.lift Tag.physical vb0) (ValueT.lift Tag.physical vb1))
+           && (Assertion.inject_value inv (ValueT.lift Tag.physical va0) (ValueT.lift Tag.physical va1))
+           && (Assertion.inject_value inv (ValueT.lift Tag.physical vb0) (ValueT.lift Tag.physical vb1))
     else true
   | _, insn_bop _ b1 sz1 va1 vb1 =>
     if (may_produce_UB b1)
     then (is_known_total_nonzero (ValueT.lift Tag.physical vb1))
          || (is_known_nonzero_by_src inv vb1)
-         || (is_known_nonzero_unary inv.(Invariant.src) vb1)
+         || (is_known_nonzero_unary inv.(Assertion.src) vb1)
     else true
   | _, _ => true
   end.
@@ -881,46 +881,46 @@ Qed.
 (* (alloca, call) because postcond do not *)
 (* produce any lessdef information from them *)
 (* so that reduce_maydiff doesn't remove them.   *)
-Definition remove_def_from_maydiff (src tgt:id) (inv:Invariant.t): Invariant.t :=
+Definition remove_def_from_maydiff (src tgt:id) (inv:Assertion.t): Assertion.t :=
   if id_dec src tgt
-  then Invariant.update_maydiff (IdTSet.remove (IdT.lift Tag.physical src)) inv
+  then Assertion.update_maydiff (IdTSet.remove (IdT.lift Tag.physical src)) inv
   else inv.
 
 Definition postcond_cmd_add_inject
            (src tgt:cmd)
-           (inv0:Invariant.t): Invariant.t :=
+           (inv0:Assertion.t): Assertion.t :=
   match src, tgt with
   | insn_alloca aid_src _ _ _, insn_alloca aid_tgt _ _ _ =>
     let inv1 :=
-        Invariant.update_src
-          (Invariant.update_unique
+        Assertion.update_src
+          (Assertion.update_unique
              (AtomSetImpl.add aid_src)) inv0 in
     let inv2 := inv1 in
-        (* Invariant.update_tgt *)
-        (*   (Invariant.update_unique *)
+        (* Assertion.update_tgt *)
+        (*   (Assertion.update_unique *)
         (*      (AtomSetImpl.add aid_tgt)) inv1 in *)
     let inv3 := remove_def_from_maydiff aid_src aid_tgt inv2 in
     inv3
 
   | insn_alloca aid_src _ _ _, insn_nop _ =>
     let inv1 :=
-        Invariant.update_src
-          (Invariant.update_unique
+        Assertion.update_src
+          (Assertion.update_unique
              (AtomSetImpl.add aid_src)) inv0 in
     let inv2 :=
-        Invariant.update_src
-          (Invariant.update_private
+        Assertion.update_src
+          (Assertion.update_private
              (IdTSet.add (IdT.lift Tag.physical aid_src))) inv1 in
     inv2
 
   | insn_nop _, insn_alloca aid_tgt _ _ _ =>
     let inv1 := inv0 in
-        (* Invariant.update_tgt *)
-        (*   (Invariant.update_unique *)
+        (* Assertion.update_tgt *)
+        (*   (Assertion.update_unique *)
         (*      (AtomSetImpl.add aid_tgt)) inv0 in *)
     let inv2 :=
-        Invariant.update_tgt
-          (Invariant.update_private
+        Assertion.update_tgt
+          (Assertion.update_private
              (IdTSet.add (IdT.lift Tag.physical aid_tgt))) inv1 in
     inv2
 
@@ -1019,17 +1019,17 @@ Definition filter_leaked
 
 Definition postcond_unique_leakage
            (src tgt:cmd)
-           (inv0:Invariant.t): Invariant.t :=
-  let inv1 := Invariant.update_src
-                (Invariant.update_unique (filter_leaked src)) inv0 in
-  let inv2 := Invariant.update_tgt
-                (Invariant.update_unique (filter_leaked tgt)) inv1 in
+           (inv0:Assertion.t): Assertion.t :=
+  let inv1 := Assertion.update_src
+                (Assertion.update_unique (filter_leaked src)) inv0 in
+  let inv2 := Assertion.update_tgt
+                (Assertion.update_unique (filter_leaked tgt)) inv1 in
   inv2.
 
 Definition postcond_cmd_check
            (src tgt:cmd)
            (def_src def_tgt uses_src uses_tgt:AtomSetImpl.t)
-           (inv0:Invariant.t): bool :=
+           (inv0:Assertion.t): bool :=
   if negb (AtomSetImpl.is_empty (AtomSetImpl.inter def_src uses_src))
   then failwith_false "valid_cmds: postcond_cmd returned None, Case 1_src" nil
   else
@@ -1046,18 +1046,18 @@ Definition postcond_cmd_check
 
 Definition postcond_cmd_add
            (src tgt:cmd)
-           (inv0:Invariant.t): Invariant.t :=
+           (inv0:Assertion.t): Assertion.t :=
   let inv1 := postcond_cmd_add_inject src tgt inv0 in
-  let inv2 := Invariant.update_src
-                (Invariant.update_lessdef (postcond_cmd_add_lessdef src)) inv1 in
-  let inv3 := Invariant.update_tgt
-                (Invariant.update_lessdef (postcond_cmd_add_lessdef tgt)) inv2 in
+  let inv2 := Assertion.update_src
+                (Assertion.update_lessdef (postcond_cmd_add_lessdef src)) inv1 in
+  let inv3 := Assertion.update_tgt
+                (Assertion.update_lessdef (postcond_cmd_add_lessdef tgt)) inv2 in
   let inv4 := reduce_maydiff inv3 in
   inv4.
 
 Definition postcond_cmd
            (src tgt:cmd)
-           (inv0:Invariant.t): option Invariant.t :=
+           (inv0:Assertion.t): option Assertion.t :=
   let def_src := AtomSetImpl_from_list (option_to_list (Cmd.get_def src)) in
   let def_tgt := AtomSetImpl_from_list (option_to_list (Cmd.get_def tgt)) in
   let uses_src := AtomSetImpl_from_list (Cmd.get_ids src) in

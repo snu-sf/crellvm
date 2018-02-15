@@ -16,8 +16,8 @@ module AutoOpt = struct
 
 module Auto = struct
     type scope_t = Src | Tgt
-    type t1 = bool -> Invariant.t -> Invariant.t -> (Infrule.t list * Invariant.t)
-    type t2 = Invariant.t -> ValueTPair.t list -> (Infrule.t list * ValueTPair.t list)
+    type t1 = bool -> Assertion.t -> Assertion.t -> (Infrule.t list * Assertion.t)
+    type t2 = Assertion.t -> ValueTPair.t list -> (Infrule.t list * ValueTPair.t list)
     type t = t1 * t2
 
     (* Inference rules *)
@@ -94,12 +94,12 @@ module Auto = struct
 
     let get_rhs_list (lessdef:ExprPairSet.t) (e:Expr.t)
         : Expr.t list =
-      let ep_set = Invariant.get_rhs lessdef e in
+      let ep_set = Assertion.get_rhs lessdef e in
       List.map snd (ExprPairSet.elements ep_set)
 
     let get_lhs_list (lessdef:ExprPairSet.t) (e:Expr.t)
         : Expr.t list =
-      let ep_set = Invariant.get_lhs lessdef e in
+      let ep_set = Assertion.get_lhs lessdef e in
       List.map fst (ExprPairSet.elements ep_set)
 
     let find_first_match (f:'b -> 'a option)
@@ -195,14 +195,14 @@ module AutoTransHelper = struct
       Printer.debug_print ("AutoInfruleGen: gen_infrules succeeds with length :"^(string_of_int (List.length res)));
       res
 
-    let run_inj (inv:Invariant.t) (e1:Expr.t) (e2:Expr.t)
+    let run_inj (inv:Assertion.t) (e1:Expr.t) (e2:Expr.t)
         : (Infrule.t list) option =
-      let (rch_src, gr_src) = get_reachable_from_l inv.Invariant.src.Invariant.lessdef e1 in
-      let (rch_tgt, gr_tgt) = get_reachable_from_r inv.Invariant.tgt.Invariant.lessdef e2 in
+      let (rch_src, gr_src) = get_reachable_from_l inv.Assertion.src.Assertion.lessdef e1 in
+      let (rch_tgt, gr_tgt) = get_reachable_from_r inv.Assertion.tgt.Assertion.lessdef e2 in
       let cand_exprs = ExprSet.elements (ExprSet.inter rch_src rch_tgt) in
       let filtered_cand_exprs =
         List.filter
-          (fun e -> List.for_all (Invariant.not_in_maydiff inv) (Expr.get_valueTs e))
+          (fun e -> List.for_all (Assertion.not_in_maydiff inv) (Expr.get_valueTs e))
           cand_exprs in
       match filtered_cand_exprs with
       | e::_ ->
@@ -219,16 +219,16 @@ module AutoTransHelper = struct
       let path = get_path [] gr e1 e2 in
       Some (gen_infrules scp path)
 
-    let run_unary (scp:Auto.scope_t) (inv_u:Invariant.unary)
+    let run_unary (scp:Auto.scope_t) (inv_u:Assertion.unary)
                   (e1:Expr.t) (e2:Expr.t)
         : (Infrule.t list) option =
       Printer.debug_print "AutoInfruleGen: Transitivity-Unary start";
-      run_unary_i scp inv_u.Invariant.lessdef e1 e2
+      run_unary_i scp inv_u.Assertion.lessdef e1 e2
   end
 
 module AutoCommHelper = struct
     (* Given `e1 >= e2`, returns the list of commutativity rules applicable to e2 and
-        the updated invariant *)
+        the updated assertion *)
     let find_commrules_on_e2 (scp:Auto.scope_t) (e1e2:ExprPair.t)
         : (Infrule.t * ExprPair.t) option =
       let (e1, e2) = e1e2 in
@@ -248,7 +248,7 @@ module AutoCommHelper = struct
        | _ -> None
 
     (* Given `e1 >= e2`, returns the list of commutativity rules applicable to e1 and
-        the updated invariant*)
+        the updated assertion*)
     let find_commrules_on_e1 (scp:Auto.scope_t) (e1e2:ExprPair.t)
         : (Infrule.t * ExprPair.t) option =
       let (e1, e2) = e1e2 in
@@ -281,8 +281,8 @@ module AutoRedMdOldHelper = struct
 
     let gen_infrs inv inv_g : Infrule.t list =
       (* if b then ([], inv_g) else *)
-      let md = inv.Invariant.maydiff in
-      let md_g = inv_g.Invariant.maydiff in
+      let md = inv.Assertion.maydiff in
+      let md_g = inv_g.Assertion.maydiff in
       let md_interest = IdTSet.diff md md_g in
       let infrs1 = if exist_non_physical md_interest then
                      [Infrule.Coq_reduce_maydiff_non_physical]
@@ -445,10 +445,10 @@ module AutoSubstTransHelper = struct
          | Some er -> Some (infrs@[Auto.transitivity scp (bdd e1 oel) e2 er])
          | _ -> Some infrs
 
-    let auto1_unary scp (inv_u:Invariant.unary) (inv_u_g:Invariant.unary)
-        : (Infrule.t list) * Invariant.unary =
-      let ld = inv_u.Invariant.lessdef in
-      let ldl_g = ExprPairSet.elements inv_u_g.Invariant.lessdef in
+    let auto1_unary scp (inv_u:Assertion.unary) (inv_u_g:Assertion.unary)
+        : (Infrule.t list) * Assertion.unary =
+      let ld = inv_u.Assertion.lessdef in
+      let ldl_g = ExprPairSet.elements inv_u_g.Assertion.lessdef in
       let (infrs, ld_g) =
         List.fold_left (fun (acc:(Infrule.t list) * ExprPairSet.t) (ep_g:ExprPair.t) ->
                         if ExprPairSet.mem ep_g ld then acc else
@@ -456,27 +456,27 @@ module AutoSubstTransHelper = struct
                           match run 0 scp ld None (fst ep_g) (snd ep_g) None with
                           | Some infrs -> (infrs_acc@infrs, inv_acc)
                           | None -> (infrs_acc, ExprPairSet.add ep_g inv_acc)) ([], ExprPairSet.empty) ldl_g
-      in (infrs, Invariant.update_lessdef (fun _ -> ld_g) inv_u_g)
+      in (infrs, Assertion.update_lessdef (fun _ -> ld_g) inv_u_g)
 
     let auto1 : Auto.t1 =
       fun b inv inv_g ->
       if b then ([], inv_g) else
-      let (infrs1, inv_src_g) = auto1_unary Auto.Src inv.Invariant.src inv_g.Invariant.src in
-      let (infrs2, inv_tgt_g) = auto1_unary Auto.Tgt inv.Invariant.tgt inv_g.Invariant.tgt in
-      let inv_g = Invariant.update_src (fun _ -> inv_src_g) inv_g in
-      let inv_g = Invariant.update_tgt (fun _ -> inv_tgt_g) inv_g in
+      let (infrs1, inv_src_g) = auto1_unary Auto.Src inv.Assertion.src inv_g.Assertion.src in
+      let (infrs2, inv_tgt_g) = auto1_unary Auto.Tgt inv.Assertion.tgt inv_g.Assertion.tgt in
+      let inv_g = Assertion.update_src (fun _ -> inv_src_g) inv_g in
+      let inv_g = Assertion.update_tgt (fun _ -> inv_tgt_g) inv_g in
       (infrs1@infrs2, inv_g)
   end
 
 module IntroGhostHelper = struct
-    let gather_ghost (inv:Invariant.t) : id list =
+    let gather_ghost (inv:Assertion.t) : id list =
       let gather_ghost_ld (ld:ExprPairSet.t) : id list =
         List.fold_left (fun acc ep ->
                         let idts = (Expr.get_idTs (fst ep)) @ (Expr.get_idTs (snd ep)) in
                         (filter_map (fun idt -> if (fst idt = Tag.Coq_ghost) then Some (snd idt) else None) idts)
                         @acc) [] (ExprPairSet.elements ld) in
-      let raw =(gather_ghost_ld inv.Invariant.src.Invariant.lessdef)
-               @(gather_ghost_ld inv.Invariant.tgt.Invariant.lessdef) in
+      let raw =(gather_ghost_ld inv.Assertion.src.Assertion.lessdef)
+               @(gather_ghost_ld inv.Assertion.tgt.Assertion.lessdef) in
       List.sort_uniq compare raw
 
     let find_non_value (is_src:bool) (epl : ExprPair.t list) : ExprPair.t option =
@@ -494,18 +494,18 @@ module IntroGhostHelper = struct
            if Expr.eq_dec e2 ge then Some e1 else None
       | _ -> None
 
-    let is_prev_pair (e:Expr.t) (inv:Invariant.t) : bool =
-      let l = Auto.get_rhs_list inv.Invariant.src.Invariant.lessdef e in
+    let is_prev_pair (e:Expr.t) (inv:Assertion.t) : bool =
+      let l = Auto.get_rhs_list inv.Assertion.src.Assertion.lessdef e in
       List.exists (fun e0 -> match e0 with Expr.Coq_value (ValueT.Coq_id (Tag.Coq_previous, _)) -> true | _ -> false) l
 
     let unique_ld ld : bool = List.length (ExprPairSet.elements ld) == 1
 
-    let simple_phi (g:id) (inv:Invariant.t) (inv_g:Invariant.t) : Expr.t option =
-      match find_unique_v g true inv_g.Invariant.src.Invariant.lessdef,
-            find_unique_v g false inv_g.Invariant.tgt.Invariant.lessdef with
+    let simple_phi (g:id) (inv:Assertion.t) (inv_g:Assertion.t) : Expr.t option =
+      match find_unique_v g true inv_g.Assertion.src.Assertion.lessdef,
+            find_unique_v g false inv_g.Assertion.tgt.Assertion.lessdef with
       | Some e1, Some e2 when Expr.eq_dec e1 e2 -> (* Some e1 *)
-         if (is_prev_pair e1 inv) || (unique_ld inv_g.Invariant.src.Invariant.lessdef &&
-                                        unique_ld inv_g.Invariant.tgt.Invariant.lessdef)
+         if (is_prev_pair e1 inv) || (unique_ld inv_g.Assertion.src.Assertion.lessdef &&
+                                        unique_ld inv_g.Assertion.tgt.Assertion.lessdef)
          then Some e1 else None
       | _ -> None
 
@@ -522,7 +522,7 @@ module IntroGhostHelper = struct
       | Some (xe, l_t) -> (order_ghosts l_t)@[xe]
       | None -> l
 
-    let find_to_intro (inv:Invariant.t) (inv_g:Invariant.t) : (id * Expr.t) list =
+    let find_to_intro (inv:Assertion.t) (inv_g:Assertion.t) : (id * Expr.t) list =
       let check_intro_cand scp g ep: bool =
         match ((if scp = Auto.Src then snd else fst) ep) with
         | Expr.Coq_value (ValueT.Coq_id (Tag.Coq_ghost, x)) -> x = g
@@ -536,9 +536,9 @@ module IntroGhostHelper = struct
                                      | None ->
                                         if (List.mem g existing_ghosts) then intros_acc else
                                           let src_side = List.filter (check_intro_cand Auto.Src g)
-                                                                     (ExprPairSet.elements inv_g.Invariant.src.Invariant.lessdef) in
+                                                                     (ExprPairSet.elements inv_g.Assertion.src.Assertion.lessdef) in
                                           let tgt_side = List.filter (check_intro_cand Auto.Tgt g)
-                                                                     (ExprPairSet.elements inv_g.Invariant.tgt.Invariant.lessdef) in
+                                                                     (ExprPairSet.elements inv_g.Assertion.tgt.Assertion.lessdef) in
                                           match find_non_value true src_side with
                                           | Some ep -> (g, fst ep)::intros_acc
                                           | None -> if List.length src_side > 0
@@ -669,102 +669,102 @@ module AutoGVNModule = struct
       let infrs_intros = IntroGhostHelper.gen_infrule intros in
       let intros_e = List.map (fun (x, e) -> (Expr.Coq_value (ValueT.Coq_id (Tag.Coq_ghost, x)), e)) intros in
       let augment_ld f ld = List.fold_left (fun ld1 ep -> ExprPairSet.add (f ep) ld1) ld intros_e in
-      let inv = Invariant.update_src (Invariant.update_lessdef (augment_ld (fun ep -> (snd ep, fst ep)))) inv in
-      let inv = Invariant.update_tgt (Invariant.update_lessdef (augment_ld (fun ep -> ep))) inv in
-      let infrs_ii, ld_t = infrules_icmp inv.Invariant.tgt.Invariant.lessdef in
-      let inv = Invariant.update_tgt (Invariant.update_lessdef (fun _ -> ld_t)) inv in
-      let infrs_load = process_load inv.Invariant.tgt.Invariant.lessdef inv_g.Invariant.tgt.Invariant.lessdef in
+      let inv = Assertion.update_src (Assertion.update_lessdef (augment_ld (fun ep -> (snd ep, fst ep)))) inv in
+      let inv = Assertion.update_tgt (Assertion.update_lessdef (augment_ld (fun ep -> ep))) inv in
+      let infrs_ii, ld_t = infrules_icmp inv.Assertion.tgt.Assertion.lessdef in
+      let inv = Assertion.update_tgt (Assertion.update_lessdef (fun _ -> ld_t)) inv in
+      let infrs_load = process_load inv.Assertion.tgt.Assertion.lessdef inv_g.Assertion.tgt.Assertion.lessdef in
 
       let (infrs_st, inv_g) = AutoSubstTransHelper.auto1 b inv inv_g in
       (infrs_md@infrs_intros@infrs_ii@infrs_load@infrs_st, inv_g)
   end
 
-(** Framework 1. AutoNextInvariant *)
+(** Framework 1. AutoNextAssertion *)
 module type AutoNextInv = sig
     val run : Auto.t1
   end
 
 (** Framework 1-1. Removing Maydiff *)
 module type InjectValueGenerator = sig
-    val f : Invariant.t -> ValueT.t -> ValueT.t -> (Infrule.t list) option
+    val f : Assertion.t -> ValueT.t -> ValueT.t -> (Infrule.t list) option
   end
 
 module AutoRemMD (GEN:InjectValueGenerator) : AutoNextInv = struct
-    let find_inject (inv:Invariant.t) (x:IdT.t) : (Infrule.t list) option =
+    let find_inject (inv:Assertion.t) (x:IdT.t) : (Infrule.t list) option =
       GEN.f inv (ValueT.Coq_id x) (ValueT.Coq_id x)
 
-    let rec run_intl (inv:Invariant.t) (inv_goal:Invariant.t)
+    let rec run_intl (inv:Assertion.t) (inv_goal:Assertion.t)
                      (infrs_acc:Infrule.t list) (md:IdT.t list)
-            : Infrule.t list * Invariant.t =
+            : Infrule.t list * Assertion.t =
       match md with
       | [] -> (infrs_acc, inv_goal)
       | x::md_t ->
          (match find_inject inv x with
           | Some infrs ->
-             let inv_goal_new = Invariant.update_maydiff (IdTSet.remove x) inv_goal in
+             let inv_goal_new = Assertion.update_maydiff (IdTSet.remove x) inv_goal in
              run_intl inv inv_goal_new (infrs_acc@infrs) md_t
           | None -> run_intl inv inv_goal infrs_acc md_t)
 
-    let run (isfirst:bool) (inv:Invariant.t) (inv_goal:Invariant.t)
-        : Infrule.t list * Invariant.t =
+    let run (isfirst:bool) (inv:Assertion.t) (inv_goal:Assertion.t)
+        : Infrule.t list * Assertion.t =
       let md : IdT.t list =
-        IdTSet.elements inv.Invariant.maydiff in
+        IdTSet.elements inv.Assertion.maydiff in
       let md_goal : IdT.t list =
-        IdTSet.elements inv_goal.Invariant.maydiff in
+        IdTSet.elements inv_goal.Assertion.maydiff in
       let md_remain : IdT.t list =
         List.filter (fun x -> not (List.exists (IdT.eq_dec x) md_goal)) md in
       run_intl inv inv_goal [] md_remain
   end
 
-(** Framework 1-2. Unary Invariants *)
+(** Framework 1-2. Unary Assertions *)
 module type UnaryLDGenerator = sig
-    val f : Auto.scope_t -> Invariant.unary ->
+    val f : Auto.scope_t -> Assertion.unary ->
             Expr.t -> Expr.t -> (Infrule.t list) option
   end
 
 module AutoUnaryLD (ULDG:UnaryLDGenerator): AutoNextInv = struct
     let rec run_intl (scp:Auto.scope_t)
-                     (inv_u:Invariant.unary) (inv_u_goal:Invariant.unary)
+                     (inv_u:Assertion.unary) (inv_u_goal:Assertion.unary)
                      (infrs_acc:Infrule.t list) (ld:(Expr.t * Expr.t) list)
-            : Infrule.t list * Invariant.unary =
+            : Infrule.t list * Assertion.unary =
       let res = match ld with
       | [] -> (infrs_acc, inv_u_goal)
       | (e_l, e_r)::ld_t ->
          (match ULDG.f scp inv_u e_l e_r with
           | Some infrs ->
              let inv_u_goal_new =
-               Invariant.update_lessdef (ExprPairSet.remove (e_l, e_r)) inv_u_goal
+               Assertion.update_lessdef (ExprPairSet.remove (e_l, e_r)) inv_u_goal
              in
              run_intl scp inv_u inv_u_goal_new (infrs_acc@infrs) ld_t
           | None -> run_intl scp inv_u inv_u_goal infrs_acc ld_t)
       in res
 
     let run_unary (scp:Auto.scope_t)
-                  (inv_u:Invariant.unary) (inv_u_goal:Invariant.unary)
-        : Infrule.t list * Invariant.unary =
+                  (inv_u:Assertion.unary) (inv_u_goal:Assertion.unary)
+        : Infrule.t list * Assertion.unary =
       let ld : ExprPair.t list =
-        ExprPairSet.elements inv_u.Invariant.lessdef in
+        ExprPairSet.elements inv_u.Assertion.lessdef in
       let ld_goal : ExprPair.t list =
-        ExprPairSet.elements inv_u_goal.Invariant.lessdef in
+        ExprPairSet.elements inv_u_goal.Assertion.lessdef in
       let ld_remain : ExprPair.t list =
         List.filter (fun x -> not (List.exists (ExprPair.eq_dec x) ld)) ld_goal in
       run_intl scp inv_u inv_u_goal [] ld_remain
 
-    let run (isfirst:bool) (inv:Invariant.t) (inv_goal:Invariant.t)
-        : Infrule.t list * Invariant.t =
+    let run (isfirst:bool) (inv:Assertion.t) (inv_goal:Assertion.t)
+        : Infrule.t list * Assertion.t =
       if isfirst then
         ([], inv_goal)
       else (
         Printer.debug_print "AutoInfruleGen: AutoUnaryLD start";
         let (infrs_src, inv_src) =
-          run_unary Auto.Src inv.Invariant.src inv_goal.Invariant.src in
+          run_unary Auto.Src inv.Assertion.src inv_goal.Assertion.src in
         Printer.debug_print "AutoInfruleGen: AutoUnaryLD src end";
         let (infrs_tgt, inv_tgt) =
-          run_unary Auto.Tgt inv.Invariant.tgt inv_goal.Invariant.tgt in
+          run_unary Auto.Tgt inv.Assertion.tgt inv_goal.Assertion.tgt in
         Printer.debug_print "AutoInfruleGen: AutoUnaryLD tgt end";
-        let new_goal = Invariant.update_tgt
+        let new_goal = Assertion.update_tgt
                          (fun _ -> inv_tgt)
-                         (Invariant.update_src (fun _ -> inv_src) inv_goal) in
+                         (Assertion.update_src (fun _ -> inv_src) inv_goal) in
         (infrs_src@infrs_tgt, new_goal)
       )
   end
@@ -775,7 +775,7 @@ module type AutoInjVal = sig
   end
 
 module AutoInjectValues (GEN:InjectValueGenerator): AutoInjVal = struct
-    let rec run_intl (inv:Invariant.t) (vpl_acc:ValueTPair.t list)
+    let rec run_intl (inv:Assertion.t) (vpl_acc:ValueTPair.t list)
                      (infrs_acc:Infrule.t list) (vpl:ValueTPair.t list)
             : Infrule.t list * (ValueTPair.t list) =
       match vpl with
@@ -785,7 +785,7 @@ module AutoInjectValues (GEN:InjectValueGenerator): AutoInjVal = struct
           | Some infrs -> run_intl inv vpl_acc (infrs_acc@infrs) vpl_t
           | None -> run_intl inv ((v_l, v_r)::vpl_acc) infrs_acc vpl_t)
 
-    let run (inv : Invariant.t) (vpl:(ValueT.t * ValueT.t) list)
+    let run (inv : Assertion.t) (vpl:(ValueT.t * ValueT.t) list)
         : Infrule.t list * (ValueT.t * ValueT.t) list =
       run_intl inv [] [] vpl
   end
@@ -821,7 +821,7 @@ module AutoInstCombineModule : AutoNextInv = struct
               generated_itms in
       (infrules, ExprPairSet.union lessdefs newlessdefs)
 
-    let run : Auto.t1 = fun (isfirst:bool) (inv:Invariant.t) (inv_goal:Invariant.t) ->
+    let run : Auto.t1 = fun (isfirst:bool) (inv:Assertion.t) (inv_goal:Assertion.t) ->
       let infrs_md = AutoRedMdOldHelper.gen_infrs inv inv_goal in
 
       let lessdefs_src = inv.src.lessdef in
@@ -840,10 +840,10 @@ module AutoInstCombineModule : AutoNextInv = struct
               Auto.Tgt lessdefs_tgt (AutoCommHelper.find_commrules_on_e2) in
       let lessdefs_tgt = ExprPairSet.union lessdefs_tgt lessdefs_added in
 
-      let newinv = Invariant.update_src
-              (Invariant.update_lessdef (fun _ -> lessdefs_src))
-                (Invariant.update_tgt
-                  (Invariant.update_lessdef (fun _ -> lessdefs_tgt))
+      let newinv = Assertion.update_src
+              (Assertion.update_lessdef (fun _ -> lessdefs_src))
+                (Assertion.update_tgt
+                  (Assertion.update_lessdef (fun _ -> lessdefs_tgt))
                   inv) in
 
       let (infrules_trans, inv_goal) = AutoUnaryLD_Trans.run false newinv inv_goal in
@@ -891,7 +891,7 @@ module AutoStrategy = struct
 let gen_infrules_from_insns
       (insn_src : LLVMsyntax.insn)
       (insn_tgt : LLVMsyntax.insn)
-      (inv : Invariant.t)
+      (inv : Assertion.t)
     : Infrule.t list =
   Printer.debug_print "AutoInfruleGen: gen_infrules_from_insns start";
   let run = snd (AutoStrategy.select ()) in
@@ -926,7 +926,7 @@ let gen_infrules_from_insns
   Printer.debug_print "AutoInfruleGen: gen_infrules_from_insns end";
   res
 
-let gen_infrules_next_inv (isfirst:bool) (inv:Invariant.t) (inv_nxt:Invariant.t)
+let gen_infrules_next_inv (isfirst:bool) (inv:Assertion.t) (inv_nxt:Assertion.t)
     : Infrule.t list =
   Printer.debug_print "AutoInfruleGen: gen_infrules_next_inv start";
   let run = fst (AutoStrategy.select ()) in

@@ -20,8 +20,8 @@ Require Import Hints.
 Require Import Postcond.
 Require Import Validator.
 Require Import GenericValues.
-Require InvMem.
-Require InvState.
+Require AssnMem.
+Require AssnState.
 Require Import Hints.
 Require Import Infrules.
 
@@ -32,16 +32,16 @@ Set Implicit Arguments.
 Section Filter.
   Definition filter
              (preserved: Exprs.Tag.t * id -> bool)
-             (inv: InvState.Unary.t): InvState.Unary.t :=
-    InvState.Unary.update_ghost
+             (inv: AssnState.Unary.t): AssnState.Unary.t :=
+    AssnState.Unary.update_ghost
       (filter_AL_atom (preserved <*> (pair Exprs.Tag.ghost)))
-      (InvState.Unary.update_previous
+      (AssnState.Unary.update_previous
          (filter_AL_atom (preserved <*> (pair Exprs.Tag.previous)))
          inv).
 
   Lemma filter_subset_idT st_unary f id invst_unary val
-        (VAL_SUBSET: (InvState.Unary.sem_idT st_unary (filter f invst_unary) id = Some val)):
-    <<VAL: (InvState.Unary.sem_idT st_unary invst_unary id = Some val)>>.
+        (VAL_SUBSET: (AssnState.Unary.sem_idT st_unary (filter f invst_unary) id = Some val)):
+    <<VAL: (AssnState.Unary.sem_idT st_unary invst_unary id = Some val)>>.
   Proof.
     destruct id. destruct t; ss.
     - eapply lookup_AL_filter_some. exact VAL_SUBSET.
@@ -49,20 +49,20 @@ Section Filter.
   Qed.
 
   Lemma filter_subset_valueT conf_unary st_unary f vt invst_unary val
-        (VAL_SUBSET: (InvState.Unary.sem_valueT
+        (VAL_SUBSET: (AssnState.Unary.sem_valueT
                         conf_unary st_unary
                         (filter f invst_unary) vt = Some val)):
-    <<VAL: (InvState.Unary.sem_valueT conf_unary st_unary invst_unary vt = Some val)>>.
+    <<VAL: (AssnState.Unary.sem_valueT conf_unary st_unary invst_unary vt = Some val)>>.
   Proof.
     red. destruct vt; ss.
     eapply filter_subset_idT; eauto.
   Qed.
 
   Lemma filter_subset_list_valueT conf_unary st_unary f vts invst_unary val
-        (VAL_SUBSET: (InvState.Unary.sem_list_valueT
+        (VAL_SUBSET: (AssnState.Unary.sem_list_valueT
                         conf_unary st_unary
                         (filter f invst_unary) vts = Some val)):
-    <<VAL: (InvState.Unary.sem_list_valueT conf_unary st_unary invst_unary vts = Some val)>>.
+    <<VAL: (AssnState.Unary.sem_list_valueT conf_unary st_unary invst_unary vts = Some val)>>.
   Proof.
     red. revert val VAL_SUBSET. induction vts; i; ss. destruct a.
     Ltac exploit_with H x :=
@@ -73,17 +73,17 @@ Section Filter.
   Qed.
 
   Lemma filter_subset_expr conf_unary st_unary f expr invst_unary val
-        (VAL_SUBSET: (InvState.Unary.sem_expr
+        (VAL_SUBSET: (AssnState.Unary.sem_expr
                         conf_unary st_unary
                         (filter f invst_unary) expr = Some val)):
-    <<VAL: (InvState.Unary.sem_expr conf_unary st_unary invst_unary expr = Some val)>>.
+    <<VAL: (AssnState.Unary.sem_expr conf_unary st_unary invst_unary expr = Some val)>>.
   Proof.
     red.
     Ltac exploit_filter_subset_with x :=
       match (type of x) with
-      | (InvState.Unary.sem_valueT _ _ _ _ = Some _) =>
+      | (AssnState.Unary.sem_valueT _ _ _ _ = Some _) =>
         (exploit filter_subset_valueT; [exact x|]; eauto; ii; des)
-      | (InvState.Unary.sem_list_valueT _ _ _ _ = Some _) =>
+      | (AssnState.Unary.sem_list_valueT _ _ _ _ = Some _) =>
         (exploit filter_subset_list_valueT; [exact x|]; eauto; ii; des)
       end.
     Time destruct expr; ss;
@@ -94,12 +94,12 @@ Section Filter.
 
   Lemma filter_preserved_valueT
         conf_unary st_unary invst_unary vt val f
-        (VAL: InvState.Unary.sem_valueT conf_unary st_unary invst_unary vt = Some val)
+        (VAL: AssnState.Unary.sem_valueT conf_unary st_unary invst_unary vt = Some val)
         (PRESERVED: (sflib.is_true (List.forallb f (Exprs.ValueT.get_idTs vt)))):
-    <<VAL: InvState.Unary.sem_valueT conf_unary st_unary (filter f invst_unary) vt = Some val>>.
+    <<VAL: AssnState.Unary.sem_valueT conf_unary st_unary (filter f invst_unary) vt = Some val>>.
   Proof.
     red. destruct vt; ss. repeat (des_bool; des).
-    unfold InvState.Unary.sem_idT. destruct x. s.
+    unfold AssnState.Unary.sem_idT. destruct x. s.
     destruct t; ss.
     - rewrite lookup_AL_filter_spec in *. des_ifs.
       unfold compose, Tag.t, Ords.id.t in *. rewrite PRESERVED in *. clarify.
@@ -109,11 +109,11 @@ Section Filter.
 
   Lemma filter_preserved_list_valueT
         conf_unary st_unary invst_unary vts val f
-        (VAL: InvState.Unary.sem_list_valueT conf_unary st_unary invst_unary vts = Some val)
+        (VAL: AssnState.Unary.sem_list_valueT conf_unary st_unary invst_unary vts = Some val)
         (PRESERVED: sflib.is_true (List.forallb
                                      (fun x => (List.forallb f (Exprs.ValueT.get_idTs x)))
                                      (List.map snd vts))):
-    <<VAL: InvState.Unary.sem_list_valueT conf_unary st_unary (filter f invst_unary) vts = Some val>>.
+    <<VAL: AssnState.Unary.sem_list_valueT conf_unary st_unary (filter f invst_unary) vts = Some val>>.
   Proof.
     revert val VAL PRESERVED. induction vts; i; ss.
     destruct a. ss. repeat (des_bool; des).
@@ -128,9 +128,9 @@ Section Filter.
 
   Lemma filter_preserved_expr
         conf_unary st_unary invst_unary expr val f
-        (VAL: InvState.Unary.sem_expr conf_unary st_unary invst_unary expr = Some val)
+        (VAL: AssnState.Unary.sem_expr conf_unary st_unary invst_unary expr = Some val)
         (PRESERVED: List.forallb f (Exprs.Expr.get_idTs expr)):
-    <<VAL: InvState.Unary.sem_expr conf_unary st_unary (filter f invst_unary) expr = Some val>>.
+    <<VAL: AssnState.Unary.sem_expr conf_unary st_unary (filter f invst_unary) expr = Some val>>.
   Proof.
     red.
     unfold Exprs.Expr.get_idTs in *.
@@ -139,12 +139,12 @@ Section Filter.
 
     Ltac exploit_filter_preserved_with x :=
       match (type of x) with
-      | (InvState.Unary.sem_valueT _ _ (filter _ _) _ = _) => fail 1
-      | (InvState.Unary.sem_list_valueT _ _ (filter _ _) _ = _) => fail 1
+      | (AssnState.Unary.sem_valueT _ _ (filter _ _) _ = _) => fail 1
+      | (AssnState.Unary.sem_list_valueT _ _ (filter _ _) _ = _) => fail 1
       (* Above is REQUIRED in order to prevent inf loop *)
-      | (InvState.Unary.sem_valueT _ _ _ _ = Some _) =>
+      | (AssnState.Unary.sem_valueT _ _ _ _ = Some _) =>
         (exploit filter_preserved_valueT; [exact x| |]; eauto; ii; des)
-      | (InvState.Unary.sem_list_valueT _ _ _ _ = Some _) =>
+      | (AssnState.Unary.sem_list_valueT _ _ _ _ = Some _) =>
         (exploit filter_preserved_list_valueT; [exact x| |]; eauto; ii; des)
       end.
 
@@ -176,21 +176,21 @@ Section Filter.
   Lemma incl_implies_preserved
         conf st invst0 expr val inv
         (preserved: _ -> bool)
-        (PRESERVED: forall id (ID: In id (Invariant.get_idTs_unary inv)), preserved id)
-        (VAL: InvState.Unary.sem_expr conf st invst0 expr = Some val)
-        (INCL: incl (Exprs.Expr.get_idTs expr) (Invariant.get_idTs_unary inv)):
-    <<PRESERVED: InvState.Unary.sem_expr conf st (filter preserved invst0) expr = Some val>>.
+        (PRESERVED: forall id (ID: In id (Assertion.get_idTs_unary inv)), preserved id)
+        (VAL: AssnState.Unary.sem_expr conf st invst0 expr = Some val)
+        (INCL: incl (Exprs.Expr.get_idTs expr) (Assertion.get_idTs_unary inv)):
+    <<PRESERVED: AssnState.Unary.sem_expr conf st (filter preserved invst0) expr = Some val>>.
   Proof.
     eapply filter_preserved_expr; eauto. apply forallb_forall. i.
     apply PRESERVED. apply INCL. ss.
   Qed.
 
   Lemma filter_spec
-        conf st invst invmem inv gmax public
+        conf st invst assnmem inv gmax public
         (preserved: _ -> bool)
-        (PRESERVED: forall id (ID: In id (Invariant.get_idTs_unary inv)), preserved id)
-        (STATE: InvState.Unary.sem conf st invst invmem gmax public inv):
-    InvState.Unary.sem conf st (filter preserved invst) invmem gmax public inv.
+        (PRESERVED: forall id (ID: In id (Assertion.get_idTs_unary inv)), preserved id)
+        (STATE: AssnState.Unary.sem conf st invst assnmem gmax public inv):
+    AssnState.Unary.sem conf st (filter preserved invst) assnmem gmax public inv.
   Proof.
     inv STATE. econs; eauto.
     - ii.
@@ -199,7 +199,7 @@ Section Filter.
       exploit incl_implies_preserved; eauto.
       eapply incl_tran; [|eapply incl_tran]; swap 2 3.
       + apply incl_appr. apply incl_refl.
-      + unfold Invariant.get_idTs_unary.
+      + unfold Assertion.get_idTs_unary.
         apply incl_appl. apply incl_refl.
       + eapply In_map_incl in H. des. refine H.
     - inv NOALIAS. econs; i.
@@ -222,11 +222,11 @@ Lemma reduce_maydiff_lessdef_sound
       m_src m_tgt
       conf_src st_src
       conf_tgt st_tgt
-      invst invmem inv
-      (CONF: InvState.valid_conf m_src m_tgt conf_src conf_tgt)
-      (STATE: InvState.Rel.sem conf_src conf_tgt st_src st_tgt invst invmem inv)
-      (MEM: InvMem.Rel.sem conf_src conf_tgt st_src.(Mem) st_tgt.(Mem) invmem):
-  <<STATE: InvState.Rel.sem conf_src conf_tgt st_src st_tgt invst invmem
+      invst assnmem inv
+      (CONF: AssnState.valid_conf m_src m_tgt conf_src conf_tgt)
+      (STATE: AssnState.Rel.sem conf_src conf_tgt st_src st_tgt invst assnmem inv)
+      (MEM: AssnMem.Rel.sem conf_src conf_tgt st_src.(Mem) st_tgt.(Mem) assnmem):
+  <<STATE: AssnState.Rel.sem conf_src conf_tgt st_src st_tgt invst assnmem
                             (reduce_maydiff_lessdef inv)>>.
 Proof.
   inversion STATE. econs; eauto. ii.
@@ -237,8 +237,8 @@ Proof.
   red in NOTIN; des.
   apply ExprPairSetFacts.exists_iff in NOTIN0; [|solve_compat_bool].
   red in NOTIN0; des.
-  apply InvState.get_lhs_in_spec in NOTIN0.
-  apply InvState.get_rhs_in_spec in NOTIN.
+  apply AssnState.get_lhs_in_spec in NOTIN0.
+  apply AssnState.get_rhs_in_spec in NOTIN.
   destruct x, x0. ss. des. subst.
   rename id0 into idt.
 
@@ -247,7 +247,7 @@ Proof.
   exploit LESSDEF; eauto; []; ii; des. clear LESSDEF.
 
   (* inject_expr t0, t1 --> t1's result exists *)
-  exploit InvState.Rel.inject_expr_spec; eauto; []; ii; des.
+  exploit AssnState.Rel.inject_expr_spec; eauto; []; ii; des.
 
   (* tgt t1, x --> x's result exists *)
   inv TGT. clear NOALIAS UNIQUE PRIVATE.
@@ -261,16 +261,16 @@ Qed.
 
 Lemma reduce_maydiff_preserved_sem_idT st_src st_tgt
       invst inv id val_src val_tgt
-  (VAL_SRC: InvState.Unary.sem_idT st_src
-              (filter (reduce_maydiff_preserved inv) (InvState.Rel.src invst)) id =
+  (VAL_SRC: AssnState.Unary.sem_idT st_src
+              (filter (reduce_maydiff_preserved inv) (AssnState.Rel.src invst)) id =
             Some val_src)
-  (VAL_TGT: InvState.Unary.sem_idT st_tgt (InvState.Rel.tgt invst) id = Some val_tgt):
-  <<VAL_TGT: InvState.Unary.sem_idT st_tgt
-    (filter (reduce_maydiff_preserved inv) (InvState.Rel.tgt invst)) id = Some val_tgt>>.
+  (VAL_TGT: AssnState.Unary.sem_idT st_tgt (AssnState.Rel.tgt invst) id = Some val_tgt):
+  <<VAL_TGT: AssnState.Unary.sem_idT st_tgt
+    (filter (reduce_maydiff_preserved inv) (AssnState.Rel.tgt invst)) id = Some val_tgt>>.
 Proof.
   destruct id. unfold Ords.id.t in *. rename t0 into id.
-  unfold InvState.Unary.sem_idT in *. ss.
-  unfold InvState.Unary.sem_tag in *. ss.
+  unfold AssnState.Unary.sem_idT in *. ss.
+  unfold AssnState.Unary.sem_tag in *. ss.
   unfold compose in *.
   destruct t; ss.
   - rewrite <- VAL_TGT.
@@ -287,17 +287,17 @@ Lemma reduce_maydiff_non_physical_sound
       m_src m_tgt
       conf_src st_src
       conf_tgt st_tgt
-      invst0 invmem inv
-      (CONF: InvState.valid_conf m_src m_tgt conf_src conf_tgt)
-      (STATE: InvState.Rel.sem conf_src conf_tgt st_src st_tgt invst0 invmem inv)
-      (MEM: InvMem.Rel.sem conf_src conf_tgt st_src.(Mem) st_tgt.(Mem) invmem):
+      invst0 assnmem inv
+      (CONF: AssnState.valid_conf m_src m_tgt conf_src conf_tgt)
+      (STATE: AssnState.Rel.sem conf_src conf_tgt st_src st_tgt invst0 assnmem inv)
+      (MEM: AssnMem.Rel.sem conf_src conf_tgt st_src.(Mem) st_tgt.(Mem) assnmem):
   exists invst1,
-    <<STATE: InvState.Rel.sem conf_src conf_tgt st_src st_tgt invst1 invmem
+    <<STATE: AssnState.Rel.sem conf_src conf_tgt st_src st_tgt invst1 assnmem
                               (reduce_maydiff_non_physical inv)>>.
 Proof.
-  exists (InvState.Rel.update_both (filter (reduce_maydiff_preserved
-                                         ((Invariant.get_idTs_unary inv.(Invariant.src))
-                                            ++ (Invariant.get_idTs_unary inv.(Invariant.tgt))))) invst0).
+  exists (AssnState.Rel.update_both (filter (reduce_maydiff_preserved
+                                         ((Assertion.get_idTs_unary inv.(Assertion.src))
+                                            ++ (Assertion.get_idTs_unary inv.(Assertion.tgt))))) invst0).
   red.
   inv STATE.
   econs; ss; cycle 2.
@@ -310,8 +310,8 @@ Proof.
       eapply reduce_maydiff_preserved_sem_idT; eauto.
     + destruct id0. unfold Ords.id.t in *.
       rename t into __t__, t0 into __i__.
-      unfold InvState.Unary.sem_idT in VAL_SRC. ss.
-      unfold InvState.Unary.sem_tag in VAL_SRC. ss.
+      unfold AssnState.Unary.sem_idT in VAL_SRC. ss.
+      unfold AssnState.Unary.sem_tag in VAL_SRC. ss.
       unfold compose in *.
       destruct __t__; inv NOTIN.
       * rewrite lookup_AL_filter_spec in VAL_SRC.

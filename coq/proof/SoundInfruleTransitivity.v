@@ -21,8 +21,8 @@ Require Import Exprs.
 Require Import Validator.
 Require Import GenericValues.
 Require Import Inject.
-Require InvMem.
-Require InvState.
+Require AssnMem.
+Require AssnState.
 Require Import Hints.
 Require Import memory_props.
 Import Memory.
@@ -37,8 +37,8 @@ Set Implicit Arguments.
 Lemma load_realign_sem_expr
       conf st invst e0
   :
-    <<EQ: InvState.Unary.sem_expr conf st invst e0 =
-          InvState.Unary.sem_expr conf st invst (Infrules.load_realign e0)>>
+    <<EQ: AssnState.Unary.sem_expr conf st invst e0 =
+          AssnState.Unary.sem_expr conf st invst (Infrules.load_realign e0)>>
 .
 Proof.
   red.

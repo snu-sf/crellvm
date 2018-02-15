@@ -20,8 +20,8 @@ Require Import Postcond.
 Require Import Exprs.
 Require Import Hints.
 Require Import GenericValues.
-Require InvMem.
-Require InvState.
+Require AssnMem.
+Require AssnState.
 Require Import SoundBase.
 
 Require Import Inject. (* TODO: for simtac *)
@@ -70,11 +70,11 @@ Qed.
 Lemma sem_idT_equiv_except
       ids st0 st1 invst id gv
       (EQUIV: state_equiv_except ids st0 st1)
-      (STATE: InvState.Unary.sem_idT st0 invst (Tag.physical, id) = Some gv)
+      (STATE: AssnState.Unary.sem_idT st0 invst (Tag.physical, id) = Some gv)
       (NOTIN: AtomSetImpl.mem id ids = false)
-  : <<STATE: InvState.Unary.sem_idT st1 invst (Tag.physical, id) = Some gv>>.
+  : <<STATE: AssnState.Unary.sem_idT st1 invst (Tag.physical, id) = Some gv>>.
 Proof.
-  unfold InvState.Unary.sem_idT in *.
+  unfold AssnState.Unary.sem_idT in *.
   inv EQUIV.
   unfold locals_equiv_except in LOCALS.
   red. rewrite <- STATE.
@@ -85,9 +85,9 @@ Lemma sem_valueT_equiv_except
       ids st0 st1 invst v gv
       conf
       (EQUIV: state_equiv_except ids st0 st1)
-      (STATE: InvState.Unary.sem_valueT conf st0 invst v = Some gv)
+      (STATE: AssnState.Unary.sem_valueT conf st0 invst v = Some gv)
       (NOTIN: (LiftPred.ValueT (flip IdTSet.mem (lift_physical_atoms_idtset ids))) v = false)
-  : <<STATE: InvState.Unary.sem_valueT conf st1 invst v = Some gv>>.
+  : <<STATE: AssnState.Unary.sem_valueT conf st1 invst v = Some gv>>.
 Proof.
   unfold flip in NOTIN.
   destruct v; ss. destruct x. destruct t; ss.
@@ -99,9 +99,9 @@ Lemma sem_list_valueT_equiv_except
       ids st0 st1 invst lsv gvs
       conf
       (EQUIV: state_equiv_except ids st0 st1)
-      (STATE: InvState.Unary.sem_list_valueT conf st0 invst lsv = Some gvs)
+      (STATE: AssnState.Unary.sem_list_valueT conf st0 invst lsv = Some gvs)
       (NOTIN: existsb (LiftPred.ValueT (flip IdTSet.mem (lift_physical_atoms_idtset ids)) <*> snd) lsv = false)
-  : <<STATE: InvState.Unary.sem_list_valueT conf st1 invst lsv = Some gvs>>.
+  : <<STATE: AssnState.Unary.sem_list_valueT conf st1 invst lsv = Some gvs>>.
 Proof.
   unfold flip in NOTIN.
   revert gvs STATE NOTIN.
@@ -120,7 +120,7 @@ Ltac solve_equiv_except_val st0 :=
            apply orb_false_iff in H;des
          end;
   repeat match goal with
-         | [H: InvState.Unary.sem_valueT _ st0 _ _ = Some _ |- _] =>
+         | [H: AssnState.Unary.sem_valueT _ st0 _ _ = Some _ |- _] =>
            eapply sem_valueT_equiv_except in H; eauto; rewrite H
          end.
 
@@ -129,8 +129,8 @@ Lemma sem_expr_equiv_except
       ids st0 st1 e val
       (EQUIV: state_equiv_except ids st0 st1)
       (FILTER: (LiftPred.Expr (flip IdTSet.mem (lift_physical_atoms_idtset ids))) e = false)
-      (SEM_EXPR: InvState.Unary.sem_expr conf st0 invst e = Some val)
-  : <<SEM_EXPR: InvState.Unary.sem_expr conf st1 invst e = Some val>>.
+      (SEM_EXPR: AssnState.Unary.sem_expr conf st0 invst e = Some val)
+  : <<SEM_EXPR: AssnState.Unary.sem_expr conf st1 invst e = Some val>>.
 Proof.
   unfold compose in FILTER.
   destruct e; ss; simtac;
@@ -141,7 +141,7 @@ Qed.
 
 Lemma forget_stack_unary_Subset
       defs leaks inv0
-  : Invariant.Subset_unary (ForgetStack.unary defs leaks inv0) inv0.
+  : Assertion.Subset_unary (ForgetStack.unary defs leaks inv0) inv0.
 Proof.
   unfold ForgetStack.unary.
   econs; ss; ii.
@@ -161,7 +161,7 @@ Qed.
 Lemma forget_stack_Subset
       def_src def_tgt inv0
       leaks_src leaks_tgt
-  : Invariant.Subset (ForgetStack.t def_src def_tgt leaks_src leaks_tgt inv0) inv0.
+  : Assertion.Subset (ForgetStack.t def_src def_tgt leaks_src leaks_tgt inv0) inv0.
 Proof.
   unfold ForgetStack.t.
   econs; ss;
@@ -175,17 +175,17 @@ Qed.
 Inductive unique_preserved_except conf inv unique_parent st gmax except_for : Prop :=
 | unique_preserved_except_intro
     (UNIQUE_PRESERVED_INV:
-       forall u (MEM: AtomSetImpl.mem u inv.(Invariant.unique) = true)
+       forall u (MEM: AtomSetImpl.mem u inv.(Assertion.unique) = true)
          (NO_LEAK: AtomSetImpl.mem u except_for = false),
-         InvState.Unary.sem_unique conf st gmax u)
+         AssnState.Unary.sem_unique conf st gmax u)
     (UNIQUE_PRESERVED_PARENT_LOCAL:
        forall x ptr
          (PTR:lookupAL _ st.(EC).(Locals) x = Some ptr),
-         InvMem.gv_diffblock_with_blocks conf ptr unique_parent)
+         AssnMem.gv_diffblock_with_blocks conf ptr unique_parent)
     (UNIQUE_PRESERVED_PARENT_MEM:
        forall mptr typ align val'
          (LOAD: mload conf.(CurTargetData) st.(Mem) mptr typ align = Some val'),
-         InvMem.gv_diffblock_with_blocks conf val' unique_parent)
+         AssnMem.gv_diffblock_with_blocks conf val' unique_parent)
     (UNIQUE_PRESERVED_PARENT_GLOBALS:
        forall b (IN: In b unique_parent), (gmax < b)%positive)
 .
@@ -229,20 +229,20 @@ Qed.
 
 (* TODO move diffblock theories to SoundBase? or some root file so that others can see? *)
 Lemma getOperandValue_diffblock
-      conf gmax (* public Mem0 invmem *)
+      conf gmax (* public Mem0 assnmem *)
       blocks
       lc
       valy gvaly
       (GET_OPERAND: getOperandValue conf.(CurTargetData) valy lc conf.(Globals) = Some gvaly)
-      (* (MEM: InvMem.Unary.sem conf gmax public Mem0 invmem) *)
+      (* (MEM: AssnMem.Unary.sem conf gmax public Mem0 assnmem) *)
       (* in MEM, WF_GLOBALS and GLOBALS exist, but blocks will be bound to unique_parent *)
       (WF_GLOBALS: genericvalues_inject.wf_globals gmax (Globals conf))
       (GLOBALS: forall b : Values.block, In b blocks -> (gmax < b)%positive)
       (LOOKUP_DIFFBLOCK:
          forall valx gvalx (LOOKUP: lookupAL GenericValue lc valx = Some gvalx),
-           InvMem.gv_diffblock_with_blocks conf gvalx blocks)
+           AssnMem.gv_diffblock_with_blocks conf gvalx blocks)
   :
-    InvMem.gv_diffblock_with_blocks conf gvaly blocks
+    AssnMem.gv_diffblock_with_blocks conf gvaly blocks
 .
 Proof.
   destruct valy; ss.
@@ -258,7 +258,7 @@ Lemma no_alias_diffblock
       conf gval1 gval2
       (NOALIAS: no_alias gval1 gval2)
   :
-    <<DIFFBLOCK: InvState.Unary.sem_diffblock conf gval1 gval2>>
+    <<DIFFBLOCK: AssnState.Unary.sem_diffblock conf gval1 gval2>>
 .
 Proof.
   generalize dependent gval1.
@@ -275,9 +275,9 @@ Qed.
 
 Lemma diffblock_with_blocks_any_diffblock_any
       conf valx
-      (DIFFBLOCK: forall blocks, InvMem.gv_diffblock_with_blocks conf valx blocks)
+      (DIFFBLOCK: forall blocks, AssnMem.gv_diffblock_with_blocks conf valx blocks)
   :
-    <<DIFFBLOCK: forall gvs, InvState.Unary.sem_diffblock conf valx gvs>>
+    <<DIFFBLOCK: forall gvs, AssnState.Unary.sem_diffblock conf valx gvs>>
 .
 Proof.
   ii. eapply DIFFBLOCK; eauto.
@@ -288,7 +288,7 @@ Lemma no_embedded_ptrs_diffblock_with_blocks
       (NO_PTR: no_embedded_ptrs val)
   :
     (* moving conf above : (to premise) will make Unshelved goals in BOP_diffblock_with_blocks *)
-  <<DIFFBLOCK: forall conf, InvMem.gv_diffblock_with_blocks conf val blocks>>
+  <<DIFFBLOCK: forall conf, AssnMem.gv_diffblock_with_blocks conf val blocks>>
 .
 Proof.
   induction val; ii; ss.
@@ -299,7 +299,7 @@ Lemma undef_implies_diffblock_with_blocks
       TD ty1 valx conf
       (UNDEF: gundef TD ty1 = Some valx)
   :
-    <<DIFFBLOCK: forall blocks, InvMem.gv_diffblock_with_blocks conf valx blocks>>
+    <<DIFFBLOCK: forall blocks, AssnMem.gv_diffblock_with_blocks conf valx blocks>>
 .
 Proof.
   unfold gundef in *.
@@ -313,7 +313,7 @@ Lemma undef_implies_diffblock
       TD ty1 valx conf valy
       (UNDEF: gundef TD ty1 = Some valx)
   :
-    InvState.Unary.sem_diffblock conf valx valy
+    AssnState.Unary.sem_diffblock conf valx valy
 .
 Proof.
   ii. exploit undef_implies_diffblock_with_blocks; eauto; i; des.
@@ -321,10 +321,10 @@ Qed.
 
 Lemma app_diffblock_with_blocks
       conf gvs gvs' blocks
-  (DIFFBLOCK1: InvMem.gv_diffblock_with_blocks conf gvs blocks)
-  (DIFFBLOCK2: InvMem.gv_diffblock_with_blocks conf gvs' blocks)
+  (DIFFBLOCK1: AssnMem.gv_diffblock_with_blocks conf gvs blocks)
+  (DIFFBLOCK2: AssnMem.gv_diffblock_with_blocks conf gvs' blocks)
   :
-  <<DIFFBLOCK: InvMem.gv_diffblock_with_blocks conf (gvs ++ gvs') blocks>>
+  <<DIFFBLOCK: AssnMem.gv_diffblock_with_blocks conf (gvs ++ gvs') blocks>>
 .
 Proof.
   ii.
@@ -336,9 +336,9 @@ Qed.
 Lemma incl_diffblock_with_blocks
       gvsx gvsy conf blocks
   (INCL: incl gvsx gvsy)
-  (DIFFBLOCK: InvMem.gv_diffblock_with_blocks conf gvsy blocks)
+  (DIFFBLOCK: AssnMem.gv_diffblock_with_blocks conf gvsy blocks)
   :
-    <<DIFFBLOCK: InvMem.gv_diffblock_with_blocks conf gvsx blocks>>
+    <<DIFFBLOCK: AssnMem.gv_diffblock_with_blocks conf gvsx blocks>>
 .
 Proof.
   red.
@@ -363,7 +363,7 @@ Lemma BOP_diffblock_with_blocks
       S TD Ps gl fs
       lc bop sz v1 v2 val
       (H : BOP TD lc gl bop sz v1 v2 = Some val)
-  : <<DIFFBLOCK: forall blocks, InvMem.gv_diffblock_with_blocks (mkCfg S TD Ps gl fs) val blocks>>.
+  : <<DIFFBLOCK: forall blocks, AssnMem.gv_diffblock_with_blocks (mkCfg S TD Ps gl fs) val blocks>>.
 Proof.
   apply opsem_props.OpsemProps.BOP_inversion in H. des.
   apply mbop_preserves_no_embedded_ptrs in H1.
@@ -375,7 +375,7 @@ Lemma BOP_diffblock
       S TD Ps gl fs
       lc bop sz v1 v2 val ptr
       (H : BOP TD lc gl bop sz v1 v2 = Some val)
-  : InvState.Unary.sem_diffblock (mkCfg S TD Ps gl fs) ptr val.
+  : AssnState.Unary.sem_diffblock (mkCfg S TD Ps gl fs) ptr val.
 Proof.
   ii. exploit BOP_diffblock_with_blocks; eauto; i; des.
 Qed.
@@ -384,7 +384,7 @@ Lemma FBOP_diffblock_with_blocks
       S TD Ps gl fs
       lc fbop sz v1 v2 val
       (H : FBOP TD lc gl fbop sz v1 v2 = Some val)
-  : <<DIFFBLOCK: forall blocks, InvMem.gv_diffblock_with_blocks (mkCfg S TD Ps gl fs) val blocks>>.
+  : <<DIFFBLOCK: forall blocks, AssnMem.gv_diffblock_with_blocks (mkCfg S TD Ps gl fs) val blocks>>.
 Proof.
   apply opsem_props.OpsemProps.FBOP_inversion in H. des.
   apply mfbop_preserves_no_embedded_ptrs in H1.
@@ -396,7 +396,7 @@ Lemma FBOP_diffblock
       S TD Ps gl fs
       lc fbop sz v1 v2 val ptr
       (H : FBOP TD lc gl fbop sz v1 v2 = Some val)
-  : InvState.Unary.sem_diffblock (mkCfg S TD Ps gl fs) ptr val.
+  : AssnState.Unary.sem_diffblock (mkCfg S TD Ps gl fs) ptr val.
 Proof.
   ii. exploit FBOP_diffblock_with_blocks; eauto; i; des.
 Qed.
@@ -405,7 +405,7 @@ Lemma TRUNC_diffblock_with_blocks
       S TD Ps gl fs lc val
       truncop1 typ1 value1 typ2
       (H: TRUNC TD lc gl truncop1 typ1 value1 typ2 = Some val)
-  : <<DIFFBLOCK: forall blocks, InvMem.gv_diffblock_with_blocks (mkCfg S TD Ps gl fs) val blocks>>.
+  : <<DIFFBLOCK: forall blocks, AssnMem.gv_diffblock_with_blocks (mkCfg S TD Ps gl fs) val blocks>>.
 Proof.
   apply opsem_props.OpsemProps.TRUNC_inversion in H. des.
   apply mtrunc_preserves_no_embedded_ptrs in H0.
@@ -417,7 +417,7 @@ Lemma TRUNC_diffblock
       S TD Ps gl fs lc val ptr
       truncop1 typ1 value1 typ2
       (H: TRUNC TD lc gl truncop1 typ1 value1 typ2 = Some val)
-  : InvState.Unary.sem_diffblock (mkCfg S TD Ps gl fs) ptr val.
+  : AssnState.Unary.sem_diffblock (mkCfg S TD Ps gl fs) ptr val.
 Proof.
   ii. exploit TRUNC_diffblock_with_blocks; eauto; i; des.
 Qed.
@@ -426,7 +426,7 @@ Lemma EXT_diffblock_with_blocks
       S TD Ps gl fs lc val
       extop1 typ1 value1 typ2
       (H: EXT TD lc gl extop1 typ1 value1 typ2 = Some val)
-  : <<DIFFBLOCK: forall blocks, InvMem.gv_diffblock_with_blocks (mkCfg S TD Ps gl fs) val blocks>>.
+  : <<DIFFBLOCK: forall blocks, AssnMem.gv_diffblock_with_blocks (mkCfg S TD Ps gl fs) val blocks>>.
 Proof.
   apply opsem_props.OpsemProps.EXT_inversion in H. des.
   apply mext_preserves_no_embedded_ptrs in H0.
@@ -438,7 +438,7 @@ Lemma EXT_diffblock
       S TD Ps gl fs lc val ptr
       extop1 typ1 value1 typ2
       (H: EXT TD lc gl extop1 typ1 value1 typ2 = Some val)
-  : InvState.Unary.sem_diffblock (mkCfg S TD Ps gl fs) ptr val.
+  : AssnState.Unary.sem_diffblock (mkCfg S TD Ps gl fs) ptr val.
 Proof.
   ii. exploit EXT_diffblock_with_blocks; eauto; i; des.
 Qed.
@@ -458,7 +458,7 @@ Lemma ICMP_diffblock_with_blocks
       S TD Ps gl fs lc val
       cond1 typ1 value1 value2
       (H: ICMP TD lc gl cond1 typ1 value1 value2 = Some val)
-  : <<DIFFBLOCK: forall blocks, InvMem.gv_diffblock_with_blocks (mkCfg S TD Ps gl fs) val blocks>>.
+  : <<DIFFBLOCK: forall blocks, AssnMem.gv_diffblock_with_blocks (mkCfg S TD Ps gl fs) val blocks>>.
 Proof.
   apply opsem_props.OpsemProps.ICMP_inversion in H. des.
   apply micmp_preserves_no_embedded_ptrs in H1.
@@ -470,7 +470,7 @@ Lemma ICMP_diffblock
       S TD Ps gl fs lc val ptr
       cond1 typ1 value1 value2
       (H: ICMP TD lc gl cond1 typ1 value1 value2 = Some val)
-  : InvState.Unary.sem_diffblock (mkCfg S TD Ps gl fs) ptr val.
+  : AssnState.Unary.sem_diffblock (mkCfg S TD Ps gl fs) ptr val.
 Proof.
   ii. exploit ICMP_diffblock_with_blocks; eauto; i; des.
 Qed.
@@ -490,7 +490,7 @@ Lemma FCMP_diffblock_with_blocks
       S TD Ps gl fs lc val
       fcond1 floating_point1 value1 value2
       (H: FCMP TD lc gl fcond1 floating_point1 value1 value2 = Some val)
-  : <<DIFFBLOCK: forall blocks, InvMem.gv_diffblock_with_blocks (mkCfg S TD Ps gl fs) val blocks>>.
+  : <<DIFFBLOCK: forall blocks, AssnMem.gv_diffblock_with_blocks (mkCfg S TD Ps gl fs) val blocks>>.
 Proof.
   apply opsem_props.OpsemProps.FCMP_inversion in H. des.
   apply mfcmp_preserves_no_embedded_ptrs in H1.
@@ -502,15 +502,15 @@ Lemma FCMP_diffblock
       S TD Ps gl fs lc val ptr
       fcond1 floating_point1 value1 value2
       (H: FCMP TD lc gl fcond1 floating_point1 value1 value2 = Some val)
-  : InvState.Unary.sem_diffblock (mkCfg S TD Ps gl fs) ptr val.
+  : AssnState.Unary.sem_diffblock (mkCfg S TD Ps gl fs) ptr val.
 Proof.
   ii. exploit FCMP_diffblock_with_blocks; eauto; i; des.
 Qed.
 
 Lemma GEP_diffblock
-  invmem inbounds5 typ5 value_5 l0 typ' gmax u S TD Ps F lc gl fs vidxs mp Mem0 reg val'
+  assnmem inbounds5 typ5 value_5 l0 typ' gmax u S TD Ps F lc gl fs vidxs mp Mem0 reg val'
   (B: block)
-  (NEXTBLOCK : Memory.Mem.nextblock Mem0 = InvMem.Unary.nextblock invmem)
+  (NEXTBLOCK : Memory.Mem.nextblock Mem0 = AssnMem.Unary.nextblock assnmem)
   (GLOBALS : genericvalues_inject.wf_globals gmax gl)
   (WF : wf_Mem gmax TD Mem0)
   (H : getOperandValue TD value_5 lc gl = Some mp)
@@ -519,7 +519,7 @@ Lemma GEP_diffblock
   (LOCALS : forall (reg : atom) (val' : GenericValue),
            u <> reg ->
            lookupAL GenericValue lc reg = Some val' ->
-           InvState.Unary.sem_diffblock
+           AssnState.Unary.sem_diffblock
              {|
              CurSystem := S;
              CurTargetData := TD;
@@ -528,7 +528,7 @@ Lemma GEP_diffblock
              FunTable := fs |} val val')
   (MEM : forall (mptr : mptr) (typ : typ) (align : align) (val' : GenericValue),
         mload TD Mem0 mptr typ align = Some val' ->
-        InvState.Unary.sem_diffblock
+        AssnState.Unary.sem_diffblock
           {| CurSystem := S; CurTargetData := TD; CurProducts := Ps; Globals := gl; FunTable := fs |} val val')
   (GLOBALS0 : forall b : Values.block, In b (GV2blocks val) -> (gmax < b)%positive)
   (REG : u <> reg)
@@ -540,7 +540,7 @@ Lemma GEP_diffblock
   (WF_INSN: wf_insn S (module_intro (fst TD) (snd TD) Ps) F B
                     (insn_cmd (insn_gep reg inbounds5 typ5 value_5 l0 typ')))
   :
-  <<DIFFBLOCK: InvState.Unary.sem_diffblock
+  <<DIFFBLOCK: AssnState.Unary.sem_diffblock
     {| CurSystem := S; CurTargetData := TD; CurProducts := Ps; Globals := gl; FunTable := fs |}
     val val'>>
 .
@@ -549,7 +549,7 @@ Proof.
   unfold GEP in *. unfold gep in *. unfold genericvalues.LLVMgv.GEP in *.
   assert(TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT: True) by ss.
   move val at bottom.
-  eapply InvState.Unary.diffblock_comm.
+  eapply AssnState.Unary.diffblock_comm.
   destruct (GV2ptr TD (getPointerSize TD) mp) eqn:T1; cycle 1.
   { eapply undef_implies_diffblock; eauto. }
   destruct (GVs2Nats TD vidxs) eqn:T2; cycle 1.
@@ -575,7 +575,7 @@ Proof.
         (* b0 <-> b0 *)
         destruct mp; ss. destruct p, v; ss.
         destruct mp; ss. clarify.
-        unfold InvState.Unary.sem_diffblock in *.
+        unfold AssnState.Unary.sem_diffblock in *.
         unfold list_disjoint in *.
         eapply H0; eauto. ss. left; ss.
       -
@@ -610,8 +610,8 @@ Lemma CAST_diffblock_with_blocks
       blocks
       (getOperand_diffblock: forall v2 val2,
           getOperandValue TD v2 lc gl = Some val2 ->
-          InvMem.gv_diffblock_with_blocks (mkCfg S TD Ps gl fs) val2 blocks)
-  : <<DIFFBLOCK: InvMem.gv_diffblock_with_blocks (mkCfg S TD Ps gl fs) val1 blocks>>.
+          AssnMem.gv_diffblock_with_blocks (mkCfg S TD Ps gl fs) val2 blocks)
+  : <<DIFFBLOCK: AssnMem.gv_diffblock_with_blocks (mkCfg S TD Ps gl fs) val1 blocks>>.
 Proof.
   red; i.
   apply opsem_props.OpsemProps.CAST_inversion in H. des.
@@ -675,23 +675,23 @@ Qed.
 
 Lemma step_unique_preserved_except_current
       conf st0 st1 evt
-      invst invmem inv0
+      invst assnmem inv0
       cmd cmds
       gmax public
-      (STATE: InvState.Unary.sem conf (mkState st0.(EC) st0.(ECS) st1.(Mem)) invst invmem gmax public inv0)
+      (STATE: AssnState.Unary.sem conf (mkState st0.(EC) st0.(ECS) st1.(Mem)) invst assnmem gmax public inv0)
       (WF_LC_BEFORE: wf_lc st0.(Mem) st0.(EC).(Locals))
-      (MEM: InvMem.Unary.sem conf gmax public st1.(Mem) invmem)
+      (MEM: AssnMem.Unary.sem conf gmax public st1.(Mem) assnmem)
       (NONCALL: Instruction.isCallInst cmd = false)
       (NONMALLOC: isMallocInst cmd = false)
       (CMDS : CurCmds st0.(EC) = cmd :: cmds)
       (STEP : sInsn conf st0 st1 evt)
   : << UNIQUE_CURRENT:
     forall u : atom,
-      AtomSetImpl.mem u (Invariant.unique inv0) = true ->
+      AtomSetImpl.mem u (Assertion.unique inv0) = true ->
       AtomSetImpl.mem u
                       (union (AtomSetImpl_from_list (Cmd.get_def cmd))
                              (AtomSetImpl_from_list (Cmd.get_leaked_ids cmd))) = false ->
-      InvState.Unary.sem_unique conf st1 gmax u>>.
+      AssnState.Unary.sem_unique conf st1 gmax u>>.
 Proof.
   intros u MEM_U NOT_LEAKED_U0.
   apply AtomSetFacts.not_mem_iff in NOT_LEAKED_U0.
@@ -848,7 +848,7 @@ Proof.
     unfold CAST in *. des_ifs. apply mcast_inv in H.
     des; cycle 1.
     +
-      apply InvState.Unary.diffblock_comm.
+      apply AssnState.Unary.diffblock_comm.
       eapply undef_implies_diffblock; eauto.
     +
       subst.
@@ -878,14 +878,14 @@ Proof.
     move g1 at bottom.
     unfold getOperandValue in *.
     destruct (GV2int (l0, n) Size.One g) eqn:T; ss; cycle 1.
-    { eapply InvState.Unary.diffblock_comm; eauto.
+    { eapply AssnState.Unary.diffblock_comm; eauto.
       eapply undef_implies_diffblock; eauto. }
     abstr (zeq z 0) decision.
     destruct decision; ss. 
     { clear Heq0.
       unfold fit_chunk_gv in *.
       des_ifsH H; cycle 1.
-      { eapply InvState.Unary.diffblock_comm; eauto.
+      { eapply AssnState.Unary.diffblock_comm; eauto.
         eapply undef_implies_diffblock; eauto. }
       destruct value2; ss.
       {
@@ -912,7 +912,7 @@ Proof.
     { clear Heq1.
       unfold fit_chunk_gv in *.
       des_ifsH H; cycle 1.
-      { eapply InvState.Unary.diffblock_comm; eauto.
+      { eapply AssnState.Unary.diffblock_comm; eauto.
         eapply undef_implies_diffblock; eauto. }
       destruct value1; ss.
       {
@@ -938,13 +938,13 @@ Qed.
 
 Lemma step_unique_preserved_except_parent
       conf st0 st1 evt
-      invst invmem inv0
+      invst assnmem inv0
       cmd cmds
       gmax public
-      (STATE: InvState.Unary.sem conf (mkState st0.(EC) st0.(ECS) st1.(Mem)) invst invmem gmax public inv0)
-      (MEM: InvMem.Unary.sem conf gmax public st1.(Mem) invmem)
+      (STATE: AssnState.Unary.sem conf (mkState st0.(EC) st0.(ECS) st1.(Mem)) invst assnmem gmax public inv0)
+      (MEM: AssnMem.Unary.sem conf gmax public st1.(Mem) assnmem)
       (PRIVATE_PARENT_BEFORE:
-         forall b (IN: In b invmem.(InvMem.Unary.private_parent)),
+         forall b (IN: In b assnmem.(AssnMem.Unary.private_parent)),
            (b < Memory.Mem.nextblock st0.(Mem))%positive)
       (NONCALL: Instruction.isCallInst cmd = false)
       (NONMALLOC: isMallocInst cmd = false)
@@ -953,7 +953,7 @@ Lemma step_unique_preserved_except_parent
   : <<UNIQUE_PARENT:
     forall (x : atom) (ptr : GenericValue),
       lookupAL GenericValue (Locals (EC st1)) x = Some ptr ->
-      InvMem.gv_diffblock_with_blocks conf ptr (InvMem.Unary.unique_parent invmem)>>.
+      AssnMem.gv_diffblock_with_blocks conf ptr (AssnMem.Unary.unique_parent assnmem)>>.
 Proof.
   red; i.
   inv STATE. clear LESSDEF NOALIAS UNIQUE PRIVATE WF_LOCAL WF_PREVIOUS WF_GHOST WF_FDEF WF_EC.
@@ -1055,20 +1055,20 @@ Qed.
 
 Lemma step_unique_preserved_except
       conf st0 st1 evt
-      invst invmem inv0
+      invst assnmem inv0
       cmd cmds
       gmax public
-      (STATE: InvState.Unary.sem conf (mkState st0.(EC) st0.(ECS) st1.(Mem)) invst invmem gmax public inv0)
+      (STATE: AssnState.Unary.sem conf (mkState st0.(EC) st0.(ECS) st1.(Mem)) invst assnmem gmax public inv0)
       (WF_LC_BEFORE: wf_lc st0.(Mem) st0.(EC).(Locals))
       (PRIVATE_PARENT_BEFORE:
-         forall b (IN: In b invmem.(InvMem.Unary.private_parent)),
+         forall b (IN: In b assnmem.(AssnMem.Unary.private_parent)),
            (b < Memory.Mem.nextblock st0.(Mem))%positive)
-      (MEM: InvMem.Unary.sem conf gmax public st1.(Mem) invmem)
+      (MEM: AssnMem.Unary.sem conf gmax public st1.(Mem) assnmem)
       (NONCALL: Instruction.isCallInst cmd = false)
       (NONMALLOC: isMallocInst cmd = false)
       (CMDS : CurCmds st0.(EC) = cmd :: cmds)
       (STEP : sInsn conf st0 st1 evt)
-  : unique_preserved_except conf inv0 invmem.(InvMem.Unary.unique_parent) st1 gmax
+  : unique_preserved_except conf inv0 assnmem.(AssnMem.Unary.unique_parent) st1 gmax
                             (AtomSetImpl.union (AtomSetImpl_from_list (Cmd.get_def cmd))
                                                (AtomSetImpl_from_list (Cmd.get_leaked_ids cmd))).
 Proof.
@@ -1098,16 +1098,16 @@ Qed.
 
 Lemma forget_stack_unary_sound
       conf defs leaks st0 st1 gmax public
-      inv invst invmem
+      inv invst assnmem
       (EQUIV : state_equiv_except defs st0 st1)
-      (UNIQUE_PRESERVED : unique_preserved_except conf inv invmem.(InvMem.Unary.unique_parent) st1 gmax (AtomSetImpl.union defs leaks))
-      (STATE : InvState.Unary.sem conf st0 invst invmem gmax public inv)
+      (UNIQUE_PRESERVED : unique_preserved_except conf inv assnmem.(AssnMem.Unary.unique_parent) st1 gmax (AtomSetImpl.union defs leaks))
+      (STATE : AssnState.Unary.sem conf st0 invst assnmem gmax public inv)
       (WF_LC: memory_props.MemProps.wf_lc st1.(Mem) st1.(EC).(Locals))
       (EQ_FUNC: st0.(EC).(CurFunction) = st1.(EC).(CurFunction))
-      (ALLOCAS_PARENT: list_disjoint (Allocas (EC st1)) (InvMem.Unary.private_parent invmem))
+      (ALLOCAS_PARENT: list_disjoint (Allocas (EC st1)) (AssnMem.Unary.private_parent assnmem))
       (ALLOCAS_VALID: Forall (Memory.Mem.valid_block (Mem st1)) st1.(EC).(Allocas))
       (WF_EC: OpsemAux.wf_EC st1.(EC))
-  : InvState.Unary.sem conf st1 invst invmem gmax public (ForgetStack.unary defs leaks inv).
+  : AssnState.Unary.sem conf st1 invst assnmem gmax public (ForgetStack.unary defs leaks inv).
 Proof.
   inv STATE.
   assert (EQUIV_REV: state_equiv_except defs st1 st0).
@@ -1165,38 +1165,38 @@ Lemma forget_stack_sound
       conf_src st0_src
       conf_tgt st0_tgt
       st1_src st1_tgt
-      invst invmem inv0
+      invst assnmem inv0
       defs_src defs_tgt
       leaks_src leaks_tgt
-      (STATE: InvState.Rel.sem conf_src conf_tgt st0_src st0_tgt invst invmem inv0)
+      (STATE: AssnState.Rel.sem conf_src conf_tgt st0_src st0_tgt invst assnmem inv0)
       (EQUIV_SRC: state_equiv_except defs_src st0_src st1_src)
       (EQUIV_TGT: state_equiv_except defs_tgt st0_tgt st1_tgt)
       (UNIQUE_SRC: unique_preserved_except
-                     conf_src inv0.(Invariant.src)
-                     invmem.(InvMem.Rel.src).(InvMem.Unary.unique_parent)
-                     st1_src invmem.(InvMem.Rel.gmax)
+                     conf_src inv0.(Assertion.src)
+                     assnmem.(AssnMem.Rel.src).(AssnMem.Unary.unique_parent)
+                     st1_src assnmem.(AssnMem.Rel.gmax)
                      (AtomSetImpl.union defs_src leaks_src))
       (UNIQUE_TGT: unique_preserved_except
-                     conf_tgt inv0.(Invariant.tgt)
-                     invmem.(InvMem.Rel.tgt).(InvMem.Unary.unique_parent)
-                     st1_tgt invmem.(InvMem.Rel.gmax)
+                     conf_tgt inv0.(Assertion.tgt)
+                     assnmem.(AssnMem.Rel.tgt).(AssnMem.Unary.unique_parent)
+                     st1_tgt assnmem.(AssnMem.Rel.gmax)
                      (AtomSetImpl.union defs_tgt leaks_tgt))
       (WF_LC_SRC: memory_props.MemProps.wf_lc st1_src.(Mem) st1_src.(EC).(Locals))
       (WF_LC_TGT: memory_props.MemProps.wf_lc st1_tgt.(Mem) st1_tgt.(EC).(Locals))
       (EQ_FUNC_SRC: st0_src.(EC).(CurFunction) = st1_src.(EC).(CurFunction))
       (EQ_FUNC_TGT: st0_tgt.(EC).(CurFunction) = st1_tgt.(EC).(CurFunction))
       (ALLOCAS_PARENT_SRC: list_disjoint (Allocas (EC st1_src))
-                                         (InvMem.Unary.private_parent (InvMem.Rel.src invmem)))
+                                         (AssnMem.Unary.private_parent (AssnMem.Rel.src assnmem)))
       (ALLOCAS_PARENT_TGT: list_disjoint (Allocas (EC st1_tgt))
-                                         (InvMem.Unary.private_parent (InvMem.Rel.tgt invmem)))
+                                         (AssnMem.Unary.private_parent (AssnMem.Rel.tgt assnmem)))
       (ALLOCAS_VALID_SRC: Forall (Memory.Mem.valid_block (Mem st1_src)) st1_src.(EC).(Allocas))
       (ALLOCAS_VALID_TGT: Forall (Memory.Mem.valid_block (Mem st1_tgt)) st1_tgt.(EC).(Allocas))
-      (INJECT_ALLOCAS: InvState.Rel.inject_allocas (InvMem.Rel.inject invmem)
+      (INJECT_ALLOCAS: AssnState.Rel.inject_allocas (AssnMem.Rel.inject assnmem)
                                    st1_src.(EC).(Allocas) st1_tgt.(EC).(Allocas))
       (WF_EC_SRC: OpsemAux.wf_EC st1_src.(EC))
       (WF_EC_TGT: OpsemAux.wf_EC st1_tgt.(EC))
-  : <<STATE_FORGET: InvState.Rel.sem conf_src conf_tgt st1_src st1_tgt
-                                     invst invmem (ForgetStack.t defs_src defs_tgt leaks_src leaks_tgt inv0)>>.
+  : <<STATE_FORGET: AssnState.Rel.sem conf_src conf_tgt st1_src st1_tgt
+                                     invst assnmem (ForgetStack.t defs_src defs_tgt leaks_src leaks_tgt inv0)>>.
 Proof.
   inv STATE.
   econs; ss.

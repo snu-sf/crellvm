@@ -14,7 +14,7 @@ Require Import Exprs.
 Require Import Hints.
 Require Import GenericValues.
 Require Import Inject.
-Require InvMem.
+Require AssnMem.
 Require Import TODO.
 Require Import paco.
 Require Import TODOProof.
@@ -44,10 +44,10 @@ Ltac solve_bool_true :=
 
 Lemma get_lhs_in_spec
       ld (rhs: Expr.t) x
-  (LHS: ExprPairSet.In x (Invariant.get_lhs ld rhs)):
+  (LHS: ExprPairSet.In x (Assertion.get_lhs ld rhs)):
   (snd x) = rhs /\ ExprPairSet.In x ld.
 Proof.
-  unfold Invariant.get_lhs, flip in *.
+  unfold Assertion.get_lhs, flip in *.
   rewrite ExprPairSetFacts.filter_iff in LHS; cycle 1.
   { solve_compat_bool. solve_leibniz. ss. }
   des. des_sumbool. ss.
@@ -55,10 +55,10 @@ Qed.
 
 Lemma get_rhs_in_spec
       ld (lhs: Expr.t) x
-  (RHS: ExprPairSet.In x (Invariant.get_rhs ld lhs)):
+  (RHS: ExprPairSet.In x (Assertion.get_rhs ld lhs)):
   (fst x) = lhs /\ ExprPairSet.In x ld.
 Proof.
-  unfold Invariant.get_rhs, flip in *.
+  unfold Assertion.get_rhs, flip in *.
   rewrite ExprPairSetFacts.filter_iff in RHS; cycle 1.
   { solve_compat_bool. solve_leibniz. ss. }
   des. des_sumbool. ss.
@@ -68,10 +68,10 @@ Lemma get_rhs_in_spec2
       (ld: ExprPairSet.t) (lhs: Expr.t) (x: Expr.t * Expr.t)
       (LHS: fst x = lhs)
       (IN: ExprPairSet.In x ld)
-  : ExprPairSet.In x (Invariant.get_rhs ld lhs).
+  : ExprPairSet.In x (Assertion.get_rhs ld lhs).
 Proof.
   i. des.
-  unfold Invariant.get_rhs, flip.
+  unfold Assertion.get_rhs, flip.
   apply ExprPairSet.filter_3.
   { solve_compat_bool. solve_leibniz. ss. }
   - subst.
@@ -275,19 +275,19 @@ Module Unary.
     eapply list_disjoint_comm; eauto.
   Qed.
 
-  Inductive sem_alias (conf:Config) (st:State) (invst:t) (arel:Invariant.aliasrel): Prop :=
+  Inductive sem_alias (conf:Config) (st:State) (invst:t) (arel:Assertion.aliasrel): Prop :=
   | sem_alias_intro
       (DIFFBLOCK:
          forall val1 gval1
            val2 gval2
-           (MEM: ValueTPairSet.mem (val1, val2) arel.(Invariant.diffblock))
+           (MEM: ValueTPairSet.mem (val1, val2) arel.(Assertion.diffblock))
            (VAL1: sem_valueT conf st invst val1 = Some gval1)
            (VAL2: sem_valueT conf st invst val2 = Some gval2),
            sem_diffblock conf gval1 gval2)
       (NOALIAS:
          forall ptr1 gptr1
            ptr2 gptr2
-           (MEM: PtrPairSet.mem (ptr1, ptr2) arel.(Invariant.noalias))
+           (MEM: PtrPairSet.mem (ptr1, ptr2) arel.(Assertion.noalias))
            (VAL1: sem_valueT conf st invst ptr1.(fst) = Some gptr1)
            (VAL2: sem_valueT conf st invst ptr2.(fst) = Some gptr2),
            sem_noalias conf gptr1 gptr2 ptr1.(snd) ptr2.(snd))
@@ -316,7 +316,7 @@ Module Unary.
     forall b val
            (VAL: sem_idT st invst a = Some val)
            (IN: In b (GV2blocks val)),
-      <<PRIVATE_BLOCK: InvMem.private_block st.(Mem) public b>> /\
+      <<PRIVATE_BLOCK: AssnMem.private_block st.(Mem) public b>> /\
                        <<PARENT_DISJOINT: ~ In b private_parent>>
   .
       (* In b private. *)
@@ -325,13 +325,13 @@ Module Unary.
       (* | _ => False *)
       (* end. *)
 
-  Inductive sem (conf:Config) (st:State) (invst:t) (invmem:InvMem.Unary.t) (gmax:positive) (public:mblock -> Prop) (inv:Invariant.unary): Prop :=
+  Inductive sem (conf:Config) (st:State) (invst:t) (assnmem:AssnMem.Unary.t) (gmax:positive) (public:mblock -> Prop) (inv:Assertion.unary): Prop :=
   | sem_intro
-      (LESSDEF: ExprPairSet.For_all (sem_lessdef conf st invst) inv.(Invariant.lessdef))
-      (NOALIAS: sem_alias conf st invst inv.(Invariant.alias))
-      (UNIQUE: AtomSetImpl.For_all (sem_unique conf st gmax) inv.(Invariant.unique))
-      (PRIVATE: IdTSet.For_all (sem_private conf st invst invmem.(InvMem.Unary.private_parent) public) inv.(Invariant.private))
-      (ALLOCAS_PARENT: list_disjoint st.(EC).(Allocas) invmem.(InvMem.Unary.private_parent))
+      (LESSDEF: ExprPairSet.For_all (sem_lessdef conf st invst) inv.(Assertion.lessdef))
+      (NOALIAS: sem_alias conf st invst inv.(Assertion.alias))
+      (UNIQUE: AtomSetImpl.For_all (sem_unique conf st gmax) inv.(Assertion.unique))
+      (PRIVATE: IdTSet.For_all (sem_private conf st invst assnmem.(AssnMem.Unary.private_parent) public) inv.(Assertion.private))
+      (ALLOCAS_PARENT: list_disjoint st.(EC).(Allocas) assnmem.(AssnMem.Unary.private_parent))
       (ALLOCAS_VALID: List.Forall (Mem.valid_block st.(Mem)) st.(EC).(Allocas))
       (WF_LOCAL: MemProps.wf_lc st.(Mem) st.(EC).(Locals))
       (WF_PREVIOUS: MemProps.wf_lc st.(Mem) invst.(previous))
@@ -339,7 +339,7 @@ Module Unary.
       (UNIQUE_PARENT_LOCAL:
          forall x ptr
            (PTR:lookupAL _ st.(EC).(Locals) x = Some ptr),
-           InvMem.gv_diffblock_with_blocks conf ptr invmem.(InvMem.Unary.unique_parent))
+           AssnMem.gv_diffblock_with_blocks conf ptr assnmem.(AssnMem.Unary.unique_parent))
       (WF_FDEF: wf_fdef conf.(CurSystem) conf st.(EC).(CurFunction))
       (WF_EC: wf_EC st.(EC))
   .
@@ -409,43 +409,43 @@ Module Rel.
       <<VAL_TGT: Unary.sem_expr conf_tgt st_tgt invst.(tgt) expr = Some val_tgt>> /\
       <<VAL: genericvalues_inject.gv_inject inject val_src val_tgt>>.
 
-  Inductive sem (conf_src conf_tgt:Config) (st_src st_tgt:State) (invst:t) (invmem:InvMem.Rel.t) (inv:Invariant.t): Prop :=
+  Inductive sem (conf_src conf_tgt:Config) (st_src st_tgt:State) (invst:t) (assnmem:AssnMem.Rel.t) (inv:Assertion.t): Prop :=
   | sem_intro
-      (SRC: Unary.sem conf_src st_src invst.(src) invmem.(InvMem.Rel.src) invmem.(InvMem.Rel.gmax) (InvMem.Rel.public_src invmem.(InvMem.Rel.inject)) inv.(Invariant.src))
-      (TGT: Unary.sem conf_tgt st_tgt invst.(tgt) invmem.(InvMem.Rel.tgt) invmem.(InvMem.Rel.gmax) (InvMem.Rel.public_tgt invmem.(InvMem.Rel.inject)) inv.(Invariant.tgt))
-      (TGT_NOUNIQ: AtomSetImpl.Empty (inv.(Invariant.tgt).(Invariant.unique)))
+      (SRC: Unary.sem conf_src st_src invst.(src) assnmem.(AssnMem.Rel.src) assnmem.(AssnMem.Rel.gmax) (AssnMem.Rel.public_src assnmem.(AssnMem.Rel.inject)) inv.(Assertion.src))
+      (TGT: Unary.sem conf_tgt st_tgt invst.(tgt) assnmem.(AssnMem.Rel.tgt) assnmem.(AssnMem.Rel.gmax) (AssnMem.Rel.public_tgt assnmem.(AssnMem.Rel.inject)) inv.(Assertion.tgt))
+      (TGT_NOUNIQ: AtomSetImpl.Empty (inv.(Assertion.tgt).(Assertion.unique)))
       (MAYDIFF:
-         forall id (NOTIN: (IdTSet.mem id inv.(Invariant.maydiff)) = false),
-           sem_inject st_src st_tgt invst invmem.(InvMem.Rel.inject) id)
+         forall id (NOTIN: (IdTSet.mem id inv.(Assertion.maydiff)) = false),
+           sem_inject st_src st_tgt invst assnmem.(AssnMem.Rel.inject) id)
       (ALLOCAS:
-         inject_allocas invmem.(InvMem.Rel.inject) st_src.(EC).(Allocas) st_tgt.(EC).(Allocas))
+         inject_allocas assnmem.(AssnMem.Rel.inject) st_src.(EC).(Allocas) st_tgt.(EC).(Allocas))
   .
 
   Lemma inject_allocas_preserved_aux
-        invmem0
+        assnmem0
         als_src als_tgt
-        (INJECT: inject_allocas invmem0.(InvMem.Rel.inject) als_src als_tgt)
-        invmem1
-        (INJECT_INCR: inject_incr invmem0.(InvMem.Rel.inject) invmem1.(InvMem.Rel.inject))
+        (INJECT: inject_allocas assnmem0.(AssnMem.Rel.inject) als_src als_tgt)
+        assnmem1
+        (INJECT_INCR: inject_incr assnmem0.(AssnMem.Rel.inject) assnmem1.(AssnMem.Rel.inject))
         bd_src bd_tgt
-        (FROZEN: InvMem.Rel.frozen invmem0.(InvMem.Rel.inject) invmem1.(InvMem.Rel.inject)
+        (FROZEN: AssnMem.Rel.frozen assnmem0.(AssnMem.Rel.inject) assnmem1.(AssnMem.Rel.inject)
                                              bd_src bd_tgt)
         (VALID_SRC: List.Forall (fun x => (x < bd_src)%positive) als_src)
         (VALID_TGT: List.Forall (fun x => (x < bd_tgt)%positive) als_tgt)
     :
-        <<INJECT: inject_allocas invmem1.(InvMem.Rel.inject) als_src als_tgt>>
+        <<INJECT: inject_allocas assnmem1.(AssnMem.Rel.inject) als_src als_tgt>>
   .
   Proof.
     ginduction INJECT; ii; ss.
     - econs; eauto.
     - inv VALID_SRC.
       econs; eauto.
-      + erewrite <- InvMem.Rel.frozen_preserves_src; eauto.
+      + erewrite <- AssnMem.Rel.frozen_preserves_src; eauto.
       + eapply IHINJECT; eauto.
     - inv VALID_TGT.
       econs; eauto.
       + ii.
-        exploit InvMem.Rel.frozen_preserves_tgt; eauto; []; i; des.
+        exploit AssnMem.Rel.frozen_preserves_tgt; eauto; []; i; des.
         exploit PRIVATE; eauto.
       + eapply IHINJECT; eauto.
     - inv VALID_SRC. inv VALID_TGT.
@@ -454,17 +454,17 @@ Module Rel.
   Qed.
 
   Lemma inject_allocas_preserved_le
-        invmem0
+        assnmem0
         als_src als_tgt
-        (INJECT: inject_allocas invmem0.(InvMem.Rel.inject) als_src als_tgt)
-        invmem1
-        (LE: InvMem.Rel.le invmem0 invmem1)
+        (INJECT: inject_allocas assnmem0.(AssnMem.Rel.inject) als_src als_tgt)
+        assnmem1
+        (LE: AssnMem.Rel.le assnmem0 assnmem1)
         (VALID_SRC: List.Forall
-                      (Mem.valid_block invmem0.(InvMem.Rel.src).(InvMem.Unary.mem_parent)) als_src)
+                      (Mem.valid_block assnmem0.(AssnMem.Rel.src).(AssnMem.Unary.mem_parent)) als_src)
         (VALID_TGT: List.Forall
-                      (Mem.valid_block invmem0.(InvMem.Rel.tgt).(InvMem.Unary.mem_parent)) als_tgt)
+                      (Mem.valid_block assnmem0.(AssnMem.Rel.tgt).(AssnMem.Unary.mem_parent)) als_tgt)
     :
-        <<INJECT: inject_allocas invmem1.(InvMem.Rel.inject) als_src als_tgt>>
+        <<INJECT: inject_allocas assnmem1.(AssnMem.Rel.inject) als_src als_tgt>>
   .
   Proof.
     eapply inject_allocas_preserved_aux; try exact INJECT; try eassumption.
@@ -473,20 +473,20 @@ Module Rel.
   Qed.
 
   Lemma inject_allocas_preserved_le_lift
-        m_src0 m_tgt0 invmem0
+        m_src0 m_tgt0 assnmem0
         als_src als_tgt
-        (INJECT: inject_allocas invmem0.(InvMem.Rel.inject) als_src als_tgt)
-        invmem1
+        (INJECT: inject_allocas assnmem0.(AssnMem.Rel.inject) als_src als_tgt)
+        assnmem1
         arg0 arg1 arg2 arg3
-        (LE: InvMem.Rel.le (InvMem.Rel.lift m_src0 m_tgt0 arg0 arg1 arg2 arg3 invmem0) invmem1)
+        (LE: AssnMem.Rel.le (AssnMem.Rel.lift m_src0 m_tgt0 arg0 arg1 arg2 arg3 assnmem0) assnmem1)
         (VALID_SRC: List.Forall (Mem.valid_block m_src0) als_src)
         (VALID_TGT: List.Forall (Mem.valid_block m_tgt0) als_tgt)
-        (PARENT_LE_SRC: ((Mem.nextblock (InvMem.Unary.mem_parent (InvMem.Rel.src invmem0)) <=
-                          Mem.nextblock (InvMem.Unary.mem_parent (InvMem.Rel.src invmem1))))%positive)
-        (PARENT_LE_TGT: ((Mem.nextblock (InvMem.Unary.mem_parent (InvMem.Rel.tgt invmem0)) <=
-                          Mem.nextblock (InvMem.Unary.mem_parent (InvMem.Rel.tgt invmem1))))%positive)
+        (PARENT_LE_SRC: ((Mem.nextblock (AssnMem.Unary.mem_parent (AssnMem.Rel.src assnmem0)) <=
+                          Mem.nextblock (AssnMem.Unary.mem_parent (AssnMem.Rel.src assnmem1))))%positive)
+        (PARENT_LE_TGT: ((Mem.nextblock (AssnMem.Unary.mem_parent (AssnMem.Rel.tgt assnmem0)) <=
+                          Mem.nextblock (AssnMem.Unary.mem_parent (AssnMem.Rel.tgt assnmem1))))%positive)
     :
-        <<INJECT: inject_allocas invmem1.(InvMem.Rel.inject) als_src als_tgt>>
+        <<INJECT: inject_allocas assnmem1.(AssnMem.Rel.inject) als_src als_tgt>>
   .
   Proof.
     eapply inject_allocas_preserved_aux; try exact INJECT; try eassumption.
@@ -507,20 +507,20 @@ Module Rel.
   Qed.
 
   Lemma not_in_maydiff_value_spec
-        inv invmem invst
+        inv assnmem invst
         m_src conf_src st_src
         m_tgt conf_tgt st_tgt
         val gv_val_src
         (CONF: valid_conf m_src m_tgt conf_src conf_tgt)
-        (NIMD: Invariant.not_in_maydiff inv val = true)
+        (NIMD: Assertion.not_in_maydiff inv val = true)
         (MAYDIFF: forall id : Tag.t * id,
-            IdTSet.mem id (Invariant.maydiff inv) = false ->
-            sem_inject st_src st_tgt invst (InvMem.Rel.inject invmem) id)
+            IdTSet.mem id (Assertion.maydiff inv) = false ->
+            sem_inject st_src st_tgt invst (AssnMem.Rel.inject assnmem) id)
         (VAL_SRC: Unary.sem_valueT conf_src st_src (src invst) val = ret gv_val_src)
-        (MEM: InvMem.Rel.sem conf_src conf_tgt st_src.(Mem) st_tgt.(Mem) invmem)
+        (MEM: AssnMem.Rel.sem conf_src conf_tgt st_src.(Mem) st_tgt.(Mem) assnmem)
     :
     exists gv_val_tgt, Unary.sem_valueT conf_tgt st_tgt (tgt invst) val = ret gv_val_tgt /\
-                       genericvalues_inject.gv_inject (InvMem.Rel.inject invmem) gv_val_src gv_val_tgt.
+                       genericvalues_inject.gv_inject (AssnMem.Rel.inject assnmem) gv_val_src gv_val_tgt.
   Proof.
     inv CONF. inv INJECT.
     destruct val; repeat (ss; des_bool; des).
@@ -533,21 +533,21 @@ Module Rel.
   Qed.
 
   Lemma not_in_maydiff_list_value_spec
-        inv invmem invst
+        inv assnmem invst
         m_src conf_src st_src
         m_tgt conf_tgt st_tgt
         vals gv_vals_src
         (CONF: valid_conf m_src m_tgt conf_src conf_tgt)
-        (NIMD: forallb (Invariant.not_in_maydiff inv) (List.map snd vals) = true)
+        (NIMD: forallb (Assertion.not_in_maydiff inv) (List.map snd vals) = true)
         (MAYDIFF: forall id : Tag.t * id,
-            IdTSet.mem id (Invariant.maydiff inv) = false ->
-            sem_inject st_src st_tgt invst (InvMem.Rel.inject invmem) id)
+            IdTSet.mem id (Assertion.maydiff inv) = false ->
+            sem_inject st_src st_tgt invst (AssnMem.Rel.inject assnmem) id)
         (VAL_SRC: Unary.sem_list_valueT conf_src st_src (src invst) vals = ret gv_vals_src)
-        (MEM: InvMem.Rel.sem conf_src conf_tgt st_src.(Mem) st_tgt.(Mem) invmem)
+        (MEM: AssnMem.Rel.sem conf_src conf_tgt st_src.(Mem) st_tgt.(Mem) assnmem)
     :
     exists gv_vals_tgt,
       Unary.sem_list_valueT conf_tgt st_tgt (tgt invst) vals = ret gv_vals_tgt /\
-      list_forall2 (genericvalues_inject.gv_inject invmem.(InvMem.Rel.inject)) gv_vals_src gv_vals_tgt.
+      list_forall2 (genericvalues_inject.gv_inject assnmem.(AssnMem.Rel.inject)) gv_vals_src gv_vals_tgt.
   Proof.
     revert gv_vals_src VAL_SRC.
     induction vals; ss; i; inv VAL_SRC.
@@ -561,30 +561,30 @@ Module Rel.
   (* company-coq extracted *)
   (* C-c C-a C-x *)
   Lemma not_in_maydiff_load:
-    forall (inv : Invariant.t) (invmem : InvMem.Rel.t) (invst : t)
+    forall (inv : Assertion.t) (assnmem : AssnMem.Rel.t) (invst : t)
            (m_src : module) (conf_src : Config) (st_src : State)
            (m_tgt : module) (conf_tgt : Config) (st_tgt : State)
            (v : ValueT.t) (t0 : typ) (a : align) (gv_expr_src : GenericValue),
       valid_conf m_src m_tgt conf_src conf_tgt ->
-      Invariant.not_in_maydiff inv v = true ->
+      Assertion.not_in_maydiff inv v = true ->
       (forall id : Tag.t * id,
-          IdTSet.mem id (Invariant.maydiff inv) = false ->
-          sem_inject st_src st_tgt invst (InvMem.Rel.inject invmem) id) ->
+          IdTSet.mem id (Assertion.maydiff inv) = false ->
+          sem_inject st_src st_tgt invst (AssnMem.Rel.inject assnmem) id) ->
       forall g0 : GenericValue,
         Unary.sem_valueT conf_src st_src (src invst) v = ret g0 ->
         mload (CurTargetData conf_tgt) (Mem st_src) g0 t0 a = ret gv_expr_src ->
-        InvMem.Rel.sem conf_src conf_tgt (Mem st_src) (Mem st_tgt) invmem ->
+        AssnMem.Rel.sem conf_src conf_tgt (Mem st_src) (Mem st_tgt) assnmem ->
         CurTargetData conf_src = CurTargetData conf_tgt ->
         Globals conf_src = Globals conf_tgt ->
         forall g : GenericValue,
           Unary.sem_valueT conf_tgt st_tgt (tgt invst) v = ret g ->
-          genericvalues_inject.gv_inject (InvMem.Rel.inject invmem) g0 g ->
+          genericvalues_inject.gv_inject (AssnMem.Rel.inject assnmem) g0 g ->
           exists gv_expr_tgt : GenericValue,
             mload (CurTargetData conf_tgt) (Mem st_tgt) g t0 a = ret gv_expr_tgt /\
-            genericvalues_inject.gv_inject (InvMem.Rel.inject invmem) gv_expr_src
+            genericvalues_inject.gv_inject (AssnMem.Rel.inject assnmem) gv_expr_src
                                            gv_expr_tgt.
   Proof.
-    intros inv invmem invst m_src conf_src st_src m_tgt conf_tgt st_tgt v t0 a
+    intros inv assnmem invst m_src conf_src st_src m_tgt conf_tgt st_tgt v t0 a
            gv_expr_src CONF NIMD MAYDIFF g0 Heq0 VAL_SRC MEM
            TARGETDATA GLOBALS g H H0.
     eapply mload_inv in VAL_SRC; eauto; []; ii; des.
@@ -592,7 +592,7 @@ Module Rel.
     inv MEM. clear SRC TGT.
     rename b into __b__.
     inv H0. inv H6.
-    destruct invmem. cbn in *.
+    destruct assnmem. cbn in *.
     inv H5. cbn in *.
     exploit genericvalues_inject.simulation_mload_aux;
       try apply VAL_SRC; eauto; []; ii; des; eauto.
@@ -625,12 +625,12 @@ Module Rel.
         (t1 : typ)
         (a0 : align)
         (invst : t)
-        (invmem : InvMem.Rel.t)
-        (inv : Invariant.t)
+        (assnmem : AssnMem.Rel.t)
+        (inv : Assertion.t)
         (gval_src : GenericValue)
-        (STATE : sem conf_src conf_tgt st_src st_tgt invst invmem inv)
-        (MEM : InvMem.Rel.sem conf_src conf_tgt (Mem st_src) (Mem st_tgt) invmem)
-        (INJECT0 : Invariant.inject_value inv v v0 = true)
+        (STATE : sem conf_src conf_tgt st_src st_tgt invst assnmem inv)
+        (MEM : AssnMem.Rel.sem conf_src conf_tgt (Mem st_src) (Mem st_tgt) assnmem)
+        (INJECT0 : Assertion.inject_value inv v v0 = true)
         (g0 : GenericValue)
         (Heq0 : Unary.sem_valueT conf_src st_src (src invst) v = ret g0)
         (CONF_DUP : valid_conf m_src m_tgt conf_src conf_tgt)
@@ -640,11 +640,11 @@ Module Rel.
         (g : GenericValue)
         (VAL_SRC : mload (CurTargetData conf_src) (Mem st_src) g0 t1 a0 = ret gval_src)
         (VAL_TGT : Unary.sem_valueT conf_tgt st_tgt (tgt invst) v0 = ret g)
-        (INJECT : genericvalues_inject.gv_inject (InvMem.Rel.inject invmem) g0 g)
+        (INJECT : genericvalues_inject.gv_inject (AssnMem.Rel.inject assnmem) g0 g)
     :
       exists gval_tgt : GenericValue,
         (<<VAL_TGT: mload (CurTargetData conf_src) (Mem st_tgt) g t1 a0 = ret gval_tgt >>) /\
-        (<<INJECT: genericvalues_inject.gv_inject (InvMem.Rel.inject invmem)
+        (<<INJECT: genericvalues_inject.gv_inject (AssnMem.Rel.inject assnmem)
                                                   gval_src gval_tgt >>)
   .
   Proof.
@@ -653,7 +653,7 @@ Module Rel.
     inv MEM. clear SRC TGT.
     rename b into __b__.
     inv INJECT. inv H4.
-    destruct invmem. cbn in *.
+    destruct assnmem. cbn in *.
     inv H3. cbn in *.
     exploit genericvalues_inject.simulation_mload_aux;
       try apply VAL_SRC; eauto; []; ii; des; eauto.
@@ -676,13 +676,13 @@ Module Rel.
 
   (* TODO move lemma position to definition point *)
   Lemma forall_gv_inject_gvs_inject
-        invmem l0 l1
+        assnmem l0 l1
         (INJECT: list_forall2
                    (genericvalues_inject.gv_inject
-                      (InvMem.Rel.inject invmem)) l0 l1)
+                      (AssnMem.Rel.inject assnmem)) l0 l1)
     :
       <<INJECTS: genericvalues_inject.gvs_inject
-                   (InvMem.Rel.inject invmem) l0 l1>>
+                   (AssnMem.Rel.inject assnmem) l0 l1>>
   .
   Proof.
     generalize dependent l1.
@@ -695,27 +695,27 @@ Module Rel.
   Qed.
 
   Lemma not_in_maydiff_expr_spec
-        inv invmem invst
+        inv assnmem invst
         m_src conf_src st_src
         m_tgt conf_tgt st_tgt
         expr gv_expr_src
         (CONF: valid_conf m_src m_tgt conf_src conf_tgt)
-        (NIMD: Invariant.not_in_maydiff_expr inv expr = true)
+        (NIMD: Assertion.not_in_maydiff_expr inv expr = true)
         (MAYDIFF: forall id : Tag.t * id,
-            IdTSet.mem id (Invariant.maydiff inv) = false ->
-            sem_inject st_src st_tgt invst (InvMem.Rel.inject invmem) id)
+            IdTSet.mem id (Assertion.maydiff inv) = false ->
+            sem_inject st_src st_tgt invst (AssnMem.Rel.inject assnmem) id)
         (VAL_SRC: Unary.sem_expr conf_src st_src (src invst) expr
                   = ret gv_expr_src)
-        (MEM: InvMem.Rel.sem conf_src conf_tgt st_src.(Mem) st_tgt.(Mem) invmem)
+        (MEM: AssnMem.Rel.sem conf_src conf_tgt st_src.(Mem) st_tgt.(Mem) assnmem)
     :
     exists gv_expr_tgt,
       (Unary.sem_expr conf_tgt st_tgt (tgt invst) expr = ret gv_expr_tgt)
       /\ (genericvalues_inject.gv_inject
-            (InvMem.Rel.inject invmem) gv_expr_src gv_expr_tgt)
+            (AssnMem.Rel.inject assnmem) gv_expr_src gv_expr_tgt)
   .
   Proof.
     inversion CONF. inv INJECT.
-    unfold Invariant.not_in_maydiff_expr in *.
+    unfold Assertion.not_in_maydiff_expr in *.
     Ltac exploit_not_in_maydiff_value_spec_with x :=
       match (type of x) with
       | (Unary.sem_valueT _ _ _ _ = Some _) =>
@@ -762,11 +762,11 @@ Module Rel.
   Qed.
 
   Lemma lessdef_expr_spec
-        invst invmem inv
+        invst assnmem inv
         conf st gmax public
         e1 e2 gv1
-        (SEM: Unary.sem conf st invst invmem gmax public inv)
-        (E: ExprPairSet.mem (e1, e2) inv.(Invariant.lessdef))
+        (SEM: Unary.sem conf st invst assnmem gmax public inv)
+        (E: ExprPairSet.mem (e1, e2) inv.(Assertion.lessdef))
         (E1: Unary.sem_expr conf st invst e1 = ret gv1):
     exists gv2,
       <<E2: Unary.sem_expr conf st invst e2 = ret gv2>> /\
@@ -779,13 +779,13 @@ Module Rel.
   Qed.
 
   Lemma lessdef_list_value_spec
-        conf st invst invmem gmax public inv
-        (STATE: Unary.sem conf st invst invmem gmax public inv)
+        conf st invst assnmem gmax public inv
+        (STATE: Unary.sem conf st invst assnmem gmax public inv)
         lsv0 lsv1
         (LD_EXPR0: List.map fst lsv0 = List.map fst lsv1)
         (LD_EXPR1: list_forallb2
                      (fun v1 v2 => ExprPairSet.mem
-                                     (Expr.value v1, Expr.value v2) (Invariant.lessdef inv))
+                                     (Expr.value v1, Expr.value v2) (Assertion.lessdef inv))
                      (List.map snd lsv0) (List.map snd lsv1) = true)
         l0
         (SEM: Unary.sem_list_valueT conf st invst lsv0 = ret l0)
@@ -1223,11 +1223,11 @@ Module Rel.
 
   (* TODO: put off 2 from here, rename colliding lemma *)
   Lemma lessdef_expr_spec2
-        invst invmem inv
+        invst assnmem inv
         conf st gmax public
         e0 e1
-        (SEM: Unary.sem conf st invst invmem gmax public inv)
-        (LD_EXPR: Hints.Invariant.lessdef_expr (e0, e1) inv.(Invariant.lessdef) = true)
+        (SEM: Unary.sem conf st invst assnmem gmax public inv)
+        (LD_EXPR: Hints.Assertion.lessdef_expr (e0, e1) inv.(Assertion.lessdef) = true)
         e0' e1'
         (EQ0: Unary.sem_expr conf st invst e0 = Unary.sem_expr conf st invst e0')
         (EQ1: Unary.sem_expr conf st invst e1 = Unary.sem_expr conf st invst e1')
@@ -1239,10 +1239,10 @@ Module Rel.
     rewrite <- EQ0 in *.
     rewrite <- EQ1 in *.
     clear EQ0 EQ1. clear_tac.
-    unfold Invariant.lessdef_expr in *.
+    unfold Assertion.lessdef_expr in *.
     des_bool; des.
     { eapply lessdef_expr_spec; eauto. }
-    unfold Invariant.deep_check_expr in *. ss.
+    unfold Assertion.deep_check_expr in *. ss.
     des_bool; des.
     assert(LD_EXPR_PROP:
              List.Forall2
@@ -1265,19 +1265,19 @@ Module Rel.
   Lemma inject_value_spec
         m_src conf_src st_src val_src
         m_tgt conf_tgt st_tgt val_tgt
-        invst invmem inv
+        invst assnmem inv
         gval_src
         (CONF: valid_conf m_src m_tgt conf_src conf_tgt)
-        (STATE: sem conf_src conf_tgt st_src st_tgt invst invmem inv)
-        (MEM: InvMem.Rel.sem conf_src conf_tgt st_src.(Mem) st_tgt.(Mem) invmem)
-        (INJECT: Invariant.inject_value inv val_src val_tgt)
+        (STATE: sem conf_src conf_tgt st_src st_tgt invst assnmem inv)
+        (MEM: AssnMem.Rel.sem conf_src conf_tgt st_src.(Mem) st_tgt.(Mem) assnmem)
+        (INJECT: Assertion.inject_value inv val_src val_tgt)
         (VAL_SRC: Unary.sem_valueT conf_src st_src invst.(src) val_src = Some gval_src):
     exists gval_tgt,
       <<VAL_TGT: Unary.sem_valueT conf_tgt st_tgt invst.(tgt) val_tgt = Some gval_tgt>> /\
-      <<INJECT: genericvalues_inject.gv_inject invmem.(InvMem.Rel.inject) gval_src gval_tgt>>.
+      <<INJECT: genericvalues_inject.gv_inject assnmem.(AssnMem.Rel.inject) gval_src gval_tgt>>.
   Proof.
     inversion CONF. inv INJECT0.
-    unfold Invariant.inject_value in INJECT. solve_bool_true; try des_sumbool; clarify.
+    unfold Assertion.inject_value in INJECT. solve_bool_true; try des_sumbool; clarify.
     - inv STATE.
       eapply not_in_maydiff_value_spec; eauto.
     - inv STATE.
@@ -1318,18 +1318,18 @@ Module Rel.
   Lemma inject_list_value_spec
         m_src conf_src st_src vals_src
         m_tgt conf_tgt st_tgt vals_tgt
-        invst invmem inv
+        invst assnmem inv
         gval_src
         (CONF: valid_conf m_src m_tgt conf_src conf_tgt)
-        (STATE: sem conf_src conf_tgt st_src st_tgt invst invmem inv)
-        (MEM: InvMem.Rel.sem conf_src conf_tgt st_src.(Mem) st_tgt.(Mem) invmem)
+        (STATE: sem conf_src conf_tgt st_src st_tgt invst assnmem inv)
+        (MEM: AssnMem.Rel.sem conf_src conf_tgt st_src.(Mem) st_tgt.(Mem) assnmem)
         (* TODO unite below into single INJECT? For unity with inject_value_spec *)
         (INJECT_SZ: List.map fst vals_src = List.map fst vals_tgt)
-        (INJECT_VAL: list_forallb2 (Invariant.inject_value inv) (List.map snd vals_src) (List.map snd vals_tgt))
+        (INJECT_VAL: list_forallb2 (Assertion.inject_value inv) (List.map snd vals_src) (List.map snd vals_tgt))
         (VAL_SRC: Unary.sem_list_valueT conf_src st_src invst.(src) vals_src = Some gval_src):
     exists gval_tgt,
       <<VAL_TGT: Unary.sem_list_valueT conf_tgt st_tgt invst.(tgt) vals_tgt = Some gval_tgt>> /\
-      <<INJECT: list_forall2 (genericvalues_inject.gv_inject invmem.(InvMem.Rel.inject)) gval_src gval_tgt>>.
+      <<INJECT: list_forall2 (genericvalues_inject.gv_inject assnmem.(AssnMem.Rel.inject)) gval_src gval_tgt>>.
   Proof.
     Ltac exploit_inject_value_spec_with x :=
       match (type of x) with
@@ -1355,18 +1355,18 @@ Module Rel.
   Lemma inject_expr_spec
         m_src conf_src st_src expr_src
         m_tgt conf_tgt st_tgt expr_tgt
-        invst invmem inv
+        invst assnmem inv
         gval_src
         (CONF: valid_conf m_src m_tgt conf_src conf_tgt)
-        (STATE: sem conf_src conf_tgt st_src st_tgt invst invmem inv)
-        (MEM: InvMem.Rel.sem conf_src conf_tgt st_src.(Mem) st_tgt.(Mem) invmem)
-        (INJECT: Invariant.inject_expr inv expr_src expr_tgt)
+        (STATE: sem conf_src conf_tgt st_src st_tgt invst assnmem inv)
+        (MEM: AssnMem.Rel.sem conf_src conf_tgt st_src.(Mem) st_tgt.(Mem) assnmem)
+        (INJECT: Assertion.inject_expr inv expr_src expr_tgt)
         (VAL_SRC: Unary.sem_expr conf_src st_src invst.(src) expr_src = Some gval_src):
     exists gval_tgt,
       <<VAL_TGT: Unary.sem_expr conf_tgt st_tgt invst.(tgt) expr_tgt = Some gval_tgt>> /\
-      <<INJECT: genericvalues_inject.gv_inject invmem.(InvMem.Rel.inject) gval_src gval_tgt>>.
+      <<INJECT: genericvalues_inject.gv_inject assnmem.(AssnMem.Rel.inject) gval_src gval_tgt>>.
   Proof.
-    unfold Invariant.inject_expr in INJECT. unfold Invariant.deep_check_expr in INJECT. des_bool; des.
+    unfold Assertion.inject_expr in INJECT. unfold Assertion.deep_check_expr in INJECT. des_bool; des.
     assert(CONF_DUP := CONF).
     inv CONF. inv INJECT1.
 
@@ -1479,7 +1479,7 @@ Module Subset.
       end
   .
 
-  Program Instance PreOrder_Subset_unary : PreOrder Invariant.Subset_unary.
+  Program Instance PreOrder_Subset_unary : PreOrder Assertion.Subset_unary.
   Next Obligation.
     econs; try econs; reflexivity.
   Qed.
@@ -1488,7 +1488,7 @@ Module Subset.
     econs; try econs; etransitivity; eauto.
   Qed.
   
-  Program Instance PreOrder_Subset : PreOrder Invariant.Subset.
+  Program Instance PreOrder_Subset : PreOrder Assertion.Subset.
   Next Obligation.
     econs; reflexivity.
   Qed.
@@ -1499,10 +1499,10 @@ Module Subset.
 
   Lemma not_in_maydiff_Subset
         inv0 inv1
-         (SUBSET: Invariant.Subset inv0 inv1)
-  : Invariant.not_in_maydiff inv0 <1= Invariant.not_in_maydiff inv1.
+         (SUBSET: Assertion.Subset inv0 inv1)
+  : Assertion.not_in_maydiff inv0 <1= Assertion.not_in_maydiff inv1.
   Proof.
-    unfold Invariant.not_in_maydiff in *.
+    unfold Assertion.not_in_maydiff in *.
     i. des_ifs.
     des_bool.
     rewrite negb_true_iff in *.
@@ -1514,11 +1514,11 @@ Module Subset.
   Lemma inject_value_Subset
         v1 v2
         inv0 inv1
-        (INJECT: Invariant.inject_value inv0 v1 v2)
-        (SUBSET: Invariant.Subset inv0 inv1)
-  : Invariant.inject_value inv1 v1 v2.
+        (INJECT: Assertion.inject_value inv0 v1 v2)
+        (SUBSET: Assertion.Subset inv0 inv1)
+  : Assertion.inject_value inv1 v1 v2.
   Proof.
-    unfold Invariant.inject_value in *.
+    unfold Assertion.inject_value in *.
     unfold sflib.is_true in *.
     repeat rewrite orb_true_iff in INJECT.
     repeat rewrite orb_true_iff.
@@ -1556,7 +1556,7 @@ Module Subset.
         * inv SUBSET. inv SUBSET_TGT.
           conv_mem2In.
           exploit SUBSET_LESSDEF; eauto.
-        * unfold Invariant.not_in_maydiff_expr in *.
+        * unfold Assertion.not_in_maydiff_expr in *.
           apply forallb_forall. i.
           eapply forallb_forall in INJECT2; eauto.
           eapply not_in_maydiff_Subset; eauto.

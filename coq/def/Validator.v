@@ -18,19 +18,19 @@ Require Import Debug.
 
 Set Implicit Arguments.
 
-Parameter gen_infrules_from_insns : insn -> insn -> Invariant.t -> list Infrule.t.
-Parameter gen_infrules_next_inv : bool -> Invariant.t -> Invariant.t -> list Infrule.t.
+Parameter gen_infrules_from_insns : insn -> insn -> Assertion.t -> list Infrule.t.
+Parameter gen_infrules_next_inv : bool -> Assertion.t -> Assertion.t -> list Infrule.t.
 
 Fixpoint valid_cmds
          (m_src m_tgt:module)
          (src tgt:list cmd)
-         (hint:list (list Infrule.t * Invariant.t))
-         (inv0:Invariant.t): option Invariant.t :=
+         (hint:list (list Infrule.t * Assertion.t))
+         (inv0:Assertion.t): option Assertion.t :=
   match hint, src, tgt with
   | (infrules, inv)::hint, cmd_src::src, cmd_tgt::tgt =>
     let (cmd_src, cmd_tgt) :=
         (debug_print cmd_pair_printer (cmd_src, cmd_tgt)) in
-    if (Invariant.has_false inv0) then valid_cmds m_src m_tgt src tgt hint inv else
+    if (Assertion.has_false inv0) then valid_cmds m_src m_tgt src tgt hint inv else
     let oinv1 :=
         match postcond_cmd cmd_src cmd_tgt inv0 with
         | Some inv1 => Some inv1
@@ -51,7 +51,7 @@ Fixpoint valid_cmds
       let inv3 := reduce_maydiff inv2 in
       let inv := debug_print_validation_process infrules inv0 inv1 inv2 inv3 inv in
       if
-        (if Invariant.implies inv3 inv
+        (if Assertion.implies inv3 inv
          then true
          else
            (* TODO: need new print method *)
@@ -59,9 +59,9 @@ Fixpoint valid_cmds
            let inv3_infr := apply_infrules m_src m_tgt infrules inv3 in
            let inv3_red := reduce_maydiff inv3_infr in
            let inv3_red := debug_print_auto infrules inv3_red in
-           Invariant.implies inv3_red inv)
+           Assertion.implies inv3_red inv)
       then valid_cmds m_src m_tgt src tgt hint inv
-      else failwith_None "valid_cmds: Invariant.implies returned false" nil
+      else failwith_None "valid_cmds: Assertion.implies returned false" nil
     end
   | nil, nil, nil => Some inv0
   | _, _, _ => None
@@ -75,7 +75,7 @@ Definition lookup_phinodes_infrules hint_stmts l_from :=
 
 Definition valid_phinodes
            (hint_fdef:ValidationHint.fdef)
-           (inv0:Invariant.t)
+           (inv0:Assertion.t)
            (m_src m_tgt:module)
            (blocks_src blocks_tgt:blocks)
            (l_from l_to:l): bool :=
@@ -90,16 +90,16 @@ Definition valid_phinodes
         let infrules_auto := gen_infrules_next_inv true inv1 inv0 in
         let inv2 := apply_infrules m_src m_tgt (infrules_auto++infrules) inv1 in
         let inv3 := reduce_maydiff inv2 in
-        let inv4 := hint_stmts.(ValidationHint.invariant_after_phinodes) in
+        let inv4 := hint_stmts.(ValidationHint.assertion_after_phinodes) in
         let inv4 := debug_print_validation_process infrules inv0 inv1 inv2 inv3 inv4 in
-        if negb (Invariant.implies inv3 inv4)
+        if negb (Assertion.implies inv3 inv4)
         then
           let infrules := gen_infrules_next_inv false inv3 inv4 in
           let inv3_infr := apply_infrules m_src m_tgt infrules inv3 in
           let inv3_red := reduce_maydiff inv3_infr in
           let inv3_red := debug_print_auto infrules inv3_red in
-          if negb (Invariant.implies inv3_red inv4)
-          then failwith_false "valid_phinodes: Invariant.implies returned false at phinode" (l_from::l_to::nil)
+          if negb (Assertion.implies inv3_red inv4)
+          then failwith_false "valid_phinodes: Assertion.implies returned false at phinode" (l_from::l_to::nil)
           else true
         else true
     end
@@ -128,12 +128,12 @@ Defined.
 
 Definition valid_terminator
            (hint_fdef:ValidationHint.fdef)
-           (inv0:Invariant.t)
+           (inv0:Assertion.t)
            (m_src m_tgt:module)
            (blocks_src blocks_tgt:blocks)
            (bid:l)
            (src tgt:terminator): bool :=
-  if (Invariant.has_false inv0) then true else
+  if (Assertion.has_false inv0) then true else
   match src, tgt with
   | insn_return_void _, insn_return_void _ => true
   | insn_return _ ty_src val_src, insn_return _ ty_tgt val_tgt =>
@@ -141,7 +141,7 @@ Definition valid_terminator
     then failwith_false "valid_terminator: return type not matched at block" [bid]
     else
 
-    if negb (Invariant.inject_value
+    if negb (Assertion.inject_value
                inv0
                (ValueT.lift Tag.physical val_src)
                (ValueT.lift Tag.physical val_tgt))
@@ -149,7 +149,7 @@ Definition valid_terminator
     else true
 
   | insn_br _ val_src l1_src l2_src, insn_br _ val_tgt l1_tgt l2_tgt =>
-    if negb (Invariant.inject_value
+    if negb (Assertion.inject_value
                inv0
                (ValueT.lift Tag.physical val_src)
                (ValueT.lift Tag.physical val_tgt))
@@ -187,7 +187,7 @@ Definition valid_terminator
     then failwith_false "valid_terminator: types of switch conditions failed at block" [bid]
     else
 
-    if negb (Invariant.inject_value
+    if negb (Assertion.inject_value
                inv0
                (ValueT.lift Tag.physical val_src)
                (ValueT.lift Tag.physical val_tgt))
@@ -227,7 +227,7 @@ Definition valid_stmts
            (bid:l) (src tgt:stmts): bool :=
   let '(stmts_intro phinodes_src cmds_src terminator_src) := src in
   let '(stmts_intro phinodes_tgt cmds_tgt terminator_tgt) := tgt in
-  match valid_cmds m_src m_tgt cmds_src cmds_tgt hint.(ValidationHint.cmds) hint.(ValidationHint.invariant_after_phinodes) with
+  match valid_cmds m_src m_tgt cmds_src cmds_tgt hint.(ValidationHint.cmds) hint.(ValidationHint.assertion_after_phinodes) with
   | None => failwith_false "valid_stmts: valid_cmds failed at block" [bid]
   | Some inv =>
     (if (valid_terminator hint_fdef inv m_src m_tgt blocks_src blocks_tgt bid terminator_src terminator_tgt)
@@ -254,7 +254,7 @@ Definition valid_entry_stmts (src tgt:stmts) (hint:ValidationHint.stmts)
   if negb (is_empty phinodes_tgt)
   then failwith_false "valid_entry_stmts: phinode of target not empty" nil
   else
-  if negb (Invariant.implies (Invariant.function_entry_inv la_src la_tgt products_src products_tgt) hint.(ValidationHint.invariant_after_phinodes))
+  if negb (Assertion.implies (Assertion.function_entry_inv la_src la_tgt products_src products_tgt) hint.(ValidationHint.assertion_after_phinodes))
   then failwith_false "valid_entry_stmts: implies fail at function entry" nil
   else true
   .
