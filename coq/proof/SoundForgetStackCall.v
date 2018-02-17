@@ -20,8 +20,8 @@ Require Import Hints.
 Require Import Postcond.
 Require Import Validator.
 Require Import GenericValues.
-Require InvMem.
-Require InvState.
+Require AssnMem.
+Require AssnState.
 Require Import Inject.
 Require Import SoundBase.
 Require Import SoundForgetStack.
@@ -30,23 +30,23 @@ Set Implicit Arguments.
 
 
 Lemma forget_stack_call_Subset inv defs_src defs_tgt
-  : Hints.Invariant.Subset (ForgetStackCall.t defs_src defs_tgt inv) inv.
+  : Hints.Assertion.Subset (ForgetStackCall.t defs_src defs_tgt inv) inv.
 Proof.
   unfold ForgetStackCall.t.
   apply forget_stack_Subset.
 Qed.
 
 Lemma unary_sem_eq_locals_mem
-      conf st0 st1 invst0 invmem0 inv0 gmax public
+      conf st0 st1 invst0 assnmem0 inv0 gmax public
       (LOCALS_EQ: Locals (EC st0) = Locals (EC st1))
       (MEM_EQ : Mem st0 = Mem st1)
-      (STATE: InvState.Unary.sem conf st0 invst0 invmem0 gmax public inv0)
+      (STATE: AssnState.Unary.sem conf st0 invst0 assnmem0 gmax public inv0)
       (EQ_FUNC: st0.(EC).(CurFunction) = st1.(EC).(CurFunction))
       (EQ_ALLOCAS: st0.(EC).(Allocas) = st1.(EC).(Allocas))
       (EQ_BB: st0.(EC).(CurBB) = st1.(EC).(CurBB))
       (EQ_TERM: st0.(EC).(Terminator) = st1.(EC).(Terminator))
       (CMDS_SUB: sublist st1.(EC).(CurCmds) st0.(EC).(CurCmds))
-  : InvState.Unary.sem conf st1 invst0 invmem0 gmax public inv0.
+  : AssnState.Unary.sem conf st1 invst0 assnmem0 gmax public inv0.
 Proof.
   inv STATE.
   econs.
@@ -82,12 +82,12 @@ Qed.
 Lemma invst_sem_eq_locals_mem
       st0_src st1_src conf_src
       st0_tgt st1_tgt conf_tgt
-      invst invmem inv
+      invst assnmem inv
       (MEM_SRC: st0_src.(Mem) = st1_src.(Mem))
       (MEM_TGT: st0_tgt.(Mem) = st1_tgt.(Mem))
       (LOCAL_SRC: st0_src.(EC).(Locals) = st1_src.(EC).(Locals))
       (LOCAL_TGT: st0_tgt.(EC).(Locals) = st1_tgt.(EC).(Locals))
-      (STATE : InvState.Rel.sem conf_src conf_tgt st0_src st0_tgt invst invmem inv)
+      (STATE : AssnState.Rel.sem conf_src conf_tgt st0_src st0_tgt invst assnmem inv)
       (EQ_BB_SRC: st0_src.(EC).(CurBB) = st1_src.(EC).(CurBB))
       (EQ_BB_TGT: st0_tgt.(EC).(CurBB) = st1_tgt.(EC).(CurBB))
       (EQ_FUNC_SRC: st0_src.(EC).(CurFunction) = st1_src.(EC).(CurFunction))
@@ -98,7 +98,7 @@ Lemma invst_sem_eq_locals_mem
       (EQ_TERM_TGT: st0_tgt.(EC).(Terminator) = st1_tgt.(EC).(Terminator))
       (CMDS_SUB_SRC: sublist st1_src.(EC).(CurCmds) st0_src.(EC).(CurCmds))
       (CMDS_SUB_TGT: sublist st1_tgt.(EC).(CurCmds) st0_tgt.(EC).(CurCmds))
-  : InvState.Rel.sem conf_src conf_tgt st1_src st1_tgt invst invmem inv.
+  : AssnState.Rel.sem conf_src conf_tgt st1_src st1_tgt invst assnmem inv.
 Proof.
   inv STATE.
   econs.
@@ -115,11 +115,11 @@ Proof.
 Qed.
 
 Lemma genericvalues_inject_wf_valid_ptrs_src
-      invmem
+      assnmem
       mem_src gv_src
       mem_tgt gv_tgt
-      (INJ_FIT : genericvalues_inject.gv_inject invmem.(InvMem.Rel.inject) gv_src gv_tgt)
-      (WF : genericvalues_inject.wf_sb_mi invmem.(InvMem.Rel.gmax) invmem.(InvMem.Rel.inject) mem_src mem_tgt)
+      (INJ_FIT : genericvalues_inject.gv_inject assnmem.(AssnMem.Rel.inject) gv_src gv_tgt)
+      (WF : genericvalues_inject.wf_sb_mi assnmem.(AssnMem.Rel.gmax) assnmem.(AssnMem.Rel.inject) mem_src mem_tgt)
   : memory_props.MemProps.valid_ptrs (Memory.Mem.nextblock mem_src) gv_src.
 Proof.
   generalize dependent gv_tgt.
@@ -137,11 +137,11 @@ Proof.
 Qed.
 
 Lemma genericvalues_inject_wf_valid_ptrs_tgt
-      invmem
+      assnmem
       mem_src gv_src
       mem_tgt gv_tgt
-      (INJ_FIT : genericvalues_inject.gv_inject invmem.(InvMem.Rel.inject) gv_src gv_tgt)
-      (WF : genericvalues_inject.wf_sb_mi invmem.(InvMem.Rel.gmax) invmem.(InvMem.Rel.inject) mem_src mem_tgt)
+      (INJ_FIT : genericvalues_inject.gv_inject assnmem.(AssnMem.Rel.inject) gv_src gv_tgt)
+      (WF : genericvalues_inject.wf_sb_mi assnmem.(AssnMem.Rel.gmax) assnmem.(AssnMem.Rel.inject) mem_src mem_tgt)
       (NOTUNDEF: List.Forall (fun v => v.(fst) <> Values.Vundef) gv_src)
   : memory_props.MemProps.valid_ptrs (Memory.Mem.nextblock mem_tgt) gv_tgt.
 Proof.
@@ -161,7 +161,7 @@ Lemma gv_inject_public_src
           (INJECT: genericvalues_inject.gv_inject meminj gv_src gv_tgt)
           (IN: In b (GV2blocks gv_src))
       :
-        <<PUBLIC: InvMem.Rel.public_src meminj b>>
+        <<PUBLIC: AssnMem.Rel.public_src meminj b>>
 .
 Proof.
   induction INJECT; ii; ss; des; ss.
@@ -179,14 +179,14 @@ Lemma gv_inject_public_tgt
           (IN: In b (GV2blocks gv_tgt))
           (NOTUNDEF: List.Forall (fun v => v.(fst) <> Values.Vundef) gv_src)
       :
-        <<PUBLIC: InvMem.Rel.public_tgt meminj b>>
+        <<PUBLIC: AssnMem.Rel.public_tgt meminj b>>
 .
 Proof.
   induction INJECT; ii; ss; des; ss.
   - eapply GV2blocks_In_cons in IN.
     des.
     + destruct v2; ss. des; ss. subst.
-      unfold InvMem.Rel.public_tgt.
+      unfold AssnMem.Rel.public_tgt.
       inv H.
       * esplits; eauto.
       * inv NOTUNDEF. ss.
@@ -199,15 +199,15 @@ Qed.
 Lemma gv_inject_no_private_src
       conf_src st_src gv_src
       conf_tgt st_tgt gv_tgt
-      invst invmem inv
-      (STATE : InvState.Rel.sem conf_src conf_tgt st_src st_tgt invst invmem inv)
-      (MEM : InvMem.Rel.sem conf_src conf_tgt st_src.(Mem) st_tgt.(Mem) invmem)
-      (INJECT: genericvalues_inject.gv_inject (InvMem.Rel.inject invmem) gv_src gv_tgt)
+      invst assnmem inv
+      (STATE : AssnState.Rel.sem conf_src conf_tgt st_src st_tgt invst assnmem inv)
+      (MEM : AssnMem.Rel.sem conf_src conf_tgt st_src.(Mem) st_tgt.(Mem) assnmem)
+      (INJECT: genericvalues_inject.gv_inject (AssnMem.Rel.inject assnmem) gv_src gv_tgt)
   : <<DIFF_FROM_PRIVATE_SRC:
     forall p_src gv_p_src
-      (PRIVATE_SRC: Exprs.IdTSet.mem p_src inv.(Invariant.src).(Invariant.private) = true)
-      (P_SRC_SEM: InvState.Unary.sem_idT st_src invst.(InvState.Rel.src) p_src = Some gv_p_src),
-      InvState.Unary.sem_diffblock conf_src gv_p_src gv_src>>
+      (PRIVATE_SRC: Exprs.IdTSet.mem p_src inv.(Assertion.src).(Assertion.private) = true)
+      (P_SRC_SEM: AssnState.Unary.sem_idT st_src invst.(AssnState.Rel.src) p_src = Some gv_p_src),
+      AssnState.Unary.sem_diffblock conf_src gv_p_src gv_src>>
 .
 Proof.
   inv STATE. rename SRC into STATE_SRC. rename TGT into STATE_TGT. clear MAYDIFF.
@@ -224,7 +224,7 @@ Proof.
     {
       eapply PRIVATE; eauto.
       eapply Exprs.IdTSetFacts.mem_iff; eauto.
-      unfold InvMem.private_block in *. des.
+      unfold AssnMem.private_block in *. des.
       hexploit gv_inject_public_src; eauto; []; intro PUB; des.
       clear - PUB PRIVATE_BLOCK. ss.
     }
@@ -233,22 +233,22 @@ Qed.
 
 (* we need additional condition: all unique in inv1 is private, so not in inject: not in return value *)
 Lemma forget_stack_call_sound
-      invst2 invmem2 inv1 noret typ
+      invst2 assnmem2 inv1 noret typ
       mem1_src conf_src retval1_src st0_src id_src cmds_src locals1_src
       mem1_tgt conf_tgt retval1_tgt st0_tgt id_tgt cmds_tgt
       (CONF: inject_conf conf_src conf_tgt)
       (STATE:
-         InvState.Rel.sem
+         AssnState.Rel.sem
            conf_src conf_tgt
            (mkState st0_src.(EC) st0_src.(ECS) mem1_src)
            (mkState st0_tgt.(EC) st0_tgt.(ECS) mem1_tgt)
-           invst2 invmem2 inv1)
+           invst2 assnmem2 inv1)
       (CMDS_SUB_SRC: sublist cmds_src st0_src.(EC).(CurCmds))
       (CMDS_SUB_TGT: sublist cmds_tgt st0_tgt.(EC).(CurCmds))
-      (UNIQUE_PRIVATE_SRC: unique_is_private_unary inv1.(Invariant.src))
-      (UNIQUE_PRIVATE_TGT: unique_is_private_unary inv1.(Invariant.tgt))
-      (MEM: InvMem.Rel.sem conf_src conf_tgt mem1_src mem1_tgt invmem2)
-      (RETVAL: TODO.lift2_option (genericvalues_inject.gv_inject invmem2.(InvMem.Rel.inject)) retval1_src retval1_tgt)
+      (UNIQUE_PRIVATE_SRC: unique_is_private_unary inv1.(Assertion.src))
+      (UNIQUE_PRIVATE_TGT: unique_is_private_unary inv1.(Assertion.tgt))
+      (MEM: AssnMem.Rel.sem conf_src conf_tgt mem1_src mem1_tgt assnmem2)
+      (RETVAL: TODO.lift2_option (genericvalues_inject.gv_inject assnmem2.(AssnMem.Rel.inject)) retval1_src retval1_tgt)
       (VALID: valid_retvals mem1_src mem1_tgt retval1_src retval1_tgt)
       (RETURN_SRC: return_locals
                      conf_src.(CurTargetData)
@@ -262,7 +262,7 @@ Lemma forget_stack_call_sound
                         st0_tgt.(EC).(Locals)
                       = Some locals2_tgt>> /\
         <<STATE:
-          InvState.Rel.sem
+          AssnState.Rel.sem
             conf_src conf_tgt
             (mkState (mkEC st0_src.(EC).(CurFunction)
                            st0_src.(EC).(CurBB)
@@ -278,7 +278,7 @@ Lemma forget_stack_call_sound
                            locals2_tgt
                            st0_tgt.(EC).(Allocas))
                      st0_tgt.(ECS) mem1_tgt)
-            invst2 invmem2 (ForgetStackCall.t
+            invst2 assnmem2 (ForgetStackCall.t
                               (AtomSetImpl_from_list (ite noret None (Some id_src)))
                               (AtomSetImpl_from_list (ite noret None (Some id_tgt)))
                               inv1)>>.

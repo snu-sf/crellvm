@@ -320,24 +320,24 @@ module PrintHints = struct
                 infs
       in ()
         
-    let unary (u:Invariant.unary): string list =
-      (PrintExprs.exprPairSet (u.Invariant.lessdef) "≥") @
-        (PrintExprs.ptrPairSet (u.Invariant.alias.Invariant.noalias) "≠") @
-        (PrintExprs.valueTPairSet (u.Invariant.alias.Invariant.diffblock) "_||_") @
-        (PrintExprs.idSet (u.Invariant.unique) "uniq") @
-        (PrintExprs.idTSet (u.Invariant.coq_private) "prvt")
+    let unary (u:Assertion.unary): string list =
+      (PrintExprs.exprPairSet (u.Assertion.lessdef) "≥") @
+        (PrintExprs.ptrPairSet (u.Assertion.alias.Assertion.noalias) "≠") @
+        (PrintExprs.valueTPairSet (u.Assertion.alias.Assertion.diffblock) "_||_") @
+        (PrintExprs.idSet (u.Assertion.unique) "uniq") @
+        (PrintExprs.idTSet (u.Assertion.coq_private) "prvt")
     
-    let invariant (inv:Invariant.t): unit =
+    let assertion (inv:Assertion.t): unit =
       (* print_bar(), print_sum() should be function *)
       let print_bar() = debug_print (String.make 200 '-') in
-      let num_in_nat = IdTSet.cardinal inv.Invariant.maydiff in
+      let num_in_nat = IdTSet.cardinal inv.Assertion.maydiff in
       let num = Datatype_base.Size.from_nat num_in_nat in
       let title =
         Printf.sprintf "%30s %60s %60s (%d)"
                        "[ SOURCE ]" "[ TARGET ]" "[ MayDiff ]" num in
-      let src = unary (inv.Invariant.src) in
-      let tgt = unary (inv.Invariant.tgt) in
-      let maydiff = PrintExprs.idTSet (inv.Invariant.maydiff) "" in
+      let src = unary (inv.Assertion.src) in
+      let tgt = unary (inv.Assertion.tgt) in
+      let maydiff = PrintExprs.idTSet (inv.Assertion.maydiff) "" in
       let sum = TODOCAML.list_zip [src ; tgt ; maydiff] "-" in
 
       let print_sum() =
@@ -357,55 +357,55 @@ module PrintHints = struct
       let _ = if(length sum <> 0) then print_sum() else () in
       ()
 
-    let invariants (hint_fdef:ValidationHint.fdef) (blockids: atom list): unit =
+    let assertions (hint_fdef:ValidationHint.fdef) (blockids: atom list): unit =
       let print_bar() = debug_print (String.make 200 '=') in
       print_bar ();
       List.iter
           (fun blockid ->
               let stmts = TODOCAML.get (Alist.lookupAL hint_fdef blockid) in
               debug_print (sprintf "<block %s>" blockid) ; 
-              invariant (stmts.invariant_after_phinodes) ;
+              assertion (stmts.assertion_after_phinodes) ;
               List.iter 
-                  (fun inv -> invariant inv)
+                  (fun inv -> assertion inv)
                   (List.map snd stmts.cmds))
           blockids;
       print_bar ()
   end
 
 let debug_print_validation_process (infrules: Infrule.t list)
-                                   (inv0: Invariant.t)
-                                   (inv1: Invariant.t)
-                                   (inv2: Invariant.t)
-                                   (inv3: Invariant.t)
-                                   (inv: Invariant.t)
-    : Invariant.t =
+                                   (inv0: Assertion.t)
+                                   (inv1: Assertion.t)
+                                   (inv2: Assertion.t)
+                                   (inv3: Assertion.t)
+                                   (inv: Assertion.t)
+    : Assertion.t =
   let _ =
     debug_run
       (fun _ ->
        let _ = debug_print "** precondition" in
-       let _ = PrintHints.invariant inv0 in
+       let _ = PrintHints.assertion inv0 in
        let _ = debug_print "** postcond generates" in
-       let _ = PrintHints.invariant inv1 in
+       let _ = PrintHints.assertion inv1 in
        let _ = debug_print "** infrules" in
        let _ = PrintHints.infrules infrules in
        let _ = debug_print "** applying infrule" in
-       let _ = PrintHints.invariant inv2 in
+       let _ = PrintHints.assertion inv2 in
        let _ = debug_print "** reducing maydiff" in
-       let _ = PrintHints.invariant inv3 in
+       let _ = PrintHints.assertion inv3 in
        let _ = debug_print "** next precondition" in
-       let _ = PrintHints.invariant inv in ())
+       let _ = PrintHints.assertion inv in ())
   in inv
 
 let debug_print_auto (infrules: Infrule.t list)
-                     (inv: Invariant.t)
-    : Invariant.t =
+                     (inv: Assertion.t)
+    : Assertion.t =
   let _ =
     debug_run
       (fun _ ->
        let _ = debug_print "** infrules by auto" in
        let _ = PrintHints.infrules infrules in
        let _ = debug_print "** applying infrule (with reducing maydiff?)" in
-       let _ = PrintHints.invariant inv in ())
+       let _ = PrintHints.assertion inv in ())
   in inv
 
 

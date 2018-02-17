@@ -1,4 +1,4 @@
-# LLVMBerry #
+# Crellvm #
 
 ## Development ##
 
@@ -19,7 +19,7 @@
 
 - `make init`
     + It installs Coq & OCaml libraries.
-    + It (recursively) clones repositories including llvm, vellvm to lib/ dir, and also clones llvmberry-tests repository.
+    + It (recursively) clones repositories including llvm, vellvm to lib/ dir, and also clones crellvm-tests repository.
     + If above commands do not work, check format of `url` in `.gitmodules` starts with `git@github.com:snu-sf/`.
     + It also buildss & installs llvm.
     + `.build/llvm-obj` will contain llvm object files.
@@ -35,8 +35,8 @@
 ### Quick Build ###
 
 + Compiles coq files with `-quick` option. It produces `*.vio` instead of `*.vo`. For more information, refer to [this](https://coq.inria.fr/refman/Reference-Manual031.html).
-+ It needs separate copy of whole repository, so one is for `*.vo` and the other is for `*.vio`. For more information, refer to [this](https://github.com/snu-sf/llvmberry/pull/247). What you need to know is do *NOT* compile with/without quick option inside same directory.
-+ There is *NO* `make extract-quick`, as `-quick` option ignores extraction. Therefore, there is no `make exec-quick` neither. For more information, refer to [this](https://github.com/snu-sf/llvmberry/issues/236#issuecomment-235553528).
++ It needs separate copy of whole repository, so one is for `*.vo` and the other is for `*.vio`. For more information, refer to [this](https://github.com/snu-sf/crellvm/pull/247). What you need to know is do *NOT* compile with/without quick option inside same directory.
++ There is *NO* `make extract-quick`, as `-quick` option ignores extraction. Therefore, there is no `make exec-quick` neither. For more information, refer to [this](https://github.com/snu-sf/crellvm/issues/236#issuecomment-235553528).
 
 - `make proof-quick`
     + It compiles proof code with `-quick` option.
@@ -70,7 +70,7 @@
 ### Related Projects ###
 
 - [atdtocpp](https://github.com/aqjune/atdtocpp) automatically converts `.atd` file to `.cpp`/`.h` file. This may not be suitable for whole file conversion, but it may be sufficient to support simple inference rule conversions. You may need to convert the whole `.atd` file, and then just excerpt wanted part from it.
-- [parallel testing](https://github.com/alxest/llvmberry-tests-parallel) You may just copy `src/main/scala/main.scala` and use it. `scala main.scala -h` should give sufficient information. You may need to run with `-J-Xmx64g` or something, to manually set JVM memory limit. Required scala version or more detailed information will be in that repository.
+- [parallel testing](https://github.com/alxest/crellvm-tests-parallel) You may just copy `src/main/scala/main.scala` and use it. `scala main.scala -h` should give sufficient information. You may need to run with `-J-Xmx64g` or something, to manually set JVM memory limit. Required scala version or more detailed information will be in that repository.
 
 ### TODO ###
 

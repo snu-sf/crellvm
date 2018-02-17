@@ -22,8 +22,8 @@ Require Import Hints.
 Require Import Postcond.
 Require Import Validator.
 Require Import GenericValues.
-Require InvMem.
-Require InvState.
+Require AssnMem.
+Require AssnState.
 Require Import Inject.
 Require Import SoundBase.
 Require Import SoundForgetStack.
@@ -100,8 +100,8 @@ Lemma step_wf_lc
       (CMDS: st0.(EC).(CurCmds) = cmd :: cmds)
       (NONCALL: Instruction.isCallInst cmd = false)
       (NONMALLOC: isMallocInst cmd = false)
-      gmax public invmem0
-      (MEM: InvMem.Unary.sem conf gmax public st0.(Mem) invmem0)
+      gmax public assnmem0
+      (MEM: AssnMem.Unary.sem conf gmax public st0.(Mem) assnmem0)
   : <<WF_LOCAL: MemProps.wf_lc st1.(Mem) st1.(EC).(Locals)>> /\
     <<WF_MEM: MemProps.wf_Mem gmax conf.(CurTargetData) st1.(Mem)>>.
 Proof.
@@ -158,9 +158,6 @@ Proof.
     *
       ii.
       apply mload_inv in H1. des. clarify.
-      (* destruct (Pos.eqb b0 b) eqn:T. *)
-      (* { apply Peqb_true_eq in T. subst. *)
-      (*   des_sumbool. } *)
       exploit MemProps.mstore_aux_preserves_mload_aux_inv; eauto; []; ii; des.
       eapply MemProps.valid_ptrs_overlap; eauto.
       { eapply get_operand_valid_ptr; eauto.
@@ -220,13 +217,13 @@ Lemma disjoint_allocas_private_parent
       (NONCALL_UNARY: Instruction.isCallInst cmd_unary = false)
       (CMDS_UNARY: CurCmds (EC st0_unary) = cmd_unary :: cmds_unary)
       (STEP_UNARY: sInsn conf_unary st0_unary st1_unary evt)
-      (STATE_FORGET_MEMORY_UNARY: InvState.Unary.sem conf_unary
+      (STATE_FORGET_MEMORY_UNARY: AssnState.Unary.sem conf_unary
                                                      (mkState (EC st0_unary) (ECS st0_unary) (Mem st1_unary))
                                                      unary unary1 gmax0 public_unary0 inv)
-      (MEMLE_UNARY: InvMem.Unary.le unary0 unary1)
-      (UNARY: InvMem.Unary.sem conf_unary gmax public_unary (Mem st0_unary) unary0)
+      (MEMLE_UNARY: AssnMem.Unary.le unary0 unary1)
+      (UNARY: AssnMem.Unary.sem conf_unary gmax public_unary (Mem st0_unary) unary0)
   :
-    <<DISJOINT: list_disjoint (Allocas (EC st1_unary)) (InvMem.Unary.private_parent unary1)>>
+    <<DISJOINT: list_disjoint (Allocas (EC st1_unary)) (AssnMem.Unary.private_parent unary1)>>
 .
 Proof.
   inv STEP_UNARY; try apply STATE_FORGET_MEMORY_UNARY; cbn.
@@ -235,28 +232,27 @@ Proof.
   - (* return_void *)
     clarify.
   - ss.
-    assert(PARENT: list_disjoint (als) (InvMem.Unary.private_parent unary1)).
+    assert(PARENT: list_disjoint (als) (AssnMem.Unary.private_parent unary1)).
     { apply STATE_FORGET_MEMORY_UNARY. }
     apply list_disjoint_cons_l; eauto.
     {
       ss. expl alloca_result. clarify. ss.
       intro MB_PRIVATE_PARENT0.
       assert(MB_PRIVATE_PARENT1: In (Memory.Mem.nextblock Mem0)
-                                    (InvMem.Unary.private_parent unary0)).
+                                    (AssnMem.Unary.private_parent unary0)).
       {
         inv MEMLE_UNARY. rewrite PRIVATE_PARENT_EQ. ss.
       }
       clear - UNARY MB_PRIVATE_PARENT1.
       inv UNARY. ss.
       expl PRIVATE_PARENT.
-      unfold InvMem.private_block in PRIVATE_PARENT0.
+      unfold AssnMem.private_block in PRIVATE_PARENT0.
       des.
       expl Pos.lt_irrefl.
     }
   - ss. (* call *)
 Qed.
 
-(* Proving "sublist_In"'s inverse is hard... is it possible? *)
 Lemma sublist_app_inv
       A
       (xs ys zs: list A)
@@ -309,27 +305,27 @@ Qed.
 Lemma postcond_cmd_sound
       m_src conf_src st0_src cmd_src cmds_src
       m_tgt conf_tgt st0_tgt cmd_tgt cmds_tgt
-      invst0 invmem0 inv0
+      invst0 assnmem0 inv0
       st1_tgt evt inv1
       (WF_CONF_SRC: opsem_wf.OpsemPP.wf_Config conf_src)
       (WF_CONF_TGT: opsem_wf.OpsemPP.wf_Config conf_tgt)
       (WF_STATE_PREV_SRC: opsem_wf.OpsemPP.wf_State conf_src st0_src)
       (WF_STATE_PREV_TGT: opsem_wf.OpsemPP.wf_State conf_tgt st0_tgt)
-      (CONF: InvState.valid_conf m_src m_tgt conf_src conf_tgt)
+      (CONF: AssnState.valid_conf m_src m_tgt conf_src conf_tgt)
       (POSTCOND: Postcond.postcond_cmd cmd_src cmd_tgt inv0 = Some inv1)
-      (STATE: InvState.Rel.sem conf_src conf_tgt st0_src st0_tgt invst0 invmem0 inv0)
-      (MEM: InvMem.Rel.sem conf_src conf_tgt st0_src.(Mem) st0_tgt.(Mem) invmem0)
+      (STATE: AssnState.Rel.sem conf_src conf_tgt st0_src st0_tgt invst0 assnmem0 inv0)
+      (MEM: AssnMem.Rel.sem conf_src conf_tgt st0_src.(Mem) st0_tgt.(Mem) assnmem0)
       (STEP_TGT: sInsn conf_tgt st0_tgt st1_tgt evt)
       (CMDS_SRC: st0_src.(EC).(CurCmds) = cmd_src :: cmds_src)
       (CMDS_TGT: st0_tgt.(EC).(CurCmds) = cmd_tgt :: cmds_tgt)
       (NONCALL_SRC: Instruction.isCallInst cmd_src = false)
       (NONCALL_TGT: Instruction.isCallInst cmd_tgt = false)
       (NERROR_SRC: ~ error_state conf_src st0_src):
-  exists st1_src invst1 invmem1,
+  exists st1_src invst1 assnmem1,
     <<STEP_SRC: sInsn conf_src st0_src st1_src evt>> /\
-    <<STATE: InvState.Rel.sem conf_src conf_tgt st1_src st1_tgt invst1 invmem1 inv1>> /\
-    <<MEM: InvMem.Rel.sem conf_src conf_tgt st1_src.(Mem) st1_tgt.(Mem) invmem1>> /\
-    <<MEMLE: InvMem.Rel.le invmem0 invmem1>>.
+    <<STATE: AssnState.Rel.sem conf_src conf_tgt st1_src st1_tgt invst1 assnmem1 inv1>> /\
+    <<MEM: AssnMem.Rel.sem conf_src conf_tgt st1_src.(Mem) st1_tgt.(Mem) assnmem1>> /\
+    <<MEMLE: AssnMem.Rel.le assnmem0 assnmem1>>.
 Proof.
   assert(NONMALLOC_SRC: isMallocInst cmd_src = false).
   { destruct cmd_src; ss.

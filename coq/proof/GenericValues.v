@@ -166,8 +166,6 @@ Definition val2block val :=
   | _ => None
   end.
 
-(* Defining definition with fixpoint makes proof a lot hard *)
-(* inductive def ? *)
 Definition GV2blocks (gval: GenericValue) := filter_map (val2block <*> fst) gval.
 
 Lemma GV2ptr_In_GV2blocks

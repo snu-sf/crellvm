@@ -19,8 +19,8 @@ Require Import Validator.
 Require Import Postcond.
 Require Import Exprs.
 Require Import GenericValues.
-Require InvMem.
-Require InvState.
+Require AssnMem.
+Require AssnState.
 Require Import SoundBase.
 Require Import SoundImplies. (* for preorder GVs.lessdef *)
 Require Import Inject. (* for simtac *)
@@ -65,7 +65,7 @@ Lemma physical_previous_lessdef_spec
       (IN: ExprPairSet.In (e1, e2) (Snapshot.physical_previous_lessdef inv))
   :
     exists x,
-      <<IN_UNARY: In (Tag.previous, x) (Hints.Invariant.get_idTs_unary inv)>> /\
+      <<IN_UNARY: In (Tag.previous, x) (Hints.Assertion.get_idTs_unary inv)>> /\
       (<<EXPR1: e1 = Expr.value (ValueT.id (Tag.previous, x))>> /\
        <<EXPR2: e2 = Expr.value (ValueT.id (Tag.physical, x))>>
                 \/
@@ -95,8 +95,8 @@ Qed.
 Lemma valueT_no_prev_sem_preserved
       conf st invst0 invst1 v
       (NOPREV: LiftPred.ValueT Snapshot.IdT v = false)
-      (GHOST: invst0.(InvState.Unary.ghost) = invst1.(InvState.Unary.ghost))
-  : <<SEM: InvState.Unary.sem_valueT conf st invst0 v = InvState.Unary.sem_valueT conf st invst1 v>>.
+      (GHOST: invst0.(AssnState.Unary.ghost) = invst1.(AssnState.Unary.ghost))
+  : <<SEM: AssnState.Unary.sem_valueT conf st invst0 v = AssnState.Unary.sem_valueT conf st invst1 v>>.
 Proof.
   destruct v; eauto.
   destruct x as [xtag x]. ss.
@@ -107,8 +107,8 @@ Qed.
 Lemma list_valueT_no_prev_sem_preserved
       conf st invst0 invst1 lsv
       (NOPREV: existsb (LiftPred.ValueT Snapshot.IdT <*> snd) lsv = false)
-      (GHOST: invst0.(InvState.Unary.ghost) = invst1.(InvState.Unary.ghost))
-  : <<SEM: InvState.Unary.sem_list_valueT conf st invst0 lsv = InvState.Unary.sem_list_valueT conf st invst1 lsv>>.
+      (GHOST: invst0.(AssnState.Unary.ghost) = invst1.(AssnState.Unary.ghost))
+  : <<SEM: AssnState.Unary.sem_list_valueT conf st invst0 lsv = AssnState.Unary.sem_list_valueT conf st invst1 lsv>>.
 Proof.
   revert NOPREV.
   induction lsv; ss; i.
@@ -133,8 +133,8 @@ Ltac solve_liftpred_nopred :=
 Lemma expr_no_prev_sem_preserved
       conf st invst0 invst1 e
       (NOPREV: LiftPred.Expr Snapshot.IdT e = false)
-      (GHOST: invst0.(InvState.Unary.ghost) = invst1.(InvState.Unary.ghost))
-  : <<SEM: InvState.Unary.sem_expr conf st invst0 e = InvState.Unary.sem_expr conf st invst1 e>>.
+      (GHOST: invst0.(AssnState.Unary.ghost) = invst1.(AssnState.Unary.ghost))
+  : <<SEM: AssnState.Unary.sem_expr conf st invst0 e = AssnState.Unary.sem_expr conf st invst1 e>>.
 Proof.
   destruct e; unfold LiftPred.Expr in *;
     repeat (des_bool; des); ss; solve_liftpred_nopred; eauto.
@@ -228,9 +228,9 @@ Qed.
 Lemma previousified_sem_valueT_in_new_invst
       conf st invst0 v
       (NOPREV : LiftPred.ValueT Snapshot.IdT v = false)
-  : InvState.Unary.sem_valueT conf st invst0 v =
-    InvState.Unary.sem_valueT conf st
-                              (InvState.Unary.mk st.(EC).(Locals) invst0.(InvState.Unary.ghost))
+  : AssnState.Unary.sem_valueT conf st invst0 v =
+    AssnState.Unary.sem_valueT conf st
+                              (AssnState.Unary.mk st.(EC).(Locals) invst0.(AssnState.Unary.ghost))
                               (Previousify.ValueT v).
 Proof.
   destruct v; ss.
@@ -242,9 +242,9 @@ Qed.
 Lemma previousified_sem_list_valueT_in_new_invst
       conf st invst0 lsv
       (NOPREV: existsb (LiftPred.ValueT Snapshot.IdT <*> snd) lsv = false)
-  : InvState.Unary.sem_list_valueT conf st invst0 lsv =
-    InvState.Unary.sem_list_valueT conf st
-                                   (InvState.Unary.mk st.(EC).(Locals) invst0.(InvState.Unary.ghost))
+  : AssnState.Unary.sem_list_valueT conf st invst0 lsv =
+    AssnState.Unary.sem_list_valueT conf st
+                                   (AssnState.Unary.mk st.(EC).(Locals) invst0.(AssnState.Unary.ghost))
                                    (List.map (fun elt : sz * ValueT.t => (fst elt, Previousify.ValueT (snd elt))) lsv).
 Proof.
   revert NOPREV.
@@ -270,9 +270,9 @@ Ltac solve_liftpred_noprev2 :=
 Lemma previousified_sem_expr_in_new_invst
       conf st invst0 e
       (NOPREV : LiftPred.Expr Snapshot.IdT e = false)
-  : <<X: InvState.Unary.sem_expr conf st invst0 e =
-         InvState.Unary.sem_expr conf st
-                                 (InvState.Unary.mk st.(EC).(Locals) invst0.(InvState.Unary.ghost))
+  : <<X: AssnState.Unary.sem_expr conf st invst0 e =
+         AssnState.Unary.sem_expr conf st
+                                 (AssnState.Unary.mk st.(EC).(Locals) invst0.(AssnState.Unary.ghost))
                                  (Previousify.Expr e)>>.
 Proof.
   destruct e; ss; repeat (des_bool; des);
@@ -280,16 +280,16 @@ Proof.
 Qed.
 
 Lemma snapshot_unary_sound
-      conf st invst0 invmem inv0 gmax public
-      (STATE: InvState.Unary.sem conf st invst0 invmem gmax public inv0)
+      conf st invst0 assnmem inv0 gmax public
+      (STATE: AssnState.Unary.sem conf st invst0 assnmem gmax public inv0)
   :
     exists invst1,
-      <<STATE_UNARY: InvState.Unary.sem conf st invst1 invmem gmax public (Snapshot.unary inv0)>> /\
-      <<PREV: forall x, InvState.Unary.sem_idT st invst1 (Tag.previous, x) =
+      <<STATE_UNARY: AssnState.Unary.sem conf st invst1 assnmem gmax public (Snapshot.unary inv0)>> /\
+      <<PREV: forall x, AssnState.Unary.sem_idT st invst1 (Tag.previous, x) =
                                 lookupAL _ st.(EC).(Locals) x>> /\
-      <<GHOST: invst0.(InvState.Unary.ghost) = invst1.(InvState.Unary.ghost)>>.
+      <<GHOST: invst0.(AssnState.Unary.ghost) = invst1.(AssnState.Unary.ghost)>>.
 Proof.
-  exists (InvState.Unary.mk st.(EC).(Locals) invst0.(InvState.Unary.ghost)).
+  exists (AssnState.Unary.mk st.(EC).(Locals) invst0.(AssnState.Unary.ghost)).
   splits; ss.
   inv STATE.
   econs; ss.
@@ -494,19 +494,19 @@ Proof.
 Qed.
 
 Lemma snapshot_sound
-      conf_src conf_tgt st_src st_tgt invst0 invmem inv0
-      (STATE: InvState.Rel.sem conf_src conf_tgt st_src st_tgt invst0 invmem inv0):
+      conf_src conf_tgt st_src st_tgt invst0 assnmem inv0
+      (STATE: AssnState.Rel.sem conf_src conf_tgt st_src st_tgt invst0 assnmem inv0):
   exists invst1,
-    <<STATE_SNAPSHOT: InvState.Rel.sem conf_src conf_tgt st_src st_tgt invst1 invmem (Snapshot.t inv0)>> /\
-    <<PREV_SRC: forall x, InvState.Unary.sem_idT st_src invst1.(InvState.Rel.src) (Tag.previous, x) =
+    <<STATE_SNAPSHOT: AssnState.Rel.sem conf_src conf_tgt st_src st_tgt invst1 assnmem (Snapshot.t inv0)>> /\
+    <<PREV_SRC: forall x, AssnState.Unary.sem_idT st_src invst1.(AssnState.Rel.src) (Tag.previous, x) =
                           lookupAL _ st_src.(EC).(Locals) x>> /\
-    <<PREV_TGT: forall x, InvState.Unary.sem_idT st_tgt invst1.(InvState.Rel.tgt) (Tag.previous, x) =
+    <<PREV_TGT: forall x, AssnState.Unary.sem_idT st_tgt invst1.(AssnState.Rel.tgt) (Tag.previous, x) =
                           lookupAL _ st_tgt.(EC).(Locals) x>>.
 Proof.
   inv STATE.
   apply snapshot_unary_sound in SRC. des.
   apply snapshot_unary_sound in TGT. des.
-  exists (InvState.Rel.mk invst1 invst2).
+  exists (AssnState.Rel.mk invst1 invst2).
   esplits.
   - econs; ss.
     i. destruct id0.
@@ -516,7 +516,7 @@ Proof.
       ii. ss.
       exploit PREV; eauto. i. des.
       exploit H.
-      { unfold InvState.Unary.sem_idT. ss.
+      { unfold AssnState.Unary.sem_idT. ss.
         rewrite <- x. eauto.
       }
       i. des.
@@ -525,8 +525,8 @@ Proof.
       i. des.
       rewrite x0; eauto.
     * hexploit MAYDIFF; eauto. i.
-      unfold InvState.Rel.sem_inject in *.
-      unfold InvState.Unary.sem_idT in *. ss.
+      unfold AssnState.Rel.sem_inject in *.
+      unfold AssnState.Unary.sem_idT in *. ss.
       rewrite <- GHOST. rewrite <- GHOST0. eauto.
   - eauto.
   - eauto.

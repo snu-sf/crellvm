@@ -16,7 +16,7 @@ Set Implicit Arguments.
 
 Import ListNotations.
 
-Module Invariant.
+Module Assertion.
   (* alias relation.
      Ptr is used because we want to use type information in alias reasoning.
      for example, i64* ptr cannot alias with i32 memory block *)
@@ -44,12 +44,12 @@ Module Invariant.
     maydiff: IdTSet.t;
   }.
 
-  Definition update_lessdef (f:ExprPairSet.t -> ExprPairSet.t) (invariant:unary): unary :=
+  Definition update_lessdef (f:ExprPairSet.t -> ExprPairSet.t) (assertion:unary): unary :=
     mk_unary
-      (f invariant.(lessdef))
-      invariant.(alias)
-      invariant.(unique)
-      invariant.(private).
+      (f assertion.(lessdef))
+      assertion.(alias)
+      assertion.(unique)
+      assertion.(private).
 
   Definition update_diffblock_rel (f:ValueTPairSet.t -> ValueTPairSet.t) (alias:aliasrel): aliasrel :=
     mk_aliasrel
@@ -61,50 +61,50 @@ Module Invariant.
       alias.(diffblock)
       (f alias.(noalias)).
 
-  Definition update_alias (f:aliasrel -> aliasrel) (invariant:unary): unary :=
+  Definition update_alias (f:aliasrel -> aliasrel) (assertion:unary): unary :=
     mk_unary
-      invariant.(lessdef)
-      (f invariant.(alias))
-      invariant.(unique)
-      invariant.(private).
+      assertion.(lessdef)
+      (f assertion.(alias))
+      assertion.(unique)
+      assertion.(private).
 
-  Definition update_diffblock (f:ValueTPairSet.t -> ValueTPairSet.t) (invariant:unary): unary :=
-    update_alias (update_diffblock_rel f) invariant.
+  Definition update_diffblock (f:ValueTPairSet.t -> ValueTPairSet.t) (assertion:unary): unary :=
+    update_alias (update_diffblock_rel f) assertion.
 
-  Definition update_noalias (f:PtrPairSet.t -> PtrPairSet.t) (invariant:unary): unary :=
-    update_alias (update_noalias_rel f) invariant.
+  Definition update_noalias (f:PtrPairSet.t -> PtrPairSet.t) (assertion:unary): unary :=
+    update_alias (update_noalias_rel f) assertion.
 
-  Definition update_unique (f:atoms -> atoms) (invariant:unary): unary :=
+  Definition update_unique (f:atoms -> atoms) (assertion:unary): unary :=
     mk_unary
-      invariant.(lessdef)
-      invariant.(alias)
-      (f invariant.(unique))
-      invariant.(private).
+      assertion.(lessdef)
+      assertion.(alias)
+      (f assertion.(unique))
+      assertion.(private).
 
-  Definition update_private (f:IdTSet.t -> IdTSet.t) (invariant:unary): unary :=
+  Definition update_private (f:IdTSet.t -> IdTSet.t) (assertion:unary): unary :=
     mk_unary
-      invariant.(lessdef)
-      invariant.(alias)
-      invariant.(unique)
-      (f invariant.(private)).
+      assertion.(lessdef)
+      assertion.(alias)
+      assertion.(unique)
+      (f assertion.(private)).
 
-  Definition update_src (f:unary -> unary) (invariant:t): t :=
+  Definition update_src (f:unary -> unary) (assertion:t): t :=
     mk
-      (f invariant.(src))
-      invariant.(tgt)
-      invariant.(maydiff).
+      (f assertion.(src))
+      assertion.(tgt)
+      assertion.(maydiff).
 
-  Definition update_tgt (f:unary -> unary) (invariant:t): t :=
+  Definition update_tgt (f:unary -> unary) (assertion:t): t :=
     mk
-      invariant.(src)
-      (f invariant.(tgt))
-      invariant.(maydiff).
+      assertion.(src)
+      (f assertion.(tgt))
+      assertion.(maydiff).
 
-  Definition update_maydiff (f:IdTSet.t -> IdTSet.t) (invariant:t): t :=
+  Definition update_maydiff (f:IdTSet.t -> IdTSet.t) (assertion:t): t :=
     mk
-      invariant.(src)
-      invariant.(tgt)
-      (f invariant.(maydiff)).
+      assertion.(src)
+      assertion.(tgt)
+      (f assertion.(maydiff)).
 
   Definition clear_idt_alias (idt0: IdT.t) (t: aliasrel): aliasrel :=
     mk_aliasrel (ValueTPairSet.clear_idt idt0 t.(diffblock))
@@ -234,7 +234,7 @@ Module Invariant.
 
   (* On the definition of Expr.same_modulo_value *)
   (* There was a debate between @alxest and @jeehoonkang *)
-  (* [here](https://github.com/snu-sf/llvmberry/pull/295#discussion_r76530070). *)
+  (* [here](https://github.com/snu-sf/crellvm/pull/295#discussion_r76530070). *)
   (* I, @alxest, insist current form is much more readable. *)
   (* Expr.same_modulo_value only requires expr, and reader do not need to care *)
   (* about what f or data is and how it appears inside definition. *)
@@ -253,8 +253,8 @@ Module Invariant.
     (Expr.same_modulo_value e1 e2)
       && (list_forallb2 (f data) (Expr.get_valueTs e1) (Expr.get_valueTs e2)).
 
-  Definition inject_expr (inv: Invariant.t) (es et:Expr.t): bool :=
-    deep_check_expr Invariant.inject_value inv es et.
+  Definition inject_expr (inv: Assertion.t) (es et:Expr.t): bool :=
+    deep_check_expr Assertion.inject_value inv es et.
 
   Definition lessdef_expr (e: (Expr.t * Expr.t)) (lessdef: ExprPairSet.t): bool :=
     ExprPairSet.mem e lessdef
@@ -382,7 +382,7 @@ Module Invariant.
          IdTSet.empty)
       IdTSet.empty
   .
-End Invariant.
+End Assertion.
 
 Module Infrule.
   Inductive t :=
@@ -695,24 +695,24 @@ End Infrule.
 Module ValidationHint.
   Structure stmts := mk_stmts {
     phinodes: AssocList (list Infrule.t);
-    invariant_after_phinodes: Invariant.t;
-    cmds: list (list Infrule.t * Invariant.t);
+    assertion_after_phinodes: Assertion.t;
+    cmds: list (list Infrule.t * Assertion.t);
   }.
 
   Definition fdef := AssocList stmts.
   Definition products := AssocList fdef.
   Definition module := products.
 
-  Definition update_invariant_after_phinodes (f:Invariant.t -> Invariant.t) (blockinv: stmts): stmts :=
+  Definition update_assertion_after_phinodes (f:Assertion.t -> Assertion.t) (blockinv: stmts): stmts :=
     mk_stmts
       blockinv.(phinodes)
-      (f blockinv.(invariant_after_phinodes))
+      (f blockinv.(assertion_after_phinodes))
       blockinv.(cmds).
 
-  Definition update_cmd_invariants (f:list Invariant.t -> list Invariant.t) (blockinv: stmts): stmts :=
+  Definition update_cmd_assertions (f:list Assertion.t -> list Assertion.t) (blockinv: stmts): stmts :=
     mk_stmts
       blockinv.(phinodes)
-      blockinv.(invariant_after_phinodes)
+      blockinv.(assertion_after_phinodes)
       (combine (List.map fst blockinv.(cmds)) (f (List.map snd blockinv.(cmds)))).
   
 End ValidationHint.

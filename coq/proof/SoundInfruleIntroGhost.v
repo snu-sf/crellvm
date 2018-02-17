@@ -21,8 +21,8 @@ Require Import Exprs.
 Require Import Validator.
 Require Import GenericValues.
 Require Import Inject.
-Require InvMem.
-Require InvState.
+Require AssnMem.
+Require AssnState.
 Require Import Hints.
 Require Import memory_props.
 Import Memory.
@@ -135,23 +135,23 @@ Section CLEAR_IDTS.
         (CLEAR: proj_sumbool (IdT.eq_dec i0 idt0) = false)
         st invst0
   :
-    <<EQ: InvState.Unary.sem_idT st invst0 i0 =
-          InvState.Unary.sem_idT st (InvState.Unary.clear_idt idt0 invst0) i0>>
+    <<EQ: AssnState.Unary.sem_idT st invst0 i0 =
+          AssnState.Unary.sem_idT st (AssnState.Unary.clear_idt idt0 invst0) i0>>
   .
   Proof.
     red.
-    unfold InvState.Unary.clear_idt. ss. des_ifs_safe.
+    unfold AssnState.Unary.clear_idt. ss. des_ifs_safe.
     destruct t; ss.
     + des_sumbool.
       destruct i0; ss.
       destruct t; ss.
-      unfold InvState.Unary.sem_idT in *. ss.
+      unfold AssnState.Unary.sem_idT in *. ss.
       rewrite lookup_AL_filter_spec. des_ifs.
       des_bool. des_sumbool. clarify.
     + des_sumbool.
       destruct i0; ss.
       destruct t; ss.
-      unfold InvState.Unary.sem_idT in *. ss.
+      unfold AssnState.Unary.sem_idT in *. ss.
       rewrite lookup_AL_filter_spec. des_ifs.
       des_bool. des_sumbool. clarify.
   Qed.
@@ -161,11 +161,11 @@ Section CLEAR_IDTS.
         (CLEAR: list_inb IdT.eq_dec (ValueT.get_idTs v0) idt0 = false)
         conf st invst0
     :
-      <<EQ: InvState.Unary.sem_valueT conf st invst0 v0 =
-            InvState.Unary.sem_valueT conf st (InvState.Unary.clear_idt idt0 invst0) v0>>
+      <<EQ: AssnState.Unary.sem_valueT conf st invst0 v0 =
+            AssnState.Unary.sem_valueT conf st (AssnState.Unary.clear_idt idt0 invst0) v0>>
   .
   Proof.
-    red. unfold InvState.Unary.sem_valueT. des_ifs.
+    red. unfold AssnState.Unary.sem_valueT. des_ifs.
     erewrite clear_idt_spec_id; eauto.
     apply list_inb_single in CLEAR. des. des_sumbool.
     unfold proj_sumbool. des_ifs.
@@ -177,12 +177,12 @@ Section CLEAR_IDTS.
         (CLEAR: list_inb IdT.eq_dec (filter_map ValueT.get_idTs (List.map snd vs0)) idt0 = false)
         conf st invst0
     :
-      <<EQ: InvState.Unary.sem_list_valueT conf st invst0 vs0 =
-            InvState.Unary.sem_list_valueT conf st (InvState.Unary.clear_idt idt0 invst0) vs0>>
+      <<EQ: AssnState.Unary.sem_list_valueT conf st invst0 vs0 =
+            AssnState.Unary.sem_list_valueT conf st (AssnState.Unary.clear_idt idt0 invst0) vs0>>
   .
   Proof.
-    red. (* unfold InvState.Unary.sem_valueT. des_ifs. *)
-    (* unfold InvState.Unary.clear_idt. ss. des_ifs_safe. *)
+    red. (* unfold AssnState.Unary.sem_valueT. des_ifs. *)
+    (* unfold AssnState.Unary.clear_idt. ss. des_ifs_safe. *)
     ginduction vs0; ii; ss; des_ifs_safe; clarify.
     destruct t.
     + erewrite <- clear_idt_spec_value; cycle 1.
@@ -205,8 +205,8 @@ Section CLEAR_IDTS.
         (CLEAR: list_inb IdT.eq_dec (Expr.get_idTs x) idt0 = false)
         conf st invst0
     :
-      <<EQ: InvState.Unary.sem_expr conf st invst0 x =
-            InvState.Unary.sem_expr conf st (InvState.Unary.clear_idt idt0 invst0) x>>
+      <<EQ: AssnState.Unary.sem_expr conf st invst0 x =
+            AssnState.Unary.sem_expr conf st (AssnState.Unary.clear_idt idt0 invst0) x>>
   .
   Proof.
     red.
@@ -249,10 +249,10 @@ Section CLEAR_IDTS.
         (CLEAR: ExprPairSet.In ep (ExprPairSet.clear_idt idt0 eps))
         conf st invst0
     :
-      <<EQ: InvState.Unary.sem_expr conf st invst0 ep.(fst) =
-            InvState.Unary.sem_expr conf st (InvState.Unary.clear_idt idt0 invst0) ep.(fst)>> /\
-            <<EQ: InvState.Unary.sem_expr conf st invst0 ep.(snd) =
-                  InvState.Unary.sem_expr conf st (InvState.Unary.clear_idt idt0 invst0) ep.(snd)>>
+      <<EQ: AssnState.Unary.sem_expr conf st invst0 ep.(fst) =
+            AssnState.Unary.sem_expr conf st (AssnState.Unary.clear_idt idt0 invst0) ep.(fst)>> /\
+            <<EQ: AssnState.Unary.sem_expr conf st invst0 ep.(snd) =
+                  AssnState.Unary.sem_expr conf st (AssnState.Unary.clear_idt idt0 invst0) ep.(snd)>>
   .
   Proof.
     unfold NW. destruct ep; ss.
@@ -265,15 +265,15 @@ Section CLEAR_IDTS.
   Qed.
 
   Lemma clear_idt_ghost_spec_unary
-        conf st invst0 invmem0 gmax pubs inv0
-        (SEM: InvState.Unary.sem conf st invst0 invmem0 gmax pubs inv0)
+        conf st invst0 assnmem0 gmax pubs inv0
+        (SEM: AssnState.Unary.sem conf st invst0 assnmem0 gmax pubs inv0)
         i0
     :
-      <<SEM: InvState.Unary.sem conf st (InvState.Unary.clear_idt (Tag.ghost, i0) invst0)
-                                invmem0 gmax pubs (Invariant.clear_idt_unary (Tag.ghost, i0) inv0)>>
+      <<SEM: AssnState.Unary.sem conf st (AssnState.Unary.clear_idt (Tag.ghost, i0) invst0)
+                                assnmem0 gmax pubs (Assertion.clear_idt_unary (Tag.ghost, i0) inv0)>>
   .
   Proof.
-    Local Opaque InvState.Unary.clear_idt.
+    Local Opaque AssnState.Unary.clear_idt.
     econs; eauto; try apply SEM; ss.
     + inv SEM.
       (* clear LESSDEF NOALIAS UNIQUE PRIVATE ALLOCAS_PARENT ALLOCAS_VALID WF_LOCAL WF_PREVIOUS WF_GHOST. *)
@@ -294,7 +294,7 @@ Section CLEAR_IDTS.
     + inv SEM.
       clear LESSDEF UNIQUE PRIVATE ALLOCAS_PARENT ALLOCAS_VALID WF_LOCAL WF_PREVIOUS WF_GHOST.
       clear UNIQUE_PARENT_LOCAL WF_FDEF WF_EC.
-      unfold Invariant.clear_idt_alias in *.
+      unfold Assertion.clear_idt_alias in *.
       econs; eauto.
       * inv NOALIAS. clear NOALIAS0.
         i. ss.
@@ -339,29 +339,29 @@ Section CLEAR_IDTS.
       clear LESSDEF NOALIAS UNIQUE PRIVATE ALLOCAS_PARENT ALLOCAS_VALID WF_LOCAL WF_PREVIOUS.
       clear UNIQUE_PARENT_LOCAL WF_FDEF WF_EC.
       ii.
-      Local Transparent InvState.Unary.clear_idt.
-      unfold InvState.Unary.clear_idt in *. ss.
-      Local Opaque InvState.Unary.clear_idt.
+      Local Transparent AssnState.Unary.clear_idt.
+      unfold AssnState.Unary.clear_idt in *. ss.
+      Local Opaque AssnState.Unary.clear_idt.
       eapply WF_GHOST; eauto.
       erewrite lookup_AL_filter_some; eauto.
   Qed.
-  Local Transparent InvState.Unary.clear_idt.
+  Local Transparent AssnState.Unary.clear_idt.
 
   Lemma clear_idt_ghost_spec
-        conf_src conf_tgt st_src st_tgt invst0 invmem0 inv0
-        (STATE: InvState.Rel.sem conf_src conf_tgt st_src st_tgt invst0 invmem0 inv0)
+        conf_src conf_tgt st_src st_tgt invst0 assnmem0 inv0
+        (STATE: AssnState.Rel.sem conf_src conf_tgt st_src st_tgt invst0 assnmem0 inv0)
     :
       forall idt0 (GHOST: idt0.(fst) = Tag.ghost),
-        <<STATE: InvState.Rel.sem conf_src conf_tgt st_src st_tgt (InvState.Rel.clear_idt idt0 invst0)
-                                  invmem0 (Invariant.clear_idt idt0 inv0)>>
+        <<STATE: AssnState.Rel.sem conf_src conf_tgt st_src st_tgt (AssnState.Rel.clear_idt idt0 invst0)
+                                  assnmem0 (Assertion.clear_idt idt0 inv0)>>
   .
   Proof.
     i. red.
     destruct idt0; ss. clarify.
-    unfold Invariant.clear_idt.
-    (* unfold InvState.Rel.clear_idt. *)
-    unfold Invariant.clear_idt_unary.
-    Local Opaque InvState.Unary.clear_idt.
+    unfold Assertion.clear_idt.
+    (* unfold AssnState.Rel.clear_idt. *)
+    unfold Assertion.clear_idt_unary.
+    Local Opaque AssnState.Unary.clear_idt.
     econs; eauto; ss; try apply STATE.
     - eapply clear_idt_ghost_spec_unary; eauto.
       apply STATE.
@@ -370,18 +370,18 @@ Section CLEAR_IDTS.
     - inv STATE.
       clear SRC TGT TGT_NOUNIQ ALLOCAS.
       ii.
-      unfold InvState.Rel.clear_idt. ss.
+      unfold AssnState.Rel.clear_idt. ss.
       destruct (IdT.eq_dec id0 (Tag.ghost, t0)).
       + clarify. exfalso.
         clear - VAL_SRC.
-        Local Transparent InvState.Unary.clear_idt.
-        unfold InvState.Unary.sem_idT in *. ss.
-        Local Opaque InvState.Unary.clear_idt.
+        Local Transparent AssnState.Unary.clear_idt.
+        unfold AssnState.Unary.sem_idT in *. ss.
+        Local Opaque AssnState.Unary.clear_idt.
         rewrite lookup_AL_filter_spec in VAL_SRC. des_ifs. des_bool. des_sumbool. ss.
       + erewrite <- clear_idt_spec_id; ss; cycle 1.
         { unfold proj_sumbool. des_ifs. }
         eapply MAYDIFF; try eassumption.
-        * destruct (IdTSet.mem id0 (Invariant.maydiff inv0)) eqn:T; ss.
+        * destruct (IdTSet.mem id0 (Assertion.maydiff inv0)) eqn:T; ss.
           apply IdTSetFacts.mem_iff in T.
           apply IdTSetFacts.not_mem_iff in NOTIN.
           exfalso.
@@ -392,7 +392,7 @@ Section CLEAR_IDTS.
         * erewrite clear_idt_spec_id; try eassumption.
           unfold proj_sumbool. des_ifs.
   Qed.
-  Local Transparent InvState.Unary.clear_idt.
+  Local Transparent AssnState.Unary.clear_idt.
 
 End CLEAR_IDTS.
 
@@ -404,7 +404,7 @@ Section CLEAR_IDTS_INV.
   Lemma clear_idt_inv_spec_id
         i0 idt0 st invst0
         gv
-        (SOME: InvState.Unary.sem_idT st (InvState.Unary.clear_idt idt0 invst0) i0
+        (SOME: AssnState.Unary.sem_idT st (AssnState.Unary.clear_idt idt0 invst0) i0
                = Some gv)
         (NOTPHYSICAL: idt0.(fst) <> Tag.physical)
     :
@@ -412,19 +412,19 @@ Section CLEAR_IDTS_INV.
   .
   Proof.
     red.
-    unfold InvState.Unary.clear_idt in *. des_ifs_safe. ss.
+    unfold AssnState.Unary.clear_idt in *. des_ifs_safe. ss.
     unfold proj_sumbool. des_ifs_safe.
     destruct t; ss.
-    - unfold InvState.Unary.sem_idT, InvState.Unary.sem_tag in *. ss.
+    - unfold AssnState.Unary.sem_idT, AssnState.Unary.sem_tag in *. ss.
       rewrite lookup_AL_filter_spec in SOME. unfold negb, proj_sumbool in *. des_ifs.
-    - unfold InvState.Unary.sem_idT, InvState.Unary.sem_tag in *. ss.
+    - unfold AssnState.Unary.sem_idT, AssnState.Unary.sem_tag in *. ss.
       rewrite lookup_AL_filter_spec in SOME. unfold negb, proj_sumbool in *. des_ifs.
   Qed.
 
   Lemma clear_idt_inv_spec_value
         v0 idt0 conf st invst0
         gv
-        (SOME: InvState.Unary.sem_valueT conf st (InvState.Unary.clear_idt idt0 invst0) v0
+        (SOME: AssnState.Unary.sem_valueT conf st (AssnState.Unary.clear_idt idt0 invst0) v0
                = Some gv)
         (NOTPHYSICAL: idt0.(fst) <> Tag.physical)
     :
@@ -440,7 +440,7 @@ Section CLEAR_IDTS_INV.
   Lemma clear_idt_inv_spec_list_value
         vs0 idt0 conf st invst0
         gv
-        (SOME: InvState.Unary.sem_list_valueT conf st (InvState.Unary.clear_idt idt0 invst0) vs0
+        (SOME: AssnState.Unary.sem_list_valueT conf st (AssnState.Unary.clear_idt idt0 invst0) vs0
                = Some gv)
         (NOTPHYSICAL: idt0.(fst) <> Tag.physical)
     :
@@ -448,7 +448,7 @@ Section CLEAR_IDTS_INV.
                         idt0 = false>>
   .
   Proof.
-    Local Opaque InvState.Unary.clear_idt.
+    Local Opaque AssnState.Unary.clear_idt.
     destruct idt0; ss.
     ginduction vs0; ii; ss.
     des_ifs_safe. ss.
@@ -465,7 +465,7 @@ Section CLEAR_IDTS_INV.
   Lemma clear_idt_inv_spec_expr
         x idt0 conf st invst0
         gv
-        (SOME: InvState.Unary.sem_expr conf st (InvState.Unary.clear_idt idt0 invst0) x
+        (SOME: AssnState.Unary.sem_expr conf st (AssnState.Unary.clear_idt idt0 invst0) x
                = Some gv)
         (NOTPHYSICAL: idt0.(fst) <> Tag.physical)
     :
@@ -533,20 +533,20 @@ End CLEAR_IDTS_INV.
 Section CONS_IDT.
 
   Definition cons_idt_unary (idt0: IdT.t) (gv: GenericValue)
-             (inv0: InvState.Unary.t): InvState.Unary.t :=
+             (inv0: AssnState.Unary.t): AssnState.Unary.t :=
     match idt0.(fst) with
     | Tag.physical => inv0
-    | Tag.previous => (InvState.Unary.update_previous
+    | Tag.previous => (AssnState.Unary.update_previous
                          (fun idgs => (idt0.(snd), gv) :: idgs) inv0)
-    | Tag.ghost => (InvState.Unary.update_ghost
+    | Tag.ghost => (AssnState.Unary.update_ghost
                       (fun idgs => (idt0.(snd), gv) :: idgs) inv0)
     end
   .
 
   Definition cons_idt (idt0: IdT.t) (gv_src gv_tgt: GenericValue)
-             (inv0: InvState.Rel.t): InvState.Rel.t :=
-    InvState.Rel.mk (cons_idt_unary idt0 gv_src inv0.(InvState.Rel.src))
-                    (cons_idt_unary idt0 gv_tgt inv0.(InvState.Rel.tgt))
+             (inv0: AssnState.Rel.t): AssnState.Rel.t :=
+    AssnState.Rel.mk (cons_idt_unary idt0 gv_src inv0.(AssnState.Rel.src))
+                    (cons_idt_unary idt0 gv_tgt inv0.(AssnState.Rel.tgt))
   .
 
   Lemma cons_idt_spec_id
@@ -555,15 +555,15 @@ Section CONS_IDT.
         st invst0
         gv0
   :
-    <<EQ: InvState.Unary.sem_idT st invst0 i0 =
-          InvState.Unary.sem_idT st (cons_idt_unary idt0 gv0 invst0) i0>>
+    <<EQ: AssnState.Unary.sem_idT st invst0 i0 =
+          AssnState.Unary.sem_idT st (cons_idt_unary idt0 gv0 invst0) i0>>
   .
   Proof.
     red.
     destruct idt0; ss.
     unfold cons_idt_unary. ss.
-    unfold InvState.Unary.sem_idT.
-    unfold InvState.Unary.sem_tag.
+    unfold AssnState.Unary.sem_idT.
+    unfold AssnState.Unary.sem_tag.
     destruct i0; ss.
     des_sumbool.
     destruct t, t1; ss; des_ifs.
@@ -572,7 +572,7 @@ Section CONS_IDT.
   (* Lemma clear_idt_spec_inv_id *)
   (*       i0 idt0 st_src invst0 *)
   (*       gv *)
-  (*       (SOME: InvState.Unary.sem_idT st_src (InvState.Unary.clear_idt idt0 invst0) i0 *)
+  (*       (SOME: AssnState.Unary.sem_idT st_src (AssnState.Unary.clear_idt idt0 invst0) i0 *)
   (*              = Some gv) *)
   (*       (NOTPHYSICAL: idt0.(fst) <> Tag.physical) *)
   (*   : *)
@@ -586,11 +586,11 @@ Section CONS_IDT.
         st conf invst0
         gv0
   :
-    <<EQ: InvState.Unary.sem_valueT conf st invst0 v0 =
-          InvState.Unary.sem_valueT conf st (cons_idt_unary idt0 gv0 invst0) v0>>
+    <<EQ: AssnState.Unary.sem_valueT conf st invst0 v0 =
+          AssnState.Unary.sem_valueT conf st (cons_idt_unary idt0 gv0 invst0) v0>>
   .
   Proof.
-    red. unfold InvState.Unary.sem_valueT. des_ifs.
+    red. unfold AssnState.Unary.sem_valueT. des_ifs.
     erewrite cons_idt_spec_id; eauto.
     apply list_inb_single in CLEAR. des. des_sumbool.
     unfold proj_sumbool. des_ifs.
@@ -604,8 +604,8 @@ Section CONS_IDT.
         st conf invst0
         gv0
   :
-    <<EQ: InvState.Unary.sem_list_valueT conf st invst0 vs0 =
-          InvState.Unary.sem_list_valueT conf st (cons_idt_unary idt0 gv0 invst0) vs0>>
+    <<EQ: AssnState.Unary.sem_list_valueT conf st invst0 vs0 =
+          AssnState.Unary.sem_list_valueT conf st (cons_idt_unary idt0 gv0 invst0) vs0>>
   .
   Proof.
     red.
@@ -632,8 +632,8 @@ Section CONS_IDT.
         st conf invst0
         gv0
   :
-    <<EQ: InvState.Unary.sem_expr conf st invst0 x =
-          InvState.Unary.sem_expr conf st (cons_idt_unary idt0 gv0 invst0) x>>
+    <<EQ: AssnState.Unary.sem_expr conf st invst0 x =
+          AssnState.Unary.sem_expr conf st (cons_idt_unary idt0 gv0 invst0) x>>
   .
   Proof.
     red.
@@ -672,26 +672,26 @@ Section CONS_IDT.
   Qed.
 
   Local Opaque cons_idt_unary.
-  Local Opaque InvState.Unary.clear_idt.
+  Local Opaque AssnState.Unary.clear_idt.
 
   Corollary cons_idt_expr_sim
         x idt0 gv_res
         conf st invst0
-        (SEM: InvState.Unary.sem_expr
+        (SEM: AssnState.Unary.sem_expr
                 conf st
-                (InvState.Unary.clear_idt idt0 invst0) x
+                (AssnState.Unary.clear_idt idt0 invst0) x
                = Some gv_res)
         gv0
     :
-      <<SEM: InvState.Unary.sem_expr
+      <<SEM: AssnState.Unary.sem_expr
                conf st
-               (cons_idt_unary idt0 gv0 (InvState.Unary.clear_idt idt0 invst0)) x
+               (cons_idt_unary idt0 gv0 (AssnState.Unary.clear_idt idt0 invst0)) x
                =
                (* Some gv_res *)
                (* This form is easier to use *)
-               InvState.Unary.sem_expr
+               AssnState.Unary.sem_expr
                  conf st
-                 (InvState.Unary.clear_idt idt0 invst0) x>>
+                 (AssnState.Unary.clear_idt idt0 invst0) x>>
   .
   Proof.
     destruct idt0; ss.
@@ -777,31 +777,31 @@ End SET_INV.
 
 Lemma cons_ghost_unary_spec
       conf st x0 i0 gv
-      invst0 invmem0 gmax pubs inv0
-      (GV: InvState.Unary.sem_expr
-             conf st (InvState.Unary.clear_idt (Exprs.Tag.ghost, i0) invst0) x0 = Some gv)
+      invst0 assnmem0 gmax pubs inv0
+      (GV: AssnState.Unary.sem_expr
+             conf st (AssnState.Unary.clear_idt (Exprs.Tag.ghost, i0) invst0) x0 = Some gv)
       (VALID: MemProps.valid_ptrs (Mem.nextblock (Mem st)) gv)
-      (SEM: InvState.Unary.sem conf st
-                               (InvState.Unary.clear_idt (Exprs.Tag.ghost, i0) invst0)
-                               invmem0 gmax pubs
-                               (Hints.Invariant.clear_idt_unary (Exprs.Tag.ghost, i0) inv0))
+      (SEM: AssnState.Unary.sem conf st
+                               (AssnState.Unary.clear_idt (Exprs.Tag.ghost, i0) invst0)
+                               assnmem0 gmax pubs
+                               (Hints.Assertion.clear_idt_unary (Exprs.Tag.ghost, i0) inv0))
   :
-    <<SEM: InvState.Unary.sem
+    <<SEM: AssnState.Unary.sem
              conf st
              (cons_idt_unary (Exprs.Tag.ghost, i0) gv
-                               (InvState.Unary.clear_idt (Exprs.Tag.ghost, i0) invst0))
-             invmem0 gmax
+                               (AssnState.Unary.clear_idt (Exprs.Tag.ghost, i0) invst0))
+             assnmem0 gmax
              pubs
-             (Hints.Invariant.update_lessdef
+             (Hints.Assertion.update_lessdef
                 ((Exprs.ExprPairSet.add
                    (Exprs.Expr.value (Exprs.ValueT.id (Exprs.Tag.ghost, i0)), x0))
                    <*>
                    (Exprs.ExprPairSet.add
                       (x0, Exprs.Expr.value (Exprs.ValueT.id (Exprs.Tag.ghost, i0)))))
-                (Hints.Invariant.clear_idt_unary (Exprs.Tag.ghost, i0) inv0))>>
+                (Hints.Assertion.clear_idt_unary (Exprs.Tag.ghost, i0) inv0))>>
 .
 Proof.
-  Local Opaque InvState.Unary.clear_idt.
+  Local Opaque AssnState.Unary.clear_idt.
   econs; eauto; try apply SEM.
   - inv SEM. clear - GV LESSDEF.
     ii. ss.

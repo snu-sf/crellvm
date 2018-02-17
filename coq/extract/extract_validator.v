@@ -64,7 +64,7 @@ Extract Constant cmd_pair_printer => "Printer.cmd_pair_printer".
 Extract Constant atom_printer => "Printer.atom_printer".
 Extract Constant idT_printer => "Printer.idT_printer".
 Extract Constant infrule_printer => "Printer.infrule_printer".
-Extract Constant invariant_printer => "Printer.PrintHints.invariant".
+Extract Constant assertion_printer => "Printer.PrintHints.assertion".
 Extract Constant expr_printer => "Printer.expr_printer".
 Extract Constant debug_print_auto => "Printer.debug_print_auto".
 

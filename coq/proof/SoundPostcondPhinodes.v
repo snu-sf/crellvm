@@ -21,8 +21,8 @@ Require Import Postcond.
 Require Import Hints.
 Require Import Validator.
 Require Import GenericValues.
-Require InvMem.
-Require InvState.
+Require AssnMem.
+Require AssnState.
 Require Import Inject.
 Require Import SoundBase.
 Require Import SoundSnapshot.
@@ -49,14 +49,14 @@ Proof. destruct inv, src, tgt. ss. Qed.
 Lemma add_terminator_cond_switch_unary
       conf val st gmax public
       ty gval cases l_dflt l_dest id
-      invst invmem inv
+      invst assnmem inv
       (VAL : getOperandValue (CurTargetData conf) val
                              (Locals (EC st)) (Globals conf) = Some gval)
       (DECIDE : get_switch_branch (CurTargetData conf)
                                   ty gval cases l_dflt = Some l_dest)
-      (STATE : InvState.Unary.sem conf st invst invmem gmax public inv)
-  : InvState.Unary.sem conf st invst invmem gmax public
-                       (Invariant.update_lessdef
+      (STATE : AssnState.Unary.sem conf st invst assnmem gmax public inv)
+  : AssnState.Unary.sem conf st invst assnmem gmax public
+                       (Assertion.update_lessdef
                           (add_terminator_cond_lessdef
                              (insn_switch id ty val l_dflt cases) l_dest) inv).
 Proof.
@@ -96,7 +96,7 @@ Proof.
   do 2 rewrite ExprPairSetFacts.add_iff in *. des.
   - ss. clarify. ss.
     solve_leibniz. clarify. ss.
-    rewrite InvState.Unary.sem_valueT_physical in VAL1. clarify.
+    rewrite AssnState.Unary.sem_valueT_physical in VAL1. clarify.
 
     unfold intConst2Z in *. des_ifs.
 
@@ -120,7 +120,7 @@ Proof.
       }
   - ss. clarify. ss.
     solve_leibniz. clarify. ss.
-    rewrite InvState.Unary.sem_valueT_physical. clarify.
+    rewrite AssnState.Unary.sem_valueT_physical. clarify.
 
     unfold intConst2Z in *. des_ifs.
 
@@ -144,13 +144,13 @@ Qed.
 Lemma add_terminator_cond_switch
       conf_src conf_tgt
       st_src st_tgt
-      invst invmem inv
+      invst assnmem inv
       ty cases l_dflt l_dest
       id_src val_src gval_src
       id_tgt val_tgt gval_tgt
-      (STATE: InvState.Rel.sem
+      (STATE: AssnState.Rel.sem
                 conf_src conf_tgt st_src st_tgt
-                invst invmem inv)
+                invst assnmem inv)
       (VAL_SRC: getOperandValue
                   conf_src.(CurTargetData)
                   val_src
@@ -163,10 +163,10 @@ Lemma add_terminator_cond_switch
                   conf_tgt.(Globals) = Some gval_tgt)
       (DECIDE_SRC: get_switch_branch conf_src.(CurTargetData) ty gval_src cases l_dflt = Some l_dest)
       (DECIDE_TGT: get_switch_branch conf_tgt.(CurTargetData) ty gval_tgt cases l_dflt = Some l_dest)
-  : InvState.Rel.sem
+  : AssnState.Rel.sem
       conf_src conf_tgt
       st_src st_tgt
-      invst invmem
+      invst assnmem
       (Postcond.add_terminator_cond
          inv
          (insn_switch id_src ty val_src l_dflt cases)
@@ -211,14 +211,14 @@ Qed.
 
 Lemma add_terminator_cond_br_unary
       conf val st gval decision
-      invst invmem inv gmax public
+      invst assnmem inv gmax public
       id l1 l2
       (VAL : getOperandValue (CurTargetData conf) val 
                              (Locals (EC st)) (Globals conf) = Some gval)
       (DECIDE : decide_nonzero (CurTargetData conf) gval decision)
-      (STATE : InvState.Unary.sem conf st invst invmem gmax public inv)
-  : InvState.Unary.sem conf st invst invmem gmax public
-                       (Invariant.update_lessdef
+      (STATE : AssnState.Unary.sem conf st invst assnmem gmax public inv)
+  : AssnState.Unary.sem conf st invst assnmem gmax public
+                       (Assertion.update_lessdef
                           (add_terminator_cond_lessdef (insn_br id val l1 l2)
                                                        (ite decision l1 l2))
                           inv).
@@ -236,7 +236,7 @@ Proof.
   des.
   - clarify. ss.
     solve_leibniz. clarify. ss.
-    rewrite InvState.Unary.sem_valueT_physical in VAL1.
+    rewrite AssnState.Unary.sem_valueT_physical in VAL1.
     unfold ite in *.
     unfold GV2int in INT.
     unfold Size.to_nat, Size.One in *.
@@ -263,7 +263,7 @@ Proof.
        { split; ss. }
   - clarify. ss.
     solve_leibniz. clarify. ss.
-    rewrite InvState.Unary.sem_valueT_physical.
+    rewrite AssnState.Unary.sem_valueT_physical.
     unfold ite in *.
     unfold GV2int in INT.
     unfold Size.to_nat, Size.One in *.
@@ -302,13 +302,13 @@ Qed.
 Lemma add_terminator_cond_br
       conf_src conf_tgt
       st_src st_tgt
-      invst invmem inv
+      invst assnmem inv
       decision l1 l2
       id_src val_src gval_src
       id_tgt val_tgt gval_tgt
-      (STATE: InvState.Rel.sem
+      (STATE: AssnState.Rel.sem
                 conf_src conf_tgt st_src st_tgt
-                invst invmem inv)
+                invst assnmem inv)
       (VAL_SRC: getOperandValue
                   conf_src.(CurTargetData)
                   val_src
@@ -321,10 +321,10 @@ Lemma add_terminator_cond_br
                   conf_tgt.(Globals) = Some gval_tgt)
       (DECIDE_SRC: decide_nonzero conf_src.(CurTargetData) gval_src decision)
       (DECIDE_TGT: decide_nonzero conf_tgt.(CurTargetData) gval_tgt decision):
-  InvState.Rel.sem
+  AssnState.Rel.sem
     conf_src conf_tgt
     st_src st_tgt
-    invst invmem
+    invst assnmem
     (Postcond.add_terminator_cond
        inv
        (insn_br id_src val_src l1 l2)
@@ -478,7 +478,7 @@ Qed.
 Lemma phinodes_add_lessdef_sound
       conf st0 st1 gmax public
       l_to phinodes cmds terminator
-      invst invmem inv0
+      invst assnmem inv0
       assigns
       (STEP: switchToNewBasicBlock conf.(CurTargetData)
                                    (l_to, stmts_intro phinodes cmds terminator)
@@ -487,12 +487,12 @@ Lemma phinodes_add_lessdef_sound
                                    st0.(EC).(Locals) = Some st1.(EC).(Locals))
       (ASSIGNS: forallb_map (Postcond.Phinode.resolve st0.(EC).(CurBB).(fst)) phinodes = Some assigns)
       (UNIQUE_PHI: unique id_dec (List.map Postcond.Phinode.get_def assigns) = true)
-      (STATE: InvState.Unary.sem conf st1 invst invmem gmax public inv0)
-      (PREV: forall x, InvState.Unary.sem_idT st0 invst (Tag.previous, x) =
+      (STATE: AssnState.Unary.sem conf st1 invst assnmem gmax public inv0)
+      (PREV: forall x, AssnState.Unary.sem_idT st0 invst (Tag.previous, x) =
                           lookupAL _ st0.(EC).(Locals) x)
-  : InvState.Unary.sem
-      conf st1 invst invmem gmax public
-      (Hints.Invariant.update_lessdef (Postcond.postcond_phinodes_add_lessdef assigns) inv0).
+  : AssnState.Unary.sem
+      conf st1 invst assnmem gmax public
+      (Hints.Assertion.update_lessdef (Postcond.postcond_phinodes_add_lessdef assigns) inv0).
 Proof.
   econs; try by inv STATE.
   s. ii. apply ExprPairSet.union_1 in H.  des.
@@ -508,7 +508,7 @@ Proof.
   end.
   unguardH x0. des; subst; ss.
   - esplits.
-    + unfold InvState.Unary.sem_idT. ss. eauto.
+    + unfold AssnState.Unary.sem_idT. ss. eauto.
     + exploit const2GV_undef; eauto. i. des.
       exploit incomingPHINodes_lookup_chunk; eauto. intro CHUNK; des.
       apply all_undef_lessdef_aux; eauto.
@@ -523,7 +523,7 @@ Proof.
       }
   - esplits; [|reflexivity].
     assert (GV_VAL1: gv = val1).
-    { unfold InvState.Unary.sem_idT in VAL1. ss. congruence. }
+    { unfold AssnState.Unary.sem_idT in VAL1. ss. congruence. }
     subst.
     unfold getOperandValue in VAL_V.
     destruct phiv; eauto.
@@ -532,7 +532,7 @@ Proof.
     assert (GV_VAL1: gv = val1).
     { destruct phiv; ss.
       - rewrite <- PREV in VAL_V.
-        unfold InvState.Unary.sem_idT in *. ss. congruence.
+        unfold AssnState.Unary.sem_idT in *. ss. congruence.
       - congruence.
     }
     subst. eauto.
@@ -618,33 +618,9 @@ Proof.
     + i. ss. right. eauto.
 Qed.
 
-(* Lemma Phinode_get_use_spec *)
-(*       l_from phinodes passign passigns x *)
-(*       (RESOLVE : forallb_map (Phinode.resolve l_from) phinodes = Some passigns) *)
-(*       (IN: In passign passigns) *)
-(*       (GET_USE: Phinode.get_use passign = Some x) *)
-(*   : exists p ty vls, *)
-(*     <<IN_PHI: In (insn_phi p ty vls) phinodes>> /\ *)
-(*               <<IN_PHI_USE: In (value_id x, l_from) vls>>. *)
-(* Proof. *)
-(*   revert dependent passigns. *)
-(*   induction phinodes. *)
-(*   - ss. i. inv RESOLVE. inv IN. *)
-(*   - i. ss. des_ifs. *)
-(*     inv IN. *)
-(*     + destruct a. *)
-(*       ss. des_ifs. *)
-(*       esplits; eauto. *)
-(*       unfold Phinode.get_use in *. des_ifs. *)
-(*       unfold Phinode.get_rhs in *. subst.       *)
-(*       apply lookupAL_reverse_aux. eauto. *)
-(*     + exploit IHphinodes; eauto. i. des. *)
-(*       esplits; eauto. *)
-(* Qed. *)
-
 Lemma wf_const_valid_ptr
-      conf st0 invmem phinodes gmax public
-  (MEM : InvMem.Unary.sem conf gmax public (Mem st0) invmem)
+      conf st0 assnmem phinodes gmax public
+  (MEM : AssnMem.Unary.sem conf gmax public (Mem st0) assnmem)
   (WF_SUBSET : Forall
                 (fun phi : phinode =>
                  exists b : block, phinodeInBlockB phi b /\ blockInFdefB b (CurFunction (EC st0))) phinodes)
@@ -697,8 +673,8 @@ Proof.
 Qed.
 
 Lemma wf_const_diffblock
-      conf st0 invmem phinodes gmax public
-  (MEM : InvMem.Unary.sem conf gmax public (Mem st0) invmem)
+      conf st0 assnmem phinodes gmax public
+  (MEM : AssnMem.Unary.sem conf gmax public (Mem st0) assnmem)
   (WF_SUBSET : Forall
                 (fun phi : phinode =>
                  exists b : block, phinodeInBlockB phi b /\ blockInFdefB b (CurFunction (EC st0))) phinodes)
@@ -712,7 +688,7 @@ Lemma wf_const_diffblock
   (INCOMING_VALUES : getValueViaLabelFromValuels vls1 (getBlockLabel (CurBB (EC st0))) = Some (value_const const5))
   (INCOMING_GET : const2GV (CurTargetData conf) (Globals conf) const5 = Some val')
   :
-    <<DIFFBLOCK: InvState.Unary.sem_diffblock conf val val'>>
+    <<DIFFBLOCK: AssnState.Unary.sem_diffblock conf val val'>>
 .
 Proof.
   ii.
@@ -783,11 +759,11 @@ Hint Unfold OpsemAux.module_of_conf. (* TODO: move to definition point *)
 (* "nextbb" represents block of the "phinodes". *)
 (* It is introduced for "WF_PHIS" only. *)
 Lemma phinodes_unique_preserved_except
-      conf st0 inv0 invmem invst
+      conf st0 inv0 assnmem invst
       l_to phinodes cmds terminator locals l0
       gmax public
-      (STATE : InvState.Unary.sem conf st0 invst invmem gmax public inv0)
-      (MEM : InvMem.Unary.sem conf gmax public st0.(Mem) invmem)
+      (STATE : AssnState.Unary.sem conf st0 invst assnmem gmax public inv0)
+      (MEM : AssnMem.Unary.sem conf gmax public st0.(Mem) assnmem)
       (RESOLVE : forallb_map (Phinode.resolve (fst (CurBB (EC st0)))) phinodes = Some l0)
       (UNIQUE_ID : unique id_dec (List.map Phinode.get_def l0) = true)
       (STEP : switchToNewBasicBlock (CurTargetData conf) (l_to, stmts_intro phinodes cmds terminator)
@@ -798,7 +774,7 @@ Lemma phinodes_unique_preserved_except
                           exists b,
                             insnInBlockB (insn_phinode phi) b
                             /\ blockInFdefB b (CurFunction (EC st0))) phinodes)
-  : unique_preserved_except conf inv0 invmem.(InvMem.Unary.unique_parent)
+  : unique_preserved_except conf inv0 assnmem.(AssnMem.Unary.unique_parent)
                                                (mkState (mkEC
                                                            st0.(EC).(CurFunction)
                                                                       (l_to, stmts_intro phinodes cmds terminator)
@@ -889,10 +865,10 @@ Lemma switchToNewBasicBlock_wf
       (WF_LOCAL : memory_props.MemProps.wf_lc mem locals)
       (STEP: switchToNewBasicBlock (CurTargetData conf) (l_to, stmts)
                                    l_from (Globals conf) locals = Some locals')
-      gmax public invmem
+      gmax public assnmem
       (* st0 invst0 inv0 *)
-      (* (STATE: InvState.Unary.sem conf st0 invst0 invmem0 gmax public inv0) *)
-      (MEM : InvMem.Unary.sem conf gmax public mem invmem)
+      (* (STATE: AssnState.Unary.sem conf st0 invst0 assnmem0 gmax public inv0) *)
+      (MEM : AssnMem.Unary.sem conf gmax public mem assnmem)
   : memory_props.MemProps.wf_lc mem locals'.
 Proof.
   unfold switchToNewBasicBlock in *. des_ifs.
@@ -960,9 +936,9 @@ Qed.
 Lemma postcond_phinodes_sound
       m_src conf_src st0_src phinodes_src cmds_src terminator_src locals_src
       m_tgt conf_tgt st0_tgt phinodes_tgt cmds_tgt terminator_tgt locals_tgt
-      invst0 invmem inv0 inv1
+      invst0 assnmem inv0 inv1
       l_from l_to
-      (CONF: InvState.valid_conf m_src m_tgt conf_src conf_tgt)
+      (CONF: AssnState.valid_conf m_src m_tgt conf_src conf_tgt)
       (CMD_SRC: st0_src.(EC).(CurCmds) = [])
       (CMD_TGT: st0_tgt.(EC).(CurCmds) = [])
       (L_SRC: st0_src.(EC).(CurBB).(fst) = l_from)
@@ -972,8 +948,8 @@ Lemma postcond_phinodes_sound
       (STMT_TGT: lookupAL stmts st0_tgt.(EC).(CurFunction).(get_blocks) l_to =
                  Some (stmts_intro phinodes_tgt cmds_tgt terminator_tgt))
       (POSTCOND: Postcond.postcond_phinodes l_from phinodes_src phinodes_tgt inv0 = Some inv1)
-      (STATE: InvState.Rel.sem conf_src conf_tgt st0_src st0_tgt invst0 invmem inv0)
-      (MEM: InvMem.Rel.sem conf_src conf_tgt st0_src.(Mem) st0_tgt.(Mem) invmem)
+      (STATE: AssnState.Rel.sem conf_src conf_tgt st0_src st0_tgt invst0 assnmem inv0)
+      (MEM: AssnMem.Rel.sem conf_src conf_tgt st0_src.(Mem) st0_tgt.(Mem) assnmem)
       (STEP_SRC: switchToNewBasicBlock
                    conf_src.(CurTargetData)
                    (l_to, stmts_intro phinodes_src cmds_src terminator_src)
@@ -989,7 +965,7 @@ Lemma postcond_phinodes_sound
                    st0_tgt.(EC).(Locals)
                  = Some locals_tgt):
   exists invst1,
-    <<STATE: InvState.Rel.sem
+    <<STATE: AssnState.Rel.sem
                conf_src conf_tgt
                (mkState
                   (mkEC
@@ -1011,7 +987,7 @@ Lemma postcond_phinodes_sound
                      st0_tgt.(EC).(Allocas))
                   st0_tgt.(ECS)
                   st0_tgt.(Mem))
-               invst1 invmem inv1>>.
+               invst1 assnmem inv1>>.
 Proof.
   unfold Postcond.postcond_phinodes in *.
   unfold Postcond.postcond_phinodes_assigns in *.
@@ -1078,7 +1054,7 @@ Proof.
   exploit phinodes_add_lessdef_sound; try exact TGT; eauto; i.
   { rewrite L_TGT. eauto. }
   exploit reduce_maydiff_sound; swap 1 2.
-  { instantiate (1 := Hints.Invariant.mk _ _ _). econs; eauto. }
+  { instantiate (1 := Hints.Assertion.mk _ _ _). econs; eauto. }
   { eauto. }
   { eauto. }
   intro STATE_MAYDIFF. exact STATE_MAYDIFF.

@@ -114,7 +114,7 @@ module Reachable = struct
 end
 
 (* object for propagation *)
-module InvariantObject = struct
+module AssertionObject = struct
     type scope =
       | Source
       | Target
@@ -158,27 +158,27 @@ module InvariantObject = struct
          Unary (convert_scope prop_a.scope,
                 Diffblock (Convert.value prop_a.lhs, Convert.value prop_a.rhs))
 
-    let insert (obj:t) (inv:Invariant.t): Invariant.t =
+    let insert (obj:t) (inv:Assertion.t): Assertion.t =
       match obj with
       | Unary (scope, unary_obj) ->
          let update_unary unary =
            match unary_obj with
            | Lessdef expr_pair ->
-              Invariant.update_lessdef (ExprPairSet.add expr_pair) unary
+              Assertion.update_lessdef (ExprPairSet.add expr_pair) unary
            | Noalias (ptr1, ptr2) ->
-              Invariant.update_noalias (PtrPairSet.add (ptr1, ptr2)) unary
+              Assertion.update_noalias (PtrPairSet.add (ptr1, ptr2)) unary
            | Diffblock (v1, v2) ->
-              Invariant.update_diffblock (ValueTPairSet.add (v1, v2)) unary
+              Assertion.update_diffblock (ValueTPairSet.add (v1, v2)) unary
            | Unique idt ->
-              Invariant.update_unique (AtomSetImpl.add idt) unary
+              Assertion.update_unique (AtomSetImpl.add idt) unary
            | Private idt ->
-              Invariant.update_private (IdTSet.add idt) unary
+              Assertion.update_private (IdTSet.add idt) unary
          in
-         (if scope = Source then Invariant.update_src else Invariant.update_tgt)
+         (if scope = Source then Assertion.update_src else Assertion.update_tgt)
            update_unary
            inv
       | Maydiff idt ->
-         Invariant.update_maydiff (IdTSet.add idt) inv
+         Assertion.update_maydiff (IdTSet.add idt) inv
   end
 
 module PropagateStmts = struct
@@ -188,13 +188,13 @@ module PropagateStmts = struct
     let _proceed
           (idx_from:Position.idx)
           (idx_to:Position.idx)
-          (inv_obj:InvariantObject.t)
+          (inv_obj:AssertionObject.t)
           (hint_stmts:ValidationHint.stmts)
         : ValidationHint.stmts =
       let inv_after_phi =
-        let curr_inv = hint_stmts.ValidationHint.invariant_after_phinodes in
+        let curr_inv = hint_stmts.ValidationHint.assertion_after_phinodes in
         if Position.idx_le idx_from Position.idx_any_phinode
-        then InvariantObject.insert inv_obj curr_inv
+        then AssertionObject.insert inv_obj curr_inv
         else curr_inv
       in
       let cmds =
@@ -204,20 +204,20 @@ module PropagateStmts = struct
            let new_inv =
              if (Position.idx_le idx_from curr_idx)
                 && (Position.idx_lt curr_idx idx_to)
-             then InvariantObject.insert inv_obj curr_inv
+             then AssertionObject.insert inv_obj curr_inv
              else curr_inv
            in
            (infr_l, new_inv))
           hint_stmts.ValidationHint.cmds
       in
-      { hint_stmts with ValidationHint.invariant_after_phinodes = inv_after_phi;
+      { hint_stmts with ValidationHint.assertion_after_phinodes = inv_after_phi;
                         ValidationHint.cmds = cmds;
       }
 
     let bounds
           (idx_from:Position.idx)
           (idx_to:Position.idx)
-          (inv_obj:InvariantObject.t)
+          (inv_obj:AssertionObject.t)
           (hint_stmts:ValidationHint.stmts)
         : ValidationHint.stmts =
       if Position.idx_lt idx_from idx_to
@@ -226,43 +226,43 @@ module PropagateStmts = struct
 
     let bounds_from
           (idx_from:Position.idx)
-          (inv_obj:InvariantObject.t)
+          (inv_obj:AssertionObject.t)
           (hint_stmts:ValidationHint.stmts)
         :ValidationHint.stmts =
       _proceed idx_from (final_idx_from_hint hint_stmts) inv_obj hint_stmts
 
     let bounds_to
           (idx_to:Position.idx)
-          (inv_obj:InvariantObject.t)
+          (inv_obj:AssertionObject.t)
           (hint_stmts:ValidationHint.stmts)
         :ValidationHint.stmts =
       _proceed Position.idx_any_phinode idx_to inv_obj hint_stmts
 
     let global
-          (inv_obj:InvariantObject.t)
+          (inv_obj:AssertionObject.t)
           (hint_stmts:ValidationHint.stmts)
         :ValidationHint.stmts =
       _proceed Position.idx_any_phinode (final_idx_from_hint hint_stmts) inv_obj hint_stmts
   end
 
 let propagate_global
-      (invariant:InvariantObject.t)
+      (assertion:AssertionObject.t)
       (hint_fdef:ValidationHint.fdef)
     : ValidationHint.fdef =
   TODO.mapAL
-    (fun hint_stmts -> PropagateStmts.global invariant hint_stmts)
+    (fun hint_stmts -> PropagateStmts.global assertion hint_stmts)
     hint_fdef
 
 (* return: fst is Global, snd is remaining *)
 let filter_global
       (lfdef:LLVMsyntax.fdef) (rfdef:LLVMsyntax.fdef)
       (hints: (CoreHint_t.hint_command * CoreHint_t.cpp_debug_info) list)
-    : InvariantObject.t list *
+    : AssertionObject.t list *
         (CoreHint_t.hint_command * CoreHint_t.cpp_debug_info) list =
   let f = (fun s i ->
            match (fst i) with
            | CoreHint_t.Propagate { propagate = prop ; propagate_range = CoreHint_t.Global } ->
-              let inv_obj = InvariantObject.convert prop lfdef rfdef in
+              let inv_obj = AssertionObject.convert prop lfdef rfdef in
               (inv_obj :: fst s, snd s)
            | _ -> (fst s, i :: snd s)) in
   let (globals, others) = List.fold_left f ([], []) hints in
@@ -271,7 +271,7 @@ let filter_global
 let propagate_hint
       (lfdef:LLVMsyntax.fdef)
       (dtree_lfdef:atom coq_DTree)
-      (invariant:InvariantObject.t)
+      (assertion:AssertionObject.t)
       (range:Position.range)
       (hint_fdef:ValidationHint.fdef)
     : ValidationHint.fdef =
@@ -287,7 +287,7 @@ let propagate_hint
      in
      if bid_from = bid_to then
        let hint_stmts = TODOCAML.get (Alist.lookupAL hint_fdef bid_from) in
-       let hint_stmts = PropagateStmts.bounds idx_from idx_to invariant hint_stmts in
+       let hint_stmts = PropagateStmts.bounds idx_from idx_to assertion hint_stmts in
        Alist.updateAL hint_fdef bid_from hint_stmts
      else
        let (to_until_end, interm_bids) =
@@ -298,13 +298,13 @@ let propagate_hint
        let interm_bids = AtomSetImpl.remove bid_from (AtomSetImpl.remove bid_to interm_bids) in
        
        let hint_stmts_from = TODOCAML.get (Alist.lookupAL hint_fdef bid_from) in
-       let hint_stmts_from = PropagateStmts.bounds_from idx_from invariant hint_stmts_from in
+       let hint_stmts_from = PropagateStmts.bounds_from idx_from assertion hint_stmts_from in
        let hint_stmts_to = TODOCAML.get (Alist.lookupAL hint_fdef bid_to) in
        let hint_stmts_to =
          if not is_end_in_interm then hint_stmts_to
          else (if to_until_end
-               then PropagateStmts.global invariant hint_stmts_to
-               else PropagateStmts.bounds_to idx_to invariant hint_stmts_to)
+               then PropagateStmts.global assertion hint_stmts_to
+               else PropagateStmts.bounds_to idx_to assertion hint_stmts_to)
        in
        
        let hint_fdef = Alist.updateAL hint_fdef bid_from hint_stmts_from in
@@ -312,7 +312,7 @@ let propagate_hint
        TODO.mapiAL
          (fun bid hint_stmts ->
           if AtomSetImpl.mem bid interm_bids
-          then PropagateStmts.global invariant hint_stmts
+          then PropagateStmts.global assertion hint_stmts
           else hint_stmts)
          hint_fdef
   | Position.BoundSet (position_from, position_to_lst) ->
@@ -338,7 +338,7 @@ let propagate_hint
       List.fold_left
         (fun hint_fdef (bid_to, idx_to) ->
           let hint_stmts = TODOCAML.get (Alist.lookupAL hint_fdef bid_from) in
-          let hint_stmts = PropagateStmts.bounds idx_from idx_to invariant hint_stmts in
+          let hint_stmts = PropagateStmts.bounds idx_from idx_to assertion hint_stmts in
           Alist.updateAL hint_fdef bid_from hint_stmts)
         hint_fdef position_to_lst_reduced (* TODO: find furthermost idx_to *)
     else
@@ -349,12 +349,12 @@ let propagate_hint
              Reachable.get_intermediate_block_ids bid_from bid_to lfdef dtree_lfdef in
            let hint_stmts_from = TODOCAML.get (Alist.lookupAL hint_fdef bid_from) in
            let hint_stmts_from =
-             PropagateStmts.bounds_from idx_from invariant hint_stmts_from in
+             PropagateStmts.bounds_from idx_from assertion hint_stmts_from in
            let hint_stmts_to = TODOCAML.get (Alist.lookupAL hint_fdef bid_to) in
            let hint_stmts_to =
              if to_until_end
-             then PropagateStmts.global invariant hint_stmts_to
-             else PropagateStmts.bounds_to idx_to invariant hint_stmts_to
+             then PropagateStmts.global assertion hint_stmts_to
+             else PropagateStmts.bounds_to idx_to assertion hint_stmts_to
            in
            let hint_fdef = Alist.updateAL hint_fdef bid_from hint_stmts_from in
            let hint_fdef = Alist.updateAL hint_fdef bid_to hint_stmts_to in
@@ -376,8 +376,8 @@ let propagate_hint
       TODO.mapiAL
         (fun bid hint_stmts ->
           if AtomSetImpl.mem bid interm_bids
-          then PropagateStmts.global invariant hint_stmts
+          then PropagateStmts.global assertion hint_stmts
           else hint_stmts)
         hint_fdef
   | Position.Global ->
-     propagate_global invariant hint_fdef
+     propagate_global assertion hint_fdef

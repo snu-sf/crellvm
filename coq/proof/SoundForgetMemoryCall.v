@@ -20,8 +20,8 @@ Require Import Exprs.
 Require Import Postcond.
 Require Import Validator.
 Require Import GenericValues.
-Require InvMem.
-Require InvState.
+Require AssnMem.
+Require AssnState.
 Require Import TODOProof.
 Require Import Inject.
 Require Import SoundBase.
@@ -31,7 +31,7 @@ Set Implicit Arguments.
 
 
 Lemma forget_memory_call_unary_Subset inv
-  : Invariant.Subset_unary (ForgetMemoryCall.unary inv) inv.
+  : Assertion.Subset_unary (ForgetMemoryCall.unary inv) inv.
 Proof.
   unfold ForgetMemoryCall.unary. ss.
   econs.
@@ -46,7 +46,7 @@ Proof.
 Qed.
 
 Lemma forget_memory_call_Subset inv
-  : Invariant.Subset (ForgetMemoryCall.t inv) inv.
+  : Assertion.Subset (ForgetMemoryCall.t inv) inv.
 Proof.
   unfold ForgetMemoryCall.t.
   destruct inv.
@@ -62,17 +62,17 @@ Proof.
 Qed.
 
 Lemma private_preserved_after_call
-        conf st0 invst0 invmem0 gmax public0 inv0
+        conf st0 invst0 assnmem0 gmax public0 inv0
         mem0 uniqs
-        invmem1 public1 mem1
-        (STATE : InvState.Unary.sem conf st0 invst0 invmem0 gmax public0 inv0)
-        (INCR : InvMem.Unary.le (InvMem.Unary.lift
+        assnmem1 public1 mem1
+        (STATE : AssnState.Unary.sem conf st0 invst0 assnmem0 gmax public0 inv0)
+        (INCR : AssnMem.Unary.le (AssnMem.Unary.lift
                                    mem0 uniqs
-                                   (memory_blocks_of_t conf st0 invst0 inv0.(Invariant.private))
-                                   invmem0) invmem1)
-        (MEM_AFTER_CALL : InvMem.Unary.sem conf gmax public1 mem1 invmem1)
+                                   (memory_blocks_of_t conf st0 invst0 inv0.(Assertion.private))
+                                   assnmem0) assnmem1)
+        (MEM_AFTER_CALL : AssnMem.Unary.sem conf gmax public1 mem1 assnmem1)
   : <<PRIVATE_PRESERVED: forall mc b o,
-      In b (memory_blocks_of_t conf st0 invst0 inv0.(Invariant.private)) ->
+      In b (memory_blocks_of_t conf st0 invst0 inv0.(Assertion.private)) ->
       mload_aux mem0 mc b o = mload_aux mem1 mc b o>>.
 Proof.
   ii.
@@ -88,15 +88,15 @@ Lemma sem_expr_private_preserved
       conf st0 invst0 inv0 mem1
       e1 e2 e
       (PRIVATE_PRESERVED: forall (mc : list AST.memory_chunk) (b : mblock) (o : Z),
-          In b (memory_blocks_of_t conf st0 invst0 inv0.(Invariant.private)) ->
+          In b (memory_blocks_of_t conf st0 invst0 inv0.(Assertion.private)) ->
           mload_aux (Mem st0) mc b o = mload_aux mem1 mc b o)
       (IN_PRIVATE: ExprPairSet.In (e1, e2)
                                   (ExprPairSet.filter
                                      (ForgetMemoryCall.is_private_ExprPair inv0)
-                                     (Invariant.lessdef inv0)))
+                                     (Assertion.lessdef inv0)))
       (EXP_EQ: e=e1 \/ e=e2)
-  : InvState.Unary.sem_expr conf st0 invst0 e =
-    InvState.Unary.sem_expr conf (mkState st0.(EC) st0.(ECS) mem1) invst0 e.
+  : AssnState.Unary.sem_expr conf st0 invst0 e =
+    AssnState.Unary.sem_expr conf (mkState st0.(EC) st0.(ECS) mem1) invst0 e.
 Proof.
   destruct e; ss.
   { erewrite <- sem_list_valueT_eq_locals with (st0 := mkState st0.(EC) st0.(ECS) mem1); ss. }
@@ -138,11 +138,11 @@ Qed.
 
 Lemma mem_lift_le_nextblock
       conf uniqs privs
-      gmax0 public0 mem0 invmem0
-      gmax1 public1 mem1 invmem1
-      (MEM_BEFORE_CALL : InvMem.Unary.sem conf gmax0 public0 mem0 invmem0)
-      (MEM_AFTER_CALL : InvMem.Unary.sem conf gmax1 public1 mem1 invmem1)
-      (MEM_LIFT_LE : InvMem.Unary.le (InvMem.Unary.lift mem0 uniqs privs invmem0) invmem1)
+      gmax0 public0 mem0 assnmem0
+      gmax1 public1 mem1 assnmem1
+      (MEM_BEFORE_CALL : AssnMem.Unary.sem conf gmax0 public0 mem0 assnmem0)
+      (MEM_AFTER_CALL : AssnMem.Unary.sem conf gmax1 public1 mem1 assnmem1)
+      (MEM_LIFT_LE : AssnMem.Unary.le (AssnMem.Unary.lift mem0 uniqs privs assnmem0) assnmem1)
   : (mem0.(Memory.Mem.nextblock) <= mem1.(Memory.Mem.nextblock))%positive.
 Proof.
   inv MEM_LIFT_LE.
@@ -152,12 +152,12 @@ Qed.
 
 Lemma mem_le_wf_lc
       conf st gmax uniqs privs
-      public0 mem0 invmem0
-      public1 mem1 invmem1
-      (MEM_LE : InvMem.Unary.le (InvMem.Unary.lift mem0 uniqs privs invmem0) invmem1)
+      public0 mem0 assnmem0
+      public1 mem1 assnmem1
+      (MEM_LE : AssnMem.Unary.le (AssnMem.Unary.lift mem0 uniqs privs assnmem0) assnmem1)
       (WF_LOCAL : memory_props.MemProps.wf_lc mem0 st)
-      (MEM_BEFORE_CALL : InvMem.Unary.sem conf gmax public0 mem0 invmem0)
-      (MEM_AFTER_CALL : InvMem.Unary.sem conf gmax public1 mem1 invmem1)
+      (MEM_BEFORE_CALL : AssnMem.Unary.sem conf gmax public0 mem0 assnmem0)
+      (MEM_AFTER_CALL : AssnMem.Unary.sem conf gmax public1 mem1 assnmem1)
   : memory_props.MemProps.wf_lc mem1 st.
 Proof.
   unfold memory_props.MemProps.wf_lc in *. i.
@@ -172,21 +172,21 @@ Qed.
 Lemma forget_memory_call_unary_sound
       conf st0 mem1
       gmax public0 public1
-      invmem0 invmem1
+      assnmem0 assnmem1
       invst0 inv0
-      (MEM_LE : InvMem.Unary.le (InvMem.Unary.lift st0.(Mem)
-                                                         (memory_blocks_of conf st0.(EC).(Locals) inv0.(Invariant.unique))
-                                                         (memory_blocks_of_t conf st0 invst0 inv0.(Invariant.private))
-                                                   invmem0) invmem1)
-      (MEM_BEFORE_CALL: InvMem.Unary.sem conf gmax public0 st0.(Mem) invmem0)
-      (MEM_AFTER_CALL: InvMem.Unary.sem conf gmax public1 mem1 invmem1)
+      (MEM_LE : AssnMem.Unary.le (AssnMem.Unary.lift st0.(Mem)
+                                                         (memory_blocks_of conf st0.(EC).(Locals) inv0.(Assertion.unique))
+                                                         (memory_blocks_of_t conf st0 invst0 inv0.(Assertion.private))
+                                                   assnmem0) assnmem1)
+      (MEM_BEFORE_CALL: AssnMem.Unary.sem conf gmax public0 st0.(Mem) assnmem0)
+      (MEM_AFTER_CALL: AssnMem.Unary.sem conf gmax public1 mem1 assnmem1)
       (INCR: forall b, public0 b -> public1 b)
-      (STATE : InvState.Unary.sem conf st0 invst0 invmem0 gmax public0 inv0)
-  : <<STATE_UNARY: InvState.Unary.sem conf (mkState st0.(EC) st0.(ECS) mem1) invst0
-                                      (InvMem.Unary.unlift invmem0 invmem1)
+      (STATE : AssnState.Unary.sem conf st0 invst0 assnmem0 gmax public0 inv0)
+  : <<STATE_UNARY: AssnState.Unary.sem conf (mkState st0.(EC) st0.(ECS) mem1) invst0
+                                      (AssnMem.Unary.unlift assnmem0 assnmem1)
                                       gmax public1
                                       (ForgetMemoryCall.unary inv0)>> /\
-    <<MEM_UNARY: InvMem.Unary.sem conf gmax public1 mem1 (InvMem.Unary.unlift invmem0 invmem1)>>.
+    <<MEM_UNARY: AssnMem.Unary.sem conf gmax public1 mem1 (AssnMem.Unary.unlift assnmem0 assnmem1)>>.
 Proof.
   hexploit private_preserved_after_call; eauto. intro PRIVATE_PRESERVED. des.
   split.
@@ -246,8 +246,8 @@ Proof.
 
       {
         clear_tac.
-        unfold InvState.Unary.sem_diffblock. ii. clarify.
-        unfold InvMem.gv_diffblock_with_blocks in *.
+        unfold AssnState.Unary.sem_diffblock. ii. clarify.
+        unfold AssnMem.gv_diffblock_with_blocks in *.
         eapply GV_DIFFBLOCK; eauto. clear GV_DIFFBLOCK.
         rewrite <- UNIQUE_PARENT_EQ. ss.
         apply in_app. left.
@@ -262,7 +262,7 @@ Proof.
               - solve_leibniz. ss.
               - subst. finish_by_refl. }
             eapply IdTSetFacts.elements_iff; eauto.
-          + unfold InvState.Unary.sem_idT. ss.
+          + unfold AssnState.Unary.sem_idT. ss.
             rewrite VAL. ss.
         - unfold memory_blocks_of.
           eapply existsb_exists.
@@ -278,7 +278,7 @@ Proof.
       ii. exploit PRIVATE; eauto. i. des.
       esplits; eauto.
       ss.
-      assert (B_IN: In b (memory_blocks_of_t conf st0 invst0 (Invariant.private inv0))).
+      assert (B_IN: In b (memory_blocks_of_t conf st0 invst0 (Assertion.private inv0))).
       { unfold memory_blocks_of_t.
         eapply in_flat_map.
         esplits; eauto.
@@ -360,24 +360,24 @@ Proof.
 Qed.
 
 Lemma incr_public_src
-      invmem0 invmem1 b
-      (INJECT : Values.inject_incr (InvMem.Rel.inject invmem0) (InvMem.Rel.inject invmem1))
-      (PUBLIC : InvMem.Rel.public_src (InvMem.Rel.inject invmem0) b)
-  : InvMem.Rel.public_src (InvMem.Rel.inject invmem1) b.
+      assnmem0 assnmem1 b
+      (INJECT : Values.inject_incr (AssnMem.Rel.inject assnmem0) (AssnMem.Rel.inject assnmem1))
+      (PUBLIC : AssnMem.Rel.public_src (AssnMem.Rel.inject assnmem0) b)
+  : AssnMem.Rel.public_src (AssnMem.Rel.inject assnmem1) b.
 Proof.
-  unfold InvMem.Rel.public_src in *.
-  destruct (InvMem.Rel.inject invmem0 b) eqn:INJ_B; ss.
+  unfold AssnMem.Rel.public_src in *.
+  destruct (AssnMem.Rel.inject assnmem0 b) eqn:INJ_B; ss.
   destruct p.
   exploit INJECT; eauto. ii. congruence.
 Qed.
 
 Lemma incr_public_tgt
-      invmem0 invmem1 b
-      (INJECT : Values.inject_incr (InvMem.Rel.inject invmem0) (InvMem.Rel.inject invmem1))
-      (PUBLIC : InvMem.Rel.public_tgt (InvMem.Rel.inject invmem0) b)
-  : InvMem.Rel.public_tgt (InvMem.Rel.inject invmem1) b.
+      assnmem0 assnmem1 b
+      (INJECT : Values.inject_incr (AssnMem.Rel.inject assnmem0) (AssnMem.Rel.inject assnmem1))
+      (PUBLIC : AssnMem.Rel.public_tgt (AssnMem.Rel.inject assnmem0) b)
+  : AssnMem.Rel.public_tgt (AssnMem.Rel.inject assnmem1) b.
 Proof.
-  unfold InvMem.Rel.public_tgt in *. des.
+  unfold AssnMem.Rel.public_tgt in *. des.
   exploit INJECT; eauto.
 Qed.
 
@@ -396,18 +396,18 @@ Lemma forget_memory_call_sound
       conf_src st0_src id_src fun_src args_src cmds_src
       conf_tgt st0_tgt id_tgt fun_tgt args_tgt cmds_tgt
       noret clattrs typ varg
-      invmem0 invst0 inv0
-      invmem1 mem1_src mem1_tgt
+      assnmem0 invst0 inv0
+      assnmem1 mem1_src mem1_tgt
       (CMDS_SRC: st0_src.(EC).(CurCmds) = (insn_call id_src noret clattrs typ varg fun_src args_src) :: cmds_src)
       (CMDS_TGT: st0_tgt.(EC).(CurCmds) = (insn_call id_tgt noret clattrs typ varg fun_tgt args_tgt) :: cmds_tgt)
-      (STATE: InvState.Rel.sem conf_src conf_tgt st0_src st0_tgt invst0 invmem0 inv0)
-      (MEM_BEFORE_CALL: InvMem.Rel.sem conf_src conf_tgt st0_src.(Mem) st0_tgt.(Mem) invmem0)
+      (STATE: AssnState.Rel.sem conf_src conf_tgt st0_src st0_tgt invst0 assnmem0 inv0)
+      (MEM_BEFORE_CALL: AssnMem.Rel.sem conf_src conf_tgt st0_src.(Mem) st0_tgt.(Mem) assnmem0)
       (FUN:
          forall funval2_src
                 (FUN_SRC: getOperandValue conf_src.(CurTargetData) fun_src st0_src.(EC).(Locals) conf_src.(Globals) = Some funval2_src),
          exists funval1_tgt,
           <<FUN_TGT: getOperandValue conf_tgt.(CurTargetData) fun_tgt st0_tgt.(EC).(Locals) conf_tgt.(Globals) = Some funval1_tgt>> /\
-          <<INJECT: genericvalues_inject.gv_inject invmem0.(InvMem.Rel.inject) funval2_src funval1_tgt>>)
+          <<INJECT: genericvalues_inject.gv_inject assnmem0.(AssnMem.Rel.inject) funval2_src funval1_tgt>>)
       (ARGS:
          forall args2_src
                 (ARGS_SRC: params2GVs conf_src.(CurTargetData) args_src st0_src.(EC).(Locals) conf_src.(Globals) = Some args2_src),
@@ -415,32 +415,32 @@ Lemma forget_memory_call_sound
            (<<ARGS_TGT: params2GVs (conf_tgt.(CurTargetData))
                                   args_tgt st0_tgt.(EC).(Locals) conf_tgt.(Globals) = Some args1_tgt>>) /\
            (<<INJECT: list_forall2 (genericvalues_inject.gv_inject
-                                     invmem0.(InvMem.Rel.inject)) args2_src args1_tgt>>) /\
+                                     assnmem0.(AssnMem.Rel.inject)) args2_src args1_tgt>>) /\
            (<<VALID_SRC: List.Forall (MemProps.valid_ptrs (Memory.Mem.nextblock st0_src.(Mem))) args2_src>>) /\
            (<<VALID_TGT: List.Forall (MemProps.valid_ptrs (Memory.Mem.nextblock st0_tgt.(Mem))) args1_tgt>>))
-      (INCR: InvMem.Rel.le (InvMem.Rel.lift st0_src.(Mem) st0_tgt.(Mem)
-                                            (memory_blocks_of conf_src st0_src.(EC).(Locals) inv0.(Invariant.src).(Invariant.unique))
-                                            (memory_blocks_of conf_tgt st0_tgt.(EC).(Locals) inv0.(Invariant.tgt).(Invariant.unique))
-                                            (memory_blocks_of_t conf_src st0_src invst0.(InvState.Rel.src) inv0.(Invariant.src).(Invariant.private))
-                                            (memory_blocks_of_t conf_tgt st0_tgt invst0.(InvState.Rel.tgt) inv0.(Invariant.tgt).(Invariant.private))
-                                            invmem0) invmem1)
-      (MEM_AFTER_CALL: InvMem.Rel.sem conf_src conf_tgt mem1_src mem1_tgt invmem1)
-  : (* exists invst2  *) exists invmem2,
-      <<INCR: InvMem.Rel.le invmem0 invmem2>> /\
+      (INCR: AssnMem.Rel.le (AssnMem.Rel.lift st0_src.(Mem) st0_tgt.(Mem)
+                                            (memory_blocks_of conf_src st0_src.(EC).(Locals) inv0.(Assertion.src).(Assertion.unique))
+                                            (memory_blocks_of conf_tgt st0_tgt.(EC).(Locals) inv0.(Assertion.tgt).(Assertion.unique))
+                                            (memory_blocks_of_t conf_src st0_src invst0.(AssnState.Rel.src) inv0.(Assertion.src).(Assertion.private))
+                                            (memory_blocks_of_t conf_tgt st0_tgt invst0.(AssnState.Rel.tgt) inv0.(Assertion.tgt).(Assertion.private))
+                                            assnmem0) assnmem1)
+      (MEM_AFTER_CALL: AssnMem.Rel.sem conf_src conf_tgt mem1_src mem1_tgt assnmem1)
+  : (* exists invst2  *) exists assnmem2,
+      <<INCR: AssnMem.Rel.le assnmem0 assnmem2>> /\
       <<STATE:
-        InvState.Rel.sem
+        AssnState.Rel.sem
           conf_src conf_tgt
           (mkState st0_src.(EC) st0_src.(ECS) mem1_src)
           (mkState st0_tgt.(EC) st0_tgt.(ECS) mem1_tgt)
-          invst0 invmem2 (ForgetMemoryCall.t inv0)>> /\
-      <<MEM: InvMem.Rel.sem conf_src conf_tgt mem1_src mem1_tgt invmem2>> /\
-      <<MEM_INJ: invmem2.(InvMem.Rel.inject) = invmem1.(InvMem.Rel.inject)>>.
+          invst0 assnmem2 (ForgetMemoryCall.t inv0)>> /\
+      <<MEM: AssnMem.Rel.sem conf_src conf_tgt mem1_src mem1_tgt assnmem2>> /\
+      <<MEM_INJ: assnmem2.(AssnMem.Rel.inject) = assnmem1.(AssnMem.Rel.inject)>>.
 Proof.
   assert(INJECT_ALLOCAS_NEW:
-           InvState.Rel.inject_allocas (InvMem.Rel.inject invmem1)
+           AssnState.Rel.inject_allocas (AssnMem.Rel.inject assnmem1)
                                        st0_src.(EC).(Allocas)
                                        st0_tgt.(EC).(Allocas)).
-  { eapply InvState.Rel.inject_allocas_preserved_le_lift; try exact INCR; eauto; try apply STATE.
+  { eapply AssnState.Rel.inject_allocas_preserved_le_lift; try exact INCR; eauto; try apply STATE.
     - inv MEM_BEFORE_CALL. inv SRC. etransitivity; eauto.
       inv INCR. ss. inv SRC. ss. rewrite MEM_PARENT_EQ. reflexivity.
     - inv MEM_BEFORE_CALL. inv TGT. etransitivity; eauto.
@@ -450,8 +450,8 @@ Proof.
   { apply MEM_BEFORE_CALL. }
   { apply MEM_BEFORE_CALL. }
   intro NEW_LE; des.
-  exists (InvMem.Rel.unlift invmem0 invmem1).
-  unfold InvMem.Rel.unlift in *.
+  exists (AssnMem.Rel.unlift assnmem0 assnmem1).
+  unfold AssnMem.Rel.unlift in *.
   assert (INCR_CPY:=INCR).
   inv INCR. ss.
   rename SRC into LE_SRC. rename TGT into LE_TGT.

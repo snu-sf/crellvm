@@ -21,8 +21,8 @@ Require Import Exprs.
 Require Import Validator.
 Require Import GenericValues.
 Require Import Inject.
-Require InvMem.
-Require InvState.
+Require AssnMem.
+Require AssnState.
 Require Import Hints.
 Require Import memory_props.
 Import Memory.
@@ -39,9 +39,9 @@ Section NONE.
 
   Lemma subst_none_value
         conf st invst0 x v
-        (NONE: InvState.Unary.sem_idT st invst0 x = None)
+        (NONE: AssnState.Unary.sem_idT st invst0 x = None)
         val1
-        (SEM: InvState.Unary.sem_valueT conf st invst0 v = Some val1)
+        (SEM: AssnState.Unary.sem_valueT conf st invst0 v = Some val1)
         y
   :
     <<NO_X: (ValueT.substitute x y v) = v>>
@@ -54,9 +54,9 @@ Section NONE.
 
   Lemma subst_none_list_value
         conf st invst0 x
-        (NONE: InvState.Unary.sem_idT st invst0 x = None)
+        (NONE: AssnState.Unary.sem_idT st invst0 x = None)
         l0 lsv
-        (SEM: InvState.Unary.sem_list_valueT conf st invst0 lsv = Some l0)
+        (SEM: AssnState.Unary.sem_list_valueT conf st invst0 lsv = Some l0)
         y
     :
       <<NO_X: List.map (fun x0 : sz * ValueT.t => (fst x0, ValueT.substitute x y (snd x0))) lsv = lsv>>
@@ -72,9 +72,9 @@ Section NONE.
 
   Lemma subst_none_expr
         conf st invst0 x e
-        (NONE: InvState.Unary.sem_idT st invst0 x = None)
+        (NONE: AssnState.Unary.sem_idT st invst0 x = None)
         val1
-        (SEM: InvState.Unary.sem_expr conf st invst0 e = Some val1)
+        (SEM: AssnState.Unary.sem_expr conf st invst0 e = Some val1)
         y
     :
       <<NO_X: (Expr.substitute x y e) = e>>
@@ -101,9 +101,9 @@ Section NONE.
 
   Lemma subst_none_value_rev
         conf st invst0 y v
-        (NONE: InvState.Unary.sem_valueT conf st invst0 y = None)
+        (NONE: AssnState.Unary.sem_valueT conf st invst0 y = None)
         x val1
-        (SEM: InvState.Unary.sem_valueT conf st invst0 (ValueT.substitute x y v) = Some val1)
+        (SEM: AssnState.Unary.sem_valueT conf st invst0 (ValueT.substitute x y v) = Some val1)
   :
     <<NO_X: (ValueT.substitute x y v) = v>>
   .
@@ -115,9 +115,9 @@ Section NONE.
 
   Lemma subst_none_list_value_rev
         conf st invst0 y
-        (NONE: InvState.Unary.sem_valueT conf st invst0 y = None)
+        (NONE: AssnState.Unary.sem_valueT conf st invst0 y = None)
         l0 lsv x
-        (SEM: InvState.Unary.sem_list_valueT
+        (SEM: AssnState.Unary.sem_list_valueT
                 conf st invst0
                 (List.map (fun x0 : sz * ValueT.t => (fst x0, ValueT.substitute x y (snd x0))) lsv) = 
               Some l0)
@@ -135,9 +135,9 @@ Section NONE.
 
   Lemma subst_none_expr_rev
         conf st invst0 y e
-        (NONE: InvState.Unary.sem_valueT conf st invst0 y = None)
+        (NONE: AssnState.Unary.sem_valueT conf st invst0 y = None)
         x val1
-        (SEM: InvState.Unary.sem_expr conf st invst0 (Expr.substitute x y e) = Some val1)
+        (SEM: AssnState.Unary.sem_expr conf st invst0 (Expr.substitute x y e) = Some val1)
     :
       <<NO_X: (Expr.substitute x y e) = e>>
   .
@@ -242,11 +242,11 @@ Section SPEC.
   Lemma substitute_lessdef_spec
         conf st invst0
         (from: IdT.t) (to: ValueT.t)
-        (LDFROMTO : InvState.Unary.sem_lessdef conf st invst0 (Expr.value from, Expr.value to))
+        (LDFROMTO : AssnState.Unary.sem_lessdef conf st invst0 (Expr.value from, Expr.value to))
         e
     :
       Forall2 (fun v1 v2 : ValueT.t =>
-                 InvState.Unary.sem_lessdef conf st invst0 (Expr.value v1, Expr.value v2)) 
+                 AssnState.Unary.sem_lessdef conf st invst0 (Expr.value v1, Expr.value v2)) 
               (Expr.get_valueTs e) (Expr.get_valueTs (Expr.substitute from to e))
   .
   Proof.
@@ -269,11 +269,11 @@ Section SPEC.
   Lemma substitute_lessdef_spec_rev
         conf st invst0
         (from: IdT.t) (to: ValueT.t)
-        (LDFROMTO : InvState.Unary.sem_lessdef conf st invst0 (Expr.value to, Expr.value from))
+        (LDFROMTO : AssnState.Unary.sem_lessdef conf st invst0 (Expr.value to, Expr.value from))
         e
     :
       Forall2 (fun v1 v2 : ValueT.t =>
-                 InvState.Unary.sem_lessdef conf st invst0 (Expr.value v1, Expr.value v2)) 
+                 AssnState.Unary.sem_lessdef conf st invst0 (Expr.value v1, Expr.value v2)) 
               (Expr.get_valueTs (Expr.substitute from to e)) (Expr.get_valueTs e)
   .
   Proof.
@@ -304,10 +304,10 @@ Section SPEC.
   Proof.
     red.
     destruct a, b; ss; unfold proj_sumbool in *; des_ifs; unfold is_true in *; ss; des_bool; des; clear_tac.
-    - apply InvState.Rel.list_forallb_const_eqb in SAME. des. clarify.
+    - apply AssnState.Rel.list_forallb_const_eqb in SAME. des. clarify.
       eapply forallb_const_eqb_refl; eauto.
     - ss.
-    - apply InvState.Rel.list_forallb_const_eqb in SAME. des. clarify.
+    - apply AssnState.Rel.list_forallb_const_eqb in SAME. des. clarify.
       eapply forallb_const_eqb_refl; eauto.
     - rewrite e1 in *. ss.
   Qed.
@@ -320,13 +320,13 @@ Section SOME.
 
   Lemma substitute_some_id
         conf st from to idt0 invst0 val0 from_gv to_gv
-        (FROM: InvState.Unary.sem_idT st invst0 from = Some from_gv)
-        (TO: InvState.Unary.sem_valueT conf st invst0 to = Some to_gv)
+        (FROM: AssnState.Unary.sem_idT st invst0 from = Some from_gv)
+        (TO: AssnState.Unary.sem_valueT conf st invst0 to = Some to_gv)
         (LD: GVs.lessdef from_gv to_gv)
-        (SEM: InvState.Unary.sem_idT st invst0 idt0 = Some val0)
+        (SEM: AssnState.Unary.sem_idT st invst0 idt0 = Some val0)
   :
     exists val1 : GenericValue,
-      <<SEM: InvState.Unary.sem_valueT conf st invst0
+      <<SEM: AssnState.Unary.sem_valueT conf st invst0
                                        (if IdT.eq_dec from idt0 then to else idt0) = Some val1>>
              /\ <<LD: GVs.lessdef val0 val1 >>
   .
@@ -339,13 +339,13 @@ Section SOME.
 
   Lemma substitute_some_value
         conf st from to v0 invst0 val0 from_gv to_gv
-        (FROM: InvState.Unary.sem_idT st invst0 from = Some from_gv)
-        (TO: InvState.Unary.sem_valueT conf st invst0 to = Some to_gv)
+        (FROM: AssnState.Unary.sem_idT st invst0 from = Some from_gv)
+        (TO: AssnState.Unary.sem_valueT conf st invst0 to = Some to_gv)
         (LD: GVs.lessdef from_gv to_gv)
-        (SEM: InvState.Unary.sem_valueT conf st invst0 v0 = Some val0)
+        (SEM: AssnState.Unary.sem_valueT conf st invst0 v0 = Some val0)
   :
     exists val1 : GenericValue,
-      <<SEM: InvState.Unary.sem_valueT conf st invst0 (ValueT.substitute from to v0) = Some val1 >> /\
+      <<SEM: AssnState.Unary.sem_valueT conf st invst0 (ValueT.substitute from to v0) = Some val1 >> /\
              <<LD: GVs.lessdef val0 val1 >>
   .
   Proof.
@@ -356,19 +356,19 @@ Section SOME.
 
   Lemma substitute_some_expr
         conf st from to e invst0 val0 from_gv to_gv
-        (FROM: InvState.Unary.sem_idT st invst0 from = Some from_gv)
-        (TO: InvState.Unary.sem_valueT conf st invst0 to = Some to_gv)
+        (FROM: AssnState.Unary.sem_idT st invst0 from = Some from_gv)
+        (TO: AssnState.Unary.sem_valueT conf st invst0 to = Some to_gv)
         (LD: GVs.lessdef from_gv to_gv)
-        (SEM: InvState.Unary.sem_expr conf st invst0 e = Some val0)
+        (SEM: AssnState.Unary.sem_expr conf st invst0 e = Some val0)
   :
     exists val1 : GenericValue,
-      <<SEM: InvState.Unary.sem_expr conf st invst0 (Expr.substitute from to e) = Some val1 >> /\
+      <<SEM: AssnState.Unary.sem_expr conf st invst0 (Expr.substitute from to e) = Some val1 >> /\
              <<LD: GVs.lessdef val0 val1 >>
   .
   Proof.
-    eapply InvState.Rel.lessdef_expr_spec3; eauto.
+    eapply AssnState.Rel.lessdef_expr_spec3; eauto.
     { eapply substitute_same_modulo_spec; eauto. }
-    { assert(LDFROMTO: InvState.Unary.sem_lessdef conf st invst0 (Expr.value from, Expr.value to)).
+    { assert(LDFROMTO: AssnState.Unary.sem_lessdef conf st invst0 (Expr.value from, Expr.value to)).
       { ii; esplits; eauto. ss. rewrite VAL1 in *. clarify. }
       clear - LDFROMTO.
       eapply substitute_lessdef_spec; eauto.
@@ -377,19 +377,19 @@ Section SOME.
 
   Lemma substitute_some_expr_rev
         conf st from to e invst0 val0 from_gv to_gv
-        (TO: InvState.Unary.sem_valueT conf st invst0 to = Some to_gv)
-        (FROM: InvState.Unary.sem_idT st invst0 from = Some from_gv)
+        (TO: AssnState.Unary.sem_valueT conf st invst0 to = Some to_gv)
+        (FROM: AssnState.Unary.sem_idT st invst0 from = Some from_gv)
         (LD: GVs.lessdef to_gv from_gv)
-        (SEM: InvState.Unary.sem_expr conf st invst0 (Expr.substitute from to e) = Some val0)
+        (SEM: AssnState.Unary.sem_expr conf st invst0 (Expr.substitute from to e) = Some val0)
     :
       exists val1 : GenericValue,
-        <<SEM: InvState.Unary.sem_expr conf st invst0 e = Some val1 >> /\ <<LD: GVs.lessdef val0 val1 >>
+        <<SEM: AssnState.Unary.sem_expr conf st invst0 e = Some val1 >> /\ <<LD: GVs.lessdef val0 val1 >>
   .
   Proof.
-    eapply InvState.Rel.lessdef_expr_spec3; eauto.
+    eapply AssnState.Rel.lessdef_expr_spec3; eauto.
     { rewrite same_modulo_value_comm; ss.
       eapply substitute_same_modulo_spec; eauto. }
-    { assert(LDFROMTO: InvState.Unary.sem_lessdef conf st invst0 (Expr.value to, Expr.value from)).
+    { assert(LDFROMTO: AssnState.Unary.sem_lessdef conf st invst0 (Expr.value to, Expr.value from)).
       { ii; esplits; eauto. ss. rewrite VAL1 in *. clarify. }
       clear - LDFROMTO.
       eapply substitute_lessdef_spec_rev; eauto.
@@ -400,14 +400,14 @@ End SOME.
 
 Lemma substitute_spec_unary
       conf st x y e pubs gmax
-      invst0 invmem0 inv0
-      (SEM: InvState.Unary.sem conf st invst0 invmem0 gmax pubs inv0)
-      (LD: InvState.Unary.sem_lessdef conf st invst0 
+      invst0 assnmem0 inv0
+      (SEM: AssnState.Unary.sem conf st invst0 assnmem0 gmax pubs inv0)
+      (LD: AssnState.Unary.sem_lessdef conf st invst0 
                                       (Exprs.Expr.value (Exprs.ValueT.id x), Exprs.Expr.value y))
   :
-    <<SEM: InvState.Unary.sem
-             conf st invst0 invmem0 gmax pubs
-             (Hints.Invariant.update_lessdef
+    <<SEM: AssnState.Unary.sem
+             conf st invst0 assnmem0 gmax pubs
+             (Hints.Assertion.update_lessdef
                 (Exprs.ExprPairSet.add (e, Exprs.Expr.substitute x y e)) inv0)>>
 .
 Proof.
@@ -419,9 +419,9 @@ Proof.
   { eapply LESSDEF; eauto. }
   clear LESSDEF.
   clarify. ss.
-  unfold InvState.Unary.sem_lessdef in *.
+  unfold AssnState.Unary.sem_lessdef in *.
   ss.
-  destruct (InvState.Unary.sem_idT st invst0 x) eqn:T; cycle 1.
+  destruct (AssnState.Unary.sem_idT st invst0 x) eqn:T; cycle 1.
   { clear LD.
     solve_leibniz.
     clear - VAL1 T.
@@ -435,14 +435,14 @@ Qed.
 
 Lemma substitute_spec_unary_rev
       conf st x y e pubs gmax
-      invst0 invmem0 inv0
-      (SEM: InvState.Unary.sem conf st invst0 invmem0 gmax pubs inv0)
-      (LD: InvState.Unary.sem_lessdef conf st invst0 
+      invst0 assnmem0 inv0
+      (SEM: AssnState.Unary.sem conf st invst0 assnmem0 gmax pubs inv0)
+      (LD: AssnState.Unary.sem_lessdef conf st invst0 
                                       (Exprs.Expr.value y, Exprs.Expr.value (Exprs.ValueT.id x)))
   :
-    <<SEM: InvState.Unary.sem
-             conf st invst0 invmem0 gmax pubs
-             (Hints.Invariant.update_lessdef
+    <<SEM: AssnState.Unary.sem
+             conf st invst0 assnmem0 gmax pubs
+             (Hints.Assertion.update_lessdef
                 (Exprs.ExprPairSet.add (Exprs.Expr.substitute x y e, e)) inv0)>>
 .
 Proof.
@@ -454,9 +454,9 @@ Proof.
   { eapply LESSDEF; eauto. }
   clear LESSDEF.
   clarify. ss.
-  unfold InvState.Unary.sem_lessdef in *.
+  unfold AssnState.Unary.sem_lessdef in *.
   ss.
-  destruct (InvState.Unary.sem_valueT conf st invst0 y) eqn:T; cycle 1.
+  destruct (AssnState.Unary.sem_valueT conf st invst0 y) eqn:T; cycle 1.
   { clear LD.
     solve_leibniz.
     clear - VAL1 T.

@@ -20,8 +20,8 @@ Require Import Hints.
 Require Import Postcond.
 Require Import Validator.
 Require Import GenericValues.
-Require InvMem.
-Require InvState.
+Require AssnMem.
+Require AssnState.
 
 Set Implicit Arguments.
 
@@ -75,12 +75,12 @@ Lemma reduce_maydiff_sound
       m_src m_tgt
       conf_src st_src
       conf_tgt st_tgt
-      invst invmem inv
-      (CONF: InvState.valid_conf m_src m_tgt conf_src conf_tgt)
-      (STATE: InvState.Rel.sem conf_src conf_tgt st_src st_tgt invst invmem inv)
-      (MEM: InvMem.Rel.sem conf_src conf_tgt st_src.(Mem) st_tgt.(Mem) invmem):
+      invst assnmem inv
+      (CONF: AssnState.valid_conf m_src m_tgt conf_src conf_tgt)
+      (STATE: AssnState.Rel.sem conf_src conf_tgt st_src st_tgt invst assnmem inv)
+      (MEM: AssnMem.Rel.sem conf_src conf_tgt st_src.(Mem) st_tgt.(Mem) assnmem):
   exists invst1,
-    <<STATE: InvState.Rel.sem conf_src conf_tgt st_src st_tgt invst1 invmem
+    <<STATE: AssnState.Rel.sem conf_src conf_tgt st_src st_tgt invst1 assnmem
                               (reduce_maydiff inv)>>.
 Proof.
   exists invst.
@@ -105,7 +105,7 @@ Proof.
   inv SRC. rename LESSDEF into LESSDEF_SRC.
   exploit LESSDEF_SRC; eauto. i. des. ss.
 
-  exploit InvState.Rel.not_in_maydiff_expr_spec; eauto.
+  exploit AssnState.Rel.not_in_maydiff_expr_spec; eauto.
   i. des.
 
   inv TGT. rename LESSDEF into LESSDEF_TGT.

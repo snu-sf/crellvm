@@ -1,4 +1,4 @@
-COQMODULE     := LLVMBerry
+COQMODULE     := Crellvm
 COQTHEORIES := extract_defs.v extract_validator.v $(wildcard ../def/*.v)
 
 all: extract
