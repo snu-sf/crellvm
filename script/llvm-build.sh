@@ -18,7 +18,7 @@ mkdir -p $OBJDIR
 cd $OBJDIR
 
 if [ ! -f $OBJDIR/Makefile ]; then
-  cmake $SRCDIR
+  cmake $SRCDIR -DCMAKE_BUILD_TYPE=Release
 fi
 
 cmake --build . -- -j$1
