@@ -91,7 +91,7 @@ proof-quick: def-quick $(COQPROOF)
 	$(MAKE) -f Makefile.coq "$@"
 
 test:
-	crellvm-tests/run-benchmark.sh
+	cd crellvm-tests; ./run-benchmark.sh
 
 clean: Makefile.coq
 	$(MAKE) -f Makefile.coq clean
