@@ -1,4 +1,55 @@
-# Crellvm #
+# CRELLVM #
+
+
+## Structure of the Code ##
+
+Crellvm is divided roughly into four parts: LLVM, Vellvm, proof checker, and its verification in Coq.
+
+- LLVM is in [lib/llvm](lib/llvm/).
+- Vellvm is in [lib/vellvm](lib/vellvm/).
+- Proof checker is in [ocaml/](ocaml/) and [coq/def/](coq/def/).
+- The verification of the proof checker in Coq is in [coq/proof/](coq/proof/).
+
+### LLVM ###
+
+#### Proof Generation Code in Passes ####
+
+- For register promotion, see [PromoteMemoryToRegister.cpp](lib/llvm/lib/Transforms/Utils/PromoteMemoryToRegister.cpp).
+- For GVN-PRE, see [GVN.cpp](lib/llvm/lib/Transforms/Scalar/GVN.cpp).
+- For LICM, see [LICM.cpp](lib/llvm/lib/Transforms/Scalar/LICM.cpp), [LCSSA.cpp](lib/llvm/lib/Transforms/Utils/LCSSA.cpp), [SSAUpdater.cpp](lib/llvm/lib/Transforms/Utils/SSAUpdater.cpp).
+- For InstCombine, see [InstCombine](lib/llvm/lib/Transforms/InstCombine) directory.
+
+Note that, all our modifications are wrapped with `llvmberry::intrude` function.
+
+#### Proof Generation Library ####
+
+- [.cpp files](lib/llvm/lib/LLVMBerry)
+- [.h files](lib/llvm/include/llvm/LLVMBerry)
+
+Most of those codes are automatically-generated codes for serialization.
+
+### Validator ###
+
+- [def](coq/def) directory contains the definition of the proof checker and its dependency.
+  + [Validator.v](coq/def/Validator.v) contains function `valid_module`, which is called from [main.ml](ocaml/main.ml).
+  + [Postcond.v](coq/def/Postcond.v) contains a strong post-invariant generator.
+  + [Infrules.v](coq/def/Infrules.v) contains inference rules and their semantics.
+- [corehint](ocaml/corehint/) directory contains the schema for serialization.
+- [main.ml](ocaml/main.ml) contains the entry point for the proof checker.  It calls `valid_module` extracted from Coq.
+- [infruleGen.ml](ocaml/infruleGen.ml) contains the custom automation functions that find appropriate inference rules.
+
+### Proof ###
+
+- [proof](coq/proof) contains the formal verification of the proof checker in Coq.
+  + [Refinement.v](coq/proof/Refinement.v) proves behavioral refinement of two modules that pass the proof checker.
+  + [SimulationNop.v](coq/proof/SimulationNop.v) proves behavioral refinement for two equivalent modules modulo nops.
+
+## Browsing the Code ##
+
+Just after the extraction, there is no [lib/llvm](lib/llvm) directory.
+Instead, there is [lib/llvm_diff_files](lib/llvm_diff_files) directory, which contains all the files that we have ever modified.
+Later, below `make` commands will clone proper LLVM and copy `lib/llvm_diff_files` into `lib/llvm`.
+To browse our code, you do not have to wait for `make` to be done. You can just look inside `lib/llvm_diff_files`
 
 ## Development ##
 
@@ -6,7 +57,7 @@
 
 - [OCaml](http://ocaml.org/)
     + Install [opam](http://opam.ocamlpro.com/), the right way to install OCaml.
-    + `opam switch 4.02.3 && opam update && opam upgrade`
+    + `opam switch 4.03.0 && opam update && opam upgrade`
 
 - [Boost](http://www.boost.org/users/history/version_1_59_0.html)
     + `sudo yum install boost-devel`
@@ -15,64 +66,39 @@
     + `sudo yum install cmake`
 
 ### Build ###
-- You may want to alter "JOBS" variable, default is 24.
+- You may want to alter "JOBS" variable inside `Makefile`, default is 24.
 
 - `make init`
     + It installs Coq & OCaml libraries.
-    + It (recursively) clones repositories including llvm, vellvm to lib/ dir, and also clones crellvm-tests repository.
-    + If above commands do not work, check format of `url` in `.gitmodules` starts with `git@github.com:snu-sf/`.
-    + It also buildss & installs llvm.
-    + `.build/llvm-obj` will contain llvm object files.
-    + `install/bin` will contain llvm installation.
 
 - `make llvm`
     + `script/llvm-build.sh`
     + `.build/llvm-obj` will contain llvm object files.
+    + `opt -help` will contain some more options we added, e.g. `-llvmberry-passwhitelist=pass_name`, `-llvmberry-compactjson`
 
-- `make opt`
-    + It *only* builds "opt" executable in `.build/llvm-obj/bin`.
-
-### Quick Build ###
-
-+ Compiles coq files with `-quick` option. It produces `*.vio` instead of `*.vo`. For more information, refer to [this](https://coq.inria.fr/refman/Reference-Manual031.html).
-+ It needs separate copy of whole repository, so one is for `*.vo` and the other is for `*.vio`. For more information, refer to [this](https://github.com/snu-sf/crellvm/pull/247). What you need to know is do *NOT* compile with/without quick option inside same directory.
-+ There is *NO* `make extract-quick`, as `-quick` option ignores extraction. Therefore, there is no `make exec-quick` neither. For more information, refer to [this](https://github.com/snu-sf/crellvm/issues/236#issuecomment-235553528).
-
-- `make proof-quick`
-    + It compiles proof code with `-quick` option.
-    + Compiling proof code requires compiling all other coq codes, so it also do that.
-
-#### Rsync ####
-
-- Currently, the Makefile supports one possible workflow.
-
-- `make exec-rsync`
-    + Create `.proof_build` directory, copying *minimal complete* files needed for coq compile in this directory recursively.
-    + Extract `*.ml`, `*.mli` files inside `.proof_build` by compiling coq code without `-quick` option.
-    + Pull extracted `*.ml`, `*.mli` files back to current directory.
-    + This is done with `rsync`.
-
-- `make proof-with-rysnc`
-    + Similar to `make exec-rsync`, it executes same rsync scripts to copy current coq files into `.proof_build` directory.
-    + Compile proof code without `-quick` option inside `.proof_build`.
-
-- The desire behind this design decision is: User may only want to read/update codes inside current directory, and do not care `.proof_build` directory at all.
+- `make exec`
+    + It builds validator object file in `ocaml/main.native`
+    
+- `make proof`
+    + It compiles proof.
 
 ### Proof Status ###
 
-`./status_proof.sh` to grep (admit|Admitted|TODO) in all the Coq files.
+`./coq/count_admit.sh` to grep all assumption keywords (e.g. `admit`, `Axiom`) in all the Coq files.
 
-### Debugging ###
+### Testing ###
 
-- For those who participate in this project, there are some useful techniques to track a program flow of validator or identify cause of a bug.
-    + `export OCAMLRUNPARAM='b'` lets validator show call stack when it aborts
+- Use `Test.scala` script, it is tested under Scala version 2.11.8.
+- `scala Test.scala -h` should give some information.
+- To run our Validator, you just type the following command into the command line:
+    + scala `Test.scala` -j `# core` -a `option` -i `test-dir`
+       * `# core` represents the number of cores to be used for testing.
+       * `option` will be passed to `opt`. You can give options like “-O2”.
+       * `test-dir` is the address of the benchmark you want to compile & validate.
 
-### Related Projects ###
+#### Concrete Example ####
 
-- [atdtocpp](https://github.com/aqjune/atdtocpp) automatically converts `.atd` file to `.cpp`/`.h` file. This may not be suitable for whole file conversion, but it may be sufficient to support simple inference rule conversions. You may need to convert the whole `.atd` file, and then just excerpt wanted part from it.
-- [parallel testing](https://github.com/alxest/crellvm-tests-parallel) You may just copy `src/main/scala/main.scala` and use it. `scala main.scala -h` should give sufficient information. You may need to run with `-J-Xmx64g` or something, to manually set JVM memory limit. Required scala version or more detailed information will be in that repository.
-
-### TODO ###
-
-- `before_refact` branch represents the branch before refactoring, containing old proof codes.
-- `src/main.ml:70`: Currently we don't free memory spaces.
+- Run `scala Test.scala -j 24 -a "-O2" -i ./sample_test`
+    + This directory contains few randomly selected `.ll` files extracted from `Python 3.4.1`. For more information, please refer to [EXTRACT.md](sample_test/EXTRACT.md)
+    + The output will be in `./test_result.sample_test.0`.
+    + `report.summary`, `report.generate`, `report.validate` will contain test results.

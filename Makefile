@@ -17,8 +17,9 @@ all: llvm exec proof
 quick: llvm exec-rsync proof-quick
 
 init:
-	opam install menhir ott batteries biniou atdgen cppo easy-format ctypes coq.8.6
-	git clone git@github.com:snu-sf/crellvm-tests.git crellvm-tests
+	opam install menhir ott.0.25 batteries biniou atdgen cppo easy-format ctypes coq.8.6
+	git clone git@github.com:snu-sf/crellvm-tests.git crellvm-tests -b pldi2018-ae
+	git clone git@github.com:snu-sf/crellvm-tests-parallel.git crellvm-tests/crellvm-tests-parallel
 	git clone git@github.com:snu-sf/llvm.git lib/llvm
 	git clone git@github.com:snu-sf/cereal.git lib/llvm/include/llvm/cereal
 	git clone git@github.com:snu-sf/paco.git lib/paco
@@ -90,10 +91,7 @@ proof-quick: def-quick $(COQPROOF)
 	$(MAKE) -f Makefile.coq "$@"
 
 test:
-	rm -rf results-opt
-	python ./crellvm-tests/test.py -e ./.build/llvm-obj/bin/opt -v ./ocaml/main.native -r "-O2" -o -i "./crellvm-tests/inputs_full"
-	python ./crellvm-tests/listfails.py -f results-opt
-	python ./crellvm-tests/statistics.py -f results-opt -o
+	crellvm-tests/run-benchmark.sh
 
 clean: Makefile.coq
 	$(MAKE) -f Makefile.coq clean
