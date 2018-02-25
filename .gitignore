@@ -1,0 +1,41 @@
+# vim related
+*.swp
+*.swo
+
+# coq related
+*.vo
+*.v.d
+*.vio
+*.glob
+*.aux
+
+# tag files
+tags
+TAGS
+GTAGS
+GRTAGS
+GPATH
+
+.dir-locals.el
+_CoqProject
+Makefile.coq
+
+/coq/extract/*.ml
+/coq/extract/*.mli
+
+/.build
+/install
+/.proof_build
+
+/ocaml/_build/
+/ocaml/corehint/*
+!/ocaml/corehint/*.atd
+/ocaml/main.native
+
+/results-opt
+
+lib/*
+llvmberry-tests
+
+graph.dot
+graph.png
