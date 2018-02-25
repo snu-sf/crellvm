@@ -24,8 +24,8 @@ Makefile.coq
 /coq/extract/*.mli
 
 /.build
+/.build-proof
 /install
-/.proof_build
 
 /ocaml/_build/
 /ocaml/corehint/*
@@ -35,7 +35,7 @@ Makefile.coq
 /results-opt
 
 lib/*
-llvmberry-tests
+crellvm-tests
 
 graph.dot
 graph.png

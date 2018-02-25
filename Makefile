@@ -3,7 +3,7 @@ COQDEF := $(wildcard coq/def/*.v)
 COQEXTRACT    := $(wildcard coq/extract/*.v)
 COQPROOF      := $(filter-out $(COQEXTRACT), $(filter-out $(COQDEF), $(wildcard coq/*/*.v)))
 COQTHEORIES   := $(COQDEF) $(COQEXTRACT) $(COQPROOF)
-PROOF_BUILD_DIR=.proof_build
+PROOF_BUILD_DIR=.build-proof
 
 JOBS=24
 ROOT=`pwd`
@@ -14,17 +14,21 @@ LLVM_OBJDIR=${ROOT}/.build/llvm-obj
 
 all: llvm exec proof
 
-quick: llvm exec-rsync proof-quick
+quick: llvm exec proof-quick
 
 init:
-	opam install menhir ott.0.25 batteries biniou atdgen cppo easy-format ctypes coq.8.6
-	git clone git@github.com:snu-sf/crellvm-tests.git crellvm-tests -b pldi2018-ae
-	git clone git@github.com:snu-sf/crellvm-tests-parallel.git crellvm-tests/crellvm-tests-parallel
-	git clone git@github.com:snu-sf/llvm.git lib/llvm
-	git clone git@github.com:snu-sf/cereal.git lib/llvm/include/llvm/cereal
-	git clone git@github.com:snu-sf/paco.git lib/paco
-	git clone git@github.com:snu-sf/vellvm-legacy.git lib/vellvm
+	opam install -y menhir ott.0.25 batteries biniou atdgen cppo easy-format ctypes coq.8.6 # Ott 0.25 is required for avoiding a strange build error, and Coq 8.6 is for building CompCert 2.4.
+	git clone https://github.com/snu-sf/crellvm-llvm.git lib/llvm
+	git clone https://github.com/snu-sf/crellvm-vellvm.git lib/vellvm
+	git clone https://github.com/snu-sf/cereal.git lib/llvm/include/llvm/cereal
+	git clone https://github.com/snu-sf/paco.git lib/paco
 	$(MAKE) -C lib/vellvm init
+
+update:
+	git -C lib/llvm pull
+	git -C lib/vellvm pull
+	git -C lib/llvm/include/llvm/cereal pull
+	git -C lib/paco pull
 
 Makefile.coq: Makefile $(COQTHEORIES)
 	(echo "-R coq $(COQMODULE)"; \
@@ -44,10 +48,9 @@ llvm:
 	./script/llvm-build.sh $(JOBS)
 
 rsync-send:
+	$(MAKE) -C lib/vellvm src/Vellvm/syntax_base.v
+	$(MAKE) -C lib/vellvm src/Vellvm/typing_rules.v
 	sh script/rsync-send.sh
-
-rsync-receive:
-	sh script/rsync-receive.sh
 
 lib: lib/paco/src lib/vellvm
 	$(MAKE) -C lib/paco/src
@@ -67,18 +70,17 @@ extract: def $(COQEXTRACT)
 	$(MAKE) -C lib/vellvm extract
 	$(MAKE) -C coq/extract
 
-exec: extract
-	$(MAKE) -C ocaml
-
-exec-rsync: rsync-send
+exec: rsync-send
 	$(MAKE) -C $(PROOF_BUILD_DIR) extract
-	$(MAKE) rsync-receive
+	sh script/rsync-receive.sh
 	$(MAKE) -C ocaml
 
-proof-rsync: rsync-send
-	$(MAKE) -C $(PROOF_BUILD_DIR) proof
+exec-rsync: exec
 
-proof: def $(COQPROOF)
+proof: rsync-send
+	$(MAKE) -C $(PROOF_BUILD_DIR) proof-inner
+
+proof-inner: def $(COQPROOF)
 	$(MAKE) -f Makefile.coq $(patsubst %.v,%.vo,$(COQPROOF))
 
 proof-quick: def-quick $(COQPROOF)
@@ -89,6 +91,14 @@ proof-quick: def-quick $(COQPROOF)
 
 %.vio: Makefile.coq
 	$(MAKE) -f Makefile.coq "$@"
+
+test-init:
+	git clone https://github.com/snu-sf/crellvm-tests.git crellvm-tests -b pldi2018-ae
+	git clone https://github.com/snu-sf/crellvm-tests-parallel.git crellvm-tests/crellvm-tests-parallel
+
+test-update:
+	git -C crellvm-tests pull
+	git -C crellvm-tests/crellvm-tests/parallel pull
 
 test:
 	cd crellvm-tests; ./run-benchmark.sh
