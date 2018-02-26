@@ -127,7 +127,7 @@ The following executables are generated in the build process:
   # Run the ERHL validator for a translation
   ../ocaml/main.native 00001.crc32_8bytes.74.src.bc 00001.crc32_8bytes.74.tgt.bc 00001.crc32_8bytes.74.hint.json
 
-  # Validation succeeded.
+  # `Validation succeeded.` should be printed
   ```
 
 
