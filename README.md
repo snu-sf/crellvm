@@ -107,17 +107,27 @@ The following executables are generated in the build process:
   `ocaml/main.native $SRC $TGT $PROOF` validates a translation from `$SRC` to `$TGT` using `$PROOF`
   as the ERHL translation proof. See `ocaml/main.native -help` for more details.
 
-- FIXME: example!
+- Example
 
   ```sh
   mkdir -p temp; cd temp
 
-  ../.build/llvm-obj/bin/opt \
+  cp ../crellvm-tests/csmith/ll-files/00001.ll 00001.ll
+
+  # opt generates proof for every mem2reg transformation
+  ../.build/llvm-obj/bin/opt -O2 \
     -crellvm-passwhitelist=mem2reg \
-    ../crellvm-tests/csmith/ll-files/00001.ll \
+    00001.ll \
     -o 00001.tgt.ll -S
 
-  ../ocaml/main.native $SRC $TGT $PROOF
+  # Now source/target/proof triples are generated
+  # ex. 00001.crc32_8bytes.74.src.bc / 00001.crc32_8bytes.74.tgt.bc / 00001.crc32_8bytes.74.hint.json
+  #     for the `crc32_8bytes` function's 74th mem2reg translation
+
+  # Run the ERHL validator for a translation
+  ../ocaml/main.native 00001.crc32_8bytes.74.src.bc 00001.crc32_8bytes.74.tgt.bc 00001.crc32_8bytes.74.hint.json
+
+  # `Validation succeeded.` should be printed
   ```
 
 
