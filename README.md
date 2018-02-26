@@ -6,7 +6,7 @@
 Crellvm is divided roughly into the following four parts:
 
 - LLVM in `lib/llvm` (https://github.com/snu-sf/crellvm-llvm)
-- Vellvm in `lib/vellvm` (https://github.com/snu-sf/vellvm-legacy)
+- Vellvm in `lib/vellvm` (https://github.com/snu-sf/crellvm-vellvm)
 - ERHL proof checker in [ocaml/](ocaml/) and [coq/def/](coq/def/)
 - Formal verification of the ERHL proof checker in [coq/proof/](coq/proof/)
 
