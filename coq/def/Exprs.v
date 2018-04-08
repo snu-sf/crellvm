@@ -218,6 +218,15 @@ Proof.
   - i. subst. apply IdTFacts.compare_refl.
 Qed.
 
+Definition bop_canTrap (b0: bop): bool :=
+  match b0 with
+  | bop_udiv => true
+  | bop_sdiv => true
+  | bop_urem => true
+  | bop_srem => true
+  | _ => false
+  end
+.
 
 Module Value.
   Definition t := value.
@@ -227,7 +236,17 @@ Module Value.
       | value_id i => Some i
       | value_const _ => None
     end.
+
+  Definition canTrap (v: t): bool :=
+    match v with
+    | value_const (const_bop b _ _) =>
+      bop_canTrap b
+    | _ => false
+    end
+  .
+
 End Value.
+
 
 
 Module ValueT <: AltUsual.
@@ -311,6 +330,14 @@ Module ValueT <: AltUsual.
     match body with
     | ValueT.id i => if(IdT.eq_dec from i) then to else body
     | _ => body
+    end
+  .
+
+  Definition canTrap (v: t): bool :=
+    match v with
+    | ValueT.const (const_bop b _ _) =>
+      bop_canTrap b
+    | _ => false
     end
   .
 

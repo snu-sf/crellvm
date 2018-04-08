@@ -697,16 +697,6 @@ Definition postcond_phinodes
   | _, _ => None
   end.
 
-Definition may_produce_UB (b0: bop): bool :=
-  match b0 with
-  | bop_udiv => true
-  | bop_sdiv => true
-  | bop_urem => true
-  | bop_srem => true
-  | _ => false
-  end
-.
-
 Definition is_known_total (e0: Expr.t): bool :=
   match e0 with
   | Expr.value (ValueT.id idt0) => true
@@ -722,7 +712,7 @@ Definition is_known_total (e0: Expr.t): bool :=
 Definition get_dangerous_denom (e0: Expr.t): option ValueT.t :=
   match e0 with
   | Expr.bop b1 sz1 va1 vb1 =>
-    if may_produce_UB b1
+    if bop_canTrap b1
     then Some vb1
     else None
   | _ => None
@@ -850,14 +840,14 @@ Definition postcond_cmd_inject_event
   | _, insn_malloc _ _ _ _ => false
 
   | insn_bop _ b0 sz0 va0 vb0, insn_bop _ b1 sz1 va1 vb1 =>
-    if (may_produce_UB b1)
+    if (bop_canTrap b1)
     then (bop_dec b0 b1)
            && (sz_dec sz0 sz1)
            && (Assertion.inject_value inv (ValueT.lift Tag.physical va0) (ValueT.lift Tag.physical va1))
            && (Assertion.inject_value inv (ValueT.lift Tag.physical vb0) (ValueT.lift Tag.physical vb1))
     else true
   | _, insn_bop _ b1 sz1 va1 vb1 =>
-    if (may_produce_UB b1)
+    if (bop_canTrap b1)
     then (is_known_total_nonzero (ValueT.lift Tag.physical vb1))
          || (is_known_nonzero_by_src inv vb1)
          || (is_known_nonzero_unary inv.(Assertion.src) vb1)
