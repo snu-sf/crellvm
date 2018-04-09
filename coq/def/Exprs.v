@@ -218,6 +218,16 @@ Proof.
   - i. subst. apply IdTFacts.compare_refl.
 Qed.
 
+Definition denom_canTrap (d:const) : bool :=
+  match d with
+  | const_int s i => (* mod size? *)
+    match INTEGER.to_Z i with
+    | Z0 => true
+    | _ => false
+    end
+  | _ => true
+  end.
+
 Definition bop_canTrap (b0: bop): bool :=
   match b0 with
   | bop_udiv => true
@@ -227,6 +237,25 @@ Definition bop_canTrap (b0: bop): bool :=
   | _ => false
   end
 .
+
+Fixpoint const_canTrap (c:const): bool :=
+  match c with
+  | const_arr _ cl => existsb const_canTrap cl
+  | const_struct _ cl => existsb const_canTrap cl
+  | const_truncop _ c1 _ => const_canTrap c1
+  | const_extop _ c1 _ => const_canTrap c1
+  | const_castop _ c1 _ => const_canTrap c1
+  | const_gep _ c1 cl => const_canTrap c1 || existsb const_canTrap cl
+  | const_select c1 c2 c3 => const_canTrap c1 || const_canTrap c2 || const_canTrap c3
+  | const_icmp _ c1 c2 => const_canTrap c1 || const_canTrap c2
+  | const_fcmp _ c1 c2 => const_canTrap c1 || const_canTrap c2
+  | const_extractvalue c1 cl => const_canTrap c1 || existsb const_canTrap cl
+  | const_insertvalue c1 c2 cl => const_canTrap c1 || const_canTrap c2 || existsb const_canTrap cl
+  | const_bop b c1 c2 => const_canTrap c1 || const_canTrap c2 || (bop_canTrap b && denom_canTrap c2)
+  | const_fbop _ c1 c2 => const_canTrap c1 || const_canTrap c2
+  | _ => false
+  end.
+
 
 Module Value.
   Definition t := value.
@@ -239,8 +268,8 @@ Module Value.
 
   Definition canTrap (v: t): bool :=
     match v with
-    | value_const (const_bop b _ _) =>
-      bop_canTrap b
+    | value_const c =>
+      const_canTrap c
     | _ => false
     end
   .
@@ -335,8 +364,8 @@ Module ValueT <: AltUsual.
 
   Definition canTrap (v: t): bool :=
     match v with
-    | ValueT.const (const_bop b _ _) =>
-      bop_canTrap b
+    | ValueT.const c =>
+      const_canTrap c
     | _ => false
     end
   .
