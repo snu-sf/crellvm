@@ -660,23 +660,43 @@ module AutoGVNModule = struct
                           | _ -> acc)
                       | _ -> acc) ([], ld) (ExprPairSet.elements ld)
 
+    let check_imply_false_one (ep:ExprPair.t) : Infrule.t option =
+      match ep with
+      | (Expr.Coq_value (ValueT.Coq_const (Coq_const_int (sz1, b1))),
+         Expr.Coq_value (ValueT.Coq_const (Coq_const_int (sz2, b2))))
+           when (sz1 = sz2) && (sz1 = 1) && not (INTEGER.dec b1 b2) ->
+         Some (Coq_implies_false (Coq_const_int (sz1, b1), Coq_const_int (sz1, b2)))
+      | _, _ -> None
+
+    let rec check_imply_false (ld:ExprPair.t list) : Infrule.t option =
+      match ld with
+      | [] -> None
+      | ep::ld_t -> (match check_imply_false_one ep with
+                     | Some infr -> Some infr
+                     | None -> check_imply_false ld_t)
+
+         
+
     let auto1 : Auto.t1 =
       fun b inv inv_g ->
       if b then ([], inv_g) else
-      let infrs_md = AutoRedMdOldHelper.gen_infrs inv inv_g in
+        match check_imply_false (ExprPairSet.elements inv.Assertion.src.Assertion.lessdef) with
+        | Some infr -> ([infr], inv_g)
+        | _ ->
+           let infrs_md = AutoRedMdOldHelper.gen_infrs inv inv_g in
 
-      let intros = IntroGhostHelper.find_to_intro inv inv_g in
-      let infrs_intros = IntroGhostHelper.gen_infrule intros in
-      let intros_e = List.map (fun (x, e) -> (Expr.Coq_value (ValueT.Coq_id (Tag.Coq_ghost, x)), e)) intros in
-      let augment_ld f ld = List.fold_left (fun ld1 ep -> ExprPairSet.add (f ep) ld1) ld intros_e in
-      let inv = Assertion.update_src (Assertion.update_lessdef (augment_ld (fun ep -> (snd ep, fst ep)))) inv in
-      let inv = Assertion.update_tgt (Assertion.update_lessdef (augment_ld (fun ep -> ep))) inv in
-      let infrs_ii, ld_t = infrules_icmp inv.Assertion.tgt.Assertion.lessdef in
-      let inv = Assertion.update_tgt (Assertion.update_lessdef (fun _ -> ld_t)) inv in
-      let infrs_load = process_load inv.Assertion.tgt.Assertion.lessdef inv_g.Assertion.tgt.Assertion.lessdef in
+           let intros = IntroGhostHelper.find_to_intro inv inv_g in
+           let infrs_intros = IntroGhostHelper.gen_infrule intros in
+           let intros_e = List.map (fun (x, e) -> (Expr.Coq_value (ValueT.Coq_id (Tag.Coq_ghost, x)), e)) intros in
+           let augment_ld f ld = List.fold_left (fun ld1 ep -> ExprPairSet.add (f ep) ld1) ld intros_e in
+           let inv = Assertion.update_src (Assertion.update_lessdef (augment_ld (fun ep -> (snd ep, fst ep)))) inv in
+           let inv = Assertion.update_tgt (Assertion.update_lessdef (augment_ld (fun ep -> ep))) inv in
+           let infrs_ii, ld_t = infrules_icmp inv.Assertion.tgt.Assertion.lessdef in
+           let inv = Assertion.update_tgt (Assertion.update_lessdef (fun _ -> ld_t)) inv in
+           let infrs_load = process_load inv.Assertion.tgt.Assertion.lessdef inv_g.Assertion.tgt.Assertion.lessdef in
 
-      let (infrs_st, inv_g) = AutoSubstTransHelper.auto1 b inv inv_g in
-      (infrs_md@infrs_intros@infrs_ii@infrs_load@infrs_st, inv_g)
+           let (infrs_st, inv_g) = AutoSubstTransHelper.auto1 b inv inv_g in
+           (infrs_md@infrs_intros@infrs_ii@infrs_load@infrs_st, inv_g)
   end
 
 (** Framework 1. AutoNextAssertion *)
