@@ -218,16 +218,6 @@ Proof.
   - i. subst. apply IdTFacts.compare_refl.
 Qed.
 
-Definition denom_canTrap (d:const) : bool :=
-  match d with
-  | const_int s i => (* mod size? *)
-    match INTEGER.to_Z i with
-    | Z0 => true
-    | _ => false
-    end
-  | _ => true
-  end.
-
 Definition bop_canTrap (b0: bop): bool :=
   match b0 with
   | bop_udiv => true
@@ -251,7 +241,7 @@ Fixpoint const_canTrap (c:const): bool :=
   | const_fcmp _ c1 c2 => const_canTrap c1 || const_canTrap c2
   | const_extractvalue c1 cl => const_canTrap c1 || existsb const_canTrap cl
   | const_insertvalue c1 c2 cl => const_canTrap c1 || const_canTrap c2 || existsb const_canTrap cl
-  | const_bop b c1 c2 => const_canTrap c1 || const_canTrap c2 || (bop_canTrap b && denom_canTrap c2)
+  | const_bop b c1 c2 => const_canTrap c1 || const_canTrap c2 || bop_canTrap b
   | const_fbop _ c1 c2 => const_canTrap c1 || const_canTrap c2
   | _ => false
   end.
