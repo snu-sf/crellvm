@@ -860,8 +860,10 @@ Definition apply_infrule
     then {{ inv0 +++src (Expr.load ptr ptrty a) >= (Expr.value v2) }}
     else apply_fail tt
 (* need to check that v's type is equal to ty and v do not invoke undefined behavior, but cannot  *)
-  | Infrule.lessthan_undef ty v => 
-    {{ inv0 +++src (Expr.value (ValueT.const (const_undef ty))) >= (Expr.value v) }}
+  | Infrule.lessthan_undef ty v =>
+    if ValueT.canTrap v
+    then apply_fail tt
+    else {{ inv0 +++src (Expr.value (ValueT.const (const_undef ty))) >= (Expr.value v) }}
   | Infrule.lessthan_undef_tgt ty v => 
     {{ inv0 +++tgt (Expr.value (ValueT.const (const_undef ty))) >= (Expr.value v) }}
   | Infrule.sdiv_sub_srem z b a x y s =>
