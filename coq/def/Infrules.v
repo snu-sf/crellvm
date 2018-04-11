@@ -389,6 +389,18 @@ Definition reduce_maydiff_lessdef (inv0:Assertion.t): Assertion.t :=
 (*   let inv1 := reduce_maydiff_non_physical_old inv0 in *)
 (*   reduce_maydiff_lessdef_old inv1. *)
 
+Definition exclusive_bool (c1 c2:const) : bool :=
+  match c1, c2 with
+  | const_int sz1 i1, const_int sz2 i2 =>
+    Size.dec sz1 Size.One && Size.dec sz2 Size.One &&
+             match INTEGER.to_Z i1, INTEGER.to_Z i2 with
+             | 0, -1 => true
+             | -1, 0 => true
+             | _, _ => false
+             end
+  | _, _ => false
+  end.
+
 Definition apply_infrule
            (m_src m_tgt:module)
            (infrule:Infrule.t)
@@ -1776,7 +1788,7 @@ Definition apply_infrule
     else apply_fail tt
   | Infrule.implies_false c1 c2 =>
     if $$ inv0 |-src (Expr.value c1) >= (Expr.value c2) $$
-       && (negb (const_eqb c1 c2))
+       && exclusive_bool c1 c2
     then {{inv0 +++src fst (Assertion.false_encoding) >=
            snd (Assertion.false_encoding)}}
     else apply_fail tt
