@@ -1,4 +1,4 @@
-PROOF_BUILD_DIR=.proof_build
+PROOF_BUILD_DIR=.build-proof
 
 rsync -av \
     --include '*/' \
